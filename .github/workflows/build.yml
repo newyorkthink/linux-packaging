@@ -1,5 +1,6 @@
 # 统一 AppImage 构建入口；所有构建产物发布到固定 latest Release。
 name: Build AppImages
+
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch' &&
       (inputs.script_to_build == 'all' && 'Build all AppImages' || format('Build {0}', inputs.script_to_build)) ||
@@ -56,7 +57,7 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          SELECTED_SCRIPT: ${{ github.event.inputs.script_to_build }}
+          SELECTED_SCRIPT: ${{ inputs.script_to_build }}
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
         run: |
@@ -74,19 +75,22 @@ jobs:
           add_script() {
             local script="$1"
             local existing
+
             for existing in "${SCRIPTS_TO_BUILD[@]}"; do
               if [[ "$existing" == "$script" ]]; then
                 return 0
               fi
             done
+
             SCRIPTS_TO_BUILD+=("$script")
           }
 
           get_antigravity_ide_upstream() {
             local page
+
             page="$(curl -sSfL --compressed 'https://antigravity.google/download')"
             ANTIGRAVITY_IDE_UPSTREAM="$(
-              grep -oP 'https://edgedl\.me\.gvt1\.com[^"'"']+linux-x64/Antigravity%20IDE\.tar\.gz' <<< "$page" |
+              grep -oP "https://edgedl\.me\.gvt1\.com[^\"']+linux-x64/Antigravity%20IDE\.tar\.gz" <<< "$page" |
                 sed -n '1p'
             )"
 
@@ -98,9 +102,10 @@ jobs:
 
           get_antigravity_upstream() {
             local page
+
             page="$(curl -sSfL --compressed 'https://antigravity.google/download')"
             ANTIGRAVITY_UPSTREAM="$(
-              grep -oP 'https://storage\.googleapis\.com/antigravity-public/antigravity-hub/[^"'"']+/linux-x64/Antigravity\.tar\.gz' <<< "$page" |
+              grep -oP "https://storage\.googleapis\.com/antigravity-public/antigravity-hub/[^\"']+/linux-x64/Antigravity\.tar\.gz" <<< "$page" |
                 sed -n '1p'
             )"
 
@@ -157,9 +162,11 @@ jobs:
                 if grep -Eq '^antigravity-ide/' <<< "$CHANGED_FILES"; then
                   add_script "$ANTIGRAVITY_IDE_SCRIPT"
                 fi
+
                 if grep -Eq '^antigravity/' <<< "$CHANGED_FILES"; then
                   add_script "$ANTIGRAVITY_SCRIPT"
                 fi
+
                 if grep -Eq '^cc-switch/' <<< "$CHANGED_FILES"; then
                   add_script "$CC_SWITCH_SCRIPT"
                 fi
@@ -177,9 +184,11 @@ jobs:
               if [[ -f antigravity-ide/.upstream-url ]]; then
                 SAVED_ANTIGRAVITY_IDE_UPSTREAM="$(cat antigravity-ide/.upstream-url)"
               fi
+
               if [[ -f antigravity/.upstream-url ]]; then
                 SAVED_ANTIGRAVITY_UPSTREAM="$(cat antigravity/.upstream-url)"
               fi
+
               if [[ -f cc-switch/.upstream-version ]]; then
                 SAVED_CC_SWITCH_UPSTREAM="$(cat cc-switch/.upstream-version)"
               fi
@@ -187,9 +196,11 @@ jobs:
               if [[ "$ANTIGRAVITY_IDE_UPSTREAM" != "$SAVED_ANTIGRAVITY_IDE_UPSTREAM" ]]; then
                 add_script "$ANTIGRAVITY_IDE_SCRIPT"
               fi
+
               if [[ "$ANTIGRAVITY_UPSTREAM" != "$SAVED_ANTIGRAVITY_UPSTREAM" ]]; then
                 add_script "$ANTIGRAVITY_SCRIPT"
               fi
+
               if [[ "$CC_SWITCH_UPSTREAM" != "$SAVED_CC_SWITCH_UPSTREAM" ]]; then
                 add_script "$CC_SWITCH_SCRIPT"
               fi
@@ -261,6 +272,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           useradd -m -G wheel builduser || true
           echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
           su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"
@@ -272,6 +284,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
 
       - name: Build and publish AppImages
@@ -284,31 +297,10 @@ jobs:
           CC_SWITCH_UPSTREAM: ${{ needs.plan.outputs.cc_switch_upstream }}
         run: |
           set -euo pipefail
+
           git config --global --add safe.directory '*'
 
-          RELEASE_TAG='latest'
-          RELEASE_TITLE='最新'
-          RELEASE_NOTES='最新'
-
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh api --method PATCH \
-              "repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG" \
-              -f sha="$GITHUB_SHA" \
-              -F force=true >/dev/null
-
-            gh release edit "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "$RELEASE_TITLE" \
-              --notes "$RELEASE_NOTES" \
-              --latest
-          else
-            gh release create "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" \
-              --title "$RELEASE_TITLE" \
-              --notes "$RELEASE_NOTES" \
-              --latest
-          fi
+          APPIMAGES=()
 
           for script in $SCRIPTS_TO_BUILD; do
             case "$script" in
@@ -334,17 +326,47 @@ jobs:
             esac
 
             echo "::group::正在构建 $script"
+
             (
               cd "$SCRIPT_DIR"
               chmod +x "$SCRIPT_NAME"
               "./$SCRIPT_NAME"
             )
-            test -s "$APPIMAGE_PATH"
 
-            gh release upload "$RELEASE_TAG" "$APPIMAGE_PATH" \
+            test -s "$APPIMAGE_PATH"
+            APPIMAGES+=("$APPIMAGE_PATH")
+
+            echo '::endgroup::'
+          done
+
+          RELEASE_TAG='latest'
+          RELEASE_TITLE='最新'
+          RELEASE_NOTES='最新'
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG" \
+              -f sha="$GITHUB_SHA" \
+              -F force=true >/dev/null
+
+            gh release edit "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$RELEASE_TITLE" \
+              --notes "$RELEASE_NOTES" \
+              --latest
+          else
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TITLE" \
+              --notes "$RELEASE_NOTES" \
+              --latest
+          fi
+
+          for appimage in "${APPIMAGES[@]}"; do
+            gh release upload "$RELEASE_TAG" "$appimage" \
               --repo "$GITHUB_REPOSITORY" \
               --clobber
-            echo '::endgroup::'
           done
 
           STATE_FILES=()
@@ -376,9 +398,11 @@ jobs:
 
             for attempt in 1 2 3 4 5; do
               git pull --rebase origin "$GITHUB_REF_NAME"
+
               if git push origin "HEAD:$GITHUB_REF_NAME"; then
                 exit 0
               fi
+
               sleep 2
             done
 
