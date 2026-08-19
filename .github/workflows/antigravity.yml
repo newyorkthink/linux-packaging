@@ -1,0 +1,169 @@
+name: Build Antigravity
+
+on:
+  push:
+    paths:
+      - 'antigravity/**'
+      - '.github/workflows/antigravity.yml'
+  schedule:
+    - cron: '27 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: antigravity-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.upstream.outputs.should_build }}
+      current: ${{ steps.upstream.outputs.current }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check upstream
+        id: upstream
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          farch=x64
+          current="$(
+            curl -sSfL --compressed 'https://antigravity.google/download' |
+              grep -oP "https://storage\.googleapis\.com/antigravity-public/antigravity-hub/[^\"']+/linux-${farch}/Antigravity\.tar\.gz" |
+              head -1
+          )"
+
+          if [[ -z "$current" ]]; then
+            echo '无法获取 Antigravity 当前上游下载地址。' >&2
+            exit 1
+          fi
+
+          saved=''
+          if [[ -f antigravity/.upstream-url ]]; then
+            saved="$(cat antigravity/.upstream-url)"
+          fi
+
+          should_build=true
+          if [[ "$EVENT_NAME" == 'schedule' && "$current" == "$saved" ]]; then
+            should_build=false
+          fi
+
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"
+          echo '#!/bin/bash' > /usr/local/bin/yay
+          echo 'sudo -HE -u builduser /usr/bin/yay "$@"' >> /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build Antigravity
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd antigravity
+          chmod +x build_antigravity.sh
+          ./build_antigravity.sh
+          test -s dist/antigravity.AppImage
+
+      - name: Publish to Latest Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if ! gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title '最新' \
+              --notes '最新' \
+              --latest || true
+          fi
+
+          gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null
+
+          gh api --method PATCH \
+            "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" \
+            -f sha="$GITHUB_SHA" \
+            -F force=true >/dev/null
+
+          gh release edit latest \
+            --repo "$GITHUB_REPOSITORY" \
+            --title '最新' \
+            --notes '最新' \
+            --latest
+
+          gh release upload latest antigravity/dist/antigravity.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Save upstream state
+        shell: bash
+        env:
+          CURRENT_UPSTREAM: ${{ needs.check.outputs.current }}
+        run: |
+          set -euo pipefail
+
+          state_file='antigravity/.upstream-url'
+          printf '%s\n' "$CURRENT_UPSTREAM" > "$state_file"
+
+          if [[ -z "$(git status --porcelain -- "$state_file")" ]]; then
+            exit 0
+          fi
+
+          git config --global --add safe.directory '*'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$state_file"
+          git commit -m 'chore: update Antigravity upstream state'
+
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo '无法写回 Antigravity 上游状态。' >&2
+          exit 1
