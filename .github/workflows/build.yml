@@ -1,4 +1,4 @@
-# 统一 AppImage 构建入口；三个项目使用独立 Job 并行构建，产物发布到固定 latest Release。
+# 统一 AppImage 构建入口；四个项目使用独立 Job 并行构建，产物发布到固定 latest Release。
 name: Build AppImages
 
 run-name: >-
@@ -15,6 +15,7 @@ on:
       - 'antigravity-ide/**'
       - 'antigravity/**'
       - 'cc-switch/**'
+      - 'zen/**'
       - '.github/workflows/build.yml'
   schedule:
     - cron: '17 */6 * * *'
@@ -30,6 +31,7 @@ on:
           - antigravity-ide/build_antigravity-ide.sh
           - antigravity/build_antigravity.sh
           - cc-switch/build_cc-switch.sh
+          - zen/build_zen.sh
 
 permissions:
   contents: write
@@ -43,9 +45,11 @@ jobs:
       antigravity_ide: ${{ steps.plan.outputs.antigravity_ide }}
       antigravity: ${{ steps.plan.outputs.antigravity }}
       cc_switch: ${{ steps.plan.outputs.cc_switch }}
+      zen: ${{ steps.plan.outputs.zen }}
       antigravity_ide_upstream: ${{ steps.plan.outputs.antigravity_ide_upstream }}
       antigravity_upstream: ${{ steps.plan.outputs.antigravity_upstream }}
       cc_switch_upstream: ${{ steps.plan.outputs.cc_switch_upstream }}
+      zen_upstream: ${{ steps.plan.outputs.zen_upstream }}
 
     steps:
       - name: Checkout Code
@@ -61,159 +65,104 @@ jobs:
           SELECTED_SCRIPT: ${{ inputs.script_to_build }}
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
           ANTIGRAVITY_IDE_SCRIPT='antigravity-ide/build_antigravity-ide.sh'
           ANTIGRAVITY_SCRIPT='antigravity/build_antigravity.sh'
           CC_SWITCH_SCRIPT='cc-switch/build_cc-switch.sh'
+          ZEN_SCRIPT='zen/build_zen.sh'
           STATE_DIR='.github/upstream-state'
 
           ANTIGRAVITY_IDE_BUILD=false
           ANTIGRAVITY_BUILD=false
           CC_SWITCH_BUILD=false
+          ZEN_BUILD=false
 
           ANTIGRAVITY_IDE_UPSTREAM=''
           ANTIGRAVITY_UPSTREAM=''
           CC_SWITCH_UPSTREAM=''
+          ZEN_UPSTREAM=''
 
           get_antigravity_ide_upstream() {
             local page
             page="$(curl -sSfL --compressed 'https://antigravity.google/download')"
-
-            ANTIGRAVITY_IDE_UPSTREAM="$(
-              grep -oP "https://edgedl\.me\.gvt1\.com[^\"']+linux-x64/Antigravity%20IDE\.tar\.gz" <<< "$page" |
-                sed -n '1p'
-            )"
-
-            if [[ -z "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
-              echo '无法获取 Antigravity IDE 当前上游下载地址。' >&2
-              exit 1
-            fi
+            ANTIGRAVITY_IDE_UPSTREAM="$(grep -oP "https://edgedl\.me\.gvt1\.com[^\"']+linux-x64/Antigravity%20IDE\.tar\.gz" <<< "$page" | sed -n '1p')"
+            [[ -n "$ANTIGRAVITY_IDE_UPSTREAM" ]] || { echo '无法获取 Antigravity IDE 当前上游下载地址。' >&2; exit 1; }
           }
 
           get_antigravity_upstream() {
             local page
             page="$(curl -sSfL --compressed 'https://antigravity.google/download')"
-
-            ANTIGRAVITY_UPSTREAM="$(
-              grep -oP "https://storage\.googleapis\.com/antigravity-public/antigravity-hub/[^\"']+/linux-x64/Antigravity\.tar\.gz" <<< "$page" |
-                sed -n '1p'
-            )"
-
-            if [[ -z "$ANTIGRAVITY_UPSTREAM" ]]; then
-              echo '无法获取 Antigravity 当前上游下载地址。' >&2
-              exit 1
-            fi
+            ANTIGRAVITY_UPSTREAM="$(grep -oP "https://storage\.googleapis\.com/antigravity-public/antigravity-hub/[^\"']+/linux-x64/Antigravity\.tar\.gz" <<< "$page" | sed -n '1p')"
+            [[ -n "$ANTIGRAVITY_UPSTREAM" ]] || { echo '无法获取 Antigravity 当前上游下载地址。' >&2; exit 1; }
           }
 
           get_cc_switch_upstream() {
-            CC_SWITCH_UPSTREAM="$(
-              curl -sSfL 'https://aur.archlinux.org/rpc/v5/info?arg[]=cc-switch-bin' |
-                python3 -c 'import json,sys; data=json.load(sys.stdin); results=data.get("results", []); print(results[0]["Version"] if results else "")'
-            )"
+            CC_SWITCH_UPSTREAM="$(curl -sSfL 'https://aur.archlinux.org/rpc/v5/info?arg[]=cc-switch-bin' | python3 -c 'import json,sys; data=json.load(sys.stdin); results=data.get("results", []); print(results[0]["Version"] if results else "")')"
+            [[ -n "$CC_SWITCH_UPSTREAM" ]] || { echo '无法获取 cc-switch-bin 当前 AUR 版本。' >&2; exit 1; }
+          }
 
-            if [[ -z "$CC_SWITCH_UPSTREAM" ]]; then
-              echo '无法获取 cc-switch-bin 当前 AUR 版本。' >&2
-              exit 1
-            fi
+          get_zen_upstream() {
+            ZEN_UPSTREAM="$(curl -sSfL -H 'Accept: application/vnd.github+json' -H "Authorization: Bearer $GH_TOKEN" 'https://api.github.com/repos/irbis-sh/zen-desktop/releases/latest' | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tag_name", ""))')"
+            [[ -n "$ZEN_UPSTREAM" ]] || { echo '无法获取 Zen 当前官方版本。' >&2; exit 1; }
           }
 
           select_all() {
             ANTIGRAVITY_IDE_BUILD=true
             ANTIGRAVITY_BUILD=true
             CC_SWITCH_BUILD=true
+            ZEN_BUILD=true
           }
 
           case "$EVENT_NAME" in
             workflow_dispatch)
               case "${SELECTED_SCRIPT:-all}" in
-                all)
-                  select_all
-                  ;;
-                "$ANTIGRAVITY_IDE_SCRIPT")
-                  ANTIGRAVITY_IDE_BUILD=true
-                  ;;
-                "$ANTIGRAVITY_SCRIPT")
-                  ANTIGRAVITY_BUILD=true
-                  ;;
-                "$CC_SWITCH_SCRIPT")
-                  CC_SWITCH_BUILD=true
-                  ;;
-                *)
-                  echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2
-                  exit 1
-                  ;;
+                all) select_all ;;
+                "$ANTIGRAVITY_IDE_SCRIPT") ANTIGRAVITY_IDE_BUILD=true ;;
+                "$ANTIGRAVITY_SCRIPT") ANTIGRAVITY_BUILD=true ;;
+                "$CC_SWITCH_SCRIPT") CC_SWITCH_BUILD=true ;;
+                "$ZEN_SCRIPT") ZEN_BUILD=true ;;
+                *) echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2; exit 1 ;;
               esac
               ;;
-
             push)
-              if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]] ||
-                 ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+              if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
                 CHANGED_FILES="$(git show --pretty='' --name-only "$AFTER_SHA")"
               else
                 CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"
               fi
-
               printf '%s\n' "$CHANGED_FILES"
-
               if grep -Fxq '.github/workflows/build.yml' <<< "$CHANGED_FILES"; then
                 select_all
               else
-                if grep -Eq '^antigravity-ide/' <<< "$CHANGED_FILES"; then
-                  ANTIGRAVITY_IDE_BUILD=true
-                fi
-
-                if grep -Eq '^antigravity/' <<< "$CHANGED_FILES"; then
-                  ANTIGRAVITY_BUILD=true
-                fi
-
-                if grep -Eq '^cc-switch/' <<< "$CHANGED_FILES"; then
-                  CC_SWITCH_BUILD=true
-                fi
+                grep -Eq '^antigravity-ide/' <<< "$CHANGED_FILES" && ANTIGRAVITY_IDE_BUILD=true || true
+                grep -Eq '^antigravity/' <<< "$CHANGED_FILES" && ANTIGRAVITY_BUILD=true || true
+                grep -Eq '^cc-switch/' <<< "$CHANGED_FILES" && CC_SWITCH_BUILD=true || true
+                grep -Eq '^zen/' <<< "$CHANGED_FILES" && ZEN_BUILD=true || true
               fi
               ;;
-
             schedule)
               get_antigravity_ide_upstream
               get_antigravity_upstream
               get_cc_switch_upstream
-
-              if [[ "$ANTIGRAVITY_IDE_UPSTREAM" != "$(cat "$STATE_DIR/antigravity-ide.url" 2>/dev/null || true)" ]]; then
-                ANTIGRAVITY_IDE_BUILD=true
-              fi
-
-              if [[ "$ANTIGRAVITY_UPSTREAM" != "$(cat "$STATE_DIR/antigravity.url" 2>/dev/null || true)" ]]; then
-                ANTIGRAVITY_BUILD=true
-              fi
-
-              if [[ "$CC_SWITCH_UPSTREAM" != "$(cat "$STATE_DIR/cc-switch.version" 2>/dev/null || true)" ]]; then
-                CC_SWITCH_BUILD=true
-              fi
+              get_zen_upstream
+              [[ "$ANTIGRAVITY_IDE_UPSTREAM" != "$(cat "$STATE_DIR/antigravity-ide.url" 2>/dev/null || true)" ]] && ANTIGRAVITY_IDE_BUILD=true || true
+              [[ "$ANTIGRAVITY_UPSTREAM" != "$(cat "$STATE_DIR/antigravity.url" 2>/dev/null || true)" ]] && ANTIGRAVITY_BUILD=true || true
+              [[ "$CC_SWITCH_UPSTREAM" != "$(cat "$STATE_DIR/cc-switch.version" 2>/dev/null || true)" ]] && CC_SWITCH_BUILD=true || true
+              [[ "$ZEN_UPSTREAM" != "$(cat "$STATE_DIR/zen.version" 2>/dev/null || true)" ]] && ZEN_BUILD=true || true
               ;;
-
-            *)
-              echo "不支持的触发事件：$EVENT_NAME" >&2
-              exit 1
-              ;;
+            *) echo "不支持的触发事件：$EVENT_NAME" >&2; exit 1 ;;
           esac
 
-          if [[ "$ANTIGRAVITY_IDE_BUILD" == true && -z "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
-            get_antigravity_ide_upstream
-          fi
-
-          if [[ "$ANTIGRAVITY_BUILD" == true && -z "$ANTIGRAVITY_UPSTREAM" ]]; then
-            get_antigravity_upstream
-          fi
-
-          if [[ "$CC_SWITCH_BUILD" == true && -z "$CC_SWITCH_UPSTREAM" ]]; then
-            get_cc_switch_upstream
-          fi
+          [[ "$ANTIGRAVITY_IDE_BUILD" != true || -n "$ANTIGRAVITY_IDE_UPSTREAM" ]] || get_antigravity_ide_upstream
+          [[ "$ANTIGRAVITY_BUILD" != true || -n "$ANTIGRAVITY_UPSTREAM" ]] || get_antigravity_upstream
+          [[ "$CC_SWITCH_BUILD" != true || -n "$CC_SWITCH_UPSTREAM" ]] || get_cc_switch_upstream
+          [[ "$ZEN_BUILD" != true || -n "$ZEN_UPSTREAM" ]] || get_zen_upstream
 
           SHOULD_BUILD=false
-          if [[ "$ANTIGRAVITY_IDE_BUILD" == true ||
-                "$ANTIGRAVITY_BUILD" == true ||
-                "$CC_SWITCH_BUILD" == true ]]; then
+          if [[ "$ANTIGRAVITY_IDE_BUILD" == true || "$ANTIGRAVITY_BUILD" == true || "$CC_SWITCH_BUILD" == true || "$ZEN_BUILD" == true ]]; then
             SHOULD_BUILD=true
           fi
 
@@ -221,9 +170,11 @@ jobs:
           echo "antigravity_ide=$ANTIGRAVITY_IDE_BUILD" >> "$GITHUB_OUTPUT"
           echo "antigravity=$ANTIGRAVITY_BUILD" >> "$GITHUB_OUTPUT"
           echo "cc_switch=$CC_SWITCH_BUILD" >> "$GITHUB_OUTPUT"
+          echo "zen=$ZEN_BUILD" >> "$GITHUB_OUTPUT"
           echo "antigravity_ide_upstream=$ANTIGRAVITY_IDE_UPSTREAM" >> "$GITHUB_OUTPUT"
           echo "antigravity_upstream=$ANTIGRAVITY_UPSTREAM" >> "$GITHUB_OUTPUT"
           echo "cc_switch_upstream=$CC_SWITCH_UPSTREAM" >> "$GITHUB_OUTPUT"
+          echo "zen_upstream=$ZEN_UPSTREAM" >> "$GITHUB_OUTPUT"
 
       - name: Create or Update Latest Release
         if: steps.plan.outputs.should_build == 'true'
@@ -232,27 +183,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           RELEASE_TAG='latest'
-
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh api --method PATCH \
-              "repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG" \
-              -f sha="$GITHUB_SHA" \
-              -F force=true >/dev/null
-
-            gh release edit "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title 'latest' \
-              --notes 'latest' \
-              --latest
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG" -f sha="$GITHUB_SHA" -F force=true >/dev/null
+            gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title 'latest' --notes 'latest' --latest
           else
-            gh release create "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" \
-              --title 'latest' \
-              --notes 'latest' \
-              --latest
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title 'latest' --notes 'latest' --latest
           fi
 
   build_antigravity_ide:
@@ -265,19 +201,15 @@ jobs:
     permissions:
       contents: write
       packages: read
-
     steps:
       - name: Pre-install Git
         run: pacman -Sy --noconfirm git
-
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Preparing Container
-        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
-
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d
       - name: Setup Yay for Root execution
         shell: bash
         run: |
@@ -288,13 +220,9 @@ jobs:
           echo '#!/bin/bash' > /usr/local/bin/yay
           echo 'sudo -HE -u builduser /usr/bin/yay "$@"' >> /usr/local/bin/yay
           chmod +x /usr/local/bin/yay
-
       - name: Install GitHub CLI
         shell: bash
-        run: |
-          set -euo pipefail
-          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
-
+        run: sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
       - name: Build and publish Antigravity IDE
         shell: bash
         env:
@@ -305,10 +233,7 @@ jobs:
           chmod +x build_antigravity-ide.sh
           ./build_antigravity-ide.sh
           test -s dist/antigravity-ide.AppImage
-
-          gh release upload latest dist/antigravity-ide.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
+          gh release upload latest dist/antigravity-ide.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
   build_antigravity:
     name: Build Antigravity
@@ -320,19 +245,15 @@ jobs:
     permissions:
       contents: write
       packages: read
-
     steps:
       - name: Pre-install Git
         run: pacman -Sy --noconfirm git
-
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Preparing Container
-        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
-
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d
       - name: Setup Yay for Root execution
         shell: bash
         run: |
@@ -343,13 +264,9 @@ jobs:
           echo '#!/bin/bash' > /usr/local/bin/yay
           echo 'sudo -HE -u builduser /usr/bin/yay "$@"' >> /usr/local/bin/yay
           chmod +x /usr/local/bin/yay
-
       - name: Install GitHub CLI
         shell: bash
-        run: |
-          set -euo pipefail
-          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
-
+        run: sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
       - name: Build and publish Antigravity
         shell: bash
         env:
@@ -360,10 +277,7 @@ jobs:
           chmod +x build_antigravity.sh
           ./build_antigravity.sh
           test -s dist/antigravity.AppImage
-
-          gh release upload latest dist/antigravity.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
+          gh release upload latest dist/antigravity.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
   build_cc_switch:
     name: Build CC Switch
@@ -375,19 +289,15 @@ jobs:
     permissions:
       contents: write
       packages: read
-
     steps:
       - name: Pre-install Git
         run: pacman -Sy --noconfirm git
-
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Preparing Container
-        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
-
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d
       - name: Setup Yay for Root execution
         shell: bash
         run: |
@@ -398,13 +308,9 @@ jobs:
           echo '#!/bin/bash' > /usr/local/bin/yay
           echo 'sudo -HE -u builduser /usr/bin/yay "$@"' >> /usr/local/bin/yay
           chmod +x /usr/local/bin/yay
-
       - name: Install GitHub CLI
         shell: bash
-        run: |
-          set -euo pipefail
-          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
-
+        run: sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
       - name: Build and publish CC Switch
         shell: bash
         env:
@@ -415,10 +321,51 @@ jobs:
           chmod +x build_cc-switch.sh
           ./build_cc-switch.sh
           test -s dist/cc-switch.AppImage
+          gh release upload latest dist/cc-switch.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
-          gh release upload latest dist/cc-switch.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
+  build_zen:
+    name: Build Zen
+    needs: plan
+    if: needs.plan.outputs.zen == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"
+          echo '#!/bin/bash' > /usr/local/bin/yay
+          echo 'sudo -HE -u builduser /usr/bin/yay "$@"' >> /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+      - name: Install GitHub CLI
+        shell: bash
+        run: sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+      - name: Build and publish Zen
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd zen
+          chmod +x build_zen.sh
+          ./build_zen.sh
+          test -s dist/zen.AppImage
+          gh release upload latest dist/zen.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
   update_upstream_state:
     name: Update Upstream State
@@ -427,72 +374,69 @@ jobs:
       - build_antigravity_ide
       - build_antigravity
       - build_cc_switch
+      - build_zen
     if: >-
       always() &&
       needs.plan.outputs.should_build == 'true' &&
       (needs.plan.outputs.antigravity_ide != 'true' || needs.build_antigravity_ide.result == 'success') &&
       (needs.plan.outputs.antigravity != 'true' || needs.build_antigravity.result == 'success') &&
-      (needs.plan.outputs.cc_switch != 'true' || needs.build_cc_switch.result == 'success')
+      (needs.plan.outputs.cc_switch != 'true' || needs.build_cc_switch.result == 'success') &&
+      (needs.plan.outputs.zen != 'true' || needs.build_zen.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Update upstream state
         shell: bash
         env:
           ANTIGRAVITY_IDE_BUILD: ${{ needs.plan.outputs.antigravity_ide }}
           ANTIGRAVITY_BUILD: ${{ needs.plan.outputs.antigravity }}
           CC_SWITCH_BUILD: ${{ needs.plan.outputs.cc_switch }}
+          ZEN_BUILD: ${{ needs.plan.outputs.zen }}
           ANTIGRAVITY_IDE_UPSTREAM: ${{ needs.plan.outputs.antigravity_ide_upstream }}
           ANTIGRAVITY_UPSTREAM: ${{ needs.plan.outputs.antigravity_upstream }}
           CC_SWITCH_UPSTREAM: ${{ needs.plan.outputs.cc_switch_upstream }}
+          ZEN_UPSTREAM: ${{ needs.plan.outputs.zen_upstream }}
         run: |
           set -euo pipefail
-
-          write_state() {
-            mkdir -p .github/upstream-state
-
-            if [[ "$ANTIGRAVITY_IDE_BUILD" == 'true' && -n "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
-              printf '%s\n' "$ANTIGRAVITY_IDE_UPSTREAM" > .github/upstream-state/antigravity-ide.url
-            fi
-
-            if [[ "$ANTIGRAVITY_BUILD" == 'true' && -n "$ANTIGRAVITY_UPSTREAM" ]]; then
-              printf '%s\n' "$ANTIGRAVITY_UPSTREAM" > .github/upstream-state/antigravity.url
-            fi
-
-            if [[ "$CC_SWITCH_BUILD" == 'true' && -n "$CC_SWITCH_UPSTREAM" ]]; then
-              printf '%s\n' "$CC_SWITCH_UPSTREAM" > .github/upstream-state/cc-switch.version
-            fi
-          }
-
+          STATE_DIR='.github/upstream-state'
+          STATE_FILES=()
+          mkdir -p "$STATE_DIR"
+          if [[ "$ANTIGRAVITY_IDE_BUILD" == 'true' && -n "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
+            printf '%s\n' "$ANTIGRAVITY_IDE_UPSTREAM" > "$STATE_DIR/antigravity-ide.url"
+            STATE_FILES+=("$STATE_DIR/antigravity-ide.url")
+          fi
+          if [[ "$ANTIGRAVITY_BUILD" == 'true' && -n "$ANTIGRAVITY_UPSTREAM" ]]; then
+            printf '%s\n' "$ANTIGRAVITY_UPSTREAM" > "$STATE_DIR/antigravity.url"
+            STATE_FILES+=("$STATE_DIR/antigravity.url")
+          fi
+          if [[ "$CC_SWITCH_BUILD" == 'true' && -n "$CC_SWITCH_UPSTREAM" ]]; then
+            printf '%s\n' "$CC_SWITCH_UPSTREAM" > "$STATE_DIR/cc-switch.version"
+            STATE_FILES+=("$STATE_DIR/cc-switch.version")
+          fi
+          if [[ "$ZEN_BUILD" == 'true' && -n "$ZEN_UPSTREAM" ]]; then
+            printf '%s\n' "$ZEN_UPSTREAM" > "$STATE_DIR/zen.version"
+            STATE_FILES+=("$STATE_DIR/zen.version")
+          fi
+          if [[ ${#STATE_FILES[@]} -eq 0 ]] || [[ -z "$(git status --porcelain -- "${STATE_FILES[@]}")" ]]; then
+            echo '上游状态没有变化。'
+            exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-
+          git add -- "${STATE_FILES[@]}"
+          git commit -m 'chore: update upstream state'
           for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            git checkout -B main origin/main
-            write_state
-
-            if [[ -z "$(git status --porcelain -- .github/upstream-state)" ]]; then
-              echo '上游状态没有变化。'
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then
               exit 0
             fi
-
-            git add .github/upstream-state
-            git commit -m 'chore: update upstream state'
-
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-
+            git fetch origin "$GITHUB_REF_NAME"
+            git rebase "origin/$GITHUB_REF_NAME"
             sleep 2
           done
-
           echo '无法写回上游状态。' >&2
           exit 1
