@@ -27,15 +27,21 @@ jobs:
 
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           workflow = Path('.github/workflows/build.yml')
           text = workflow.read_text()
-          block = "\nconcurrency:\n  group: build-appimages-${{ github.ref }}\n  cancel-in-progress: false\n"
+          updated, count = re.subn(
+              r'\nconcurrency:\n(?:  .*\n)+(?=\njobs:)',
+              '\n',
+              text,
+              count=1,
+          )
 
-          if block not in text:
+          if count != 1:
               raise SystemExit('concurrency block not found')
 
-          workflow.write_text(text.replace(block, '\n', 1))
+          workflow.write_text(updated)
           Path('.github/workflows/remove-concurrency.yml').unlink()
           PY
 
