@@ -340,8 +340,8 @@ jobs:
           done
 
           RELEASE_TAG='latest'
-          RELEASE_TITLE='最新'
-          RELEASE_NOTES='最新'
+          RELEASE_TITLE='latest'
+          RELEASE_NOTES='latest'
 
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh api --method PATCH \
