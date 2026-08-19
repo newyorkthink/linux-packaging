@@ -66,6 +66,7 @@ jobs:
           ANTIGRAVITY_IDE_SCRIPT='antigravity-ide/build_antigravity-ide.sh'
           ANTIGRAVITY_SCRIPT='antigravity/build_antigravity.sh'
           CC_SWITCH_SCRIPT='cc-switch/build_cc-switch.sh'
+          STATE_DIR='.github/upstream-state'
 
           SCRIPTS_TO_BUILD=()
           ANTIGRAVITY_IDE_UPSTREAM=''
@@ -181,16 +182,16 @@ jobs:
               SAVED_ANTIGRAVITY_UPSTREAM=''
               SAVED_CC_SWITCH_UPSTREAM=''
 
-              if [[ -f antigravity-ide/.upstream-url ]]; then
-                SAVED_ANTIGRAVITY_IDE_UPSTREAM="$(cat antigravity-ide/.upstream-url)"
+              if [[ -f "$STATE_DIR/antigravity-ide.url" ]]; then
+                SAVED_ANTIGRAVITY_IDE_UPSTREAM="$(cat "$STATE_DIR/antigravity-ide.url")"
               fi
 
-              if [[ -f antigravity/.upstream-url ]]; then
-                SAVED_ANTIGRAVITY_UPSTREAM="$(cat antigravity/.upstream-url)"
+              if [[ -f "$STATE_DIR/antigravity.url" ]]; then
+                SAVED_ANTIGRAVITY_UPSTREAM="$(cat "$STATE_DIR/antigravity.url")"
               fi
 
-              if [[ -f cc-switch/.upstream-version ]]; then
-                SAVED_CC_SWITCH_UPSTREAM="$(cat cc-switch/.upstream-version)"
+              if [[ -f "$STATE_DIR/cc-switch.version" ]]; then
+                SAVED_CC_SWITCH_UPSTREAM="$(cat "$STATE_DIR/cc-switch.version")"
               fi
 
               if [[ "$ANTIGRAVITY_IDE_UPSTREAM" != "$SAVED_ANTIGRAVITY_IDE_UPSTREAM" ]]; then
@@ -369,24 +370,26 @@ jobs:
               --clobber
           done
 
+          STATE_DIR='.github/upstream-state'
           STATE_FILES=()
+          mkdir -p "$STATE_DIR"
 
           if [[ " $SCRIPTS_TO_BUILD " == *' antigravity-ide/build_antigravity-ide.sh '* ]] &&
              [[ -n "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
-            printf '%s\n' "$ANTIGRAVITY_IDE_UPSTREAM" > antigravity-ide/.upstream-url
-            STATE_FILES+=('antigravity-ide/.upstream-url')
+            printf '%s\n' "$ANTIGRAVITY_IDE_UPSTREAM" > "$STATE_DIR/antigravity-ide.url"
+            STATE_FILES+=("$STATE_DIR/antigravity-ide.url")
           fi
 
           if [[ " $SCRIPTS_TO_BUILD " == *' antigravity/build_antigravity.sh '* ]] &&
              [[ -n "$ANTIGRAVITY_UPSTREAM" ]]; then
-            printf '%s\n' "$ANTIGRAVITY_UPSTREAM" > antigravity/.upstream-url
-            STATE_FILES+=('antigravity/.upstream-url')
+            printf '%s\n' "$ANTIGRAVITY_UPSTREAM" > "$STATE_DIR/antigravity.url"
+            STATE_FILES+=("$STATE_DIR/antigravity.url")
           fi
 
           if [[ " $SCRIPTS_TO_BUILD " == *' cc-switch/build_cc-switch.sh '* ]] &&
              [[ -n "$CC_SWITCH_UPSTREAM" ]]; then
-            printf '%s\n' "$CC_SWITCH_UPSTREAM" > cc-switch/.upstream-version
-            STATE_FILES+=('cc-switch/.upstream-version')
+            printf '%s\n' "$CC_SWITCH_UPSTREAM" > "$STATE_DIR/cc-switch.version"
+            STATE_FILES+=("$STATE_DIR/cc-switch.version")
           fi
 
           if [[ ${#STATE_FILES[@]} -gt 0 ]] &&
@@ -396,13 +399,17 @@ jobs:
             git add -- "${STATE_FILES[@]}"
             git commit -m 'chore: update upstream state'
 
-            for attempt in 1 2 3 4 5; do
-              git pull --rebase origin "$GITHUB_REF_NAME"
+            # 构建会产生 AppDir、dist 等临时改动；发布完成后清理，避免 rebase 因工作区不干净而失败。
+            git reset --hard HEAD
+            git clean -fdx
 
+            for attempt in 1 2 3 4 5; do
               if git push origin "HEAD:$GITHUB_REF_NAME"; then
                 exit 0
               fi
 
+              git fetch origin "$GITHUB_REF_NAME"
+              git rebase "origin/$GITHUB_REF_NAME"
               sleep 2
             done
 
