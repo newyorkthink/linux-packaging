@@ -1,0 +1,45 @@
+name: Remove workflow concurrency guard
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/remove-concurrency.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove concurrency guard
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/build.yml')
+          text = workflow.read_text()
+          block = "\nconcurrency:\n  group: build-appimages-${{ github.ref }}\n  cancel-in-progress: false\n"
+
+          if block not in text:
+              raise SystemExit('concurrency block not found')
+
+          workflow.write_text(text.replace(block, '\n', 1))
+          Path('.github/workflows/remove-concurrency.yml').unlink()
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/build.yml .github/workflows/remove-concurrency.yml
+          git commit -m 'fix: allow workflow runs to start immediately'
+          git push origin HEAD:main
