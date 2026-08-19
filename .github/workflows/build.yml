@@ -1,55 +1,158 @@
-# 统一 AppImage 构建入口；四个项目使用独立 Job 并行构建，产物发布到固定 latest Release。
-name: Build AppImages
-
-run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' &&
-      (inputs.script_to_build == 'all' && 'Build all AppImages' || format('Build {0}', inputs.script_to_build)) ||
-      github.event_name == 'schedule' && 'Check upstream updates' ||
-      github.event.head_commit.message }}
+name: Migrate Selected AppImages Into Build Workflow
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'antigravity-ide/**'
-      - 'antigravity/**'
-      - 'cc-switch/**'
-      - 'zen/**'
       - '.github/workflows/build.yml'
-  schedule:
-    - cron: '17 */6 * * *'
-  workflow_dispatch:
-    inputs:
-      script_to_build:
-        description: '选择要构建的脚本（选择 all 构建全部）'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - antigravity-ide/build_antigravity-ide.sh
-          - antigravity/build_antigravity.sh
-          - cc-switch/build_cc-switch.sh
-          - zen/build_zen.sh
 
 permissions:
   contents: write
 
 jobs:
-  plan:
-    name: Plan
+  migrate:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clone source repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/anylinux_appimage
+          git clone --depth=1 https://github.com/newyorkthink/anylinux_appimage.git /tmp/anylinux_appimage
+
+      - name: Audit and copy selected projects
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC=/tmp/anylinux_appimage
+          cd "$SRC"
+
+          SELECTED=(
+            build_copyq.sh
+            build_flameshot.sh
+            build_goldendict-ng.sh
+            build_htop.sh
+            build_i3wm.sh
+            build_keepassxc.sh
+            build_kitty.sh
+            build_mpv.sh
+            build_nvtop.sh
+            build_ripdrag.sh
+            build_smplayer.sh
+            build_sunshine.sh
+            alacritty
+            Keyviz
+            freerdp
+            newsboat
+            remmina
+          )
+
+          SECRET_RE='-----BEGIN (RSA|EC|OPENSSH|DSA) PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{30,}|xox[baprs]-[0-9A-Za-z-]{10,}'
+          if grep -RInE --binary-files=without-match -- "$SECRET_RE" "${SELECTED[@]}"; then
+            echo '检测到疑似密钥或访问令牌，停止迁移。' >&2
+            exit 1
+          fi
+
+          cd "$GITHUB_WORKSPACE"
+
+          for file in \
+            build_copyq.sh \
+            build_flameshot.sh \
+            build_goldendict-ng.sh \
+            build_htop.sh \
+            build_i3wm.sh \
+            build_keepassxc.sh \
+            build_kitty.sh \
+            build_mpv.sh \
+            build_nvtop.sh \
+            build_ripdrag.sh \
+            build_smplayer.sh \
+            build_sunshine.sh
+          do
+            cp -a "$SRC/$file" "./$file"
+          done
+
+          for dir in alacritty Keyviz freerdp newsboat remmina; do
+            rm -rf "./$dir"
+            cp -a "$SRC/$dir" "./$dir"
+          done
+
+          git diff --quiet HEAD -- antigravity-ide antigravity cc-switch
+
+      - name: Restore and integrate permanent build workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git show HEAD^:.github/workflows/build.yml > .github/workflows/build.yml
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/build.yml')
+          text = path.read_text()
+
+          def replace_once(old, new, label):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              "      - 'zen/**'\n      - '.github/workflows/build.yml'",
+              "      - 'zen/**'\n      - 'build_*.sh'\n      - 'alacritty/**'\n      - 'Keyviz/**'\n      - 'freerdp/**'\n      - 'newsboat/**'\n      - 'remmina/**'\n      - '.github/workflows/build.yml'",
+              'push paths',
+          )
+
+          replace_once(
+              "  schedule:\n    - cron: '17 */6 * * *'",
+              "  schedule:\n    - cron: '17 */6 * * *'\n    - cron: '0 16 2 * *'",
+              'schedule',
+          )
+
+          replace_once(
+              "          - zen/build_zen.sh",
+              "          - zen/build_zen.sh\n          - build_copyq.sh\n          - build_flameshot.sh\n          - build_goldendict-ng.sh\n          - build_htop.sh\n          - build_i3wm.sh\n          - build_keepassxc.sh\n          - build_kitty.sh\n          - build_mpv.sh\n          - build_nvtop.sh\n          - build_ripdrag.sh\n          - build_smplayer.sh\n          - build_sunshine.sh\n          - alacritty/build_alacritty_linuxdeploy.sh\n          - Keyviz/build_keyviz.sh\n          - freerdp/build_freerdp.sh\n          - newsboat/build_newsboat.sh\n          - remmina/build_remmina.sh",
+              'dispatch choices',
+          )
+
+          replace_once(
+              '''                "$ZEN_SCRIPT")
+                  ZEN_BUILD=true
+                  ;;
+                *)''',
+              '''                "$ZEN_SCRIPT")
+                  ZEN_BUILD=true
+                  ;;
+                build_copyq.sh|build_flameshot.sh|build_goldendict-ng.sh|build_htop.sh|build_i3wm.sh|build_keepassxc.sh|build_kitty.sh|build_mpv.sh|build_nvtop.sh|build_ripdrag.sh|build_smplayer.sh|build_sunshine.sh|alacritty/build_alacritty_linuxdeploy.sh|Keyviz/build_keyviz.sh|freerdp/build_freerdp.sh|newsboat/build_newsboat.sh|remmina/build_remmina.sh)
+                  # 迁移项目由 migrated_plan 处理；这里保持现有四个项目不构建。
+                  ;;
+                *)''',
+              'existing dispatch no-op',
+          )
+
+          migrated_plan = r'''
+  migrated_plan:
+    name: Plan Migrated Apps
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
-      should_build: ${{ steps.plan.outputs.should_build }}
-      antigravity_ide: ${{ steps.plan.outputs.antigravity_ide }}
-      antigravity: ${{ steps.plan.outputs.antigravity }}
-      cc_switch: ${{ steps.plan.outputs.cc_switch }}
-      zen: ${{ steps.plan.outputs.zen }}
-      antigravity_ide_upstream: ${{ steps.plan.outputs.antigravity_ide_upstream }}
-      antigravity_upstream: ${{ steps.plan.outputs.antigravity_upstream }}
-      cc_switch_upstream: ${{ steps.plan.outputs.cc_switch_upstream }}
-      zen_upstream: ${{ steps.plan.outputs.zen_upstream }}
+      arch_build: @@ steps.plan.outputs.arch_build }}
+      arch_matrix: @@ steps.plan.outputs.arch_matrix }}
+      alacritty: @@ steps.plan.outputs.alacritty }}
+      remmina: @@ steps.plan.outputs.remmina }}
+      keyviz: @@ steps.plan.outputs.keyviz }}
+      should_build: @@ steps.plan.outputs.should_build }}
 
     steps:
       - name: Checkout Code
@@ -57,115 +160,78 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Select build jobs
+      - name: Select migrated build jobs
         id: plan
         shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          SELECTED_SCRIPT: ${{ inputs.script_to_build }}
-          BEFORE_SHA: ${{ github.event.before }}
-          AFTER_SHA: ${{ github.sha }}
-          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: @@ github.event_name }}
+          SELECTED_SCRIPT: @@ inputs.script_to_build }}
+          BEFORE_SHA: @@ github.event.before }}
+          AFTER_SHA: @@ github.sha }}
+          SCHEDULE_EXPR: @@ github.event.schedule }}
         run: |
           set -euo pipefail
 
-          ANTIGRAVITY_IDE_SCRIPT='antigravity-ide/build_antigravity-ide.sh'
-          ANTIGRAVITY_SCRIPT='antigravity/build_antigravity.sh'
-          CC_SWITCH_SCRIPT='cc-switch/build_cc-switch.sh'
-          ZEN_SCRIPT='zen/build_zen.sh'
-          STATE_DIR='.github/upstream-state'
+          ARCH_SCRIPTS=(
+            build_copyq.sh
+            build_flameshot.sh
+            build_goldendict-ng.sh
+            build_htop.sh
+            build_i3wm.sh
+            build_keepassxc.sh
+            build_kitty.sh
+            build_mpv.sh
+            build_nvtop.sh
+            build_ripdrag.sh
+            build_smplayer.sh
+            build_sunshine.sh
+            freerdp/build_freerdp.sh
+            newsboat/build_newsboat.sh
+          )
 
-          ANTIGRAVITY_IDE_BUILD=false
-          ANTIGRAVITY_BUILD=false
-          CC_SWITCH_BUILD=false
-          ZEN_BUILD=false
+          ARCH_SELECTED=()
+          ALACRITTY_BUILD=false
+          REMMINA_BUILD=false
+          KEYVIZ_BUILD=false
 
-          ANTIGRAVITY_IDE_UPSTREAM=''
-          ANTIGRAVITY_UPSTREAM=''
-          CC_SWITCH_UPSTREAM=''
-          ZEN_UPSTREAM=''
-
-          get_antigravity_ide_upstream() {
-            local page
-            page="$(curl -sSfL --compressed 'https://antigravity.google/download')"
-
-            ANTIGRAVITY_IDE_UPSTREAM="$(
-              grep -oP "https://edgedl\.me\.gvt1\.com[^\"']+linux-x64/Antigravity%20IDE\.tar\.gz" <<< "$page" |
-                sed -n '1p'
-            )"
-
-            if [[ -z "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
-              echo '无法获取 Antigravity IDE 当前上游下载地址。' >&2
-              exit 1
-            fi
+          add_arch() {
+            local wanted="$1"
+            local item
+            for item in "${ARCH_SELECTED[@]:-}"; do
+              [[ "$item" == "$wanted" ]] && return 0
+            done
+            ARCH_SELECTED+=("$wanted")
           }
 
-          get_antigravity_upstream() {
-            local page
-            page="$(curl -sSfL --compressed 'https://antigravity.google/download')"
-
-            ANTIGRAVITY_UPSTREAM="$(
-              grep -oP "https://storage\.googleapis\.com/antigravity-public/antigravity-hub/[^\"']+/linux-x64/Antigravity\.tar\.gz" <<< "$page" |
-                sed -n '1p'
-            )"
-
-            if [[ -z "$ANTIGRAVITY_UPSTREAM" ]]; then
-              echo '无法获取 Antigravity 当前上游下载地址。' >&2
-              exit 1
-            fi
-          }
-
-          get_cc_switch_upstream() {
-            CC_SWITCH_UPSTREAM="$(
-              curl -sSfL 'https://aur.archlinux.org/rpc/v5/info?arg[]=cc-switch-bin' |
-                python3 -c 'import json,sys; data=json.load(sys.stdin); results=data.get("results", []); print(results[0]["Version"] if results else "")'
-            )"
-
-            if [[ -z "$CC_SWITCH_UPSTREAM" ]]; then
-              echo '无法获取 cc-switch-bin 当前 AUR 版本。' >&2
-              exit 1
-            fi
-          }
-
-          get_zen_upstream() {
-            ZEN_UPSTREAM="$(
-              curl -sSfL \
-                -H 'Accept: application/vnd.github+json' \
-                -H "Authorization: Bearer $GH_TOKEN" \
-                'https://api.github.com/repos/irbis-sh/zen-desktop/releases/latest' |
-                python3 -c 'import json,sys; print(json.load(sys.stdin).get("tag_name", ""))'
-            )"
-
-            if [[ -z "$ZEN_UPSTREAM" ]]; then
-              echo '无法获取 Zen 当前官方版本。' >&2
-              exit 1
-            fi
-          }
-
-          select_all() {
-            ANTIGRAVITY_IDE_BUILD=true
-            ANTIGRAVITY_BUILD=true
-            CC_SWITCH_BUILD=true
-            ZEN_BUILD=true
+          select_all_migrated() {
+            local script
+            for script in "${ARCH_SCRIPTS[@]}"; do
+              add_arch "$script"
+            done
+            ALACRITTY_BUILD=true
+            REMMINA_BUILD=true
+            KEYVIZ_BUILD=true
           }
 
           case "$EVENT_NAME" in
             workflow_dispatch)
               case "${SELECTED_SCRIPT:-all}" in
                 all)
-                  select_all
+                  select_all_migrated
                   ;;
-                "$ANTIGRAVITY_IDE_SCRIPT")
-                  ANTIGRAVITY_IDE_BUILD=true
+                build_copyq.sh|build_flameshot.sh|build_goldendict-ng.sh|build_htop.sh|build_i3wm.sh|build_keepassxc.sh|build_kitty.sh|build_mpv.sh|build_nvtop.sh|build_ripdrag.sh|build_smplayer.sh|build_sunshine.sh|freerdp/build_freerdp.sh|newsboat/build_newsboat.sh)
+                  add_arch "$SELECTED_SCRIPT"
                   ;;
-                "$ANTIGRAVITY_SCRIPT")
-                  ANTIGRAVITY_BUILD=true
+                alacritty/build_alacritty_linuxdeploy.sh)
+                  ALACRITTY_BUILD=true
                   ;;
-                "$CC_SWITCH_SCRIPT")
-                  CC_SWITCH_BUILD=true
+                remmina/build_remmina.sh)
+                  REMMINA_BUILD=true
                   ;;
-                "$ZEN_SCRIPT")
-                  ZEN_BUILD=true
+                Keyviz/build_keyviz.sh)
+                  KEYVIZ_BUILD=true
+                  ;;
+                antigravity-ide/build_antigravity-ide.sh|antigravity/build_antigravity.sh|cc-switch/build_cc-switch.sh|zen/build_zen.sh)
                   ;;
                 *)
                   echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2
@@ -182,128 +248,86 @@ jobs:
                 CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"
               fi
 
-              printf '%s\n' "$CHANGED_FILES"
-
               if grep -Fxq '.github/workflows/build.yml' <<< "$CHANGED_FILES"; then
-                select_all
+                select_all_migrated
               else
-                if grep -Eq '^antigravity-ide/' <<< "$CHANGED_FILES"; then
-                  ANTIGRAVITY_IDE_BUILD=true
-                fi
+                for script in "${ARCH_SCRIPTS[@]}"; do
+                  case "$script" in
+                    freerdp/build_freerdp.sh)
+                      grep -Eq '^freerdp/' <<< "$CHANGED_FILES" && add_arch "$script" || true
+                      ;;
+                    newsboat/build_newsboat.sh)
+                      grep -Eq '^newsboat/' <<< "$CHANGED_FILES" && add_arch "$script" || true
+                      ;;
+                    *)
+                      grep -Fxq "$script" <<< "$CHANGED_FILES" && add_arch "$script" || true
+                      ;;
+                  esac
+                done
 
-                if grep -Eq '^antigravity/' <<< "$CHANGED_FILES"; then
-                  ANTIGRAVITY_BUILD=true
-                fi
-
-                if grep -Eq '^cc-switch/' <<< "$CHANGED_FILES"; then
-                  CC_SWITCH_BUILD=true
-                fi
-
-                if grep -Eq '^zen/' <<< "$CHANGED_FILES"; then
-                  ZEN_BUILD=true
-                fi
+                grep -Eq '^alacritty/' <<< "$CHANGED_FILES" && ALACRITTY_BUILD=true || true
+                grep -Eq '^remmina/' <<< "$CHANGED_FILES" && REMMINA_BUILD=true || true
+                grep -Eq '^Keyviz/' <<< "$CHANGED_FILES" && KEYVIZ_BUILD=true || true
               fi
               ;;
 
             schedule)
-              get_antigravity_ide_upstream
-              get_antigravity_upstream
-              get_cc_switch_upstream
-              get_zen_upstream
-
-              if [[ "$ANTIGRAVITY_IDE_UPSTREAM" != "$(cat "$STATE_DIR/antigravity-ide.url" 2>/dev/null || true)" ]]; then
-                ANTIGRAVITY_IDE_BUILD=true
+              if [[ "$SCHEDULE_EXPR" == '0 16 2 * *' ]]; then
+                select_all_migrated
               fi
-
-              if [[ "$ANTIGRAVITY_UPSTREAM" != "$(cat "$STATE_DIR/antigravity.url" 2>/dev/null || true)" ]]; then
-                ANTIGRAVITY_BUILD=true
-              fi
-
-              if [[ "$CC_SWITCH_UPSTREAM" != "$(cat "$STATE_DIR/cc-switch.version" 2>/dev/null || true)" ]]; then
-                CC_SWITCH_BUILD=true
-              fi
-
-              if [[ "$ZEN_UPSTREAM" != "$(cat "$STATE_DIR/zen.version" 2>/dev/null || true)" ]]; then
-                ZEN_BUILD=true
-              fi
-              ;;
-
-            *)
-              echo "不支持的触发事件：$EVENT_NAME" >&2
-              exit 1
               ;;
           esac
 
-          if [[ "$ANTIGRAVITY_IDE_BUILD" == true && -z "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
-            get_antigravity_ide_upstream
-          fi
-
-          if [[ "$ANTIGRAVITY_BUILD" == true && -z "$ANTIGRAVITY_UPSTREAM" ]]; then
-            get_antigravity_upstream
-          fi
-
-          if [[ "$CC_SWITCH_BUILD" == true && -z "$CC_SWITCH_UPSTREAM" ]]; then
-            get_cc_switch_upstream
-          fi
-
-          if [[ "$ZEN_BUILD" == true && -z "$ZEN_UPSTREAM" ]]; then
-            get_zen_upstream
+          ARCH_BUILD=false
+          ARCH_MATRIX='["__none__"]'
+          if (( ${#ARCH_SELECTED[@]} > 0 )); then
+            ARCH_BUILD=true
+            ARCH_MATRIX="$(printf '%s\n' "${ARCH_SELECTED[@]}" | python3 -c 'import json,sys; print(json.dumps([line.strip() for line in sys.stdin if line.strip()]))')"
           fi
 
           SHOULD_BUILD=false
-          if [[ "$ANTIGRAVITY_IDE_BUILD" == true ||
-                "$ANTIGRAVITY_BUILD" == true ||
-                "$CC_SWITCH_BUILD" == true ||
-                "$ZEN_BUILD" == true ]]; then
+          if [[ "$ARCH_BUILD" == true || "$ALACRITTY_BUILD" == true || "$REMMINA_BUILD" == true || "$KEYVIZ_BUILD" == true ]]; then
             SHOULD_BUILD=true
           fi
 
+          echo "arch_build=$ARCH_BUILD" >> "$GITHUB_OUTPUT"
+          echo "arch_matrix=$ARCH_MATRIX" >> "$GITHUB_OUTPUT"
+          echo "alacritty=$ALACRITTY_BUILD" >> "$GITHUB_OUTPUT"
+          echo "remmina=$REMMINA_BUILD" >> "$GITHUB_OUTPUT"
+          echo "keyviz=$KEYVIZ_BUILD" >> "$GITHUB_OUTPUT"
           echo "should_build=$SHOULD_BUILD" >> "$GITHUB_OUTPUT"
-          echo "antigravity_ide=$ANTIGRAVITY_IDE_BUILD" >> "$GITHUB_OUTPUT"
-          echo "antigravity=$ANTIGRAVITY_BUILD" >> "$GITHUB_OUTPUT"
-          echo "cc_switch=$CC_SWITCH_BUILD" >> "$GITHUB_OUTPUT"
-          echo "zen=$ZEN_BUILD" >> "$GITHUB_OUTPUT"
-          echo "antigravity_ide_upstream=$ANTIGRAVITY_IDE_UPSTREAM" >> "$GITHUB_OUTPUT"
-          echo "antigravity_upstream=$ANTIGRAVITY_UPSTREAM" >> "$GITHUB_OUTPUT"
-          echo "cc_switch_upstream=$CC_SWITCH_UPSTREAM" >> "$GITHUB_OUTPUT"
-          echo "zen_upstream=$ZEN_UPSTREAM" >> "$GITHUB_OUTPUT"
 
-      - name: Create or Update Latest Release
+      - name: Ensure Latest Release
         if: steps.plan.outputs.should_build == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: @@ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-
-          RELEASE_TAG='latest'
-
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh api --method PATCH \
-              "repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG" \
-              -f sha="$GITHUB_SHA" \
-              -F force=true >/dev/null
-
-            gh release edit "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title 'latest' \
-              --notes 'latest' \
-              --latest
-          else
-            gh release create "$RELEASE_TAG" \
+          if ! gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create latest \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
-              --title 'latest' \
-              --notes 'latest' \
+              --title latest \
+              --notes latest \
               --latest
           fi
 
-  build_antigravity_ide:
-    name: Build Antigravity IDE
-    needs: plan
-    if: needs.plan.outputs.antigravity_ide == 'true'
+'''
+          migrated_plan = migrated_plan.replace('@@', '${' + '{')
+          replace_once('\n  build_antigravity_ide:\n', '\n' + migrated_plan + '  build_antigravity_ide:\n', 'migrated plan')
+
+          migrated_jobs = r'''
+  build_migrated_arch:
+    name: Build @@ matrix.script }}
+    needs: migrated_plan
+    if: needs.migrated_plan.outputs.arch_build == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        script: @@ fromJSON(needs.migrated_plan.outputs.arch_matrix) }}
     container: ghcr.io/pkgforge-dev/archlinux:latest
     permissions:
       contents: write
@@ -327,280 +351,232 @@ jobs:
           set -euo pipefail
           useradd -m -G wheel builduser || true
           echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
-          su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"
-          echo '#!/bin/bash' > /usr/local/bin/yay
-          echo 'sudo -HE -u builduser /usr/bin/yay "$@"' >> /usr/local/bin/yay
-          chmod +x /usr/local/bin/yay
-
-      - name: Install GitHub CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
-
-      - name: Build and publish Antigravity IDE
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          cd antigravity-ide
-          chmod +x build_antigravity-ide.sh
-          ./build_antigravity-ide.sh
-          test -s dist/antigravity-ide.AppImage
-
-          gh release upload latest dist/antigravity-ide.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
-
-  build_antigravity:
-    name: Build Antigravity
-    needs: plan
-    if: needs.plan.outputs.antigravity == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    container: ghcr.io/pkgforge-dev/archlinux:latest
-    permissions:
-      contents: write
-      packages: read
-
-    steps:
-      - name: Pre-install Git
-        run: pacman -Sy --noconfirm git
-
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Preparing Container
-        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
-
-      - name: Setup Yay for Root execution
-        shell: bash
-        run: |
-          set -euo pipefail
-          useradd -m -G wheel builduser || true
-          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
-          su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"
-          echo '#!/bin/bash' > /usr/local/bin/yay
-          echo 'sudo -HE -u builduser /usr/bin/yay "$@"' >> /usr/local/bin/yay
-          chmod +x /usr/local/bin/yay
-
-      - name: Install GitHub CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
-
-      - name: Build and publish Antigravity
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          cd antigravity
-          chmod +x build_antigravity.sh
-          ./build_antigravity.sh
-          test -s dist/antigravity.AppImage
-
-          gh release upload latest dist/antigravity.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
-
-  build_cc_switch:
-    name: Build CC Switch
-    needs: plan
-    if: needs.plan.outputs.cc_switch == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    container: ghcr.io/pkgforge-dev/archlinux:latest
-    permissions:
-      contents: write
-      packages: read
-
-    steps:
-      - name: Pre-install Git
-        run: pacman -Sy --noconfirm git
-
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Preparing Container
-        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
-
-      - name: Setup Yay for Root execution
-        shell: bash
-        run: |
-          set -euo pipefail
-          useradd -m -G wheel builduser || true
-          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
-          su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"
-          echo '#!/bin/bash' > /usr/local/bin/yay
-          echo 'sudo -HE -u builduser /usr/bin/yay "$@"' >> /usr/local/bin/yay
-          chmod +x /usr/local/bin/yay
-
-      - name: Install GitHub CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
-
-      - name: Build and publish CC Switch
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          cd cc-switch
-          chmod +x build_cc-switch.sh
-          ./build_cc-switch.sh
-          test -s dist/cc-switch.AppImage
-
-          gh release upload latest dist/cc-switch.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
-
-  build_zen:
-    name: Build Zen
-    needs: plan
-    if: needs.plan.outputs.zen == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    container: ghcr.io/pkgforge-dev/archlinux:latest
-    permissions:
-      contents: write
-      packages: read
-
-    steps:
-      - name: Pre-install Git
-        run: pacman -Sy --noconfirm git
-
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Preparing Container
-        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
-
-      - name: Setup Yay for Root execution
-        shell: bash
-        run: |
-          set -euo pipefail
-          useradd -m -G wheel builduser || true
-          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
-          su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"
-          echo '#!/bin/bash' > /usr/local/bin/yay
-          echo 'sudo -HE -u builduser /usr/bin/yay "$@"' >> /usr/local/bin/yay
-          chmod +x /usr/local/bin/yay
-
-      - name: Install GitHub CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
-
-      - name: Build and publish Zen
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          cd zen
-          chmod +x build_zen.sh
-          ./build_zen.sh
-          test -s dist/zen.AppImage
-
-          gh release upload latest dist/zen.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
-
-  update_upstream_state:
-    name: Update Upstream State
-    needs:
-      - plan
-      - build_antigravity_ide
-      - build_antigravity
-      - build_cc_switch
-      - build_zen
-    if: >-
-      always() &&
-      needs.plan.outputs.should_build == 'true' &&
-      (needs.plan.outputs.antigravity_ide != 'true' || needs.build_antigravity_ide.result == 'success') &&
-      (needs.plan.outputs.antigravity != 'true' || needs.build_antigravity.result == 'success') &&
-      (needs.plan.outputs.cc_switch != 'true' || needs.build_cc_switch.result == 'success') &&
-      (needs.plan.outputs.zen != 'true' || needs.build_zen.result == 'success')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Update upstream state
-        shell: bash
-        env:
-          ANTIGRAVITY_IDE_BUILD: ${{ needs.plan.outputs.antigravity_ide }}
-          ANTIGRAVITY_BUILD: ${{ needs.plan.outputs.antigravity }}
-          CC_SWITCH_BUILD: ${{ needs.plan.outputs.cc_switch }}
-          ZEN_BUILD: ${{ needs.plan.outputs.zen }}
-          ANTIGRAVITY_IDE_UPSTREAM: ${{ needs.plan.outputs.antigravity_ide_upstream }}
-          ANTIGRAVITY_UPSTREAM: ${{ needs.plan.outputs.antigravity_upstream }}
-          CC_SWITCH_UPSTREAM: ${{ needs.plan.outputs.cc_switch_upstream }}
-          ZEN_UPSTREAM: ${{ needs.plan.outputs.zen_upstream }}
-        run: |
-          set -euo pipefail
-
-          STATE_DIR='.github/upstream-state'
-          STATE_FILES=()
-          mkdir -p "$STATE_DIR"
-
-          if [[ "$ANTIGRAVITY_IDE_BUILD" == 'true' && -n "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
-            printf '%s\n' "$ANTIGRAVITY_IDE_UPSTREAM" > "$STATE_DIR/antigravity-ide.url"
-            STATE_FILES+=("$STATE_DIR/antigravity-ide.url")
-          fi
-
-          if [[ "$ANTIGRAVITY_BUILD" == 'true' && -n "$ANTIGRAVITY_UPSTREAM" ]]; then
-            printf '%s\n' "$ANTIGRAVITY_UPSTREAM" > "$STATE_DIR/antigravity.url"
-            STATE_FILES+=("$STATE_DIR/antigravity.url")
-          fi
-
-          if [[ "$CC_SWITCH_BUILD" == 'true' && -n "$CC_SWITCH_UPSTREAM" ]]; then
-            printf '%s\n' "$CC_SWITCH_UPSTREAM" > "$STATE_DIR/cc-switch.version"
-            STATE_FILES+=("$STATE_DIR/cc-switch.version")
-          fi
-
-          if [[ "$ZEN_BUILD" == 'true' && -n "$ZEN_UPSTREAM" ]]; then
-            printf '%s\n' "$ZEN_UPSTREAM" > "$STATE_DIR/zen.version"
-            STATE_FILES+=("$STATE_DIR/zen.version")
-          fi
-
-          if [[ ${#STATE_FILES[@]} -eq 0 ]] ||
-             [[ -z "$(git status --porcelain -- "${STATE_FILES[@]}")" ]]; then
-            echo '上游状态没有变化。'
-            exit 0
-          fi
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- "${STATE_FILES[@]}"
-          git commit -m 'chore: update upstream state'
-
-          for attempt in 1 2 3 4 5; do
-            if git push origin "HEAD:$GITHUB_REF_NAME"; then
-              exit 0
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
             fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
 
-            git fetch origin "$GITHUB_REF_NAME"
-            git rebase "origin/$GITHUB_REF_NAME"
-            sleep 2
+      - name: Install GitHub CLI
+        run: pacman -Syu --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: @@ github.token }}
+          SCRIPT: @@ matrix.script }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory '*'
+          chmod +x "$SCRIPT"
+          "./$SCRIPT"
+
+          SCRIPT_DIR="$(dirname "$SCRIPT")"
+          ARTIFACT_DIR='dist'
+          if [[ "$SCRIPT_DIR" != '.' && -d "$SCRIPT_DIR/dist" ]]; then
+            ARTIFACT_DIR="$SCRIPT_DIR/dist"
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+          (( ${#ARTIFACTS[@]} > 0 )) || {
+            echo "构建完成，但 $ARTIFACT_DIR 中没有 AppImage。" >&2
+            exit 1
+          }
+
+          gh release upload latest "${ARTIFACTS[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_alacritty:
+    name: Build Alacritty
+    needs: migrated_plan
+    if: needs.migrated_plan.outputs.alacritty == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build and publish Alacritty
+        env:
+          GH_TOKEN: @@ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x alacritty/build_alacritty_linuxdeploy.sh
+          env -u GITHUB_ACTIONS ./alacritty/build_alacritty_linuxdeploy.sh
+          test -s alacritty/dist/alacritty.AppImage
+          gh release upload latest alacritty/dist/alacritty.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_remmina:
+    name: Build Remmina
+    needs: migrated_plan
+    if: needs.migrated_plan.outputs.remmina == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build Remmina
+        shell: bash
+        run: |
+          set +e
+          chmod +x remmina/build_remmina.sh
+          env -u GITHUB_ACTIONS ./remmina/build_remmina.sh > build-remmina.log 2>&1
+          status=$?
+          set -e
+          if [[ "$status" -ne 0 ]]; then
+            tail -n 300 build-remmina.log
+            exit "$status"
+          fi
+          tail -n 120 build-remmina.log
+
+      - name: Fix WebKitGTK runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fcitx5-frontend-gtk3 ibus-gtk3 libgtk-3-bin
+          chmod +x remmina/fix_remmina_webkit.sh
+          ./remmina/fix_remmina_webkit.sh remmina/dist/remmina.AppImage
+
+      - name: Publish Remmina
+        env:
+          GH_TOKEN: @@ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s remmina/dist/remmina.AppImage
+          gh release upload latest remmina/dist/remmina.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_keyviz:
+    name: Build Keyviz
+    needs: migrated_plan
+    if: needs.migrated_plan.outputs.keyviz == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing anylinux Container
+        uses: pkgforge-dev/anylinux-setup-action@0964f2258d6c93d1391359978dde081fd8b3c6af # v2
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Build Keyviz
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n Keyviz/build_keyviz.sh
+          bash Keyviz/build_keyviz.sh
+          test -s dist/keyviz.AppImage
+
+      - name: Publish Keyviz
+        env:
+          GH_TOKEN: @@ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pacman -S --noconfirm --needed github-cli
+          gh release upload latest dist/keyviz.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+'''
+          migrated_jobs = migrated_jobs.replace('@@', '${' + '{')
+          replace_once('\n  update_upstream_state:\n', '\n' + migrated_jobs + '  update_upstream_state:\n', 'migrated jobs')
+
+          path.write_text(text)
+          PY
+
+      - name: Validate final migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          from pathlib import Path
+          import yaml
+          data = yaml.safe_load(Path('.github/workflows/build.yml').read_text())
+          if not isinstance(data, dict) or 'jobs' not in data:
+              raise SystemExit('最终 build.yml 解析失败')
+          PY
+
+          git diff --check
+          git diff --quiet HEAD -- antigravity-ide antigravity cc-switch
+
+          test -s freerdp/freerdp.png
+          for path in \
+            build_copyq.sh build_flameshot.sh build_goldendict-ng.sh build_htop.sh \
+            build_i3wm.sh build_keepassxc.sh build_kitty.sh build_mpv.sh \
+            build_nvtop.sh build_ripdrag.sh build_smplayer.sh build_sunshine.sh \
+            alacritty/build_alacritty_linuxdeploy.sh Keyviz/build_keyviz.sh \
+            freerdp/build_freerdp.sh newsboat/build_newsboat.sh \
+            remmina/build_remmina.sh remmina/fix_remmina_webkit.sh
+          do
+            test -s "$path"
           done
 
-          echo '无法写回上游状态。' >&2
-          exit 1
+      - name: Commit completed migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- .github/workflows/build.yml \
+            build_copyq.sh build_flameshot.sh build_goldendict-ng.sh build_htop.sh \
+            build_i3wm.sh build_keepassxc.sh build_kitty.sh build_mpv.sh \
+            build_nvtop.sh build_ripdrag.sh build_smplayer.sh build_sunshine.sh \
+            alacritty Keyviz freerdp newsboat remmina
+          git commit -m 'migrate: import selected AppImage builds'
+          git push origin HEAD:main
