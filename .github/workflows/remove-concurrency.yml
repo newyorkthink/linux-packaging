@@ -1,3 +1,4 @@
+# 临时一次性清理工作流；执行后会自动删除自身。
 name: Remove workflow concurrency guard
 
 on:
