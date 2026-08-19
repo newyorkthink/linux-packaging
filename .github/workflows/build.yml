@@ -1,4 +1,4 @@
-# 统一 AppImage 构建入口；所有构建产物发布到固定 latest Release。
+# 统一 AppImage 构建入口；三个项目使用独立 Job 并行构建，产物发布到固定 latest Release。
 name: Build AppImages
 
 run-name: >-
@@ -9,6 +9,8 @@ run-name: >-
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'antigravity-ide/**'
       - 'antigravity/**'
@@ -32,12 +34,9 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: build-appimages-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   plan:
+    name: Plan
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.plan.outputs.should_build }}
@@ -70,28 +69,18 @@ jobs:
           CC_SWITCH_SCRIPT='cc-switch/build_cc-switch.sh'
           STATE_DIR='.github/upstream-state'
 
-          SCRIPTS_TO_BUILD=()
+          ANTIGRAVITY_IDE_BUILD=false
+          ANTIGRAVITY_BUILD=false
+          CC_SWITCH_BUILD=false
+
           ANTIGRAVITY_IDE_UPSTREAM=''
           ANTIGRAVITY_UPSTREAM=''
           CC_SWITCH_UPSTREAM=''
 
-          add_script() {
-            local script="$1"
-            local existing
-
-            for existing in "${SCRIPTS_TO_BUILD[@]}"; do
-              if [[ "$existing" == "$script" ]]; then
-                return 0
-              fi
-            done
-
-            SCRIPTS_TO_BUILD+=("$script")
-          }
-
           get_antigravity_ide_upstream() {
             local page
-
             page="$(curl -sSfL --compressed 'https://antigravity.google/download')"
+
             ANTIGRAVITY_IDE_UPSTREAM="$(
               grep -oP "https://edgedl\.me\.gvt1\.com[^\"']+linux-x64/Antigravity%20IDE\.tar\.gz" <<< "$page" |
                 sed -n '1p'
@@ -105,8 +94,8 @@ jobs:
 
           get_antigravity_upstream() {
             local page
-
             page="$(curl -sSfL --compressed 'https://antigravity.google/download')"
+
             ANTIGRAVITY_UPSTREAM="$(
               grep -oP "https://storage\.googleapis\.com/antigravity-public/antigravity-hub/[^\"']+/linux-x64/Antigravity\.tar\.gz" <<< "$page" |
                 sed -n '1p'
@@ -130,16 +119,26 @@ jobs:
             fi
           }
 
+          select_all() {
+            ANTIGRAVITY_IDE_BUILD=true
+            ANTIGRAVITY_BUILD=true
+            CC_SWITCH_BUILD=true
+          }
+
           case "$EVENT_NAME" in
             workflow_dispatch)
               case "${SELECTED_SCRIPT:-all}" in
                 all)
-                  add_script "$ANTIGRAVITY_IDE_SCRIPT"
-                  add_script "$ANTIGRAVITY_SCRIPT"
-                  add_script "$CC_SWITCH_SCRIPT"
+                  select_all
                   ;;
-                "$ANTIGRAVITY_IDE_SCRIPT"|"$ANTIGRAVITY_SCRIPT"|"$CC_SWITCH_SCRIPT")
-                  add_script "$SELECTED_SCRIPT"
+                "$ANTIGRAVITY_IDE_SCRIPT")
+                  ANTIGRAVITY_IDE_BUILD=true
+                  ;;
+                "$ANTIGRAVITY_SCRIPT")
+                  ANTIGRAVITY_BUILD=true
+                  ;;
+                "$CC_SWITCH_SCRIPT")
+                  CC_SWITCH_BUILD=true
                   ;;
                 *)
                   echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2
@@ -147,6 +146,7 @@ jobs:
                   ;;
               esac
               ;;
+
             push)
               if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]] ||
                  ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
@@ -158,108 +158,66 @@ jobs:
               printf '%s\n' "$CHANGED_FILES"
 
               if grep -Fxq '.github/workflows/build.yml' <<< "$CHANGED_FILES"; then
-                add_script "$ANTIGRAVITY_IDE_SCRIPT"
-                add_script "$ANTIGRAVITY_SCRIPT"
-                add_script "$CC_SWITCH_SCRIPT"
+                select_all
               else
                 if grep -Eq '^antigravity-ide/' <<< "$CHANGED_FILES"; then
-                  add_script "$ANTIGRAVITY_IDE_SCRIPT"
+                  ANTIGRAVITY_IDE_BUILD=true
                 fi
 
                 if grep -Eq '^antigravity/' <<< "$CHANGED_FILES"; then
-                  add_script "$ANTIGRAVITY_SCRIPT"
+                  ANTIGRAVITY_BUILD=true
                 fi
 
                 if grep -Eq '^cc-switch/' <<< "$CHANGED_FILES"; then
-                  add_script "$CC_SWITCH_SCRIPT"
+                  CC_SWITCH_BUILD=true
                 fi
               fi
               ;;
+
             schedule)
               get_antigravity_ide_upstream
               get_antigravity_upstream
               get_cc_switch_upstream
 
-              SAVED_ANTIGRAVITY_IDE_UPSTREAM=''
-              SAVED_ANTIGRAVITY_UPSTREAM=''
-              SAVED_CC_SWITCH_UPSTREAM=''
-
-              if [[ -f "$STATE_DIR/antigravity-ide.url" ]]; then
-                SAVED_ANTIGRAVITY_IDE_UPSTREAM="$(cat "$STATE_DIR/antigravity-ide.url")"
+              if [[ "$ANTIGRAVITY_IDE_UPSTREAM" != "$(cat "$STATE_DIR/antigravity-ide.url" 2>/dev/null || true)" ]]; then
+                ANTIGRAVITY_IDE_BUILD=true
               fi
 
-              if [[ -f "$STATE_DIR/antigravity.url" ]]; then
-                SAVED_ANTIGRAVITY_UPSTREAM="$(cat "$STATE_DIR/antigravity.url")"
+              if [[ "$ANTIGRAVITY_UPSTREAM" != "$(cat "$STATE_DIR/antigravity.url" 2>/dev/null || true)" ]]; then
+                ANTIGRAVITY_BUILD=true
               fi
 
-              if [[ -f "$STATE_DIR/cc-switch.version" ]]; then
-                SAVED_CC_SWITCH_UPSTREAM="$(cat "$STATE_DIR/cc-switch.version")"
-              fi
-
-              if [[ "$ANTIGRAVITY_IDE_UPSTREAM" != "$SAVED_ANTIGRAVITY_IDE_UPSTREAM" ]]; then
-                add_script "$ANTIGRAVITY_IDE_SCRIPT"
-              fi
-
-              if [[ "$ANTIGRAVITY_UPSTREAM" != "$SAVED_ANTIGRAVITY_UPSTREAM" ]]; then
-                add_script "$ANTIGRAVITY_SCRIPT"
-              fi
-
-              if [[ "$CC_SWITCH_UPSTREAM" != "$SAVED_CC_SWITCH_UPSTREAM" ]]; then
-                add_script "$CC_SWITCH_SCRIPT"
+              if [[ "$CC_SWITCH_UPSTREAM" != "$(cat "$STATE_DIR/cc-switch.version" 2>/dev/null || true)" ]]; then
+                CC_SWITCH_BUILD=true
               fi
               ;;
+
             *)
               echo "不支持的触发事件：$EVENT_NAME" >&2
               exit 1
               ;;
           esac
 
-          for script in "${SCRIPTS_TO_BUILD[@]}"; do
-            case "$script" in
-              "$ANTIGRAVITY_IDE_SCRIPT")
-                if [[ -z "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
-                  get_antigravity_ide_upstream
-                fi
-                ;;
-              "$ANTIGRAVITY_SCRIPT")
-                if [[ -z "$ANTIGRAVITY_UPSTREAM" ]]; then
-                  get_antigravity_upstream
-                fi
-                ;;
-              "$CC_SWITCH_SCRIPT")
-                if [[ -z "$CC_SWITCH_UPSTREAM" ]]; then
-                  get_cc_switch_upstream
-                fi
-                ;;
-            esac
-          done
-
-          ANTIGRAVITY_IDE_BUILD=false
-          ANTIGRAVITY_BUILD=false
-          CC_SWITCH_BUILD=false
-
-          for script in "${SCRIPTS_TO_BUILD[@]}"; do
-            case "$script" in
-              "$ANTIGRAVITY_IDE_SCRIPT")
-                ANTIGRAVITY_IDE_BUILD=true
-                ;;
-              "$ANTIGRAVITY_SCRIPT")
-                ANTIGRAVITY_BUILD=true
-                ;;
-              "$CC_SWITCH_SCRIPT")
-                CC_SWITCH_BUILD=true
-                ;;
-            esac
-          done
-
-          if [[ ${#SCRIPTS_TO_BUILD[@]} -eq 0 ]]; then
-            echo '没有检测到需要构建的项目。'
-            echo 'should_build=false' >> "$GITHUB_OUTPUT"
-          else
-            echo "待构建脚本：${SCRIPTS_TO_BUILD[*]}"
-            echo 'should_build=true' >> "$GITHUB_OUTPUT"
+          if [[ "$ANTIGRAVITY_IDE_BUILD" == true && -z "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
+            get_antigravity_ide_upstream
           fi
 
+          if [[ "$ANTIGRAVITY_BUILD" == true && -z "$ANTIGRAVITY_UPSTREAM" ]]; then
+            get_antigravity_upstream
+          fi
+
+          if [[ "$CC_SWITCH_BUILD" == true && -z "$CC_SWITCH_UPSTREAM" ]]; then
+            get_cc_switch_upstream
+          fi
+
+          SHOULD_BUILD=false
+          if [[ "$ANTIGRAVITY_IDE_BUILD" == true ||
+                "$ANTIGRAVITY_BUILD" == true ||
+                "$CC_SWITCH_BUILD" == true ]]; then
+            SHOULD_BUILD=true
+          fi
+
+          echo "should_build=$SHOULD_BUILD" >> "$GITHUB_OUTPUT"
           echo "antigravity_ide=$ANTIGRAVITY_IDE_BUILD" >> "$GITHUB_OUTPUT"
           echo "antigravity=$ANTIGRAVITY_BUILD" >> "$GITHUB_OUTPUT"
           echo "cc_switch=$CC_SWITCH_BUILD" >> "$GITHUB_OUTPUT"
@@ -276,8 +234,6 @@ jobs:
           set -euo pipefail
 
           RELEASE_TAG='latest'
-          RELEASE_TITLE='latest'
-          RELEASE_NOTES='latest'
 
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh api --method PATCH \
@@ -287,15 +243,15 @@ jobs:
 
             gh release edit "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
-              --title "$RELEASE_TITLE" \
-              --notes "$RELEASE_NOTES" \
+              --title 'latest' \
+              --notes 'latest' \
               --latest
           else
             gh release create "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
-              --title "$RELEASE_TITLE" \
-              --notes "$RELEASE_NOTES" \
+              --title 'latest' \
+              --notes 'latest' \
               --latest
           fi
 
@@ -326,7 +282,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           useradd -m -G wheel builduser || true
           echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
           su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"
@@ -346,7 +301,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-
           cd antigravity-ide
           chmod +x build_antigravity-ide.sh
           ./build_antigravity-ide.sh
@@ -383,7 +337,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           useradd -m -G wheel builduser || true
           echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
           su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"
@@ -403,7 +356,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-
           cd antigravity
           chmod +x build_antigravity.sh
           ./build_antigravity.sh
@@ -440,7 +392,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           useradd -m -G wheel builduser || true
           echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
           su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"
@@ -460,7 +411,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-
           cd cc-switch
           chmod +x build_cc-switch.sh
           ./build_cc-switch.sh
@@ -505,43 +455,42 @@ jobs:
         run: |
           set -euo pipefail
 
-          STATE_DIR='.github/upstream-state'
-          STATE_FILES=()
-          mkdir -p "$STATE_DIR"
+          write_state() {
+            mkdir -p .github/upstream-state
 
-          if [[ "$ANTIGRAVITY_IDE_BUILD" == 'true' && -n "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
-            printf '%s\n' "$ANTIGRAVITY_IDE_UPSTREAM" > "$STATE_DIR/antigravity-ide.url"
-            STATE_FILES+=("$STATE_DIR/antigravity-ide.url")
-          fi
+            if [[ "$ANTIGRAVITY_IDE_BUILD" == 'true' && -n "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
+              printf '%s\n' "$ANTIGRAVITY_IDE_UPSTREAM" > .github/upstream-state/antigravity-ide.url
+            fi
 
-          if [[ "$ANTIGRAVITY_BUILD" == 'true' && -n "$ANTIGRAVITY_UPSTREAM" ]]; then
-            printf '%s\n' "$ANTIGRAVITY_UPSTREAM" > "$STATE_DIR/antigravity.url"
-            STATE_FILES+=("$STATE_DIR/antigravity.url")
-          fi
+            if [[ "$ANTIGRAVITY_BUILD" == 'true' && -n "$ANTIGRAVITY_UPSTREAM" ]]; then
+              printf '%s\n' "$ANTIGRAVITY_UPSTREAM" > .github/upstream-state/antigravity.url
+            fi
 
-          if [[ "$CC_SWITCH_BUILD" == 'true' && -n "$CC_SWITCH_UPSTREAM" ]]; then
-            printf '%s\n' "$CC_SWITCH_UPSTREAM" > "$STATE_DIR/cc-switch.version"
-            STATE_FILES+=("$STATE_DIR/cc-switch.version")
-          fi
-
-          if [[ ${#STATE_FILES[@]} -eq 0 ]] ||
-             [[ -z "$(git status --porcelain -- "${STATE_FILES[@]}")" ]]; then
-            echo '上游状态没有变化。'
-            exit 0
-          fi
+            if [[ "$CC_SWITCH_BUILD" == 'true' && -n "$CC_SWITCH_UPSTREAM" ]]; then
+              printf '%s\n' "$CC_SWITCH_UPSTREAM" > .github/upstream-state/cc-switch.version
+            fi
+          }
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- "${STATE_FILES[@]}"
-          git commit -m 'chore: update upstream state'
 
           for attempt in 1 2 3 4 5; do
-            if git push origin "HEAD:$GITHUB_REF_NAME"; then
+            git fetch origin main
+            git checkout -B main origin/main
+            write_state
+
+            if [[ -z "$(git status --porcelain -- .github/upstream-state)" ]]; then
+              echo '上游状态没有变化。'
               exit 0
             fi
 
-            git fetch origin "$GITHUB_REF_NAME"
-            git rebase "origin/$GITHUB_REF_NAME"
+            git add .github/upstream-state
+            git commit -m 'chore: update upstream state'
+
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
             sleep 2
           done
 
