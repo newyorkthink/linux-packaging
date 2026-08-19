@@ -41,7 +41,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.plan.outputs.should_build }}
-      scripts: ${{ steps.plan.outputs.scripts }}
+      antigravity_ide: ${{ steps.plan.outputs.antigravity_ide }}
+      antigravity: ${{ steps.plan.outputs.antigravity }}
+      cc_switch: ${{ steps.plan.outputs.cc_switch }}
       antigravity_ide_upstream: ${{ steps.plan.outputs.antigravity_ide_upstream }}
       antigravity_upstream: ${{ steps.plan.outputs.antigravity_upstream }}
       cc_switch_upstream: ${{ steps.plan.outputs.cc_switch_upstream }}
@@ -52,7 +54,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Select build scripts
+      - name: Select build jobs
         id: plan
         shell: bash
         env:
@@ -232,24 +234,75 @@ jobs:
             esac
           done
 
+          ANTIGRAVITY_IDE_BUILD=false
+          ANTIGRAVITY_BUILD=false
+          CC_SWITCH_BUILD=false
+
+          for script in "${SCRIPTS_TO_BUILD[@]}"; do
+            case "$script" in
+              "$ANTIGRAVITY_IDE_SCRIPT")
+                ANTIGRAVITY_IDE_BUILD=true
+                ;;
+              "$ANTIGRAVITY_SCRIPT")
+                ANTIGRAVITY_BUILD=true
+                ;;
+              "$CC_SWITCH_SCRIPT")
+                CC_SWITCH_BUILD=true
+                ;;
+            esac
+          done
+
           if [[ ${#SCRIPTS_TO_BUILD[@]} -eq 0 ]]; then
             echo '没有检测到需要构建的项目。'
             echo 'should_build=false' >> "$GITHUB_OUTPUT"
-            echo 'scripts=' >> "$GITHUB_OUTPUT"
           else
             echo "待构建脚本：${SCRIPTS_TO_BUILD[*]}"
             echo 'should_build=true' >> "$GITHUB_OUTPUT"
-            echo "scripts=${SCRIPTS_TO_BUILD[*]}" >> "$GITHUB_OUTPUT"
           fi
 
+          echo "antigravity_ide=$ANTIGRAVITY_IDE_BUILD" >> "$GITHUB_OUTPUT"
+          echo "antigravity=$ANTIGRAVITY_BUILD" >> "$GITHUB_OUTPUT"
+          echo "cc_switch=$CC_SWITCH_BUILD" >> "$GITHUB_OUTPUT"
           echo "antigravity_ide_upstream=$ANTIGRAVITY_IDE_UPSTREAM" >> "$GITHUB_OUTPUT"
           echo "antigravity_upstream=$ANTIGRAVITY_UPSTREAM" >> "$GITHUB_OUTPUT"
           echo "cc_switch_upstream=$CC_SWITCH_UPSTREAM" >> "$GITHUB_OUTPUT"
 
-  build_arch:
-    name: Build AppImages
+      - name: Create or Update Latest Release
+        if: steps.plan.outputs.should_build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RELEASE_TAG='latest'
+          RELEASE_TITLE='latest'
+          RELEASE_NOTES='latest'
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG" \
+              -f sha="$GITHUB_SHA" \
+              -F force=true >/dev/null
+
+            gh release edit "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$RELEASE_TITLE" \
+              --notes "$RELEASE_NOTES" \
+              --latest
+          else
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TITLE" \
+              --notes "$RELEASE_NOTES" \
+              --latest
+          fi
+
+  build_antigravity_ide:
+    name: Build Antigravity IDE
     needs: plan
-    if: needs.plan.outputs.should_build == 'true'
+    if: needs.plan.outputs.antigravity_ide == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     container: ghcr.io/pkgforge-dev/archlinux:latest
@@ -285,134 +338,212 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
 
-      - name: Build and publish AppImages
+      - name: Build and publish Antigravity IDE
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          SCRIPTS_TO_BUILD: ${{ needs.plan.outputs.scripts }}
+        run: |
+          set -euo pipefail
+
+          cd antigravity-ide
+          chmod +x build_antigravity-ide.sh
+          ./build_antigravity-ide.sh
+          test -s dist/antigravity-ide.AppImage
+
+          gh release upload latest dist/antigravity-ide.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_antigravity:
+    name: Build Antigravity
+    needs: plan
+    if: needs.plan.outputs.antigravity == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"
+          echo '#!/bin/bash' > /usr/local/bin/yay
+          echo 'sudo -HE -u builduser /usr/bin/yay "$@"' >> /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish Antigravity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          cd antigravity
+          chmod +x build_antigravity.sh
+          ./build_antigravity.sh
+          test -s dist/antigravity.AppImage
+
+          gh release upload latest dist/antigravity.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_cc_switch:
+    name: Build CC Switch
+    needs: plan
+    if: needs.plan.outputs.cc_switch == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm"
+          echo '#!/bin/bash' > /usr/local/bin/yay
+          echo 'sudo -HE -u builduser /usr/bin/yay "$@"' >> /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish CC Switch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          cd cc-switch
+          chmod +x build_cc-switch.sh
+          ./build_cc-switch.sh
+          test -s dist/cc-switch.AppImage
+
+          gh release upload latest dist/cc-switch.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  update_upstream_state:
+    name: Update Upstream State
+    needs:
+      - plan
+      - build_antigravity_ide
+      - build_antigravity
+      - build_cc_switch
+    if: >-
+      always() &&
+      needs.plan.outputs.should_build == 'true' &&
+      (needs.plan.outputs.antigravity_ide != 'true' || needs.build_antigravity_ide.result == 'success') &&
+      (needs.plan.outputs.antigravity != 'true' || needs.build_antigravity.result == 'success') &&
+      (needs.plan.outputs.cc_switch != 'true' || needs.build_cc_switch.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update upstream state
+        shell: bash
+        env:
+          ANTIGRAVITY_IDE_BUILD: ${{ needs.plan.outputs.antigravity_ide }}
+          ANTIGRAVITY_BUILD: ${{ needs.plan.outputs.antigravity }}
+          CC_SWITCH_BUILD: ${{ needs.plan.outputs.cc_switch }}
           ANTIGRAVITY_IDE_UPSTREAM: ${{ needs.plan.outputs.antigravity_ide_upstream }}
           ANTIGRAVITY_UPSTREAM: ${{ needs.plan.outputs.antigravity_upstream }}
           CC_SWITCH_UPSTREAM: ${{ needs.plan.outputs.cc_switch_upstream }}
         run: |
           set -euo pipefail
 
-          git config --global --add safe.directory '*'
-
-          APPIMAGES=()
-
-          for script in $SCRIPTS_TO_BUILD; do
-            case "$script" in
-              antigravity-ide/build_antigravity-ide.sh)
-                SCRIPT_DIR='antigravity-ide'
-                SCRIPT_NAME='build_antigravity-ide.sh'
-                APPIMAGE_PATH='antigravity-ide/dist/antigravity-ide.AppImage'
-                ;;
-              antigravity/build_antigravity.sh)
-                SCRIPT_DIR='antigravity'
-                SCRIPT_NAME='build_antigravity.sh'
-                APPIMAGE_PATH='antigravity/dist/antigravity.AppImage'
-                ;;
-              cc-switch/build_cc-switch.sh)
-                SCRIPT_DIR='cc-switch'
-                SCRIPT_NAME='build_cc-switch.sh'
-                APPIMAGE_PATH='cc-switch/dist/cc-switch.AppImage'
-                ;;
-              *)
-                echo "未知构建脚本：$script" >&2
-                exit 1
-                ;;
-            esac
-
-            echo "::group::正在构建 $script"
-
-            (
-              cd "$SCRIPT_DIR"
-              chmod +x "$SCRIPT_NAME"
-              "./$SCRIPT_NAME"
-            )
-
-            test -s "$APPIMAGE_PATH"
-            APPIMAGES+=("$APPIMAGE_PATH")
-
-            echo '::endgroup::'
-          done
-
-          RELEASE_TAG='latest'
-          RELEASE_TITLE='latest'
-          RELEASE_NOTES='latest'
-
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh api --method PATCH \
-              "repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG" \
-              -f sha="$GITHUB_SHA" \
-              -F force=true >/dev/null
-
-            gh release edit "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "$RELEASE_TITLE" \
-              --notes "$RELEASE_NOTES" \
-              --latest
-          else
-            gh release create "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" \
-              --title "$RELEASE_TITLE" \
-              --notes "$RELEASE_NOTES" \
-              --latest
-          fi
-
-          for appimage in "${APPIMAGES[@]}"; do
-            gh release upload "$RELEASE_TAG" "$appimage" \
-              --repo "$GITHUB_REPOSITORY" \
-              --clobber
-          done
-
           STATE_DIR='.github/upstream-state'
           STATE_FILES=()
           mkdir -p "$STATE_DIR"
 
-          if [[ " $SCRIPTS_TO_BUILD " == *' antigravity-ide/build_antigravity-ide.sh '* ]] &&
-             [[ -n "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
+          if [[ "$ANTIGRAVITY_IDE_BUILD" == 'true' && -n "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
             printf '%s\n' "$ANTIGRAVITY_IDE_UPSTREAM" > "$STATE_DIR/antigravity-ide.url"
             STATE_FILES+=("$STATE_DIR/antigravity-ide.url")
           fi
 
-          if [[ " $SCRIPTS_TO_BUILD " == *' antigravity/build_antigravity.sh '* ]] &&
-             [[ -n "$ANTIGRAVITY_UPSTREAM" ]]; then
+          if [[ "$ANTIGRAVITY_BUILD" == 'true' && -n "$ANTIGRAVITY_UPSTREAM" ]]; then
             printf '%s\n' "$ANTIGRAVITY_UPSTREAM" > "$STATE_DIR/antigravity.url"
             STATE_FILES+=("$STATE_DIR/antigravity.url")
           fi
 
-          if [[ " $SCRIPTS_TO_BUILD " == *' cc-switch/build_cc-switch.sh '* ]] &&
-             [[ -n "$CC_SWITCH_UPSTREAM" ]]; then
+          if [[ "$CC_SWITCH_BUILD" == 'true' && -n "$CC_SWITCH_UPSTREAM" ]]; then
             printf '%s\n' "$CC_SWITCH_UPSTREAM" > "$STATE_DIR/cc-switch.version"
             STATE_FILES+=("$STATE_DIR/cc-switch.version")
           fi
 
-          if [[ ${#STATE_FILES[@]} -gt 0 ]] &&
-             [[ -n "$(git status --porcelain -- "${STATE_FILES[@]}")" ]]; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add -- "${STATE_FILES[@]}"
-            git commit -m 'chore: update upstream state'
-
-            # 构建会产生 AppDir、dist 等临时改动；发布完成后清理，避免 rebase 因工作区不干净而失败。
-            git reset --hard HEAD
-            git clean -fdx
-
-            for attempt in 1 2 3 4 5; do
-              if git push origin "HEAD:$GITHUB_REF_NAME"; then
-                exit 0
-              fi
-
-              git fetch origin "$GITHUB_REF_NAME"
-              git rebase "origin/$GITHUB_REF_NAME"
-              sleep 2
-            done
-
-            echo '无法写回上游状态。' >&2
-            exit 1
+          if [[ ${#STATE_FILES[@]} -eq 0 ]] ||
+             [[ -z "$(git status --porcelain -- "${STATE_FILES[@]}")" ]]; then
+            echo '上游状态没有变化。'
+            exit 0
           fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "${STATE_FILES[@]}"
+          git commit -m 'chore: update upstream state'
+
+          for attempt in 1 2 3 4 5; do
+            if git push origin "HEAD:$GITHUB_REF_NAME"; then
+              exit 0
+            fi
+
+            git fetch origin "$GITHUB_REF_NAME"
+            git rebase "origin/$GITHUB_REF_NAME"
+            sleep 2
+          done
+
+          echo '无法写回上游状态。' >&2
+          exit 1
