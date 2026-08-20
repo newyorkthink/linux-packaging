@@ -1,7 +1,7 @@
 # 统一 AppImage 构建入口；每个项目都是独立 Job、独立运行环境，不使用 Matrix。
 name: Build AppImages
 run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && (inputs.script_to_build == 'all' && 'Build all AppImages' || format('Build {0}', inputs.script_to_build)) || github.event_name == 'schedule' && 'Check upstream updates' || github.event.head_commit.message }}
+  ${{ github.event_name == 'workflow_dispatch' && (inputs.script_to_build == 'all' && 'Build all AppImages' || format('Build {0}', inputs.script_to_build)) || github.event_name == 'schedule' && 'Daily build all AppImages' || github.event.head_commit.message }}
 
 on:
   push:
@@ -45,7 +45,7 @@ on:
       - '.github/actions/build-anylinux/**'
       - '.github/scripts/**'
   schedule:
-    - cron: '17 */6 * * *'
+    - cron: '17 0 * * *'
   workflow_dispatch:
     inputs:
       script_to_build:
@@ -100,10 +100,6 @@ jobs:
     outputs:
       should_build: ${{ steps.plan.outputs.should_build }}
       builds: ${{ steps.plan.outputs.builds }}
-      antigravity_ide_upstream: ${{ steps.plan.outputs.antigravity_ide_upstream }}
-      antigravity_upstream: ${{ steps.plan.outputs.antigravity_upstream }}
-      cc_switch_upstream: ${{ steps.plan.outputs.cc_switch_upstream }}
-      zen_upstream: ${{ steps.plan.outputs.zen_upstream }}
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
@@ -115,42 +111,25 @@ jobs:
           SELECTED_SCRIPT: ${{ inputs.script_to_build }}
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          STATE_DIR='.github/upstream-state'
           KEYS=(antigravity_ide antigravity cc_switch zen copyq flameshot goldendict_ng htop i3wm keepassxc kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor obs_studio dingtalk winpodx alacritty keyviz remmina dconf_editor)
           SCRIPTS=('antigravity-ide/build_antigravity-ide.sh' 'antigravity/build_antigravity.sh' 'cc-switch/build_cc-switch.sh' 'zen/build_zen.sh' 'copyq/build_copyq.sh' 'flameshot/build_flameshot.sh' 'goldendict-ng/build_goldendict-ng.sh' 'htop/build_htop.sh' 'i3wm/build_i3wm.sh' 'keepassxc/build_keepassxc.sh' 'kitty/build_kitty.sh' 'mpv/build_mpv.sh' 'nvtop/build_nvtop.sh' 'ripdrag/build_ripdrag.sh' 'smplayer/build_smplayer.sh' 'sunshine/build_sunshine.sh' 'freerdp/build_freerdp.sh' 'newsboat/build_newsboat.sh' 'zotero/build_zotero.sh' 'vscode/build_vscode.sh' 'simplescreenrecorder/build_simplescreenrecorder.sh' 'rofi/build_rofi.sh' 'picom/build_picom.sh' 'obsidian/build_obsidian.sh' 'freedownloadmanager/build_freedownloadmanager.sh' 'deskflow/build_deskflow.sh' 'cursor/build_cursor.sh' 'obs-studio/build_obs-studio.sh' 'dingtalk/build_dingtalk.sh' 'winpodx/build_winpodx_release.sh' 'alacritty/build_alacritty_linuxdeploy.sh' 'Keyviz/build_keyviz.sh' 'remmina/build_remmina.sh' 'dconf-editor/build_dconf-editor.sh')
           DIRS=(antigravity-ide antigravity cc-switch zen copyq flameshot goldendict-ng htop i3wm keepassxc kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor obs-studio dingtalk winpodx alacritty Keyviz remmina dconf-editor)
           declare -A BUILD SCRIPT_KEY DIR_KEY
           for i in "${!KEYS[@]}"; do key=${KEYS[$i]}; BUILD[$key]=false; SCRIPT_KEY[${SCRIPTS[$i]}]=$key; DIR_KEY[${DIRS[$i]}]=$key; done
-          ANTIGRAVITY_IDE_UPSTREAM=''; ANTIGRAVITY_UPSTREAM=''; CC_SWITCH_UPSTREAM=''; ZEN_UPSTREAM=''
           select_all() { for key in "${KEYS[@]}"; do BUILD[$key]=true; done; }
-          get_antigravity_ide_upstream() { local p; p="$(curl -sSfL --compressed 'https://antigravity.google/download')"; ANTIGRAVITY_IDE_UPSTREAM="$(grep -oP "https://edgedl\.me\.gvt1\.com[^\"']+linux-x64/Antigravity%20IDE\.tar\.gz" <<< "$p" | sed -n '1p')"; [[ -n "$ANTIGRAVITY_IDE_UPSTREAM" ]] || exit 1; }
-          get_antigravity_upstream() { local p; p="$(curl -sSfL --compressed 'https://antigravity.google/download')"; ANTIGRAVITY_UPSTREAM="$(grep -oP "https://storage\.googleapis\.com/antigravity-public/antigravity-hub/[^\"']+/linux-x64/Antigravity\.tar\.gz" <<< "$p" | sed -n '1p')"; [[ -n "$ANTIGRAVITY_UPSTREAM" ]] || exit 1; }
-          get_cc_switch_upstream() { CC_SWITCH_UPSTREAM="$(curl -sSfL 'https://aur.archlinux.org/rpc/v5/info?arg[]=cc-switch-bin' | python3 -c 'import json,sys; r=json.load(sys.stdin).get("results", []); print(r[0]["Version"] if r else "")')"; [[ -n "$CC_SWITCH_UPSTREAM" ]] || exit 1; }
-          get_zen_upstream() { ZEN_UPSTREAM="$(curl -sSfL -H "Authorization: Bearer $GH_TOKEN" 'https://api.github.com/repos/irbis-sh/zen-desktop/releases/latest' | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tag_name", ""))')"; [[ -n "$ZEN_UPSTREAM" ]] || exit 1; }
           case "$EVENT_NAME" in
             workflow_dispatch) if [[ "${SELECTED_SCRIPT:-all}" == all ]]; then select_all; elif [[ -n "${SCRIPT_KEY[${SELECTED_SCRIPT:-}]:-}" ]]; then BUILD[${SCRIPT_KEY[$SELECTED_SCRIPT]}]=true; else echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2; exit 1; fi ;;
             push)
               if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then CHANGED_FILES="$(git show --pretty='' --name-only "$AFTER_SHA")"; else CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"; fi
               if grep -Fxq '.github/workflows/build.yml' <<< "$CHANGED_FILES" || grep -Eq '^\.github/actions/build-anylinux/' <<< "$CHANGED_FILES"; then select_all; else while IFS= read -r file; do dir=${file%%/*}; [[ -n "${DIR_KEY[$dir]:-}" ]] && BUILD[${DIR_KEY[$dir]}]=true; done <<< "$CHANGED_FILES"; fi ;;
-            schedule)
-              get_antigravity_ide_upstream; get_antigravity_upstream; get_cc_switch_upstream; get_zen_upstream
-              [[ "$ANTIGRAVITY_IDE_UPSTREAM" == "$(cat "$STATE_DIR/antigravity-ide.url" 2>/dev/null || true)" ]] || BUILD[antigravity_ide]=true
-              [[ "$ANTIGRAVITY_UPSTREAM" == "$(cat "$STATE_DIR/antigravity.url" 2>/dev/null || true)" ]] || BUILD[antigravity]=true
-              [[ "$CC_SWITCH_UPSTREAM" == "$(cat "$STATE_DIR/cc-switch.version" 2>/dev/null || true)" ]] || BUILD[cc_switch]=true
-              [[ "$ZEN_UPSTREAM" == "$(cat "$STATE_DIR/zen.version" 2>/dev/null || true)" ]] || BUILD[zen]=true ;;
+            schedule) select_all ;;
             *) exit 1 ;;
           esac
-          [[ "${BUILD[antigravity_ide]}" != true || -n "$ANTIGRAVITY_IDE_UPSTREAM" ]] || get_antigravity_ide_upstream
-          [[ "${BUILD[antigravity]}" != true || -n "$ANTIGRAVITY_UPSTREAM" ]] || get_antigravity_upstream
-          [[ "${BUILD[cc_switch]}" != true || -n "$CC_SWITCH_UPSTREAM" ]] || get_cc_switch_upstream
-          [[ "${BUILD[zen]}" != true || -n "$ZEN_UPSTREAM" ]] || get_zen_upstream
           BUILDS_JSON="$(for key in "${KEYS[@]}"; do printf '%s=%s\n' "$key" "${BUILD[$key]}"; done | python3 -c 'import json,sys; print(json.dumps(dict(line.rstrip().split("=",1) for line in sys.stdin), separators=(",",":")))')"
           SHOULD_BUILD=false; [[ "$BUILDS_JSON" == *':"true"'* ]] && SHOULD_BUILD=true
           echo "builds=$BUILDS_JSON" >> "$GITHUB_OUTPUT"; echo "should_build=$SHOULD_BUILD" >> "$GITHUB_OUTPUT"
-          echo "antigravity_ide_upstream=$ANTIGRAVITY_IDE_UPSTREAM" >> "$GITHUB_OUTPUT"; echo "antigravity_upstream=$ANTIGRAVITY_UPSTREAM" >> "$GITHUB_OUTPUT"; echo "cc_switch_upstream=$CC_SWITCH_UPSTREAM" >> "$GITHUB_OUTPUT"; echo "zen_upstream=$ZEN_UPSTREAM" >> "$GITHUB_OUTPUT"
       - name: Create or Update Latest Release
         if: steps.plan.outputs.should_build == 'true'
         env: {GH_TOKEN: '${{ github.token }}'}
@@ -745,93 +724,3 @@ jobs:
           gh release upload latest dconf-editor/dist/dconf-editor.AppImage \
             --repo "$GITHUB_REPOSITORY" \
             --clobber
-
-  update_upstream_state:
-    name: Update Upstream State
-    needs:
-      - plan
-      - build_antigravity_ide
-      - build_antigravity
-      - build_cc_switch
-      - build_zen
-    if: >-
-      always() &&
-      (fromJSON(needs.plan.outputs.builds).antigravity_ide == 'true' ||
-       fromJSON(needs.plan.outputs.builds).antigravity == 'true' ||
-       fromJSON(needs.plan.outputs.builds).cc_switch == 'true' ||
-       fromJSON(needs.plan.outputs.builds).zen == 'true') &&
-      (fromJSON(needs.plan.outputs.builds).antigravity_ide != 'true' || needs.build_antigravity_ide.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).antigravity != 'true' || needs.build_antigravity.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).cc_switch != 'true' || needs.build_cc_switch.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).zen != 'true' || needs.build_zen.result == 'success')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Update upstream state
-        shell: bash
-        env:
-          ANTIGRAVITY_IDE_BUILD: ${{ fromJSON(needs.plan.outputs.builds).antigravity_ide }}
-          ANTIGRAVITY_BUILD: ${{ fromJSON(needs.plan.outputs.builds).antigravity }}
-          CC_SWITCH_BUILD: ${{ fromJSON(needs.plan.outputs.builds).cc_switch }}
-          ZEN_BUILD: ${{ fromJSON(needs.plan.outputs.builds).zen }}
-          ANTIGRAVITY_IDE_UPSTREAM: ${{ needs.plan.outputs.antigravity_ide_upstream }}
-          ANTIGRAVITY_UPSTREAM: ${{ needs.plan.outputs.antigravity_upstream }}
-          CC_SWITCH_UPSTREAM: ${{ needs.plan.outputs.cc_switch_upstream }}
-          ZEN_UPSTREAM: ${{ needs.plan.outputs.zen_upstream }}
-        run: |
-          set -euo pipefail
-
-          STATE_DIR='.github/upstream-state'
-          STATE_FILES=()
-          mkdir -p "$STATE_DIR"
-
-          if [[ "$ANTIGRAVITY_IDE_BUILD" == 'true' && -n "$ANTIGRAVITY_IDE_UPSTREAM" ]]; then
-            printf '%s\n' "$ANTIGRAVITY_IDE_UPSTREAM" > "$STATE_DIR/antigravity-ide.url"
-            STATE_FILES+=("$STATE_DIR/antigravity-ide.url")
-          fi
-
-          if [[ "$ANTIGRAVITY_BUILD" == 'true' && -n "$ANTIGRAVITY_UPSTREAM" ]]; then
-            printf '%s\n' "$ANTIGRAVITY_UPSTREAM" > "$STATE_DIR/antigravity.url"
-            STATE_FILES+=("$STATE_DIR/antigravity.url")
-          fi
-
-          if [[ "$CC_SWITCH_BUILD" == 'true' && -n "$CC_SWITCH_UPSTREAM" ]]; then
-            printf '%s\n' "$CC_SWITCH_UPSTREAM" > "$STATE_DIR/cc-switch.version"
-            STATE_FILES+=("$STATE_DIR/cc-switch.version")
-          fi
-
-          if [[ "$ZEN_BUILD" == 'true' && -n "$ZEN_UPSTREAM" ]]; then
-            printf '%s\n' "$ZEN_UPSTREAM" > "$STATE_DIR/zen.version"
-            STATE_FILES+=("$STATE_DIR/zen.version")
-          fi
-
-          if [[ ${#STATE_FILES[@]} -eq 0 ]] ||
-             [[ -z "$(git status --porcelain -- "${STATE_FILES[@]}")" ]]; then
-            echo '上游状态没有变化。'
-            exit 0
-          fi
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- "${STATE_FILES[@]}"
-          git commit -m 'chore: update upstream state'
-
-          for attempt in 1 2 3 4 5; do
-            if git push origin "HEAD:$GITHUB_REF_NAME"; then
-              exit 0
-            fi
-
-            git fetch origin "$GITHUB_REF_NAME"
-            git rebase "origin/$GITHUB_REF_NAME"
-            sleep 2
-          done
-
-          echo '无法写回上游状态。' >&2
-          exit 1
