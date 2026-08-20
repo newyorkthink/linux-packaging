@@ -1,0 +1,18 @@
+diff --git a/alacritty/src/display/window.rs b/alacritty/src/display/window.rs
+--- a/alacritty/src/display/window.rs
++++ b/alacritty/src/display/window.rs
+@@ -438,6 +438,14 @@ impl Window {
+     /// IME is re-enabled once all inhibitors are unset.
+     pub fn set_ime_inhibitor(&mut self, inhibitor: ImeInhibitor, inhibit: bool) {
++        // X11: keep IME enabled for the whole window lifetime. Winit's X11
++        // set_ime_allowed() destroys and recreates the XIC, and repeated focus
++        // changes (for example i3 workspace switching) can leave some IMEs
++        // without keyboard events. This restores Alacritty's former X11 guard.
++        if self.is_x11 {
++            return;
++        }
++
+         if self.ime_inhibitor.contains(inhibitor) != inhibit {
+             self.ime_inhibitor.set(inhibitor, inhibit);
+             self.window.set_ime_allowed(self.ime_inhibitor.is_empty());
+         }

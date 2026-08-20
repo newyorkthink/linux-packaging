@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=newsboat
+Comment=RSS/Atom feed reader for the text console
+Exec=newsboat
+Icon=newsboat
+Terminal=true
+Type=Application
+Categories=Network;News;
+Keywords=rss;reader;news;feeds;

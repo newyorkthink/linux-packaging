@@ -1,0 +1,14 @@
+[Desktop Entry]
+StartupWMClass=xfreerdp3
+Name=FreeRDP
+Comment=Remote Desktop Connection via FreeRDP
+Exec=xfreerdp3
+Icon=freerdp
+Terminal=false
+Type=Application
+Categories=Network;RemoteAccess;
+Keywords=rdp;remote;desktop;windows;
+StartupNotify=true
+X-AppImage-Name=FreeRDP
+X-AppImage-Version=UNKNOWN
+X-AppImage-Arch=x86_64

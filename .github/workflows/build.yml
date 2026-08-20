@@ -1,4 +1,4 @@
-# 统一 AppImage 构建入口；四个项目使用独立 Job 并行构建，产物发布到固定 latest Release。
+# 统一 AppImage 构建入口；各项目使用独立 Job/Matrix 子 Job 并行构建，产物发布到固定 latest Release。
 name: Build AppImages
 
 run-name: >-
@@ -16,6 +16,23 @@ on:
       - 'antigravity/**'
       - 'cc-switch/**'
       - 'zen/**'
+      - 'copyq/**'
+      - 'flameshot/**'
+      - 'goldendict-ng/**'
+      - 'htop/**'
+      - 'i3wm/**'
+      - 'keepassxc/**'
+      - 'kitty/**'
+      - 'mpv/**'
+      - 'nvtop/**'
+      - 'ripdrag/**'
+      - 'smplayer/**'
+      - 'sunshine/**'
+      - 'alacritty/**'
+      - 'Keyviz/**'
+      - 'freerdp/**'
+      - 'newsboat/**'
+      - 'remmina/**'
       - '.github/workflows/build.yml'
   schedule:
     - cron: '17 */6 * * *'
@@ -32,6 +49,23 @@ on:
           - antigravity/build_antigravity.sh
           - cc-switch/build_cc-switch.sh
           - zen/build_zen.sh
+          - copyq/build_copyq.sh
+          - flameshot/build_flameshot.sh
+          - goldendict-ng/build_goldendict-ng.sh
+          - htop/build_htop.sh
+          - i3wm/build_i3wm.sh
+          - keepassxc/build_keepassxc.sh
+          - kitty/build_kitty.sh
+          - mpv/build_mpv.sh
+          - nvtop/build_nvtop.sh
+          - ripdrag/build_ripdrag.sh
+          - smplayer/build_smplayer.sh
+          - sunshine/build_sunshine.sh
+          - alacritty/build_alacritty_linuxdeploy.sh
+          - Keyviz/build_keyviz.sh
+          - freerdp/build_freerdp.sh
+          - newsboat/build_newsboat.sh
+          - remmina/build_remmina.sh
 
 permissions:
   contents: write
@@ -46,6 +80,11 @@ jobs:
       antigravity: ${{ steps.plan.outputs.antigravity }}
       cc_switch: ${{ steps.plan.outputs.cc_switch }}
       zen: ${{ steps.plan.outputs.zen }}
+      migrated_matrix: ${{ steps.plan.outputs.migrated_matrix }}
+      migrated_count: ${{ steps.plan.outputs.migrated_count }}
+      alacritty: ${{ steps.plan.outputs.alacritty }}
+      keyviz: ${{ steps.plan.outputs.keyviz }}
+      remmina: ${{ steps.plan.outputs.remmina }}
       antigravity_ide_upstream: ${{ steps.plan.outputs.antigravity_ide_upstream }}
       antigravity_upstream: ${{ steps.plan.outputs.antigravity_upstream }}
       cc_switch_upstream: ${{ steps.plan.outputs.cc_switch_upstream }}
@@ -73,12 +112,20 @@ jobs:
           ANTIGRAVITY_SCRIPT='antigravity/build_antigravity.sh'
           CC_SWITCH_SCRIPT='cc-switch/build_cc-switch.sh'
           ZEN_SCRIPT='zen/build_zen.sh'
+          ALACRITTY_SCRIPT='alacritty/build_alacritty_linuxdeploy.sh'
+          KEYVIZ_SCRIPT='Keyviz/build_keyviz.sh'
+          REMMINA_SCRIPT='remmina/build_remmina.sh'
           STATE_DIR='.github/upstream-state'
+          MATRIX_FILE="$RUNNER_TEMP/migrated-appimages.tsv"
+          : > "$MATRIX_FILE"
 
           ANTIGRAVITY_IDE_BUILD=false
           ANTIGRAVITY_BUILD=false
           CC_SWITCH_BUILD=false
           ZEN_BUILD=false
+          ALACRITTY_BUILD=false
+          KEYVIZ_BUILD=false
+          REMMINA_BUILD=false
 
           ANTIGRAVITY_IDE_UPSTREAM=''
           ANTIGRAVITY_UPSTREAM=''
@@ -142,11 +189,56 @@ jobs:
             fi
           }
 
+          add_migrated() {
+            printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" >> "$MATRIX_FILE"
+          }
+
+          select_all_migrated() {
+            add_migrated 'CopyQ' 'copyq/build_copyq.sh' 'copyq/dist' 'copyq.AppImage'
+            add_migrated 'Flameshot' 'flameshot/build_flameshot.sh' 'flameshot/dist' 'flameshot.AppImage'
+            add_migrated 'GoldenDict-ng' 'goldendict-ng/build_goldendict-ng.sh' 'goldendict-ng/dist' 'goldendict-ng.AppImage'
+            add_migrated 'htop' 'htop/build_htop.sh' 'htop/dist' 'htop.AppImage'
+            add_migrated 'i3wm' 'i3wm/build_i3wm.sh' 'i3wm/dist' 'i3.AppImage'
+            add_migrated 'KeePassXC' 'keepassxc/build_keepassxc.sh' 'keepassxc/dist' 'keepassxc.AppImage'
+            add_migrated 'kitty' 'kitty/build_kitty.sh' 'kitty/dist' 'kitty.AppImage'
+            add_migrated 'mpv' 'mpv/build_mpv.sh' 'mpv/dist' 'mpv.AppImage'
+            add_migrated 'nvtop' 'nvtop/build_nvtop.sh' 'nvtop/dist' 'nvtop.AppImage'
+            add_migrated 'ripdrag' 'ripdrag/build_ripdrag.sh' 'ripdrag/dist' 'ripdrag.AppImage'
+            add_migrated 'SMPlayer' 'smplayer/build_smplayer.sh' 'smplayer/dist' 'smplayer.AppImage'
+            add_migrated 'Sunshine' 'sunshine/build_sunshine.sh' 'sunshine/dist' 'sunshine.AppImage'
+            add_migrated 'FreeRDP' 'freerdp/build_freerdp.sh' 'freerdp/dist' 'xfreerdp3.AppImage'
+            add_migrated 'Newsboat' 'newsboat/build_newsboat.sh' 'dist' 'newsboat.AppImage'
+          }
+
           select_all() {
             ANTIGRAVITY_IDE_BUILD=true
             ANTIGRAVITY_BUILD=true
             CC_SWITCH_BUILD=true
             ZEN_BUILD=true
+            ALACRITTY_BUILD=true
+            KEYVIZ_BUILD=true
+            REMMINA_BUILD=true
+            select_all_migrated
+          }
+
+          select_migrated_script() {
+            case "$1" in
+              copyq/build_copyq.sh) add_migrated 'CopyQ' 'copyq/build_copyq.sh' 'copyq/dist' 'copyq.AppImage' ;;
+              flameshot/build_flameshot.sh) add_migrated 'Flameshot' 'flameshot/build_flameshot.sh' 'flameshot/dist' 'flameshot.AppImage' ;;
+              goldendict-ng/build_goldendict-ng.sh) add_migrated 'GoldenDict-ng' 'goldendict-ng/build_goldendict-ng.sh' 'goldendict-ng/dist' 'goldendict-ng.AppImage' ;;
+              htop/build_htop.sh) add_migrated 'htop' 'htop/build_htop.sh' 'htop/dist' 'htop.AppImage' ;;
+              i3wm/build_i3wm.sh) add_migrated 'i3wm' 'i3wm/build_i3wm.sh' 'i3wm/dist' 'i3.AppImage' ;;
+              keepassxc/build_keepassxc.sh) add_migrated 'KeePassXC' 'keepassxc/build_keepassxc.sh' 'keepassxc/dist' 'keepassxc.AppImage' ;;
+              kitty/build_kitty.sh) add_migrated 'kitty' 'kitty/build_kitty.sh' 'kitty/dist' 'kitty.AppImage' ;;
+              mpv/build_mpv.sh) add_migrated 'mpv' 'mpv/build_mpv.sh' 'mpv/dist' 'mpv.AppImage' ;;
+              nvtop/build_nvtop.sh) add_migrated 'nvtop' 'nvtop/build_nvtop.sh' 'nvtop/dist' 'nvtop.AppImage' ;;
+              ripdrag/build_ripdrag.sh) add_migrated 'ripdrag' 'ripdrag/build_ripdrag.sh' 'ripdrag/dist' 'ripdrag.AppImage' ;;
+              smplayer/build_smplayer.sh) add_migrated 'SMPlayer' 'smplayer/build_smplayer.sh' 'smplayer/dist' 'smplayer.AppImage' ;;
+              sunshine/build_sunshine.sh) add_migrated 'Sunshine' 'sunshine/build_sunshine.sh' 'sunshine/dist' 'sunshine.AppImage' ;;
+              freerdp/build_freerdp.sh) add_migrated 'FreeRDP' 'freerdp/build_freerdp.sh' 'freerdp/dist' 'xfreerdp3.AppImage' ;;
+              newsboat/build_newsboat.sh) add_migrated 'Newsboat' 'newsboat/build_newsboat.sh' 'dist' 'newsboat.AppImage' ;;
+              *) return 1 ;;
+            esac
           }
 
           case "$EVENT_NAME" in
@@ -155,21 +247,18 @@ jobs:
                 all)
                   select_all
                   ;;
-                "$ANTIGRAVITY_IDE_SCRIPT")
-                  ANTIGRAVITY_IDE_BUILD=true
-                  ;;
-                "$ANTIGRAVITY_SCRIPT")
-                  ANTIGRAVITY_BUILD=true
-                  ;;
-                "$CC_SWITCH_SCRIPT")
-                  CC_SWITCH_BUILD=true
-                  ;;
-                "$ZEN_SCRIPT")
-                  ZEN_BUILD=true
-                  ;;
+                "$ANTIGRAVITY_IDE_SCRIPT") ANTIGRAVITY_IDE_BUILD=true ;;
+                "$ANTIGRAVITY_SCRIPT") ANTIGRAVITY_BUILD=true ;;
+                "$CC_SWITCH_SCRIPT") CC_SWITCH_BUILD=true ;;
+                "$ZEN_SCRIPT") ZEN_BUILD=true ;;
+                "$ALACRITTY_SCRIPT") ALACRITTY_BUILD=true ;;
+                "$KEYVIZ_SCRIPT") KEYVIZ_BUILD=true ;;
+                "$REMMINA_SCRIPT") REMMINA_BUILD=true ;;
                 *)
-                  echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2
-                  exit 1
+                  if ! select_migrated_script "${SELECTED_SCRIPT:-}"; then
+                    echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2
+                    exit 1
+                  fi
                   ;;
               esac
               ;;
@@ -187,21 +276,28 @@ jobs:
               if grep -Fxq '.github/workflows/build.yml' <<< "$CHANGED_FILES"; then
                 select_all
               else
-                if grep -Eq '^antigravity-ide/' <<< "$CHANGED_FILES"; then
-                  ANTIGRAVITY_IDE_BUILD=true
-                fi
+                if grep -Eq '^antigravity-ide/' <<< "$CHANGED_FILES"; then ANTIGRAVITY_IDE_BUILD=true; fi
+                if grep -Eq '^antigravity/' <<< "$CHANGED_FILES"; then ANTIGRAVITY_BUILD=true; fi
+                if grep -Eq '^cc-switch/' <<< "$CHANGED_FILES"; then CC_SWITCH_BUILD=true; fi
+                if grep -Eq '^zen/' <<< "$CHANGED_FILES"; then ZEN_BUILD=true; fi
+                if grep -Eq '^alacritty/' <<< "$CHANGED_FILES"; then ALACRITTY_BUILD=true; fi
+                if grep -Eq '^Keyviz/' <<< "$CHANGED_FILES"; then KEYVIZ_BUILD=true; fi
+                if grep -Eq '^remmina/' <<< "$CHANGED_FILES"; then REMMINA_BUILD=true; fi
 
-                if grep -Eq '^antigravity/' <<< "$CHANGED_FILES"; then
-                  ANTIGRAVITY_BUILD=true
-                fi
-
-                if grep -Eq '^cc-switch/' <<< "$CHANGED_FILES"; then
-                  CC_SWITCH_BUILD=true
-                fi
-
-                if grep -Eq '^zen/' <<< "$CHANGED_FILES"; then
-                  ZEN_BUILD=true
-                fi
+                if grep -Eq '^copyq/' <<< "$CHANGED_FILES"; then select_migrated_script 'copyq/build_copyq.sh'; fi
+                if grep -Eq '^flameshot/' <<< "$CHANGED_FILES"; then select_migrated_script 'flameshot/build_flameshot.sh'; fi
+                if grep -Eq '^goldendict-ng/' <<< "$CHANGED_FILES"; then select_migrated_script 'goldendict-ng/build_goldendict-ng.sh'; fi
+                if grep -Eq '^htop/' <<< "$CHANGED_FILES"; then select_migrated_script 'htop/build_htop.sh'; fi
+                if grep -Eq '^i3wm/' <<< "$CHANGED_FILES"; then select_migrated_script 'i3wm/build_i3wm.sh'; fi
+                if grep -Eq '^keepassxc/' <<< "$CHANGED_FILES"; then select_migrated_script 'keepassxc/build_keepassxc.sh'; fi
+                if grep -Eq '^kitty/' <<< "$CHANGED_FILES"; then select_migrated_script 'kitty/build_kitty.sh'; fi
+                if grep -Eq '^mpv/' <<< "$CHANGED_FILES"; then select_migrated_script 'mpv/build_mpv.sh'; fi
+                if grep -Eq '^nvtop/' <<< "$CHANGED_FILES"; then select_migrated_script 'nvtop/build_nvtop.sh'; fi
+                if grep -Eq '^ripdrag/' <<< "$CHANGED_FILES"; then select_migrated_script 'ripdrag/build_ripdrag.sh'; fi
+                if grep -Eq '^smplayer/' <<< "$CHANGED_FILES"; then select_migrated_script 'smplayer/build_smplayer.sh'; fi
+                if grep -Eq '^sunshine/' <<< "$CHANGED_FILES"; then select_migrated_script 'sunshine/build_sunshine.sh'; fi
+                if grep -Eq '^freerdp/' <<< "$CHANGED_FILES"; then select_migrated_script 'freerdp/build_freerdp.sh'; fi
+                if grep -Eq '^newsboat/' <<< "$CHANGED_FILES"; then select_migrated_script 'newsboat/build_newsboat.sh'; fi
               fi
               ;;
 
@@ -250,11 +346,34 @@ jobs:
             get_zen_upstream
           fi
 
+          MIGRATED_MATRIX="$(python3 - "$MATRIX_FILE" <<'PY'
+          import csv
+          import json
+          import sys
+
+          rows = []
+          with open(sys.argv[1], newline='', encoding='utf-8') as handle:
+              for name, script, artifact_dir, release_name in csv.reader(handle, delimiter='\t'):
+                  rows.append({
+                      'name': name,
+                      'script': script,
+                      'artifact_dir': artifact_dir,
+                      'release_name': release_name,
+                  })
+          print(json.dumps({'include': rows}, separators=(',', ':')))
+          PY
+          )"
+          MIGRATED_COUNT="$(wc -l < "$MATRIX_FILE" | tr -d ' ')"
+
           SHOULD_BUILD=false
           if [[ "$ANTIGRAVITY_IDE_BUILD" == true ||
                 "$ANTIGRAVITY_BUILD" == true ||
                 "$CC_SWITCH_BUILD" == true ||
-                "$ZEN_BUILD" == true ]]; then
+                "$ZEN_BUILD" == true ||
+                "$ALACRITTY_BUILD" == true ||
+                "$KEYVIZ_BUILD" == true ||
+                "$REMMINA_BUILD" == true ||
+                "$MIGRATED_COUNT" -gt 0 ]]; then
             SHOULD_BUILD=true
           fi
 
@@ -263,6 +382,11 @@ jobs:
           echo "antigravity=$ANTIGRAVITY_BUILD" >> "$GITHUB_OUTPUT"
           echo "cc_switch=$CC_SWITCH_BUILD" >> "$GITHUB_OUTPUT"
           echo "zen=$ZEN_BUILD" >> "$GITHUB_OUTPUT"
+          echo "migrated_matrix=$MIGRATED_MATRIX" >> "$GITHUB_OUTPUT"
+          echo "migrated_count=$MIGRATED_COUNT" >> "$GITHUB_OUTPUT"
+          echo "alacritty=$ALACRITTY_BUILD" >> "$GITHUB_OUTPUT"
+          echo "keyviz=$KEYVIZ_BUILD" >> "$GITHUB_OUTPUT"
+          echo "remmina=$REMMINA_BUILD" >> "$GITHUB_OUTPUT"
           echo "antigravity_ide_upstream=$ANTIGRAVITY_IDE_UPSTREAM" >> "$GITHUB_OUTPUT"
           echo "antigravity_upstream=$ANTIGRAVITY_UPSTREAM" >> "$GITHUB_OUTPUT"
           echo "cc_switch_upstream=$CC_SWITCH_UPSTREAM" >> "$GITHUB_OUTPUT"
@@ -518,6 +642,258 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
+  build_migrated_arch:
+    name: Build ${{ matrix.name }}
+    needs: plan
+    if: needs.plan.outputs.migrated_count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.migrated_matrix) }}
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: ${{ matrix.script }}
+          ARTIFACT_DIR: ${{ matrix.artifact_dir }}
+          RELEASE_NAME: ${{ matrix.release_name }}
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_alacritty:
+    name: Build Alacritty
+    needs: plan
+    if: needs.plan.outputs.alacritty == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build and validate Alacritty AppImage
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x alacritty/build_alacritty_linuxdeploy.sh
+          env -u GITHUB_ACTIONS ./alacritty/build_alacritty_linuxdeploy.sh
+          test -s alacritty/dist/alacritty.AppImage
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload latest alacritty/dist/alacritty.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_keyviz:
+    name: Build Keyviz
+    needs: plan
+    if: needs.plan.outputs.keyviz == 'true'
+    runs-on: ubuntu-latest
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing anylinux Container
+        uses: pkgforge-dev/anylinux-setup-action@0964f2258d6c93d1391359978dde081fd8b3c6af # v2
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin" && break
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: 静态检查并构建 Keyviz AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n Keyviz/build_keyviz.sh
+          bash Keyviz/build_keyviz.sh
+          test -s dist/keyviz.AppImage
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pacman -S --noconfirm --needed github-cli
+          gh release upload latest dist/keyviz.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_remmina:
+    name: Build Remmina
+    needs: plan
+    if: needs.plan.outputs.remmina == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build and validate Remmina AppImage
+        shell: bash
+        run: |
+          chmod +x remmina/build_remmina.sh
+          set +e
+          env -u GITHUB_ACTIONS ./remmina/build_remmina.sh > build-remmina.log 2>&1
+          status=$?
+          if [[ "$status" -ne 0 ]]; then
+            echo "===== build-remmina.log 最后 300 行 ====="
+            tail -n 300 build-remmina.log
+            exit "$status"
+          fi
+          tail -n 120 build-remmina.log
+
+      - name: Fix WebKitGTK and desktop runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            fcitx5-frontend-gtk3 \
+            ibus-gtk3 \
+            libgtk-3-bin
+
+          chmod +x remmina/fix_remmina_webkit.sh
+          ./remmina/fix_remmina_webkit.sh dist/remmina.AppImage 2>&1 | tee fix-remmina-webkit.log
+
+      - name: Prepare release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s remmina/dist/remmina.AppImage
+          chmod +x remmina/dist/remmina.AppImage
+          file remmina/dist/remmina.AppImage
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release delete-asset latest remmina-x86_64.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --yes >/dev/null 2>&1 || true
+          gh release delete-asset latest remmina-x86_64.AppImage.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
+            --yes >/dev/null 2>&1 || true
+          gh release upload latest remmina/dist/remmina.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
   update_upstream_state:
     name: Update Upstream State
     needs:
@@ -528,7 +904,10 @@ jobs:
       - build_zen
     if: >-
       always() &&
-      needs.plan.outputs.should_build == 'true' &&
+      (needs.plan.outputs.antigravity_ide == 'true' ||
+       needs.plan.outputs.antigravity == 'true' ||
+       needs.plan.outputs.cc_switch == 'true' ||
+       needs.plan.outputs.zen == 'true') &&
       (needs.plan.outputs.antigravity_ide != 'true' || needs.build_antigravity_ide.result == 'success') &&
       (needs.plan.outputs.antigravity != 'true' || needs.build_antigravity.result == 'success') &&
       (needs.plan.outputs.cc_switch != 'true' || needs.build_cc_switch.result == 'success') &&

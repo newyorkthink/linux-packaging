@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# 获取当前 AppImage 的挂载目录。
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+# 优先使用 AppImage 内的可执行文件。
+export PATH="$HERE/usr/bin${PATH:+:$PATH}"
+
+# 只使用当前 AppImage 内的运行库，避免继承父 AppImage 的动态库路径。
+export LD_LIBRARY_PATH="$HERE/usr/lib"
+
+# 只使用 AppImage 和宿主系统的数据目录，避免继承父 AppImage 的临时路径。
+export XDG_DATA_DIRS="$HERE/usr/share:/usr/local/share:/usr/share"
+
+# 键盘布局和 Compose 数据使用与包内 xkbcommon-x11 同一构建环境的数据。
+export XKB_CONFIG_ROOT="$HERE/usr/share/X11/xkb"
+export XLOCALEDIR="$HERE/usr/share/X11/locale"
+
+# terminfo 固定使用宿主系统。
+export TERMINFO="/usr/share/terminfo"
+
+# 启动 AppImage 内的 Alacritty。
+exec "$HERE/usr/bin/alacritty" "$@"
