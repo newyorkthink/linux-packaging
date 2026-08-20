@@ -43,6 +43,7 @@ on:
       - 'dconf-editor/**'
       - '.github/workflows/build.yml'
       - '.github/actions/build-anylinux/**'
+      - '.github/scripts/**'
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:
@@ -514,8 +515,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          chmod +x dingtalk/ci_build_dingtalk.sh
-          ./dingtalk/ci_build_dingtalk.sh
+          chmod +x .github/scripts/ci_build_dingtalk.sh
+          ./.github/scripts/ci_build_dingtalk.sh
       - name: Publish to Latest Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -542,8 +543,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          chmod +x winpodx/ci_build_winpodx.sh
-          ./winpodx/ci_build_winpodx.sh
+          chmod +x .github/scripts/ci_build_winpodx.sh
+          ./.github/scripts/ci_build_winpodx.sh
       - name: Publish to Latest Release
         env:
           GH_TOKEN: ${{ github.token }}
