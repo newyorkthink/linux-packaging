@@ -49,7 +49,7 @@ mv -v ./Zotero_linux-x86_64/* ./AppDir/bin/
 chmod +x ./AppDir/bin/zotero-bin
 
 sed -i \
-  's#^Exec=.*#Exec=zotero-bin -url %U#' \
+  's#^Exec=.*#Exec=zotero -url %U#' \
   ./zotero.desktop
 
 quick-sharun \
