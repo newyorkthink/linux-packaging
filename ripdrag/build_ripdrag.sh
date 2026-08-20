@@ -15,6 +15,9 @@ export DEPLOY_GTK=1
 export DEPLOY_GDK=1
 export DEPLOY_GLYCIN=1
 
+# 独立构建 Job 需要显式安装 quick-sharun 必需的 patchelf，避免依赖其他构建任务留下的共享环境。
+yay -S --needed --noconfirm patchelf
+
 # 安装编译、GTK4 运行组件和 AppImage 打包所需依赖。
 yay -S --needed --noconfirm \
   base-devel \
