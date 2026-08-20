@@ -1,4 +1,4 @@
-# 统一 AppImage 构建入口；各项目使用独立 Job/Matrix 子 Job 并行构建，产物发布到固定 latest Release。
+# 统一 AppImage 构建入口；每个项目使用独立顶层 Job 和独立运行环境并行构建，产物发布到固定 latest Release。
 name: Build AppImages
 
 run-name: >-
@@ -80,8 +80,20 @@ jobs:
       antigravity: ${{ steps.plan.outputs.antigravity }}
       cc_switch: ${{ steps.plan.outputs.cc_switch }}
       zen: ${{ steps.plan.outputs.zen }}
-      migrated_matrix: ${{ steps.plan.outputs.migrated_matrix }}
-      migrated_count: ${{ steps.plan.outputs.migrated_count }}
+      copyq: ${{ steps.plan.outputs.copyq }}
+      flameshot: ${{ steps.plan.outputs.flameshot }}
+      goldendict_ng: ${{ steps.plan.outputs.goldendict_ng }}
+      htop: ${{ steps.plan.outputs.htop }}
+      i3wm: ${{ steps.plan.outputs.i3wm }}
+      keepassxc: ${{ steps.plan.outputs.keepassxc }}
+      kitty: ${{ steps.plan.outputs.kitty }}
+      mpv: ${{ steps.plan.outputs.mpv }}
+      nvtop: ${{ steps.plan.outputs.nvtop }}
+      ripdrag: ${{ steps.plan.outputs.ripdrag }}
+      smplayer: ${{ steps.plan.outputs.smplayer }}
+      sunshine: ${{ steps.plan.outputs.sunshine }}
+      freerdp: ${{ steps.plan.outputs.freerdp }}
+      newsboat: ${{ steps.plan.outputs.newsboat }}
       alacritty: ${{ steps.plan.outputs.alacritty }}
       keyviz: ${{ steps.plan.outputs.keyviz }}
       remmina: ${{ steps.plan.outputs.remmina }}
@@ -116,13 +128,25 @@ jobs:
           KEYVIZ_SCRIPT='Keyviz/build_keyviz.sh'
           REMMINA_SCRIPT='remmina/build_remmina.sh'
           STATE_DIR='.github/upstream-state'
-          MATRIX_FILE="$RUNNER_TEMP/migrated-appimages.tsv"
-          : > "$MATRIX_FILE"
 
           ANTIGRAVITY_IDE_BUILD=false
           ANTIGRAVITY_BUILD=false
           CC_SWITCH_BUILD=false
           ZEN_BUILD=false
+          COPYQ_BUILD=false
+          FLAMESHOT_BUILD=false
+          GOLDENDICT_NG_BUILD=false
+          HTOP_BUILD=false
+          I3WM_BUILD=false
+          KEEPASSXC_BUILD=false
+          KITTY_BUILD=false
+          MPV_BUILD=false
+          NVTOP_BUILD=false
+          RIPDRAG_BUILD=false
+          SMPLAYER_BUILD=false
+          SUNSHINE_BUILD=false
+          FREERDP_BUILD=false
+          NEWSBOAT_BUILD=false
           ALACRITTY_BUILD=false
           KEYVIZ_BUILD=false
           REMMINA_BUILD=false
@@ -189,76 +213,58 @@ jobs:
             fi
           }
 
-          add_migrated() {
-            printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" >> "$MATRIX_FILE"
-          }
-
-          select_all_migrated() {
-            add_migrated 'CopyQ' 'copyq/build_copyq.sh' 'copyq/dist' 'copyq.AppImage'
-            add_migrated 'Flameshot' 'flameshot/build_flameshot.sh' 'flameshot/dist' 'flameshot.AppImage'
-            add_migrated 'GoldenDict-ng' 'goldendict-ng/build_goldendict-ng.sh' 'goldendict-ng/dist' 'goldendict-ng.AppImage'
-            add_migrated 'htop' 'htop/build_htop.sh' 'htop/dist' 'htop.AppImage'
-            add_migrated 'i3wm' 'i3wm/build_i3wm.sh' 'i3wm/dist' 'i3.AppImage'
-            add_migrated 'KeePassXC' 'keepassxc/build_keepassxc.sh' 'keepassxc/dist' 'keepassxc.AppImage'
-            add_migrated 'kitty' 'kitty/build_kitty.sh' 'kitty/dist' 'kitty.AppImage'
-            add_migrated 'mpv' 'mpv/build_mpv.sh' 'mpv/dist' 'mpv.AppImage'
-            add_migrated 'nvtop' 'nvtop/build_nvtop.sh' 'nvtop/dist' 'nvtop.AppImage'
-            add_migrated 'ripdrag' 'ripdrag/build_ripdrag.sh' 'ripdrag/dist' 'ripdrag.AppImage'
-            add_migrated 'SMPlayer' 'smplayer/build_smplayer.sh' 'smplayer/dist' 'smplayer.AppImage'
-            add_migrated 'Sunshine' 'sunshine/build_sunshine.sh' 'sunshine/dist' 'sunshine.AppImage'
-            add_migrated 'FreeRDP' 'freerdp/build_freerdp.sh' 'freerdp/dist' 'xfreerdp3.AppImage'
-            add_migrated 'Newsboat' 'newsboat/build_newsboat.sh' 'dist' 'newsboat.AppImage'
-          }
-
           select_all() {
             ANTIGRAVITY_IDE_BUILD=true
             ANTIGRAVITY_BUILD=true
             CC_SWITCH_BUILD=true
             ZEN_BUILD=true
+            COPYQ_BUILD=true
+            FLAMESHOT_BUILD=true
+            GOLDENDICT_NG_BUILD=true
+            HTOP_BUILD=true
+            I3WM_BUILD=true
+            KEEPASSXC_BUILD=true
+            KITTY_BUILD=true
+            MPV_BUILD=true
+            NVTOP_BUILD=true
+            RIPDRAG_BUILD=true
+            SMPLAYER_BUILD=true
+            SUNSHINE_BUILD=true
+            FREERDP_BUILD=true
+            NEWSBOAT_BUILD=true
             ALACRITTY_BUILD=true
             KEYVIZ_BUILD=true
             REMMINA_BUILD=true
-            select_all_migrated
-          }
-
-          select_migrated_script() {
-            case "$1" in
-              copyq/build_copyq.sh) add_migrated 'CopyQ' 'copyq/build_copyq.sh' 'copyq/dist' 'copyq.AppImage' ;;
-              flameshot/build_flameshot.sh) add_migrated 'Flameshot' 'flameshot/build_flameshot.sh' 'flameshot/dist' 'flameshot.AppImage' ;;
-              goldendict-ng/build_goldendict-ng.sh) add_migrated 'GoldenDict-ng' 'goldendict-ng/build_goldendict-ng.sh' 'goldendict-ng/dist' 'goldendict-ng.AppImage' ;;
-              htop/build_htop.sh) add_migrated 'htop' 'htop/build_htop.sh' 'htop/dist' 'htop.AppImage' ;;
-              i3wm/build_i3wm.sh) add_migrated 'i3wm' 'i3wm/build_i3wm.sh' 'i3wm/dist' 'i3.AppImage' ;;
-              keepassxc/build_keepassxc.sh) add_migrated 'KeePassXC' 'keepassxc/build_keepassxc.sh' 'keepassxc/dist' 'keepassxc.AppImage' ;;
-              kitty/build_kitty.sh) add_migrated 'kitty' 'kitty/build_kitty.sh' 'kitty/dist' 'kitty.AppImage' ;;
-              mpv/build_mpv.sh) add_migrated 'mpv' 'mpv/build_mpv.sh' 'mpv/dist' 'mpv.AppImage' ;;
-              nvtop/build_nvtop.sh) add_migrated 'nvtop' 'nvtop/build_nvtop.sh' 'nvtop/dist' 'nvtop.AppImage' ;;
-              ripdrag/build_ripdrag.sh) add_migrated 'ripdrag' 'ripdrag/build_ripdrag.sh' 'ripdrag/dist' 'ripdrag.AppImage' ;;
-              smplayer/build_smplayer.sh) add_migrated 'SMPlayer' 'smplayer/build_smplayer.sh' 'smplayer/dist' 'smplayer.AppImage' ;;
-              sunshine/build_sunshine.sh) add_migrated 'Sunshine' 'sunshine/build_sunshine.sh' 'sunshine/dist' 'sunshine.AppImage' ;;
-              freerdp/build_freerdp.sh) add_migrated 'FreeRDP' 'freerdp/build_freerdp.sh' 'freerdp/dist' 'xfreerdp3.AppImage' ;;
-              newsboat/build_newsboat.sh) add_migrated 'Newsboat' 'newsboat/build_newsboat.sh' 'dist' 'newsboat.AppImage' ;;
-              *) return 1 ;;
-            esac
           }
 
           case "$EVENT_NAME" in
             workflow_dispatch)
               case "${SELECTED_SCRIPT:-all}" in
-                all)
-                  select_all
-                  ;;
+                all) select_all ;;
                 "$ANTIGRAVITY_IDE_SCRIPT") ANTIGRAVITY_IDE_BUILD=true ;;
                 "$ANTIGRAVITY_SCRIPT") ANTIGRAVITY_BUILD=true ;;
                 "$CC_SWITCH_SCRIPT") CC_SWITCH_BUILD=true ;;
                 "$ZEN_SCRIPT") ZEN_BUILD=true ;;
+                'copyq/build_copyq.sh') COPYQ_BUILD=true ;;
+                'flameshot/build_flameshot.sh') FLAMESHOT_BUILD=true ;;
+                'goldendict-ng/build_goldendict-ng.sh') GOLDENDICT_NG_BUILD=true ;;
+                'htop/build_htop.sh') HTOP_BUILD=true ;;
+                'i3wm/build_i3wm.sh') I3WM_BUILD=true ;;
+                'keepassxc/build_keepassxc.sh') KEEPASSXC_BUILD=true ;;
+                'kitty/build_kitty.sh') KITTY_BUILD=true ;;
+                'mpv/build_mpv.sh') MPV_BUILD=true ;;
+                'nvtop/build_nvtop.sh') NVTOP_BUILD=true ;;
+                'ripdrag/build_ripdrag.sh') RIPDRAG_BUILD=true ;;
+                'smplayer/build_smplayer.sh') SMPLAYER_BUILD=true ;;
+                'sunshine/build_sunshine.sh') SUNSHINE_BUILD=true ;;
+                'freerdp/build_freerdp.sh') FREERDP_BUILD=true ;;
+                'newsboat/build_newsboat.sh') NEWSBOAT_BUILD=true ;;
                 "$ALACRITTY_SCRIPT") ALACRITTY_BUILD=true ;;
                 "$KEYVIZ_SCRIPT") KEYVIZ_BUILD=true ;;
                 "$REMMINA_SCRIPT") REMMINA_BUILD=true ;;
                 *)
-                  if ! select_migrated_script "${SELECTED_SCRIPT:-}"; then
-                    echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2
-                    exit 1
-                  fi
+                  echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2
+                  exit 1
                   ;;
               esac
               ;;
@@ -280,24 +286,23 @@ jobs:
                 if grep -Eq '^antigravity/' <<< "$CHANGED_FILES"; then ANTIGRAVITY_BUILD=true; fi
                 if grep -Eq '^cc-switch/' <<< "$CHANGED_FILES"; then CC_SWITCH_BUILD=true; fi
                 if grep -Eq '^zen/' <<< "$CHANGED_FILES"; then ZEN_BUILD=true; fi
+                if grep -Eq '^copyq/' <<< "$CHANGED_FILES"; then COPYQ_BUILD=true; fi
+                if grep -Eq '^flameshot/' <<< "$CHANGED_FILES"; then FLAMESHOT_BUILD=true; fi
+                if grep -Eq '^goldendict-ng/' <<< "$CHANGED_FILES"; then GOLDENDICT_NG_BUILD=true; fi
+                if grep -Eq '^htop/' <<< "$CHANGED_FILES"; then HTOP_BUILD=true; fi
+                if grep -Eq '^i3wm/' <<< "$CHANGED_FILES"; then I3WM_BUILD=true; fi
+                if grep -Eq '^keepassxc/' <<< "$CHANGED_FILES"; then KEEPASSXC_BUILD=true; fi
+                if grep -Eq '^kitty/' <<< "$CHANGED_FILES"; then KITTY_BUILD=true; fi
+                if grep -Eq '^mpv/' <<< "$CHANGED_FILES"; then MPV_BUILD=true; fi
+                if grep -Eq '^nvtop/' <<< "$CHANGED_FILES"; then NVTOP_BUILD=true; fi
+                if grep -Eq '^ripdrag/' <<< "$CHANGED_FILES"; then RIPDRAG_BUILD=true; fi
+                if grep -Eq '^smplayer/' <<< "$CHANGED_FILES"; then SMPLAYER_BUILD=true; fi
+                if grep -Eq '^sunshine/' <<< "$CHANGED_FILES"; then SUNSHINE_BUILD=true; fi
+                if grep -Eq '^freerdp/' <<< "$CHANGED_FILES"; then FREERDP_BUILD=true; fi
+                if grep -Eq '^newsboat/' <<< "$CHANGED_FILES"; then NEWSBOAT_BUILD=true; fi
                 if grep -Eq '^alacritty/' <<< "$CHANGED_FILES"; then ALACRITTY_BUILD=true; fi
                 if grep -Eq '^Keyviz/' <<< "$CHANGED_FILES"; then KEYVIZ_BUILD=true; fi
                 if grep -Eq '^remmina/' <<< "$CHANGED_FILES"; then REMMINA_BUILD=true; fi
-
-                if grep -Eq '^copyq/' <<< "$CHANGED_FILES"; then select_migrated_script 'copyq/build_copyq.sh'; fi
-                if grep -Eq '^flameshot/' <<< "$CHANGED_FILES"; then select_migrated_script 'flameshot/build_flameshot.sh'; fi
-                if grep -Eq '^goldendict-ng/' <<< "$CHANGED_FILES"; then select_migrated_script 'goldendict-ng/build_goldendict-ng.sh'; fi
-                if grep -Eq '^htop/' <<< "$CHANGED_FILES"; then select_migrated_script 'htop/build_htop.sh'; fi
-                if grep -Eq '^i3wm/' <<< "$CHANGED_FILES"; then select_migrated_script 'i3wm/build_i3wm.sh'; fi
-                if grep -Eq '^keepassxc/' <<< "$CHANGED_FILES"; then select_migrated_script 'keepassxc/build_keepassxc.sh'; fi
-                if grep -Eq '^kitty/' <<< "$CHANGED_FILES"; then select_migrated_script 'kitty/build_kitty.sh'; fi
-                if grep -Eq '^mpv/' <<< "$CHANGED_FILES"; then select_migrated_script 'mpv/build_mpv.sh'; fi
-                if grep -Eq '^nvtop/' <<< "$CHANGED_FILES"; then select_migrated_script 'nvtop/build_nvtop.sh'; fi
-                if grep -Eq '^ripdrag/' <<< "$CHANGED_FILES"; then select_migrated_script 'ripdrag/build_ripdrag.sh'; fi
-                if grep -Eq '^smplayer/' <<< "$CHANGED_FILES"; then select_migrated_script 'smplayer/build_smplayer.sh'; fi
-                if grep -Eq '^sunshine/' <<< "$CHANGED_FILES"; then select_migrated_script 'sunshine/build_sunshine.sh'; fi
-                if grep -Eq '^freerdp/' <<< "$CHANGED_FILES"; then select_migrated_script 'freerdp/build_freerdp.sh'; fi
-                if grep -Eq '^newsboat/' <<< "$CHANGED_FILES"; then select_migrated_script 'newsboat/build_newsboat.sh'; fi
               fi
               ;;
 
@@ -346,34 +351,28 @@ jobs:
             get_zen_upstream
           fi
 
-          MIGRATED_MATRIX="$(python3 - "$MATRIX_FILE" <<'PY'
-          import csv
-          import json
-          import sys
-
-          rows = []
-          with open(sys.argv[1], newline='', encoding='utf-8') as handle:
-              for name, script, artifact_dir, release_name in csv.reader(handle, delimiter='\t'):
-                  rows.append({
-                      'name': name,
-                      'script': script,
-                      'artifact_dir': artifact_dir,
-                      'release_name': release_name,
-                  })
-          print(json.dumps({'include': rows}, separators=(',', ':')))
-          PY
-          )"
-          MIGRATED_COUNT="$(wc -l < "$MATRIX_FILE" | tr -d ' ')"
-
           SHOULD_BUILD=false
           if [[ "$ANTIGRAVITY_IDE_BUILD" == true ||
                 "$ANTIGRAVITY_BUILD" == true ||
                 "$CC_SWITCH_BUILD" == true ||
                 "$ZEN_BUILD" == true ||
+                "$COPYQ_BUILD" == true ||
+                "$FLAMESHOT_BUILD" == true ||
+                "$GOLDENDICT_NG_BUILD" == true ||
+                "$HTOP_BUILD" == true ||
+                "$I3WM_BUILD" == true ||
+                "$KEEPASSXC_BUILD" == true ||
+                "$KITTY_BUILD" == true ||
+                "$MPV_BUILD" == true ||
+                "$NVTOP_BUILD" == true ||
+                "$RIPDRAG_BUILD" == true ||
+                "$SMPLAYER_BUILD" == true ||
+                "$SUNSHINE_BUILD" == true ||
+                "$FREERDP_BUILD" == true ||
+                "$NEWSBOAT_BUILD" == true ||
                 "$ALACRITTY_BUILD" == true ||
                 "$KEYVIZ_BUILD" == true ||
-                "$REMMINA_BUILD" == true ||
-                "$MIGRATED_COUNT" -gt 0 ]]; then
+                "$REMMINA_BUILD" == true ]]; then
             SHOULD_BUILD=true
           fi
 
@@ -382,8 +381,20 @@ jobs:
           echo "antigravity=$ANTIGRAVITY_BUILD" >> "$GITHUB_OUTPUT"
           echo "cc_switch=$CC_SWITCH_BUILD" >> "$GITHUB_OUTPUT"
           echo "zen=$ZEN_BUILD" >> "$GITHUB_OUTPUT"
-          echo "migrated_matrix=$MIGRATED_MATRIX" >> "$GITHUB_OUTPUT"
-          echo "migrated_count=$MIGRATED_COUNT" >> "$GITHUB_OUTPUT"
+          echo "copyq=$COPYQ_BUILD" >> "$GITHUB_OUTPUT"
+          echo "flameshot=$FLAMESHOT_BUILD" >> "$GITHUB_OUTPUT"
+          echo "goldendict_ng=$GOLDENDICT_NG_BUILD" >> "$GITHUB_OUTPUT"
+          echo "htop=$HTOP_BUILD" >> "$GITHUB_OUTPUT"
+          echo "i3wm=$I3WM_BUILD" >> "$GITHUB_OUTPUT"
+          echo "keepassxc=$KEEPASSXC_BUILD" >> "$GITHUB_OUTPUT"
+          echo "kitty=$KITTY_BUILD" >> "$GITHUB_OUTPUT"
+          echo "mpv=$MPV_BUILD" >> "$GITHUB_OUTPUT"
+          echo "nvtop=$NVTOP_BUILD" >> "$GITHUB_OUTPUT"
+          echo "ripdrag=$RIPDRAG_BUILD" >> "$GITHUB_OUTPUT"
+          echo "smplayer=$SMPLAYER_BUILD" >> "$GITHUB_OUTPUT"
+          echo "sunshine=$SUNSHINE_BUILD" >> "$GITHUB_OUTPUT"
+          echo "freerdp=$FREERDP_BUILD" >> "$GITHUB_OUTPUT"
+          echo "newsboat=$NEWSBOAT_BUILD" >> "$GITHUB_OUTPUT"
           echo "alacritty=$ALACRITTY_BUILD" >> "$GITHUB_OUTPUT"
           echo "keyviz=$KEYVIZ_BUILD" >> "$GITHUB_OUTPUT"
           echo "remmina=$REMMINA_BUILD" >> "$GITHUB_OUTPUT"
@@ -642,19 +653,16 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
-  build_migrated_arch:
-    name: Build ${{ matrix.name }}
+  build_copyq:
+    name: Build CopyQ
     needs: plan
-    if: needs.plan.outputs.migrated_count != '0'
+    if: needs.plan.outputs.copyq == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     container: ghcr.io/pkgforge-dev/archlinux:latest
     permissions:
       contents: write
       packages: read
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.plan.outputs.migrated_matrix) }}
 
     steps:
       - name: Pre-install Git
@@ -700,9 +708,1205 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          BUILD_SCRIPT: ${{ matrix.script }}
-          ARTIFACT_DIR: ${{ matrix.artifact_dir }}
-          RELEASE_NAME: ${{ matrix.release_name }}
+          BUILD_SCRIPT: copyq/build_copyq.sh
+          ARTIFACT_DIR: copyq/dist
+          RELEASE_NAME: copyq.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_flameshot:
+    name: Build Flameshot
+    needs: plan
+    if: needs.plan.outputs.flameshot == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: flameshot/build_flameshot.sh
+          ARTIFACT_DIR: flameshot/dist
+          RELEASE_NAME: flameshot.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_goldendict_ng:
+    name: Build GoldenDict-ng
+    needs: plan
+    if: needs.plan.outputs.goldendict_ng == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: goldendict-ng/build_goldendict-ng.sh
+          ARTIFACT_DIR: goldendict-ng/dist
+          RELEASE_NAME: goldendict-ng.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_htop:
+    name: Build htop
+    needs: plan
+    if: needs.plan.outputs.htop == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: htop/build_htop.sh
+          ARTIFACT_DIR: htop/dist
+          RELEASE_NAME: htop.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_i3wm:
+    name: Build i3wm
+    needs: plan
+    if: needs.plan.outputs.i3wm == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: i3wm/build_i3wm.sh
+          ARTIFACT_DIR: i3wm/dist
+          RELEASE_NAME: i3.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_keepassxc:
+    name: Build KeePassXC
+    needs: plan
+    if: needs.plan.outputs.keepassxc == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: keepassxc/build_keepassxc.sh
+          ARTIFACT_DIR: keepassxc/dist
+          RELEASE_NAME: keepassxc.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_kitty:
+    name: Build kitty
+    needs: plan
+    if: needs.plan.outputs.kitty == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: kitty/build_kitty.sh
+          ARTIFACT_DIR: kitty/dist
+          RELEASE_NAME: kitty.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_mpv:
+    name: Build mpv
+    needs: plan
+    if: needs.plan.outputs.mpv == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: mpv/build_mpv.sh
+          ARTIFACT_DIR: mpv/dist
+          RELEASE_NAME: mpv.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_nvtop:
+    name: Build nvtop
+    needs: plan
+    if: needs.plan.outputs.nvtop == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: nvtop/build_nvtop.sh
+          ARTIFACT_DIR: nvtop/dist
+          RELEASE_NAME: nvtop.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_ripdrag:
+    name: Build ripdrag
+    needs: plan
+    if: needs.plan.outputs.ripdrag == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: ripdrag/build_ripdrag.sh
+          ARTIFACT_DIR: ripdrag/dist
+          RELEASE_NAME: ripdrag.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_smplayer:
+    name: Build SMPlayer
+    needs: plan
+    if: needs.plan.outputs.smplayer == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: smplayer/build_smplayer.sh
+          ARTIFACT_DIR: smplayer/dist
+          RELEASE_NAME: smplayer.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_sunshine:
+    name: Build Sunshine
+    needs: plan
+    if: needs.plan.outputs.sunshine == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: sunshine/build_sunshine.sh
+          ARTIFACT_DIR: sunshine/dist
+          RELEASE_NAME: sunshine.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_freerdp:
+    name: Build FreeRDP
+    needs: plan
+    if: needs.plan.outputs.freerdp == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: freerdp/build_freerdp.sh
+          ARTIFACT_DIR: freerdp/dist
+          RELEASE_NAME: xfreerdp3.AppImage
+        run: |
+          set -euo pipefail
+
+          chmod +x "$BUILD_SCRIPT"
+          SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+          SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+          if [[ "$SCRIPT_DIR" == 'newsboat' ]]; then
+            "$BUILD_SCRIPT"
+          else
+            (
+              cd "$SCRIPT_DIR"
+              "./$SCRIPT_NAME"
+            )
+          fi
+
+          shopt -s nullglob
+          ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+          shopt -u nullglob
+
+          if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+            echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+            printf '%s\n' "${ARTIFACTS[@]:-}"
+            exit 1
+          fi
+
+          RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+          cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+          test -s "$RELEASE_FILE"
+
+          gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_newsboat:
+    name: Build Newsboat
+    needs: plan
+    if: needs.plan.outputs.newsboat == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+      - name: Build and publish AppImage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SCRIPT: newsboat/build_newsboat.sh
+          ARTIFACT_DIR: dist
+          RELEASE_NAME: newsboat.AppImage
         run: |
           set -euo pipefail
 
