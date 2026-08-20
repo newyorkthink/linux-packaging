@@ -1,0 +1,92 @@
+name: Build AnyLinux AppImage
+description: Prepare yay, build one AppImage, and publish it to the latest Release.
+
+inputs:
+  build_script:
+    description: Repository-relative build script path.
+    required: true
+  artifact_dir:
+    description: Repository-relative directory containing the built AppImage.
+    required: true
+  release_name:
+    description: Fixed filename to publish to the latest Release.
+    required: true
+  run_from_root:
+    description: Run the script from repository root instead of its own directory.
+    required: false
+    default: 'false'
+  github_token:
+    description: GitHub token used to publish the Release asset.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Yay for Root execution
+      shell: bash
+      run: |
+        set -Eeuo pipefail
+        useradd -m -G wheel builduser || true
+        echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+        for attempt in 1 2 3; do
+          rm -rf /tmp/yay-bin
+          if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+            break
+          fi
+          if [[ "$attempt" -eq 3 ]]; then
+            echo '无法克隆 yay-bin。' >&2
+            exit 1
+          fi
+          sleep 5
+        done
+        test -f /tmp/yay-bin/PKGBUILD
+        su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+        printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+        chmod +x /usr/local/bin/yay
+
+    - name: Install GitHub CLI
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+
+    - name: Build and publish AppImage
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        BUILD_SCRIPT: ${{ inputs.build_script }}
+        ARTIFACT_DIR: ${{ inputs.artifact_dir }}
+        RELEASE_NAME: ${{ inputs.release_name }}
+        RUN_FROM_ROOT: ${{ inputs.run_from_root }}
+      run: |
+        set -euo pipefail
+        chmod +x "$BUILD_SCRIPT"
+        SCRIPT_DIR="$(dirname "$BUILD_SCRIPT")"
+        SCRIPT_NAME="$(basename "$BUILD_SCRIPT")"
+
+        if [[ "$RUN_FROM_ROOT" == 'true' ]]; then
+          "$BUILD_SCRIPT"
+        else
+          (
+            cd "$SCRIPT_DIR"
+            "./$SCRIPT_NAME"
+          )
+        fi
+
+        shopt -s nullglob
+        ARTIFACTS=("$ARTIFACT_DIR"/*.AppImage)
+        shopt -u nullglob
+
+        if [[ ${#ARTIFACTS[@]} -ne 1 ]]; then
+          echo "期望 $ARTIFACT_DIR 中恰好有 1 个 AppImage，实际为 ${#ARTIFACTS[@]}。" >&2
+          printf '%s\n' "${ARTIFACTS[@]:-}"
+          exit 1
+        fi
+
+        RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
+        cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
+        test -s "$RELEASE_FILE"
+
+        gh release upload latest "$RELEASE_FILE" \
+          --repo "$GITHUB_REPOSITORY" \
+          --clobber
