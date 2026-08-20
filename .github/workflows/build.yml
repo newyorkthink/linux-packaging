@@ -34,6 +34,9 @@ on:
       - 'freedownloadmanager/**'
       - 'deskflow/**'
       - 'cursor/**'
+      - 'obs-studio/**'
+      - 'dingtalk/**'
+      - 'winpodx/**'
       - 'alacritty/**'
       - 'Keyviz/**'
       - 'remmina/**'
@@ -81,6 +84,9 @@ on:
           - freedownloadmanager/build_freedownloadmanager.sh
           - deskflow/build_deskflow.sh
           - cursor/build_cursor.sh
+          - obs-studio/build_obs-studio.sh
+          - dingtalk/build_dingtalk.sh
+          - winpodx/build_winpodx_release.sh
           - dconf-editor/build_dconf-editor.sh
 
 permissions:
@@ -112,9 +118,9 @@ jobs:
         run: |
           set -euo pipefail
           STATE_DIR='.github/upstream-state'
-          KEYS=(antigravity_ide antigravity cc_switch zen copyq flameshot goldendict_ng htop i3wm keepassxc kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor alacritty keyviz remmina dconf_editor)
-          SCRIPTS=('antigravity-ide/build_antigravity-ide.sh' 'antigravity/build_antigravity.sh' 'cc-switch/build_cc-switch.sh' 'zen/build_zen.sh' 'copyq/build_copyq.sh' 'flameshot/build_flameshot.sh' 'goldendict-ng/build_goldendict-ng.sh' 'htop/build_htop.sh' 'i3wm/build_i3wm.sh' 'keepassxc/build_keepassxc.sh' 'kitty/build_kitty.sh' 'mpv/build_mpv.sh' 'nvtop/build_nvtop.sh' 'ripdrag/build_ripdrag.sh' 'smplayer/build_smplayer.sh' 'sunshine/build_sunshine.sh' 'freerdp/build_freerdp.sh' 'newsboat/build_newsboat.sh' 'zotero/build_zotero.sh' 'vscode/build_vscode.sh' 'simplescreenrecorder/build_simplescreenrecorder.sh' 'rofi/build_rofi.sh' 'picom/build_picom.sh' 'obsidian/build_obsidian.sh' 'freedownloadmanager/build_freedownloadmanager.sh' 'deskflow/build_deskflow.sh' 'cursor/build_cursor.sh' 'alacritty/build_alacritty_linuxdeploy.sh' 'Keyviz/build_keyviz.sh' 'remmina/build_remmina.sh' 'dconf-editor/build_dconf-editor.sh')
-          DIRS=(antigravity-ide antigravity cc-switch zen copyq flameshot goldendict-ng htop i3wm keepassxc kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor alacritty Keyviz remmina dconf-editor)
+          KEYS=(antigravity_ide antigravity cc_switch zen copyq flameshot goldendict_ng htop i3wm keepassxc kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor obs_studio dingtalk winpodx alacritty keyviz remmina dconf_editor)
+          SCRIPTS=('antigravity-ide/build_antigravity-ide.sh' 'antigravity/build_antigravity.sh' 'cc-switch/build_cc-switch.sh' 'zen/build_zen.sh' 'copyq/build_copyq.sh' 'flameshot/build_flameshot.sh' 'goldendict-ng/build_goldendict-ng.sh' 'htop/build_htop.sh' 'i3wm/build_i3wm.sh' 'keepassxc/build_keepassxc.sh' 'kitty/build_kitty.sh' 'mpv/build_mpv.sh' 'nvtop/build_nvtop.sh' 'ripdrag/build_ripdrag.sh' 'smplayer/build_smplayer.sh' 'sunshine/build_sunshine.sh' 'freerdp/build_freerdp.sh' 'newsboat/build_newsboat.sh' 'zotero/build_zotero.sh' 'vscode/build_vscode.sh' 'simplescreenrecorder/build_simplescreenrecorder.sh' 'rofi/build_rofi.sh' 'picom/build_picom.sh' 'obsidian/build_obsidian.sh' 'freedownloadmanager/build_freedownloadmanager.sh' 'deskflow/build_deskflow.sh' 'cursor/build_cursor.sh' 'obs-studio/build_obs-studio.sh' 'dingtalk/build_dingtalk.sh' 'winpodx/build_winpodx_release.sh' 'alacritty/build_alacritty_linuxdeploy.sh' 'Keyviz/build_keyviz.sh' 'remmina/build_remmina.sh' 'dconf-editor/build_dconf-editor.sh')
+          DIRS=(antigravity-ide antigravity cc-switch zen copyq flameshot goldendict-ng htop i3wm keepassxc kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor obs-studio dingtalk winpodx alacritty Keyviz remmina dconf-editor)
           declare -A BUILD SCRIPT_KEY DIR_KEY
           for i in "${!KEYS[@]}"; do key=${KEYS[$i]}; BUILD[$key]=false; SCRIPT_KEY[${SCRIPTS[$i]}]=$key; DIR_KEY[${DIRS[$i]}]=$key; done
           ANTIGRAVITY_IDE_UPSTREAM=''; ANTIGRAVITY_UPSTREAM=''; CC_SWITCH_UPSTREAM=''; ZEN_UPSTREAM=''
@@ -454,6 +460,98 @@ jobs:
     permissions: *arch_permissions
     env: {BUILD_SCRIPT: 'cursor/build_cursor.sh', ARTIFACT_DIR: 'cursor/dist', RELEASE_NAME: 'cursor.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
+
+  build_obs_studio:
+    name: Build OBS Studio
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).obs_studio == 'true'
+    runs-on: ubuntu-latest
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Preparing AnyLinux Container
+        uses: pkgforge-dev/anylinux-setup-action@0964f2258d6c93d1391359978dde081fd8b3c6af
+      - name: Build and Verify OBS Studio AppImage
+        working-directory: obs-studio
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x build_obs-studio.sh
+          ./build_obs-studio.sh 2>&1 | tee build_obs-studio.log
+          test -x dist/OBS-Studio.AppImage
+          test -s dist/OBS-Studio.AppImage.sha256
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config --global --add safe.directory '*'
+          pacman -S --noconfirm --needed github-cli
+          gh release upload latest obs-studio/dist/OBS-Studio.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+
+  build_dingtalk:
+    name: Build DingTalk
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).dingtalk == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Build and Validate DingTalk AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x dingtalk/ci_build_dingtalk.sh
+          ./dingtalk/ci_build_dingtalk.sh
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -s dingtalk/dist/DingTalk.AppImage
+          gh release upload latest dingtalk/dist/DingTalk.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+
+  build_winpodx:
+    name: Build WinPodX
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).winpodx == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Build and Validate WinPodX AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x winpodx/ci_build_winpodx.sh
+          ./winpodx/ci_build_winpodx.sh
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -s winpodx/dist/winpodx.AppImage
+          gh release upload latest winpodx/dist/winpodx.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
   build_alacritty:
     name: Build Alacritty
