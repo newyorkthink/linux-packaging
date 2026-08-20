@@ -8,7 +8,7 @@ export ARCH
 
 export STARTUPWMCLASS=simplescreenrecorder
 export ICON=/usr/share/icons/hicolor/256x256/apps/simplescreenrecorder.png
-export DESKTOP=/usr/share/applications/simplescreenrecorder.desktop
+export DESKTOP=/usr/share/applications/be.maartenbaert.simplescreenrecorder.desktop
 export OUTPATH=./dist
 export OUTNAME="simplescreenrecorder.AppImage"
 export DEPLOY_OPENGL=1
