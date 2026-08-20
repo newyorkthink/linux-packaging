@@ -219,8 +219,8 @@ bash -n dingtalk/build_dingtalk.sh
 chmod 0755 dingtalk/build_dingtalk.sh
 ./dingtalk/build_dingtalk.sh
 
-test -s dingtalk/dist/DingTalk.AppImage
-test -s dingtalk/dist/DingTalk.AppImage.sha256
+test -s dingtalk/dist/dingtalk.AppImage
+test -s dingtalk/dist/dingtalk.AppImage.sha256
 test -s dingtalk/dist/dingtalk-version.txt
 
 test -s dingtalk/source/meta/nss-runtime-files.txt
@@ -231,5 +231,5 @@ done < dingtalk/source/meta/nss-runtime-files.txt
 
 (
   cd dingtalk/dist
-  sha256sum -c DingTalk.AppImage.sha256
+  sha256sum -c dingtalk.AppImage.sha256
 )

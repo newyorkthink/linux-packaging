@@ -467,8 +467,8 @@ jobs:
           set -Eeuo pipefail
           chmod +x build_obs-studio.sh
           ./build_obs-studio.sh 2>&1 | tee build_obs-studio.log
-          test -x dist/OBS-Studio.AppImage
-          test -s dist/OBS-Studio.AppImage.sha256
+          test -x dist/obs-studio.AppImage
+          test -s dist/obs-studio.AppImage.sha256
       - name: Publish to Latest Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -477,7 +477,8 @@ jobs:
           set -Eeuo pipefail
           git config --global --add safe.directory '*'
           pacman -S --noconfirm --needed github-cli
-          gh release upload latest obs-studio/dist/OBS-Studio.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+          gh release delete-asset latest OBS-Studio.AppImage --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
+          gh release upload latest obs-studio/dist/obs-studio.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
   build_dingtalk:
     name: Build DingTalk
@@ -502,8 +503,9 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          test -s dingtalk/dist/DingTalk.AppImage
-          gh release upload latest dingtalk/dist/DingTalk.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+          test -s dingtalk/dist/dingtalk.AppImage
+          gh release delete-asset latest DingTalk.AppImage --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
+          gh release upload latest dingtalk/dist/dingtalk.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
   build_winpodx:
     name: Build WinPodX

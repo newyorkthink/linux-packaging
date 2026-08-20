@@ -38,7 +38,7 @@ readonly CEF_LIB_DIR="$RELEASE_DIR/plugins/dtwebview"
 readonly RUNTIME_LIB="$APPDIR/usr/lib/dingtalk-runtime"
 readonly DINGTALK_LIBRARY_PATH="$RELEASE_DIR:$CEF_LIB_DIR:$RUNTIME_LIB"
 readonly DIST_DIR="$SCRIPT_DIR/dist"
-readonly OUTFILE="$DIST_DIR/DingTalk.AppImage"
+readonly OUTFILE="$DIST_DIR/dingtalk.AppImage"
 readonly BUILD_LOG="$SCRIPT_DIR/dingtalk-smoke.log"
 
 for required_path in \
