@@ -123,7 +123,17 @@ jobs:
             workflow_dispatch) if [[ "${SELECTED_SCRIPT:-all}" == all ]]; then select_all; elif [[ -n "${SCRIPT_KEY[${SELECTED_SCRIPT:-}]:-}" ]]; then BUILD[${SCRIPT_KEY[$SELECTED_SCRIPT]}]=true; else echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2; exit 1; fi ;;
             push)
               if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then CHANGED_FILES="$(git show --pretty='' --name-only "$AFTER_SHA")"; else CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"; fi
-              if grep -Fxq '.github/workflows/build.yml' <<< "$CHANGED_FILES" || grep -Eq '^\.github/actions/build-anylinux/' <<< "$CHANGED_FILES"; then select_all; else while IFS= read -r file; do dir=${file%%/*}; [[ -n "${DIR_KEY[$dir]:-}" ]] && BUILD[${DIR_KEY[$dir]}]=true; done <<< "$CHANGED_FILES"; fi ;;
+              if grep -Fxq '.github/workflows/build.yml' <<< "$CHANGED_FILES" || grep -Eq '^\.github/actions/build-anylinux/' <<< "$CHANGED_FILES"; then
+                select_all
+              else
+                while IFS= read -r file; do
+                  case "$file" in
+                    .github/scripts/ci_build_dingtalk.sh) BUILD[dingtalk]=true ;;
+                    .github/scripts/ci_build_winpodx.sh) BUILD[winpodx]=true ;;
+                    *) dir=${file%%/*}; [[ -n "${DIR_KEY[$dir]:-}" ]] && BUILD[${DIR_KEY[$dir]}]=true ;;
+                  esac
+                done <<< "$CHANGED_FILES"
+              fi ;;
             schedule) select_all ;;
             *) exit 1 ;;
           esac

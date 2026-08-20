@@ -8,7 +8,7 @@
 - 构建环境：Ubuntu 24.04 GitHub Actions
 - 上游来源：AUR `dingtalk-bin`
 - 本次实测上游版本：`8.1.0.6021101-1`
-- 输出文件：`DingTalk.AppImage`
+- 输出文件：`dingtalk.AppImage`
 
 工作流默认从 AUR 获取当前 `dingtalk-bin`。本基线记录的是 2026-08-06 在真实 Arch Linux + i3wm 环境完成验证的构建方案。
 
@@ -40,7 +40,7 @@
 8. 仅从临时 AppImage 源目录移除不参与主程序运行、且依赖旧 `libpangox` 的诊断组件。
 9. 修正 AUR desktop 文件中的重复键，再交给 `appimagetool`。
 10. 构建前检查全部 ELF 动态库，构建后分别执行 AppDir 和最终 AppImage 图形启动测试。
-11. 生成 SHA-256 校验文件和版本说明文件，并上传到日期 Release。
+11. 生成 SHA-256 校验文件和版本说明文件，并上传到 `latest` Release。
 
 ## 基线保护项
 
@@ -60,22 +60,22 @@
 ## 生成文件
 
 ```text
-DingTalk.AppImage
-DingTalk.AppImage.sha256
+dingtalk.AppImage
+dingtalk.AppImage.sha256
 dingtalk-version.txt
 ```
 
 校验：
 
 ```bash
-sha256sum -c DingTalk.AppImage.sha256
+sha256sum -c dingtalk.AppImage.sha256
 ```
 
 运行：
 
 ```bash
-chmod +x DingTalk.AppImage
-./DingTalk.AppImage
+chmod +x dingtalk.AppImage
+./dingtalk.AppImage
 ```
 
 ## 日志说明
@@ -102,7 +102,8 @@ Could not load the Qt platform plugin
 ## 相关文件
 
 ```text
-.github/workflows/build_dingtalk.yml
+.github/workflows/build.yml
+.github/scripts/ci_build_dingtalk.sh
 dingtalk/build_dingtalk.sh
 dingtalk/README.md
 ```
