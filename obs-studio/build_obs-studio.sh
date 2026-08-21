@@ -55,7 +55,7 @@ fi
 
 # 与上游 OBS AnyLinux 构建保持一致，压缩 Intel 媒体驱动体积。
 if command -v get-debloated-pkgs >/dev/null 2>&1; then
-  get-debloated-pkgs --add-common --prefer-nano intel-media-driver-mini
+  get-debloated-pkgs --add-common --prefer-nano intel-media-driver-mini '!' qt6-base
 else
   pacman -S --noconfirm --needed libva-intel-driver
 fi
