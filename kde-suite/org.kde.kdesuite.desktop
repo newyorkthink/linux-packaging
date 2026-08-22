@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=KDE Suite
+Name[zh_CN]=KDE 应用套件
+Comment=Launch KDE Connect, Dolphin, Konsole, Filelight, Okular, Gwenview, Haruna, Ark and Kompare from one AppImage
+Comment[zh_CN]=从同一个 AppImage 启动 KDE Connect、Dolphin、Konsole、Filelight、Okular、Gwenview、Haruna、Ark 和 Kompare
+Exec=kde-suite-launcher
+Icon=kde-suite
+Terminal=false
+Categories=Utility;System;
+StartupNotify=true
+StartupWMClass=kde-suite-launcher
