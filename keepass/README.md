@@ -56,6 +56,12 @@ SendMessage (...)
 
 这些输出目前不影响 KeePass、数据库、插件、托盘或界面功能。不要为了隐藏提示而重定向全部标准错误，否则会同时隐藏真正的 Mono 或插件错误。
 
+## 构建隔离
+
+KeePass 必须保持独立 Job / 独立 Arch Linux 容器构建，避免其他项目安装的依赖被 `quick-sharun`、动态依赖扫描或通配符误打包进 KeePass AppImage。
+
+以前曾出现 KDE Suite 安装的 Qt6、KF6、Mesa 和 LXQt 相关库被后续 KeePass 构建误收集，导致 KeePass AppImage 从约 120 MB 增长到约 225 MB。因此 KeePass 不与其他 AppImage 项目共用构建容器。
+
 ## 维护原则
 
 - 已经实机确认的命令、参数、执行顺序、打包路径、插件、主题、字体、Fontconfig 和 wrapper 不为格式美化而改写。
