@@ -19,10 +19,12 @@
 
 ### 基准提交与回退规则
 
-- 当前最终功能源码基准为 [`4c29370ffa2be58c65d0a9e00e63d2cff2ef58df`](https://github.com/wx-projects/appimage-builds/commit/4c29370ffa2be58c65d0a9e00e63d2cff2ef58df)（`修复 Qt6ct AppImage 配色路径持久化`）。该提交只在 `deploy_utility_apps.sh` 中增加独立 `01-kde-suite-qt6ct-color-path.hook` 及对应构建期检查，不修改已经验证有效的 Dolphin、Haruna、KDE Connect、KIO、MIME、图标主题和启动器运行逻辑；当前产物已完成实机验收，Qt6ct 配色路径持久化修复确认有效。
-- 上一个 2026.08.08 功能稳定基准为 [`0053f35d8c702fffe82ecd3b57a41a0196cc1a4f`](https://github.com/wx-projects/appimage-builds/commit/0053f35d8c702fffe82ecd3b57a41a0196cc1a4f)（`Fix KDE Suite launcher card sizes`），保留为本次 Qt6ct 配色持久化修复之前的直接回退点。
-- 早期完整构建记录为 [`447519e4196b4ff29434467dff7f4611eee051f5`](https://github.com/wx-projects/appimage-builds/commit/447519e4196b4ff29434467dff7f4611eee051f5)（`补充 KDE Suite 轻量工具说明`）。GitHub Actions Run `31241444761` 的 `build_kde` 已成功完成，并确认 Qt6ct、KFind、KDF 已进入套件；该记录用于保留此前完整构建历史，不替代当前最终功能源码基准。
-- 历史功能稳定基准为 [`2c33b838639f46cd9c92202d46352e20fc137b97`](https://github.com/wx-projects/appimage-builds/commit/2c33b838639f46cd9c92202d46352e20fc137b97)（`Finalize KDE Suite stable build checks`），继续作为 2026.07.31 版本的历史回退点。
+- 当前仓库迁移基准为 [`f4b0ace822ac90774c010b078f61d19afe5fb799`](https://github.com/newyorkthink/linux-packaging/commit/f4b0ace822ac90774c010b078f61d19afe5fb799)（`Migrate KDE Suite AppImage files`）。该提交把旧仓库 `wx-projects/appimage-builds/kde/` 的 12 个文件原样迁移到当前仓库 `kde-suite/`；它用于确认迁移内容完整，不代表重新进行了一次功能实机验收。
+- 当前仓库工作流接入基准为 [`0df09c6494fc38bc45e85d3772f44fad2fd57cc1`](https://github.com/newyorkthink/linux-packaging/commit/0df09c6494fc38bc45e85d3772f44fad2fd57cc1)（`Integrate KDE Suite AppImage build [skip ci]`）。该提交将仓库路径统一为 `kde-suite/...`，并把 KDE Suite 接入当前 `.github/workflows/build.yml` 的独立 `build_kde_suite` job；它属于迁移适配，不替代下列迁移前已完成实机验收的功能基准。
+- 迁移前最后一个已完成实机验收的功能源码基准为旧仓库 [`4c29370ffa2be58c65d0a9e00e63d2cff2ef58df`](https://github.com/wx-projects/appimage-builds/commit/4c29370ffa2be58c65d0a9e00e63d2cff2ef58df)（`修复 Qt6ct AppImage 配色路径持久化`）。该提交只在 `deploy_utility_apps.sh` 中增加独立 `01-kde-suite-qt6ct-color-path.hook` 及对应构建期检查，不修改已经验证有效的 Dolphin、Haruna、KDE Connect、KIO、MIME、图标主题和启动器运行逻辑；当时产物已完成实机验收，Qt6ct 配色路径持久化修复确认有效。
+- 迁移前上一个 2026.08.08 功能稳定基准为旧仓库 [`0053f35d8c702fffe82ecd3b57a41a0196cc1a4f`](https://github.com/wx-projects/appimage-builds/commit/0053f35d8c702fffe82ecd3b57a41a0196cc1a4f)（`Fix KDE Suite launcher card sizes`），保留为 Qt6ct 配色持久化修复之前的历史回退点。
+- 迁移前早期完整构建记录为旧仓库 [`447519e4196b4ff29434467dff7f4611eee051f5`](https://github.com/wx-projects/appimage-builds/commit/447519e4196b4ff29434467dff7f4611eee051f5)（`补充 KDE Suite 轻量工具说明`）。旧仓库 GitHub Actions Run `31241444761` 的 `build_kde` 已成功完成，并确认 Qt6ct、KFind、KDF 已进入套件；该记录只用于保留迁移前完整构建历史，不替代当前仓库的迁移基准或迁移前最后功能基准。
+- 更早的迁移前功能稳定基准为旧仓库 [`2c33b838639f46cd9c92202d46352e20fc137b97`](https://github.com/wx-projects/appimage-builds/commit/2c33b838639f46cd9c92202d46352e20fc137b97)（`Finalize KDE Suite stable build checks`），继续作为 2026.07.31 版本的历史回退点。
 - 后续功能修改必须建立在最近一次稳定基准之上。若新增改动出现构建失败、功能回退或实机异常，应撤销该基准之后尚未验证的功能改动，回到最近一次已验证的基准，不在错误方案上连续叠加修补。
 - 稳定基准可以继续向前推进。新增功能完成后，只有在构建检查通过、现有功能未受影响且新增功能完成实机验收时，才把对应提交登记为新的当前稳定基准；原有基准继续保留为历史回退点。
 - 每次形成新的稳定基准，都必须在本节记录日期、完整提交哈希、提交说明和实际验收结果。纯文档提交不替代功能源码基准。
@@ -142,11 +144,11 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 
 ## GitHub Actions
 
-向 `main` 推送 `kde-suite/**` 下的变更时，`.github/workflows/build.yml` 会自动选择并执行 `kde-suite/build_kde_suite.sh`，构建并上传 `kde-suite.AppImage`。
+向 `main` 推送 `kde-suite/**` 下的变更时，`.github/workflows/build.yml` 会自动选择 KDE Suite，并由独立 `build_kde_suite` job 执行 `kde-suite/build_kde_suite.sh`，构建并上传 `kde-suite.AppImage`。
 
 需要自动构建的提交信息不得包含 `[skip ci]`、`[ci skip]` 等跳过 CI 的标记。仅更新稳定基线说明等纯文档时应使用 `[skip ci]`，避免重复消耗 Actions 时间。
 
-历史完整构建记录：2026-08-08 的 Run `31241444761` 已成功完成 `build_kde`。该次完整构建约耗时 48 分钟；`quick-sharun` 在整理大量 `AppDir/lib` 依赖和最终处理阶段可能连续十几分钟没有新增网页日志，GitHub 页面会停留在最后一条库软链接输出。只要 job 仍处于运行状态，这种“日志静默”本身不能判断为死锁或失败。
+迁移前旧仓库的历史完整构建记录：2026-08-08 的 Run `31241444761` 已成功完成旧 `build_kde` job。该次完整构建约耗时 48 分钟；`quick-sharun` 在整理大量 `AppDir/lib` 依赖和最终处理阶段可能连续十几分钟没有新增网页日志，GitHub 页面会停留在最后一条库软链接输出。只要 job 仍处于运行状态，这种“日志静默”本身不能判断为死锁或失败。
 
 工作流本身不配置构建缓存；相关路径、容器权限、依赖安装、脚本选择和产物目录必须在提交前静态检查。一次完整修改只推送一次 `main`，不要把 Actions 当成 Shell/YAML 基础错误的试运行环境。
 
