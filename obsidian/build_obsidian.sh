@@ -40,24 +40,25 @@ export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
 export DEPLOY_PIPEWIRE=1
 
-# 下载官方 Obsidian Linux x64 tar 包
-RELEASE_API="https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest"
-RELEASE_JSON="$(wget --retry-connrefused --tries=30 -qO- "$RELEASE_API")"
+# 下载最近一个包含 Linux x64 tar 包的 Obsidian Desktop Release。
+# 上游 releases/latest 可能指向仅含移动端安装包的 Release，因此不能直接依赖 latest。
+RELEASES_API="https://api.github.com/repos/obsidianmd/obsidian-releases/releases?per_page=100"
+RELEASES_JSON="$(wget --retry-connrefused --tries=30 -qO- "$RELEASES_API")"
 
-VERSION="$(printf '%s\n' "$RELEASE_JSON" | awk -F'\"' '/"tag_name":/ {gsub(/^v/, "", $4); print $4; exit}')"
-
-if [ -z "$VERSION" ]; then
-  echo "Error: failed to resolve Obsidian latest version."
-  exit 1
-fi
-
-TARBALL_LINK="$(printf '%s\n' "$RELEASE_JSON" \
-  | awk -F'\"' '/browser_download_url/ && /obsidian-.*\.tar\.gz/ {print $4}' \
-  | grep -E "/obsidian-${VERSION}\.tar\.gz$" \
+TARBALL_LINK="$(printf '%s\n' "$RELEASES_JSON" \
+  | grep -oE 'https://github\.com/obsidianmd/obsidian-releases/releases/download/v[0-9]+(\.[0-9]+)+/obsidian-[0-9]+(\.[0-9]+)+\.tar\.gz' \
   | head -n 1 || true)"
 
 if [ -z "$TARBALL_LINK" ]; then
   echo "Error: failed to resolve Obsidian x64 tarball URL."
+  exit 1
+fi
+
+VERSION="$(printf '%s\n' "$TARBALL_LINK" \
+  | sed -E 's#^.*/obsidian-([0-9]+(\.[0-9]+)+)\.tar\.gz$#\1#')"
+
+if [ -z "$VERSION" ]; then
+  echo "Error: failed to resolve Obsidian desktop version."
   exit 1
 fi
 
