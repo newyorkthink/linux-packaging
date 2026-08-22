@@ -312,7 +312,7 @@ fi
 rm -rf AppDir/lib/qt6/plugins/kf6/sonnet || true
 
 # 基础阶段先移除只支持 SquashFS 的 AppImage 插件；deploy_suite_apps.sh 会在最终阶段恢复，
-# 同时兼顾普通 SquashFS AppImage 图标/元数据提取，并把其他格式的解析日志记录为已知限制。
+# 同时兼顾普通 AppImage 图标/元数据提取，并把 DwarFS 报错保留为已知的非致命日志。
 rm -f \
   AppDir/lib/qt6/plugins/kf6/thumbcreator/appimagethumbnail.so \
   AppDir/lib/qt6/plugins/kf6/kfilemetadata/kfilemetadata_appimageextractor.so
