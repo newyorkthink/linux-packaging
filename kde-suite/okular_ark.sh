@@ -1,4 +1,4 @@
-# 由 kde/build_kde_suite.sh 在基础 AppDir 完成后、生成 AppImage 前加载。
+# 由 kde-suite/build_kde_suite.sh 在基础 AppDir 完成后、生成 AppImage 前加载。
 # 当前 shell 已提供 SCRIPT_DIR、copy_support_files 和 quick-sharun。
 
 if [ "${KDE_SUITE_OKULAR_ARK_READY:-0}" = "1" ]; then

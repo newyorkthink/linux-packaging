@@ -1,4 +1,4 @@
-# 由 kde/build_kde_suite.sh 在基础 AppDir 完成后、生成 AppImage 前加载。
+# 由 kde-suite/build_kde_suite.sh 在基础 AppDir 完成后、生成 AppImage 前加载。
 # 保留已经验证的 okular_ark.sh 原有逻辑，只在其外层补充套件级收尾处理。
 
 if [ "${KDE_SUITE_DEPLOY_READY:-0}" = "1" ]; then

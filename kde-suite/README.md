@@ -1,6 +1,6 @@
 # KDE Suite
 
-`kde/build_kde_suite.sh` 构建一个共享挂载的 `kde-suite.AppImage`，内含 KDE Connect、Dolphin、KFind、Konsole、Filelight、KDF、Okular、Gwenview、Haruna、Ark、Kompare、Qt6ct、Plasma Activities 后台及必要的 KDE/KF6 运行组件。
+`kde-suite/build_kde_suite.sh` 构建一个共享挂载的 `kde-suite.AppImage`，内含 KDE Connect、Dolphin、KFind、Konsole、Filelight、KDF、Okular、Gwenview、Haruna、Ark、Kompare、Qt6ct、Plasma Activities 后台及必要的 KDE/KF6 运行组件。
 
 ## 稳定基线（2026.08.08）
 
@@ -142,7 +142,7 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 
 ## GitHub Actions
 
-向 `main` 推送 `kde/**` 下的变更时，`.github/workflows/build.yml` 会自动选择并执行 `kde/build_kde_suite.sh`，构建并上传 `kde-suite.AppImage`。
+向 `main` 推送 `kde-suite/**` 下的变更时，`.github/workflows/build.yml` 会自动选择并执行 `kde-suite/build_kde_suite.sh`，构建并上传 `kde-suite.AppImage`。
 
 需要自动构建的提交信息不得包含 `[skip ci]`、`[ci skip]` 等跳过 CI 的标记。仅更新稳定基线说明等纯文档时应使用 `[skip ci]`，避免重复消耗 Actions 时间。
 

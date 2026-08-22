@@ -3,7 +3,7 @@
 # KDE Suite AppImage 构建说明
 #
 # 本脚本将 KDE Connect、Dolphin、Konsole、Filelight、KIO、SSHFS、KDialog 及必要的 KDE/KF6 运行组件打包为一个 KDE Suite AppImage。
-# - kde-suite.AppImage 默认启动可配置的 Qt6 Widgets 图形启动器，应用列表读取 kde/apps.ini；以后增加程序只需打包程序并更新配置，不必改启动器源码。
+# - kde-suite.AppImage 默认启动可配置的 Qt6 Widgets 图形启动器，应用列表读取 kde-suite/apps.ini；以后增加程序只需打包程序并更新配置，不必改启动器源码。
 # - 启动器支持简体中文，并可在浅色与深色界面之间切换；Breeze 与 Breeze Dark 图标主题同时打包。
 # - kde-suite、kdeconnect、dolphin、konsole 等外部软链接都指向同一个 AppImage 文件，不需要分别制作或保存多个 AppImage。
 # - kde-suite 启动器从当前已挂载的 $APPDIR/bin 直接启动 KDE Connect、Dolphin、Konsole 和 Filelight；启动器保持运行期间，所有内部程序共用同一个 FUSE 挂载，不需要分别挂载。
@@ -312,7 +312,7 @@ fi
 rm -rf AppDir/lib/qt6/plugins/kf6/sonnet || true
 
 # 基础阶段先移除只支持 SquashFS 的 AppImage 插件；deploy_suite_apps.sh 会在最终阶段恢复，
-# 同时兼顾普通 AppImage 图标/元数据提取，并把 DwarFS 报错保留为已知的非致命日志。
+# 同时兼顾普通 SquashFS AppImage 图标/元数据提取，并把其他格式的解析日志记录为已知限制。
 rm -f \
   AppDir/lib/qt6/plugins/kf6/thumbcreator/appimagethumbnail.so \
   AppDir/lib/qt6/plugins/kf6/kfilemetadata/kfilemetadata_appimageextractor.so
