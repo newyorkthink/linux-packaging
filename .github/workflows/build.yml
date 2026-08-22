@@ -17,6 +17,7 @@ on:
       - 'htop/**'
       - 'i3wm/**'
       - 'keepassxc/**'
+      - 'keepass/**'
       - 'kitty/**'
       - 'mpv/**'
       - 'nvtop/**'
@@ -65,6 +66,7 @@ on:
           - htop/build_htop.sh
           - i3wm/build_i3wm.sh
           - keepassxc/build_keepassxc.sh
+          - keepass/build_keepass.sh
           - kitty/build_kitty.sh
           - mpv/build_mpv.sh
           - nvtop/build_nvtop.sh
@@ -113,9 +115,9 @@ jobs:
           AFTER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          KEYS=(antigravity_ide antigravity cc_switch zen copyq flameshot goldendict_ng htop i3wm keepassxc kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor obs_studio dingtalk winpodx alacritty keyviz remmina dconf_editor)
-          SCRIPTS=('antigravity-ide/build_antigravity-ide.sh' 'antigravity/build_antigravity.sh' 'cc-switch/build_cc-switch.sh' 'zen/build_zen.sh' 'copyq/build_copyq.sh' 'flameshot/build_flameshot.sh' 'goldendict-ng/build_goldendict-ng.sh' 'htop/build_htop.sh' 'i3wm/build_i3wm.sh' 'keepassxc/build_keepassxc.sh' 'kitty/build_kitty.sh' 'mpv/build_mpv.sh' 'nvtop/build_nvtop.sh' 'ripdrag/build_ripdrag.sh' 'smplayer/build_smplayer.sh' 'sunshine/build_sunshine.sh' 'freerdp/build_freerdp.sh' 'newsboat/build_newsboat.sh' 'zotero/build_zotero.sh' 'vscode/build_vscode.sh' 'simplescreenrecorder/build_simplescreenrecorder.sh' 'rofi/build_rofi.sh' 'picom/build_picom.sh' 'obsidian/build_obsidian.sh' 'freedownloadmanager/build_freedownloadmanager.sh' 'deskflow/build_deskflow.sh' 'cursor/build_cursor.sh' 'obs-studio/build_obs-studio.sh' 'dingtalk/build_dingtalk.sh' 'winpodx/build_winpodx_release.sh' 'alacritty/build_alacritty_linuxdeploy.sh' 'Keyviz/build_keyviz.sh' 'remmina/build_remmina.sh' 'dconf-editor/build_dconf-editor.sh')
-          DIRS=(antigravity-ide antigravity cc-switch zen copyq flameshot goldendict-ng htop i3wm keepassxc kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor obs-studio dingtalk winpodx alacritty Keyviz remmina dconf-editor)
+          KEYS=(antigravity_ide antigravity cc_switch zen copyq flameshot goldendict_ng htop i3wm keepassxc keepass kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor obs_studio dingtalk winpodx alacritty keyviz remmina dconf_editor)
+          SCRIPTS=('antigravity-ide/build_antigravity-ide.sh' 'antigravity/build_antigravity.sh' 'cc-switch/build_cc-switch.sh' 'zen/build_zen.sh' 'copyq/build_copyq.sh' 'flameshot/build_flameshot.sh' 'goldendict-ng/build_goldendict-ng.sh' 'htop/build_htop.sh' 'i3wm/build_i3wm.sh' 'keepassxc/build_keepassxc.sh' 'keepass/build_keepass.sh' 'kitty/build_kitty.sh' 'mpv/build_mpv.sh' 'nvtop/build_nvtop.sh' 'ripdrag/build_ripdrag.sh' 'smplayer/build_smplayer.sh' 'sunshine/build_sunshine.sh' 'freerdp/build_freerdp.sh' 'newsboat/build_newsboat.sh' 'zotero/build_zotero.sh' 'vscode/build_vscode.sh' 'simplescreenrecorder/build_simplescreenrecorder.sh' 'rofi/build_rofi.sh' 'picom/build_picom.sh' 'obsidian/build_obsidian.sh' 'freedownloadmanager/build_freedownloadmanager.sh' 'deskflow/build_deskflow.sh' 'cursor/build_cursor.sh' 'obs-studio/build_obs-studio.sh' 'dingtalk/build_dingtalk.sh' 'winpodx/build_winpodx_release.sh' 'alacritty/build_alacritty_linuxdeploy.sh' 'Keyviz/build_keyviz.sh' 'remmina/build_remmina.sh' 'dconf-editor/build_dconf-editor.sh')
+          DIRS=(antigravity-ide antigravity cc-switch zen copyq flameshot goldendict-ng htop i3wm keepassxc keepass kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor obs-studio dingtalk winpodx alacritty Keyviz remmina dconf-editor)
           declare -A BUILD SCRIPT_KEY DIR_KEY
           for i in "${!KEYS[@]}"; do key=${KEYS[$i]}; BUILD[$key]=false; SCRIPT_KEY[${SCRIPTS[$i]}]=$key; DIR_KEY[${DIRS[$i]}]=$key; done
           select_all() { for key in "${KEYS[@]}"; do BUILD[$key]=true; done; }
@@ -262,6 +264,17 @@ jobs:
     container: *arch_container
     permissions: *arch_permissions
     env: {BUILD_SCRIPT: 'keepassxc/build_keepassxc.sh', ARTIFACT_DIR: 'keepassxc/dist', RELEASE_NAME: 'keepassxc.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_keepass:
+    name: Build KeePass
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).keepass == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'keepass/build_keepass.sh', ARTIFACT_DIR: 'dist', RELEASE_NAME: 'keepass.AppImage', RUN_FROM_ROOT: 'true'}
     steps: *arch_steps
 
   build_kitty:

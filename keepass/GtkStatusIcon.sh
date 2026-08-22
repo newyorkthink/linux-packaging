@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-# 下载 wx-projects/Keebuntu 最新正式 Release 中的 GTK2 XEmbed 托盘插件，并校验 SHA256SUMS。
-KEEBUNTU_REPOSITORY="wx-projects/Keebuntu"
+# 下载 newyorkthink/Keebuntu 最新正式 Release 中的 GTK2 XEmbed 托盘插件，并校验 SHA256SUMS。
+KEEBUNTU_REPOSITORY="newyorkthink/Keebuntu"
 KEEBUNTU_TAG="$(gh release view --repo "$KEEBUNTU_REPOSITORY" --json tagName --jq '.tagName')"
 test -n "$KEEBUNTU_TAG"
 
