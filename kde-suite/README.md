@@ -149,3 +149,11 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 历史完整构建记录：2026-08-08 的 Run `31241444761` 已成功完成 `build_kde`。该次完整构建约耗时 48 分钟；`quick-sharun` 在整理大量 `AppDir/lib` 依赖和最终处理阶段可能连续十几分钟没有新增网页日志，GitHub 页面会停留在最后一条库软链接输出。只要 job 仍处于运行状态，这种“日志静默”本身不能判断为死锁或失败。
 
 工作流本身不配置构建缓存；相关路径、容器权限、依赖安装、脚本选择和产物目录必须在提交前静态检查。一次完整修改只推送一次 `main`，不要把 Actions 当成 Shell/YAML 基础错误的试运行环境。
+
+### 构建隔离
+
+KDE Suite 会安装大量 Qt6、KF6、Mesa 和 LXQt 相关依赖，必须继续保持独立 GitHub Actions job 和独立 Arch Linux 构建容器，不能与其他 AppImage 项目在同一个容器中串行构建。
+
+原因是这些依赖会保留在容器的 `/usr/lib` 等系统目录中；后续项目使用 `quick-sharun`、动态依赖扫描或通配符收集库文件时，可能把 KDE Suite 的依赖误打包进去。旧仓库曾出现 KDE Suite 依赖被后续 KeePass 构建误收集，导致 KeePass AppImage 从约 120 MB 增长到约 225 MB。
+
+因此 KDE Suite 的维护规则是：独立 job、独立构建容器；`plan` job 只负责选择构建项目和准备 Release，不安装 KDE Suite 的具体构建依赖。
