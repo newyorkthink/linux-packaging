@@ -45,5 +45,5 @@ export DEPLOY_VULKAN=1
 export DWARFS_COMP="zstd:level=5"
 
 quick-sharun ./AppDir/bin/* /usr/lib/libnss_nis.so* /usr/lib/libnsl.so* /usr/lib/libnss_mdns*_minimal.so* /usr/bin/bwrap
-printf '%s\n' 'unset LD_LIBRARY_PATH' >> ./AppDir/.env
+patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 ./AppDir/shared/bin/language_server
 quick-sharun --make-appimage
