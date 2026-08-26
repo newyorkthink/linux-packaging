@@ -9,7 +9,7 @@ export ARCH
 # Basic dependencies
 yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux zsync
 # App dependencies
-yay -S --noconfirm patchelf libnss_nis nss-mdns nss alsa-lib at-spi2-core cairo dbus expat glib2 glibc gtk3 libcups gcc-libs libx11 libxcb libxcomposite libxdamage libxext libxfixes libxkbcommon libxrandr mesa nspr pango systemd-libs ibus debugedit gvfs librsvg libvdpau xcb-util-wm libxkbcommon-x11
+yay -S --noconfirm patchelf libnss_nis nss-mdns nss bubblewrap alsa-lib at-spi2-core cairo dbus expat glib2 glibc gtk3 libcups gcc-libs libx11 libxcb libxcomposite libxdamage libxext libxfixes libxkbcommon libxrandr mesa nspr pango systemd-libs ibus debugedit gvfs librsvg libvdpau xcb-util-wm libxkbcommon-x11
 
 farch=x64
 
@@ -44,5 +44,5 @@ export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
 export DWARFS_COMP="zstd:level=5"
 
-quick-sharun ./AppDir/bin/antigravity-ide
+quick-sharun ./AppDir/bin/antigravity-ide /usr/lib/libnss_nis.so* /usr/lib/libnsl.so* /usr/lib/libnss_mdns*_minimal.so* /usr/bin/bwrap
 quick-sharun --make-appimage
