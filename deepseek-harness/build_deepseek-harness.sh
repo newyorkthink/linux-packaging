@@ -70,7 +70,7 @@ if [[ "$INSTALLED_VERSION" != "$DSH_VERSION" ]]; then
   exit 1
 fi
 
-# AppImage 的主入口：无参数时直接启动官方 `dsh web`；有参数时完整透传给官方 dsh CLI。
+# AppImage 的主入口：无参数时启动官方 `dsh web --no-open`，避免冷启动阶段自动弹出浏览器；有参数时完整透传给官方 dsh CLI。
 cat > ./deepseek-harness <<'EOF_LAUNCHER'
 #!/bin/sh
 set -eu
@@ -86,7 +86,7 @@ fi
 export DSH_HOME="${DSH_HOME:-$HOME/.dsh}"
 
 if [ "$#" -eq 0 ]; then
-  set -- web
+  set -- web --no-open
 fi
 
 exec "$APPDIR/bin/node" "$DSH_ENTRY" "$@"

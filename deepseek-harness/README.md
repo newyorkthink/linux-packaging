@@ -9,6 +9,7 @@
 - Node.js 一并封装进 AppImage。
 - **npm 只在 GitHub Actions 构建阶段使用，最终用户不需要安装 Node、npm 或 pnpm。**
 - 默认启动官方本地 Web UI；不是 `chat.deepseek.com` 在线网页。
+- 默认不自动打开浏览器，避免浏览器在 Harness 冷启动阶段抢先打开；服务地址仍为 `http://127.0.0.1:3080`。
 
 ## 使用
 
@@ -20,14 +21,20 @@ chmod +x deepseek-harness.AppImage
 无参数等价于运行官方：
 
 ```bash
-dsh web
+dsh web --no-open
+```
+
+启动后手动在浏览器访问：
+
+```text
+http://127.0.0.1:3080
 ```
 
 也可以直接透传官方 DSH CLI 参数：
 
 ```bash
 ./deepseek-harness.AppImage --help
-./deepseek-harness.AppImage web --no-open
+./deepseek-harness.AppImage web
 ```
 
 DSH 的配置、会话和凭据继续保存在用户自己的 `~/.dsh`（或自定义 `DSH_HOME`）中，不写进 AppImage，因此替换新版 AppImage 不会清空用户数据。
