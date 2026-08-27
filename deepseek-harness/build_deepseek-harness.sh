@@ -39,18 +39,25 @@ cat > "$RUNTIME_ROOT/package.json" <<EOF_PACKAGE
   "version": "0.0.0",
   "dependencies": {
     "@deepseek-ai/dsh": "$DSH_VERSION"
+  },
+  "allowScripts": {
+    "@deepseek-ai/dsh-subprocess-local": true,
+    "@google/genai": true,
+    "koffi": true,
+    "node-pty": true,
+    "protobufjs": true
   }
 }
 EOF_PACKAGE
 
-# 只安装运行时依赖；所有 npm 操作都发生在构建机，用户侧无需 npm。
+# npm 12 默认禁止依赖安装脚本；上面的 allowScripts 仅放行 DSH 当前正式依赖所需脚本。
+# 所有 npm 操作都发生在构建机，用户侧无需 npm。
 npm install \
   --prefix "$RUNTIME_ROOT" \
   --omit=dev \
   --include=optional \
   --no-audit \
-  --no-fund \
-  --ignore-scripts=false
+  --no-fund
 
 DSH_ENTRY="$RUNTIME_ROOT/node_modules/@deepseek-ai/dsh/lib/bin.js"
 DSH_PACKAGE="$RUNTIME_ROOT/node_modules/@deepseek-ai/dsh/package.json"
@@ -117,16 +124,27 @@ export DEPLOY_DATADIR=0
 export STRACE_BINARY=node
 export STRACE_FLAGS="$DSH_ENTRY --help"
 
-# 让 quick-sharun 收集 Node 及 npm 运行时里所有 ELF 原生组件需要的动态库。
-# npm 目录本身已直接安装进 AppDir；这里不替换官方运行时代码。
+# 让 quick-sharun 收集 Node 及 npm 运行时里所有当前 glibc 可执行 ELF 组件需要的动态库。
+# 某些可选依赖同时携带 glibc 与动态 musl 版本；Arch CI 只应部署 glibc 版本。
 DEPLOY_TARGETS=(/usr/bin/node ./deepseek-harness)
+SKIPPED_MUSL=0
 while IFS= read -r -d '' candidate; do
-  if LC_ALL=C file -Lb "$candidate" | grep -q '^ELF '; then
-    DEPLOY_TARGETS+=("$candidate")
+  if ! LC_ALL=C file -Lb "$candidate" | grep -q '^ELF '; then
+    continue
   fi
+
+  # 静态 musl 工具（例如 DeepSeek 官方 landlock-run）可以直接运行；这里只跳过依赖 musl loader/libc 的动态 ELF。
+  if readelf -d "$candidate" 2>/dev/null | grep -Eq 'Shared library: \[(libc\.musl-|ld-musl)'; then
+    echo "Skip dynamic musl ELF: $candidate"
+    SKIPPED_MUSL=$((SKIPPED_MUSL + 1))
+    continue
+  fi
+
+  DEPLOY_TARGETS+=("$candidate")
 done < <(find "$RUNTIME_ROOT/node_modules" -type f \( -name '*.node' -o -name '*.so' -o -name '*.so.*' -o -perm -111 \) -print0)
 
 echo "Native/ELF deployment targets: ${#DEPLOY_TARGETS[@]}"
+echo "Skipped dynamic musl ELF targets: $SKIPPED_MUSL"
 quick-sharun "${DEPLOY_TARGETS[@]}"
 quick-sharun --make-appimage
 
