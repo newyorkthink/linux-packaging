@@ -8,9 +8,9 @@ on:
       - '.github/workflows/trae-work-test.yml'
   workflow_dispatch:
 
-# 独立实验 workflow：只读仓库，不修改 latest Release，也不参与主 build.yml。
+# 独立 TraeWork workflow：不参与主 build.yml；基础启动测试通过后将可执行 AppImage 发布到 latest Release。
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   trae-work-linux-test:
@@ -52,6 +52,12 @@ jobs:
           su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
           printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
           chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
 
       - name: Build experimental TraeWork AppImage
         shell: bash
@@ -100,6 +106,18 @@ jobs:
             echo "TraeWork exited unexpectedly during smoke test: $rc" >&2
             exit "$rc"
           fi
+
+      - name: Publish AppImage to latest Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          test -s trae-work/dist/trae-work.AppImage
+          gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null
+          gh release upload latest trae-work/dist/trae-work.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
 
       - name: Upload experimental AppImage and diagnostics
         if: always()

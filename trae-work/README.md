@@ -2,7 +2,7 @@
 
 本目录用于验证 **TraeWork 桌面版在 Linux x86_64 上运行的可行性**。
 
-当前方案仍属于实验移植：它不属于仓库现有稳定 AppImage 构建，不参与主 `build.yml`，也不会发布到 `latest` Release。
+当前方案仍属于实验移植：它不参与主 `build.yml`；独立 workflow 在基础启动测试通过后，会把可直接下载的 `trae-work.AppImage` 发布到仓库 `latest` Release。
 
 ## 当前实现
 
@@ -15,9 +15,31 @@
 | 重点兼容组件 | `libai_agent.so`、`libckg.so`、`native-keymap` |
 | 打包方式 | 仓库现有 `quick-sharun` AppImage 打包流程 |
 | 支持架构 | 仅 `x86_64` |
-| 主要产物 | `dist/trae-work.AppImage` |
+| 主要产物 | `trae-work.AppImage` |
 
 TraeWork Windows 安装包版本、构建号、下载地址和 SHA256 均固定在 `build_trae-work.sh` 中；Linux Trae 版本则从当前 AUR `trae` 的 `PKGBUILD` 解析，不在脚本中写死 Linux 下载地址。
+
+## 下载与运行
+
+普通用户不需要下载 Actions Artifact，也不需要自己构建。
+
+直接下载 `latest` Release 中的：
+
+```text
+https://github.com/newyorkthink/linux-packaging/releases/latest/download/trae-work.AppImage
+```
+
+在 **Linux x86_64 终端**执行：
+
+```bash
+# 给下载后的 AppImage 添加执行权限
+chmod +x trae-work.AppImage
+
+# 直接启动 TraeWork
+./trae-work.AppImage
+```
+
+Actions Artifact 仅用于保留测试日志和诊断信息，不作为普通用户的主要下载入口。
 
 ## 构建流程
 
@@ -38,7 +60,7 @@ TraeWork Windows 安装包版本、构建号、下载地址和 SHA256 均固定�
 
 ## GitHub Actions
 
-独立测试 workflow：`.github/workflows/trae-work-test.yml`
+独立 workflow：`.github/workflows/trae-work-test.yml`
 
 它只在以下情况运行：
 
@@ -49,11 +71,10 @@ TraeWork Windows 安装包版本、构建号、下载地址和 SHA256 均固定�
 该 workflow：
 
 - **没有 `schedule`**，不会每日自动运行；
-- 权限只有 `contents: read`；
 - 不调用主 `.github/workflows/build.yml`；
-- 不修改现有 `latest` Release；
 - 在 Arch Linux 容器中构建实验 AppImage；
 - 构建完成后使用 Xvfb 进行 30 秒基础启动测试；
+- 只有基础启动测试通过后，才会使用 `contents: write` 权限把 `trae-work.AppImage` 覆盖上传到 `latest` Release；
 - 无论测试成功或失败，都会尝试上传实验产物和诊断日志，Artifact 保留 7 天。
 
 ## 自动测试判断标准
@@ -71,13 +92,19 @@ Xvfb smoke test 主要检查历史移植中最关键的 `lite / solo-lite` 服�
 
 ## GitHub Actions 产物
 
-Artifact 名称格式：
+普通用户应从 `latest` Release 下载：
+
+```text
+trae-work.AppImage
+```
+
+Actions Artifact 名称格式：
 
 ```text
 trae-work-linux-experimental-<run_number>
 ```
 
-正常情况下包含：
+Artifact 正常情况下包含：
 
 ```text
 trae-work/dist/trae-work.AppImage
@@ -85,7 +112,7 @@ trae-work/dist/port-report.txt
 trae-work/dist/smoke-test.log
 ```
 
-Artifact 保留 **7 天**，不会自动上传到 `latest` Release。
+Artifact 保留 **7 天**，主要用于诊断；成功构建的 AppImage 会同步覆盖发布到 `latest` Release。
 
 ## 本地构建
 
