@@ -288,7 +288,7 @@ if [ -f ./AppDir/bin/libaha_net.so ]; then
   fi
 fi
 
-# 使用仓库现有 quick-sharun Electron 打包路径；测试产物只交给独立 workflow 上传 Artifact。
+# 使用仓库现有 quick-sharun Electron 打包路径；主 build.yml 会在 smoke test 通过后发布 AppImage。
 LD_LIBRARY_PATH="$BUILD_LD_LIBRARY_PATH" quick-sharun \
   ./AppDir/bin/* \
   /usr/bin/hostname \
