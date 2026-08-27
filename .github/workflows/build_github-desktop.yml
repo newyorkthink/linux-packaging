@@ -1,0 +1,49 @@
+# GitHub Desktop 单独接入现有 AnyLinux/AppImage 发布组件，避免改动其它稳定项目 Job。
+name: Build GitHub Desktop AppImage
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch' && 'Build GitHub Desktop' || github.event_name == 'schedule' && 'Daily build GitHub Desktop' || github.event.head_commit.message }}
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'github-desktop/**'
+      - '.github/workflows/build_github-desktop.yml'
+      - '.github/actions/build-anylinux/**'
+  schedule:
+    - cron: '17 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build_github_desktop:
+    name: Build GitHub Desktop
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Build and publish AppImage
+        uses: ./.github/actions/build-anylinux
+        with:
+          build_script: github-desktop/build_github-desktop.sh
+          artifact_dir: github-desktop/dist
+          release_name: github-desktop.AppImage
+          run_from_root: 'false'
+          github_token: ${{ github.token }}
