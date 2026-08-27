@@ -20,11 +20,11 @@ DIST_DIR="$ROOT_DIR/dist"
 rm -rf "$SOURCE_DIR" "$TOOLS_DIR" "$APPDIR" "$DIST_DIR"
 mkdir -p "$TOOLS_DIR" "$DIST_DIR"
 
-# 安装官方源码编译、Linux 运行和真实 GUI 窗口烟测所需依赖。
+# 安装官方源码编译、Linux 运行和 GUI 窗口烟测所需依赖。
 yay -S --noconfirm --needed \
   base-devel git curl xz python pkgconf \
   libsecret gtk3 nss alsa-lib cups libxkbcommon libxrandr mesa \
-  xdg-utils xorg-server-xvfb xorg-xauth xorg-xwininfo xdotool
+  fontconfig xdg-utils xorg-server-xvfb xorg-xauth xorg-xwininfo xdotool
 
 # 始终从 GitHub 官方 desktop/desktop 读取最新稳定 Release tag。
 GITHUB_DESKTOP_TAG="$(gh api repos/desktop/desktop/releases/latest --jq .tag_name)"
@@ -109,7 +109,6 @@ fi
 echo "GitHub Desktop version: $APP_VERSION"
 
 # GUI 烟测函数：必须真实创建可见 GitHub Desktop 窗口。
-# 这里不再偷偷传 --disable-gpu；硬件加速由 GitHub Desktop 官方环境变量机制关闭，和最终 AppImage 的真实启动路径保持一致。
 run_gui_smoke() {
   local label="$1"
   local profile="$2"
@@ -135,7 +134,7 @@ run_gui_smoke() {
       sandbox_args+=(--no-sandbox)
     fi
 
-    "$@" \
+    ELECTRON_ENABLE_LOGGING=1 "$@" \
       "${sandbox_args[@]}" \
       --user-data-dir="$profile" \
       >"$smoke_log" 2>&1 &
@@ -194,7 +193,7 @@ run_gui_smoke \
   env GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION=1 "$UPSTREAM_DIST/desktop"
 
 # 手工构造最小 AppDir，完整保留官方 Electron 目录的相对布局，避免二次打包工具改写内部可执行入口。
-mkdir -p "$APPDIR/usr/lib/github-desktop"
+mkdir -p "$APPDIR/usr/lib/github-desktop" "$APPDIR/usr/share/github-desktop"
 cp -a "$UPSTREAM_DIST/." "$APPDIR/usr/lib/github-desktop/"
 cp -f "$SOURCE_DIR/app/static/linux/icon-logo.png" "$APPDIR/github-desktop.png"
 ln -s github-desktop.png "$APPDIR/.DirIcon"
@@ -212,6 +211,22 @@ StartupWMClass=github-desktop
 MimeType=x-scheme-handler/x-github-client;x-scheme-handler/x-github-desktop-auth;x-scheme-handler/x-github-desktop-dev-auth;
 EOF_DESKTOP
 
+# 不读取宿主系统的全局 fontconfig 缓存。
+# 某些滚动发行版/降级后的系统会出现“缓存由更高版本 Fontconfig 生成”的冲突，Electron 可能因此长时间卡在启动阶段。
+# 这里仅复用宿主字体目录和规则，缓存写入用户自己的 GitHub Desktop 专用目录。
+cat > "$APPDIR/usr/share/github-desktop/fonts.conf" <<'EOF_FONTCONFIG'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <dir>/usr/share/fonts</dir>
+  <dir>/usr/local/share/fonts</dir>
+  <dir prefix="xdg">fonts</dir>
+  <dir>~/.fonts</dir>
+  <cachedir prefix="xdg">github-desktop/fontconfig</cachedir>
+  <include ignore_missing="yes">/etc/fonts/conf.d</include>
+</fontconfig>
+EOF_FONTCONFIG
+
 # AppRun 使用官方构建出的 desktop 二进制；同时为 standalone AppImage 建立稳定的 XDG 协议处理入口。
 cat > "$APPDIR/AppRun" <<'EOF_APPRUN'
 #!/bin/sh
@@ -223,6 +238,10 @@ export CHROME_DESKTOP=github-desktop.desktop
 # GitHub Desktop 官方源码原生识别这个变量并调用 app.disableHardwareAcceleration()。
 # Linux AppImage 默认启用它，避免 Electron GPU/renderer 初始化异常时主窗口永久停留在 show:false。
 export GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION=1
+
+# 隔离 Fontconfig 缓存：避免宿主系统残留的更高版本缓存导致 Electron 启动异常或长时间卡住。
+export FONTCONFIG_FILE="$APPDIR/usr/share/github-desktop/fonts.conf"
+export FONTCONFIG_PATH="$APPDIR/usr/share/github-desktop"
 
 if [ -n "${APPIMAGE:-}" ] && [ -n "${HOME:-}" ] && command -v xdg-mime >/dev/null 2>&1; then
   desktop_dir="$HOME/.local/share/applications"
@@ -268,17 +287,26 @@ fi
 
 curl -fL --retry 5 --retry-delay 2 "$APPIMAGETOOL_URL" -o "$APPIMAGETOOL"
 chmod +x "$APPIMAGETOOL"
-
 echo "${APPIMAGETOOL_DIGEST#sha256:}  $APPIMAGETOOL" | sha256sum -c -
 
+# 固定到 AppImage 官方最后一个有明确版本号和 SHA256 digest 的稳定 type2 runtime，
+# 避免 appimagetool 自动跟随 continuous runtime 后把尚未验证的运行时回归带给最终用户。
+APPIMAGE_RUNTIME_TAG="20251108"
+APPIMAGE_RUNTIME="$TOOLS_DIR/runtime-x86_64"
+APPIMAGE_RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/${APPIMAGE_RUNTIME_TAG}/runtime-x86_64"
+APPIMAGE_RUNTIME_SHA256="2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d"
+curl -fL --retry 5 --retry-delay 2 "$APPIMAGE_RUNTIME_URL" -o "$APPIMAGE_RUNTIME"
+echo "$APPIMAGE_RUNTIME_SHA256  $APPIMAGE_RUNTIME" | sha256sum -c -
+
 VERSION="$APP_VERSION" ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
-  "$APPIMAGETOOL" "$APPDIR" "$DIST_DIR/github-desktop.AppImage"
+  "$APPIMAGETOOL" --runtime-file "$APPIMAGE_RUNTIME" "$APPDIR" "$DIST_DIR/github-desktop.AppImage"
 chmod +x "$DIST_DIR/github-desktop.AppImage"
 test -s "$DIST_DIR/github-desktop.AppImage"
 
-# 最终 AppImage 再做一次真实可见窗口烟测；不传 --disable-gpu，必须由 AppRun 的官方环境变量路径自行保证 GUI 出现。
+# AnyLinux 构建容器里没有可靠的宿主 FUSE 条件，因此这里验证最终 AppImage 的“解包运行”路径；
+# 真正的直接 ./github-desktop.AppImage 验证由 workflow 的 Ubuntu 宿主机独立 Job 完成，不能再用此步骤冒充真实直启测试。
 run_gui_smoke \
-  "final AppImage" \
+  "final AppImage extracted runtime" \
   "$ROOT_DIR/smoke-appimage-profile" \
   "$DIST_DIR/smoke-appimage.log" \
   "$DIST_DIR/smoke-appimage-windows.log" \
@@ -287,6 +315,8 @@ run_gui_smoke \
 sha256sum "$DIST_DIR/github-desktop.AppImage" > "$DIST_DIR/github-desktop.AppImage.sha256"
 printf '%s\n' "$GITHUB_DESKTOP_TAG" > "$DIST_DIR/upstream-tag.txt"
 printf '%s\n' "$NODE_VERSION" > "$DIST_DIR/upstream-node-version.txt"
+printf '%s\n' "$APPIMAGE_RUNTIME_TAG" > "$DIST_DIR/appimage-runtime-tag.txt"
 
 echo "Built from official source: $GITHUB_DESKTOP_TAG"
+echo "AppImage runtime: AppImage/type2-runtime $APPIMAGE_RUNTIME_TAG"
 echo "Built: $DIST_DIR/github-desktop.AppImage"
