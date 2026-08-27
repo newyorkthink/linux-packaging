@@ -192,10 +192,19 @@ run_gui_smoke \
   env GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION=1 "$UPSTREAM_DIST/desktop"
 
 # 手工构造最小 AppDir，完整保留官方 Electron 目录的相对布局，避免二次打包工具改写内部可执行入口。
-mkdir -p "$APPDIR/usr/lib/github-desktop" "$APPDIR/usr/share/github-desktop"
+mkdir -p "$APPDIR/usr/lib/github-desktop" "$APPDIR/usr/lib/github-desktop/lib" "$APPDIR/usr/share/github-desktop"
 cp -a "$UPSTREAM_DIST/." "$APPDIR/usr/lib/github-desktop/"
 cp -f "$SOURCE_DIR/app/static/linux/icon-logo.png" "$APPDIR/github-desktop.png"
 ln -s github-desktop.png "$APPDIR/.DirIcon"
+
+# 官方 keytar.node 在 Linux 上动态链接 libsecret；源码构建机安装了 libsecret，但最终 AppImage 必须自己携带这项运行依赖。
+KEYTAR_NODE="$APPDIR/usr/lib/github-desktop/resources/app/keytar.node"
+test -f "$KEYTAR_NODE"
+readelf -d "$KEYTAR_NODE" | grep -q '\[libsecret-1.so.0\]'
+LIBSECRET_SOURCE="$(readlink -f /usr/lib/libsecret-1.so.0)"
+test -f "$LIBSECRET_SOURCE"
+cp -L "$LIBSECRET_SOURCE" "$APPDIR/usr/lib/github-desktop/lib/libsecret-1.so.0"
+test -s "$APPDIR/usr/lib/github-desktop/lib/libsecret-1.so.0"
 
 cat > "$APPDIR/github-desktop.desktop" <<'EOF_DESKTOP'
 [Desktop Entry]
@@ -236,6 +245,9 @@ export CHROME_DESKTOP=github-desktop.desktop
 
 # GitHub Desktop 官方源码原生识别这个变量并调用 app.disableHardwareAcceleration()。
 export GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION=1
+
+# 只把 AppImage 自带的 keytar/libsecret 运行依赖加入本进程动态库搜索路径，不污染宿主系统。
+export LD_LIBRARY_PATH="$APPDIR/usr/lib/github-desktop/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # 隔离 Fontconfig 缓存：避免宿主系统残留的更高版本缓存导致 Electron 启动异常或长时间卡住。
 export FONTCONFIG_FILE="$APPDIR/usr/share/github-desktop/fonts.conf"
