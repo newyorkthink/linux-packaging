@@ -1,4 +1,4 @@
-# GitHub Desktop 单独接入现有 AnyLinux/AppImage 发布组件，避免改动其它稳定项目 Job。
+# GitHub Desktop 独立构建：只使用 GitHub 官方 desktop/desktop 源码，并以 Ubuntu 22.04 作为 Linux ABI 兼容基线。
 name: Build GitHub Desktop AppImage
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch' && 'Build GitHub Desktop' || github.event_name == 'schedule' && 'Daily build GitHub Desktop' || github.event.head_commit.message }}
@@ -9,7 +9,6 @@ on:
     paths:
       - 'github-desktop/**'
       - '.github/workflows/build_github-desktop.yml'
-      - '.github/actions/build-anylinux/**'
   schedule:
     - cron: '17 0 * * *'
   workflow_dispatch:
@@ -20,38 +19,41 @@ permissions:
 jobs:
   build_github_desktop:
     name: Build GitHub Desktop
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
-    container: ghcr.io/pkgforge-dev/archlinux:latest
     permissions:
       contents: write
-      packages: read
 
     steps:
-      - name: Pre-install Git
-        run: pacman -Sy --noconfirm git
-
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Preparing Container
-        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+      - name: Build official-source AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          cd github-desktop
+          chmod +x build_github-desktop.sh
+          ./build_github-desktop.sh
+          test -s dist/github-desktop.AppImage
+          sha256sum dist/github-desktop.AppImage
 
-      - name: Build and publish AppImage
-        uses: ./.github/actions/build-anylinux
-        with:
-          build_script: github-desktop/build_github-desktop.sh
-          artifact_dir: github-desktop/dist
-          release_name: github-desktop.AppImage
-          run_from_root: 'false'
-          github_token: ${{ github.token }}
+      - name: Publish latest AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest github-desktop/dist/github-desktop.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
 
   verify_direct_appimage:
     name: Verify direct AppImage GUI launch
     needs: build_github_desktop
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
