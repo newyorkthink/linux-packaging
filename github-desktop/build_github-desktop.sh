@@ -1,163 +1,158 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# GitHub Desktop Linux AppImage：直接使用 GitHub 官方 desktop/desktop 最新稳定源码构建。
-# 官方源码已经保留 Linux Electron build 路径；这里仅补 Linux 图标与 AppImage 打包层。
+# GitHub Desktop Linux AppImage：使用 GitHub 官方 README 指向的 shiftkey/desktop Linux 社区发行版。
+# 不再直接编译 desktop/desktop 官方源码，因为官方明确不支持 Linux，直接编译可能出现“进程存活但没有窗口”的假成功。
 
 ARCH="$(uname -m)"
 if [[ "$ARCH" != "x86_64" ]]; then
   echo "Error: this script currently supports x86_64 only." >&2
   exit 1
 fi
-export ARCH=x86_64
 
 ROOT_DIR="$PWD"
-SOURCE_DIR="$ROOT_DIR/source"
-TOOLS_DIR="$ROOT_DIR/tools"
+WORK_DIR="$ROOT_DIR/work"
 DIST_DIR="$ROOT_DIR/dist"
+RELEASE_JSON="$WORK_DIR/latest-release.json"
 
-rm -rf "$SOURCE_DIR" "$TOOLS_DIR" "$DIST_DIR"
-mkdir -p "$TOOLS_DIR" "$DIST_DIR"
+rm -rf "$WORK_DIR" "$DIST_DIR"
+mkdir -p "$WORK_DIR" "$DIST_DIR"
 
-# 安装 GitHub Desktop 源码编译、Electron 运行烟测与 Linux 图标处理所需依赖。
+# 安装下载、校验以及真实 GUI 窗口烟测所需工具。
 yay -S --noconfirm --needed \
-  base-devel git curl xz python pkgconf \
-  libsecret gtk3 nss alsa-lib cups libxkbcommon libxrandr mesa \
-  icoutils imagemagick \
-  xorg-server-xvfb xorg-xauth
+  curl python coreutils \
+  xorg-server-xvfb xorg-xauth xorg-xwininfo xdotool
 
-# 自动跟随 GitHub Desktop 官方最新稳定 Release；可用 GITHUB_DESKTOP_TAG 手动固定 tag。
-if [[ -z "${GITHUB_DESKTOP_TAG:-}" ]]; then
-  GITHUB_DESKTOP_TAG="$(gh api repos/desktop/desktop/releases/latest --jq .tag_name)"
-fi
-if [[ ! "$GITHUB_DESKTOP_TAG" =~ ^release-[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Error: invalid GitHub Desktop stable tag: $GITHUB_DESKTOP_TAG" >&2
-  exit 1
-fi
-
-echo "GitHub Desktop tag: $GITHUB_DESKTOP_TAG"
-
-# 只拉取指定稳定 tag，并递归取得官方仓库要求的 gemoji / gitignore / choosealicense 子模块。
-git clone \
-  --depth=1 \
-  --branch "$GITHUB_DESKTOP_TAG" \
-  --recurse-submodules \
-  --shallow-submodules \
-  https://github.com/desktop/desktop.git \
-  "$SOURCE_DIR"
-
-# 严格使用该稳定 tag 声明的 Node 版本，避免 CI 上系统 Node 漂移导致 native module ABI 不一致。
-NODE_VERSION="$(tr -d '[:space:]' < "$SOURCE_DIR/.node-version")"
-if [[ ! "$NODE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Error: invalid upstream Node version: $NODE_VERSION" >&2
-  exit 1
-fi
-
-NODE_ARCHIVE="node-v${NODE_VERSION}-linux-x64.tar.xz"
+# 读取 Linux 社区维护版最新正式 Release，并严格选择 x86_64 AppImage 与对应 SHA256。
 curl -fL --retry 5 --retry-delay 2 \
-  "https://nodejs.org/dist/v${NODE_VERSION}/${NODE_ARCHIVE}" \
-  -o "$TOOLS_DIR/$NODE_ARCHIVE"
-tar -xJf "$TOOLS_DIR/$NODE_ARCHIVE" -C "$TOOLS_DIR"
-export PATH="$TOOLS_DIR/node-v${NODE_VERSION}-linux-x64/bin:$PATH"
+  https://api.github.com/repos/shiftkey/desktop/releases/latest \
+  -o "$RELEASE_JSON"
 
-# 使用 Yarn Classic，与 GitHub Desktop 当前 yarn.lock / 构建脚本保持一致。
-npm install --global --prefix "$TOOLS_DIR/yarn" yarn@1.22.22
-export PATH="$TOOLS_DIR/yarn/bin:$PATH"
+IFS=$'\t' read -r RELEASE_TAG APPIMAGE_NAME APPIMAGE_URL CHECKSUM_NAME CHECKSUM_URL < <(
+  python - "$RELEASE_JSON" <<'PY'
+import json
+import re
+import sys
 
-node --version
-yarn --version
+with open(sys.argv[1], encoding="utf-8") as handle:
+    release = json.load(handle)
 
-# 从官方 Windows ICO 提取 Linux PNG；同时给 electron-packager 和 electron-builder 使用。
-mkdir -p "$TOOLS_DIR/icons" "$SOURCE_DIR/app/static/linux/logos"
-icotool -x -o "$TOOLS_DIR/icons" "$SOURCE_DIR/app/static/logos/prod/icon-logo.ico"
+tag = release.get("tag_name", "")
+if not re.fullmatch(r"release-\d+\.\d+\.\d+-linux\d+", tag):
+    raise SystemExit(f"Error: invalid shiftkey Linux release tag: {tag!r}")
 
-BEST_ICON="$(find "$TOOLS_DIR/icons" -type f -name '*.png' -printf '%s %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
-if [[ -z "$BEST_ICON" || ! -s "$BEST_ICON" ]]; then
-  echo "Error: failed to extract GitHub Desktop PNG icon." >&2
-  exit 1
-fi
-cp -f "$BEST_ICON" "$SOURCE_DIR/app/static/logos/prod/icon-logo.png"
+assets = {item.get("name", ""): item.get("browser_download_url", "") for item in release.get("assets", [])}
+appimage_names = [
+    name for name in assets
+    if re.fullmatch(r"GitHubDesktop-linux-x86_64-.*\.AppImage", name)
+]
+if len(appimage_names) != 1:
+    raise SystemExit(f"Error: expected exactly one x86_64 AppImage, found: {appimage_names}")
 
-# 为 electron-builder 准备按像素尺寸命名的 Linux 图标目录。
-while IFS= read -r icon; do
-  size="$(magick identify -format '%wx%h' "$icon" 2>/dev/null || true)"
-  if [[ "$size" =~ ^[0-9]+x[0-9]+$ ]]; then
-    cp -f "$icon" "$SOURCE_DIR/app/static/linux/logos/${size}.png"
-  fi
-done < <(find "$TOOLS_DIR/icons" -type f -name '*.png' | sort)
+appimage_name = appimage_names[0]
+checksum_name = f"{appimage_name}.sha256"
+if checksum_name not in assets:
+    raise SystemExit(f"Error: checksum asset not found: {checksum_name}")
 
-test -s "$SOURCE_DIR/app/static/logos/prod/icon-logo.png"
-test -n "$(find "$SOURCE_DIR/app/static/linux/logos" -maxdepth 1 -type f -name '*.png' -print -quit)"
+print("\t".join((tag, appimage_name, assets[appimage_name], checksum_name, assets[checksum_name])))
+PY
+)
 
-# 安装官方锁定依赖并执行官方 production Electron build；不调用官方 package.ts，因为它没有 Linux 分支。
-cd "$SOURCE_DIR"
-yarn install --frozen-lockfile --network-timeout 600000
-NODE_ENV=production RELEASE_CHANNEL=production yarn build:prod
-cd "$ROOT_DIR"
-
-# 保留官方 Linux 内部可执行文件名 desktop；electron-builder 的 AppRun 会按这个名称启动。
-UPSTREAM_DIST="$SOURCE_DIR/dist/desktop-linux-x64"
-test -x "$UPSTREAM_DIST/desktop"
-test -d "$UPSTREAM_DIST/resources"
-
-APP_VERSION="$(node -p "require(process.argv[1]).version" "$SOURCE_DIR/app/package.json")"
-if [[ -z "$APP_VERSION" ]]; then
-  echo "Error: failed to read GitHub Desktop version." >&2
+if [[ -z "$RELEASE_TAG" || -z "$APPIMAGE_URL" || -z "$CHECKSUM_URL" ]]; then
+  echo "Error: failed to resolve GitHub Desktop Linux release assets." >&2
   exit 1
 fi
 
-echo "GitHub Desktop version: $APP_VERSION"
+echo "GitHub Desktop Linux tag: $RELEASE_TAG"
+echo "GitHub Desktop Linux asset: $APPIMAGE_NAME"
 
-# 使用 electron-builder 的 --prepackaged 模式只做 Linux AppImage 封装，不重新编译或替换官方应用代码。
-cat > "$TOOLS_DIR/electron-builder-linux.yml" <<'EOF_CONFIG'
-artifactName: 'github-desktop.AppImage'
-linux:
-  category: 'Development;RevisionControl'
-  icon: 'app/static/linux/logos'
-  mimeTypes:
-    - x-scheme-handler/x-github-client
-    - x-scheme-handler/x-github-desktop-auth
-    - x-scheme-handler/x-github-desktop-dev-auth
-  target:
-    - AppImage
-EOF_CONFIG
+UPSTREAM_APPIMAGE="$WORK_DIR/$APPIMAGE_NAME"
+UPSTREAM_CHECKSUM="$WORK_DIR/$CHECKSUM_NAME"
 
-cd "$SOURCE_DIR"
-npx --yes electron-builder@26.0.12 \
-  --prepackaged "$UPSTREAM_DIST" \
-  --x64 \
-  --config "$TOOLS_DIR/electron-builder-linux.yml" \
-  --publish never
-cd "$ROOT_DIR"
+curl -fL --retry 5 --retry-delay 2 "$APPIMAGE_URL" -o "$UPSTREAM_APPIMAGE"
+curl -fL --retry 5 --retry-delay 2 "$CHECKSUM_URL" -o "$UPSTREAM_CHECKSUM"
 
-BUILT_APPIMAGE="$(find "$SOURCE_DIR/dist" -maxdepth 1 -type f -name 'github-desktop.AppImage' -print -quit)"
-if [[ -z "$BUILT_APPIMAGE" || ! -s "$BUILT_APPIMAGE" ]]; then
-  echo "Error: electron-builder did not produce github-desktop.AppImage." >&2
+EXPECTED_SHA256="$(tr -d '[:space:]' < "$UPSTREAM_CHECKSUM")"
+ACTUAL_SHA256="$(sha256sum "$UPSTREAM_APPIMAGE" | awk '{print $1}')"
+
+if [[ ! "$EXPECTED_SHA256" =~ ^[0-9a-fA-F]{64}$ ]]; then
+  echo "Error: invalid upstream SHA256 value." >&2
   exit 1
 fi
 
-cp -f "$BUILT_APPIMAGE" "$DIST_DIR/github-desktop.AppImage"
+if [[ "${ACTUAL_SHA256,,}" != "${EXPECTED_SHA256,,}" ]]; then
+  echo "Error: GitHub Desktop AppImage SHA256 mismatch." >&2
+  echo "Expected: $EXPECTED_SHA256" >&2
+  echo "Actual:   $ACTUAL_SHA256" >&2
+  exit 1
+fi
+
+cp -f "$UPSTREAM_APPIMAGE" "$DIST_DIR/github-desktop.AppImage"
 chmod +x "$DIST_DIR/github-desktop.AppImage"
 
-# 在 Xvfb 下做 30 秒启动烟测；124 表示 GUI 一直存活到 timeout，属于预期通过结果。
+# 真实 GUI 烟测：必须在 Xvfb 中检测到可见 GitHub Desktop 窗口，不能再只检查进程是否存活。
+SMOKE_LOG="$DIST_DIR/smoke-test.log"
+WINDOW_LOG="$DIST_DIR/smoke-windows.log"
+SMOKE_PROFILE="$WORK_DIR/smoke-profile"
+mkdir -p "$SMOKE_PROFILE"
+
 set +e
-APPIMAGE_EXTRACT_AND_RUN=1 timeout 30s xvfb-run -a \
+xvfb-run -a bash -c '
+  set -u
+  appimage="$1"
+  profile="$2"
+  smoke_log="$3"
+  window_log="$4"
+
+  APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" \
+    --no-sandbox \
+    --disable-gpu \
+    --user-data-dir="$profile" \
+    >"$smoke_log" 2>&1 &
+  app_pid=$!
+  window_found=0
+
+  for _ in $(seq 1 45); do
+    if xdotool search --onlyvisible --name "GitHub Desktop" >/dev/null 2>&1; then
+      window_found=1
+      break
+    fi
+
+    if ! kill -0 "$app_pid" 2>/dev/null; then
+      wait "$app_pid"
+      exit $?
+    fi
+
+    sleep 1
+  done
+
+  xwininfo -root -tree >"$window_log" 2>&1 || true
+
+  kill "$app_pid" 2>/dev/null || true
+  wait "$app_pid" 2>/dev/null || true
+
+  if [[ "$window_found" -ne 1 ]]; then
+    exit 125
+  fi
+' bash \
   "$DIST_DIR/github-desktop.AppImage" \
-  --no-sandbox \
-  --disable-gpu \
-  --user-data-dir="$ROOT_DIR/smoke-profile" \
-  > "$DIST_DIR/smoke-test.log" 2>&1
+  "$SMOKE_PROFILE" \
+  "$SMOKE_LOG" \
+  "$WINDOW_LOG"
 SMOKE_RC=$?
 set -e
 
-if [[ "$SMOKE_RC" -ne 0 && "$SMOKE_RC" -ne 124 ]]; then
-  echo "Error: GitHub Desktop AppImage smoke test failed with exit code $SMOKE_RC." >&2
-  tail -n 160 "$DIST_DIR/smoke-test.log" >&2 || true
+if [[ "$SMOKE_RC" -ne 0 ]]; then
+  echo "Error: GitHub Desktop GUI smoke test failed with exit code $SMOKE_RC." >&2
+  echo "--- smoke-test.log ---" >&2
+  tail -n 200 "$SMOKE_LOG" >&2 || true
+  echo "--- smoke-windows.log ---" >&2
+  tail -n 200 "$WINDOW_LOG" >&2 || true
   exit "$SMOKE_RC"
 fi
 
 sha256sum "$DIST_DIR/github-desktop.AppImage" > "$DIST_DIR/github-desktop.AppImage.sha256"
-printf '%s\n' "$GITHUB_DESKTOP_TAG" > "$DIST_DIR/upstream-tag.txt"
-printf '%s\n' "$NODE_VERSION" > "$DIST_DIR/upstream-node-version.txt"
+printf '%s\n' "$RELEASE_TAG" > "$DIST_DIR/upstream-tag.txt"
+printf '%s\n' "$APPIMAGE_NAME" > "$DIST_DIR/upstream-asset.txt"
 
 echo "Built: $DIST_DIR/github-desktop.AppImage"
