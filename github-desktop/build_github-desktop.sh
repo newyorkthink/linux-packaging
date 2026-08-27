@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 # GitHub Desktop Linux AppImage：直接使用 GitHub 官方 desktop/desktop 最新稳定源码构建。
-# 官方源码已经保留 Linux Electron build 路径；这里仅补 Linux 可执行文件名、图标与 AppImage 打包层。
+# 官方源码已经保留 Linux Electron build 路径；这里仅补 Linux 图标与 AppImage 打包层。
 
 ARCH="$(uname -m)"
 if [[ "$ARCH" != "x86_64" ]]; then
@@ -10,7 +10,6 @@ if [[ "$ARCH" != "x86_64" ]]; then
   exit 1
 fi
 export ARCH=x86_64
-export npm_config_arch=x64
 
 ROOT_DIR="$PWD"
 SOURCE_DIR="$ROOT_DIR/source"
@@ -90,30 +89,15 @@ done < <(find "$TOOLS_DIR/icons" -type f -name '*.png' | sort)
 test -s "$SOURCE_DIR/app/static/logos/prod/icon-logo.png"
 test -n "$(find "$SOURCE_DIR/app/static/linux/logos" -maxdepth 1 -type f -name '*.png' -print -quit)"
 
-# 官方源码在 Linux build 路径中仍把二进制暂命名为 desktop；仅改成 Linux 社区约定的 github-desktop。
-python - "$SOURCE_DIR/script/dist-info.ts" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-text = path.read_text(encoding="utf-8")
-old = """  } else if (process.platform === 'linux') {\n    return 'desktop'\n  } else {"""
-new = """  } else if (process.platform === 'linux') {\n    return 'github-desktop'\n  } else {"""
-if old not in text:
-    raise SystemExit("Error: upstream Linux executable-name block changed; refusing an unsafe blind patch.")
-path.write_text(text.replace(old, new, 1), encoding="utf-8")
-PY
-
-grep -A2 "process.platform === 'linux'" "$SOURCE_DIR/script/dist-info.ts" | grep -q "return 'github-desktop'"
-
 # 安装官方锁定依赖并执行官方 production Electron build；不调用官方 package.ts，因为它没有 Linux 分支。
 cd "$SOURCE_DIR"
 yarn install --frozen-lockfile --network-timeout 600000
 NODE_ENV=production RELEASE_CHANNEL=production yarn build:prod
 cd "$ROOT_DIR"
 
-UPSTREAM_DIST="$SOURCE_DIR/dist/github-desktop-linux-x64"
-test -x "$UPSTREAM_DIST/github-desktop"
+# 保留官方 Linux 内部可执行文件名 desktop；electron-builder 的 AppRun 会按这个名称启动。
+UPSTREAM_DIST="$SOURCE_DIR/dist/desktop-linux-x64"
+test -x "$UPSTREAM_DIST/desktop"
 test -d "$UPSTREAM_DIST/resources"
 
 APP_VERSION="$(node -p "require(process.argv[1]).version" "$SOURCE_DIR/app/package.json")"
@@ -142,7 +126,8 @@ cd "$SOURCE_DIR"
 npx --yes electron-builder@26.0.12 \
   --prepackaged "$UPSTREAM_DIST" \
   --x64 \
-  --config "$TOOLS_DIR/electron-builder-linux.yml"
+  --config "$TOOLS_DIR/electron-builder-linux.yml" \
+  --publish never
 cd "$ROOT_DIR"
 
 BUILT_APPIMAGE="$(find "$SOURCE_DIR/dist" -maxdepth 1 -type f -name 'github-desktop.AppImage' -print -quit)"
