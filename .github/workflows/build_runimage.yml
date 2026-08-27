@@ -1,7 +1,7 @@
 # 统一 RunImage 构建入口；每个 RunImage 都使用独立 Job、独立 runner，不使用 Matrix。
 name: Build RunImages
 run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && (inputs.script_to_build == 'all' && 'Build all RunImages' || format('Build {0}', inputs.script_to_build)) || github.event.head_commit.message }}
+  ${{ github.event_name == 'workflow_dispatch' && (inputs.script_to_build == 'all' && 'Build all RunImages' || format('Build {0}', inputs.script_to_build)) || github.event_name == 'schedule' && 'Daily build all RunImages' || github.event.head_commit.message }}
 
 on:
   push:
@@ -13,6 +13,8 @@ on:
       - 'runimage/setup_jriver.sh'
       - 'runimage/setup_touchegg.sh'
       - '.github/workflows/build_runimage.yml'
+  schedule:
+    - cron: '17 0 * * *'
   workflow_dispatch:
     inputs:
       script_to_build:
@@ -110,6 +112,10 @@ jobs:
                   fi
                 done
               fi
+              ;;
+
+            schedule)
+              select_all
               ;;
 
             *)
