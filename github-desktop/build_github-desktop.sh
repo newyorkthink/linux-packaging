@@ -235,20 +235,39 @@ done
 # 每个 .node 只从自己的私有 lib 目录找打包依赖，不用全局 LD_LIBRARY_PATH 覆盖 Electron 的系统库解析。
 for module in "${NATIVE_MODULES[@]}"; do
   relative_lib="$(realpath --relative-to="$(dirname "$module")" "$NATIVE_LIB_DIR")"
-  patchelf --force-rpath --set-rpath "\$ORIGIN/$relative_lib" "$module"
+  expected_rpath="\$ORIGIN/$relative_lib"
+  patchelf --force-rpath --set-rpath "$expected_rpath" "$module"
+  actual_rpath="$(patchelf --print-rpath "$module")"
+  if [[ "$actual_rpath" != "$expected_rpath" ]]; then
+    echo "Error: invalid native-module RPATH: ${module#$APPDIR/}: $actual_rpath" >&2
+    exit 1
+  fi
 done
 
-# 私有库之间继续优先在同目录解析传递依赖；无法修改的特殊 ELF 只记录，不中断其他库处理。
+# 私有库之间必须严格从同一个私有目录解析传递依赖。
+# 注意这里必须写成真正的 $ORIGIN，不能写成带反斜杠的 \$ORIGIN；后者不会被 ELF loader 展开。
 shopt -s nullglob
 for bundled_lib in "$NATIVE_LIB_DIR"/*.so*; do
   if file "$bundled_lib" | grep -q 'ELF'; then
-    patchelf --force-rpath --set-rpath '\$ORIGIN' "$bundled_lib" || true
+    patchelf --force-rpath --set-rpath '$ORIGIN' "$bundled_lib"
+    actual_rpath="$(patchelf --print-rpath "$bundled_lib")"
+    if [[ "$actual_rpath" != '$ORIGIN' ]]; then
+      echo "Error: invalid bundled-library RPATH: $(basename "$bundled_lib"): $actual_rpath" >&2
+      exit 1
+    fi
   fi
 done
 shopt -u nullglob
 
-# 当前官方 keytar 必须能带入 libsecret；同时打印依赖清单，后续 Action 出错时能直接看到打包结果。
-test -s "$NATIVE_LIB_DIR/libsecret-1.so.0"
+# 当前官方 keytar 必须能带入 libsecret + 同一套 GLib；明确校验关键库，防止再次混用宿主 GLib ABI。
+for required_lib in libsecret-1.so.0 libgio-2.0.so.0 libglib-2.0.so.0 libgobject-2.0.so.0; do
+  test -s "$NATIVE_LIB_DIR/$required_lib"
+  if [[ "$(patchelf --print-rpath "$NATIVE_LIB_DIR/$required_lib")" != '$ORIGIN' ]]; then
+    echo "Error: $required_lib is not pinned to private dependency closure." >&2
+    exit 1
+  fi
+done
+
 echo "Bundled native runtime libraries:"
 find "$NATIVE_LIB_DIR" -maxdepth 1 -type f -printf '  %f\n' | sort
 
