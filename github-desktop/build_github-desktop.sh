@@ -129,7 +129,6 @@ run_gui_smoke() {
 
     sandbox_args=()
     # GitHub Actions 的 AnyLinux 容器以 root 运行，Electron root 模式只能在烟测时加 --no-sandbox。
-    # 普通用户实际启动 AppImage 时不会自动添加该参数。
     if [[ "$(id -u)" -eq 0 ]]; then
       sandbox_args+=(--no-sandbox)
     fi
@@ -236,7 +235,6 @@ APPDIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 export CHROME_DESKTOP=github-desktop.desktop
 
 # GitHub Desktop 官方源码原生识别这个变量并调用 app.disableHardwareAcceleration()。
-# Linux AppImage 默认启用它，避免 Electron GPU/renderer 初始化异常时主窗口永久停留在 show:false。
 export GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION=1
 
 # 隔离 Fontconfig 缓存：避免宿主系统残留的更高版本缓存导致 Electron 启动异常或长时间卡住。
@@ -269,7 +267,29 @@ EOF_USER_DESKTOP
   xdg-mime default github-desktop.desktop x-scheme-handler/x-github-desktop-dev-auth >/dev/null 2>&1 || true
 fi
 
-exec "$APPDIR/usr/lib/github-desktop/desktop" "$@"
+# AppImage 的 FUSE 挂载无法可靠保留 Electron chrome-sandbox 所要求的 root:4755 SUID 属性。
+# 若 SUID helper 在当前挂载中确实有效，则完全保留 Electron 默认 sandbox；否则禁用 SUID helper，优先继续使用 user-namespace sandbox。
+sandbox_arg=""
+chrome_sandbox="$APPDIR/usr/lib/github-desktop/chrome-sandbox"
+if [ "$(id -u)" = "0" ]; then
+  sandbox_arg="--no-sandbox"
+elif [ ! -e "$chrome_sandbox" ] || [ "$(stat -c '%u:%a' "$chrome_sandbox" 2>/dev/null || printf 'invalid')" != "0:4755" ]; then
+  sandbox_arg="--disable-setuid-sandbox"
+
+  # 某些发行版明确禁止非特权 user namespace；这种情况下 namespace sandbox 也无法启动。
+  # 只有检测到这类系统级限制时才回退 --no-sandbox，避免对普通 Linux 环境无条件关闭 sandbox。
+  if [ -r /proc/sys/kernel/unprivileged_userns_clone ] && [ "$(cat /proc/sys/kernel/unprivileged_userns_clone 2>/dev/null || printf '0')" != "1" ]; then
+    sandbox_arg="--no-sandbox"
+  elif [ -r /proc/sys/kernel/apparmor_restrict_unprivileged_userns ] && [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || printf '0')" = "1" ]; then
+    sandbox_arg="--no-sandbox"
+  fi
+fi
+
+if [ -n "$sandbox_arg" ]; then
+  exec "$APPDIR/usr/lib/github-desktop/desktop" "$sandbox_arg" "$@"
+else
+  exec "$APPDIR/usr/lib/github-desktop/desktop" "$@"
+fi
 EOF_APPRUN
 chmod +x "$APPDIR/AppRun"
 
