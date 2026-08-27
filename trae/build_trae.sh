@@ -134,8 +134,42 @@ export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
 export DEPLOY_PIPEWIRE=1
 
+# Trae 顶层 libaha_net.so 依赖包内私有 libsscronet.so；该库不在系统默认动态库搜索路径中。
+# quick-sharun 部署前会用 ldd 检查输入 ELF，因此只在本次构建进程中加入实际 libsscronet.so 所在目录。
+mapfile -t SSCRONET_LIBS < <(find -L ./AppDir/bin -type f -name 'libsscronet.so' -print)
+
+if [ "${#SSCRONET_LIBS[@]}" -eq 0 ]; then
+  echo "Error: bundled libsscronet.so not found in Trae package."
+  exit 1
+fi
+
+SSCRONET_DIRS=""
+for sscronet_lib in "${SSCRONET_LIBS[@]}"; do
+  sscronet_dir="$(dirname "$sscronet_lib")"
+  case ":$SSCRONET_DIRS:" in
+    *":$sscronet_dir:"*) ;;
+    *) SSCRONET_DIRS="${SSCRONET_DIRS:+$SSCRONET_DIRS:}$sscronet_dir" ;;
+  esac
+done
+
+if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+  BUILD_LD_LIBRARY_PATH="$SSCRONET_DIRS:$LD_LIBRARY_PATH"
+else
+  BUILD_LD_LIBRARY_PATH="$SSCRONET_DIRS"
+fi
+
+# 在进入 quick-sharun 前先确认 libaha_net.so 的依赖已经能完整解析，避免再次消耗一次完整构建才发现同类错误。
+if [ -f ./AppDir/bin/libaha_net.so ]; then
+  if LD_LIBRARY_PATH="$BUILD_LD_LIBRARY_PATH" ldd ./AppDir/bin/libaha_net.so | grep -q 'not found'; then
+    echo "Error: ./AppDir/bin/libaha_net.so still has unresolved libraries."
+    LD_LIBRARY_PATH="$BUILD_LD_LIBRARY_PATH" ldd ./AppDir/bin/libaha_net.so || true
+    exit 1
+  fi
+fi
+
 # 使用与 VS Code / Cursor 相同的 quick-sharun Electron 打包路径，并补齐输入法、NSS、hostname、ZeroMQ。
-quick-sharun \
+# LD_LIBRARY_PATH 只传给构建阶段的 quick-sharun，不会写入 AppImage 的运行环境；运行时仍由 sharun 的私有动态链接器处理。
+LD_LIBRARY_PATH="$BUILD_LD_LIBRARY_PATH" quick-sharun \
   ./AppDir/bin/* \
   /usr/bin/hostname \
   /usr/lib/libnss* \
