@@ -90,6 +90,10 @@ mkdir -p AppDir/bin/resources dist
 # 复制完整 Linux Electron runtime，保留 locales、resources、snapshot 等运行文件。
 cp -a "$ELECTRON_ROOT"/. AppDir/bin/
 
+# Electron 的 Qt6 shim 只用于可选的 Qt 原生主题集成；Arch electron43 不把 qt6-base 作为运行时依赖。
+# AppImage 不捆绑整套 Qt6，避免 quick-sharun 把可选 shim 当作必需 ELF 并因缺少 Qt6 中止。
+rm -f AppDir/bin/libqt6_shim.so
+
 # 保留 Electron runtime 自己的 resources 内容，同时加入 AUR 已经完成 Linux 适配的 WorkBuddy 应用目录。
 rm -rf AppDir/bin/resources/app.asar.unpacked
 cp -a "$APP_PAYLOAD_DIR" AppDir/bin/resources/app.asar.unpacked
