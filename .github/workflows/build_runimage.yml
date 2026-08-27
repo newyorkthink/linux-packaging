@@ -165,8 +165,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wget https://github.com/VHSgunzo/runimage/releases/latest/download/runimage-x86_64 -O runimage
-          chmod +x runimage
+          wget https://github.com/VHSgunzo/runimage/releases/latest/download/runimage-x86_64 -O "$RUNNER_TEMP/runimage-x86_64"
+          chmod +x "$RUNNER_TEMP/runimage-x86_64"
 
       - name: Build and publish RunImage
         env:
@@ -178,7 +178,7 @@ jobs:
           chmod +x "$SCRIPT"
           SCRIPT_DIR="$(dirname "$SCRIPT")"
           SCRIPT_FILE="$(basename "$SCRIPT")"
-          RUNIMAGE_BIN="$PWD/runimage"
+          RUNIMAGE_BIN="$RUNNER_TEMP/runimage-x86_64"
 
           pushd "$SCRIPT_DIR" >/dev/null
           RIM_NO_NVIDIA_CHECK=1 RIM_OVERFS_MODE=1 "$RUNIMAGE_BIN" "./$SCRIPT_FILE"
