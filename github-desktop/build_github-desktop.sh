@@ -18,9 +18,12 @@ RELEASE_JSON="$WORK_DIR/latest-release.json"
 rm -rf "$WORK_DIR" "$DIST_DIR"
 mkdir -p "$WORK_DIR" "$DIST_DIR"
 
-# 安装下载、校验以及真实 GUI 窗口烟测所需工具。
+# 安装下载、校验、Electron/Linux 运行库以及真实 GUI 窗口烟测所需工具。
 yay -S --noconfirm --needed \
   curl python coreutils \
+  alsa-lib at-spi2-core cairo cups dbus expat fontconfig gcc-libs glib2 glibc \
+  gtk3 libdrm libsecret libx11 libxcb libxcomposite libxdamage libxext libxfixes \
+  libxkbcommon libxrandr libxss libxtst mesa nspr nss pango \
   xorg-server-xvfb xorg-xauth xorg-xwininfo xdotool
 
 # 读取 Linux 社区维护版最新正式 Release，并严格选择 x86_64 AppImage 与对应 SHA256。
