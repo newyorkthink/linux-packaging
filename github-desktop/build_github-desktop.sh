@@ -22,7 +22,7 @@ mkdir -p "$TOOLS_DIR" "$DIST_DIR"
 
 # 安装官方源码编译、Linux 运行和 GUI 窗口烟测所需依赖。
 yay -S --noconfirm --needed \
-  base-devel git curl xz python pkgconf \
+  base-devel git curl xz python pkgconf patchelf \
   libsecret gtk3 nss alsa-lib cups libxkbcommon libxrandr mesa \
   fontconfig xdg-utils xorg-server-xvfb xorg-xauth xorg-xwininfo xdotool
 
@@ -192,19 +192,65 @@ run_gui_smoke \
   env GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION=1 "$UPSTREAM_DIST/desktop"
 
 # 手工构造最小 AppDir，完整保留官方 Electron 目录的相对布局，避免二次打包工具改写内部可执行入口。
-mkdir -p "$APPDIR/usr/lib/github-desktop" "$APPDIR/usr/lib/github-desktop/lib" "$APPDIR/usr/share/github-desktop"
+NATIVE_LIB_DIR="$APPDIR/usr/lib/github-desktop/lib"
+mkdir -p "$APPDIR/usr/lib/github-desktop" "$NATIVE_LIB_DIR" "$APPDIR/usr/share/github-desktop"
 cp -a "$UPSTREAM_DIST/." "$APPDIR/usr/lib/github-desktop/"
 cp -f "$SOURCE_DIR/app/static/linux/icon-logo.png" "$APPDIR/github-desktop.png"
 ln -s github-desktop.png "$APPDIR/.DirIcon"
 
-# 官方 keytar.node 在 Linux 上动态链接 libsecret；源码构建机安装了 libsecret，但最终 AppImage 必须自己携带这项运行依赖。
-KEYTAR_NODE="$APPDIR/usr/lib/github-desktop/resources/app/keytar.node"
-test -f "$KEYTAR_NODE"
-readelf -d "$KEYTAR_NODE" | grep -q '\[libsecret-1.so.0\]'
-LIBSECRET_SOURCE="$(readlink -f /usr/lib/libsecret-1.so.0)"
-test -f "$LIBSECRET_SOURCE"
-cp -L "$LIBSECRET_SOURCE" "$APPDIR/usr/lib/github-desktop/lib/libsecret-1.so.0"
-test -s "$APPDIR/usr/lib/github-desktop/lib/libsecret-1.so.0"
+# 官方 Linux build 中的 .node 原生模块可能依赖 libsecret、TPM2 等系统动态库。
+# 不能再按报错逐个补库：一次扫描所有 .node，并收集 ldd 展开的完整运行时依赖闭包。
+# glibc 必须继续使用宿主系统版本，避免把构建机 glibc 强塞进 AppImage 破坏兼容性；其余依赖放入私有目录。
+NATIVE_ROOT="$APPDIR/usr/lib/github-desktop/resources/app"
+mapfile -d '' -t NATIVE_MODULES < <(find "$NATIVE_ROOT" -type f -name '*.node' -print0)
+if [[ ${#NATIVE_MODULES[@]} -eq 0 ]]; then
+  echo "Error: no Linux native .node modules found in official build." >&2
+  exit 1
+fi
+
+declare -A NATIVE_DEPS=()
+for module in "${NATIVE_MODULES[@]}"; do
+  echo "Native module: ${module#$APPDIR/}"
+  while IFS= read -r dep; do
+    [[ -n "$dep" && -f "$dep" ]] || continue
+    NATIVE_DEPS["$dep"]=1
+  done < <(
+    ldd "$module" | awk '
+      $2 == "=>" && $3 ~ /^\// { print $3 }
+      $1 ~ /^\// { print $1 }
+    '
+  )
+done
+
+for dep in "${!NATIVE_DEPS[@]}"; do
+  owner="$(pacman -Qqo "$dep" 2>/dev/null | head -n 1 || true)"
+  if [[ "$owner" == "glibc" ]]; then
+    continue
+  fi
+
+  dep_name="$(basename "$dep")"
+  cp -L "$dep" "$NATIVE_LIB_DIR/$dep_name"
+done
+
+# 每个 .node 只从自己的私有 lib 目录找打包依赖，不用全局 LD_LIBRARY_PATH 覆盖 Electron 的系统库解析。
+for module in "${NATIVE_MODULES[@]}"; do
+  relative_lib="$(realpath --relative-to="$(dirname "$module")" "$NATIVE_LIB_DIR")"
+  patchelf --force-rpath --set-rpath "\$ORIGIN/$relative_lib" "$module"
+done
+
+# 私有库之间继续优先在同目录解析传递依赖；无法修改的特殊 ELF 只记录，不中断其他库处理。
+shopt -s nullglob
+for bundled_lib in "$NATIVE_LIB_DIR"/*.so*; do
+  if file "$bundled_lib" | grep -q 'ELF'; then
+    patchelf --force-rpath --set-rpath '\$ORIGIN' "$bundled_lib" || true
+  fi
+done
+shopt -u nullglob
+
+# 当前官方 keytar 必须能带入 libsecret；同时打印依赖清单，后续 Action 出错时能直接看到打包结果。
+test -s "$NATIVE_LIB_DIR/libsecret-1.so.0"
+echo "Bundled native runtime libraries:"
+find "$NATIVE_LIB_DIR" -maxdepth 1 -type f -printf '  %f\n' | sort
 
 cat > "$APPDIR/github-desktop.desktop" <<'EOF_DESKTOP'
 [Desktop Entry]
@@ -245,9 +291,6 @@ export CHROME_DESKTOP=github-desktop.desktop
 
 # GitHub Desktop 官方源码原生识别这个变量并调用 app.disableHardwareAcceleration()。
 export GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION=1
-
-# 只把 AppImage 自带的 keytar/libsecret 运行依赖加入本进程动态库搜索路径，不污染宿主系统。
-export LD_LIBRARY_PATH="$APPDIR/usr/lib/github-desktop/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # 隔离 Fontconfig 缓存：避免宿主系统残留的更高版本缓存导致 Electron 启动异常或长时间卡住。
 export FONTCONFIG_FILE="$APPDIR/usr/share/github-desktop/fonts.conf"
