@@ -171,7 +171,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wget https://github.com/VHSgunzo/runimage/releases/latest/download/runimage-x86_64 -O "$RUNNER_TEMP/runimage-x86_64"
+          for attempt in {1..5}; do
+            if wget https://github.com/VHSgunzo/runimage/releases/latest/download/runimage-x86_64 -O "$RUNNER_TEMP/runimage-x86_64"; then
+              break
+            fi
+            if [[ "$attempt" -eq 5 ]]; then
+              echo "错误：RunImage 下载连续 5 次失败" >&2
+              exit 1
+            fi
+            echo "RunImage 下载失败（第 $attempt 次），5 秒后重试" >&2
+            sleep 5
+          done
           chmod +x "$RUNNER_TEMP/runimage-x86_64"
 
       - name: Build and publish RunImage
