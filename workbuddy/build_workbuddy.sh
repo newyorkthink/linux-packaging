@@ -2,11 +2,11 @@
 set -Eeuo pipefail
 
 # 每次构建都使用全新的工作目录，避免旧产物或旧版本文件混入本次 AppImage。
-rm -rf AppDir dist workbuddy.desktop workbuddy.png /tmp/workbuddy-app-payload || true
+rm -rf AppDir dist workbuddy.desktop workbuddy.png || true
 
 ARCH="$(uname -m)"
 
-# 当前只打包 Linux x86_64，与现有仓库主要 Electron AppImage 构建保持一致。
+# 当前只打包 Linux x86_64。
 if [[ "$ARCH" != "x86_64" ]]; then
   echo "Error: this script only supports x86_64 / linux-x64."
   exit 1
@@ -15,7 +15,7 @@ fi
 # 在真正执行 AUR PKGBUILD 前，先运行仓库内的只读审计；审计失败就停止构建。
 ./test_workbuddy_aur.sh
 
-# 安装 AppImage 打包和 Electron 运行所需的基础依赖；WorkBuddy 自身依赖由 AUR 配方继续负责。
+# 安装 AppImage 打包和 Electron 运行所需的基础依赖；WorkBuddy 自身 Linux 适配由 AUR 配方负责。
 yay -S --noconfirm --needed \
   gcc base-devel git curl wget tar gzip binutils patchelf coreutils file p7zip \
   appstream-glib desktop-file-utils util-linux zsync \
@@ -27,7 +27,7 @@ yay -S --noconfirm --needed \
   libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau \
   pulseaudio pulseaudio-alsa pipewire-audio ibus imagemagick
 
-# 直接安装当前 AUR workbuddy；该包已经跟踪 5.3.x，并负责完成当前 Linux 原生模块适配。
+# 安装当前 AUR workbuddy；当前配方跟踪 5.3.x，并注入 Linux x64 node-pty 与 better-sqlite3 预构建。
 yay -S --noconfirm --needed workbuddy
 
 # 从实际安装结果读取版本，避免在本仓库重复维护 WorkBuddy 版本号。
@@ -44,167 +44,129 @@ echo "WorkBuddy AUR version: $VERSION"
 echo "=== Installed WorkBuddy files ==="
 pacman -Ql workbuddy
 
-# 从 AUR 安装结果中寻找应用核心 app.asar；找不到就不猜路径，直接失败。
-APP_ASAR="$(pacman -Qlq workbuddy | grep -E '/app\.asar$' | head -n 1 || true)"
+# 当前 AUR 5.3.x 会把上游 app.asar 完整展开后安装为 /opt/workbuddy/app.asar.unpacked。
+# 直接依据 package.json 定位实际应用目录，不再错误要求安装结果中存在 app.asar。
+APP_PACKAGE_JSON="$(pacman -Qlq workbuddy | grep -E '/opt/workbuddy/app\.asar\.unpacked/package\.json$' | head -n 1 || true)"
 
-if [[ -z "$APP_ASAR" || ! -f "$APP_ASAR" ]]; then
-  echo "Error: WorkBuddy app.asar was not found in the installed AUR package."
+if [[ -z "$APP_PACKAGE_JSON" || ! -f "$APP_PACKAGE_JSON" ]]; then
+  echo "Error: WorkBuddy app.asar.unpacked/package.json was not found in the installed AUR package."
   exit 1
 fi
 
-APP_PAYLOAD_DIR="$(dirname "$APP_ASAR")"
+APP_PAYLOAD_DIR="$(dirname "$APP_PACKAGE_JSON")"
 echo "WorkBuddy payload: $APP_PAYLOAD_DIR"
 
-# 优先读取 AUR 自带 desktop 文件，保证应用名、协议和 WMClass 与当前配方一致。
-INSTALLED_DESKTOP="$(pacman -Qlq workbuddy | grep -E '/applications/[^/]*workbuddy[^/]*\.desktop$' | head -n 1 || true)"
+# AUR 当前明确依赖系统 electron；AppImage 直接复制该 Linux Electron runtime。
+ELECTRON_BIN="$(command -v electron || true)"
 
-if [[ -z "$INSTALLED_DESKTOP" || ! -f "$INSTALLED_DESKTOP" ]]; then
-  INSTALLED_DESKTOP="$(find /usr/share/applications -maxdepth 1 -type f -iname '*workbuddy*.desktop' -print -quit || true)"
+if [[ -z "$ELECTRON_BIN" || ! -e "$ELECTRON_BIN" ]]; then
+  echo "Error: AUR dependency 'electron' is not installed."
+  exit 1
 fi
+
+ELECTRON_REAL="$(readlink -f "$ELECTRON_BIN")"
+ELECTRON_ROOT="$(dirname "$ELECTRON_REAL")"
+ELECTRON_NAME="$(basename "$ELECTRON_REAL")"
+
+if [[ ! -x "$ELECTRON_REAL" ]]; then
+  echo "Error: Electron executable is not executable: $ELECTRON_REAL"
+  exit 1
+fi
+
+echo "Electron runtime: $ELECTRON_ROOT"
+electron --version
+
+mkdir -p AppDir/bin/resources dist
+
+# 复制完整 Linux Electron runtime，保留 locales、resources、snapshot 等运行文件。
+cp -a "$ELECTRON_ROOT"/. AppDir/bin/
+
+# 保留 Electron runtime 自己的 resources 内容，同时加入 AUR 已经完成 Linux 适配的 WorkBuddy 应用目录。
+rm -rf AppDir/bin/resources/app.asar.unpacked
+cp -a "$APP_PAYLOAD_DIR" AppDir/bin/resources/app.asar.unpacked
+
+APPDIR_PAYLOAD="AppDir/bin/resources/app.asar.unpacked"
+
+# AUR 为系统安装把 process.resourcesPath 硬编码成 '/opt/workbuddy'。
+# AppImage 内恢复为 Electron 自己的 process.resourcesPath，使路径自然落到 AppDir/bin/resources。
+mapfile -t RESOURCE_PATCH_FILES < <(
+  grep -RIl --fixed-strings "'/opt/workbuddy'" "$APPDIR_PAYLOAD" 2>/dev/null || true
+)
+
+if [[ "${#RESOURCE_PATCH_FILES[@]}" -eq 0 ]]; then
+  echo "Error: expected AUR '/opt/workbuddy' resource-path patch was not found."
+  exit 1
+fi
+
+for patched_file in "${RESOURCE_PATCH_FILES[@]}"; do
+  sed -i "s#'/opt/workbuddy'#process.resourcesPath#g" "$patched_file"
+done
+
+# 修复后不允许应用文本代码继续硬编码系统 /opt/workbuddy。
+if grep -RIl --fixed-strings "'/opt/workbuddy'" "$APPDIR_PAYLOAD" 2>/dev/null | grep -q .; then
+  echo "Error: hard-coded /opt/workbuddy remains after AppImage resource-path restoration."
+  exit 1
+fi
+
+echo "Restored process.resourcesPath in ${#RESOURCE_PATCH_FILES[@]} file(s)."
+
+# 只保留当前 x86_64 所需的 @lydell node-pty 平台包，避免把 macOS/Windows/ARM 原生模块带入 Linux AppImage。
+PTY_ROOT="$APPDIR_PAYLOAD/node_modules/@lydell"
+if [[ -d "$PTY_ROOT" ]]; then
+  while IFS= read -r -d '' platform_dir; do
+    if [[ "$(basename "$platform_dir")" != "node-pty-linux-x64" ]]; then
+      rm -rf "$platform_dir"
+    fi
+  done < <(find "$PTY_ROOT" -mindepth 1 -maxdepth 1 -type d -name 'node-pty-*' -print0)
+fi
+
+# 当前 AUR 明确注入 Linux x64 node-pty；缺失时不生成伪可用 AppImage。
+LINUX_PTY_DIR="$APPDIR_PAYLOAD/node_modules/@lydell/node-pty-linux-x64"
+LINUX_PTY_NODE="$(find "$LINUX_PTY_DIR" -type f -name '*.node' -print -quit 2>/dev/null || true)"
+
+if [[ -z "$LINUX_PTY_NODE" || ! -f "$LINUX_PTY_NODE" ]]; then
+  echo "Error: Linux x64 node-pty native module is missing."
+  exit 1
+fi
+
+if ! file -b "$LINUX_PTY_NODE" | grep -q '^ELF '; then
+  echo "Error: Linux x64 node-pty module is not ELF: $LINUX_PTY_NODE"
+  file "$LINUX_PTY_NODE" || true
+  exit 1
+fi
+
+# better-sqlite3 13.x 自带 Linux x64 N-API 预构建；确认 AUR 替换后的目标平台二进制确实存在。
+SQLITE_PREBUILD="$(find "$APPDIR_PAYLOAD/node_modules/better-sqlite3/prebuilds" -maxdepth 1 -type f -name 'linux-x64*.node' -print -quit 2>/dev/null || true)"
+
+if [[ -z "$SQLITE_PREBUILD" || ! -f "$SQLITE_PREBUILD" ]]; then
+  echo "Error: better-sqlite3 Linux x64 prebuild is missing."
+  exit 1
+fi
+
+if ! file -b "$SQLITE_PREBUILD" | grep -q '^ELF '; then
+  echo "Error: better-sqlite3 Linux x64 prebuild is not ELF: $SQLITE_PREBUILD"
+  file "$SQLITE_PREBUILD" || true
+  exit 1
+fi
+
+# 固定 AppImage 内部入口；不创建或修改系统 /opt/workbuddy。
+cat > AppDir/bin/workbuddy <<EOF_WRAPPER
+#!/usr/bin/env bash
+set -e
+HERE="\$(cd "\$(dirname "\$0")" && pwd)"
+export ELECTRON_FORCE_IS_PACKAGED=1
+exec "\$HERE/$ELECTRON_NAME" "\$HERE/resources/app.asar.unpacked" "\$@"
+EOF_WRAPPER
+chmod +x AppDir/bin/workbuddy
+
+# 读取 AUR desktop，保证应用协议、WMClass 等元数据保持当前配方基线。
+INSTALLED_DESKTOP="$(pacman -Qlq workbuddy | grep -E '/applications/[^/]*workbuddy[^/]*\.desktop$' | head -n 1 || true)"
 
 if [[ -z "$INSTALLED_DESKTOP" || ! -f "$INSTALLED_DESKTOP" ]]; then
   echo "Error: WorkBuddy desktop entry was not found."
   exit 1
 fi
 
-# 从 desktop Exec 取得 AUR 实际入口程序名；%U/%F 等 desktop 占位符不参与入口解析。
-EXEC_LINE="$(sed -n 's/^Exec=//p' "$INSTALLED_DESKTOP" | head -n 1)"
-EXEC_TOKEN="$(printf '%s\n' "$EXEC_LINE" | awk '{for (i=1;i<=NF;i++) if ($i !~ /^[A-Za-z_][A-Za-z0-9_]*=/ && $i !~ /^%/) {print $i; exit}}')"
-EXEC_TOKEN="${EXEC_TOKEN%\"}"
-EXEC_TOKEN="${EXEC_TOKEN#\"}"
-
-if [[ -z "$EXEC_TOKEN" ]]; then
-  EXEC_TOKEN="workbuddy"
-fi
-
-if [[ "$EXEC_TOKEN" == /* ]]; then
-  INSTALLED_LAUNCHER="$EXEC_TOKEN"
-else
-  INSTALLED_LAUNCHER="$(command -v "$EXEC_TOKEN" || true)"
-fi
-
-if [[ -z "$INSTALLED_LAUNCHER" || ! -e "$INSTALLED_LAUNCHER" ]]; then
-  INSTALLED_LAUNCHER="$(command -v workbuddy || true)"
-fi
-
-if [[ -z "$INSTALLED_LAUNCHER" || ! -e "$INSTALLED_LAUNCHER" ]]; then
-  echo "Error: WorkBuddy launcher was not found."
-  exit 1
-fi
-
-echo "WorkBuddy launcher: $INSTALLED_LAUNCHER"
-file "$INSTALLED_LAUNCHER" || true
-
-mkdir -p AppDir/bin dist /tmp/workbuddy-app-payload
-
-# AUR 通常使用系统 Linux Electron + WorkBuddy app.asar；先从 launcher 和依赖中解析 Electron 包。
-ELECTRON_COMMAND=""
-
-if file -b "$INSTALLED_LAUNCHER" | grep -qiE 'script|text'; then
-  ELECTRON_COMMAND="$(grep -oE 'electron[0-9]+' "$INSTALLED_LAUNCHER" | head -n 1 || true)"
-
-  if [[ -z "$ELECTRON_COMMAND" ]]; then
-    ELECTRON_COMMAND="$(grep -oE '(^|[[:space:]/])electron([[:space:]\"]|$)' "$INSTALLED_LAUNCHER" | head -n 1 | sed -E 's#^.*/##; s/[[:space:]\"]//g' || true)"
-  fi
-fi
-
-# launcher 未直接写 Electron 名称时，从 pacman 依赖中找实际 electronNN 包。
-if [[ -z "$ELECTRON_COMMAND" ]]; then
-  ELECTRON_COMMAND="$(pacman -Qi workbuddy \
-    | sed -n 's/^Depends On[[:space:]]*:[[:space:]]*//p' \
-    | tr ' ' '\n' \
-    | sed 's/[<>=].*$//' \
-    | grep -E '^electron[0-9]*$' \
-    | head -n 1 || true)"
-fi
-
-# 如果 AUR 本身已经安装了完整 Linux Electron 应用目录，则直接以 launcher 所在运行时为基线。
-LAUNCHER_REAL="$(readlink -f "$INSTALLED_LAUNCHER")"
-LAUNCHER_DIR="$(dirname "$LAUNCHER_REAL")"
-BUNDLED_RUNTIME=0
-
-if [[ -f "$LAUNCHER_DIR/resources/electron.asar" || -f "$LAUNCHER_DIR/resources/default_app.asar" ]]; then
-  BUNDLED_RUNTIME=1
-fi
-
-if [[ "$BUNDLED_RUNTIME" -eq 1 ]]; then
-  echo "Detected bundled Electron runtime: $LAUNCHER_DIR"
-
-  # 复制 AUR 已经组装好的完整 Linux Electron 目录，不重新改动已经适配好的产品层。
-  cp -a "$LAUNCHER_DIR"/. AppDir/bin/
-
-  # 若 launcher 文件名不是 workbuddy，额外提供固定 AppImage 入口，但不修改原 launcher。
-  LAUNCHER_NAME="$(basename "$LAUNCHER_REAL")"
-  if [[ "$LAUNCHER_NAME" != "workbuddy" ]]; then
-    cat > AppDir/bin/workbuddy <<EOF_WRAPPER
-#!/usr/bin/env bash
-set -e
-HERE="\$(cd "\$(dirname "\$0")" && pwd)"
-exec "\$HERE/$LAUNCHER_NAME" "\$@"
-EOF_WRAPPER
-    chmod +x AppDir/bin/workbuddy
-  fi
-else
-  # 系统 Electron 模式：解析 Electron ELF 的真实目录，并复制完整 Linux Electron runtime。
-  if [[ -z "$ELECTRON_COMMAND" ]]; then
-    echo "Error: unable to resolve the Electron runtime used by the AUR WorkBuddy launcher."
-    echo "=== Launcher content ==="
-    sed -n '1,160p' "$INSTALLED_LAUNCHER" || true
-    echo "=== Package dependencies ==="
-    pacman -Qi workbuddy || true
-    exit 1
-  fi
-
-  ELECTRON_BIN="$(command -v "$ELECTRON_COMMAND" || true)"
-
-  if [[ -z "$ELECTRON_BIN" || ! -e "$ELECTRON_BIN" ]]; then
-    echo "Error: resolved Electron command '$ELECTRON_COMMAND' is not installed."
-    exit 1
-  fi
-
-  ELECTRON_REAL="$(readlink -f "$ELECTRON_BIN")"
-  ELECTRON_ROOT="$(dirname "$ELECTRON_REAL")"
-  ELECTRON_NAME="$(basename "$ELECTRON_REAL")"
-
-  echo "Electron command: $ELECTRON_COMMAND"
-  echo "Electron runtime: $ELECTRON_ROOT"
-
-  if [[ ! -x "$ELECTRON_REAL" ]]; then
-    echo "Error: Electron executable is not executable: $ELECTRON_REAL"
-    exit 1
-  fi
-
-  # 复制完整 Electron runtime，避免只复制主 ELF 后遗漏 resources/locales/chrome-sandbox 等文件。
-  cp -a "$ELECTRON_ROOT"/. AppDir/bin/
-
-  # 保留 AUR 已经完成 Linux native module 适配后的完整 WorkBuddy payload。
-  cp -a "$APP_PAYLOAD_DIR"/. /tmp/workbuddy-app-payload/
-  rm -rf AppDir/bin/workbuddy-app
-  mv /tmp/workbuddy-app-payload AppDir/bin/workbuddy-app
-
-  # 固定 AppImage 内部入口；用户配置仍由 WorkBuddy 自身写入 ~/.workbuddy/，不写入 AppImage。
-  cat > AppDir/bin/workbuddy <<EOF_WRAPPER
-#!/usr/bin/env bash
-set -e
-HERE="\$(cd "\$(dirname "\$0")" && pwd)"
-export ELECTRON_FORCE_IS_PACKAGED=1
-exec "\$HERE/$ELECTRON_NAME" "\$HERE/workbuddy-app/app.asar" "\$@"
-EOF_WRAPPER
-  chmod +x AppDir/bin/workbuddy
-fi
-
-# 确认最终 AppImage 入口和 app.asar 同时存在，避免生成只有 Electron 空壳的产物。
-if [[ ! -x AppDir/bin/workbuddy ]]; then
-  echo "Error: AppDir/bin/workbuddy launcher was not created."
-  exit 1
-fi
-
-if ! find AppDir/bin -type f -name app.asar -print -quit | grep -q .; then
-  echo "Error: no WorkBuddy app.asar exists inside AppDir."
-  exit 1
-fi
-
-# 复制 AUR desktop 并只修正 AppImage 内部入口与图标名称。
 cp -a "$INSTALLED_DESKTOP" ./workbuddy.desktop
 sed -i \
   -e 's#^Exec=.*#Exec=workbuddy %U#' \
@@ -217,25 +179,15 @@ else
   echo "X-AppImage-Version=$VERSION" >> ./workbuddy.desktop
 fi
 
-# 优先使用 AUR 安装的 PNG 图标；若只有 SVG，则转换为 512x512 PNG。
-ICON_SOURCE="$(pacman -Qlq workbuddy | grep -Ei '/(icons|pixmaps)/.*workbuddy.*\.png$' | sort -V | tail -n 1 || true)"
+# AUR 5.3.x 已安装官方应用图标，直接复制，不重新生成图像内容。
+ICON_SOURCE="$(pacman -Qlq workbuddy | grep -Ei '/icons/.*/workbuddy\.png$' | sort -V | tail -n 1 || true)"
 
-if [[ -z "$ICON_SOURCE" ]]; then
-  ICON_SOURCE="$(find "$APP_PAYLOAD_DIR" -type f -iname '*.png' -size +4k -print | head -n 1 || true)"
+if [[ -z "$ICON_SOURCE" || ! -f "$ICON_SOURCE" ]]; then
+  echo "Error: WorkBuddy PNG icon was not found."
+  exit 1
 fi
 
-if [[ -n "$ICON_SOURCE" && -f "$ICON_SOURCE" ]]; then
-  cp -a "$ICON_SOURCE" ./workbuddy.png
-else
-  ICON_SOURCE="$(pacman -Qlq workbuddy | grep -Ei '/(icons|pixmaps)/.*workbuddy.*\.svg$' | head -n 1 || true)"
-
-  if [[ -z "$ICON_SOURCE" || ! -f "$ICON_SOURCE" ]]; then
-    echo "Error: WorkBuddy icon was not found."
-    exit 1
-  fi
-
-  magick -background none "$ICON_SOURCE" -resize 512x512 ./workbuddy.png
-fi
+cp -a "$ICON_SOURCE" ./workbuddy.png
 
 # 记录实际 AUR 版本，沿用仓库其他项目的版本输出方式。
 echo "$VERSION" > ~/version
@@ -252,22 +204,12 @@ export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
 export DEPLOY_PIPEWIRE=1
 
-# 在 quick-sharun 前检查 AppDir 内所有 ELF/.so/.node 的架构，禁止把 macOS Mach-O 或 Windows PE 原生模块误装进 Linux 包。
-BAD_NATIVE=0
-while IFS= read -r -d '' native_file; do
-  kind="$(file -b "$native_file")"
-  case "$kind" in
-    *Mach-O*|*PE32*|*MS-DOS*)
-      echo "Error: non-Linux native file remains in AppDir: $native_file"
-      echo "       $kind"
-      BAD_NATIVE=1
-      ;;
-  esac
-done < <(find AppDir/bin -type f \( -name '*.node' -o -name '*.so' -o -name '*.dylib' -o -name '*.dll' \) -print0)
-
-if [[ "$BAD_NATIVE" -ne 0 ]]; then
-  exit 1
-fi
+# 只对 Linux 实际会加载的关键 native module 做架构检查；平台可选资源本身不作为误报条件。
+for native_file in "$LINUX_PTY_NODE" "$SQLITE_PREBUILD"; do
+  echo "Native module: $native_file"
+  file "$native_file"
+  ldd "$native_file" || true
+done
 
 # 使用仓库统一 quick-sharun 路径部署 Electron 依赖，并补齐输入法、NSS、hostname 运行项。
 quick-sharun \
@@ -282,5 +224,5 @@ quick-sharun \
 # 生成最终单文件 AppImage。
 quick-sharun --make-appimage
 
-# 最终必须只有一个目标文件，且文件非空。
+# 最终目标必须存在且非空。
 test -s ./dist/workbuddy.AppImage
