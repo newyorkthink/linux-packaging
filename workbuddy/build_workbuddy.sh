@@ -74,7 +74,7 @@ if [[ ! -x "$ELECTRON_REAL" ]]; then
 fi
 
 echo "Electron runtime: $ELECTRON_ROOT"
-electron --version
+electron --no-sandbox --version
 
 mkdir -p AppDir/bin/resources dist
 
