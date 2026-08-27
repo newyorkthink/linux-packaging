@@ -27,7 +27,7 @@ TraeWork Windows 安装包版本、构建号、下载地址和 SHA256 均固定�
 2. 安装 Electron/AppImage、解包和 Xvfb 测试所需依赖。
 3. 克隆 AUR `trae`，解析当前 Linux Trae 版本、下载地址和校验值。
 4. 下载 TraeWork Windows x64 安装包并校验 SHA256。
-5. 使用 `innoextract` 解包；失败时回退到 `7z`。
+5. 优先使用 `innoextract` 解包；若当前版本不支持安装器或未得到完整 `resources/app`，则通过 Wine 按 Inno 静默安装方式解到临时目录。
 6. 下载并校验 Linux Trae 运行时。
 7. 先复制完整 Linux Electron 外壳，再用 TraeWork Windows `resources/app` 替换产品层。
 8. 从 Linux Trae 中覆盖或补齐 ELF、`.so`、`.node` 原生组件，并单独处理关键兼容组件。

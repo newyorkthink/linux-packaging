@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 rm -rf AppDir dist trae-work.desktop trae-work.png \
   /tmp/aur-trae /tmp/trae-linux /tmp/trae-linux.tar.gz \
-  /tmp/traework-win /tmp/traework.exe /tmp/traecode-linux-app || true
+  /tmp/traework-win /tmp/traework-wine /tmp/traework.exe /tmp/traecode-linux-app || true
 
 ARCH="$(uname -m)"
 if [[ "$ARCH" != "x86_64" ]]; then
@@ -17,8 +17,8 @@ TRAEWORK_BUILD="${TRAEWORK_BUILD:-2.3.76123}"
 TRAEWORK_URL="${TRAEWORK_URL:-https://lf-cdn.trae.ai/obj/trae-ai-us/pkg/app/releases/stable/${TRAEWORK_BUILD}/win32/TraeWork-Setup-x64.exe}"
 TRAEWORK_SHA256="${TRAEWORK_SHA256:-DFA9F3B0F2005EBAD11DDE06E573D0553DE3A29C23B38CFA222612960296CCAD}"
 
-# 安装与现有 Trae AppImage 相同的 Electron 运行依赖，并增加 innoextract / p7zip 用于解包 Windows Inno Setup。
-yay -S --noconfirm gcc base-devel git curl wget tar gzip binutils patchelf coreutils file p7zip innoextract \
+# 安装与现有 Trae AppImage 相同的 Electron 运行依赖；innoextract 优先解包，Wine 用于新版 Inno Setup 的兼容回退。
+yay -S --noconfirm gcc base-devel git curl wget tar gzip binutils patchelf coreutils file p7zip innoextract wine \
   appstream-glib desktop-file-utils util-linux zsync \
   xorg-server xorg-server-common xorg-server-xvfb \
   nss alsa-lib gtk3 at-spi2-core libsecret libxkbfile zeromq \
@@ -69,15 +69,53 @@ mkdir -p AppDir/bin dist /tmp/trae-linux /tmp/traework-win
 wget --retry-connrefused --tries=30 "$TRAEWORK_URL" -O /tmp/traework.exe
 printf '%s  %s\n' "$TRAEWORK_SHA256" /tmp/traework.exe | sha256sum -c -
 
-# 优先使用 innoextract 展开 Inno Setup；失败时回退到 7-Zip。
-if ! innoextract -s -d /tmp/traework-win /tmp/traework.exe >/tmp/traework-innoextract.log 2>&1; then
-  rm -rf /tmp/traework-win
-  mkdir -p /tmp/traework-win
-  7z x -y /tmp/traework.exe -o/tmp/traework-win >/tmp/traework-7z.log
+# 优先使用 innoextract 直接展开 Inno Setup。
+# 若当前 innoextract 不支持该安装器版本或未得到完整 resources/app，则通过 Wine 按官方 Inno 静默安装方式写入临时目录。
+WORK_APP_PACKAGE=""
+if innoextract -s -d /tmp/traework-win /tmp/traework.exe >/tmp/traework-innoextract.log 2>&1; then
+  WORK_APP_PACKAGE="$(find /tmp/traework-win -type f -path '*/resources/app/package.json' -print -quit || true)"
 fi
-WORK_APP_PACKAGE="$(find /tmp/traework-win -type f -path '*/resources/app/package.json' -print -quit || true)"
+
 if [[ -z "$WORK_APP_PACKAGE" ]]; then
-  echo "Error: TraeWork resources/app/package.json not found after extracting Windows installer."
+  echo "innoextract did not produce TraeWork resources/app; falling back to Wine silent install."
+  tail -n 80 /tmp/traework-innoextract.log || true
+
+  rm -rf /tmp/traework-win /tmp/traework-wine
+  mkdir -p /tmp/traework-win
+
+  export WINEPREFIX=/tmp/traework-wine
+  export WINEARCH=win64
+  export WINEDEBUG=-all
+  export WINEDLLOVERRIDES='mscoree,mshtml='
+
+  set +e
+  timeout 300s xvfb-run -a wine /tmp/traework.exe \
+    /VERYSILENT \
+    /SUPPRESSMSGBOXES \
+    /NORESTART \
+    /SP- \
+    /mergetasks=!runcode \
+    '/DIR=Z:\tmp\traework-win' \
+    >/tmp/traework-wine-install.log 2>&1
+  WINE_INSTALL_RC=$?
+  set -e
+
+  if [[ "$WINE_INSTALL_RC" -ne 0 ]]; then
+    echo "Error: Wine silent installation failed with exit code $WINE_INSTALL_RC."
+    tail -n 120 /tmp/traework-wine-install.log || true
+    exit "$WINE_INSTALL_RC"
+  fi
+
+  WORK_APP_PACKAGE="$(find /tmp/traework-win -type f -path '*/resources/app/package.json' -print -quit || true)"
+fi
+
+if [[ -z "$WORK_APP_PACKAGE" ]]; then
+  echo "Error: TraeWork resources/app/package.json not found after Inno extraction/install."
+  echo "=== innoextract log ==="
+  tail -n 80 /tmp/traework-innoextract.log || true
+  echo "=== Wine install log ==="
+  tail -n 120 /tmp/traework-wine-install.log || true
+  echo "=== extracted files ==="
   find /tmp/traework-win -maxdepth 4 -type f | sort | head -n 200
   exit 1
 fi
