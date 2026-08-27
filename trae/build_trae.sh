@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 rm -rf AppDir dist trae.desktop trae.png \
   /tmp/aur-trae /tmp/trae-extract /tmp/trae.tar.gz || true
