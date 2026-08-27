@@ -49,3 +49,5 @@ build_deepseek-harness.sh
 5. 生成 `dist/deepseek-harness.AppImage`，执行 `--help` 烟测并生成 SHA256。
 
 该项目已接入仓库统一 `.github/workflows/build.yml`：支持目录变更自动构建、手动单独选择和每日统一构建，并发布到 `latest` Release。
+
+`latest` Release 中固定发布资产名：`deepseek-harness.AppImage`。
