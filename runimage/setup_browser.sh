@@ -108,9 +108,9 @@ mkdir -p /var/RunDir/config/
   echo 'SDL_IM_MODULE=fcitx'
 } >> /var/RunDir/config/Run.rcfg
 
-# 7. 瘦身并生成最终 browser_runimage RunImage
+# 7. 瘦身并生成最终 browser RunImage
 # 删除打包后不需要的缓存、开发文件及其他可安全移除内容，缩小最终镜像体积
 rim-shrink --all
 
-# 将当前 RunImage 环境重新打包为 browser_runimage
-rim-build browser_runimage
+# 将当前 RunImage 环境重新打包为 browser RunImage
+rim-build browser
