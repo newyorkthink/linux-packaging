@@ -56,7 +56,7 @@ fi
 APP_PAYLOAD_DIR="$(dirname "$APP_PACKAGE_JSON")"
 echo "WorkBuddy payload: $APP_PAYLOAD_DIR"
 
-# AUR 当前明确依赖系统 electron；AppImage 直接复制该 Linux Electron runtime。
+# AUR 当前明确依赖系统 electron；先通过已验证可执行的版本命令取得主版本，再定位 Arch 的真实 runtime 目录。
 ELECTRON_BIN="$(command -v electron || true)"
 
 if [[ -z "$ELECTRON_BIN" || ! -e "$ELECTRON_BIN" ]]; then
@@ -64,17 +64,26 @@ if [[ -z "$ELECTRON_BIN" || ! -e "$ELECTRON_BIN" ]]; then
   exit 1
 fi
 
-ELECTRON_REAL="$(readlink -f "$ELECTRON_BIN")"
-ELECTRON_ROOT="$(dirname "$ELECTRON_REAL")"
-ELECTRON_NAME="$(basename "$ELECTRON_REAL")"
+ELECTRON_VERSION="$(electron --no-sandbox --version)"
+ELECTRON_MAJOR="${ELECTRON_VERSION#v}"
+ELECTRON_MAJOR="${ELECTRON_MAJOR%%.*}"
 
-if [[ ! -x "$ELECTRON_REAL" ]]; then
-  echo "Error: Electron executable is not executable: $ELECTRON_REAL"
+if [[ ! "$ELECTRON_MAJOR" =~ ^[0-9]+$ ]]; then
+  echo "Error: failed to resolve Electron major version from: $ELECTRON_VERSION"
   exit 1
 fi
 
+ELECTRON_ROOT="/usr/lib/electron${ELECTRON_MAJOR}"
+ELECTRON_REAL="$ELECTRON_ROOT/electron"
+ELECTRON_NAME="electron"
+
+if [[ ! -x "$ELECTRON_REAL" || ! -d "$ELECTRON_ROOT/resources" ]]; then
+  echo "Error: Electron runtime is incomplete: $ELECTRON_ROOT"
+  exit 1
+fi
+
+echo "Electron version: $ELECTRON_VERSION"
 echo "Electron runtime: $ELECTRON_ROOT"
-electron --no-sandbox --version
 
 mkdir -p AppDir/bin/resources dist
 
