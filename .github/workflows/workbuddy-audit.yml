@@ -1,0 +1,35 @@
+name: WorkBuddy AUR Audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'workbuddy/**'
+      - '.github/workflows/workbuddy-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workbuddy-aur-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Audit current AUR packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run read-only AUR audit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x workbuddy/test_workbuddy_aur.sh
+          ./workbuddy/test_workbuddy_aur.sh
