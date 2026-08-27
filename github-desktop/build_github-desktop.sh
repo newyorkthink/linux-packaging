@@ -69,6 +69,8 @@ yarn --version
 test -s "$SOURCE_DIR/app/static/linux/icon-logo.png"
 grep -A2 "process.platform === 'linux'" "$SOURCE_DIR/script/dist-info.ts" | grep -q "return 'desktop'"
 grep -q "if (__WIN32__ && args\['protocol-launcher'\] === true)" "$SOURCE_DIR/app/src/main-process/main.ts"
+# GitHub Desktop 官方源码本身提供此 Linux/Electron 启动兼容开关；若以后上游移除则停止构建而不是偷偷换第三方实现。
+grep -q "GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION" "$SOURCE_DIR/app/src/main-process/main.ts"
 
 # 官方主进程只在 Windows 读取协议 URL；Linux 冷启动和 second-instance 同样会通过 argv 收到 URL。
 # 这里只补 Linux argv 协议处理，不改 GitHub Desktop 的业务逻辑。
@@ -106,7 +108,8 @@ fi
 
 echo "GitHub Desktop version: $APP_VERSION"
 
-# GUI 烟测函数：必须真实创建可见 GitHub Desktop 窗口，不能再以“进程存活”代替 GUI 成功。
+# GUI 烟测函数：必须真实创建可见 GitHub Desktop 窗口。
+# 这里不再偷偷传 --disable-gpu；硬件加速由 GitHub Desktop 官方环境变量机制关闭，和最终 AppImage 的真实启动路径保持一致。
 run_gui_smoke() {
   local label="$1"
   local profile="$2"
@@ -125,16 +128,23 @@ run_gui_smoke() {
     window_log="$3"
     shift 3
 
+    sandbox_args=()
+    # GitHub Actions 的 AnyLinux 容器以 root 运行，Electron root 模式只能在烟测时加 --no-sandbox。
+    # 普通用户实际启动 AppImage 时不会自动添加该参数。
+    if [[ "$(id -u)" -eq 0 ]]; then
+      sandbox_args+=(--no-sandbox)
+    fi
+
     "$@" \
-      --no-sandbox \
-      --disable-gpu \
+      "${sandbox_args[@]}" \
       --user-data-dir="$profile" \
       >"$smoke_log" 2>&1 &
     app_pid=$!
     window_found=0
 
     for _ in $(seq 1 45); do
-      if xdotool search --onlyvisible --name "GitHub Desktop" >/dev/null 2>&1; then
+      window_id="$(xdotool search --onlyvisible --name "^GitHub Desktop$" 2>/dev/null | head -n 1 || true)"
+      if [[ -n "$window_id" ]] && xwininfo -id "$window_id" 2>/dev/null | grep -q "Map State: IsViewable"; then
         window_found=1
         break
       fi
@@ -175,13 +185,13 @@ run_gui_smoke() {
   fi
 }
 
-# 先验证官方源码生成的 Electron 目录本身能真实创建窗口，先排除 AppImage 封装层干扰。
+# 先验证官方源码生成的 Electron 目录本身能按官方机制关闭硬件加速后真实创建窗口，排除 AppImage 封装层干扰。
 run_gui_smoke \
   "official source build" \
   "$ROOT_DIR/smoke-source-profile" \
   "$DIST_DIR/smoke-source.log" \
   "$DIST_DIR/smoke-source-windows.log" \
-  "$UPSTREAM_DIST/desktop"
+  env GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION=1 "$UPSTREAM_DIST/desktop"
 
 # 手工构造最小 AppDir，完整保留官方 Electron 目录的相对布局，避免二次打包工具改写内部可执行入口。
 mkdir -p "$APPDIR/usr/lib/github-desktop"
@@ -209,6 +219,10 @@ set -eu
 
 APPDIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 export CHROME_DESKTOP=github-desktop.desktop
+
+# GitHub Desktop 官方源码原生识别这个变量并调用 app.disableHardwareAcceleration()。
+# Linux AppImage 默认启用它，避免 Electron GPU/renderer 初始化异常时主窗口永久停留在 show:false。
+export GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION=1
 
 if [ -n "${APPIMAGE:-}" ] && [ -n "${HOME:-}" ] && command -v xdg-mime >/dev/null 2>&1; then
   desktop_dir="$HOME/.local/share/applications"
@@ -262,7 +276,7 @@ VERSION="$APP_VERSION" ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
 chmod +x "$DIST_DIR/github-desktop.AppImage"
 test -s "$DIST_DIR/github-desktop.AppImage"
 
-# 最终 AppImage 再做一次真实可见窗口烟测，确保 AppRun 和 AppImage 层同样可用。
+# 最终 AppImage 再做一次真实可见窗口烟测；不传 --disable-gpu，必须由 AppRun 的官方环境变量路径自行保证 GUI 出现。
 run_gui_smoke \
   "final AppImage" \
   "$ROOT_DIR/smoke-appimage-profile" \
