@@ -1,0 +1,114 @@
+name: TraeWork Linux Port Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'trae-work/**'
+      - '.github/workflows/trae-work-test.yml'
+  workflow_dispatch:
+
+# 独立实验 workflow：只读仓库，不修改 latest Release，也不参与主 build.yml。
+permissions:
+  contents: read
+
+jobs:
+  trae-work-linux-test:
+    name: TraeWork Linux experimental build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Build experimental TraeWork AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x trae-work/build_trae-work.sh
+          cd trae-work
+          ./build_trae-work.sh
+
+      - name: Smoke test under Xvfb
+        shell: bash
+        run: |
+          set -uo pipefail
+          LOG=trae-work/dist/smoke-test.log
+          REPORT=trae-work/dist/port-report.txt
+          mkdir -p "$(dirname "$LOG")"
+
+          set +e
+          APPIMAGE_EXTRACT_AND_RUN=1 timeout 30s xvfb-run -a \
+            ./trae-work/dist/trae-work.AppImage \
+            --no-sandbox \
+            --disable-gpu \
+            --user-data-dir="$RUNNER_TEMP/trae-work-profile" \
+            >"$LOG" 2>&1
+          rc=$?
+          set -e
+
+          {
+            echo
+            echo '=== Xvfb smoke test ==='
+            echo "exit_code=$rc"
+            echo 'exit_code=124 means the GUI process survived until the 30-second timeout.'
+            echo
+            echo '=== Relevant smoke-test log lines ==='
+            grep -Ei 'unknown service|solo-lite|projectservice|fatal|error' "$LOG" | tail -n 160 || true
+          } >> "$REPORT"
+
+          cat "$REPORT"
+
+          if grep -Eqi 'unknown service:[[:space:]]*(lite|solo-lite)' "$LOG"; then
+            echo 'Detected the historical lite/solo-lite service incompatibility.' >&2
+            exit 1
+          fi
+
+          if [[ "$rc" -ne 0 && "$rc" -ne 124 ]]; then
+            echo "TraeWork exited unexpectedly during smoke test: $rc" >&2
+            exit "$rc"
+          fi
+
+      - name: Upload experimental AppImage and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trae-work-linux-experimental-${{ github.run_number }}
+          path: |
+            trae-work/dist/trae-work.AppImage
+            trae-work/dist/port-report.txt
+            trae-work/dist/smoke-test.log
+          if-no-files-found: warn
+          retention-days: 7
