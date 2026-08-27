@@ -1,0 +1,165 @@
+# 统一 RunImage 构建入口；与 AppImage 构建分离，避免互相触发和浪费 Actions 时间。
+name: Build RunImages
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch' && (inputs.script_to_build == 'all' && 'Build all RunImages' || format('Build {0}', inputs.script_to_build)) || github.event.head_commit.message }}
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'browser_runimage/**'
+      - '.github/workflows/build_runimage.yml'
+  workflow_dispatch:
+    inputs:
+      script_to_build:
+        description: '选择要构建的脚本（选择 all 构建全部）'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - browser_runimage/setup_browser_runimage.sh
+
+permissions:
+  contents: write
+
+jobs:
+  plan:
+    name: Plan RunImages
+    runs-on: ubuntu-latest
+    outputs:
+      scripts: ${{ steps.plan.outputs.scripts }}
+      should_build: ${{ steps.plan.outputs.should_build }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Select RunImage build jobs
+        id: plan
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SELECTED_SCRIPT: ${{ inputs.script_to_build }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          ALL_SCRIPTS=(
+            'browser_runimage/setup_browser_runimage.sh'
+          )
+          SCRIPTS_TO_BUILD=()
+
+          case "$EVENT_NAME" in
+            workflow_dispatch)
+              if [[ "${SELECTED_SCRIPT:-all}" == all ]]; then
+                SCRIPTS_TO_BUILD=("${ALL_SCRIPTS[@]}")
+              elif printf '%s\n' "${ALL_SCRIPTS[@]}" | grep -Fxq -- "${SELECTED_SCRIPT:-}"; then
+                SCRIPTS_TO_BUILD=("$SELECTED_SCRIPT")
+              else
+                echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2
+                exit 1
+              fi
+              ;;
+            push)
+              if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+                CHANGED_FILES="$(git show --pretty='' --name-only "$AFTER_SHA")"
+              else
+                CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"
+              fi
+
+              if grep -Fxq '.github/workflows/build_runimage.yml' <<< "$CHANGED_FILES"; then
+                SCRIPTS_TO_BUILD=("${ALL_SCRIPTS[@]}")
+              elif grep -Eq '^browser_runimage/' <<< "$CHANGED_FILES"; then
+                SCRIPTS_TO_BUILD+=('browser_runimage/setup_browser_runimage.sh')
+              fi
+              ;;
+            *)
+              echo "不支持的触发事件：$EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
+
+          if [[ ${#SCRIPTS_TO_BUILD[@]} -eq 0 ]]; then
+            echo 'scripts=["__none__"]' >> "$GITHUB_OUTPUT"
+            echo 'should_build=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          SCRIPTS_JSON="$(printf '%s\n' "${SCRIPTS_TO_BUILD[@]}" | python3 -c 'import json,sys; print(json.dumps([line.rstrip("\n") for line in sys.stdin if line.rstrip("\n")], separators=(",",":")))')"
+          echo "scripts=$SCRIPTS_JSON" >> "$GITHUB_OUTPUT"
+          echo 'should_build=true' >> "$GITHUB_OUTPUT"
+
+      - name: Create or Update Latest Release
+        if: steps.plan.outputs.should_build == 'true'
+        env: {GH_TOKEN: '${{ github.token }}'}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" -f sha="$GITHUB_SHA" -F force=true >/dev/null
+            gh release edit latest --repo "$GITHUB_REPOSITORY" --title latest --notes latest --latest
+          else
+            gh release create latest --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title latest --notes latest --latest
+          fi
+
+  build_runimage:
+    name: Build ${{ matrix.script }}
+    needs: plan
+    if: needs.plan.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions: {contents: write}
+    strategy:
+      fail-fast: false
+      matrix:
+        script: ${{ fromJSON(needs.plan.outputs.scripts) }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+
+      - name: Install FUSE and allow unprivileged user namespaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 wget
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Download RunImage
+        shell: bash
+        run: |
+          set -euo pipefail
+          wget https://github.com/VHSgunzo/runimage/releases/latest/download/runimage-x86_64 -O runimage
+          chmod +x runimage
+
+      - name: Build and publish RunImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCRIPT: ${{ matrix.script }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          chmod +x "$SCRIPT"
+          SCRIPT_DIR="$(dirname "$SCRIPT")"
+          SCRIPT_FILE="$(basename "$SCRIPT")"
+          RUNIMAGE_BIN="$PWD/runimage"
+
+          pushd "$SCRIPT_DIR" >/dev/null
+          RIM_NO_NVIDIA_CHECK=1 RIM_OVERFS_MODE=1 "$RUNIMAGE_BIN" "./$SCRIPT_FILE"
+          OUTPUT_NAME="$(awk '/^[[:space:]]*rim-build[[:space:]]+/ {print $NF}' "$SCRIPT_FILE" | tail -n 1)"
+          popd >/dev/null
+
+          if [[ -z "$OUTPUT_NAME" ]]; then
+            echo "错误：无法从 $SCRIPT 读取 rim-build 输出名称" >&2
+            exit 1
+          fi
+
+          OUTPUT_PATH="$SCRIPT_DIR/$OUTPUT_NAME"
+          if [[ ! -f "$OUTPUT_PATH" ]]; then
+            echo "错误：未找到构建产物 $OUTPUT_PATH" >&2
+            exit 1
+          fi
+
+          gh release upload latest "$OUTPUT_PATH" --repo "$GITHUB_REPOSITORY" --clobber
