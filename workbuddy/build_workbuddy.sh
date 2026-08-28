@@ -202,6 +202,20 @@ fi
 
 cp -a "$ICON_SOURCE" ./workbuddy.png
 
+# Linux AppIndicator 会从磁盘路径重新读取托盘图标；WorkBuddy Linux 适配固定读取
+# path.dirname(process.resourcesPath)/.workbuddy-linux/workbuddy.png。
+# AppImage 中 process.resourcesPath=AppDir/bin/resources，因此图标必须位于 AppDir/bin/.workbuddy-linux/。
+TRAY_ICON_DIR="AppDir/bin/.workbuddy-linux"
+TRAY_ICON="$TRAY_ICON_DIR/workbuddy.png"
+mkdir -p "$TRAY_ICON_DIR"
+cp -a "$ICON_SOURCE" "$TRAY_ICON"
+
+# 构建阶段直接检查托盘图标，避免再次发布“程序可启动但 i3bar 托盘缺图标”的 AppImage。
+if [[ ! -s "$TRAY_ICON" ]]; then
+  echo "Error: WorkBuddy Linux tray icon is missing: $TRAY_ICON"
+  exit 1
+fi
+
 # 记录实际 AUR 版本，沿用仓库其他项目的版本输出方式。
 echo "$VERSION" > ~/version
 
