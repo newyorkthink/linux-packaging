@@ -122,6 +122,31 @@ path.write_text(text, encoding="utf-8")
 PY
 grep -A2 -- "'-U_FORTIFY_SOURCE'" "$PRINTENV_GYP" | grep -q -- "'-D_FORTIFY_SOURCE=1'"
 
+# 官方 vendored desktop-trampoline 的 Linux cflags 同样启用 -Werror + -D_FORTIFY_SOURCE=1。
+# 只在 Linux cflags 段先取消 runner 预定义值，再保留官方要求的 FORTIFY=1，避免宏重复定义触发 -Werror。
+DESKTOP_TRAMPOLINE_GYP="$SOURCE_DIR/vendor/desktop-trampoline/binding.gyp"
+test -s "$DESKTOP_TRAMPOLINE_GYP"
+"$PYTHON_BIN" - "$DESKTOP_TRAMPOLINE_GYP" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+marker = "        'cflags': ["
+needle = "          '-D_FORTIFY_SOURCE=1',"
+replacement = "          '-U_FORTIFY_SOURCE',\n" + needle
+start = text.find(marker)
+if start < 0:
+    raise SystemExit("Error: upstream desktop-trampoline Linux cflags block changed; refusing an unsafe patch.")
+prefix = text[:start]
+suffix = text[start:]
+if suffix.count(needle) < 1:
+    raise SystemExit("Error: upstream desktop-trampoline fortify flag changed; refusing an unsafe patch.")
+suffix = suffix.replace(needle, replacement, 1)
+path.write_text(prefix + suffix, encoding="utf-8")
+PY
+grep -A10 -- "'cflags': \[" "$DESKTOP_TRAMPOLINE_GYP" | grep -A1 -- "'-U_FORTIFY_SOURCE'" | grep -q -- "'-D_FORTIFY_SOURCE=1'"
+
 # 安装官方锁定依赖并执行官方 production Electron build；官方 package.ts 没有 Linux 分支，因此不调用 yarn package。
 cd "$SOURCE_DIR"
 yarn install --frozen-lockfile --network-timeout 600000
