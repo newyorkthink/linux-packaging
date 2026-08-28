@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# 仅做 AUR 元数据与当前 PKGBUILD 的只读检查，不执行 makepkg/yay，不安装任何 AUR 包。
-AUR_PACKAGES=(workbuddy workbuddy-bin)
+# 仅做当前实际构建使用的 AUR workbuddy 元数据与 PKGBUILD 只读检查，不执行 makepkg/yay，不安装任何 AUR 包。
+AUR_PACKAGES=(workbuddy)
 
 # 使用独立临时目录，避免污染仓库工作区。
 WORK_ROOT="${TMPDIR:-/tmp}/workbuddy-aur-probe-$$"
@@ -35,7 +35,7 @@ check_package() {
   echo "AUR package: $pkg"
   echo "============================================================"
 
-  # 克隆完整 AUR Git 历史，既读取当前配方，也能查看 2026-06 供应链事件期间的提交记录。
+  # 克隆完整 AUR Git 历史，读取当前配方并保留最近提交记录用于审计。
   for attempt in 1 2 3; do
     rm -rf "$repo"
     if git -c http.version=HTTP/1.1 clone "https://aur.archlinux.org/${pkg}.git" "$repo"; then
@@ -71,7 +71,7 @@ check_package() {
   echo "AUR version: ${version:-unknown}${pkgrel:+-$pkgrel}"
   echo "AUR commit : $commit"
 
-  # 只要当前配方明确属于 5.3.x，就记为已经跟踪 WorkBuddy 5.3 系列；这不等价于运行验证通过。
+  # 当前配方明确属于 5.3.x 时，记为已经跟踪 WorkBuddy 5.3 系列；这不等价于运行验证通过。
   if [[ "$version" == 5.3.* ]]; then
     MATCHED_53=$((MATCHED_53 + 1))
     echo "5.3.x track: YES"
@@ -94,7 +94,7 @@ check_package() {
   echo
   echo "--- 当前 PKGBUILD 静态危险模式检查 ---"
 
-  # WorkBuddy-bin 曾出现在 2026-06 AUR 供应链事件的受影响名单中，因此当前配方先做静态危险模式检查。
+  # 对当前实际构建使用的 workbuddy 配方执行静态危险模式检查。
   suspicious_regex='(curl|wget)[^|;]*\|[[:space:]]*(ba)?sh|base64[^|;]*-d[^|;]*\|[[:space:]]*(ba)?sh|/dev/tcp/|[[:space:]]nc[[:space:]].*-e[[:space:]]|bash[[:space:]]+-i|systemctl[[:space:]].*enable|/etc/systemd/system/|\.config/systemd/|nohup[[:space:]].*(curl|wget|https?://)'
 
   # 命中上述模式时直接标记检查失败，不自动执行或安装该包。
@@ -108,48 +108,37 @@ check_package() {
   echo
   echo "--- 最近 8 条 AUR 提交 ---"
 
-  # 显示最近提交，确认包是否仍在维护以及近期版本更新轨迹。
+  # 显示最近提交，确认当前 workbuddy 配方是否仍在维护以及近期版本更新轨迹。
   git -C "$repo" log -8 --date=iso-strict --pretty='format:%h %ad %an %s'
-
-  echo
-  echo "--- 2026-06-09 至 2026-06-16 提交记录 ---"
-
-  # 单独显示 AUR 供应链事件窗口内的提交，便于判断该包当时是否发生过异常变更及后续回滚。
-  git -C "$repo" log \
-    --since='2026-06-09T00:00:00Z' \
-    --until='2026-06-16T23:59:59Z' \
-    --date=iso-strict \
-    --pretty='format:%h %ad %an %s' \
-    -- PKGBUILD .SRCINFO || true
 
   echo
 }
 
-# 逐个检查 workbuddy 与 workbuddy-bin，两者互不替代，最终根据当前元数据给出结论。
+# 只检查当前实际构建使用的 AUR workbuddy。
 for pkg in "${AUR_PACKAGES[@]}"; do
   if ! check_package "$pkg"; then
     echo "WARN: ${pkg} 本次未能完成检查。" >&2
   fi
 done
 
-# 两个 AUR 仓库都无法读取时，检查结果无效，直接失败。
+# AUR workbuddy 仓库无法读取时，检查结果无效，直接失败。
 if [[ "$CLONED" -eq 0 ]]; then
-  echo "ERROR: 两个 AUR 仓库均无法读取，本次无法判断版本。" >&2
+  echo "ERROR: AUR workbuddy 仓库无法读取，本次无法判断版本。" >&2
   exit 2
 fi
 
-# 当前两个配方都不是 5.3.x 时，明确返回失败，避免把旧版适配误判成当前版本可用。
+# 当前 workbuddy 配方不是 5.3.x 时明确返回失败，避免把旧版适配误判成当前版本可用。
 if [[ "$MATCHED_53" -eq 0 ]]; then
-  echo "ERROR: 当前未发现任何一个 AUR WorkBuddy 配方跟踪 5.3.x。" >&2
+  echo "ERROR: 当前 AUR workbuddy 配方未跟踪 5.3.x。" >&2
   exit 3
 fi
 
 # 当前 PKGBUILD 命中高风险静态模式时，不进入后续构建阶段。
 if [[ "$AUDIT_FAILED" -ne 0 ]]; then
-  echo "ERROR: AUR 当前配方静态安全检查未通过。" >&2
+  echo "ERROR: AUR workbuddy 当前配方静态安全检查未通过。" >&2
   exit 4
 fi
 
-# 本阶段只确认版本跟踪与当前 PKGBUILD 静态安全，不宣称 Linux GUI 已经运行验证通过。
-echo "OK: 至少一个 AUR WorkBuddy 配方当前跟踪 5.3.x，且当前 PKGBUILD 未命中本脚本定义的高风险模式。"
+# 本阶段只确认当前 workbuddy 的版本跟踪与 PKGBUILD 静态安全，不宣称 Linux GUI 已经运行验证通过。
+echo "OK: AUR workbuddy 当前跟踪 5.3.x，且 PKGBUILD 未命中本脚本定义的高风险模式。"
 echo "NEXT: 若要确认真正适配，需要再做安装包提取、ELF/native module 检查和 Xvfb 启动 smoke test。"

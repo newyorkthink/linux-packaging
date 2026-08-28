@@ -28,15 +28,13 @@ workbuddy/
 
 各文件职责保持独立：
 
-- `test_workbuddy_aur.sh`：只读审计当前 AUR `workbuddy` / `workbuddy-bin` 配方、来源、版本和高风险构建模式；
+- `test_workbuddy_aur.sh`：只读审计当前实际构建使用的 AUR `workbuddy` 配方、来源、版本和高风险构建模式；
 - `build_workbuddy.sh`：安装当前 AUR `workbuddy`，完成 Linux runtime 适配并生成 `workbuddy.AppImage`；
 - `build.yml`：主 `Build AppImages` workflow 中保留 WorkBuddy 独立 Job，负责构建、Xvfb smoke test 和 `latest` Release 发布。
 
-## AUR 配方选择
+## AUR 构建来源
 
-当前实际构建固定使用已经验证通过的 AUR `workbuddy`；`workbuddy-bin` 只参与只读审计，不会因为版本号较新就自动切换。
-
-`workbuddy` 与 `workbuddy-bin` 是两套独立 PKGBUILD，来源、Electron/native module 和目录结构可能不同；其中 `workbuddy-bin` 还曾出现在 2026-06 AUR 供应链事件的受影响名单中。因此不能采用“哪个版本新就自动构建哪个”的策略。需要切换配方时，应先按当前 AppImage 构建链完整核对并验证后再明确更换。
+当前构建与审计统一固定使用 AUR `workbuddy`，不做候选配方比较或自动切换，确保审计对象与实际 AppImage 构建来源完全一致。
 
 ## 当前构建基线
 
