@@ -20,11 +20,25 @@ DIST_DIR="$ROOT_DIR/dist"
 rm -rf "$SOURCE_DIR" "$TOOLS_DIR" "$APPDIR" "$DIST_DIR"
 mkdir -p "$TOOLS_DIR" "$DIST_DIR"
 
-# 安装官方源码编译、Linux 运行和 GUI 窗口烟测所需依赖。
-yay -S --noconfirm --needed \
-  base-devel git curl xz python pkgconf patchelf \
-  libsecret gtk3 nss alsa-lib cups libxkbcommon libxrandr mesa \
-  fontconfig xdg-utils xorg-server-xvfb xorg-xauth xorg-xwininfo xdotool
+# GitHub Actions 固定使用 Ubuntu 22.04 作为 Linux ABI 兼容基线。
+# 保留 Arch 本地调试入口，但正式 workflow 不再使用 rolling Arch 构建 native module。
+if command -v apt-get >/dev/null 2>&1; then
+  sudo apt-get update
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    build-essential git curl xz-utils python3 pkg-config patchelf file ca-certificates \
+    libsecret-1-dev libgtk-3-0 libnss3 libasound2 libcups2 libxkbcommon0 libxrandr2 libgl1 \
+    fontconfig xdg-utils xvfb xauth x11-utils xdotool
+elif command -v yay >/dev/null 2>&1; then
+  yay -S --noconfirm --needed \
+    base-devel git curl xz python pkgconf patchelf \
+    libsecret gtk3 nss alsa-lib cups libxkbcommon libxrandr mesa \
+    fontconfig xdg-utils xorg-server-xvfb xorg-xauth xorg-xwininfo xdotool
+else
+  echo "Error: unsupported build environment; Ubuntu/Debian apt or Arch yay is required." >&2
+  exit 1
+fi
+
+PYTHON_BIN="$(command -v python3 || command -v python)"
 
 # 始终从 GitHub 官方 desktop/desktop 读取最新稳定 Release tag。
 GITHUB_DESKTOP_TAG="$(gh api repos/desktop/desktop/releases/latest --jq .tag_name)"
@@ -74,7 +88,7 @@ grep -q "GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION" "$SOURCE_DIR/app/src/main
 
 # 官方主进程只在 Windows 读取协议 URL；Linux 冷启动和 second-instance 同样会通过 argv 收到 URL。
 # 这里只补 Linux argv 协议处理，不改 GitHub Desktop 的业务逻辑。
-python - "$SOURCE_DIR/app/src/main-process/main.ts" <<'PY'
+"$PYTHON_BIN" - "$SOURCE_DIR/app/src/main-process/main.ts" <<'PY'
 from pathlib import Path
 import sys
 
@@ -128,7 +142,6 @@ run_gui_smoke() {
     shift 3
 
     sandbox_args=()
-    # GitHub Actions 的 AnyLinux 容器以 root 运行，Electron root 模式只能在烟测时加 --no-sandbox。
     if [[ "$(id -u)" -eq 0 ]]; then
       sandbox_args+=(--no-sandbox)
     fi
@@ -183,7 +196,7 @@ run_gui_smoke() {
   fi
 }
 
-# 先验证官方源码生成的 Electron 目录本身能按官方机制关闭硬件加速后真实创建窗口，排除 AppImage 封装层干扰。
+# 先验证官方源码生成的 Electron 目录本身能真实创建窗口，排除 AppImage 封装层干扰。
 run_gui_smoke \
   "official source build" \
   "$ROOT_DIR/smoke-source-profile" \
@@ -191,16 +204,16 @@ run_gui_smoke \
   "$DIST_DIR/smoke-source-windows.log" \
   env GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION=1 "$UPSTREAM_DIST/desktop"
 
-# 手工构造最小 AppDir，完整保留官方 Electron 目录的相对布局，避免二次打包工具改写内部可执行入口。
+# 手工构造最小 AppDir，完整保留官方 Electron 目录的相对布局。
 NATIVE_LIB_DIR="$APPDIR/usr/lib/github-desktop/lib"
 mkdir -p "$APPDIR/usr/lib/github-desktop" "$NATIVE_LIB_DIR" "$APPDIR/usr/share/github-desktop"
 cp -a "$UPSTREAM_DIST/." "$APPDIR/usr/lib/github-desktop/"
 cp -f "$SOURCE_DIR/app/static/linux/icon-logo.png" "$APPDIR/github-desktop.png"
 ln -s github-desktop.png "$APPDIR/.DirIcon"
 
-# 官方 Linux build 中的 .node 原生模块可能依赖 libsecret、TPM2 等系统动态库。
-# 不能再按报错逐个补库：一次扫描所有 .node，并收集 ldd 展开的完整运行时依赖闭包。
-# glibc 必须继续使用宿主系统版本，避免把构建机 glibc 强塞进 AppImage 破坏兼容性；其余依赖放入私有目录。
+# 官方 Linux build 中的 .node 原生模块可能依赖 libsecret 等系统动态库。
+# 正式构建使用 Ubuntu 22.04：打包旧 ABI 的非基础依赖，但 GLib/GIO/GObject 必须始终使用宿主系统版本。
+# Electron/GTK 会在加载 keytar 前先加载宿主 GLib；若再塞第二套同 SONAME GLib，动态加载器只会复用已加载版本，造成 ABI 混装。
 NATIVE_ROOT="$APPDIR/usr/lib/github-desktop/resources/app"
 mapfile -d '' -t NATIVE_MODULES < <(find "$NATIVE_ROOT" -type f -name '*.node' -print0)
 if [[ ${#NATIVE_MODULES[@]} -eq 0 ]]; then
@@ -223,16 +236,20 @@ for module in "${NATIVE_MODULES[@]}"; do
 done
 
 for dep in "${!NATIVE_DEPS[@]}"; do
-  owner="$(pacman -Qqo "$dep" 2>/dev/null | head -n 1 || true)"
-  if [[ "$owner" == "glibc" ]]; then
-    continue
-  fi
-
   dep_name="$(basename "$dep")"
+
+  # glibc/loader 与 GLib 家族必须由宿主提供；Ubuntu 22.04 编译保证只要求较老 ABI。
+  case "$dep_name" in
+    libc.so.6|libm.so.6|libpthread.so.0|libdl.so.2|librt.so.1|libresolv.so.2|libutil.so.1|ld-linux-x86-64.so.2|\
+    libglib-2.0.so.0|libgio-2.0.so.0|libgobject-2.0.so.0|libgmodule-2.0.so.0)
+      continue
+      ;;
+  esac
+
   cp -L "$dep" "$NATIVE_LIB_DIR/$dep_name"
 done
 
-# 每个 .node 只从自己的私有 lib 目录找打包依赖，不用全局 LD_LIBRARY_PATH 覆盖 Electron 的系统库解析。
+# 每个 .node 只从自己的私有 lib 目录找打包的非基础依赖，不用全局 LD_LIBRARY_PATH 覆盖 Electron 系统库解析。
 for module in "${NATIVE_MODULES[@]}"; do
   relative_lib="$(realpath --relative-to="$(dirname "$module")" "$NATIVE_LIB_DIR")"
   expected_rpath="\$ORIGIN/$relative_lib"
@@ -244,8 +261,7 @@ for module in "${NATIVE_MODULES[@]}"; do
   fi
 done
 
-# 私有库之间必须严格从同一个私有目录解析传递依赖。
-# 注意这里必须写成真正的 $ORIGIN，不能写成带反斜杠的 \$ORIGIN；后者不会被 ELF loader 展开。
+# 私有库之间优先从同目录解析；基础 GLib 家族未打包时自然回到宿主新版实现。
 shopt -s nullglob
 for bundled_lib in "$NATIVE_LIB_DIR"/*.so*; do
   if file "$bundled_lib" | grep -q 'ELF'; then
@@ -259,11 +275,11 @@ for bundled_lib in "$NATIVE_LIB_DIR"/*.so*; do
 done
 shopt -u nullglob
 
-# 当前官方 keytar 必须能带入 libsecret + 同一套 GLib；明确校验关键库，防止再次混用宿主 GLib ABI。
-for required_lib in libsecret-1.so.0 libgio-2.0.so.0 libglib-2.0.so.0 libgobject-2.0.so.0; do
-  test -s "$NATIVE_LIB_DIR/$required_lib"
-  if [[ "$(patchelf --print-rpath "$NATIVE_LIB_DIR/$required_lib")" != '$ORIGIN' ]]; then
-    echo "Error: $required_lib is not pinned to private dependency closure." >&2
+# keytar 必须自带 libsecret，但绝不能把 GLib/GIO/GObject 本体一起带入。
+test -s "$NATIVE_LIB_DIR/libsecret-1.so.0"
+for host_glib in libglib-2.0.so.0 libgio-2.0.so.0 libgobject-2.0.so.0 libgmodule-2.0.so.0; do
+  if [[ -e "$NATIVE_LIB_DIR/$host_glib" ]]; then
+    echo "Error: host GLib library must not be bundled: $host_glib" >&2
     exit 1
   fi
 done
@@ -285,8 +301,6 @@ MimeType=x-scheme-handler/x-github-client;x-scheme-handler/x-github-desktop-auth
 EOF_DESKTOP
 
 # 不读取宿主系统的全局 fontconfig 缓存。
-# 某些滚动发行版/降级后的系统会出现“缓存由更高版本 Fontconfig 生成”的冲突，Electron 可能因此长时间卡在启动阶段。
-# 这里仅复用宿主字体目录和规则，缓存写入用户自己的 GitHub Desktop 专用目录。
 cat > "$APPDIR/usr/share/github-desktop/fonts.conf" <<'EOF_FONTCONFIG'
 <?xml version="1.0"?>
 <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
@@ -307,11 +321,9 @@ set -eu
 
 APPDIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 export CHROME_DESKTOP=github-desktop.desktop
-
-# GitHub Desktop 官方源码原生识别这个变量并调用 app.disableHardwareAcceleration()。
 export GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION=1
 
-# 隔离 Fontconfig 缓存：避免宿主系统残留的更高版本缓存导致 Electron 启动异常或长时间卡住。
+# 隔离 Fontconfig 缓存，避免宿主残留的不同版本缓存影响 Electron 启动。
 export FONTCONFIG_FILE="$APPDIR/usr/share/github-desktop/fonts.conf"
 export FONTCONFIG_PATH="$APPDIR/usr/share/github-desktop"
 
@@ -342,7 +354,6 @@ EOF_USER_DESKTOP
 fi
 
 # AppImage 的 FUSE 挂载无法可靠保留 Electron chrome-sandbox 所要求的 root:4755 SUID 属性。
-# 若 SUID helper 在当前挂载中确实有效，则完全保留 Electron 默认 sandbox；否则禁用 SUID helper，优先继续使用 user-namespace sandbox。
 sandbox_arg=""
 chrome_sandbox="$APPDIR/usr/lib/github-desktop/chrome-sandbox"
 if [ "$(id -u)" = "0" ]; then
@@ -350,8 +361,6 @@ if [ "$(id -u)" = "0" ]; then
 elif [ ! -e "$chrome_sandbox" ] || [ "$(stat -c '%u:%a' "$chrome_sandbox" 2>/dev/null || printf 'invalid')" != "0:4755" ]; then
   sandbox_arg="--disable-setuid-sandbox"
 
-  # 某些发行版明确禁止非特权 user namespace；这种情况下 namespace sandbox 也无法启动。
-  # 只有检测到这类系统级限制时才回退 --no-sandbox，避免对普通 Linux 环境无条件关闭 sandbox。
   if [ -r /proc/sys/kernel/unprivileged_userns_clone ] && [ "$(cat /proc/sys/kernel/unprivileged_userns_clone 2>/dev/null || printf '0')" != "1" ]; then
     sandbox_arg="--no-sandbox"
   elif [ -r /proc/sys/kernel/apparmor_restrict_unprivileged_userns ] && [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || printf '0')" = "1" ]; then
@@ -383,8 +392,7 @@ curl -fL --retry 5 --retry-delay 2 "$APPIMAGETOOL_URL" -o "$APPIMAGETOOL"
 chmod +x "$APPIMAGETOOL"
 echo "${APPIMAGETOOL_DIGEST#sha256:}  $APPIMAGETOOL" | sha256sum -c -
 
-# 固定到 AppImage 官方最后一个有明确版本号和 SHA256 digest 的稳定 type2 runtime，
-# 避免 appimagetool 自动跟随 continuous runtime 后把尚未验证的运行时回归带给最终用户。
+# 固定到 AppImage 官方有明确版本号和 SHA256 的稳定 type2 runtime。
 APPIMAGE_RUNTIME_TAG="20251108"
 APPIMAGE_RUNTIME="$TOOLS_DIR/runtime-x86_64"
 APPIMAGE_RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/${APPIMAGE_RUNTIME_TAG}/runtime-x86_64"
@@ -397,8 +405,7 @@ VERSION="$APP_VERSION" ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
 chmod +x "$DIST_DIR/github-desktop.AppImage"
 test -s "$DIST_DIR/github-desktop.AppImage"
 
-# AnyLinux 构建容器里没有可靠的宿主 FUSE 条件，因此这里验证最终 AppImage 的“解包运行”路径；
-# 真正的直接 ./github-desktop.AppImage 验证由 workflow 的 Ubuntu 宿主机独立 Job 完成，不能再用此步骤冒充真实直启测试。
+# 构建机先验证解包路径；workflow 之后会在独立 Ubuntu 24.04 宿主直接执行 ./github-desktop.AppImage。
 run_gui_smoke \
   "final AppImage extracted runtime" \
   "$ROOT_DIR/smoke-appimage-profile" \
@@ -410,7 +417,9 @@ sha256sum "$DIST_DIR/github-desktop.AppImage" > "$DIST_DIR/github-desktop.AppIma
 printf '%s\n' "$GITHUB_DESKTOP_TAG" > "$DIST_DIR/upstream-tag.txt"
 printf '%s\n' "$NODE_VERSION" > "$DIST_DIR/upstream-node-version.txt"
 printf '%s\n' "$APPIMAGE_RUNTIME_TAG" > "$DIST_DIR/appimage-runtime-tag.txt"
+printf '%s\n' "ubuntu-22.04" > "$DIST_DIR/linux-abi-baseline.txt"
 
 echo "Built from official source: $GITHUB_DESKTOP_TAG"
+echo "Linux ABI baseline: Ubuntu 22.04"
 echo "AppImage runtime: AppImage/type2-runtime $APPIMAGE_RUNTIME_TAG"
 echo "Built: $DIST_DIR/github-desktop.AppImage"
