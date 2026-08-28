@@ -1,96 +1,98 @@
-# WorkBuddy Linux 适配预检查
+# WorkBuddy AppImage
 
-本目录当前只做 **AUR 5.3.x 适配情况的只读预检查**，暂不直接构建或分发 WorkBuddy AppImage。
+本目录维护 **WorkBuddy Linux x86_64 AppImage** 的 AUR 审计、构建和发布。
 
-## 当前目的
+当前稳定流程已经完成：AUR 预检查 → Linux 运行时适配 → AppImage 构建 → Xvfb smoke test → `latest` Release 发布。
 
-先检查以下两个 AUR 包：
+当前发布版本已实际验证：
 
-- `workbuddy`
-- `workbuddy-bin`
+- AppImage 可以正常启动；
+- Linux native module 可以正常加载；
+- i3 / i3bar 托盘小图标可以正常显示；
+- GitHub Actions 构建、smoke test 和 Release 发布流程可以正常完成。
 
-`test_workbuddy_aur.sh` 会：
-
-1. 直接克隆两个 AUR Git 仓库；
-2. 只读取当前 `PKGBUILD` 与 `.SRCINFO`，**不会 source PKGBUILD，也不会运行 `makepkg` / `yay` / 安装包**；
-3. 判断当前 AUR 配方是否已经跟踪 WorkBuddy `5.3.x`；
-4. 输出当前 source / checksum / build function 信息；
-5. 检查当前 PKGBUILD 是否包含常见的高风险执行模式；
-6. 显示最近 AUR 提交以及 2026-06-09～2026-06-16 的提交记录，方便复核 `workbuddy-bin` 曾涉及的 AUR 供应链事件。
-
-注意：**AUR 包版本是 5.3.x，只能证明打包配方已经跟踪 5.3 系列，不能单独证明 Linux GUI、native module、Sidecar、腾讯文档引擎等全部功能已经运行通过。** 真正确认适配还需要第二阶段做 ELF/native module 检查和 Xvfb 启动 smoke test。
-
-## 执行检查
-
-在 Arch Linux / GitHub Actions 的 Arch 容器终端执行：
-
-```bash
-# 进入 WorkBuddy 检查目录。
-cd workbuddy
-
-# 赋予检查脚本执行权限。
-chmod +x test_workbuddy_aur.sh
-
-# 只读检查两个 AUR WorkBuddy 配方。
-./test_workbuddy_aur.sh
-```
-
-## WorkBuddy 用户配置目录
-
-WorkBuddy 5.3.x 的主用户数据目录是：
-
-```text
-~/.workbuddy/
-```
-
-当前公开的 5.3.x 文件结构中，主要内容包括：
-
-```text
-~/.workbuddy/
-├── workbuddy.db
-├── settings.json
-├── models.json
-├── mcp.json
-├── app/
-│   ├── session/
-│   └── window-state.json
-├── projects/
-├── tasks/
-├── sessions/
-├── memory/
-├── connectors/
-├── file-history/
-├── artifact-index/
-├── blobs/
-├── traces/
-└── logs/
-```
-
-因此后续即使做成 AppImage，也应保持：
-
-- AppImage / AppDir 只放程序本体；
-- 用户配置、登录态、对话、数据库继续写入 `$HOME/.workbuddy/`；
-- **不要把 `~/.workbuddy/` 打进 AppImage，也不要在构建时上传到 GitHub Release。**
-
-其中 `~/.workbuddy/` 可能包含账号会话、Connector token、自定义模型 API Key、对话历史和本地文件索引，属于用户私有数据。
-
-## 后续打包方向
-
-如果 AUR 当前配方确认已经跟踪 5.3.x，并且静态检查没有异常，下一阶段再决定优先参考 `workbuddy` 还是 `workbuddy-bin` 的 Linux 适配方式，然后按本仓库现有 `trae-work/` 风格整理为：
+## 目录结构
 
 ```text
 workbuddy/
 ├── README.md
-├── test_workbuddy_aur.sh
-└── build_workbuddy.sh
+├── build_workbuddy.sh
+└── test_workbuddy_aur.sh
 ```
 
-正式 `build_workbuddy.sh` 应至少完成：
+相关 GitHub Actions：
 
-- 固定并校验上游版本与下载来源；
-- 检查 Electron 版本；
-- 检查/替换 Linux native modules；
-- 检查 Sidecar / Daemon / CLI 的 Linux 可执行文件；
-- 生成 AppDir；
-- 使用 quick-sharun 构建 AppImage；
-- 使用临时 HOME / user-data 做 Xvfb smoke test，避免触碰真实 `~/.workbuddy/`。
+```text
+.github/workflows/workbuddy-audit.yml
+```
+
+各文件职责保持独立：
+
+- `test_workbuddy_aur.sh`：只读审计当前 AUR `workbuddy` / `workbuddy-bin` 配方、来源、版本和高风险构建模式；
+- `build_workbuddy.sh`：安装当前 AUR `workbuddy`，完成 Linux runtime 适配并生成 `workbuddy.AppImage`；
+- `workbuddy-audit.yml`：负责 GitHub Actions 构建、Xvfb smoke test 和 `latest` Release 发布。
+
+## 当前构建基线
+
+`build_workbuddy.sh` 当前按以下固定流程工作：
+
+1. 先执行 `test_workbuddy_aur.sh`，审计失败则停止构建；
+2. 安装当前 AUR `workbuddy`，从实际安装结果读取版本，不在本仓库重复维护 WorkBuddy 版本号；
+3. 使用 AUR 已完成 Linux 适配的 `/opt/workbuddy/app.asar.unpacked` 作为应用 payload；
+4. 复制完整系统 Electron runtime，并保留 Electron 自带的 `locales`、`resources`、snapshot 等运行文件；
+5. 将 AUR 为系统安装写死的 `/opt/workbuddy` resource path 恢复为 `process.resourcesPath`，适配 AppImage 内部目录；
+6. 仅保留 Linux x86_64 所需的 `node-pty` 平台包，并检查 `node-pty` 与 `better-sqlite3` 的 Linux ELF native module；
+7. 复用 AUR desktop 元数据和官方 PNG 图标；
+8. 使用 `quick-sharun` 部署 Electron、GTK、NSS、输入法、OpenGL、Vulkan、PipeWire 等运行依赖；
+9. 生成最终单文件 `workbuddy.AppImage`；
+10. GitHub Actions 在 Xvfb 下执行启动 smoke test，通过后发布到 `latest` Release。
+
+## i3 / AppIndicator 托盘图标
+
+WorkBuddy 的 Linux 适配会从磁盘路径读取托盘图标：
+
+```text
+path.dirname(process.resourcesPath)/.workbuddy-linux/workbuddy.png
+```
+
+当前 AppImage 中：
+
+```text
+process.resourcesPath = AppDir/bin/resources
+```
+
+因此构建脚本固定将官方 WorkBuddy PNG 同时放到：
+
+```text
+AppDir/bin/.workbuddy-linux/workbuddy.png
+```
+
+构建阶段会检查该文件必须存在且非空，避免再次生成“主程序正常但 i3bar 托盘缺图标”的 AppImage。
+
+## 用户数据
+
+WorkBuddy 用户数据继续由应用写入用户目录：
+
+```text
+~/.workbuddy/
+```
+
+AppImage / AppDir 只包含程序本体和运行依赖，不应把 `~/.workbuddy/` 打入 AppImage，也不应在构建过程中上传该目录。
+
+`~/.workbuddy/` 可能包含账号会话、Connector token、自定义模型 API Key、对话历史、本地文件索引和其他私有数据。
+
+## 发布
+
+GitHub Actions 发布文件名固定为：
+
+```text
+workbuddy.AppImage
+```
+
+发布位置：
+
+```text
+https://github.com/newyorkthink/linux-packaging/releases/tag/latest
+```
+
+当前 `build_workbuddy.sh`、`test_workbuddy_aur.sh` 和 `workbuddy-audit.yml` 已作为稳定基线。除非上游 WorkBuddy、AUR 配方、Electron runtime 或 Linux 适配路径发生变化，否则不应为整理文档而改动这些已验证内容。
