@@ -25,7 +25,7 @@ mkdir -p "$TOOLS_DIR" "$DIST_DIR"
 if command -v apt-get >/dev/null 2>&1; then
   sudo apt-get update
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    build-essential git curl xz-utils python3 pkg-config patchelf file ca-certificates \
+    build-essential git curl xz-utils python3 pkgconf patchelf file ca-certificates \
     libsecret-1-dev libgtk-3-0 libnss3 libasound2 libcups2 libxkbcommon0 libxrandr2 libgl1 \
     fontconfig xdg-utils xvfb xauth x11-utils xdotool
 elif command -v yay >/dev/null 2>&1; then
@@ -102,6 +102,25 @@ path.write_text(text.replace(anchor, replacement, 1), encoding="utf-8")
 PY
 
 grep -A16 "if (__LINUX__)" "$SOURCE_DIR/app/src/main-process/main.ts" | grep -q "handleAppURL(matchingUrl)"
+
+# 官方 vendored printenvz 明确使用 -Werror + -D_FORTIFY_SOURCE=1。
+# 新版 Ubuntu runner 的 GCC 已预定义 _FORTIFY_SOURCE；先 Undef 再按官方值定义，避免“宏重复定义”被 -Werror 误判为构建失败。
+PRINTENV_GYP="$SOURCE_DIR/vendor/printenvz/binding.gyp"
+test -s "$PRINTENV_GYP"
+"$PYTHON_BIN" - "$PRINTENV_GYP" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+needle = "          '-D_FORTIFY_SOURCE=1',"
+replacement = "          '-U_FORTIFY_SOURCE',\n" + needle
+if text.count(needle) < 1:
+    raise SystemExit("Error: upstream printenvz fortify flag changed; refusing an unsafe patch.")
+text = text.replace(needle, replacement, 1)
+path.write_text(text, encoding="utf-8")
+PY
+grep -A2 -- "'-U_FORTIFY_SOURCE'" "$PRINTENV_GYP" | grep -q -- "'-D_FORTIFY_SOURCE=1'"
 
 # 安装官方锁定依赖并执行官方 production Electron build；官方 package.ts 没有 Linux 分支，因此不调用 yarn package。
 cd "$SOURCE_DIR"
