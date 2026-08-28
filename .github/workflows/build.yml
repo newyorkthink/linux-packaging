@@ -49,6 +49,8 @@ on:
       - 'rainlendar/**'
       - 'realvnc-rvnc-connect/**'
       - 'remotedesktopmanager/**'
+      - 'github-desktop/**'
+      - 'workbuddy/**'
       - '.github/workflows/build.yml'
       - '.github/actions/build-anylinux/**'
       - '.github/scripts/**'
@@ -105,6 +107,8 @@ on:
           - rainlendar/build_rainlendar.sh
           - realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh
           - remotedesktopmanager/build_remotedesktopmanager.sh
+          - github-desktop/build_github-desktop.sh
+          - workbuddy/build_workbuddy.sh
 
 permissions:
   contents: write
@@ -129,9 +133,9 @@ jobs:
           AFTER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          KEYS=(antigravity_ide antigravity cc_switch zen copyq flameshot goldendict_ng htop i3wm keepassxc keepass kde_suite kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor trae trae_work deepseek_harness obs_studio dingtalk winpodx alacritty keyviz remmina dconf_editor rainlendar realvnc_connect remotedesktopmanager)
-          SCRIPTS=('antigravity-ide/build_antigravity-ide.sh' 'antigravity/build_antigravity.sh' 'cc-switch/build_cc-switch.sh' 'zen/build_zen.sh' 'copyq/build_copyq.sh' 'flameshot/build_flameshot.sh' 'goldendict-ng/build_goldendict-ng.sh' 'htop/build_htop.sh' 'i3wm/build_i3wm.sh' 'keepassxc/build_keepassxc.sh' 'keepass/build_keepass.sh' 'kde-suite/build_kde_suite.sh' 'kitty/build_kitty.sh' 'mpv/build_mpv.sh' 'nvtop/build_nvtop.sh' 'ripdrag/build_ripdrag.sh' 'smplayer/build_smplayer.sh' 'sunshine/build_sunshine.sh' 'freerdp/build_freerdp.sh' 'newsboat/build_newsboat.sh' 'zotero/build_zotero.sh' 'vscode/build_vscode.sh' 'simplescreenrecorder/build_simplescreenrecorder.sh' 'rofi/build_rofi.sh' 'picom/build_picom.sh' 'obsidian/build_obsidian.sh' 'freedownloadmanager/build_freedownloadmanager.sh' 'deskflow/build_deskflow.sh' 'cursor/build_cursor.sh' 'trae/build_trae.sh' 'trae-work/build_trae-work.sh' 'deepseek-harness/build_deepseek-harness.sh' 'obs-studio/build_obs-studio.sh' 'dingtalk/build_dingtalk.sh' 'winpodx/build_winpodx_release.sh' 'alacritty/build_alacritty_linuxdeploy.sh' 'Keyviz/build_keyviz.sh' 'remmina/build_remmina.sh' 'dconf-editor/build_dconf-editor.sh' 'rainlendar/build_rainlendar.sh' 'realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh' 'remotedesktopmanager/build_remotedesktopmanager.sh')
-          DIRS=(antigravity-ide antigravity cc-switch zen copyq flameshot goldendict-ng htop i3wm keepassxc keepass kde-suite kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor trae trae-work deepseek-harness obs-studio dingtalk winpodx alacritty Keyviz remmina dconf-editor rainlendar realvnc-rvnc-connect remotedesktopmanager)
+          KEYS=(antigravity_ide antigravity cc_switch zen copyq flameshot goldendict_ng htop i3wm keepassxc keepass kde_suite kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor trae trae_work deepseek_harness obs_studio dingtalk winpodx alacritty keyviz remmina dconf_editor rainlendar realvnc_connect remotedesktopmanager github_desktop workbuddy)
+          SCRIPTS=('antigravity-ide/build_antigravity-ide.sh' 'antigravity/build_antigravity.sh' 'cc-switch/build_cc-switch.sh' 'zen/build_zen.sh' 'copyq/build_copyq.sh' 'flameshot/build_flameshot.sh' 'goldendict-ng/build_goldendict-ng.sh' 'htop/build_htop.sh' 'i3wm/build_i3wm.sh' 'keepassxc/build_keepassxc.sh' 'keepass/build_keepass.sh' 'kde-suite/build_kde_suite.sh' 'kitty/build_kitty.sh' 'mpv/build_mpv.sh' 'nvtop/build_nvtop.sh' 'ripdrag/build_ripdrag.sh' 'smplayer/build_smplayer.sh' 'sunshine/build_sunshine.sh' 'freerdp/build_freerdp.sh' 'newsboat/build_newsboat.sh' 'zotero/build_zotero.sh' 'vscode/build_vscode.sh' 'simplescreenrecorder/build_simplescreenrecorder.sh' 'rofi/build_rofi.sh' 'picom/build_picom.sh' 'obsidian/build_obsidian.sh' 'freedownloadmanager/build_freedownloadmanager.sh' 'deskflow/build_deskflow.sh' 'cursor/build_cursor.sh' 'trae/build_trae.sh' 'trae-work/build_trae-work.sh' 'deepseek-harness/build_deepseek-harness.sh' 'obs-studio/build_obs-studio.sh' 'dingtalk/build_dingtalk.sh' 'winpodx/build_winpodx_release.sh' 'alacritty/build_alacritty_linuxdeploy.sh' 'Keyviz/build_keyviz.sh' 'remmina/build_remmina.sh' 'dconf-editor/build_dconf-editor.sh' 'rainlendar/build_rainlendar.sh' 'realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh' 'remotedesktopmanager/build_remotedesktopmanager.sh' 'github-desktop/build_github-desktop.sh' 'workbuddy/build_workbuddy.sh')
+          DIRS=(antigravity-ide antigravity cc-switch zen copyq flameshot goldendict-ng htop i3wm keepassxc keepass kde-suite kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor trae trae-work deepseek-harness obs-studio dingtalk winpodx alacritty Keyviz remmina dconf-editor rainlendar realvnc-rvnc-connect remotedesktopmanager github-desktop workbuddy)
           declare -A BUILD SCRIPT_KEY DIR_KEY
           for i in "${!KEYS[@]}"; do key=${KEYS[$i]}; BUILD[$key]=false; SCRIPT_KEY[${SCRIPTS[$i]}]=$key; DIR_KEY[${DIRS[$i]}]=$key; done
           select_all() { for key in "${KEYS[@]}"; do BUILD[$key]=true; done; }
@@ -945,3 +949,241 @@ jobs:
     permissions: *arch_permissions
     env: {BUILD_SCRIPT: 'remotedesktopmanager/build_remotedesktopmanager.sh', ARTIFACT_DIR: 'remotedesktopmanager/dist', RELEASE_NAME: 'remotedesktopmanager.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
+
+  build_github_desktop:
+    name: Build GitHub Desktop
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).github_desktop == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build official-source AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          cd github-desktop
+          chmod +x build_github-desktop.sh
+          ./build_github-desktop.sh
+          test -s dist/github-desktop.AppImage
+          sha256sum dist/github-desktop.AppImage
+
+      - name: Publish latest AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest github-desktop/dist/github-desktop.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  verify_direct_appimage:
+    name: Verify direct AppImage GUI launch
+    needs: build_github_desktop
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Install direct-launch smoke dependencies
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update
+          sudo apt-get install -y xvfb xdotool x11-utils fuse3 libfuse2
+
+      - name: Download the just-published AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh release download latest \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'github-desktop.AppImage' \
+            --clobber
+          chmod +x github-desktop.AppImage
+          sha256sum github-desktop.AppImage
+
+      - name: Launch AppImage directly and require a visible GUI
+        run: |
+          set -Eeuo pipefail
+          PROFILE="$RUNNER_TEMP/github-desktop-direct-profile"
+          LOG="$RUNNER_TEMP/github-desktop-direct.log"
+          WINDOWS="$RUNNER_TEMP/github-desktop-direct-windows.log"
+          rm -rf "$PROFILE"
+          mkdir -p "$PROFILE"
+
+          set +e
+          xvfb-run -a bash -c '
+            set -u
+            app="$1"
+            profile="$2"
+            log="$3"
+            windows="$4"
+
+            start_epoch="$(date +%s)"
+            ELECTRON_ENABLE_LOGGING=1 "$app" \
+              --user-data-dir="$profile" \
+              >"$log" 2>&1 &
+            app_pid=$!
+            window_found=0
+
+            for _ in $(seq 1 45); do
+              window_id="$(xdotool search --onlyvisible --name "^GitHub Desktop$" 2>/dev/null | head -n 1 || true)"
+              if [[ -n "$window_id" ]] && xwininfo -id "$window_id" 2>/dev/null | grep -q "Map State: IsViewable"; then
+                window_found=1
+                break
+              fi
+
+              if ! kill -0 "$app_pid" 2>/dev/null; then
+                wait "$app_pid"
+                exit $?
+              fi
+
+              sleep 1
+            done
+
+            elapsed="$(( $(date +%s) - start_epoch ))"
+            echo "Direct AppImage GUI startup: ${elapsed}s"
+            xwininfo -root -tree >"$windows" 2>&1 || true
+
+            if kill -0 "$app_pid" 2>/dev/null; then
+              kill "$app_pid" 2>/dev/null || true
+              wait "$app_pid" 2>/dev/null || true
+            fi
+
+            if [[ "$window_found" -ne 1 ]]; then
+              exit 125
+            fi
+          ' bash "$PWD/github-desktop.AppImage" "$PROFILE" "$LOG" "$WINDOWS"
+          rc=$?
+          set -e
+
+          if [[ "$rc" -ne 0 ]]; then
+            echo "Direct AppImage GUI smoke failed: $rc" >&2
+            echo '--- AppImage log ---' >&2
+            tail -n 250 "$LOG" >&2 || true
+            echo '--- X11 window tree ---' >&2
+            tail -n 250 "$WINDOWS" >&2 || true
+            exit "$rc"
+          fi
+
+          if grep -Fq 'Fontconfig warning: We will not regenerate the cache because some cache files were generated by a newer version' "$LOG"; then
+            echo 'Fontconfig incompatible-cache warning detected in direct AppImage launch.' >&2
+            tail -n 250 "$LOG" >&2 || true
+            exit 126
+          fi
+
+  build_workbuddy:
+    name: Build WorkBuddy AppImage
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).workbuddy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    concurrency:
+      group: workbuddy-appimage-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Preparing AnyLinux Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: Install GitHub CLI
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pacman -Syu --noconfirm --needed github-cli
+
+      - name: Build WorkBuddy AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x workbuddy/build_workbuddy.sh workbuddy/test_workbuddy_aur.sh
+          cd workbuddy
+          ./build_workbuddy.sh
+
+      - name: Smoke test under Xvfb
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -s workbuddy/dist/workbuddy.AppImage
+          mkdir -p "$RUNNER_TEMP/workbuddy-home"
+          LOG="$RUNNER_TEMP/workbuddy-smoke.log"
+
+          set +e
+          HOME="$RUNNER_TEMP/workbuddy-home" \
+          APPIMAGE_EXTRACT_AND_RUN=1 \
+          timeout 30s xvfb-run -a \
+            ./workbuddy/dist/workbuddy.AppImage \
+            --no-sandbox \
+            --disable-gpu \
+            >"$LOG" 2>&1
+          rc=$?
+          set -e
+
+          cat "$LOG"
+          echo "Smoke test exit code: $rc"
+
+          if grep -Eqi 'invalid ELF header|wrong ELF class|Exec format error|Cannot find module.*node-pty-linux|FATAL:|Trace/breakpoint trap|Segmentation fault' "$LOG"; then
+            echo 'WorkBuddy smoke test detected a fatal Linux porting error.' >&2
+            exit 1
+          fi
+
+          if [[ "$rc" -ne 0 && "$rc" -ne 124 ]]; then
+            echo "WorkBuddy exited unexpectedly during smoke test: $rc" >&2
+            exit "$rc"
+          fi
+
+      - name: Publish AppImage to latest Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          test -s workbuddy/dist/workbuddy.AppImage
+          gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null
+          gh release upload latest workbuddy/dist/workbuddy.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber

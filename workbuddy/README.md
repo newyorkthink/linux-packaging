@@ -23,14 +23,20 @@ workbuddy/
 相关 GitHub Actions：
 
 ```text
-.github/workflows/workbuddy-audit.yml
+.github/workflows/build.yml
 ```
 
 各文件职责保持独立：
 
 - `test_workbuddy_aur.sh`：只读审计当前 AUR `workbuddy` / `workbuddy-bin` 配方、来源、版本和高风险构建模式；
 - `build_workbuddy.sh`：安装当前 AUR `workbuddy`，完成 Linux runtime 适配并生成 `workbuddy.AppImage`；
-- `workbuddy-audit.yml`：负责 GitHub Actions 构建、Xvfb smoke test 和 `latest` Release 发布。
+- `build.yml`：主 `Build AppImages` workflow 中保留 WorkBuddy 独立 Job，负责构建、Xvfb smoke test 和 `latest` Release 发布。
+
+## AUR 配方选择
+
+当前实际构建固定使用已经验证通过的 AUR `workbuddy`；`workbuddy-bin` 只参与只读审计，不会因为版本号较新就自动切换。
+
+`workbuddy` 与 `workbuddy-bin` 是两套独立 PKGBUILD，来源、Electron/native module 和目录结构可能不同；其中 `workbuddy-bin` 还曾出现在 2026-06 AUR 供应链事件的受影响名单中。因此不能采用“哪个版本新就自动构建哪个”的策略。需要切换配方时，应先按当前 AppImage 构建链完整核对并验证后再明确更换。
 
 ## 当前构建基线
 
@@ -95,4 +101,4 @@ workbuddy.AppImage
 https://github.com/newyorkthink/linux-packaging/releases/tag/latest
 ```
 
-当前 `build_workbuddy.sh`、`test_workbuddy_aur.sh` 和 `workbuddy-audit.yml` 已作为稳定基线。除非上游 WorkBuddy、AUR 配方、Electron runtime 或 Linux 适配路径发生变化，否则不应为整理文档而改动这些已验证内容。
+当前 `build_workbuddy.sh`、`test_workbuddy_aur.sh` 和 `build.yml` 中的 WorkBuddy 独立 Job 已作为稳定基线。除非上游 WorkBuddy、AUR 配方、Electron runtime 或 Linux 适配路径发生变化，否则不应为整理文档而改动这些已验证内容。
