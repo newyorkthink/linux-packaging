@@ -168,6 +168,10 @@ cat > AppDir/bin/workbuddy <<EOF_WRAPPER
 set -e
 HERE="\$(cd "\$(dirname "\$0")" && pwd)"
 export ELECTRON_FORCE_IS_PACKAGED=1
+# GitHub Actions 容器的 /dev/shm 容量很小；仅在 CI 中让 Chromium 改用临时目录，避免 font_data 共享内存 ENOSPC。
+if [[ "\${GITHUB_ACTIONS:-}" == "true" ]]; then
+  exec "\$HERE/$ELECTRON_NAME" --disable-dev-shm-usage "\$HERE/resources/app.asar.unpacked" "\$@"
+fi
 exec "\$HERE/$ELECTRON_NAME" "\$HERE/resources/app.asar.unpacked" "\$@"
 EOF_WRAPPER
 chmod +x AppDir/bin/workbuddy
