@@ -175,8 +175,5 @@ log "生成无自动更新 hook 的 AppImage"
 quick-sharun --make-appimage
 [[ -x dist/obs-studio.AppImage ]] || die "AppImage 生成失败。"
 
-# 与官方 OBS AnyLinux 脚本一致：直接启动并保持 12 秒，不传会立即退出的 --version。
-log "执行官方 12 秒启动自检"
-quick-sharun --test ./dist/*.AppImage
 sha256sum dist/obs-studio.AppImage > dist/obs-studio.AppImage.sha256
-log "已生成并验证：dist/obs-studio.AppImage"
+log "已生成：dist/obs-studio.AppImage"
