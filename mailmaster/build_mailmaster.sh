@@ -8,8 +8,8 @@ cd "$SCRIPT_DIR"
 rm -rf "$SCRIPT_DIR/AppDir" "$SCRIPT_DIR/dist"
 rm -f "$SCRIPT_DIR/mailmaster.desktop" "$SCRIPT_DIR/mailmaster.png"
 
-readonly ARCH="$(uname -m)"
-if [[ "$ARCH" != "x86_64" ]]; then
+readonly HOST_ARCH="$(uname -m)"
+if [[ "$HOST_ARCH" != "x86_64" ]]; then
   echo "错误：MailMaster AppImage 当前只支持 x86_64。" >&2
   exit 1
 fi
