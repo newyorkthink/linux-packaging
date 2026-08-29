@@ -25,7 +25,7 @@ command -v quick-sharun >/dev/null 2>&1 || {
 
 # 安装 AppImage 构建工具，以及 MailMaster 的 Qt5、CEF、X11、声音和输入法运行依赖。
 yay -S --noconfirm --needed \
-  base-devel gcc git curl wget tar gzip xz binutils patchelf coreutils file \
+  base-devel gcc git curl wget tar gzip xz binutils patchelf coreutils file inetutils \
   appstream-glib desktop-file-utils util-linux zsync \
   xorg-server xorg-server-common xorg-server-xvfb \
   nss nspr alsa-lib cups at-spi2-core dbus glib2 gtk3 ibus \
