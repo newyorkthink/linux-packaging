@@ -51,7 +51,7 @@ mkdir -p "$SOURCE_DIR" "$DEB_EXTRACT_DIR" "$PACKAGE_ROOT" "$APP_ROOT" "$DIST_DIR
 # 安装 quick-sharun、Electron/GTK 运行库、输入法模块以及隔离 GUI 冒烟测试组件。
 yay -S --noconfirm --needed \
   base-devel binutils coreutils curl file findutils gawk grep libarchive patchelf python sed tar \
-  appstream-glib desktop-file-utils util-linux zsync \
+  appstream-glib desktop-file-utils inetutils util-linux zsync \
   xorg-server xorg-server-common xorg-server-xvfb xorg-xauth \
   nss nspr alsa-lib at-spi2-core cups dbus glib2 gtk3 \
   libnotify libsecret shared-mime-info xdg-utils \
