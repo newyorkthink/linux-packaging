@@ -56,7 +56,7 @@ yay -S --noconfirm --needed \
   xorg-server xorg-server-common xorg-server-xvfb \
   nss nspr xcb-util-renderutil xcb-util-keysyms xcb-util-image xcb-util-wm \
   libxkbcommon-x11 libxkbcommon libxcb gcc-libs glibc zlib \
-  libxcomposite glib2 libxrender libxext libxi libxtst alsa-lib dbus \
+  libxcomposite glib2 libxrender libxext libxi libxtst alsa-lib jack2 dbus \
   libxrandr fontconfig pango freetype2 libxfixes cairo libx11 expat \
   libvlc libxdamage libdrm mesa libglvnd libpulse systemd-libs krb5 \
   at-spi2-core cups gtk3 libnotify libsecret libxss shared-mime-info \
