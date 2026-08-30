@@ -242,8 +242,28 @@ printf 'Folo runtime: %s\nFolo main: %s\nFolo desktop: %s\nFolo icon: %s\n' \
   "${SOURCE_DESKTOP#"$EXTRACT_ROOT"/}" \
   "${SOURCE_ICON#"$EXTRACT_ROOT"/}"
 
-# 保留官方 Electron 运行目录的完整相对布局，包括 resources、locales、libffmpeg 和沙箱组件。
-cp -a "$SOURCE_APP_ROOT"/. "$APP_ROOT"/
+# v1.12.0 的 resources/app.asar 位于 AppImage 根目录；该目录同时混有 maker 的 AppRun、desktop、
+# 图标和 usr/lib 兼容层。兼容层中的旧 GTK2/GConf/AppIndicator 库不是 Electron 运行目录本身，
+# 不能作为应用 ELF 一起交给 quick-sharun 审计。只在这种根目录布局下剥离 AppImage 包装层。
+if [[ "$SOURCE_APP_ROOT" == "$EXTRACT_ROOT" ]]; then
+  mapfile -d '' runtime_entries < <(
+    find "$SOURCE_APP_ROOT" -mindepth 1 -maxdepth 1 -print0
+  )
+  [[ ${#runtime_entries[@]} -gt 0 ]] || die "官方 Folo 根目录为空。"
+  for runtime_entry in "${runtime_entries[@]}"; do
+    runtime_name="$(basename -- "$runtime_entry")"
+    case "$runtime_name" in
+      AppRun|*.desktop|.DirIcon|usr)
+        continue
+        ;;
+    esac
+    cp -a "$runtime_entry" "$APP_ROOT/"
+  done
+  [[ ! -e "$APP_ROOT/usr" ]] || die "AppImage 包装层 usr/ 被错误复制到 Electron 运行目录。"
+else
+  # 如果上游以后恢复独立 Electron 目录，则原样保留该目录，避免猜测未来布局。
+  cp -a "$SOURCE_APP_ROOT"/. "$APP_ROOT"/
+fi
 [[ -x "$APP_ROOT/$MAIN_EXEC" ]] || die "复制后缺少 Folo 主程序。"
 [[ -f "$APP_ROOT/resources/app.asar" ]] || die "复制后缺少 app.asar。"
 
