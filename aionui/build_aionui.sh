@@ -296,8 +296,6 @@ APPRUN_EOF
 chmod 0755 "$APPDIR/AppRun.sh"
 bash -n "$APPDIR/AppRun.sh"
 
-printf '%s\n' "$VERSION" > ~/version
-
 export ARCH=x86_64
 export VERSION
 export APPNAME=AionUi

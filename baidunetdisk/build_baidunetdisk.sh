@@ -49,7 +49,7 @@ mkdir -p "$SOURCE_DIR" "$PACKAGE_ROOT" "$APP_ROOT" "$DIST_DIR"
 # gtkmm 是 AUR 中保留的 GTK2 C++ ABI；它会拉取百度网盘当前仍需要的旧 GTK2 运行库。
 yay -S --noconfirm --needed \
   base-devel binutils coreutils curl file findutils gawk grep libarchive patchelf python sed tar \
-  appstream-glib desktop-file-utils util-linux zsync \
+  appstream-glib desktop-file-utils inetutils util-linux zsync \
   xorg-server xorg-server-common xorg-server-xvfb xorg-xauth \
   nss nspr alsa-lib at-spi2-core cups dbus glib2 gtk3 gtkmm \
   libnotify libsecret libxss libxtst xdg-utils shared-mime-info \
