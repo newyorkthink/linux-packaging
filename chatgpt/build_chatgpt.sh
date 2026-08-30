@@ -65,7 +65,7 @@ yay -S --noconfirm --needed \
   hicolor-icon-theme adwaita-icon-theme ibus noto-fonts-cjk python
 
 for command_name in \
-  ar awk chmod cp curl dbus-run-session desktop-file-validate file find grep hostname \
+  ar awk chmod cp curl dbus-run-session desktop-file-validate dirname file find grep hostname \
   install ldd quick-sharun readelf readlink sed sha256sum sort stat tar timeout xvfb-run \
   xdg-mime xdg-open xdg-settings python3; do
   command -v "$command_name" >/dev/null 2>&1 || \
@@ -380,13 +380,20 @@ for target in "${dynamic_elf_targets[@]}"; do
 done
 [[ "$main_target_found" == true ]] || die "动态 ELF 列表缺少 ChatGPT 主程序。"
 
-# 所有官方私有库目录只在构建依赖审计期间加入搜索路径，不写入用户系统。
+# 仅将动态 ELF 所在的官方私有目录加入构建期搜索路径。完整资源树接近千个目录，
+# 全部拼接会超过 Linux 单个环境字符串上限；动态 ELF 目录已覆盖实际可加载库。
 mapfile -t app_library_dirs < <(
-  find "$APP_ROOT" -type f -printf '%h\n' | sort -u
+  for target in "${dynamic_elf_targets[@]}"; do
+    dirname -- "$target"
+  done | sort -u
 )
 [[ ${#app_library_dirs[@]} -gt 0 ]] || die "官方 ChatGPT 运行目录为空。"
 BUILD_LIBRARY_PATH="$(IFS=:; printf '%s' "${app_library_dirs[*]}")"
 BUILD_LIBRARY_PATH="$BUILD_LIBRARY_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+[[ ${#BUILD_LIBRARY_PATH} -lt 65536 ]] || \
+  die "官方 ChatGPT 动态库搜索路径异常过长：${#BUILD_LIBRARY_PATH} 字节。"
+printf 'ChatGPT private library directories: %s (%s bytes)\n' \
+  "${#app_library_dirs[@]}" "${#BUILD_LIBRARY_PATH}"
 
 missing_dependencies=0
 for target in "${dynamic_elf_targets[@]}"; do
