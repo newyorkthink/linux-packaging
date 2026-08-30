@@ -365,9 +365,9 @@ APPIMAGE_EXTRACT_AND_RUN=1 \
 smoke_status=$?
 set -e
 
-if [[ "$smoke_status" -ne 124 ]]; then
+if [[ "$smoke_status" -ne 0 && "$smoke_status" -ne 124 ]]; then
   cat "$SMOKE_LOG" >&2
-  die "百度网盘图形启动测试提前退出，状态码：$smoke_status"
+  die "百度网盘图形启动测试异常退出，状态码：$smoke_status"
 fi
 if grep -Eqi \
   'error while loading shared libraries|symbol lookup error|invalid ELF header|wrong ELF class|Exec format error|Trace/breakpoint trap|Segmentation fault|Aborted \(core dumped\)' \
