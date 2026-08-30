@@ -131,11 +131,22 @@ AppImage 应只包含应用正常运行所需内容。
 - 临时 test workflow 只用于新应用首次接入或明确需要隔离排查的构建问题，不作为长期正式构建入口。
 - 可以直接在 `main` 上使用临时 test workflow，不需要为了测试另外创建测试分支。
 - test workflow 应只包含当前新应用所需内容，不得顺带复制、修改或重构其他应用 Job。
-- 默认优先使用 `workflow_dispatch` 手动触发，避免未验证的新应用因为普通 push、schedule 等条件反复触发。
+- test workflow 必须提供当前 AI 实际能够触发的方式。若当前 GitHub 工具支持 `workflow_dispatch`，可以使用手动 dispatch；若当前工具没有 dispatch 接口，则应使用受限的 `push.paths` 等自动触发方式，使 AI 提交到 `main` 后 GitHub Actions 能自动运行。不得创建一个当前 AI 自己无法触发、随后又要求用户手工点击的测试 workflow。
+- 使用 `push` 自动触发临时测试时，paths 必须精确限制在当前新应用目录和该临时 test workflow 本身，避免修改无关文件时反复触发测试。
 - 测试阶段默认不要覆盖正式 `latest` Release 中其他应用资产；如确实需要测试上传产物，应保证资产范围只属于当前测试应用。
 - test workflow 验证通过后，必须把该应用正式接入 `.github/workflows/build.yml`，并删除临时 test workflow，不能让两套正式构建入口长期并存。
 - 正式接入时，应把新项目补入 `build.yml` 的相关位置，包括但不限于：push paths、`workflow_dispatch` 选项、plan 的 key/script/dir 映射以及对应独立 Job。
 - 正式接入后必须保持 `KEYS`、`SCRIPTS`、`DIRS` 的顺序和一一对应关系。
+
+### AI 触发与检查 GitHub Actions
+
+- AI 在修改 workflow 或构建脚本前，必须先读取实际触发条件，并检查当前可用的 GitHub 工具能力，不能未经检查就声称“没有接口”“不能自动跑 Actions”或要求用户手工操作。
+- `on: push` 是 GitHub 自身的自动触发机制。只要 AI 有权限把符合 `paths` 条件的修改提交到对应分支，提交本身即可触发 Actions，不需要额外的“运行 Actions”接口。
+- 如果 workflow 已配置适用的 `push` 触发，AI 应完成必要修改并提交，让 GitHub Actions 自动运行，然后继续检查对应 workflow run / Job / 日志 / 产物；不能把正常可自动完成的步骤转交给用户。
+- 如果任务需要 `workflow_dispatch`，应先确认当前工具是否提供 dispatch 能力。只有实际检查后确认当前工具确实不支持该操作时，才能说明这一项能力受限；不得把“缺少 workflow_dispatch 接口”扩大描述成“AI 无法使用 GitHub Actions”。
+- 如果当前工具不能直接 dispatch，但允许安全地通过现有或临时受限 `push` 触发完成同等验证，应优先使用 push 自动触发，不要求用户手动点击 Run workflow。
+- Actions 启动后，AI 应在当前工具允许的范围内主动检查运行状态、失败 Job、日志和产物。不能仅因为 Actions 是异步执行机制，就在能够读取运行结果的场景下直接停止在“已经提交，请用户自己看”的状态。
+- 只有在当前工具真实缺少某个必需能力、权限不足或 GitHub 返回明确错误时，才说明具体限制，并准确指出是哪个操作不可用，不得笼统归因于“没有 GitHub 接口”。
 
 ### 正式 workflow 规则
 
