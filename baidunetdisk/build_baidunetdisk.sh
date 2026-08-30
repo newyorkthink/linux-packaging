@@ -90,11 +90,13 @@ print(linux.get("url") or "")
 
 RAW_VERSION="${CLIENT_META[0]}"
 PACKAGE_URL="${CLIENT_META[1]}"
-VERSION="${RAW_VERSION#V}"
+if [[ "$RAW_VERSION" =~ ^(百度网盘Linux电脑客户端)?V?([0-9]+(\.[0-9]+)+)$ ]]; then
+  VERSION="${BASH_REMATCH[2]}"
+else
+  die "百度官方元数据中的版本格式异常：$RAW_VERSION"
+fi
 readonly RAW_VERSION PACKAGE_URL VERSION
 
-[[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)+$ ]] || \
-  die "百度官方元数据中的版本格式异常：$RAW_VERSION"
 [[ "$PACKAGE_URL" =~ ^https://([A-Za-z0-9-]+\.)*(baidu\.com|baidupcs\.com)/ ]] || \
   die "百度官方元数据返回了非预期下载域名：$PACKAGE_URL"
 
