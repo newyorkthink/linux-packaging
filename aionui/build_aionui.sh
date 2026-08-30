@@ -324,12 +324,19 @@ done < <(find "$APP_ROOT" -type f -print0)
 [[ ${#elf_targets[@]} -gt 0 ]] || die "AionUi 官方运行目录中未找到 ELF 文件。"
 printf 'AionUi ELF files: %s\n' "${#elf_targets[@]}"
 
+# 只把 ELF 所在目录加入构建期库搜索路径，避免 resources 下大量普通文件目录撑爆环境变量。
+elf_library_dirs=()
+for target in "${elf_targets[@]}"; do
+  elf_library_dirs+=("$(dirname -- "$target")")
+done
 mapfile -t app_library_dirs < <(
-  find "$APP_ROOT" -type f -printf '%h\n' | sort -u
+  printf '%s\n' "${elf_library_dirs[@]}" | sort -u
 )
-[[ ${#app_library_dirs[@]} -gt 0 ]] || die "AionUi 官方运行目录为空。"
+[[ ${#app_library_dirs[@]} -gt 0 ]] || die "AionUi ELF 库搜索目录为空。"
 BUILD_LIBRARY_PATH="$(IFS=:; printf '%s' "${app_library_dirs[*]}")"
-BUILD_LIBRARY_PATH="$BUILD_LIBRARY_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+if [[ -n "${LD_LIBRARY_PATH:-}" ]]; then
+  BUILD_LIBRARY_PATH="$BUILD_LIBRARY_PATH:$LD_LIBRARY_PATH"
+fi
 
 missing_dependencies=0
 for target in "${elf_targets[@]}"; do
