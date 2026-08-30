@@ -56,7 +56,7 @@ yay -S --noconfirm --needed \
   xorg-server xorg-server-common xorg-server-xvfb \
   nss nspr xcb-util-renderutil xcb-util-keysyms xcb-util-image xcb-util-wm \
   libxkbcommon-x11 libxkbcommon libxcb gcc-libs glibc zlib \
-  libxcomposite glib2 libxrender libxext libxi libxtst alsa-lib jack2 dbus \
+  libxcomposite glib2 libxrender libxext libxi libxtst alsa-lib pipewire-jack dbus \
   libxrandr fontconfig pango freetype2 libxfixes cairo libx11 expat \
   libvlc libxdamage libdrm mesa libglvnd libpulse systemd-libs krb5 \
   at-spi2-core cups gtk3 libnotify libsecret libxss shared-mime-info \
@@ -64,7 +64,7 @@ yay -S --noconfirm --needed \
   pipewire pipewire-audio ibus
 
 for command_name in \
-  ar awk curl dbus-run-session desktop-file-validate file find grep hostname \
+  ar awk chmod curl dbus-run-session desktop-file-validate file find grep hostname \
   install ldd quick-sharun readelf readlink sed sha256sum sort stat tar timeout xvfb-run; do
   command -v "$command_name" >/dev/null 2>&1 || \
     die "构建环境缺少命令：$command_name"
@@ -150,6 +150,9 @@ printf 'WeChat desktop: %s\nWeChat icon: %s\n' \
 
 # 保持官方完整运行目录的相对布局，WeChat、VLC 插件和 WMPF 子进程均从该目录加载资源。
 cp -a "$SOURCE_APP_ROOT"/. "$APP_ROOT"/
+
+# Node 原生模块是供进程 dlopen 的共享对象，不应因官方包赋予执行位而被 sharun 当成程序包装。
+find "$APP_ROOT" -type f -name '*.node' -exec chmod 0644 {} +
 
 # 收集官方运行目录内每一个实际含文件的目录，仅供构建阶段审计和解析嵌套私有库。
 # 运行时仍由官方各 ELF 自带的 RPATH/RUNPATH 选择同目录库，避免同名私有库相互覆盖。
@@ -279,25 +282,34 @@ readonly VERIFY_APPDIR="$VERIFY_DIR/squashfs-root"
 [[ -f "$VERIFY_APPDIR/wechat.png" ]] || die "最终 AppImage 缺少 wechat.png。"
 
 verify_bundled_library() {
-  local library_name="$1"
-  local library_path resolved_path
+  local library_pattern="$1"
+  local library_label="$2"
+  local library_path
 
   library_path="$(
     find "$VERIFY_APPDIR" \
-      \( -type f -o -type l \) \
-      -name "$library_name" \
+      -type f \
+      -name "$library_pattern" \
       -print \
       -quit
   )"
-  [[ -n "$library_path" ]] || die "最终 AppImage 缺少 $library_name。"
-  resolved_path="$(readlink -f "$library_path")"
-  [[ -f "$resolved_path" ]] || die "最终 AppImage 中的 $library_name 是无效链接。"
-  [[ "$resolved_path" == "$VERIFY_APPDIR/"* ]] || \
-    die "最终 AppImage 中的 $library_name 指向包外路径：$resolved_path"
+  [[ -n "$library_path" ]] || die "最终 AppImage 缺少 $library_label 的实际库文件。"
 }
 
-verify_bundled_library libpulse.so.0
-verify_bundled_library libpulse-simple.so.0
+verify_bundled_library 'libpulse.so.*' libpulse.so.0
+verify_bundled_library 'libpulse-simple.so.*' libpulse-simple.so.0
+
+# 确认最终包内的 .node 仍是原生模块，没有被替换成与 AppRun 相同的 sharun 入口。
+mapfile -d '' verify_node_modules < <(
+  find "$VERIFY_APPDIR" -type f -name '*.node' -print0
+)
+[[ ${#verify_node_modules[@]} -gt 0 ]] || die "最终 AppImage 缺少 WeChat Node 原生模块。"
+for node_module in "${verify_node_modules[@]}"; do
+  readelf -h "$node_module" >/dev/null 2>&1 || \
+    die "最终 AppImage 中的 Node 模块不是 ELF：$node_module"
+  [[ ! "$node_module" -ef "$VERIFY_APPDIR/AppRun" ]] || \
+    die "最终 AppImage 中的 Node 模块被错误替换成 sharun：$node_module"
+done
 
 # 在隔离 HOME、D-Bus 会话和虚拟 X11 中直接启动最终 AppImage；正常 GUI 会持续运行到超时。
 mkdir -p "$SMOKE_HOME" "$SMOKE_RUNTIME"
