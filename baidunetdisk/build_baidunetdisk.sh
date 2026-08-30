@@ -201,6 +201,15 @@ readonly BUILD_ICON="$SCRIPT_DIR/baidunetdisk-build-icon.$ICON_EXT"
 log "复制官方百度网盘完整运行目录"
 cp -a "$SOURCE_APP_ROOT"/. "$APP_ROOT"/
 
+# 删除上游误带入的 node-gyp 构建期 Python 启动器；它们不参与应用运行，且绑定已淘汰的 Python 3.6 ABI。
+mapfile -d '' node_gyp_bin_dirs < <(
+  find "$APP_ROOT" -type d -name node_gyp_bins -print0
+)
+if [[ ${#node_gyp_bin_dirs[@]} -gt 0 ]]; then
+  printf 'BaiduNetDisk node-gyp helper directories removed: %s\n' "${#node_gyp_bin_dirs[@]}"
+  rm -rf -- "${node_gyp_bin_dirs[@]}"
+fi
+
 # AppImage 无法依赖宿主机上的有效 setuid chrome-sandbox；与 Flathub 一致使用 --no-sandbox。
 # 只移除 AppImage 内 chrome-sandbox 的 setuid 位，不修改宿主系统文件。
 if [[ -e "$APP_ROOT/chrome-sandbox" ]]; then
