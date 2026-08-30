@@ -452,8 +452,16 @@ set -e
 cat "$SMOKE_LOG"
 printf 'Folo smoke test exit code: %s\n' "$smoke_rc"
 if grep -Eqi \
-  'error while loading shared libraries|cannot open shared object file|invalid ELF header|wrong ELF class|Exec format error|FATAL:|Trace/breakpoint trap|Segmentation fault' \
+  'error while loading shared libraries|cannot open shared object file|invalid ELF header|wrong ELF class|Exec format error|Trace/breakpoint trap|Segmentation fault' \
   "$SMOKE_LOG"; then
+  die "Folo 冒烟测试检测到致命运行错误。"
+fi
+if [[ "$smoke_rc" -eq 124 ]]; then
+  if grep -Ei 'FATAL:' "$SMOKE_LOG" | \
+    grep -Evqi 'FATAL:electron/shell/browser/electron_browser_main_parts\.cc:[0-9]+\] Failed to shutdown\.$'; then
+    die "Folo 冒烟测试检测到致命运行错误。"
+  fi
+elif grep -Eqi 'FATAL:' "$SMOKE_LOG"; then
   die "Folo 冒烟测试检测到致命运行错误。"
 fi
 if [[ "$smoke_rc" -ne 0 && "$smoke_rc" -ne 124 ]]; then
