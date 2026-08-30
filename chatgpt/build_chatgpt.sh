@@ -337,6 +337,12 @@ export DEPLOY_GTK=1
 export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
 export DEPLOY_PIPEWIRE=1
+export DEPLOY_COMMON_LIBS=1
+export DEPLOY_P11KIT=1
+# 动态目标和 Electron 运行项由本脚本完整枚举；关闭 quick-sharun 的 Electron 自动扫描，
+# 防止它改写官方 app.asar 中的宿主 libc 探测或包装静态 Codex 组件。
+export DEPLOY_ELECTRON=0
+export DEPLOY_CHROMIUM=0
 export STRACE_MODE=0
 export NO_STRIP=1
 
@@ -441,6 +447,14 @@ LD_LIBRARY_PATH="$BUILD_LIBRARY_PATH" quick-sharun \
   "${pulse_common_targets[@]}" \
   "${nss_targets[@]}" \
   "${pkcs11_targets[@]}"
+
+# 压缩前即验证 OpenAI 核心内容未被依赖部署器改写，避免生成无效的大型产物。
+[[ "$(sha256sum "$APP_ROOT/resources/app.asar" | awk '{print $1}')" == "$SOURCE_ASAR_SHA256" ]] || \
+  die "依赖部署器改写了 OpenAI app.asar。"
+[[ "$(sha256sum "$APP_ROOT/resources/codex" | awk '{print $1}')" == "$SOURCE_CODEX_SHA256" ]] || \
+  die "依赖部署器改写了 OpenAI Codex 二进制。"
+[[ "$(sha256sum "$APP_ROOT/resources/codex-code-mode-host" | awk '{print $1}')" == "$SOURCE_CODE_MODE_HOST_SHA256" ]] || \
+  die "依赖部署器改写了 OpenAI Code Mode Host。"
 
 quick-sharun --make-appimage
 [[ -s "$OUTFILE" ]] || die "未生成预期文件：$OUTFILE"
