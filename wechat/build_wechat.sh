@@ -216,7 +216,7 @@ export DEPLOY_VULKAN=1
 export DEPLOY_PIPEWIRE=1
 
 # 扫描官方完整运行目录内的所有 ELF，而不只扫描主程序；这样 VLC、WMPF、
-# OCR、文件预览和音视频通话组件的间接运行库也会一并部署。
+# OCR、文件预览和音视频通话组件的外部系统库也会一并部署。
 elf_targets=()
 while IFS= read -r -d '' target; do
   if readelf -h "$target" >/dev/null 2>&1; then
@@ -226,9 +226,12 @@ done < <(find "$APP_ROOT" -type f -print0)
 [[ ${#elf_targets[@]} -gt 0 ]] || die "官方运行目录中未找到 ELF 文件。"
 printf 'WeChat ELF files: %s\n' "${#elf_targets[@]}"
 
-# 在 quick-sharun 前一次性审计全部 ELF；嵌套私有库和系统库有任何缺失时，
-# 输出所有对应文件后再停止，避免打包过程逐个暴露依赖问题。
+# 在 quick-sharun 前一次性审计全部 ELF，并收集解析到官方目录之外的系统库。
+# 官方包含多个同名但 ABI 不同的私有库（例如三份 libffmpeg.so），不能把这些
+# 私有 ELF 直接交给 quick-sharun 扁平化，否则 WMPF 子进程会加载到 VLC 插件。
 missing_dependencies=0
+declare -A system_library_seen=()
+system_library_targets=()
 for target in "${elf_targets[@]}"; do
   target_library_path="$(dirname -- "$target"):$BUILD_LIBRARY_PATH"
   target_dependencies="$(LD_LIBRARY_PATH="$target_library_path" ldd "$target" 2>&1 || true)"
@@ -236,8 +239,25 @@ for target in "${elf_targets[@]}"; do
     printf '缺失依赖文件：%s\n%s\n' "$target" "$target_dependencies" >&2
     missing_dependencies=1
   fi
+
+  while IFS= read -r dependency_path; do
+    dependency_path="$(readlink -f "$dependency_path")"
+    [[ -f "$dependency_path" ]] || continue
+    [[ "$dependency_path" != "$APP_ROOT/"* ]] || continue
+    if [[ -z "${system_library_seen[$dependency_path]+x}" ]]; then
+      system_library_seen["$dependency_path"]=1
+      system_library_targets+=("$dependency_path")
+    fi
+  done < <(
+    awk '
+      $2 == "=>" && $3 ~ /^\// {print $3; next}
+      $1 ~ /^\// {print $1}
+    ' <<< "$target_dependencies"
+  )
 done
 [[ "$missing_dependencies" -eq 0 ]] || die "官方 WeChat 组件仍存在缺失动态库。"
+[[ ${#system_library_targets[@]} -gt 0 ]] || die "未解析到 WeChat 的外部系统库。"
+printf 'WeChat external libraries: %s\n' "${#system_library_targets[@]}"
 
 # 明确把 PulseAudio 客户端库交给 quick-sharun；这是官方 AppImage 缺失并导致
 # libpulse.so.0 启动错误的关键修复。libpulsecommon 的具体版本由当前 Arch 包决定。
@@ -251,10 +271,27 @@ shopt -u nullglob
 [[ -e /usr/lib/libpulse.so.0 ]] || die "构建环境缺少 libpulse.so.0。"
 [[ -e /usr/lib/libpulse-simple.so.0 ]] || die "构建环境缺少 libpulse-simple.so.0。"
 
-LD_LIBRARY_PATH="$BUILD_LIBRARY_PATH" quick-sharun \
-  "${elf_targets[@]}" \
+# 只部署主程序和上面审计得到的外部库；WMPF、VLC 等官方私有 ELF 保持原布局。
+LD_LIBRARY_PATH="$APP_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun \
+  "$APP_ROOT/wechat" \
+  "${system_library_targets[@]}" \
   "${pulse_targets[@]}" \
   /usr/bin/hostname
+
+# 嵌套官方程序必须仍是自身 ELF，不能被替换为 AppRun/sharun 的硬链接。
+mapfile -d '' preserved_nested_executables < <(
+  find "$APP_ROOT" -type f \
+    \( -name WeChatAppEx -o -name crashpad_handler \) \
+    -print0
+)
+[[ ${#preserved_nested_executables[@]} -gt 0 ]] || \
+  die "官方运行目录缺少需要保留的嵌套程序。"
+for nested_executable in "${preserved_nested_executables[@]}"; do
+  readelf -h "$nested_executable" >/dev/null 2>&1 || \
+    die "嵌套程序不再是 ELF：$nested_executable"
+  [[ ! "$nested_executable" -ef "$APPDIR/AppRun" ]] || \
+    die "嵌套程序被错误替换成 sharun：$nested_executable"
+done
 
 # 在封装前确认关键修复库已经进入 AppDir。
 mapfile -t bundled_pulse < <(
