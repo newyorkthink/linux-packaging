@@ -109,7 +109,7 @@ AppImage 应只包含应用正常运行所需内容。
 
 ## 7. GitHub Actions：保持统一工作流
 
-标准 AppImage 构建统一放在：
+正式、长期维护的标准 AppImage 构建统一放在：
 
 `/.github/workflows/build.yml`
 
@@ -122,15 +122,28 @@ AppImage 应只包含应用正常运行所需内容。
 - 通过 plan 阶段决定需要构建的项目；
 - 能复用 `.github/actions/build-anylinux` 时优先复用。
 
-因此：
+### 新应用首次接入允许临时测试 workflow
 
-- **不得仅为了新增一个普通 AppImage 项目而创建新的独立 workflow 文件。**
-- 新项目应补入现有 `build.yml` 的相关位置，包括但不限于：push paths、`workflow_dispatch` 选项、plan 的 key/script/dir 映射以及对应 Job。
-- 必须保持 `KEYS`、`SCRIPTS`、`DIRS` 的顺序和一一对应关系。
+新增一个尚未验证的应用时，允许先创建一个独立的临时 test workflow，用于隔离验证构建脚本、依赖、AppImage 打包、运行时依赖和 smoke test。这样可以避免在构建方案尚未稳定时直接修改正式统一 `build.yml`。
+
+要求：
+
+- 临时 test workflow 只用于新应用首次接入或明确需要隔离排查的构建问题，不作为长期正式构建入口。
+- 可以直接在 `main` 上使用临时 test workflow，不需要为了测试另外创建测试分支。
+- test workflow 应只包含当前新应用所需内容，不得顺带复制、修改或重构其他应用 Job。
+- 默认优先使用 `workflow_dispatch` 手动触发，避免未验证的新应用因为普通 push、schedule 等条件反复触发。
+- 测试阶段默认不要覆盖正式 `latest` Release 中其他应用资产；如确实需要测试上传产物，应保证资产范围只属于当前测试应用。
+- test workflow 验证通过后，必须把该应用正式接入 `.github/workflows/build.yml`，并删除临时 test workflow，不能让两套正式构建入口长期并存。
+- 正式接入时，应把新项目补入 `build.yml` 的相关位置，包括但不限于：push paths、`workflow_dispatch` 选项、plan 的 key/script/dir 映射以及对应独立 Job。
+- 正式接入后必须保持 `KEYS`、`SCRIPTS`、`DIRS` 的顺序和一一对应关系。
+
+### 正式 workflow 规则
+
+- 不得把已经验证并正式接入的普通 AppImage 项目再长期拆成独立 workflow。
 - 不要把已有独立 Job 改成 Matrix，除非用户明确要求整体架构重构。
 - 不要为了节省 public repository 的 Actions 使用量而合并本来应该隔离的构建任务；构建正确性和隔离性优先。
 - `.github/workflows/build_runimage.yml` 是另一类构建入口；普通 AppImage 任务不要擅自迁移过去。
-- 只有当现有统一 workflow 明确无法满足任务，或者用户明确要求时，才考虑新建 workflow。
+- 只有当现有统一 workflow 明确无法满足正式构建需求，或者用户明确要求时，才考虑长期新增独立 workflow。
 
 ## 8. Release 规则
 
