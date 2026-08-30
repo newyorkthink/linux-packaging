@@ -65,7 +65,7 @@ yay -S --noconfirm --needed \
 
 for command_name in \
   ar awk curl dbus-run-session desktop-file-validate file find grep hostname \
-  install quick-sharun readelf readlink sed sha256sum stat tar timeout xvfb-run; do
+  install ldd quick-sharun readelf readlink sed sha256sum sort stat tar timeout xvfb-run; do
   command -v "$command_name" >/dev/null 2>&1 || \
     die "构建环境缺少命令：$command_name"
 done
@@ -151,6 +151,15 @@ printf 'WeChat desktop: %s\nWeChat icon: %s\n' \
 # 保持官方完整运行目录的相对布局，WeChat、VLC 插件和 WMPF 子进程均从该目录加载资源。
 cp -a "$SOURCE_APP_ROOT"/. "$APP_ROOT"/
 
+# 收集官方运行目录内每一个实际含文件的目录，仅供构建阶段审计和解析嵌套私有库。
+# 运行时仍由官方各 ELF 自带的 RPATH/RUNPATH 选择同目录库，避免同名私有库相互覆盖。
+mapfile -t app_library_dirs < <(
+  find "$APP_ROOT" -type f -printf '%h\n' | sort -u
+)
+[[ ${#app_library_dirs[@]} -gt 0 ]] || die "官方运行目录为空。"
+BUILD_LIBRARY_PATH="$(IFS=:; printf '%s' "${app_library_dirs[*]}")"
+BUILD_LIBRARY_PATH="$BUILD_LIBRARY_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
 # quick-sharun 从官方包内提取的 desktop 和 PNG 生成 AppImage 顶层桌面集成文件。
 install -Dm0644 "$SOURCE_DESKTOP" "$BUILD_DESKTOP"
 install -Dm0644 "$SOURCE_ICON" "$BUILD_ICON"
@@ -214,6 +223,19 @@ done < <(find "$APP_ROOT" -type f -print0)
 [[ ${#elf_targets[@]} -gt 0 ]] || die "官方运行目录中未找到 ELF 文件。"
 printf 'WeChat ELF files: %s\n' "${#elf_targets[@]}"
 
+# 在 quick-sharun 前一次性审计全部 ELF；嵌套私有库和系统库有任何缺失时，
+# 输出所有对应文件后再停止，避免打包过程逐个暴露依赖问题。
+missing_dependencies=0
+for target in "${elf_targets[@]}"; do
+  target_library_path="$(dirname -- "$target"):$BUILD_LIBRARY_PATH"
+  target_dependencies="$(LD_LIBRARY_PATH="$target_library_path" ldd "$target" 2>&1 || true)"
+  if grep -Fq 'not found' <<< "$target_dependencies"; then
+    printf '缺失依赖文件：%s\n%s\n' "$target" "$target_dependencies" >&2
+    missing_dependencies=1
+  fi
+done
+[[ "$missing_dependencies" -eq 0 ]] || die "官方 WeChat 组件仍存在缺失动态库。"
+
 # 明确把 PulseAudio 客户端库交给 quick-sharun；这是官方 AppImage 缺失并导致
 # libpulse.so.0 启动错误的关键修复。libpulsecommon 的具体版本由当前 Arch 包决定。
 shopt -s nullglob
@@ -226,7 +248,6 @@ shopt -u nullglob
 [[ -e /usr/lib/libpulse.so.0 ]] || die "构建环境缺少 libpulse.so.0。"
 [[ -e /usr/lib/libpulse-simple.so.0 ]] || die "构建环境缺少 libpulse-simple.so.0。"
 
-BUILD_LIBRARY_PATH="$APP_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 LD_LIBRARY_PATH="$BUILD_LIBRARY_PATH" quick-sharun \
   "${elf_targets[@]}" \
   "${pulse_targets[@]}" \
