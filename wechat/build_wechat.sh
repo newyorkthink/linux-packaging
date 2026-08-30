@@ -287,7 +287,8 @@ verify_bundled_library() {
   local library_path
 
   library_path="$(
-    find "$VERIFY_APPDIR" \
+    # DwarFS uruntime 将 squashfs-root 提取为指向 AppDir 的入口链接；只跟随这个命令行链接。
+    find -H "$VERIFY_APPDIR" \
       -type f \
       -name "$library_pattern" \
       -print \
@@ -301,7 +302,7 @@ verify_bundled_library 'libpulse-simple.so.*' libpulse-simple.so.0
 
 # 确认最终包内的 .node 仍是原生模块，没有被替换成与 AppRun 相同的 sharun 入口。
 mapfile -d '' verify_node_modules < <(
-  find "$VERIFY_APPDIR" -type f -name '*.node' -print0
+  find -H "$VERIFY_APPDIR" -type f -name '*.node' -print0
 )
 [[ ${#verify_node_modules[@]} -gt 0 ]] || die "最终 AppImage 缺少 WeChat Node 原生模块。"
 for node_module in "${verify_node_modules[@]}"; do
