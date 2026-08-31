@@ -214,12 +214,18 @@ for node_module in "${source_node_modules[@]}"; do
 done
 printf 'Xmind Node native modules: %s\n' "${#source_node_relative_paths[@]}"
 
-# 基于官方 desktop，只修改 AppImage 所必需的 Exec/Icon/版本字段。
-install -Dm0644 "$SOURCE_DESKTOP" "$BUILD_DESKTOP"
+# 官方 desktop 当前带有非标准 Desktop Action 段；AppImage 只保留标准 [Desktop Entry] 主段。
+awk '
+  /^\[Desktop Entry\]$/ { in_desktop_entry = 1; print; next }
+  in_desktop_entry && /^\[/ { exit }
+  in_desktop_entry { print }
+' "$SOURCE_DESKTOP" > "$BUILD_DESKTOP"
 install -Dm0644 "$SOURCE_ICON" "$BUILD_ICON"
+[[ "$(grep -c '^\[Desktop Entry\]$' "$BUILD_DESKTOP")" -eq 1 ]] || die "Xmind desktop 缺少唯一 [Desktop Entry] 主段。"
 [[ "$(grep -c '^Exec=' "$BUILD_DESKTOP")" -eq 1 ]] || die "Xmind desktop 的 Exec 字段数量异常。"
 [[ "$(grep -c '^Icon=' "$BUILD_DESKTOP")" -eq 1 ]] || die "Xmind desktop 的 Icon 字段数量异常。"
 sed -i \
+  -e '/^Actions=/d' \
   -e 's|^Exec=.*|Exec=xmind --no-sandbox --disable-setuid-sandbox --ozone-platform-hint=auto %U|' \
   -e 's|^Icon=.*|Icon=xmind|' \
   "$BUILD_DESKTOP"
