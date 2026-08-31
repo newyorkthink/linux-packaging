@@ -229,8 +229,9 @@ chmod 0755 "$LINUXDEPLOY" "$QT_PLUGIN"
 file "$LINUXDEPLOY" | grep -q 'ELF 64-bit' || die "linuxdeploy 下载文件异常。"
 file "$QT_PLUGIN" | grep -q 'ELF 64-bit' || die "linuxdeploy Qt 插件下载文件异常。"
 
-# 旧工作包在 /usr/lib 中额外带了一套系统 Qt；这里以系统 Qt5 为 linuxdeploy Qt 插件的部署基线，
-# 让 XCB 平台插件、Qt 翻译和其动态依赖进入 AppImage，同时 /opt 中的官方 Qt 仍保持最高运行时优先级。
+# 旧工作包在 /usr/lib 中额外带了一套系统 Qt；这里仅用 Core/Gui 引导 linuxdeploy Qt 插件部署
+# XCB 平台插件、Qt 翻译和其动态依赖。不要把系统全部 libQt5*.so.5 预先塞入 AppDir，
+# 否则 Qt 插件会把无关的 SQL/MySQL 等插件一并扫描并要求额外数据库运行库。
 readonly QT_LIB_DIR="$($QMAKE_BIN -query QT_INSTALL_LIBS)"
 readonly QT_TRANSLATIONS_DIR="$($QMAKE_BIN -query QT_INSTALL_TRANSLATIONS)"
 [[ -d "$QT_LIB_DIR" ]] || die "Qt5 库目录不存在：$QT_LIB_DIR"
@@ -238,10 +239,14 @@ readonly QT_TRANSLATIONS_DIR="$($QMAKE_BIN -query QT_INSTALL_TRANSLATIONS)"
 mkdir -p "$APPDIR/usr/translations"
 cp -a "$QT_TRANSLATIONS_DIR/." "$APPDIR/usr/translations/"
 [[ -f "$APPDIR/usr/translations/qtbase_zh_CN.qm" ]] || die "系统 Qt5 缺少简体中文 qtbase 翻译。"
-shopt -s nullglob
-qt_bundle_libraries=("$QT_LIB_DIR"/libQt5*.so.5)
-shopt -u nullglob
-[[ ${#qt_bundle_libraries[@]} -gt 0 ]] || die "Qt5 库目录中没有可部署的 libQt5*.so.5。"
+
+qt_bundle_libraries=(
+  "$QT_LIB_DIR/libQt5Core.so.5"
+  "$QT_LIB_DIR/libQt5Gui.so.5"
+)
+for qt_library in "${qt_bundle_libraries[@]}"; do
+  [[ -f "$qt_library" ]] || die "Qt5 引导库不存在：$qt_library"
+done
 
 linuxdeploy_args=(
   --appdir "$APPDIR"
@@ -278,6 +283,7 @@ log "验证 AppImage 内的旧工作包环境、中文翻译和 XCB 依赖"
 [[ -f "$VERIFY_ROOT/opt/XnConvert/language/xnview_zh_CN.qm" ]] || die "提取后的 AppImage 缺少简体中文翻译。"
 [[ -f "$VERIFY_ROOT/opt/XnConvert/lib/platforms/libqxcb.so" ]] || die "提取后的 AppImage 缺少官方 qxcb 插件。"
 [[ -f "$VERIFY_ROOT/usr/plugins/platforms/libqxcb.so" ]] || die "linuxdeploy Qt 插件没有部署 qxcb 平台插件。"
+[[ ! -e "$VERIFY_ROOT/usr/plugins/sqldrivers/libqsqlmysql.so" ]] || die "AppImage 不应包含无关的 MySQL Qt SQL 插件。"
 [[ -f "$VERIFY_ROOT/usr/translations/qtbase_zh_CN.qm" ]] || die "提取后的 AppImage 缺少 Qt5 简体中文翻译。"
 
 grep -Fxq 'export LANG=zh_CN.UTF-8' "$VERIFY_ROOT/AppRun.wrapped" || die "AppRun.wrapped 缺少中文 LANG。"
