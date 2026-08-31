@@ -172,7 +172,7 @@ Categories=Office;
 DESKTOP_EOF
 else
   printf 'Tencent Docs desktop candidates: %s\n' "${#desktop_candidates[@]}" >&2
-  printf '  %s\n' "${desktop_candidates[@]:-}" >&2
+  printf '  %s\n' "${desktop_candidates[@]}" >&2
   die "官方包中存在多个腾讯文档 desktop 候选，无法安全选择。"
 fi
 readonly SOURCE_DESKTOP
