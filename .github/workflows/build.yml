@@ -1124,7 +1124,7 @@ jobs:
     container: ghcr.io/pkgforge-dev/archlinux:latest
     concurrency:
       group: workbuddy-appimage-${{ github.ref }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     permissions:
       contents: write
       packages: read
