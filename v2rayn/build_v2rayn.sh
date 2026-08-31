@@ -35,7 +35,7 @@ mkdir -p "$DIST_DIR" "$SOURCE_DIR" "$VERIFY_DIR" "$WORK_DIR"
 # Build/runtime libraries required by the official self-contained Avalonia Linux package,
 # plus isolated X11/DBus smoke-test tooling.
 yay -S --noconfirm --needed \
-  bash curl jq unzip file coreutils desktop-file-utils xdg-utils \
+  bash curl jq unzip file patchelf coreutils desktop-file-utils xdg-utils \
   glibc gcc-libs zlib fontconfig freetype2 \
   libx11 libxext libxrender libxrandr libxi libxcb libxfixes libxinerama \
   libxcomposite libxcursor libxdamage libxkbcommon dbus \
