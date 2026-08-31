@@ -21,6 +21,7 @@ mkdir -p "$SOURCE_DIR" "$DIST_DIR"
 # Ubuntu runner: install the complete runtime families XnView commonly reaches through
 # Qt Multimedia, GStreamer, PulseAudio, XCB and Qt input methods.
 sudo apt-get install -y --no-install-recommends \
+  ffmpeg xvfb xauth \
   qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 \
   fcitx5-frontend-qt5 libfcitx5-qt1 \
   libqt5multimedia5 libqt5multimedia5-plugins libqt5multimediagsttools5 \
@@ -34,21 +35,32 @@ curl -fL --retry 3 \
   https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt \
   -o "$CHECKSUMS"
 
-read -r EXPECTED_SHA DEB_NAME < <(
-  awk '{gsub(/\r/, "", $2)} $2 ~ /^XnView_MP-[0-9.]+-linux-x64\.deb$/ {print $1, $2; exit}' "$CHECKSUMS"
-)
-test -n "${EXPECTED_SHA:-}"
-test -n "${DEB_NAME:-}"
-
+# Do not pick the first entry from the archive checksum file: it may already contain
+# an unreleased build. Always download the public stable package through XnView's
+# official download endpoint, then verify that exact version against the archive hash.
 curl -fL --retry 3 \
-  "https://download.xnview.com/versions/XnView_MP/$DEB_NAME" \
+  'https://www.xnview.com/download.php?file=XnViewMP-linux-x64.deb' \
   -o "$DEB"
-echo "$EXPECTED_SHA  $DEB" | sha256sum -c -
 
 dpkg-deb -x "$DEB" "$APPDIR"
 test -x "$APPDIR/opt/XnView/XnView"
+test -f "$APPDIR/opt/XnView/version.txt"
 test -f "$DESKTOP_FILE"
 test -f "$ICON_FILE"
+
+STABLE_VERSION="$(tr -d '\r\n' < "$APPDIR/opt/XnView/version.txt")"
+test -n "$STABLE_VERSION"
+DEB_NAME="XnView_MP-${STABLE_VERSION}-linux-x64.deb"
+EXPECTED_SHA="$(awk -v name="$DEB_NAME" '{gsub(/\r/, "", $2)} $2 == name {print $1; exit}' "$CHECKSUMS")"
+test -n "$EXPECTED_SHA"
+ACTUAL_SHA="$(sha256sum "$DEB" | awk '{print $1}')"
+if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
+  echo "ERROR: stable XnView MP checksum mismatch for $DEB_NAME" >&2
+  echo "expected: $EXPECTED_SHA" >&2
+  echo "actual:   $ACTUAL_SHA" >&2
+  exit 1
+fi
+printf '[XnView MP] stable version: %s\n' "$STABLE_VERSION"
 
 # The official desktop uses an absolute /opt icon path; linuxdeploy expects an icon name.
 sed -i 's|^Icon=.*|Icon=xnview|' "$DESKTOP_FILE"
@@ -164,6 +176,34 @@ LDD_OUTPUT="$(LD_LIBRARY_PATH="$VERIFY_ROOT/opt/XnView/lib:$VERIFY_ROOT/opt/XnVi
 printf '%s\n' "$LDD_OUTPUT"
 if grep -Fq 'not found' <<<"$LDD_OUTPUT"; then
   echo "ERROR: extracted XnView AppImage still has unresolved shared libraries" >&2
+  exit 1
+fi
+
+# Exercise the internal video path before publishing. A plain GUI startup smoke test
+# does not catch the crash that happens only after XnView opens an MP4.
+VIDEO_SMOKE="$SOURCE_DIR/video-smoke.mp4"
+VIDEO_LOG="$SOURCE_DIR/video-smoke.log"
+VIDEO_HOME="$SOURCE_DIR/video-home"
+VIDEO_RUNTIME="$SOURCE_DIR/video-runtime"
+mkdir -p "$VIDEO_HOME" "$VIDEO_RUNTIME"
+chmod 700 "$VIDEO_RUNTIME"
+ffmpeg -hide_banner -loglevel error -y \
+  -f lavfi -i 'testsrc=size=320x180:rate=25' -t 2 \
+  -c:v mpeg4 -q:v 5 "$VIDEO_SMOKE"
+
+set +e
+timeout 15s xvfb-run -a env \
+  HOME="$VIDEO_HOME" XDG_RUNTIME_DIR="$VIDEO_RUNTIME" \
+  "$OUTFILE" "$VIDEO_SMOKE" >"$VIDEO_LOG" 2>&1
+VIDEO_STATUS=$?
+set -e
+cat "$VIDEO_LOG"
+if [[ "$VIDEO_STATUS" -ne 124 ]]; then
+  echo "ERROR: XnView MP video smoke test exited unexpectedly: $VIDEO_STATUS" >&2
+  exit 1
+fi
+if grep -Eqi 'segmentation fault|Crash report dumped|KCrashReporter' "$VIDEO_LOG"; then
+  echo "ERROR: XnView MP video smoke test detected a crash" >&2
   exit 1
 fi
 
