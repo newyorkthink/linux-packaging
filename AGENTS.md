@@ -206,6 +206,18 @@ AppImage 应只包含应用正常运行所需内容。
 
 ## 7. GitHub Actions：保持统一工作流
 
+### 所有打包均在 GitHub Actions 中执行
+
+本仓库的所有正式打包、重打包、构建验证和 Release 产物生成，默认且统一在 GitHub Actions 的临时 runner / container 中执行。除非用户在当前任务中明确要求本地复现，否则不得把用户的 Kali Linux、Arch Linux 或其他真实主机当作打包环境。
+
+要求：
+
+- 不要求用户在本机执行 `build_*.sh`、`yay`、`pacman`、`apt`、`quick-sharun`、`linuxdeploy`、`appimagetool` 等构建步骤；应由 workflow 自动完成。
+- 构建脚本中的 `mkdir`、`rm`、依赖安装、临时 `$HOME` 写入、`~/version`、`AppDir/`、`source/`、`verify/`、`smoke-*` 等操作，默认作用于 GitHub Actions 临时 runner / container。只要这些命令没有进入最终 `AppRun` / wrapper 或被打进运行时逻辑，就不得误判为“会在用户本机执行”。
+- 审计“是否会改用户本机”时，必须严格区分 **CI 构建期行为** 与 **最终 AppImage / RunImage 运行时行为**；不能因为 build script 在 Actions 中写了临时文件，就声称发布产物启动后也会写同样的位置。
+- 最终用户侧默认只下载并运行 Release 产物；不得为了完成构建或验证要求用户在真实主机上安装构建依赖、创建构建目录或运行打包脚本。
+- 新应用、修复和验证也必须优先通过 GitHub Actions 完成；需要隔离验证时使用本节规定的临时 test workflow，而不是转为用户本地手工打包。
+
 正式、长期维护的标准 AppImage 构建统一放在：
 
 `/.github/workflows/build.yml`
