@@ -4,6 +4,23 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Build XnConvert inside Ubuntu 22.04 on GitHub Actions so linuxdeploy bundles
+# a Jammy-era Qt/XCB runtime instead of Ubuntu 24.04 libraries.
+if [[ "${GITHUB_ACTIONS:-}" == "true" && "${XNCONVERT_JAMMY_INNER:-0}" != "1" ]]; then
+  command -v docker >/dev/null 2>&1 || {
+    echo "ERROR: docker is required for the XnConvert Jammy build" >&2
+    exit 1
+  }
+  REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  exec docker run --rm \
+    -e XNCONVERT_JAMMY_INNER=1 \
+    -e CI=1 \
+    -v "$REPO_ROOT:/workspace" \
+    -w /workspace/xnconvert \
+    ubuntu:22.04 \
+    bash ./build_xnconvert.sh
+fi
+
 SOURCE_DIR="$SCRIPT_DIR/source"
 APPDIR="$SCRIPT_DIR/AppDir"
 DIST_DIR="$SCRIPT_DIR/dist"
@@ -18,8 +35,16 @@ ICON_FILE="$APPDIR/opt/XnConvert/xnconvert.png"
 rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
 mkdir -p "$SOURCE_DIR" "$DIST_DIR"
 
-# Ubuntu runner: install the Qt/XCB/GStreamer/Fcitx5 runtime pieces linuxdeploy may need.
-sudo apt-get install -y --no-install-recommends \
+if command -v sudo >/dev/null 2>&1; then
+  APT=(sudo apt-get)
+else
+  APT=(apt-get)
+fi
+
+"${APT[@]}" update
+DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
+  ca-certificates curl \
+  qt5-qmake qtbase5-dev libqt5svg5 \
   qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 \
   fcitx5-frontend-qt5 libfcitx5-qt1 \
   libqt5multimedia5 libqt5multimedia5-plugins libqt5multimediagsttools5 \
@@ -27,6 +52,13 @@ sudo apt-get install -y --no-install-recommends \
   gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
   libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
   libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
+
+for command_name in awk curl dpkg-deb ldd qmake readlink sha256sum; do
+  command -v "$command_name" >/dev/null 2>&1 || {
+    echo "ERROR: required command missing: $command_name" >&2
+    exit 1
+  }
+done
 
 curl -fL --retry 3 \
   https://download.xnview.com/versions/XnConvert/XnConvert-CHECKSUMS.txt \
