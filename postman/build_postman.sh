@@ -271,7 +271,7 @@ if grep -Eqi \
 fi
 if [[ "$smoke_rc" -eq 124 ]]; then
   if grep -Ei 'FATAL:' "$SMOKE_LOG" | \
-    grep -Evqi 'FATAL:electron/shell/browser/electron_browser_main_parts\.cc:[0-9]+\] Failed to shutdown\.$'; then
+    grep -Evqi 'FATAL:(src/)?electron/shell/browser/electron_browser_main_parts\.cc:[0-9]+\] Failed to shutdown\.$'; then
     die "Postman 冒烟测试检测到致命运行错误。"
   fi
 elif grep -Eqi 'FATAL:' "$SMOKE_LOG"; then
