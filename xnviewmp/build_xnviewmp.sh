@@ -108,11 +108,13 @@ printf '[XnView MP] libffmpeg SHA-256: %s\n' "$ACTUAL_FFMPEG_SHA256"
 # Normalize XnView's legacy desktop entry for modern desktop-file-utils/linuxdeploy.
 sed -i \
   -e 's|^Icon=.*|Icon=xnview|' \
+  -e 's|^Exec=/opt/XnView/xnview\.sh|Exec=xnview|' \
   -e '/^Value=/d' \
   -e '/^Encoding=/d' \
   -e 's/^Terminal=0$/Terminal=false/' \
   "$DESKTOP_FILE"
 desktop-file-validate "$DESKTOP_FILE"
+grep -Eq '^Exec=xnview([[:space:]]|$)' "$DESKTOP_FILE"
 
 # Reproduce the old working AppImage launch environment. /opt/XnView stays first so
 # XnView always uses its own Qt/MDK/FFmpeg; usr/lib supplies only the packaged runtime.
@@ -140,6 +142,7 @@ export QT_FONT_DPI=96
 exec "$ROOT/opt/XnView/XnView" "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/usr/bin/xnview"
+test -x "$APPDIR/usr/bin/xnview"
 
 mkdir -p "$APPDIR/usr/lib" "$APPDIR/usr/translations"
 if [[ -d /usr/share/qt5/translations ]]; then
