@@ -51,15 +51,19 @@ test -f "$ICON_FILE"
 # The official desktop uses an absolute /opt icon path; linuxdeploy expects an icon name.
 sed -i 's|^Icon=.*|Icon=xnconvert|' "$DESKTOP_FILE"
 
+# Keep the launcher limited to translating the installed /opt path into the AppImage mount.
+# linuxdeploy-plugin-qt owns QT_PLUGIN_PATH and its generated AppRun owns the bundled usr/lib path.
 cat > "$APPDIR/usr/bin/xnconvert" <<'EOF_APPRUN'
 #!/usr/bin/env bash
+set -Eeuo pipefail
+
 HERE="$(dirname "$(readlink -f "$0")")"
 ROOT="$(readlink -f "$HERE/../..")"
+
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
-export LD_LIBRARY_PATH="$ROOT/opt/XnConvert/lib:${LD_LIBRARY_PATH:-}"
-export QT_PLUGIN_PATH="$ROOT/opt/XnConvert/lib"
-export QT_QPA_PLATFORM=xcb
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}${LD_LIBRARY_PATH:+:}$ROOT/opt/XnConvert/lib"
+
 exec "$ROOT/opt/XnConvert/XnConvert" "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/usr/bin/xnconvert"
@@ -70,6 +74,10 @@ chmod +x "$APPDIR/usr/bin/xnconvert"
 mkdir -p "$APPDIR/usr/lib" "$APPDIR/usr/translations"
 cp -a "$APPDIR/opt/XnConvert/lib"/libQt5XcbQpa.so* "$APPDIR/usr/lib/"
 test -e "$APPDIR/usr/lib/libQt5XcbQpa.so.5"
+
+# Make the existing XnConvert icon discoverable by the plain linuxdeploy AppDir scan.
+mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+cp -a "$ICON_FILE" "$APPDIR/usr/share/icons/hicolor/256x256/apps/xnconvert.png"
 
 curl -fL --retry 3 \
   https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
@@ -84,13 +92,34 @@ export APPIMAGE_EXTRACT_AND_RUN=1
 export LDAI_OUTPUT="$OUTFILE"
 export LD_LIBRARY_PATH="$APPDIR/opt/XnConvert/lib:${LD_LIBRARY_PATH:-}"
 
-"$LINUXDEPLOY" \
-  --appdir "$APPDIR" \
-  --desktop-file "$DESKTOP_FILE" \
-  --icon-file "$ICON_FILE" \
-  --plugin qt \
-  --output appimage
+"$LINUXDEPLOY" --appdir "$APPDIR" --plugin qt --output appimage
 
 test -s "$OUTFILE"
 chmod +x "$OUTFILE"
+
+# Check the final AppImage instead of trusting the Ubuntu runner's host Qt/XCB libraries.
+VERIFY_DIR="$SOURCE_DIR/verify-appimage"
+rm -rf "$VERIFY_DIR"
+mkdir -p "$VERIFY_DIR"
+(
+  cd "$VERIFY_DIR"
+  "$OUTFILE" --appimage-extract >/dev/null
+)
+VERIFY_ROOT="$VERIFY_DIR/squashfs-root"
+test -x "$VERIFY_ROOT/usr/bin/xnconvert"
+test -x "$VERIFY_ROOT/opt/XnConvert/XnConvert"
+test -e "$VERIFY_ROOT/usr/plugins/platforms/libqxcb.so"
+
+if grep -Fq 'export QT_PLUGIN_PATH=' "$VERIFY_ROOT/usr/bin/xnconvert"; then
+  echo "ERROR: xnconvert wrapper must not override linuxdeploy Qt plugin paths" >&2
+  exit 1
+fi
+
+LDD_OUTPUT="$(LD_LIBRARY_PATH="$VERIFY_ROOT/usr/lib:$VERIFY_ROOT/opt/XnConvert/lib" ldd "$VERIFY_ROOT/usr/plugins/platforms/libqxcb.so")"
+printf '%s\n' "$LDD_OUTPUT"
+if grep -Fq 'not found' <<<"$LDD_OUTPUT"; then
+  echo "ERROR: bundled Qt xcb plugin still has unresolved shared libraries" >&2
+  exit 1
+fi
+
 sha256sum "$OUTFILE"
