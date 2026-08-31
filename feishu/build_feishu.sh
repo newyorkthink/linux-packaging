@@ -194,12 +194,14 @@ readonly SOURCE_DESKTOP="$PACKAGE_ROOT/usr/share/applications/bytedance-feishu.d
 [[ -d "$SOURCE_APP_ROOT" ]] || die "官方包缺少 /opt/bytedance/feishu。"
 [[ -x "$SOURCE_APP_ROOT/bytedance-feishu" ]] || die "官方包缺少 bytedance-feishu 启动器。"
 [[ -x "$SOURCE_APP_ROOT/feishu" ]] || die "官方包缺少 feishu 主程序。"
-[[ -x "$SOURCE_APP_ROOT/vulcan/vulcan" ]] || die "官方包缺少 vulcan 内置浏览器。"
 [[ -f "$SOURCE_DESKTOP" ]] || die "官方包缺少 bytedance-feishu.desktop。"
 file "$SOURCE_APP_ROOT/feishu" | grep -q 'ELF 64-bit' || \
   die "飞书主程序不是 64 位 ELF。"
-file "$SOURCE_APP_ROOT/vulcan/vulcan" | grep -q 'ELF 64-bit' || \
-  die "飞书 vulcan 不是 64 位 ELF。"
+if [[ -e "$SOURCE_APP_ROOT/vulcan/vulcan" ]]; then
+  [[ -x "$SOURCE_APP_ROOT/vulcan/vulcan" ]] || die "飞书 vulcan 不可执行。"
+  file "$SOURCE_APP_ROOT/vulcan/vulcan" | grep -q 'ELF 64-bit' || \
+    die "飞书 vulcan 不是 64 位 ELF。"
+fi
 
 mapfile -d '' icon_candidates < <(
   find "$SOURCE_APP_ROOT" -maxdepth 1 -type f -name 'product_logo_*.png' -print0
@@ -283,7 +285,7 @@ export DEPLOY_PIPEWIRE=1
 export NO_STRIP=1
 
 # 保持飞书官方 Electron/Chromium 私有文件的相对布局，仅让 quick-sharun
-# 处理主程序、vulcan 和从所有 ELF 解析到的外部系统运行库。
+# 处理主程序、可选 vulcan 和从所有 ELF 解析到的外部系统运行库。
 mapfile -t app_library_dirs < <(
   find "$APP_ROOT" -type f -printf '%h\n' | sort -u
 )
@@ -343,9 +345,13 @@ extra_runtime_targets=(
 )
 shopt -u nullglob
 
+quick_sharun_targets=("$APP_ROOT/feishu")
+if [[ -x "$APP_ROOT/vulcan/vulcan" ]]; then
+  quick_sharun_targets+=("$APP_ROOT/vulcan/vulcan")
+fi
+
 LD_LIBRARY_PATH="$BUILD_LIBRARY_PATH" quick-sharun \
-  "$APP_ROOT/feishu" \
-  "$APP_ROOT/vulcan/vulcan" \
+  "${quick_sharun_targets[@]}" \
   "${system_library_targets[@]}" \
   "${extra_runtime_targets[@]}"
 
