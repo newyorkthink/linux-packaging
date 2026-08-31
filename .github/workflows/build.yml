@@ -1244,12 +1244,28 @@ jobs:
     name: Build Baidu Netdisk
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).baidunetdisk == 'true'
-    runs-on: *arch_runner
+    runs-on: ubuntu-22.04
     timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'baidunetdisk/build_baidunetdisk.sh', ARTIFACT_DIR: 'baidunetdisk/dist', RELEASE_NAME: 'baidunetdisk.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Build and validate Baidu Netdisk AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n baidunetdisk/build_baidunetdisk.sh
+          chmod +x baidunetdisk/build_baidunetdisk.sh
+          ./baidunetdisk/build_baidunetdisk.sh
+          test -s baidunetdisk/dist/baidunetdisk.AppImage
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest baidunetdisk/dist/baidunetdisk.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
   build_aionui:
     name: Build AionUi
