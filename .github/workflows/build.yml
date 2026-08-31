@@ -1356,23 +1356,93 @@ jobs:
     name: Build XnView MP
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).xnviewmp == 'true'
-    runs-on: *arch_runner
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'xnviewmp/build_xnviewmp.sh', ARTIFACT_DIR: 'xnviewmp/dist', RELEASE_NAME: 'xnviewmp.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Install Qt packaging dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qt5-qmake qtbase5-dev libqt5svg5 xvfb
+      - name: Build XnView MP AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x xnviewmp/build_xnviewmp.sh
+          ./xnviewmp/build_xnviewmp.sh
+          test -s xnviewmp/dist/xnviewmp.AppImage
+      - name: Smoke test XnView MP
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          LOG="$RUNNER_TEMP/xnviewmp-smoke.log"
+          set +e
+          APPIMAGE_EXTRACT_AND_RUN=1 timeout 20s xvfb-run -a ./xnviewmp/dist/xnviewmp.AppImage >"$LOG" 2>&1
+          rc=$?
+          set -e
+          cat "$LOG"
+          if grep -Eqi 'Could not load the Qt platform plugin|no Qt platform plugin could be initialized|error while loading shared libraries|Segmentation fault|Aborted' "$LOG"; then
+            exit 1
+          fi
+          [[ "$rc" -eq 0 || "$rc" -eq 124 ]]
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest xnviewmp/dist/xnviewmp.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
   build_xnconvert:
     name: Build XnConvert
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).xnconvert == 'true'
-    runs-on: *arch_runner
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'xnconvert/build_xnconvert.sh', ARTIFACT_DIR: 'xnconvert/dist', RELEASE_NAME: 'xnconvert.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Install Qt packaging dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qt5-qmake qtbase5-dev libqt5svg5 xvfb
+      - name: Build XnConvert AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x xnconvert/build_xnconvert.sh
+          ./xnconvert/build_xnconvert.sh
+          test -s xnconvert/dist/xnconvert.AppImage
+      - name: Smoke test XnConvert
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          LOG="$RUNNER_TEMP/xnconvert-smoke.log"
+          set +e
+          APPIMAGE_EXTRACT_AND_RUN=1 timeout 20s xvfb-run -a ./xnconvert/dist/xnconvert.AppImage >"$LOG" 2>&1
+          rc=$?
+          set -e
+          cat "$LOG"
+          if grep -Eqi 'Could not load the Qt platform plugin|no Qt platform plugin could be initialized|error while loading shared libraries|Segmentation fault|Aborted' "$LOG"; then
+            exit 1
+          fi
+          [[ "$rc" -eq 0 || "$rc" -eq 124 ]]
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest xnconvert/dist/xnconvert.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
   build_stacher:
     name: Build Stacher
