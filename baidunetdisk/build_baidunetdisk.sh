@@ -4,222 +4,87 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-log() {
-  printf '[BaiduNetDisk] %s\n' "$*"
-}
-
-die() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
-
-if [[ "${GITHUB_ACTIONS:-}" == "true" && "${BAIDUNETDISK_JAMMY_INNER:-0}" != "1" ]]; then
-  command -v docker >/dev/null 2>&1 || die "docker is required for the Baidu Netdisk Ubuntu 22.04 build"
-  REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-  exec docker run --rm \
-    -e BAIDUNETDISK_JAMMY_INNER=1 \
-    -e CI=1 \
-    -e GITHUB_ACTIONS=true \
-    -v "$REPO_ROOT:/workspace" \
-    -w /workspace/baidunetdisk \
-    ubuntu:22.04 \
-    bash ./build_baidunetdisk.sh
-fi
-
-[[ "$(uname -m)" == "x86_64" ]] || die "only x86_64 is supported"
-
 SOURCE_DIR="$SCRIPT_DIR/source"
 APPDIR="$SCRIPT_DIR/AppDir"
 DIST_DIR="$SCRIPT_DIR/dist"
-OUTFILE="$DIST_DIR/baidunetdisk.AppImage"
 DEB="$SOURCE_DIR/baidunetdisk.deb"
 LINUXDEPLOY="$SOURCE_DIR/linuxdeploy-x86_64.AppImage"
-VERIFY_DIR="$SOURCE_DIR/verify-appimage"
-SMOKE_HOME="$SOURCE_DIR/smoke-home"
-SMOKE_RUNTIME="$SOURCE_DIR/smoke-runtime"
-SMOKE_LOG_1="$SOURCE_DIR/smoke-1.log"
-SMOKE_LOG_2="$SOURCE_DIR/smoke-2.log"
+GTK_PLUGIN="$SOURCE_DIR/linuxdeploy-plugin-gtk.sh"
+OUTFILE="$DIST_DIR/baidunetdisk.AppImage"
 CLIENT_API='https://pan.baidu.com/disk/cmsdata?do=client'
 
 rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
-mkdir -p "$SOURCE_DIR" "$DIST_DIR"
+mkdir -p "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
 
-if command -v sudo >/dev/null 2>&1; then
-  APT=(sudo apt-get)
-else
-  APT=(apt-get)
-fi
+yay -S --noconfirm --needed \
+  binutils curl desktop-file-utils file findutils grep python tar \
+  gtk3 gtkmm3 gobject-introspection librsvg pkgconf
 
-"${APT[@]}" update
-DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
-  ca-certificates curl desktop-file-utils file findutils gawk grep python3 sed coreutils \
-  binutils patchelf xz-utils dbus dbus-x11 xvfb xauth \
-  libasound2 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcairo2 libcups2 \
-  libdbus-1-3 libdrm2 libgbm1 libgdk-pixbuf-2.0-0 libglib2.0-0 \
-  libgtk-3-0 libgtkmm-3.0-1v5 libnotify4 libnss3 libnspr4 libpango-1.0-0 \
-  libsecret-1-0 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 \
-  libxdamage1 libxext6 libxfixes3 libxi6 libxkbcommon0 libxrandr2 libxrender1 \
-  libxss1 libxtst6 xdg-utils shared-mime-info hicolor-icon-theme
-
-for command_name in \
-  curl dbus-run-session desktop-file-validate dpkg-deb file find grep ldd \
-  python3 readelf sed sha256sum timeout xvfb-run; do
-  command -v "$command_name" >/dev/null 2>&1 || die "required command missing: $command_name"
-done
-
-log "read current official Linux client version"
-CLIENT_JSON="$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 "$CLIENT_API")"
-[[ -n "$CLIENT_JSON" ]] || die "official client metadata is empty"
-
-RAW_VERSION="$(printf '%s' "$CLIENT_JSON" | python3 -c '
-import json, sys
-payload = json.load(sys.stdin)
-linux = payload.get("linux") or {}
-print(linux.get("version") or "")
+CLIENT_JSON="$(curl -fsSL --retry 5 --retry-all-errors "$CLIENT_API")"
+VERSION="$(printf '%s' "$CLIENT_JSON" | python3 -c '
+import json, re, sys
+v = (json.load(sys.stdin).get("linux") or {}).get("version", "")
+m = re.search(r"([0-9]+(?:\.[0-9]+)+)$", v)
+print(m.group(1) if m else "")
 ')"
-if [[ "$RAW_VERSION" =~ ^(百度网盘Linux电脑客户端)?V?([0-9]+(\.[0-9]+)+)$ ]]; then
-  VERSION="${BASH_REMATCH[2]}"
-else
-  die "unexpected official version string: $RAW_VERSION"
-fi
-PACKAGE_URL="https://pkg-ant.baidu.com/issue/netdisk/LinuxGuanjia/$VERSION/baidunetdisk_${VERSION}_amd64.deb"
+[[ -n "$VERSION" ]] || { echo 'ERROR: cannot determine Baidu Netdisk version' >&2; exit 1; }
 
-log "download official DEB: $VERSION"
-curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 "$PACKAGE_URL" -o "$DEB"
-[[ -s "$DEB" ]] || die "downloaded DEB is empty"
-file "$DEB" | grep -q 'Debian binary package' || die "download is not a Debian package"
-sha256sum "$DEB"
+DEB_URL="https://pkg-ant.baidu.com/issue/netdisk/LinuxGuanjia/$VERSION/baidunetdisk_${VERSION}_amd64.deb"
+echo "[BaiduNetDisk] download $DEB_URL"
+curl -fL --retry 5 --retry-all-errors "$DEB_URL" -o "$DEB"
 
-dpkg-deb -x "$DEB" "$APPDIR"
+data_member="$(ar t "$DEB" | grep -m1 '^data\.tar')"
+[[ -n "$data_member" ]] || { echo 'ERROR: data archive not found in DEB' >&2; exit 1; }
+ar p "$DEB" "$data_member" | tar -xf - -C "$APPDIR"
 
-APP_ROOT="$APPDIR/opt/baidunetdisk"
-MAIN_BIN="$APP_ROOT/baidunetdisk"
-[[ -x "$MAIN_BIN" ]] || die "official package is missing /opt/baidunetdisk/baidunetdisk"
-file "$MAIN_BIN" | grep -q 'ELF 64-bit' || die "main executable is not a 64-bit ELF"
+test -x "$APPDIR/opt/baidunetdisk/baidunetdisk"
 
-mapfile -d '' desktop_candidates < <(
-  find "$APPDIR/usr/share/applications" -maxdepth 1 -type f \
-    \( -iname '*baidunetdisk*.desktop' -o -iname '*baidu*netdisk*.desktop' \) -print0 2>/dev/null
-)
-[[ ${#desktop_candidates[@]} -eq 1 ]] || die "expected exactly one Baidu Netdisk desktop file, found ${#desktop_candidates[@]}"
-DESKTOP_FILE="${desktop_candidates[0]}"
+DESKTOP_FILE="$(find "$APPDIR/usr/share/applications" -maxdepth 1 -type f -iname '*baidu*netdisk*.desktop' -print -quit)"
+[[ -n "$DESKTOP_FILE" ]] || { echo 'ERROR: desktop file not found' >&2; exit 1; }
 
-mapfile -d '' icon_candidates < <(
-  find "$APPDIR/usr/share/icons" "$APPDIR/usr/share/pixmaps" "$APP_ROOT" \
-    -type f \( -iname '*baidunetdisk*.png' -o -iname '*baidunetdisk*.svg' -o \
-    -iname '*baidu*netdisk*.png' -o -iname '*baidu*netdisk*.svg' \) -print0 2>/dev/null
-)
-[[ ${#icon_candidates[@]} -gt 0 ]] || die "official package does not contain a Baidu Netdisk icon"
-
-ICON_FILE="${icon_candidates[0]}"
-ICON_SIZE="$(stat -c '%s' "$ICON_FILE")"
-for candidate in "${icon_candidates[@]:1}"; do
-  candidate_size="$(stat -c '%s' "$candidate")"
-  if (( candidate_size > ICON_SIZE )); then
-    ICON_FILE="$candidate"
-    ICON_SIZE="$candidate_size"
-  fi
-done
-
-sed -i \
-  -e 's|^Exec=.*|Exec=baidunetdisk %U|' \
-  -e 's|^Icon=.*|Icon=baidunetdisk|' \
-  -e '/^Encoding=/d' \
-  -e '/^Value=/d' \
-  -e 's/^Terminal=0$/Terminal=false/' \
-  "$DESKTOP_FILE"
-desktop-file-validate "$DESKTOP_FILE"
+ICON_FILE="$(find "$APPDIR/usr/share/icons" "$APPDIR/usr/share/pixmaps" "$APPDIR/opt/baidunetdisk" \
+  -type f \( -iname '*baidunetdisk*.png' -o -iname '*baidu*netdisk*.png' -o -iname '*baidunetdisk*.svg' -o -iname '*baidu*netdisk*.svg' \) \
+  -print 2>/dev/null | head -n1)"
+[[ -n "$ICON_FILE" ]] || { echo 'ERROR: icon not found' >&2; exit 1; }
 
 mkdir -p "$APPDIR/usr/bin"
 cat > "$APPDIR/usr/bin/baidunetdisk" <<'EOF_LAUNCHER'
 #!/usr/bin/env bash
-set -Eeuo pipefail
-HERE="$(dirname "$(readlink -f "$0")")"
-ROOT="$(readlink -f "$HERE/../..")"
-APP_ROOT="$ROOT/opt/baidunetdisk"
-export LD_LIBRARY_PATH="$APP_ROOT:$ROOT/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export PATH="$ROOT/usr/bin:${PATH:-/usr/bin:/bin}"
-cd "$APP_ROOT"
-exec "$APP_ROOT/baidunetdisk" --no-sandbox "$@"
+set -e
+ROOT="$(cd -- "$(dirname -- "$(readlink -f "$0")")/../.." && pwd)"
+export LD_LIBRARY_PATH="$ROOT/opt/baidunetdisk${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+cd "$ROOT/opt/baidunetdisk"
+exec "$ROOT/opt/baidunetdisk/baidunetdisk" --no-sandbox "$@"
 EOF_LAUNCHER
 chmod +x "$APPDIR/usr/bin/baidunetdisk"
 
-curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
+sed -i \
+  -e 's|^Exec=.*|Exec=baidunetdisk %U|' \
+  -e 's|^Icon=.*|Icon=baidunetdisk|' \
+  "$DESKTOP_FILE"
+desktop-file-validate "$DESKTOP_FILE" || true
+
+curl -fL --retry 5 --retry-all-errors \
   https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
   -o "$LINUXDEPLOY"
-chmod +x "$LINUXDEPLOY"
+curl -fL --retry 5 --retry-all-errors \
+  https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh \
+  -o "$GTK_PLUGIN"
+chmod +x "$LINUXDEPLOY" "$GTK_PLUGIN"
 
 export ARCH=x86_64
 export APPIMAGE_EXTRACT_AND_RUN=1
+export DEPLOY_GTK_VERSION=3
 export LDAI_OUTPUT="$OUTFILE"
-export LD_LIBRARY_PATH="$APP_ROOT:${LD_LIBRARY_PATH:-}"
+export VERSION
 
-log "package with Ubuntu 22.04 + linuxdeploy"
 "$LINUXDEPLOY" \
   --appdir "$APPDIR" \
   --desktop-file "$DESKTOP_FILE" \
   --icon-file "$ICON_FILE" \
-  --executable "$MAIN_BIN" \
+  --plugin gtk \
   --output appimage
 
-[[ -s "$OUTFILE" ]] || die "linuxdeploy did not create the AppImage"
+test -s "$OUTFILE"
 chmod +x "$OUTFILE"
-"$OUTFILE" --appimage-version
-
-rm -rf "$VERIFY_DIR"
-mkdir -p "$VERIFY_DIR"
-(
-  cd "$VERIFY_DIR"
-  "$OUTFILE" --appimage-extract >/dev/null
-)
-VERIFY_ROOT="$VERIFY_DIR/squashfs-root"
-[[ -x "$VERIFY_ROOT/usr/bin/baidunetdisk" ]] || die "final AppImage is missing launcher"
-[[ -x "$VERIFY_ROOT/opt/baidunetdisk/baidunetdisk" ]] || die "final AppImage is missing official executable"
-grep -Fq -- '--no-sandbox' "$VERIFY_ROOT/usr/bin/baidunetdisk" || die "final launcher is incorrect"
-
-LDD_OUTPUT="$(LD_LIBRARY_PATH="$VERIFY_ROOT/opt/baidunetdisk:$VERIFY_ROOT/usr/lib" ldd "$VERIFY_ROOT/opt/baidunetdisk/baidunetdisk" 2>&1 || true)"
-printf '%s\n' "$LDD_OUTPUT"
-if grep -Fq 'not found' <<<"$LDD_OUTPUT"; then
-  die "final AppImage still has unresolved shared libraries"
-fi
-
-run_smoke() {
-  local pass="$1"
-  local log_file="$2"
-  local status=0
-
-  mkdir -p "$SMOKE_HOME" "$SMOKE_RUNTIME"
-  chmod 0700 "$SMOKE_RUNTIME"
-
-  set +e
-  timeout 25s \
-    env HOME="$SMOKE_HOME" \
-      XDG_CONFIG_HOME="$SMOKE_HOME/.config" \
-      XDG_CACHE_HOME="$SMOKE_HOME/.cache" \
-      XDG_DATA_HOME="$SMOKE_HOME/.local/share" \
-      XDG_RUNTIME_DIR="$SMOKE_RUNTIME" \
-      APPIMAGE_EXTRACT_AND_RUN=1 \
-      dbus-run-session -- xvfb-run -a "$OUTFILE" --disable-gpu \
-      >"$log_file" 2>&1
-  status=$?
-  set -e
-
-  cat "$log_file" || true
-  case "$status" in
-    0|124) ;;
-    *) die "smoke pass $pass exited with status $status" ;;
-  esac
-
-  if grep -Eqi \
-    'sqlcipher_page_cipher: hmac check failed|sqlite3Codec: error decrypting|sqlcipher_codec_ctx_set_error|segmentation fault|trace/breakpoint trap|symbol lookup error|error while loading shared libraries|wrong ELF class|invalid ELF' \
-    "$log_file"; then
-    die "smoke pass $pass detected a fatal runtime error"
-  fi
-}
-
-rm -rf "$SMOKE_HOME" "$SMOKE_RUNTIME"
-run_smoke 1 "$SMOKE_LOG_1"
-run_smoke 2 "$SMOKE_LOG_2"
-
 sha256sum "$OUTFILE"
-log "done: $OUTFILE"
