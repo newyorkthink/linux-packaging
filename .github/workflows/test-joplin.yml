@@ -1,0 +1,204 @@
+name: Test Joplin AppImage
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'joplin/**'
+      - '.github/workflows/test-joplin.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  test_joplin:
+    name: Test Joplin
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Static check
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n joplin/build_joplin.sh
+
+      - name: Build, smoke-test, and publish Joplin AppImage
+        uses: ./.github/actions/build-anylinux
+        with:
+          build_script: joplin/build_joplin.sh
+          artifact_dir: joplin/dist
+          release_name: joplin.AppImage
+          run_from_root: 'false'
+          github_token: ${{ github.token }}
+
+  integrate_joplin:
+    name: Integrate Joplin into universal build
+    needs: test_joplin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Integrate tested Joplin build
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          integrated=false
+          for attempt in 1 2 3 4 5; do
+            echo "Integration attempt: $attempt"
+            git fetch origin main
+            git reset --hard origin/main
+
+            python3 - <<'PY'
+          from pathlib import Path
+          import shlex
+
+          path = Path('.github/workflows/build.yml')
+          text = path.read_text(encoding='utf-8')
+
+          def insert_before(anchor: str, addition: str) -> None:
+              global text
+              if addition in text:
+                  return
+              count = text.count(anchor)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one workflow anchor, found {count}: {anchor!r}')
+              text = text.replace(anchor, addition + anchor, 1)
+
+          insert_before("      - 'chatgpt/**'\n", "      - 'joplin/**'\n")
+          insert_before("          - chatgpt/build_chatgpt.sh\n", "          - joplin/build_joplin.sh\n")
+
+          array_patches = {
+              'KEYS': ('chatgpt', 'joplin'),
+              'SCRIPTS': ('chatgpt/build_chatgpt.sh', 'joplin/build_joplin.sh'),
+              'DIRS': ('chatgpt', 'joplin'),
+          }
+          lines = text.splitlines(keepends=True)
+          for name, (anchor_token, new_token) in array_patches.items():
+              prefix = f'          {name}=('
+              matches = [i for i, line in enumerate(lines) if line.startswith(prefix)]
+              if len(matches) != 1:
+                  raise SystemExit(f'expected exactly one {name} array, got {len(matches)}')
+              index = matches[0]
+              line = lines[index]
+              tokens = shlex.split(line[len(prefix):].rstrip('\n')[:-1])
+              if new_token in tokens:
+                  continue
+              try:
+                  anchor_index = tokens.index(anchor_token)
+              except ValueError as exc:
+                  raise SystemExit(f'cannot find {anchor_token!r} in {name}') from exc
+              if name == 'SCRIPTS':
+                  old = f" '{anchor_token}'"
+                  new = f" '{new_token}'{old}"
+              else:
+                  old = f' {anchor_token}'
+                  new = f' {new_token}{old}'
+              if line.count(old) != 1:
+                  raise SystemExit(f'cannot patch {name} array safely')
+              lines[index] = line.replace(old, new, 1)
+
+          text = ''.join(lines)
+
+          if '  build_joplin:\n' not in text:
+              anchor = '  build_chatgpt:\n'
+              if text.count(anchor) != 1:
+                  raise SystemExit('cannot locate unique build_chatgpt job')
+              job = (
+                  "  build_joplin:\n"
+                  "    name: Build Joplin\n"
+                  "    needs: plan\n"
+                  "    if: fromJSON(needs.plan.outputs.builds).joplin == 'true'\n"
+                  "    runs-on: *arch_runner\n"
+                  "    timeout-minutes: 90\n"
+                  "    container: *arch_container\n"
+                  "    permissions: *arch_permissions\n"
+                  "    env: {BUILD_SCRIPT: 'joplin/build_joplin.sh', ARTIFACT_DIR: 'joplin/dist', RELEASE_NAME: 'joplin.AppImage', RUN_FROM_ROOT: 'false'}\n"
+                  "    steps: *arch_steps\n\n"
+              )
+              text = text.replace(anchor, job + anchor, 1)
+
+          path.write_text(text, encoding='utf-8')
+
+          def shell_array(name: str):
+              prefix = f'          {name}=('
+              line = next((line for line in text.splitlines() if line.startswith(prefix)), None)
+              if line is None or not line.endswith(')'):
+                  raise SystemExit(f'cannot locate {name} array')
+              return shlex.split(line[len(prefix):-1])
+
+          keys = shell_array('KEYS')
+          scripts = shell_array('SCRIPTS')
+          dirs = shell_array('DIRS')
+          if not (len(keys) == len(scripts) == len(dirs)):
+              raise SystemExit(f'plan arrays are misaligned: KEYS={len(keys)}, SCRIPTS={len(scripts)}, DIRS={len(dirs)}')
+          index = keys.index('joplin')
+          if scripts[index] != 'joplin/build_joplin.sh' or dirs[index] != 'joplin':
+              raise SystemExit('Joplin plan mapping is misaligned')
+          PY
+
+            rm -f .github/workflows/test-joplin.yml
+
+            ruby -e 'require "yaml"; YAML.load_file(ARGV.fetch(0), aliases: true)' .github/workflows/build.yml
+            git diff --check
+            git diff -- .github/workflows/build.yml .github/workflows/test-joplin.yml
+
+            git add .github/workflows/build.yml .github/workflows/test-joplin.yml
+            git commit -m 'build: integrate joplin AppImage'
+
+            if git push origin HEAD:main; then
+              integrated=true
+              break
+            fi
+          done
+
+          [[ "$integrated" == true ]] || {
+            echo 'Failed to integrate Joplin after concurrent main updates.' >&2
+            exit 1
+          }
+
+          new_sha="$(git rev-parse HEAD)"
+          if gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" \
+              -f sha="$new_sha" \
+              -F force=true >/dev/null
+            gh release edit latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --title latest \
+              --notes latest \
+              --latest
+          else
+            gh release create latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$new_sha" \
+              --title latest \
+              --notes latest \
+              --latest
+          fi
