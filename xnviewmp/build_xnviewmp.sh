@@ -46,9 +46,9 @@ rm -rf \
 rm -f "$SMOKE_LOG"
 mkdir -p "$SOURCE_DIR" "$DIST_DIR" "$VERIFY_DIR"
 
-# 安装下载、文件审计、desktop 校验和 Xvfb 冒烟测试所需工具。
+# 安装下载、文件审计、desktop 校验、AUR 对齐的 Qt/XCB 运行依赖和 Xvfb 冒烟测试工具。
 yay -S --noconfirm --needed \
-  coreutils curl desktop-file-utils file findutils gawk grep python \
+  coreutils curl desktop-file-utils file findutils gawk grep python qt5-multimedia \
   xorg-server-xvfb xorg-xauth
 
 for command_name in \
