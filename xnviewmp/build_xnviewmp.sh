@@ -12,6 +12,8 @@ CHECKSUMS="$SOURCE_DIR/XnView_MP-CHECKSUMS.txt"
 DEB="$SOURCE_DIR/XnView_MP.deb"
 LINUXDEPLOY="$SOURCE_DIR/linuxdeploy-x86_64.AppImage"
 QT_PLUGIN="$SOURCE_DIR/linuxdeploy-plugin-qt-x86_64.AppImage"
+DESKTOP_FILE="$APPDIR/usr/share/applications/XnView.desktop"
+ICON_FILE="$APPDIR/opt/XnView/xnview.png"
 
 rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
 mkdir -p "$SOURCE_DIR" "$DIST_DIR"
@@ -43,6 +45,11 @@ echo "$EXPECTED_SHA  $DEB" | sha256sum -c -
 
 dpkg-deb -x "$DEB" "$APPDIR"
 test -x "$APPDIR/opt/XnView/XnView"
+test -f "$DESKTOP_FILE"
+test -f "$ICON_FILE"
+
+# The official desktop uses an absolute /opt icon path; linuxdeploy expects an icon name.
+sed -i 's|^Icon=.*|Icon=xnview|' "$DESKTOP_FILE"
 
 cat > "$APPDIR/usr/bin/xnview" <<'EOF_APPRUN'
 #!/usr/bin/env bash
@@ -59,7 +66,8 @@ chmod +x "$APPDIR/usr/bin/xnview"
 
 # Give linuxdeploy-plugin-qt one XCB-related Qt seed only. Do not seed every Qt module,
 # otherwise unrelated Multimedia/QML modules drag in unnecessary dependency chains.
-mkdir -p "$APPDIR/usr/lib"
+# Pre-create translations so the Qt plugin can link XnView's own language files cleanly.
+mkdir -p "$APPDIR/usr/lib" "$APPDIR/usr/translations"
 cp -a "$APPDIR/opt/XnView/lib"/libQt5XcbQpa.so* "$APPDIR/usr/lib/"
 test -e "$APPDIR/usr/lib/libQt5XcbQpa.so.5"
 
@@ -76,7 +84,12 @@ export APPIMAGE_EXTRACT_AND_RUN=1
 export LDAI_OUTPUT="$OUTFILE"
 export LD_LIBRARY_PATH="$APPDIR/opt/XnView/lib:$APPDIR/opt/XnView/Plugins:${LD_LIBRARY_PATH:-}"
 
-"$LINUXDEPLOY" --appdir "$APPDIR" --plugin qt --output appimage
+"$LINUXDEPLOY" \
+  --appdir "$APPDIR" \
+  --desktop-file "$DESKTOP_FILE" \
+  --icon-file "$ICON_FILE" \
+  --plugin qt \
+  --output appimage
 
 test -s "$OUTFILE"
 chmod +x "$OUTFILE"
