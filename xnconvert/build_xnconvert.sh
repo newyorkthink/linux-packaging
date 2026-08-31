@@ -58,7 +58,7 @@ mkdir -p "$SOURCE_DIR" "$EXTRACT_DIR" "$DIST_DIR" "$VERIFY_DIR"
 # 安装构建、Qt5、XCB 依赖部署和 Xvfb 冒烟测试工具；这些依赖会由 linuxdeploy 收集进 AppImage。
 yay -S --noconfirm --needed \
   coreutils curl desktop-file-utils file findutils gawk grep python tar \
-  gtk3 libwebp qt5-base qt5-multimedia qt5-declarative qt5-svg qt5-translations \
+  gtk3 libwebp qt5-base qt5-multimedia qt5-declarative qt5-svg qt5-translations gst-plugins-bad-libs \
   libx11 libxext libxi libxinerama libxrender libxcb \
   xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm \
   libxkbcommon libxkbcommon-x11 fontconfig freetype2 libglvnd \
