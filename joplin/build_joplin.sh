@@ -25,13 +25,18 @@ fi
 "${APT[@]}" update
 DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   ca-certificates curl dpkg-dev file findutils gawk grep pkgconf python3 sed \
-  libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-dev \
-  libgdk-pixbuf-2.0-dev librsvg2-dev libpango1.0-dev \
-  ibus-gtk3 \
-  libasound2 libatk-bridge2.0-0 libcups2 libdbus-1-3 libdrm2 libgbm1 \
-  libnspr4 libnss3 libnotify4 libsecret-1-0 libx11-6 libxcb1 \
-  libxcomposite1 libxdamage1 libxext6 libxfixes3 libxkbcommon0 \
-  libxrandr2 libxss1 libxtst6
+  libglib2.0-bin libglib2.0-dev libgirepository1.0-dev \
+  libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev \
+  librsvg2-dev librsvg2-common libpango1.0-dev \
+  ibus-gtk3 libibus-1.0-5 \
+  libasound2 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcairo2 libcups2 \
+  libdbus-1-3 libdrm2 libgbm1 libgdk-pixbuf-2.0-0 libglib2.0-0 libgtk-3-0 \
+  libnotify4 libnspr4 libnss3 libpango-1.0-0 libsecret-1-0 libuuid1 \
+  libappindicator3-1 \
+  libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 \
+  libxfixes3 libxi6 libxinerama1 libxkbcommon0 libxrandr2 libxrender1 \
+  libxshmfence1 libxss1 libxtst6 \
+  xdg-utils shared-mime-info hicolor-icon-theme
 
 curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
   -H 'Accept: application/vnd.github+json' \
