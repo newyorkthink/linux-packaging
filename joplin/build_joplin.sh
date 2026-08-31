@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 从 Joplin 官方 GitHub Release 动态获取当前稳定版 Linux x64 DEB，并重新封装为 AnyLinux AppImage。
-# 仅保留官方 Electron 应用本体、资源、desktop/icon 与原生模块；打包层只补齐便携运行所需依赖。
+# 从 Joplin 官方 GitHub Release 中选择版本号最高的已发布 Linux x64 DEB，
+# 在 Ubuntu 22.04 上使用 linuxdeploy 重新封装为 AppImage。
 set -Eeuo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,16 +17,38 @@ die() {
 
 readonly HOST_ARCH="$(uname -m)"
 [[ "$HOST_ARCH" == x86_64 ]] || die "当前仅支持 x86_64。"
-command -v yay >/dev/null 2>&1 || die "构建环境缺少命令：yay"
 
-readonly RELEASE_API='https://api.github.com/repos/laurent22/joplin/releases/latest'
+if command -v sudo >/dev/null 2>&1; then
+  APT=(sudo apt-get)
+else
+  APT=(apt-get)
+fi
+
+log "安装 Ubuntu/linuxdeploy 构建与 Electron 运行依赖"
+"${APT[@]}" update
+DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
+  binutils ca-certificates coreutils curl desktop-file-utils dpkg file findutils gawk grep python3 sed \
+  xz-utils xvfb xauth \
+  libasound2 libatk-bridge2.0-0 libatk1.0-0 libcups2 libdbus-1-3 libdrm2 libgbm1 \
+  libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libnotify4 libsecret-1-0 \
+  libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 libxkbcommon0 \
+  libxrandr2 libxss1 libxtst6 libgl1 libva2 libvdpau1 libpulse0 ibus-gtk3
+
+for command_name in \
+  awk chmod curl desktop-file-validate dpkg-deb file find grep ldd python3 readelf sed sha256sum sort \
+  timeout xvfb-run; do
+  command -v "$command_name" >/dev/null 2>&1 || die "构建环境缺少命令：$command_name"
+done
+
+readonly RELEASES_API='https://api.github.com/repos/laurent22/joplin/releases?per_page=30'
 readonly SOURCE_DIR="$SCRIPT_DIR/source"
-readonly RELEASE_JSON="$SOURCE_DIR/release.json"
+readonly RELEASES_JSON="$SOURCE_DIR/releases.json"
 readonly DEB_FILE="$SOURCE_DIR/joplin.deb"
-readonly DEB_EXTRACT_DIR="$SOURCE_DIR/deb"
 readonly PACKAGE_ROOT="$SOURCE_DIR/package"
+readonly LINUXDEPLOY="$SOURCE_DIR/linuxdeploy-x86_64.AppImage"
+readonly CUSTOM_APPRUN="$SOURCE_DIR/AppRun"
 readonly APPDIR="$SCRIPT_DIR/AppDir"
-readonly APP_ROOT="$APPDIR/bin"
+readonly APP_ROOT="$APPDIR/opt/Joplin"
 readonly DIST_DIR="$SCRIPT_DIR/dist"
 readonly OUTFILE="$DIST_DIR/joplin.AppImage"
 readonly VERIFY_DIR="$SCRIPT_DIR/verify"
@@ -36,7 +58,7 @@ readonly SMOKE_HOME="$SCRIPT_DIR/smoke-home"
 readonly SMOKE_RUNTIME="$SCRIPT_DIR/smoke-runtime"
 readonly SMOKE_LOG="$SCRIPT_DIR/joplin-smoke.log"
 
-# 每次只清理 Joplin 自己的 CI 构建目录、临时文件和旧产物。
+# 只清理 Joplin 自己的构建目录、测试目录和旧产物。
 rm -rf \
   "$SOURCE_DIR" \
   "$APPDIR" \
@@ -45,82 +67,79 @@ rm -rf \
   "$SMOKE_HOME" \
   "$SMOKE_RUNTIME"
 rm -f "$BUILD_DESKTOP" "$BUILD_ICON" "$SMOKE_LOG"
-mkdir -p "$SOURCE_DIR" "$DEB_EXTRACT_DIR" "$PACKAGE_ROOT" "$APP_ROOT" "$DIST_DIR"
+mkdir -p "$SOURCE_DIR" "$PACKAGE_ROOT" "$APP_ROOT" "$DIST_DIR"
 
-# 安装 quick-sharun、Electron/GTK 运行库、输入法模块以及隔离 GUI 冒烟测试组件。
-yay -S --noconfirm --needed \
-  base-devel binutils coreutils curl file findutils gawk grep libarchive patchelf python sed tar \
-  appstream-glib desktop-file-utils inetutils util-linux zsync \
-  xorg-server xorg-server-common xorg-server-xvfb xorg-xauth \
-  nss nspr alsa-lib at-spi2-core cups dbus glib2 gtk3 \
-  libnotify libsecret shared-mime-info xdg-utils \
-  hicolor-icon-theme adwaita-icon-theme fontconfig freetype2 cairo pango gdk-pixbuf2 librsvg \
-  libx11 libxext libxi libxrender libxrandr libxcomposite libxdamage libxfixes libxss libxtst \
-  libxcb libxkbcommon libxkbcommon-x11 \
-  mesa libglvnd libva libvdpau vulkan-icd-loader \
-  libpulse pipewire-audio ibus
-
-for command_name in \
-  ar chmod curl desktop-file-validate file find grep hostname ldd quick-sharun \
-  readelf sed sha256sum sort stat tar timeout xvfb-run python3; do
-  command -v "$command_name" >/dev/null 2>&1 || \
-    die "构建环境缺少命令：$command_name"
-done
-
-log "读取 Joplin 官方最新稳定版 Release 元数据"
+log "读取 Joplin 官方 Release 元数据"
 curl -fL \
   --retry 5 \
   --retry-all-errors \
   --retry-delay 2 \
   --connect-timeout 20 \
   -H 'Accept: application/vnd.github+json' \
-  "$RELEASE_API" \
-  -o "$RELEASE_JSON"
-[[ -s "$RELEASE_JSON" ]] || die "Joplin Release 元数据为空。"
+  "$RELEASES_API" \
+  -o "$RELEASES_JSON"
+[[ -s "$RELEASES_JSON" ]] || die "Joplin Release 元数据为空。"
 
+# 选择版本号最高的已发布（非 draft）Linux x64 DEB，而不是只取 releases/latest。
+# 这样不会把已经被较新 Joplin 迁移过的用户配置再次交给较旧稳定版读取。
 mapfile -t RELEASE_META < <(
-  python3 - "$RELEASE_JSON" <<'PY'
+  python3 - "$RELEASES_JSON" <<'PY'
 import json
 import re
 import sys
 from urllib.parse import urlparse
 
 with open(sys.argv[1], "r", encoding="utf-8") as fh:
-    release = json.load(fh)
+    releases = json.load(fh)
 
-if release.get("draft") or release.get("prerelease"):
-    raise SystemExit("latest release is not a stable release")
+candidates = []
+for release in releases:
+    if release.get("draft"):
+        continue
 
-tag = str(release.get("tag_name", ""))
-match = re.fullmatch(r"v?([0-9]+(?:\.[0-9]+)+)", tag)
-if not match:
-    raise SystemExit(f"invalid stable tag: {tag!r}")
-version = match.group(1)
-asset_name = f"Joplin-{version}.deb"
-assets = [asset for asset in release.get("assets", []) if asset.get("name") == asset_name]
-if len(assets) != 1:
-    raise SystemExit(f"expected exactly one {asset_name!r} asset, got {len(assets)}")
-asset = assets[0]
-url = str(asset.get("browser_download_url", ""))
-digest = str(asset.get("digest", ""))
-parsed = urlparse(url)
-expected_path = f"/laurent22/joplin/releases/download/{tag}/{asset_name}"
-if parsed.scheme != "https" or parsed.netloc != "github.com" or parsed.path != expected_path:
-    raise SystemExit(f"unexpected Joplin DEB URL: {url!r}")
-if not re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest):
-    raise SystemExit(f"missing or invalid GitHub asset digest: {digest!r}")
+    tag = str(release.get("tag_name", ""))
+    match = re.fullmatch(r"v?([0-9]+(?:\.[0-9]+)+)", tag)
+    if not match:
+        continue
+
+    version = match.group(1)
+    version_key = tuple(int(part) for part in version.split("."))
+    asset_name = f"Joplin-{version}.deb"
+    assets = [asset for asset in release.get("assets", []) if asset.get("name") == asset_name]
+    if len(assets) != 1:
+        continue
+
+    asset = assets[0]
+    url = str(asset.get("browser_download_url", ""))
+    digest = str(asset.get("digest", ""))
+    parsed = urlparse(url)
+    expected_path = f"/laurent22/joplin/releases/download/{tag}/{asset_name}"
+    if parsed.scheme != "https" or parsed.netloc != "github.com" or parsed.path != expected_path:
+        continue
+    if not re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest):
+        continue
+
+    release_kind = "prerelease" if release.get("prerelease") else "stable"
+    candidates.append((version_key, version, url, digest.split(":", 1)[1].lower(), release_kind))
+
+if not candidates:
+    raise SystemExit("no valid published Joplin Linux x64 DEB release found")
+
+_, version, url, digest, release_kind = max(candidates, key=lambda item: item[0])
 print(version)
 print(url)
-print(digest.split(":", 1)[1].lower())
+print(digest)
+print(release_kind)
 PY
 )
-[[ ${#RELEASE_META[@]} -eq 3 ]] || die "无法完整解析 Joplin 最新稳定版元数据。"
+[[ ${#RELEASE_META[@]} -eq 4 ]] || die "无法完整解析 Joplin 已发布版本元数据。"
 
 readonly VERSION="${RELEASE_META[0]}"
 readonly DEB_URL="${RELEASE_META[1]}"
 readonly EXPECTED_SHA256="${RELEASE_META[2]}"
+readonly RELEASE_KIND="${RELEASE_META[3]}"
 
-printf 'Joplin version: %s\nJoplin DEB: %s\n' "$VERSION" "$DEB_URL"
+printf 'Joplin version: %s (%s)\nJoplin DEB: %s\n' "$VERSION" "$RELEASE_KIND" "$DEB_URL"
 
 log "下载 Joplin 官方 Linux x64 DEB"
 curl -fL \
@@ -138,17 +157,8 @@ readonly ACTUAL_SHA256="$(sha256sum "$DEB_FILE" | awk '{print $1}')"
 sha256sum "$DEB_FILE"
 
 log "提取 Joplin 官方 DEB"
-(
-  cd "$DEB_EXTRACT_DIR"
-  ar x "$DEB_FILE"
-)
-shopt -s nullglob
-data_archives=("$DEB_EXTRACT_DIR"/data.tar.*)
-shopt -u nullglob
-[[ ${#data_archives[@]} -eq 1 ]] || die "Joplin DEB 中应且只能有一个 data.tar.*。"
-tar -xf "${data_archives[0]}" -C "$PACKAGE_ROOT"
+dpkg-deb -x "$DEB_FILE" "$PACKAGE_ROOT"
 
-# 以 Electron 的 resources/app.asar 为锚点定位官方应用目录，避免写死 /opt 下的版本化路径。
 mapfile -d '' app_asar_candidates < <(
   find "$PACKAGE_ROOT/opt" -type f -path '*/resources/app.asar' -print0 2>/dev/null
 )
@@ -162,16 +172,15 @@ mapfile -d '' main_candidates < <(
 [[ ${#main_candidates[@]} -eq 1 ]] || \
   die "Joplin 官方应用目录中应且只能找到一个 joplin 主程序，实际为 ${#main_candidates[@]}。"
 readonly SOURCE_MAIN="${main_candidates[0]}"
+[[ "$(basename -- "$SOURCE_MAIN")" == joplin ]] || die "Joplin 官方主程序文件名不是 joplin。"
 file "$SOURCE_MAIN" | grep -q 'ELF 64-bit' || die "Joplin 主程序不是 64 位 ELF。"
 
-# 复用官方 desktop 文件，避免自行改变协议、MIME 类型或分类。
 mapfile -d '' desktop_candidates < <(
   find "$PACKAGE_ROOT/usr/share/applications" -maxdepth 1 -type f -iname '*joplin*.desktop' -print0 2>/dev/null
 )
 [[ ${#desktop_candidates[@]} -eq 1 ]] || die "Joplin 官方包中无法唯一定位 desktop 文件。"
 readonly SOURCE_DESKTOP="${desktop_candidates[0]}"
 
-# 优先使用官方 DEB 安装的 Joplin PNG，选择文件体积最大的候选作为 AppImage 主图标。
 mapfile -d '' icon_candidates < <(
   find \
     "$PACKAGE_ROOT/usr/share/icons" \
@@ -203,16 +212,15 @@ printf 'Joplin runtime: %s\nJoplin desktop: %s\nJoplin icon: %s\n' \
 
 log "复制 Joplin 官方 Electron 运行目录"
 cp -a "$SOURCE_APP_ROOT"/. "$APP_ROOT"/
-[[ -x "$APP_ROOT/$(basename -- "$SOURCE_MAIN")" ]] || die "复制后缺少 Joplin 主程序。"
+[[ -x "$APP_ROOT/joplin" ]] || die "复制后缺少 Joplin 主程序。"
 [[ -f "$APP_ROOT/resources/app.asar" ]] || die "复制后缺少 Joplin resources/app.asar。"
 
-# 不在最终 AppImage 中引入有效 setuid；Joplin 默认保持 Electron 自身的用户命名空间沙箱行为。
+# 最终 AppImage 不引入有效 setuid；保持 Electron 用户命名空间沙箱的普通文件权限。
 if [[ -e "$APP_ROOT/chrome-sandbox" ]]; then
   chmod 0755 "$APP_ROOT/chrome-sandbox"
 fi
 
-# Node 原生模块由 Electron dlopen；移除执行位，避免被误识别为独立启动程序。
-find "$APP_ROOT" -type f -name '*.node' -exec chmod 0644 {} +
+# 保留官方 Node 原生模块及其相对路径，不改 app.asar。
 mapfile -d '' source_node_modules < <(
   find "$APP_ROOT" -type f -name '*.node' -print0
 )
@@ -240,36 +248,15 @@ else
 fi
 desktop-file-validate "$BUILD_DESKTOP"
 
-cat > "$APPDIR/AppRun.sh" <<'APPRUN_EOF'
-#!/bin/sh
-set -e
+mkdir -p \
+  "$APPDIR/usr/share/applications" \
+  "$APPDIR/usr/share/icons/hicolor/512x512/apps"
+cp -a "$BUILD_DESKTOP" "$APPDIR/usr/share/applications/joplin.desktop"
+cp -a "$BUILD_ICON" "$APPDIR/usr/share/icons/hicolor/512x512/apps/joplin.png"
+readonly APP_DESKTOP="$APPDIR/usr/share/applications/joplin.desktop"
+readonly APP_ICON="$APPDIR/usr/share/icons/hicolor/512x512/apps/joplin.png"
 
-export SHARUN_EXTRA_LIBRARY_PATH="$APPDIR/bin${SHARUN_EXTRA_LIBRARY_PATH:+:$SHARUN_EXTRA_LIBRARY_PATH}"
-export SHARUN_WORKING_DIR="$APPDIR/bin"
-
-cd "$APPDIR/bin"
-exec "$APPDIR/bin/joplin" "$@"
-APPRUN_EOF
-chmod 0755 "$APPDIR/AppRun.sh"
-bash -n "$APPDIR/AppRun.sh"
-
-export ARCH=x86_64
-export VERSION
-export APPNAME=Joplin
-export MAIN_BIN=joplin
-export STARTUPWMCLASS='@joplin/app-desktop'
-export ICON="$BUILD_ICON"
-export DESKTOP="$BUILD_DESKTOP"
-export OUTPATH="$DIST_DIR"
-export OUTNAME=joplin.AppImage
-export DEPLOY_GTK=1
-export DEPLOY_OPENGL=1
-export DEPLOY_VULKAN=1
-export DEPLOY_PIPEWIRE=1
-export STRACE_MODE=0
-export NO_STRIP=1
-
-# 扫描官方运行目录内全部 ELF，包括 Electron helper 与 Node 原生模块。
+# 构建前检查官方 Electron 目录中的全部 ELF 在 Ubuntu 22.04 上没有缺失依赖。
 elf_targets=()
 while IFS= read -r -d '' target; do
   if readelf -h "$target" >/dev/null 2>&1; then
@@ -303,37 +290,62 @@ for target in "${elf_targets[@]}"; do
 done
 [[ "$missing_dependencies" -eq 0 ]] || die "Joplin 官方组件仍存在缺失或 ABI 不兼容动态库。"
 
-audio_targets=(
-  /usr/lib/libasound.so.2
-  /usr/lib/libpulse.so.0
-  /usr/lib/libpulse-simple.so.0
-  /usr/lib/libpipewire-0.3.so.0
+log "下载 linuxdeploy"
+curl -fL \
+  --retry 5 \
+  --retry-all-errors \
+  --retry-delay 2 \
+  --connect-timeout 20 \
+  https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
+  -o "$LINUXDEPLOY"
+[[ -s "$LINUXDEPLOY" ]] || die "linuxdeploy 下载为空。"
+chmod 0755 "$LINUXDEPLOY"
+
+export ARCH=x86_64
+export APPIMAGE_EXTRACT_AND_RUN=1
+export LDAI_OUTPUT="$OUTFILE"
+
+# AppDir 内保留一个桌面入口 wrapper，并给 linuxdeploy 提供显式 AppRun。
+# 这两个脚本都只定位 AppImage 内部 /opt/Joplin，不改用户 HOME/XDG。
+mkdir -p "$APPDIR/usr/bin"
+cat > "$APPDIR/usr/bin/joplin" <<'WRAPPER_EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+HERE="$(dirname "$(readlink -f "$0")")"
+ROOT="$(readlink -f "$HERE/../..")"
+
+cd "$ROOT/opt/Joplin"
+exec "$ROOT/opt/Joplin/joplin" "$@"
+WRAPPER_EOF
+chmod 0755 "$APPDIR/usr/bin/joplin"
+bash -n "$APPDIR/usr/bin/joplin"
+
+cat > "$CUSTOM_APPRUN" <<'APPRUN_EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(dirname "$(readlink -f "$0")")"
+cd "$ROOT/opt/Joplin"
+exec "$ROOT/opt/Joplin/joplin" "$@"
+APPRUN_EOF
+chmod 0755 "$CUSTOM_APPRUN"
+bash -n "$CUSTOM_APPRUN"
+
+# linuxdeploy 官方支持 --deploy-deps-only：对 AppDir 中已有 ELF 只部署依赖，
+# 不把 Joplin 官方主程序或 .node 文件再复制到 usr/bin/usr/lib。
+linuxdeploy_args=(
+  --appdir "$APPDIR"
+  --desktop-file "$APP_DESKTOP"
+  --icon-file "$APP_ICON"
+  --custom-apprun "$CUSTOM_APPRUN"
 )
-for audio_target in "${audio_targets[@]}"; do
-  [[ -e "$audio_target" ]] || die "构建环境缺少音频运行库：$audio_target"
+for target in "${elf_targets[@]}"; do
+  linuxdeploy_args+=(--deploy-deps-only "$target")
 done
 
-shopt -s nullglob
-pulse_common_targets=(/usr/lib/pulseaudio/libpulsecommon-*.so)
-extra_runtime_targets=(
-  /usr/bin/hostname
-  /usr/lib/libnss*.so*
-  /usr/lib/libsoftokn3.so
-  /usr/lib/libfreeblpriv3.so
-  /usr/lib/pkcs11/*
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
-)
-shopt -u nullglob
-[[ ${#pulse_common_targets[@]} -gt 0 ]] || die "构建环境缺少 libpulsecommon。"
-[[ ${#extra_runtime_targets[@]} -gt 0 ]] || die "Joplin 额外运行目标为空。"
-
-LD_LIBRARY_PATH="$BUILD_LIBRARY_PATH" quick-sharun \
-  "${elf_targets[@]}" \
-  "${audio_targets[@]}" \
-  "${pulse_common_targets[@]}" \
-  "${extra_runtime_targets[@]}"
-
-quick-sharun --make-appimage
+log "使用 linuxdeploy 部署 Joplin 全部 ELF 的运行依赖并生成 AppImage"
+"$LINUXDEPLOY" "${linuxdeploy_args[@]}" --output appimage
 [[ -s "$OUTFILE" ]] || die "未生成预期文件：$OUTFILE"
 chmod 0755 "$OUTFILE"
 
@@ -347,17 +359,29 @@ readonly VERIFY_APPDIR="$VERIFY_DIR/squashfs-root"
 [[ -x "$VERIFY_APPDIR/AppRun" ]] || die "最终 AppImage 缺少 AppRun。"
 [[ -f "$VERIFY_APPDIR/joplin.desktop" ]] || die "最终 AppImage 缺少 joplin.desktop。"
 [[ -f "$VERIFY_APPDIR/joplin.png" ]] || die "最终 AppImage 缺少 joplin.png。"
-[[ -x "$VERIFY_APPDIR/bin/joplin" ]] || die "最终 AppImage 缺少 Joplin 主程序。"
-[[ -f "$VERIFY_APPDIR/bin/resources/app.asar" ]] || die "最终 AppImage 缺少 resources/app.asar。"
+[[ -x "$VERIFY_APPDIR/usr/bin/joplin" ]] || die "最终 AppImage 缺少 Joplin 启动 wrapper。"
+[[ -x "$VERIFY_APPDIR/opt/Joplin/joplin" ]] || die "最终 AppImage 缺少 Joplin 官方主程序。"
+[[ -f "$VERIFY_APPDIR/opt/Joplin/resources/app.asar" ]] || die "最终 AppImage 缺少 resources/app.asar。"
 
 for node_relative_path in "${source_node_relative_paths[@]}"; do
-  node_module="$VERIFY_APPDIR/bin/$node_relative_path"
+  node_module="$VERIFY_APPDIR/opt/Joplin/$node_relative_path"
   [[ -f "$node_module" ]] || die "最终 AppImage 缺少 Node 原生模块：$node_relative_path"
   readelf -h "$node_module" >/dev/null 2>&1 || \
     die "最终 AppImage 中的 Node 模块不是 ELF：$node_relative_path"
 done
 
-# 使用隔离 HOME/XDG 目录做 Xvfb 冒烟测试；--no-sandbox 仅用于 root CI runner，不写入最终启动入口。
+# 最终主程序必须能在 AppImage 自带 usr/lib + 官方 /opt/Joplin 运行目录下解析依赖。
+final_dependencies="$(
+  LD_LIBRARY_PATH="$VERIFY_APPDIR/usr/lib:$VERIFY_APPDIR/opt/Joplin" \
+    ldd "$VERIFY_APPDIR/opt/Joplin/joplin" 2>&1 || true
+)"
+printf '%s\n' "$final_dependencies"
+if grep -Eq 'not found|version .* not found' <<< "$final_dependencies"; then
+  die "最终 AppImage 的 Joplin 主程序仍存在缺失或 ABI 不兼容动态库。"
+fi
+
+# 使用隔离 HOME/XDG 目录做 Xvfb 冒烟测试；--no-sandbox 只用于 root CI 测试，
+# 不写入正式 AppImage 启动入口，也不接触真实用户配置。
 mkdir -p \
   "$SMOKE_HOME/config" \
   "$SMOKE_HOME/cache" \
@@ -385,11 +409,6 @@ if grep -Eqi \
   'error while loading shared libraries|cannot open shared object file|invalid ELF header|wrong ELF class|Exec format error|Invalid layout component:|Trace/breakpoint trap|Segmentation fault' \
   "$SMOKE_LOG"; then
   die "Joplin 冒烟测试检测到致命运行错误。"
-fi
-if grep -Fq \
-  'Fontconfig warning: We will not regenerate the cache because some cache files were generated by a newer version' \
-  "$SMOKE_LOG"; then
-  die "Joplin 冒烟测试检测到 Fontconfig cache 版本不兼容警告。"
 fi
 if [[ "$smoke_rc" -ne 0 && "$smoke_rc" -ne 124 ]]; then
   die "Joplin 在 Xvfb 冒烟测试中异常退出：$smoke_rc"

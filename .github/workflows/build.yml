@@ -1299,12 +1299,28 @@ jobs:
     name: Build Joplin
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).joplin == 'true'
-    runs-on: *arch_runner
+    runs-on: ubuntu-22.04
     timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'joplin/build_joplin.sh', ARTIFACT_DIR: 'joplin/dist', RELEASE_NAME: 'joplin.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Build and validate Joplin AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n joplin/build_joplin.sh
+          chmod +x joplin/build_joplin.sh
+          ./joplin/build_joplin.sh
+          test -s joplin/dist/joplin.AppImage
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest joplin/dist/joplin.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
   build_chatgpt:
     name: Build ChatGPT
