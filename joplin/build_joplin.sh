@@ -99,8 +99,9 @@ mkdir -p "$APPDIR/usr/bin"
 cat > "$APPDIR/usr/bin/joplin" <<'WRAPPER'
 #!/usr/bin/env bash
 set -e
-HERE="$(dirname "$(readlink -f "${0}")")"
-exec "$HERE/opt/Joplin/joplin" "$@"
+HERE="$(dirname "$(readlink -f "$0")")"
+ROOT="$(readlink -f "$HERE/../..")"
+exec "$ROOT/opt/Joplin/joplin" "$@"
 WRAPPER
 chmod +x "$APPDIR/usr/bin/joplin"
 
