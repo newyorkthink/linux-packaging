@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 从百度官方 Linux 客户端元数据动态获取当前 x86_64 包，并重新封装为 AnyLinux AppImage。
+# 从百度官方 Linux 客户端元数据动态获取当前版本，并从百度官方 pkg-ant 直链下载 x86_64 DEB，重新封装为 AnyLinux AppImage。
 # AUR baidunetdisk-bin / baidunetdisk-electron 仅作为依赖和包布局参考，不作为二进制来源。
 set -Eeuo pipefail
 
@@ -26,7 +26,7 @@ command -v yay >/dev/null 2>&1 || die "构建环境缺少命令：yay"
 readonly CLIENT_API='https://pan.baidu.com/disk/cmsdata?do=client'
 readonly SOURCE_DIR="$SCRIPT_DIR/source"
 readonly PACKAGE_ROOT="$SOURCE_DIR/package"
-readonly PACKAGE_FILE="$SOURCE_DIR/baidunetdisk-package"
+readonly PACKAGE_FILE="$SOURCE_DIR/baidunetdisk.deb"
 readonly DEB_EXTRACT_DIR="$SOURCE_DIR/deb"
 readonly APPDIR="$SCRIPT_DIR/AppDir"
 readonly APP_ROOT="$APPDIR/bin"
@@ -52,7 +52,7 @@ mkdir -p "$SOURCE_DIR" "$PACKAGE_ROOT" "$APP_ROOT" "$DIST_DIR"
 # 安装 quick-sharun 所需工具、百度网盘 Electron/GTK 运行库和隔离图形测试组件。
 # gtkmm 是 AUR 中保留的 GTK2 C++ ABI；它会拉取百度网盘当前仍需要的旧 GTK2 运行库。
 yay -S --noconfirm --needed \
-  base-devel binutils coreutils curl file findutils gawk grep libarchive patchelf python sed tar \
+  base-devel binutils coreutils curl file findutils gawk grep patchelf python sed tar \
   appstream-glib desktop-file-utils inetutils util-linux zsync \
   xorg-server xorg-server-common xorg-server-xvfb xorg-xauth \
   nss nspr alsa-lib at-spi2-core cups dbus glib2 gtk3 gtkmm \
@@ -63,7 +63,7 @@ yay -S --noconfirm --needed \
   libpulse pipewire-audio ibus
 
 for command_name in \
-  ar awk bsdtar chmod curl dbus-run-session desktop-file-validate file find grep \
+  ar awk chmod curl dbus-run-session desktop-file-validate file find grep \
   hostname install ldd quick-sharun readelf readlink sed sha256sum sort stat tar \
   timeout xvfb-run; do
   command -v "$command_name" >/dev/null 2>&1 || \
@@ -74,7 +74,7 @@ done
 # 2. 获取百度官方 Linux 安装包
 #######################################################################
 
-log "读取百度官方 Linux 客户端元数据"
+log "读取百度官方 Linux 客户端版本"
 CLIENT_JSON="$(
   curl -fsSL \
     --retry 5 \
@@ -85,43 +85,23 @@ CLIENT_JSON="$(
 )"
 [[ -n "$CLIENT_JSON" ]] || die "百度官方客户端元数据为空。"
 
-mapfile -t CLIENT_META < <(
+RAW_VERSION="$(
   printf '%s' "$CLIENT_JSON" | python3 -c '
 import json, sys
 payload = json.load(sys.stdin)
 linux = payload.get("linux") or {}
 print(linux.get("version") or "")
-print(linux.get("url") or "")
 '
-)
-[[ ${#CLIENT_META[@]} -eq 2 ]] || die "无法解析百度 Linux 客户端元数据。"
-
-RAW_VERSION="${CLIENT_META[0]}"
-PACKAGE_URL="${CLIENT_META[1]}"
+)"
 if [[ "$RAW_VERSION" =~ ^(百度网盘Linux电脑客户端)?V?([0-9]+(\.[0-9]+)+)$ ]]; then
   VERSION="${BASH_REMATCH[2]}"
 else
   die "百度官方元数据中的版本格式异常：$RAW_VERSION"
 fi
-readonly RAW_VERSION PACKAGE_URL VERSION
+readonly RAW_VERSION VERSION
+readonly PACKAGE_URL="https://pkg-ant.baidu.com/issue/netdisk/LinuxGuanjia/$VERSION/baidunetdisk_${VERSION}_amd64.deb"
 
-[[ "$PACKAGE_URL" =~ ^https://([A-Za-z0-9-]+\.)*(baidu\.com|baidupcs\.com)/ ]] || \
-  die "百度官方元数据返回了非预期下载域名：$PACKAGE_URL"
-
-PACKAGE_URL_PATH="${PACKAGE_URL%%\?*}"
-readonly PACKAGE_URL_PATH
-case "$PACKAGE_URL_PATH" in
-  *.rpm) PACKAGE_TYPE=rpm ;;
-  *.deb) PACKAGE_TYPE=deb ;;
-  *) die "百度官方 Linux 下载地址不是 RPM 或 DEB：$PACKAGE_URL" ;;
-esac
-readonly PACKAGE_TYPE
-
-# 当前官方 URL 的路径和文件名均含版本号；若接口字段不一致则停止，避免误打包其他资产。
-[[ "$PACKAGE_URL_PATH" == *"$VERSION"* ]] || \
-  die "官方下载地址与元数据版本不一致：version=$VERSION url=$PACKAGE_URL"
-
-log "下载百度网盘官方 Linux 包：$VERSION ($PACKAGE_TYPE)"
+log "下载百度网盘官方 DEB：$VERSION"
 curl -fL \
   --retry 5 \
   --retry-all-errors \
@@ -130,39 +110,31 @@ curl -fL \
   "$PACKAGE_URL" \
   -o "$PACKAGE_FILE"
 [[ -s "$PACKAGE_FILE" ]] || die "百度官方下载文件为空。"
+file "$PACKAGE_FILE" | grep -q 'Debian binary package' || \
+  die "百度官方下载文件不是 Debian 软件包。"
 sha256sum "$PACKAGE_FILE"
 
-case "$PACKAGE_TYPE" in
-  rpm)
-    file "$PACKAGE_FILE" | grep -qi 'RPM' || die "官方下载文件不是 RPM 软件包。"
-    bsdtar -xf "$PACKAGE_FILE" -C "$PACKAGE_ROOT"
-    ;;
-  deb)
-    file "$PACKAGE_FILE" | grep -q 'Debian binary package' || \
-      die "官方下载文件不是 Debian 软件包。"
-    mkdir -p "$DEB_EXTRACT_DIR"
-    (
-      cd "$DEB_EXTRACT_DIR"
-      ar x "$PACKAGE_FILE"
-    )
-    shopt -s nullglob
-    data_archives=("$DEB_EXTRACT_DIR"/data.tar.*)
-    shopt -u nullglob
-    [[ ${#data_archives[@]} -eq 1 ]] || \
-      die "官方 DEB 中应且只能有一个 data.tar.*。"
-    tar -xf "${data_archives[0]}" -C "$PACKAGE_ROOT"
-    ;;
-esac
-
-#######################################################################
-# 3. 组装百度官方运行目录
-#######################################################################
+mkdir -p "$DEB_EXTRACT_DIR"
+(
+  cd "$DEB_EXTRACT_DIR"
+  ar x "$PACKAGE_FILE"
+)
+shopt -s nullglob
+data_archives=("$DEB_EXTRACT_DIR"/data.tar.*)
+shopt -u nullglob
+[[ ${#data_archives[@]} -eq 1 ]] || \
+  die "官方 DEB 中应且只能有一个 data.tar.*。"
+tar -xf "${data_archives[0]}" -C "$PACKAGE_ROOT"
 
 readonly SOURCE_APP_ROOT="$PACKAGE_ROOT/opt/baidunetdisk"
 [[ -d "$SOURCE_APP_ROOT" ]] || die "官方包缺少 /opt/baidunetdisk。"
 [[ -x "$SOURCE_APP_ROOT/baidunetdisk" ]] || die "官方包缺少可执行主程序。"
 file "$SOURCE_APP_ROOT/baidunetdisk" | grep -q 'ELF 64-bit' || \
   die "百度网盘主程序不是 64 位 ELF。"
+
+#######################################################################
+# 3. 组装百度官方运行目录
+#######################################################################
 
 # 优先使用官方固定 desktop 路径；仅在上游改名时才在官方包内回退查找。
 if [[ -f "$PACKAGE_ROOT/usr/share/applications/baidunetdisk.desktop" ]]; then
