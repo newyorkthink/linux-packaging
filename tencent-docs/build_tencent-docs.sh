@@ -172,7 +172,7 @@ Categories=Office;
 DESKTOP_EOF
 else
   printf 'Tencent Docs desktop candidates: %s\n' "${#desktop_candidates[@]}" >&2
-  printf '  %s\n' "${desktop_candidates[@]}" >&2
+  printf '  %s\n' "${desktop_candidates[@]:-}" >&2
   die "官方包中存在多个腾讯文档 desktop 候选，无法安全选择。"
 fi
 readonly SOURCE_DESKTOP
@@ -266,10 +266,12 @@ cat > "$APPDIR/AppRun.sh" <<APPRUN_EOF
 set -e
 export SHARUN_EXTRA_LIBRARY_PATH="\$APPDIR/bin\${SHARUN_EXTRA_LIBRARY_PATH:+:\$SHARUN_EXTRA_LIBRARY_PATH}"
 export SHARUN_WORKING_DIR="\$APPDIR/bin"
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
 export GTK_IM_MODULE="\${GTK_IM_MODULE:-ibus}"
 export XMODIFIERS="\${XMODIFIERS:-@im=ibus}"
 cd "\$APPDIR/bin"
-exec "\$APPDIR/bin/$MAIN_RELATIVE" "\$@"
+exec "\$APPDIR/bin/$MAIN_RELATIVE" --lang=zh-CN "\$@"
 APPRUN_EOF
 chmod 0755 "$APPDIR/AppRun.sh"
 bash -n "$APPDIR/AppRun.sh"
