@@ -75,13 +75,23 @@ done
 #######################################################################
 
 log "下载腾讯文档官方 latest Linux x64 DEB"
-curl -fL \
+if ! curl -fL \
   --retry 5 \
   --retry-all-errors \
   --retry-delay 2 \
   --connect-timeout 20 \
   "$PACKAGE_URL" \
-  -o "$PACKAGE_FILE"
+  -o "$PACKAGE_FILE"; then
+  rm -f "$PACKAGE_FILE"
+  log "常规下载失败，切换 IPv4 + HTTP/1.1 并延长连接超时重试"
+  curl --ipv4 --http1.1 -fL \
+    --retry 8 \
+    --retry-all-errors \
+    --retry-delay 3 \
+    --connect-timeout 60 \
+    "$PACKAGE_URL" \
+    -o "$PACKAGE_FILE"
+fi
 [[ -s "$PACKAGE_FILE" ]] || die "腾讯官方下载文件为空。"
 file "$PACKAGE_FILE" | grep -q 'Debian binary package' || die "腾讯官方下载文件不是 Debian 软件包。"
 sha256sum "$PACKAGE_FILE"
