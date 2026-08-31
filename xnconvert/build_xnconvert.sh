@@ -47,12 +47,13 @@ dpkg-deb -x "$DEB" "$APPDIR"
 test -x "$APPDIR/opt/XnConvert/XnConvert"
 test -f "$DESKTOP_FILE"
 test -f "$ICON_FILE"
+test -f "$APPDIR/opt/XnConvert/lib/platforms/libqxcb.so"
 
 # The official desktop uses an absolute /opt icon path; linuxdeploy expects an icon name.
 sed -i 's|^Icon=.*|Icon=xnconvert|' "$DESKTOP_FILE"
 
-# Keep the launcher limited to translating the installed /opt path into the AppImage mount.
-# linuxdeploy-plugin-qt owns QT_PLUGIN_PATH and its generated AppRun owns the bundled usr/lib path.
+# XnConvert ships its own Qt build under /opt/XnConvert. Keep that Qt build and its own
+# qxcb plugin together, then use linuxdeploy's usr/lib only as the fallback for XCB/runtime deps.
 cat > "$APPDIR/usr/bin/xnconvert" <<'EOF_APPRUN'
 #!/usr/bin/env bash
 set -Eeuo pipefail
@@ -62,7 +63,10 @@ ROOT="$(readlink -f "$HERE/../..")"
 
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}${LD_LIBRARY_PATH:+:}$ROOT/opt/XnConvert/lib"
+export LD_LIBRARY_PATH="$ROOT/opt/XnConvert/lib:$ROOT/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export QT_PLUGIN_PATH="$ROOT/opt/XnConvert/lib"
+export QT_QPA_PLATFORM_PLUGIN_PATH="$ROOT/opt/XnConvert/lib/platforms"
+export QT_QPA_PLATFORM=xcb
 
 exec "$ROOT/opt/XnConvert/XnConvert" "$@"
 EOF_APPRUN
@@ -97,7 +101,7 @@ export LD_LIBRARY_PATH="$APPDIR/opt/XnConvert/lib:${LD_LIBRARY_PATH:-}"
 test -s "$OUTFILE"
 chmod +x "$OUTFILE"
 
-# Check the final AppImage instead of trusting the Ubuntu runner's host Qt/XCB libraries.
+# Check the exact Qt/xcb path used by the final launcher, not the runner's host Qt plugin.
 VERIFY_DIR="$SOURCE_DIR/verify-appimage"
 rm -rf "$VERIFY_DIR"
 mkdir -p "$VERIFY_DIR"
@@ -108,17 +112,22 @@ mkdir -p "$VERIFY_DIR"
 VERIFY_ROOT="$VERIFY_DIR/squashfs-root"
 test -x "$VERIFY_ROOT/usr/bin/xnconvert"
 test -x "$VERIFY_ROOT/opt/XnConvert/XnConvert"
-test -e "$VERIFY_ROOT/usr/plugins/platforms/libqxcb.so"
+test -e "$VERIFY_ROOT/opt/XnConvert/lib/platforms/libqxcb.so"
+test -e "$VERIFY_ROOT/usr/lib/libxcb-icccm.so.4"
+test -e "$VERIFY_ROOT/usr/lib/libxcb-image.so.0"
+test -e "$VERIFY_ROOT/usr/lib/libxcb-keysyms.so.1"
+test -e "$VERIFY_ROOT/usr/lib/libxcb-render-util.so.0"
+test -e "$VERIFY_ROOT/usr/lib/libxcb-xkb.so.1"
+test -e "$VERIFY_ROOT/usr/lib/libxkbcommon-x11.so.0"
 
-if grep -Fq 'export QT_PLUGIN_PATH=' "$VERIFY_ROOT/usr/bin/xnconvert"; then
-  echo "ERROR: xnconvert wrapper must not override linuxdeploy Qt plugin paths" >&2
-  exit 1
-fi
+grep -Fqx 'export QT_PLUGIN_PATH="$ROOT/opt/XnConvert/lib"' "$VERIFY_ROOT/usr/bin/xnconvert"
+grep -Fqx 'export QT_QPA_PLATFORM_PLUGIN_PATH="$ROOT/opt/XnConvert/lib/platforms"' "$VERIFY_ROOT/usr/bin/xnconvert"
+grep -Fqx 'export QT_QPA_PLATFORM=xcb' "$VERIFY_ROOT/usr/bin/xnconvert"
 
-LDD_OUTPUT="$(LD_LIBRARY_PATH="$VERIFY_ROOT/usr/lib:$VERIFY_ROOT/opt/XnConvert/lib" ldd "$VERIFY_ROOT/usr/plugins/platforms/libqxcb.so")"
+LDD_OUTPUT="$(LD_LIBRARY_PATH="$VERIFY_ROOT/opt/XnConvert/lib:$VERIFY_ROOT/usr/lib" ldd "$VERIFY_ROOT/opt/XnConvert/lib/platforms/libqxcb.so")"
 printf '%s\n' "$LDD_OUTPUT"
 if grep -Fq 'not found' <<<"$LDD_OUTPUT"; then
-  echo "ERROR: bundled Qt xcb plugin still has unresolved shared libraries" >&2
+  echo "ERROR: bundled official XnConvert qxcb plugin still has unresolved shared libraries" >&2
   exit 1
 fi
 
