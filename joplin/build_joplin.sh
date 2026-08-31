@@ -193,22 +193,53 @@ if [[ ${#icon_candidates[@]} -eq 0 ]]; then
   )
 fi
 [[ ${#icon_candidates[@]} -gt 0 ]] || die "Joplin 官方包中未找到 PNG 图标。"
-SOURCE_ICON="${icon_candidates[0]}"
-source_icon_size="$(stat -c '%s' "$SOURCE_ICON")"
-for icon_candidate in "${icon_candidates[@]:1}"; do
-  icon_size="$(stat -c '%s' "$icon_candidate")"
-  if (( icon_size > source_icon_size )); then
-    SOURCE_ICON="$icon_candidate"
-    source_icon_size="$icon_size"
-  fi
-done
-readonly SOURCE_ICON
+
+# linuxdeploy 只接受固定的 hicolor 图标尺寸；Joplin 官方包同时包含 1024x1024，
+# 因此不能按文件体积盲选最大图标。读取 PNG IHDR，选择 linuxdeploy 支持的最大正方形尺寸。
+mapfile -d '' selected_icon < <(
+  python3 - "${icon_candidates[@]}" <<'PY'
+import struct
+import sys
+
+supported = {8, 16, 20, 22, 24, 28, 32, 36, 42, 48, 64, 72, 96, 128, 160, 192, 256, 384, 480, 512}
+best = None
+
+for path in sys.argv[1:]:
+    try:
+        with open(path, "rb") as fh:
+            header = fh.read(24)
+    except OSError:
+        continue
+
+    if len(header) != 24 or header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+        continue
+
+    width, height = struct.unpack(">II", header[16:24])
+    if width != height or width not in supported:
+        continue
+
+    candidate = (width, path)
+    if best is None or candidate[0] > best[0]:
+        best = candidate
+
+if best is None:
+    raise SystemExit("no linuxdeploy-compatible square PNG icon found")
+
+size, path = best
+sys.stdout.buffer.write(path.encode("utf-8") + b"\0" + str(size).encode("ascii") + b"\0")
+PY
+)
+[[ ${#selected_icon[@]} -eq 2 ]] || die "Joplin 官方包中没有 linuxdeploy 支持尺寸的 PNG 图标。"
+readonly SOURCE_ICON="${selected_icon[0]}"
+readonly SOURCE_ICON_SIZE="${selected_icon[1]}"
 file "$SOURCE_ICON" | grep -q 'PNG image data' || die "Joplin 官方图标不是 PNG。"
 
-printf 'Joplin runtime: %s\nJoplin desktop: %s\nJoplin icon: %s\n' \
+printf 'Joplin runtime: %s\nJoplin desktop: %s\nJoplin icon: %s (%sx%s)\n' \
   "${SOURCE_APP_ROOT#"$PACKAGE_ROOT"/}" \
   "${SOURCE_DESKTOP#"$PACKAGE_ROOT"/}" \
-  "${SOURCE_ICON#"$PACKAGE_ROOT"/}"
+  "${SOURCE_ICON#"$PACKAGE_ROOT"/}" \
+  "$SOURCE_ICON_SIZE" \
+  "$SOURCE_ICON_SIZE"
 
 log "复制 Joplin 官方 Electron 运行目录"
 cp -a "$SOURCE_APP_ROOT"/. "$APP_ROOT"/
@@ -248,13 +279,14 @@ else
 fi
 desktop-file-validate "$BUILD_DESKTOP"
 
+readonly APP_ICON_DIR="$APPDIR/usr/share/icons/hicolor/${SOURCE_ICON_SIZE}x${SOURCE_ICON_SIZE}/apps"
 mkdir -p \
   "$APPDIR/usr/share/applications" \
-  "$APPDIR/usr/share/icons/hicolor/512x512/apps"
+  "$APP_ICON_DIR"
 cp -a "$BUILD_DESKTOP" "$APPDIR/usr/share/applications/joplin.desktop"
-cp -a "$BUILD_ICON" "$APPDIR/usr/share/icons/hicolor/512x512/apps/joplin.png"
+cp -a "$BUILD_ICON" "$APP_ICON_DIR/joplin.png"
 readonly APP_DESKTOP="$APPDIR/usr/share/applications/joplin.desktop"
-readonly APP_ICON="$APPDIR/usr/share/icons/hicolor/512x512/apps/joplin.png"
+readonly APP_ICON="$APP_ICON_DIR/joplin.png"
 
 # 构建前检查官方 Electron 目录中的全部 ELF 在 Ubuntu 22.04 上没有缺失依赖。
 elf_targets=()
