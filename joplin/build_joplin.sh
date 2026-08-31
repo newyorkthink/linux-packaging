@@ -95,20 +95,15 @@ sed -i -e 's|^Exec=.*|Exec=joplin %U|' -e 's|^Icon=.*|Icon=joplin|' "$DESKTOP_FI
 # linuxdeploy 不接受 1024x1024 图标；保留官方 512x512 及其他标准尺寸。
 rm -f "$APPDIR/usr/share/icons/hicolor/1024x1024/apps/joplin.png"
 
-# usr/bin/joplin 只负责启动；运行环境由 linuxdeploy AppRun hooks 提供。
+# usr/bin/joplin 只负责启动并强制使用 Adwaita dark；其余运行环境由 linuxdeploy GTK 插件提供。
 mkdir -p "$APPDIR/usr/bin"
 cat > "$APPDIR/usr/bin/joplin" <<'WRAPPER'
 #!/usr/bin/env sh
+export GTK_THEME=Adwaita:dark
 exec "${APPDIR}/opt/Joplin/joplin" "$@"
 WRAPPER
 chmod +x "$APPDIR/usr/bin/joplin"
 sh -n "$APPDIR/usr/bin/joplin"
-
-# GTK 插件默认可能选择 light；后置 hook 强制 Joplin 使用 Adwaita dark。
-mkdir -p "$APPDIR/apprun-hooks"
-cat > "$APPDIR/apprun-hooks/zz-joplin-theme.sh" <<'HOOK'
-export GTK_THEME=Adwaita:dark
-HOOK
 
 # Electron/NSS 会 dlopen 这些模块；linuxdeploy 只跟踪 ELF NEEDED，不会自动收集它们。
 MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
