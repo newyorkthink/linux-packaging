@@ -146,6 +146,9 @@ if [[ -d /usr/share/qt5/translations ]]; then
   cp -a /usr/share/qt5/translations/. "$APPDIR/usr/translations/"
 fi
 
+cp -a "$APPDIR/opt/XnView/lib"/libQt5XcbQpa.so* "$APPDIR/usr/lib/"
+test -e "$APPDIR/usr/lib/libQt5XcbQpa.so.5"
+
 copy_runtime_glob() {
   local pattern="$1"
   local files=()
