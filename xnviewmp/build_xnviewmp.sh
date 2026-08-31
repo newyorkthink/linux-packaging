@@ -21,7 +21,7 @@ curl -fL --retry 3 \
   -o "$CHECKSUMS"
 
 read -r EXPECTED_SHA APPIMAGE_NAME < <(
-  awk '$2 ~ /^XnView_MP-[0-9.]+\.glibc[0-9.]+-x86_64\.AppImage$/ {gsub(/\r/, "", $2); print $1, $2; exit}' "$CHECKSUMS"
+  awk '{gsub(/\r/, "", $2)} $2 ~ /^XnView_MP-[0-9.]+\.glibc[0-9.]+-x86_64\.AppImage$/ {print $1, $2; exit}' "$CHECKSUMS"
 )
 test -n "${EXPECTED_SHA:-}"
 test -n "${APPIMAGE_NAME:-}"
