@@ -18,12 +18,13 @@ mkdir -p "$SOURCE_DIR" "$DIST_DIR"
 
 # 直接使用 XnView 官方 AppImage 作为稳定运行时基线。
 curl -fL --retry 3 "$BASE_URL/XnView_MP-CHECKSUMS.txt" -o "$CHECKSUMS"
-APPIMAGE_NAME="$(awk '$2 ~ /^XnView_MP-[0-9.]+\.glibc[0-9.]+-x86_64\.AppImage$/ {print $2}' "$CHECKSUMS" | sort -V | tail -n1)"
-APPIMAGE_SHA256="$(awk -v file="$APPIMAGE_NAME" '$2 == file {print $1; exit}' "$CHECKSUMS")"
-OFFICIAL_APPIMAGE="$SOURCE_DIR/$APPIMAGE_NAME"
-
+read -r APPIMAGE_SHA256 APPIMAGE_NAME < <(
+  grep -m1 -E 'XnView_MP-[0-9.]+\.glibc[0-9.]+-x86_64\.AppImage$' "$CHECKSUMS"
+)
 test -n "$APPIMAGE_NAME"
 test -n "$APPIMAGE_SHA256"
+OFFICIAL_APPIMAGE="$SOURCE_DIR/$APPIMAGE_NAME"
+
 curl -fL --retry 3 "$BASE_URL/$APPIMAGE_NAME" -o "$OFFICIAL_APPIMAGE"
 echo "$APPIMAGE_SHA256  $OFFICIAL_APPIMAGE" | sha256sum -c -
 chmod +x "$OFFICIAL_APPIMAGE"
