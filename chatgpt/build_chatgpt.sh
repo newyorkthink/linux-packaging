@@ -55,7 +55,7 @@ mkdir -p "$SOURCE_DIR" "$PACKAGE_ROOT" "$APP_ROOT" "$DIST_DIR"
 # 安装官方 deb 提取、Electron/Chromium 依赖部署、输入法和隔离图形启动测试所需组件。
 yay -S --noconfirm --needed \
   base-devel binutils coreutils curl file findutils gawk grep inetutils patchelf sed tar xz zstd \
-  appstream-glib desktop-file-utils util-linux zsync \
+  appstream-glib bubblewrap desktop-file-utils util-linux zsync \
   xorg-server xorg-server-common xorg-server-xvfb \
   nss nspr gtk3 at-spi2-core cups dbus glib2 pango cairo expat fontconfig freetype2 \
   libx11 libxext libxi libxtst libxss libxrandr libxcomposite libxdamage libxfixes \
@@ -71,6 +71,7 @@ for command_name in \
   command -v "$command_name" >/dev/null 2>&1 || \
     die "构建环境缺少命令：$command_name"
 done
+[[ -x /usr/bin/bwrap ]] || die "构建环境缺少宿主 bubblewrap：/usr/bin/bwrap"
 
 log "读取 OpenAI 官方 stable amd64 软件包元数据"
 curl -fL \
@@ -314,7 +315,8 @@ cat > "$APPDIR/AppRun.sh" <<'APPRUN_EOF'
 #!/bin/sh
 set -e
 
-export PATH="$APPDIR/bin${PATH:+:$PATH}"
+# 优先使用宿主发行版的 bubblewrap，同时保留 AppImage 内工具作为后备
+export PATH="/usr/bin:/bin${PATH:+:$PATH}:$APPDIR/bin"
 export SHARUN_EXTRA_LIBRARY_PATH="$APPDIR/bin${SHARUN_EXTRA_LIBRARY_PATH:+:$SHARUN_EXTRA_LIBRARY_PATH}"
 export SHARUN_WORKING_DIR="$APPDIR/bin"
 
@@ -523,6 +525,24 @@ verify_bundled_library 'libnotify.so.*' libnotify
 verify_bundled_library 'libsecret-1.so.*' libsecret
 verify_bundled_library 'libusb-1.0.so.*' libusb
 verify_bundled_library 'libudev.so.*' libudev
+
+# 使用与最终 AppRun 等效的 PATH 验证最终 AppImage 内 Codex 的 Linux 命令沙盒。
+readonly CODEX_TEST_PATH="/usr/bin:/bin${PATH:+:$PATH}:$VERIFY_APP_ROOT"
+[[ "$(PATH="$CODEX_TEST_PATH" command -v bwrap)" == /usr/bin/bwrap ]] || \
+  die "Codex 沙盒测试未优先使用宿主 /usr/bin/bwrap。"
+set +e
+codex_sandbox_output="$(
+  PATH="$CODEX_TEST_PATH" \
+    "$VERIFY_APP_ROOT/resources/codex" sandbox /usr/bin/true 2>&1
+)"
+codex_sandbox_rc=$?
+set -e
+[[ -z "$codex_sandbox_output" ]] || printf '%s\n' "$codex_sandbox_output"
+printf 'ChatGPT Codex sandbox test exit code: %s\n' "$codex_sandbox_rc"
+if grep -Eqi '(^|[[:space:]])bwrap:' <<< "$codex_sandbox_output"; then
+  die "ChatGPT Codex 沙盒测试检测到 bwrap 错误。"
+fi
+[[ "$codex_sandbox_rc" -eq 0 ]] || die "ChatGPT Codex 沙盒测试失败：$codex_sandbox_rc"
 
 # 在隔离 HOME、XDG 目录、D-Bus 会话和虚拟 X11 中直接启动最终 AppImage。
 mkdir -p \
