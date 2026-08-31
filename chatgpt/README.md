@@ -18,6 +18,7 @@
 - AppImage 无法使用官方 deb 针对固定安装路径提供的 AppArmor userns 规则，因此便携入口使用 `--no-sandbox --disable-setuid-sandbox` 启动 Electron/Chromium；这两个参数只针对 Electron/Chromium，不代表禁用 Codex 命令沙盒。
 - ChatGPT AppImage 的 Codex 命令沙盒依赖宿主发行版安装的 `bubblewrap`。启动入口会把 `/usr/bin` 和 `/bin` 放在 PATH 最前，确保优先使用宿主 `/usr/bin/bwrap`；AppImage 内部工具目录保留在 PATH 末尾，只作为后备，不会删除或替换宿主 `bwrap`。
 - 构建后会检查最终 AppImage 的关键资源、动态库和官方 Codex 二进制摘要，并使用最终 AppImage 内的 `resources/codex` 执行 `codex sandbox /usr/bin/true`，随后在隔离 HOME、D-Bus 与 Xvfb 中执行图形启动测试。
+- GitHub Actions 的 ChatGPT Job 单独以 `--privileged` 启动临时 Arch Linux 构建容器，仅用于允许嵌套 `bubblewrap` 在 CI 中创建 namespace 并执行上述真实 Codex 沙盒测试；该 CI 权限不会进入 AppImage，也不改变终端用户运行时的权限模型。
 
 OpenAI 当前将 Linux 桌面版标记为预览版，并正式支持指定版本的 Ubuntu、Debian 和 Fedora。这里生成的 AppImage 是本仓库的便携重打包产物，不是 OpenAI 官方发布格式。
 

@@ -1312,7 +1312,9 @@ jobs:
     if: fromJSON(needs.plan.outputs.builds).chatgpt == 'true'
     runs-on: *arch_runner
     timeout-minutes: 90
-    container: *arch_container
+    container:
+      image: ghcr.io/pkgforge-dev/archlinux:latest
+      options: --privileged
     permissions: *arch_permissions
     env: {BUILD_SCRIPT: 'chatgpt/build_chatgpt.sh', ARTIFACT_DIR: 'chatgpt/dist', RELEASE_NAME: 'chatgpt.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
