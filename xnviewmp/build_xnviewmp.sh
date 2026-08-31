@@ -16,6 +16,16 @@ QT_PLUGIN="$SOURCE_DIR/linuxdeploy-plugin-qt-x86_64.AppImage"
 rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
 mkdir -p "$SOURCE_DIR" "$DIST_DIR"
 
+# Ubuntu runner: install the Qt/XCB/GStreamer/Fcitx5 runtime pieces linuxdeploy may need.
+sudo apt-get install -y --no-install-recommends \
+  qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 \
+  fcitx5-frontend-qt5 libfcitx5-qt1 \
+  libqt5multimedia5 libqt5multimedia5-plugins libqt5multimediagsttools5 \
+  libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 \
+  gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+  libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+  libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
+
 curl -fL --retry 3 \
   https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt \
   -o "$CHECKSUMS"
@@ -47,10 +57,11 @@ exec "$ROOT/opt/XnView/XnView" "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/usr/bin/xnview"
 
-# linuxdeploy-plugin-qt detects Qt modules from AppDir/usr/lib.
-# Keep XnView's own Qt first at runtime; this copy is only the deployment seed.
+# Give linuxdeploy-plugin-qt one XCB-related Qt seed only. Do not seed every Qt module,
+# otherwise unrelated Multimedia/QML modules drag in unnecessary dependency chains.
 mkdir -p "$APPDIR/usr/lib"
-cp -a "$APPDIR/opt/XnView/lib"/libQt5*.so* "$APPDIR/usr/lib/"
+cp -a "$APPDIR/opt/XnView/lib"/libQt5XcbQpa.so* "$APPDIR/usr/lib/"
+test -e "$APPDIR/usr/lib/libQt5XcbQpa.so.5"
 
 curl -fL --retry 3 \
   https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
