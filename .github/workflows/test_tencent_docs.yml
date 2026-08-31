@@ -1,74 +1,55 @@
-name: Test Tencent Docs AppImage
+name: Integrate Tencent Docs AppImage
 
 on:
   push:
     branches: [main]
     paths:
-      - 'tencent-docs/**'
       - '.github/workflows/test_tencent_docs.yml'
 
 permissions:
   contents: write
 
 jobs:
-  test_tencent_docs:
-    name: Test Tencent Docs
+  integrate_tencent_docs:
+    name: Integrate Tencent Docs
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    container: ghcr.io/pkgforge-dev/archlinux:latest
-    permissions:
-      contents: write
-      packages: read
+    timeout-minutes: 15
 
     steps:
-      - name: Pre-install Git
-        run: pacman -Sy --noconfirm git
-
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Preparing Container
-        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
-
-      - name: Build, validate and publish Tencent Docs AppImage
-        uses: ./.github/actions/build-anylinux
-        with:
-          build_script: tencent-docs/build_tencent-docs.sh
-          artifact_dir: tencent-docs/dist
-          release_name: tencent-docs.AppImage
-          run_from_root: 'false'
-          github_token: ${{ github.token }}
-
-      - name: Integrate Tencent Docs into unified workflow
+      - name: Integrate into unified workflow
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
 
-          # 基于此刻最新 main 集成，避免覆盖并行加入的其他应用。
-          git fetch origin main
-          git reset --hard origin/main
-
-          python3 - <<'PY'
+          cat > /tmp/integrate_tencent_docs.py <<'PY'
+          import re
           from pathlib import Path
 
           workflow = Path('.github/workflows/build.yml')
           text = workflow.read_text(encoding='utf-8')
 
-          def insert_after(anchor: str, addition: str) -> None:
+          def insert_before(marker: str, addition: str) -> None:
               global text
               if addition in text:
                   return
-              if text.count(anchor) != 1:
-                  raise SystemExit(f'无法唯一定位 workflow 锚点: {anchor!r}')
-              text = text.replace(anchor, anchor + addition, 1)
+              if text.count(marker) != 1:
+                  raise SystemExit(f'无法唯一定位 workflow 锚点: {marker!r}')
+              text = text.replace(marker, addition + marker, 1)
 
-          insert_after("      - 'xmind/**'\n", "      - 'tencent-docs/**'\n")
-          insert_after(
-              "          - xmind/build_xmind.sh\n",
+          # 路径过滤：放在 workflow 自身之前，不依赖某个应用恰好排在最后。
+          insert_before(
+              "      - '.github/workflows/build.yml'\n",
+              "      - 'tencent-docs/**'\n",
+          )
+
+          # workflow_dispatch：放在 permissions 前，避免依赖 XMind/Stacher 等并行项目的顺序。
+          insert_before(
+              "\npermissions:\n",
               "          - tencent-docs/build_tencent-docs.sh\n",
           )
 
@@ -83,26 +64,30 @@ jobs:
               if len(matches) != 1:
                   raise SystemExit(f'无法唯一定位 {array_name} 数组。')
               index = matches[0]
-              if token in lines[index]:
+              values = lines[index]
+              if token in values:
                   continue
-              line = lines[index].rstrip('\n')
-              if not line.endswith(')'):
+              stripped = values.rstrip('\n')
+              if not stripped.endswith(')'):
                   raise SystemExit(f'{array_name} 数组格式异常。')
-              lines[index] = line[:-1] + f' {token})\n'
+              lines[index] = stripped[:-1] + f' {token})\n'
           text = ''.join(lines)
 
           job = """
 
-          build_tencent_docs:
-            name: Build Tencent Docs
-            needs: plan
-            if: fromJSON(needs.plan.outputs.builds).tencent_docs == 'true'
-            runs-on: *arch_runner
-            timeout-minutes: 90
-            container: *arch_container
-            permissions: *arch_permissions
-            env: {BUILD_SCRIPT: 'tencent-docs/build_tencent-docs.sh', ARTIFACT_DIR: 'tencent-docs/dist', RELEASE_NAME: 'tencent-docs.AppImage', RUN_FROM_ROOT: 'false'}
-            steps: *arch_steps
+  build_tencent_docs:
+    name: Build Tencent Docs
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).tencent_docs == 'true'
+    runs-on: *arch_runner
+    container: *arch_container
+    permissions: *arch_permissions
+    env:
+      BUILD_SCRIPT: tencent-docs/build_tencent-docs.sh
+      ARTIFACT_DIR: tencent-docs/dist
+      RELEASE_NAME: tencent-docs.AppImage
+      RUN_FROM_ROOT: "0"
+    steps: *arch_steps
           """.strip('\n') + '\n'
 
           if '\n  build_tencent_docs:\n' not in text:
@@ -111,22 +96,7 @@ jobs:
           workflow.write_text(text, encoding='utf-8')
           PY
 
-          cat > tencent-docs/README.md <<'README_EOF'
-          # Tencent Docs AppImage
-
-          - 上游：腾讯文档官方 Linux x64 DEB。
-          - 下载：通过腾讯官方 `version_id=latest` 接口动态获取当前版本。
-          - AUR：`tencent-docs-bin` 仅用于核对官方来源、运行目录和依赖，不直接作为二进制来源。
-          - 打包：保留 `/opt/tencent/tencent-docs` 的完整 Electron 运行目录，使用 `quick-sharun` 补齐跨发行版运行库并生成 `tencent-docs.AppImage`。
-          - 运行时：不写入系统目录、不安装系统服务、不修改宿主配置；应用自身的用户配置和缓存仍按腾讯文档/Electron 的正常行为写入用户目录。
-          README_EOF
-
-          rm -f .github/workflows/test_tencent_docs.yml
-
-          pacman -S --noconfirm --needed python-yaml >/dev/null
-
-          bash -n tencent-docs/build_tencent-docs.sh
-          python3 - <<'PY'
+          cat > /tmp/validate_tencent_docs.py <<'PY'
           import re
           import shlex
           from pathlib import Path
@@ -147,33 +117,70 @@ jobs:
           dirs = parse_array('DIRS')
           if not (len(keys) == len(scripts) == len(dirs)):
               raise SystemExit('KEYS/SCRIPTS/DIRS 长度不一致。')
+
           mapping = dict(zip(keys, zip(scripts, dirs)))
           expected = ('tencent-docs/build_tencent-docs.sh', 'tencent-docs')
           if mapping.get('tencent_docs') != expected:
               raise SystemExit(f'Tencent Docs plan 映射异常：{mapping.get("tencent_docs")}')
-          if text.count("      - 'tencent-docs/**'\n") != 1:
-              raise SystemExit('Tencent Docs push path 数量异常。')
-          if text.count('          - tencent-docs/build_tencent-docs.sh\n') != 1:
-              raise SystemExit('Tencent Docs workflow_dispatch 选项数量异常。')
-          if text.count('\n  build_tencent_docs:\n') != 1:
-              raise SystemExit('Tencent Docs Job 数量异常。')
+
+          checks = {
+              "      - 'tencent-docs/**'\n": 'push path',
+              '          - tencent-docs/build_tencent-docs.sh\n': 'workflow_dispatch option',
+              '\n  build_tencent_docs:\n': 'build job',
+              '      BUILD_SCRIPT: tencent-docs/build_tencent-docs.sh\n': 'job build script',
+              '      ARTIFACT_DIR: tencent-docs/dist\n': 'job artifact dir',
+              '      RELEASE_NAME: tencent-docs.AppImage\n': 'job release name',
+          }
+          for needle, label in checks.items():
+              if text.count(needle) != 1:
+                  raise SystemExit(f'Tencent Docs {label} 数量异常。')
           PY
 
-          git diff --check
-          git status --short
-          git diff -- .github/workflows/build.yml .github/workflows/test_tencent_docs.yml tencent-docs/README.md
-
-          mapfile -t changed_files < <(git status --porcelain=v1 | sed -E 's/^.. //')
-          printf '%s\n' "${changed_files[@]}" | sort > /tmp/tencent-docs-changed-files
-          printf '%s\n' \
-            '.github/workflows/build.yml' \
-            '.github/workflows/test_tencent_docs.yml' \
-            'tencent-docs/README.md' \
-            | sort > /tmp/tencent-docs-expected-files
-          diff -u /tmp/tencent-docs-expected-files /tmp/tencent-docs-changed-files
-
+          python3 -m pip install --disable-pip-version-check --quiet pyyaml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add .github/workflows/build.yml .github/workflows/test_tencent_docs.yml tencent-docs/README.md
-          git commit -m 'feat: integrate Tencent Docs AppImage packaging'
-          git push origin HEAD:main
+
+          for attempt in 1 2 3; do
+            echo "Integration attempt ${attempt}/3"
+            git fetch origin main
+            git reset --hard origin/main
+
+            python3 /tmp/integrate_tencent_docs.py
+
+            cat > tencent-docs/README.md <<'README_EOF'
+          # Tencent Docs
+
+          将腾讯文档官方 Linux Debian 包封装为 AppImage。
+
+          - 上游包：`https://docs.qq.com/api/package/get?channel_id=30001&version_id=latest&package_name=TencentDocs-x64.deb`
+          - 保留官方 `/opt/腾讯文档` Electron 运行时及 resources（含 app.asar 和原生模块）
+          - 不替换上游 Electron，不修改 app.asar
+          - 仅补齐 AppImage 运行时依赖和入口
+          - 产物：`tencent-docs.AppImage`
+          - 统一构建入口：`.github/workflows/build.yml`
+          README_EOF
+
+            rm -f .github/workflows/test_tencent_docs.yml
+
+            bash -n tencent-docs/build_tencent-docs.sh
+            python3 /tmp/validate_tencent_docs.py
+            git diff --check
+
+            mapfile -t changed_files < <(git status --porcelain=v1 | sed -E 's/^.. //')
+            printf '%s\n' "${changed_files[@]}" | sort > /tmp/tencent-docs-changed-files
+            printf '%s\n' \
+              '.github/workflows/build.yml' \
+              '.github/workflows/test_tencent_docs.yml' \
+              'tencent-docs/README.md' \
+              | sort > /tmp/tencent-docs-expected-files
+            diff -u /tmp/tencent-docs-expected-files /tmp/tencent-docs-changed-files
+
+            git add .github/workflows/build.yml .github/workflows/test_tencent_docs.yml tencent-docs/README.md
+            git commit -m 'build: integrate Tencent Docs AppImage'
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+          done
+
+          echo '连续 3 次非强推均遇到 main 并发更新，停止以避免覆盖其他改动。' >&2
+          exit 1
