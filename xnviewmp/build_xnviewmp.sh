@@ -61,6 +61,7 @@ DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 \
   gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
   libpulse0 libpulse-mainloop-glib0 \
+  libva2 libva-drm2 libva-x11-2 \
   libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 libudev1 \
   libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
   libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
@@ -170,6 +171,9 @@ for runtime_lib in \
   libgstgl-1.0.so.0 \
   libpulse.so.0 \
   libpulse-mainloop-glib.so.0 \
+  libva.so.2 \
+  libva-drm.so.2 \
+  libva-x11.so.2 \
   libwayland-client.so.0 \
   libwayland-cursor.so.0 \
   libwayland-egl.so.1 \
@@ -217,6 +221,9 @@ test -e "$VERIFY_ROOT/usr/lib/libgstreamer-1.0.so.0"
 test -e "$VERIFY_ROOT/usr/lib/libgstapp-1.0.so.0"
 test -e "$VERIFY_ROOT/usr/lib/libpulse.so.0"
 test -e "$VERIFY_ROOT/usr/lib/libpulse-mainloop-glib.so.0"
+test -e "$VERIFY_ROOT/usr/lib/libva.so.2"
+test -e "$VERIFY_ROOT/usr/lib/libva-drm.so.2"
+test -e "$VERIFY_ROOT/usr/lib/libva-x11.so.2"
 test -e "$VERIFY_ROOT/usr/lib/libwayland-client.so.0"
 test -e "$VERIFY_ROOT/usr/lib/libudev.so.1"
 compgen -G "$VERIFY_ROOT/usr/lib/libpulsecommon-*.so" >/dev/null
@@ -255,8 +262,8 @@ run_media_smoke() {
 
   cat "$log_file"
   printf '[XnView MP] %s smoke exit code: %s\n' "$name" "$rc"
-  if grep -Eqi 'segmentation fault|core dumped|Crash report dumped|KCrashReporter|Aborted|error while loading shared libraries|Could not load the Qt platform plugin|no Qt platform plugin could be initialized' "$log_file"; then
-    echo "ERROR: XnView MP $name smoke test detected a crash" >&2
+  if grep -Eqi 'segmentation fault|core dumped|Crash report dumped|KCrashReporter|Aborted|error while loading shared libraries|Could not load the Qt platform plugin|no Qt platform plugin could be initialized|failed to load libva\.so\.[12]' "$log_file"; then
+    echo "ERROR: XnView MP $name smoke test detected a crash or missing media runtime" >&2
     exit 1
   fi
   if [[ "$rc" -ne 0 && "$rc" -ne 124 ]]; then
@@ -287,12 +294,12 @@ if grep -Eqi 'segmentation fault|core dumped|Crash report dumped|KCrashReporter|
   exit 1
 fi
 
-# The previous CI only tested MPEG-4 Part 2 and therefore missed the user's crash.
-# Test a phone/TikTok-style portrait H.264 + AAC file and an HEVC Main file.
+# Exercise common phone/social-video formats. 1080p H.264 is included because the
+# real failure was reproduced while selecting a 1080p MP4 in XnView's media browser.
 H264_SMOKE="$SOURCE_DIR/h264-smoke.mp4"
 HEVC_SMOKE="$SOURCE_DIR/hevc-smoke.mp4"
 ffmpeg -hide_banner -loglevel error -y \
-  -f lavfi -i 'testsrc2=size=360x640:rate=30' \
+  -f lavfi -i 'testsrc2=size=1920x1080:rate=30' \
   -f lavfi -i 'sine=frequency=1000:sample_rate=48000' \
   -t 3 -c:v libx264 -preset ultrafast -profile:v high -level 4.1 -pix_fmt yuv420p \
   -c:a aac -b:a 128k -shortest -movflags +faststart "$H264_SMOKE"
