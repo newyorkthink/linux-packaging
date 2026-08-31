@@ -149,14 +149,12 @@ export APPIMAGE_EXTRACT_AND_RUN=1
 export DEPLOY_GTK_VERSION=3
 export LDAI_OUTPUT="$OUTFILE"
 export VERSION
-export LD_LIBRARY_PATH="$APP_ROOT:${LD_LIBRARY_PATH:-}"
 
 log "package with Ubuntu 22.04 + linuxdeploy + GTK plugin"
-linuxdeploy \
+"$LINUXDEPLOY" \
   --appdir "$APPDIR" \
   --desktop-file "$DESKTOP_FILE" \
   --icon-file "$ICON_FILE" \
-  --executable "$MAIN_BIN" \
   --plugin gtk \
   --output appimage
 
