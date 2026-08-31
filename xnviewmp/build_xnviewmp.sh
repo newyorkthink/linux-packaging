@@ -23,7 +23,14 @@ readonly BASE_URL="https://download.xnview.com/versions/XnView_MP"
 readonly CHECKSUMS_URL="$BASE_URL/XnView_MP-CHECKSUMS.txt"
 readonly SOURCE_DIR="$SCRIPT_DIR/source"
 readonly CHECKSUMS_FILE="$SOURCE_DIR/XnView_MP-CHECKSUMS.txt"
-readonly OFFICIAL_APPIMAGE="$SOURCE_DIR/XnView_MP-official.AppImage"
+readonly ARCHIVE_FILE="$SOURCE_DIR/XnView_MP-linux-x64.tgz"
+readonly EXTRACT_DIR="$SOURCE_DIR/extracted"
+readonly APPDIR="$SCRIPT_DIR/AppDir"
+readonly APP_INSTALL_DIR="$APPDIR/opt/XnView"
+readonly DESKTOP_FILE="$SOURCE_DIR/XnView.desktop"
+readonly CUSTOM_APPRUN="$SOURCE_DIR/AppRun"
+readonly LINUXDEPLOY="$SOURCE_DIR/linuxdeploy-x86_64.AppImage"
+readonly QT_PLUGIN="$SOURCE_DIR/linuxdeploy-plugin-qt-x86_64.AppImage"
 readonly DIST_DIR="$SCRIPT_DIR/dist"
 readonly OUTFILE="$DIST_DIR/xnviewmp.AppImage"
 readonly VERIFY_DIR="$SCRIPT_DIR/verify"
@@ -33,31 +40,47 @@ readonly SMOKE_CONFIG="$SCRIPT_DIR/smoke-config"
 readonly SMOKE_CACHE="$SCRIPT_DIR/smoke-cache"
 readonly SMOKE_RUNTIME="$SCRIPT_DIR/smoke-runtime"
 readonly SMOKE_LOG="$SCRIPT_DIR/xnviewmp-smoke.log"
+readonly LDD_LOG="$SCRIPT_DIR/xnviewmp-qxcb-ldd.log"
 
 # 只清理 XnView MP 自己的构建、验证和隔离测试目录。
 rm -rf \
   "$SOURCE_DIR" \
+  "$APPDIR" \
   "$DIST_DIR" \
   "$VERIFY_DIR" \
   "$SMOKE_HOME" \
   "$SMOKE_CONFIG" \
   "$SMOKE_CACHE" \
   "$SMOKE_RUNTIME"
-rm -f "$SMOKE_LOG"
-mkdir -p "$SOURCE_DIR" "$DIST_DIR" "$VERIFY_DIR"
+rm -f "$SMOKE_LOG" "$LDD_LOG"
+mkdir -p "$SOURCE_DIR" "$EXTRACT_DIR" "$DIST_DIR" "$VERIFY_DIR"
 
-# 安装下载、文件审计、desktop 校验、AUR 对齐的 Qt/XCB 运行依赖和 Xvfb 冒烟测试工具。
+# 安装构建、Qt5、XCB 依赖部署和 Xvfb 冒烟测试工具；这些依赖会由 linuxdeploy 收集进 AppImage。
 yay -S --noconfirm --needed \
-  coreutils curl desktop-file-utils file findutils gawk grep python qt5-multimedia \
+  coreutils curl desktop-file-utils file findutils gawk grep python tar \
+  qt5-base qt5-multimedia qt5-declarative qt5-svg qt5-translations \
+  libx11 libxext libxi libxinerama libxrender libxcb \
+  xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm \
+  libxkbcommon libxkbcommon-x11 fontconfig freetype2 libglvnd \
   xorg-server-xvfb xorg-xauth
 
 for command_name in \
-  awk cat chmod cp curl desktop-file-validate file find grep mkdir python3 sha256sum timeout xvfb-run; do
+  awk cat chmod cp curl desktop-file-validate file find grep ldd mkdir python3 readlink sha256sum tar timeout xvfb-run; do
   command -v "$command_name" >/dev/null 2>&1 || \
     die "构建环境缺少命令：$command_name"
 done
 
-log "读取 XnView MP 官方校验文件并解析最新稳定 x86_64 AppImage"
+if command -v qmake-qt5 >/dev/null 2>&1; then
+  QMAKE_BIN="$(command -v qmake-qt5)"
+elif command -v qmake >/dev/null 2>&1; then
+  QMAKE_BIN="$(command -v qmake)"
+else
+  die "构建环境缺少 Qt5 qmake。"
+fi
+readonly QMAKE_BIN
+[[ "$($QMAKE_BIN -query QT_VERSION)" == 5.* ]] || die "linuxdeploy Qt 插件没有找到 Qt5 qmake。"
+
+log "读取 XnView MP 官方校验文件并解析最新稳定 x86_64 TGZ"
 curl -fL \
   --retry 5 \
   --retry-all-errors \
@@ -67,14 +90,14 @@ curl -fL \
   -o "$CHECKSUMS_FILE"
 [[ -s "$CHECKSUMS_FILE" ]] || die "官方校验文件为空。"
 
-mapfile -t appimage_meta < <(
+mapfile -t archive_meta < <(
   python3 - "$CHECKSUMS_FILE" <<'PY'
 import re
 import sys
 
 pattern = re.compile(
     r"^(?P<sha>[0-9a-f]{64})  "
-    r"(?P<name>XnView_MP-(?P<version>[0-9]+(?:\.[0-9]+)+)\.glibc[0-9.]+-x86_64\.AppImage)$"
+    r"(?P<name>XnView_MP-(?P<version>[0-9]+(?:\.[0-9]+)+)-linux-x64\.tgz)$"
 )
 
 matches = []
@@ -87,7 +110,7 @@ with open(sys.argv[1], "r", encoding="utf-8") as fh:
         matches.append((tuple(int(part) for part in version.split(".")), version, match.group("name"), match.group("sha")))
 
 if not matches:
-    raise SystemExit("官方校验文件中没有找到稳定的 x86_64 AppImage。")
+    raise SystemExit("官方校验文件中没有找到稳定的 x86_64 TGZ。")
 
 _, version, name, sha256 = max(matches, key=lambda item: item[0])
 print(version)
@@ -95,61 +118,195 @@ print(name)
 print(sha256)
 PY
 )
-[[ ${#appimage_meta[@]} -eq 3 ]] || die "无法完整解析官方 AppImage 元数据。"
-readonly VERSION="${appimage_meta[0]}"
-readonly APPIMAGE_NAME="${appimage_meta[1]}"
-readonly EXPECTED_SHA256="${appimage_meta[2]}"
-readonly APPIMAGE_URL="$BASE_URL/$APPIMAGE_NAME"
+[[ ${#archive_meta[@]} -eq 3 ]] || die "无法完整解析官方 TGZ 元数据。"
+readonly VERSION="${archive_meta[0]}"
+readonly ARCHIVE_NAME="${archive_meta[1]}"
+readonly EXPECTED_SHA256="${archive_meta[2]}"
+readonly ARCHIVE_URL="$BASE_URL/$ARCHIVE_NAME"
 
 [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)+$ ]] || die "解析出的版本号异常：$VERSION"
-[[ "$APPIMAGE_NAME" == "XnView_MP-$VERSION".glibc*-x86_64.AppImage ]] || \
-  die "解析出的 AppImage 文件名异常：$APPIMAGE_NAME"
+[[ "$ARCHIVE_NAME" == "XnView_MP-$VERSION-linux-x64.tgz" ]] || die "解析出的 TGZ 文件名异常：$ARCHIVE_NAME"
 [[ "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]] || die "解析出的 SHA-256 异常。"
-[[ "$APPIMAGE_URL" == https://download.xnview.com/versions/XnView_MP/XnView_MP-*.AppImage ]] || \
-  die "解析出的下载 URL 异常：$APPIMAGE_URL"
-printf 'XnView MP version: %s\nXnView MP source: %s\n' "$VERSION" "$APPIMAGE_URL"
+[[ "$ARCHIVE_URL" == https://download.xnview.com/versions/XnView_MP/XnView_MP-*-linux-x64.tgz ]] || \
+  die "解析出的下载 URL 异常：$ARCHIVE_URL"
+printf 'XnView MP version: %s\nXnView MP source: %s\n' "$VERSION" "$ARCHIVE_URL"
 
-log "下载官方 AppImage"
+log "下载并校验官方 TGZ"
 curl -fL \
   --retry 5 \
   --retry-all-errors \
   --retry-delay 2 \
   --connect-timeout 20 \
-  "$APPIMAGE_URL" \
-  -o "$OFFICIAL_APPIMAGE"
-[[ -s "$OFFICIAL_APPIMAGE" ]] || die "官方下载文件为空。"
-chmod 0755 "$OFFICIAL_APPIMAGE"
-file "$OFFICIAL_APPIMAGE" | grep -q 'ELF 64-bit' || \
-  die "官方下载文件不是 64 位 AppImage ELF。"
-
-log "校验官方 SHA-256"
-ACTUAL_SHA256="$(sha256sum "$OFFICIAL_APPIMAGE" | awk '{print $1}')"
+  "$ARCHIVE_URL" \
+  -o "$ARCHIVE_FILE"
+[[ -s "$ARCHIVE_FILE" ]] || die "官方下载文件为空。"
+ACTUAL_SHA256="$(sha256sum "$ARCHIVE_FILE" | awk '{print $1}')"
 readonly ACTUAL_SHA256
-[[ "$ACTUAL_SHA256" == "$EXPECTED_SHA256" ]] || die "官方 AppImage SHA-256 校验失败。"
-printf 'XnView MP official SHA-256: %s\n' "$ACTUAL_SHA256"
+[[ "$ACTUAL_SHA256" == "$EXPECTED_SHA256" ]] || die "官方 TGZ SHA-256 校验失败。"
+printf 'XnView MP official TGZ SHA-256: %s\n' "$ACTUAL_SHA256"
 
-# 不修改官方 AppImage 内容，只复制为仓库固定 Release 文件名。
-cp -f "$OFFICIAL_APPIMAGE" "$OUTFILE"
-chmod 0755 "$OUTFILE"
+tar -xzf "$ARCHIVE_FILE" -C "$EXTRACT_DIR"
+mapfile -d '' app_binaries < <(find "$EXTRACT_DIR" -type f -name XnView -perm -u+x -print0)
+[[ ${#app_binaries[@]} -eq 1 ]] || die "官方 TGZ 中 XnView 主程序数量异常：${#app_binaries[@]}"
+readonly SOURCE_APP_BINARY="${app_binaries[0]}"
+readonly SOURCE_APP_DIR="$(dirname "$SOURCE_APP_BINARY")"
+
+# 保留官方 XnView 完整目录（自带 Qt、插件、语言文件等），作为旧工作包中的 /opt/XnView 基线。
+mkdir -p "$APP_INSTALL_DIR"
+cp -a "$SOURCE_APP_DIR/." "$APP_INSTALL_DIR/"
+readonly APP_BINARY="$APP_INSTALL_DIR/XnView"
+readonly APP_XCB_PLUGIN="$APP_INSTALL_DIR/lib/platforms/libqxcb.so"
+readonly APP_ICON="$APP_INSTALL_DIR/xnview.png"
+[[ -x "$APP_BINARY" ]] || die "AppDir 缺少 XnView 主程序。"
+[[ -f "$APP_XCB_PLUGIN" ]] || die "官方目录缺少 Qt xcb 平台插件。"
+[[ -f "$APP_ICON" ]] || die "官方目录缺少 xnview.png。"
+[[ -f "$APP_INSTALL_DIR/language/xnview_zh_CN.qm" ]] || die "官方目录缺少简体中文翻译。"
+
+# 恢复旧工作包中的 /usr/bin/xnview 启动包装器；AppRun 仍直接启动 /opt/XnView/XnView。
+mkdir -p "$APPDIR/usr/bin"
+cat > "$APPDIR/usr/bin/xnview" <<'EOF_WRAPPER'
+#!/bin/sh
+
+export LD_LIBRARY_PATH=/opt/XnView/lib:/opt/XnView/Plugins
+export QT_PLUGIN_PATH=/opt/XnView/lib
+
+if [ $# -lt 1 ]; then
+  /opt/XnView/XnView
+else
+  /opt/XnView/XnView "$@"
+fi
+EOF_WRAPPER
+chmod 0755 "$APPDIR/usr/bin/xnview"
+
+# 使用旧工作包的 desktop 信息，保持文件关联和启动名称不变。
+cat > "$DESKTOP_FILE" <<'EOF_DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=XnView Multi Platform
+GenericName=XnViewMP
+Comment=Graphic viewer, browser, converter
+Exec=xnview %F
+TryExec=xnview
+Terminal=false
+Icon=xnview
+Categories=Graphics;
+StartupNotify=true
+MimeType=image/apng;image/astc;image/avif;image/bmp;image/cgm;image/dpx;image/emf;image/g3fax;image/gif;image/heif;image/ief;image/jp2;image/jpeg;image/jpm;image/jpx;image/jxl;image/jxr;image/ktx;image/ktx2;image/openraster;image/png;image/qoi;image/rle;image/svg+xml-compressed;image/svg+xml;image/tiff;image/vnd.adobe.photoshop;image/vnd.djvu;image/vnd.djvu+multipage;image/vnd.dwg;image/vnd.dxf;image/vnd.microsoft.icon;image/vnd.ms-modi;image/vnd.rn-realpix;image/vnd.wap.wbmp;image/vnd.zbrush.pcx;image/webp;image/wmf;image/x-3ds;image/x-adobe-dng;image/x-applix-graphics;image/x-bzeps;image/x-canon-cr2;image/x-canon-cr3;image/x-canon-crw;image/x-cmu-raster;image/x-compressed-xcf;image/x-dcraw;image/x-dds;image/x-dib;image/x-eps;image/x-exr;image/x-fpx;image/x-fuji-raf;image/x-gimp-gbr;image/x-gimp-gih;image/x-gimp-pat;image/x-gzeps;image/x-hdr;image/x-icns;image/x-ilbm;image/x-jng;image/x-jp2-codestream;image/x-kde-raw;image/x-kodak-dcr;image/x-kodak-k25;image/x-kodak-kdc;image/x-lwo;image/x-lws;image/x-macpaint;image/x-minolta-mrw;image/x-msod;image/x-niff;image/x-nikon-nef;image/x-nikon-nrw;image/x-olympus-orf;image/x-panasonic-rw;image/x-panasonic-rw2;image/x-pentax-pef;image/x-photo-cd;image/x-pic;image/x-pict;image/x-portable-anymap;image/x-portable-bitmap;image/x-portable-graymap;image/x-portable-pixmap;image/x-quicktime;image/x-rgb;image/x-sgi;image/x-sigma-x3f;image/x-skencil;image/x-sony-arw;image/x-sony-sr2;image/x-sony-srf;image/x-sun-raster;image/x-tga;image/x-tiff-multipage;image/x-win-bitmap;image/x-xbitmap;image/x-xcf;image/x-xcursor;image/x-xfig;image/x-xpixmap;image/x-xwindowdump;
+EOF_DESKTOP
+desktop-file-validate "$DESKTOP_FILE"
+
+# 逐字恢复旧工作包的中文环境、Qt/XCB 环境和启动路径。
+cat > "$CUSTOM_APPRUN" <<'EOF_APPRUN'
+#!/usr/bin/env bash
+
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
+
+export PATH="$HERE"/opt/XnView:"$HERE"/opt/XnView/lib:"$HERE"/opt/XnView/Plugins:"$HERE"/opt/XnView/qml:"$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$PATH"
+export LD_LIBRARY_PATH="$HERE"/opt/XnView:"$HERE"/opt/XnView/lib:"$HERE"/opt/XnView/Plugins:"$HERE"/opt/XnView/qml:"$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$LD_LIBRARY_PATH"
+export QT_PLUGIN_PATH="$HERE"/opt/XnView:"$HERE"/opt/XnView/lib:"$HERE"/opt/XnView/Plugins:"$HERE"/opt/XnView/qml:"$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$QT_PLUGIN_PATH"
+export QML_IMPORT_PATH="$HERE"/opt/XnView:"$HERE"/opt/XnView/lib:"$HERE"/opt/XnView/Plugins:"$HERE"/opt/XnView/qml:"$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$QML_IMPORT_PATH"
+export QML2_IMPORT_PATH="$HERE"/opt/XnView:"$HERE"/opt/XnView/lib:"$HERE"/opt/XnView/Plugins:"$HERE"/opt/XnView/qml:"$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$QML2_IMPORT_PATH"
+export XDG_DATA_DIRS="$HERE"/opt/XnView:"$HERE"/opt/XnView/lib:"$HERE"/opt/XnView/Plugins:"$HERE"/opt/XnView/qml:"$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$XDG_DATA_DIRS"
+
+export QT_AUTO_SCREEN_SCALE_FACTOR=1
+export QT_QPA_PLATFORM=xcb
+export QT_FONT_DPI=96 
+
+exec "$HERE"/opt/XnView/XnView "$@"
+EOF_APPRUN
+chmod 0755 "$CUSTOM_APPRUN"
+
+log "下载 linuxdeploy 与 Qt 插件"
+curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
+  https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
+  -o "$LINUXDEPLOY"
+curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
+  https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage \
+  -o "$QT_PLUGIN"
+chmod 0755 "$LINUXDEPLOY" "$QT_PLUGIN"
+file "$LINUXDEPLOY" | grep -q 'ELF 64-bit' || die "linuxdeploy 下载文件异常。"
+file "$QT_PLUGIN" | grep -q 'ELF 64-bit' || die "linuxdeploy Qt 插件下载文件异常。"
+
+# 旧工作包在 /usr/lib 中额外带了一套系统 Qt；这里以系统 Qt5 为 linuxdeploy Qt 插件的部署基线，
+# 让 XCB 平台插件、Qt 翻译和其动态依赖进入 AppImage，同时 /opt 中的官方 Qt 仍保持最高运行时优先级。
+readonly QT_LIB_DIR="$($QMAKE_BIN -query QT_INSTALL_LIBS)"
+readonly QT_TRANSLATIONS_DIR="$($QMAKE_BIN -query QT_INSTALL_TRANSLATIONS)"
+[[ -d "$QT_LIB_DIR" ]] || die "Qt5 库目录不存在：$QT_LIB_DIR"
+[[ -d "$QT_TRANSLATIONS_DIR" ]] || die "Qt5 翻译目录不存在：$QT_TRANSLATIONS_DIR"
+mkdir -p "$APPDIR/usr/translations"
+cp -a "$QT_TRANSLATIONS_DIR/." "$APPDIR/usr/translations/"
+[[ -f "$APPDIR/usr/translations/qtbase_zh_CN.qm" ]] || die "系统 Qt5 缺少简体中文 qtbase 翻译。"
+shopt -s nullglob
+qt_bundle_libraries=("$QT_LIB_DIR"/libQt5*.so.5)
+shopt -u nullglob
+[[ ${#qt_bundle_libraries[@]} -gt 0 ]] || die "Qt5 库目录中没有可部署的 libQt5*.so.5。"
+
+linuxdeploy_args=(
+  --appdir "$APPDIR"
+  --desktop-file "$DESKTOP_FILE"
+  --icon-file "$APP_ICON"
+  --custom-apprun "$CUSTOM_APPRUN"
+)
+for qt_library in "${qt_bundle_libraries[@]}"; do
+  linuxdeploy_args+=(--library "$qt_library")
+done
+
+[[ -f /usr/lib/libX11.so.6 ]] || die "构建环境缺少 libX11.so.6。"
+linuxdeploy_args+=(--library /usr/lib/libX11.so.6)
+
+linuxdeploy_args+=(--plugin qt --output appimage)
+
+export PATH="$SOURCE_DIR:$PATH"
+export QMAKE="$QMAKE_BIN"
+export ARCH=x86_64
+export LDAI_OUTPUT="$OUTFILE"
+export APPIMAGE_EXTRACT_AND_RUN=1
+"$LINUXDEPLOY" "${linuxdeploy_args[@]}"
+
 [[ -s "$OUTFILE" ]] || die "输出 AppImage 为空。"
-[[ "$(sha256sum "$OUTFILE" | awk '{print $1}')" == "$EXPECTED_SHA256" ]] || \
-  die "复制后的 AppImage 与官方 SHA-256 不一致。"
+chmod 0755 "$OUTFILE"
+file "$OUTFILE" | grep -q 'ELF 64-bit' || die "输出文件不是 64 位 AppImage ELF。"
 
-log "验证 AppImage 可提取并检查 desktop / AppRun"
+log "验证 AppImage 内的旧工作包环境、中文翻译和 XCB 依赖"
 (
   cd "$VERIFY_DIR"
   "$OUTFILE" --appimage-extract >/dev/null
 )
 [[ -d "$VERIFY_ROOT" ]] || die "AppImage 提取失败。"
 [[ -x "$VERIFY_ROOT/AppRun" ]] || die "提取后的 AppImage 缺少可执行 AppRun。"
+[[ -x "$VERIFY_ROOT/AppRun.wrapped" ]] || die "提取后的 AppImage 缺少 AppRun.wrapped。"
+[[ -x "$VERIFY_ROOT/opt/XnView/XnView" ]] || die "提取后的 AppImage 缺少 XnView 主程序。"
+[[ -f "$VERIFY_ROOT/opt/XnView/language/xnview_zh_CN.qm" ]] || die "提取后的 AppImage 缺少简体中文翻译。"
+[[ -f "$VERIFY_ROOT/opt/XnView/lib/platforms/libqxcb.so" ]] || die "提取后的 AppImage 缺少官方 qxcb 插件。"
+[[ -f "$VERIFY_ROOT/usr/plugins/platforms/libqxcb.so" ]] || die "linuxdeploy Qt 插件没有部署 qxcb 平台插件。"
+[[ -f "$VERIFY_ROOT/usr/translations/qtbase_zh_CN.qm" ]] || die "提取后的 AppImage 缺少 Qt5 简体中文翻译。"
 
-mapfile -d '' desktop_files < <(
-  find "$VERIFY_ROOT" -maxdepth 1 -type f -name '*.desktop' -print0
-)
+grep -Fxq 'export LANG=zh_CN.UTF-8' "$VERIFY_ROOT/AppRun.wrapped" || die "AppRun.wrapped 缺少中文 LANG。"
+grep -Fxq 'export LANGUAGE=zh_CN:zh' "$VERIFY_ROOT/AppRun.wrapped" || die "AppRun.wrapped 缺少中文 LANGUAGE。"
+grep -Fxq 'export QT_QPA_PLATFORM=xcb' "$VERIFY_ROOT/AppRun.wrapped" || die "AppRun.wrapped 没有固定使用 xcb。"
+
+for required_lib in \
+  libxcb-icccm.so.4 libxcb-image.so.0 libxcb-keysyms.so.1 libxcb-render-util.so.0 \
+  libxcb-xkb.so.1 libxkbcommon-x11.so.0; do
+  find "$VERIFY_ROOT/usr/lib" -maxdepth 1 \( -type f -o -type l \) -name "$required_lib*" -print -quit | grep -q . || \
+    die "AppImage 缺少 XCB 运行依赖：$required_lib"
+done
+
+mapfile -d '' desktop_files < <(find "$VERIFY_ROOT" -maxdepth 1 -type f -name '*.desktop' -print0)
 [[ ${#desktop_files[@]} -ge 1 ]] || die "提取后的 AppImage 根目录没有 desktop 文件。"
 for desktop_file in "${desktop_files[@]}"; do
   desktop-file-validate "$desktop_file"
 done
+
+BUNDLE_LD_LIBRARY_PATH="$VERIFY_ROOT/opt/XnView:$VERIFY_ROOT/opt/XnView/lib:$VERIFY_ROOT/opt/XnView/Plugins:$VERIFY_ROOT/opt/XnView/qml:$VERIFY_ROOT/usr/lib"
+LD_LIBRARY_PATH="$BUNDLE_LD_LIBRARY_PATH" ldd "$VERIFY_ROOT/opt/XnView/lib/platforms/libqxcb.so" > "$LDD_LOG"
+cat "$LDD_LOG"
+if grep -q 'not found' "$LDD_LOG"; then
+  die "打包后的官方 qxcb 插件仍有动态库缺失。"
+fi
 
 log "在隔离 HOME / XDG 目录中执行 Xvfb 冒烟测试"
 mkdir -p "$SMOKE_HOME" "$SMOKE_CONFIG" "$SMOKE_CACHE" "$SMOKE_RUNTIME"
