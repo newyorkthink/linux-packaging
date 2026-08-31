@@ -28,7 +28,7 @@ curl -fL --retry 3 \
   https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt \
   -o "$CHECKSUMS"
 read -r EXPECTED_SHA APPIMAGE_NAME < <(
-  grep -m1 -E '^[0-9a-f]{64}  XnView_MP-[0-9.]+\.glibc[0-9.]+-x86_64\.AppImage$' "$CHECKSUMS"
+  awk '$2 ~ /^XnView_MP-[0-9.]+\.glibc[0-9.]+-x86_64\.AppImage/ {gsub(/\r/, "", $2); print $1, $2; exit}' "$CHECKSUMS"
 )
 [[ -n "${EXPECTED_SHA:-}" && -n "${APPIMAGE_NAME:-}" ]]
 
