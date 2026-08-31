@@ -36,11 +36,27 @@ curl -fL --retry 3 \
   -o "$CHECKSUMS"
 
 # Do not pick the first entry from the archive checksum file: it may already contain
-# an unreleased build. Always download the public stable package through XnView's
-# official download endpoint, then verify that exact version against the archive hash.
+# an unreleased build. The public product page is the source of truth for the current
+# stable version; download that exact version from XnView's version archive.
+PRODUCT_PAGE="$SOURCE_DIR/xnview-product.html"
 curl -fL --retry 3 \
-  'https://www.xnview.com/download.php?file=XnViewMP-linux-x64.deb' \
+  'https://www.xnview.com/en/xnview/' \
+  -o "$PRODUCT_PAGE"
+
+STABLE_VERSION="$(
+  grep -Eo 'XnView MP[[:space:]]+[0-9]+(\.[0-9]+)+' "$PRODUCT_PAGE" \
+    | head -n1 \
+    | grep -Eo '[0-9]+(\.[0-9]+)+'
+)"
+test -n "$STABLE_VERSION"
+DEB_NAME="XnView_MP-${STABLE_VERSION}-linux-x64.deb"
+EXPECTED_SHA="$(awk -v name="$DEB_NAME" '{gsub(/\r/, "", $2)} $2 == name {print $1; exit}' "$CHECKSUMS")"
+test -n "$EXPECTED_SHA"
+
+curl -fL --retry 3 \
+  "https://download.xnview.com/versions/XnView_MP/$DEB_NAME" \
   -o "$DEB"
+echo "$EXPECTED_SHA  $DEB" | sha256sum -c -
 
 dpkg-deb -x "$DEB" "$APPDIR"
 test -x "$APPDIR/opt/XnView/XnView"
@@ -48,16 +64,11 @@ test -f "$APPDIR/opt/XnView/version.txt"
 test -f "$DESKTOP_FILE"
 test -f "$ICON_FILE"
 
-STABLE_VERSION="$(tr -d '\r\n' < "$APPDIR/opt/XnView/version.txt")"
-test -n "$STABLE_VERSION"
-DEB_NAME="XnView_MP-${STABLE_VERSION}-linux-x64.deb"
-EXPECTED_SHA="$(awk -v name="$DEB_NAME" '{gsub(/\r/, "", $2)} $2 == name {print $1; exit}' "$CHECKSUMS")"
-test -n "$EXPECTED_SHA"
-ACTUAL_SHA="$(sha256sum "$DEB" | awk '{print $1}')"
-if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
-  echo "ERROR: stable XnView MP checksum mismatch for $DEB_NAME" >&2
-  echo "expected: $EXPECTED_SHA" >&2
-  echo "actual:   $ACTUAL_SHA" >&2
+ACTUAL_VERSION="$(tr -d '\r\n' < "$APPDIR/opt/XnView/version.txt")"
+if [[ "$ACTUAL_VERSION" != "$STABLE_VERSION" ]]; then
+  echo "ERROR: downloaded XnView MP version mismatch" >&2
+  echo "product page: $STABLE_VERSION" >&2
+  echo "package:      $ACTUAL_VERSION" >&2
   exit 1
 fi
 printf '[XnView MP] stable version: %s\n' "$STABLE_VERSION"
