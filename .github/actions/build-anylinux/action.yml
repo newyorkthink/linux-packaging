@@ -87,6 +87,16 @@ runs:
         cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
         test -s "$RELEASE_FILE"
 
-        gh release upload latest "$RELEASE_FILE" \
-          --repo "$GITHUB_REPOSITORY" \
-          --clobber
+        for attempt in 1 2 3; do
+          if gh release upload latest "$RELEASE_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber; then
+            break
+          fi
+          if [[ "$attempt" -eq 3 ]]; then
+            echo '上传 Release 资产失败，已重试 3 次。' >&2
+            exit 1
+          fi
+          echo "上传 Release 资产失败，5 秒后重试（$attempt/3）。" >&2
+          sleep 5
+        done
