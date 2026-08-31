@@ -265,7 +265,8 @@ export QMAKE="$QMAKE_BIN"
 export ARCH=x86_64
 export LDAI_OUTPUT="$OUTFILE"
 export APPIMAGE_EXTRACT_AND_RUN=1
-"$LINUXDEPLOY" "${linuxdeploy_args[@]}"
+# linuxdeploy-plugin-qt 内置 strip 不支持当前 Arch ELF 的 .relr.dyn；使用 linuxdeploy 的 NO_STRIP 开关跳过 strip。
+NO_STRIP=1 "$LINUXDEPLOY" "${linuxdeploy_args[@]}"
 
 [[ -s "$OUTFILE" ]] || die "输出 AppImage 为空。"
 chmod 0755 "$OUTFILE"
