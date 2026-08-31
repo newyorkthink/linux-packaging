@@ -38,10 +38,6 @@ DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   libxshmfence1 libxss1 libxtst6 \
   xdg-utils shared-mime-info hicolor-icon-theme
 
-# GTK 插件需要这些工具生成运行时模块缓存；缺失时直接停止构建。
-command -v gtk-query-immodules-3.0 >/dev/null
-command -v gdk-pixbuf-query-loaders >/dev/null
-
 curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
   -H 'Accept: application/vnd.github+json' \
   'https://api.github.com/repos/laurent22/joplin/releases?per_page=30' \
