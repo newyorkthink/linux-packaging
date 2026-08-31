@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 从 Postman 官方 latest Linux x64 tar.gz 重新封装 AnyLinux AppImage。
-# 保留官方 Electron 应用目录、desktop 和图标，只补齐 AppImage 运行库与便携启动入口。
+# 保留官方 Electron 应用目录和图标，并生成适配 AppImage 的 desktop 入口。
 set -Eeuo pipefail
 
 export LC_ALL=C
@@ -97,12 +97,10 @@ tar -xzf "$TARBALL" -C "$EXTRACT_DIR"
 
 readonly SOURCE_APP_ROOT="$EXTRACT_DIR/Postman/app"
 readonly SOURCE_MAIN="$SOURCE_APP_ROOT/Postman"
-readonly SOURCE_DESKTOP="$SOURCE_APP_ROOT/resources/Postman.desktop"
 readonly SOURCE_ICON="$SOURCE_APP_ROOT/resources/app/assets/icon.png"
 readonly SOURCE_PACKAGE_JSON="$SOURCE_APP_ROOT/resources/app/package.json"
 
 [[ -x "$SOURCE_MAIN" ]] || die "官方包缺少 Postman 主程序：$SOURCE_MAIN"
-[[ -f "$SOURCE_DESKTOP" ]] || die "官方包缺少 resources/Postman.desktop。"
 [[ -f "$SOURCE_ICON" ]] || die "官方包缺少官方 Postman PNG 图标。"
 [[ -f "$SOURCE_PACKAGE_JSON" ]] || die "官方包缺少 resources/app/package.json。"
 file "$SOURCE_MAIN" | grep -q 'ELF 64-bit LSB.*x86-64' || \
@@ -141,25 +139,23 @@ install -Dm0755 /usr/bin/xdg-settings "$APP_ROOT/xdg-settings"
 # Node 原生模块由 Electron/Node 在运行时 dlopen，不把执行位当成独立程序入口。
 find "$APP_ROOT" -type f -name '*.node' -exec chmod 0644 {} +
 
-# 使用官方 desktop 和图标，仅把绝对安装路径改成 AppImage 内的便携入口。
-install -Dm0644 "$SOURCE_DESKTOP" "$BUILD_DESKTOP"
+# AUR 的 postman.desktop 是独立打包资源，不在官方 tar.gz 内；这里生成等价的便携 desktop 入口。
 install -Dm0644 "$SOURCE_ICON" "$BUILD_ICON"
-[[ "$(grep -c '^Exec=' "$BUILD_DESKTOP")" -eq 1 ]] || die "官方 desktop 的 Exec 字段数量异常。"
-[[ "$(grep -c '^Icon=' "$BUILD_DESKTOP")" -eq 1 ]] || die "官方 desktop 的 Icon 字段数量异常。"
-sed -i \
-  -e 's|^Exec=.*|Exec=Postman %U|' \
-  -e 's|^Icon=.*|Icon=postman|' \
-  "$BUILD_DESKTOP"
-if grep -q '^StartupWMClass=' "$BUILD_DESKTOP"; then
-  sed -i 's|^StartupWMClass=.*|StartupWMClass=postman|' "$BUILD_DESKTOP"
-else
-  printf 'StartupWMClass=postman\n' >> "$BUILD_DESKTOP"
-fi
-if grep -q '^X-AppImage-Version=' "$BUILD_DESKTOP"; then
-  sed -i "s|^X-AppImage-Version=.*|X-AppImage-Version=$VERSION|" "$BUILD_DESKTOP"
-else
-  printf 'X-AppImage-Version=%s\n' "$VERSION" >> "$BUILD_DESKTOP"
-fi
+cat > "$BUILD_DESKTOP" <<DESKTOP_EOF
+[Desktop Entry]
+Name=Postman
+Comment=Build, test, and document your APIs faster
+GenericName=Postman
+Exec=Postman %U
+Icon=postman
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=Development;Utility;
+StartupWMClass=postman
+MimeType=x-scheme-handler/postman;
+X-AppImage-Version=$VERSION
+DESKTOP_EOF
 desktop-file-validate "$BUILD_DESKTOP"
 
 # 运行时只切换到官方应用目录并启动 Postman，不修改宿主系统配置或权限。
