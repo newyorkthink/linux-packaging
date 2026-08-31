@@ -15,6 +15,10 @@ die() {
   exit 1
 }
 
+#######################################################################
+# 1. 构建环境与依赖
+#######################################################################
+
 readonly HOST_ARCH="$(uname -m)"
 [[ "$HOST_ARCH" == x86_64 ]] || die "当前仅支持 x86_64。"
 command -v yay >/dev/null 2>&1 || die "构建环境缺少命令：yay"
@@ -65,6 +69,10 @@ for command_name in \
   command -v "$command_name" >/dev/null 2>&1 || \
     die "构建环境缺少命令：$command_name"
 done
+
+#######################################################################
+# 2. 获取百度官方 Linux 安装包
+#######################################################################
 
 log "读取百度官方 Linux 客户端元数据"
 CLIENT_JSON="$(
@@ -145,6 +153,10 @@ case "$PACKAGE_TYPE" in
     tar -xf "${data_archives[0]}" -C "$PACKAGE_ROOT"
     ;;
 esac
+
+#######################################################################
+# 3. 组装百度官方运行目录
+#######################################################################
 
 readonly SOURCE_APP_ROOT="$PACKAGE_ROOT/opt/baidunetdisk"
 [[ -d "$SOURCE_APP_ROOT" ]] || die "官方包缺少 /opt/baidunetdisk。"
@@ -235,6 +247,10 @@ if ! grep -q '^X-AppImage-Version=' "$BUILD_DESKTOP"; then
 fi
 desktop-file-validate "$BUILD_DESKTOP"
 
+#######################################################################
+# 4. AppImage 打包
+#######################################################################
+
 cat > "$APPDIR/AppRun.sh" <<'APPRUN_EOF'
 #!/bin/sh
 set -e
@@ -263,6 +279,8 @@ export DEPLOY_GTK=1
 export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
 export DEPLOY_PIPEWIRE=1
+# Flathub 明确禁用 strip；百度网盘运行文件被 strip 后会破坏应用。
+export NO_STRIP=1
 
 # 保持官方 Electron/Node 私有库的相对布局，只让 quick-sharun 部署主程序和外部系统库。
 mapfile -t app_library_dirs < <(
@@ -330,6 +348,10 @@ LD_LIBRARY_PATH="$BUILD_LIBRARY_PATH" quick-sharun \
 
 quick-sharun --make-appimage
 
+#######################################################################
+# 5. AppImage 产物完整性验证
+#######################################################################
+
 [[ -s "$OUTFILE" ]] || die "未生成预期文件：$OUTFILE"
 chmod 0755 "$OUTFILE"
 file "$OUTFILE"
@@ -344,6 +366,10 @@ mkdir -p "$VERIFY_DIR"
 )
 [[ -x "$VERIFY_DIR/squashfs-root/AppRun" ]] || die "AppImage 提取后缺少 AppRun。"
 rm -rf "$VERIFY_DIR"
+
+#######################################################################
+# 6. 隔离启动测试
+#######################################################################
 
 log "执行隔离 Xvfb 图形启动测试"
 mkdir -p \
@@ -370,7 +396,7 @@ if [[ "$smoke_status" -ne 0 && "$smoke_status" -ne 124 ]]; then
   die "百度网盘图形启动测试异常退出，状态码：$smoke_status"
 fi
 if grep -Eqi \
-  'error while loading shared libraries|symbol lookup error|invalid ELF header|wrong ELF class|Exec format error|Trace/breakpoint trap|Segmentation fault|Aborted \(core dumped\)' \
+  'error while loading shared libraries|symbol lookup error|invalid ELF header|wrong ELF class|Exec format error|Trace/breakpoint trap|Segmentation fault|Aborted \(core dumped\)|sqlcipher_page_cipher: hmac check failed|sqlite3codec: error decrypting|sqlcipher_codec_ctx_set_error' \
   "$SMOKE_LOG"; then
   cat "$SMOKE_LOG" >&2
   die "百度网盘启动日志包含致命运行时错误。"
