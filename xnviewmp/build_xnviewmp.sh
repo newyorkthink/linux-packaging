@@ -32,6 +32,25 @@ curl -fL --retry 3 \
 echo "$EXPECTED_SHA  $DEB" | sha256sum -c -
 
 dpkg-deb -x "$DEB" "$APPDIR"
+test -x "$APPDIR/opt/XnView/XnView"
+
+cat > "$APPDIR/usr/bin/xnview" <<'EOF_APPRUN'
+#!/usr/bin/env bash
+HERE="$(dirname "$(readlink -f "$0")")"
+ROOT="$(readlink -f "$HERE/../..")"
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
+export LD_LIBRARY_PATH="$ROOT/opt/XnView/lib:$ROOT/opt/XnView/Plugins:${LD_LIBRARY_PATH:-}"
+export QT_PLUGIN_PATH="$ROOT/opt/XnView/lib"
+export QT_QPA_PLATFORM=xcb
+exec "$ROOT/opt/XnView/XnView" "$@"
+EOF_APPRUN
+chmod +x "$APPDIR/usr/bin/xnview"
+
+# linuxdeploy-plugin-qt detects Qt modules from AppDir/usr/lib.
+# Keep XnView's own Qt first at runtime; this copy is only the deployment seed.
+mkdir -p "$APPDIR/usr/lib"
+cp -a "$APPDIR/opt/XnView/lib"/libQt5*.so* "$APPDIR/usr/lib/"
 
 curl -fL --retry 3 \
   https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
@@ -43,8 +62,8 @@ chmod +x "$LINUXDEPLOY" "$QT_PLUGIN"
 
 export ARCH=x86_64
 export APPIMAGE_EXTRACT_AND_RUN=1
-export QMAKE="$(command -v qmake)"
 export LDAI_OUTPUT="$OUTFILE"
+export LD_LIBRARY_PATH="$APPDIR/opt/XnView/lib:$APPDIR/opt/XnView/Plugins:${LD_LIBRARY_PATH:-}"
 
 "$LINUXDEPLOY" --appdir "$APPDIR" --plugin qt --output appimage
 
