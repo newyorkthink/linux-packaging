@@ -104,8 +104,13 @@ printf '[XnView MP] libffmpeg SHA-256: %s\n' "$ACTUAL_FFMPEG_SHA256"
 [[ "$ACTUAL_MDK_SHA256" == "$MDK_SHA256" ]] || { echo 'ERROR: libmdk differs from old working package' >&2; exit 1; }
 [[ "$ACTUAL_FFMPEG_SHA256" == "$FFMPEG_SHA256" ]] || { echo 'ERROR: libffmpeg differs from old working package' >&2; exit 1; }
 
-# linuxdeploy expects an icon name in the desktop entry.
-sed -i 's|^Icon=.*|Icon=xnview|' "$DESKTOP_FILE"
+# Normalize XnView's legacy desktop entry for modern desktop-file-utils/linuxdeploy.
+sed -i \
+  -e 's|^Icon=.*|Icon=xnview|' \
+  -e '/^Value=/d' \
+  -e '/^Encoding=/d' \
+  -e 's/^Terminal=0$/Terminal=false/' \
+  "$DESKTOP_FILE"
 desktop-file-validate "$DESKTOP_FILE"
 
 # Reproduce the old working AppImage launch environment. /opt/XnView stays first so
