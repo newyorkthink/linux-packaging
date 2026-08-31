@@ -294,8 +294,13 @@ done < <(find "$APP_ROOT" -type f -print0)
 [[ ${#elf_targets[@]} -gt 0 ]] || die "官方腾讯文档运行目录中未找到 ELF 文件。"
 printf 'Tencent Docs ELF files: %s\n' "${#elf_targets[@]}"
 
-mapfile -t app_library_dirs < <(find "$APP_ROOT" -type f -printf '%h\n' | sort -u)
-[[ ${#app_library_dirs[@]} -gt 0 ]] || die "官方腾讯文档运行目录为空。"
+mapfile -t app_library_dirs < <(
+  for target in "${elf_targets[@]}"; do
+    dirname -- "$target"
+  done | sort -u
+)
+[[ ${#app_library_dirs[@]} -gt 0 ]] || die "官方腾讯文档 ELF 库目录为空。"
+printf 'Tencent Docs ELF library directories: %s\n' "${#app_library_dirs[@]}"
 BUILD_LIBRARY_PATH="$(IFS=:; printf '%s' "${app_library_dirs[*]}")"
 BUILD_LIBRARY_PATH="$BUILD_LIBRARY_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
