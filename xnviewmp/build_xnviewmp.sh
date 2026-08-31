@@ -67,8 +67,8 @@ yay -S --noconfirm --needed \
   xorg-server-xvfb xorg-xauth
 
 for command_name in \
-  ar awk cat chmod cp curl desktop-file-validate file find grep mkdir mv python3 readelf \
-  sed sha256sum strings tar timeout xvfb-run; do
+  ar awk cat chmod cp curl desktop-file-validate file find grep ldd mkdir mv python3 readelf \
+  readlink sed sha256sum strings tar timeout xvfb-run; do
   command -v "$command_name" >/dev/null 2>&1 || die "构建环境缺少命令：$command_name"
 done
 
@@ -141,9 +141,35 @@ log "提取官方 AppImage，保留官方应用文件和依赖布局"
 )
 [[ -d "$SOURCE_DIR/squashfs-root" ]] || die "官方 AppImage 提取失败。"
 mv "$SOURCE_DIR/squashfs-root" "$APPDIR"
-[[ -x "$APPDIR/opt/XnView/XnView" ]] || die "官方 AppImage 缺少 opt/XnView/XnView。"
-[[ -f "$APPDIR/opt/XnView/language/xnview_zh_CN.qm" ]] || die "官方包缺少简体中文翻译文件。"
-[[ -f "$APPDIR/opt/XnView/language/xnview_zh_TW.qm" ]] || die "官方包缺少繁体中文翻译文件。"
+[[ -e "$APPDIR/AppRun" ]] || die "官方 AppImage 缺少 AppRun。"
+
+# 上游 1.11.x 的 AppImage 内部目录布局可能调整；不再硬编码 /opt/XnView。
+mapfile -d '' xnview_bins < <(
+  find "$APPDIR" -type f -perm -u+x -name 'XnView' -print0
+)
+if [[ ${#xnview_bins[@]} -eq 0 ]]; then
+  mapfile -d '' xnview_bins < <(
+    find "$APPDIR" -type f -perm -u+x \( -iname 'xnview' -o -iname 'xnviewmp' \) -print0
+  )
+fi
+[[ ${#xnview_bins[@]} -ge 1 ]] || die "官方 AppImage 中没有找到 XnView 主程序。"
+XNVIEW_BIN="${xnview_bins[0]}"
+XNVIEW_REL="${XNVIEW_BIN#"$APPDIR"/}"
+readonly XNVIEW_BIN XNVIEW_REL
+printf 'XnView executable: %s\n' "$XNVIEW_REL"
+
+mapfile -d '' zh_cn_files < <(find "$APPDIR" -type f -name 'xnview_zh_CN.qm' -print0)
+[[ ${#zh_cn_files[@]} -ge 1 ]] || die "官方包缺少简体中文翻译文件 xnview_zh_CN.qm。"
+ZH_CN_REL="${zh_cn_files[0]#"$APPDIR"/}"
+readonly ZH_CN_REL
+printf 'XnView zh_CN translation: %s\n' "$ZH_CN_REL"
+
+mapfile -d '' qt_multimedia_files < <(find "$APPDIR" -type f -name 'libQt5Multimedia.so.5*' -print0)
+[[ ${#qt_multimedia_files[@]} -ge 1 ]] || die "官方包缺少 libQt5Multimedia.so.5。"
+QT_MULTIMEDIA_REL="${qt_multimedia_files[0]#"$APPDIR"/}"
+QT_MULTIMEDIA_DIR_REL="$(dirname "$QT_MULTIMEDIA_REL")"
+readonly QT_MULTIMEDIA_REL QT_MULTIMEDIA_DIR_REL
+printf 'XnView QtMultimedia: %s\n' "$QT_MULTIMEDIA_REL"
 
 log "补入 Debian 12 libpulse0，避免依赖目标系统安装 PulseAudio client library"
 curl -fL \
@@ -188,35 +214,44 @@ tar -xf "$pulse_glib_data_archive" -C "$APPDIR"
 [[ -e "$APPDIR/usr/lib/x86_64-linux-gnu/libpulse-mainloop-glib.so.0" ]] || \
   die "补包后仍缺少 libpulse-mainloop-glib.so.0。"
 
+# 把 PulseAudio client libraries 放进 XnView 自己的 Qt library 目录。
+# 这样继续沿用上游 AppRun / RPATH 的库搜索方式，不依赖目标系统的 libpulse，也不需要改 Qt/GLib。
+QT_LIBRARY_DIR="$APPDIR/$QT_MULTIMEDIA_DIR_REL"
+readonly QT_LIBRARY_DIR
+cp -a "$APPDIR/usr/lib/x86_64-linux-gnu"/libpulse.so.0* "$QT_LIBRARY_DIR/"
+cp -a "$APPDIR/usr/lib/x86_64-linux-gnu"/libpulse-mainloop-glib.so.0* "$QT_LIBRARY_DIR/"
+cp -a "$APPDIR/usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-16.1.so" "$QT_LIBRARY_DIR/"
+[[ -e "$QT_LIBRARY_DIR/libpulse.so.0" ]] || die "XnView Qt library 目录仍缺少 libpulse.so.0。"
+[[ -e "$QT_LIBRARY_DIR/libpulse-mainloop-glib.so.0" ]] || die "XnView Qt library 目录仍缺少 libpulse-mainloop-glib.so.0。"
+[[ -f "$QT_LIBRARY_DIR/libpulsecommon-16.1.so" ]] || die "XnView Qt library 目录仍缺少 libpulsecommon。"
+
 # Debian 12 libpulse0 只要求 glibc >= 2.34；禁止未来误换成要求更高 glibc 的库。
 if strings "$APPDIR/usr/lib/x86_64-linux-gnu/libpulse.so.0.24.2" | \
   grep -Eq 'GLIBC_2\.(3[5-9]|[4-9][0-9])'; then
   die "libpulse0 出现高于 GLIBC_2.34 的符号要求。"
 fi
 
-log "恢复用户已验证可用的中文/XCB AppRun 环境"
+log "在官方 AppRun 外层恢复旧包已验证可用的中文/XCB 环境"
+# 保留上游原本的启动逻辑，只在最外层增加旧工作包使用的中文 locale 和 XCB 设置。
+# 这样不会再依赖上游 AppImage 内部目录是否是 /opt/XnView。
+cp -a "$APPDIR/AppRun" "$APPDIR/AppRun.original"
 cat > "$APPDIR/AppRun" <<'APP_RUN'
 #!/usr/bin/env bash
+set -e
 
 HERE="$(dirname "$(readlink -f "${0}")")"
 
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
 
-export PATH="$HERE"/opt/XnView:"$HERE"/opt/XnView/lib:"$HERE"/opt/XnView/Plugins:"$HERE"/opt/XnView/qml:"$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/lib/x86_64-linux-gnu:"$HERE"/usr/lib/x86_64-linux-gnu/pulseaudio:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$PATH"
-export LD_LIBRARY_PATH="$HERE"/opt/XnView:"$HERE"/opt/XnView/lib:"$HERE"/opt/XnView/Plugins:"$HERE"/opt/XnView/qml:"$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/lib/x86_64-linux-gnu:"$HERE"/usr/lib/x86_64-linux-gnu/pulseaudio:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"${LD_LIBRARY_PATH:-}"
-export QT_PLUGIN_PATH="$HERE"/opt/XnView:"$HERE"/opt/XnView/lib:"$HERE"/opt/XnView/Plugins:"$HERE"/opt/XnView/qml:"$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"${QT_PLUGIN_PATH:-}"
-export QML_IMPORT_PATH="$HERE"/opt/XnView:"$HERE"/opt/XnView/lib:"$HERE"/opt/XnView/Plugins:"$HERE"/opt/XnView/qml:"$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"${QML_IMPORT_PATH:-}"
-export QML2_IMPORT_PATH="$HERE"/opt/XnView:"$HERE"/opt/XnView/lib:"$HERE"/opt/XnView/Plugins:"$HERE"/opt/XnView/qml:"$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"${QML2_IMPORT_PATH:-}"
-export XDG_DATA_DIRS="$HERE"/opt/XnView:"$HERE"/opt/XnView/lib:"$HERE"/opt/XnView/Plugins:"$HERE"/opt/XnView/qml:"$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"${XDG_DATA_DIRS:-}"
-
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_QPA_PLATFORM=xcb
 export QT_FONT_DPI=96
 
-exec "$HERE"/opt/XnView/XnView "$@"
+exec "$HERE/AppRun.original" "$@"
 APP_RUN
 chmod 0755 "$APPDIR/AppRun"
+[[ -x "$APPDIR/AppRun.original" ]] || chmod 0755 "$APPDIR/AppRun.original"
 
 # 不运行 linuxdeploy，也不从当前 Arch 构建机复制 Qt/GLib/glibc 系统层。
 
@@ -252,39 +287,34 @@ log "验证最终包的中文环境、翻译文件和 libpulse"
 )
 [[ -d "$VERIFY_ROOT" ]] || die "最终 AppImage 提取失败。"
 [[ -x "$VERIFY_ROOT/AppRun" ]] || die "最终包缺少 AppRun。"
-[[ -x "$VERIFY_ROOT/opt/XnView/XnView" ]] || die "最终包缺少 XnView 主程序。"
-[[ -f "$VERIFY_ROOT/opt/XnView/language/xnview_zh_CN.qm" ]] || die "最终包缺少简体中文翻译。"
+[[ -e "$VERIFY_ROOT/AppRun.original" ]] || die "最终包缺少上游原始 AppRun。"
+[[ -x "$VERIFY_ROOT/$XNVIEW_REL" ]] || die "最终包缺少 XnView 主程序：$XNVIEW_REL"
+[[ -f "$VERIFY_ROOT/$ZH_CN_REL" ]] || die "最终包缺少简体中文翻译：$ZH_CN_REL"
 [[ -e "$VERIFY_ROOT/usr/lib/x86_64-linux-gnu/libpulse.so.0" ]] || die "最终包缺少 libpulse.so.0。"
 [[ -e "$VERIFY_ROOT/usr/lib/x86_64-linux-gnu/libpulse-mainloop-glib.so.0" ]] || die "最终包缺少 libpulse-mainloop-glib.so.0。"
 [[ -f "$VERIFY_ROOT/usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-16.1.so" ]] || \
   die "最终包缺少 libpulsecommon。"
+[[ -e "$VERIFY_ROOT/$QT_MULTIMEDIA_DIR_REL/libpulse.so.0" ]] || die "最终 Qt library 目录缺少 libpulse.so.0。"
+[[ -e "$VERIFY_ROOT/$QT_MULTIMEDIA_DIR_REL/libpulse-mainloop-glib.so.0" ]] || \
+  die "最终 Qt library 目录缺少 libpulse-mainloop-glib.so.0。"
+[[ -f "$VERIFY_ROOT/$QT_MULTIMEDIA_DIR_REL/libpulsecommon-16.1.so" ]] || \
+  die "最终 Qt library 目录缺少 libpulsecommon。"
 grep -Fq 'export LANG=zh_CN.UTF-8' "$VERIFY_ROOT/AppRun" || die "最终 AppRun 缺少中文 LANG。"
 grep -Fq 'export LANGUAGE=zh_CN:zh' "$VERIFY_ROOT/AppRun" || die "最终 AppRun 缺少中文 LANGUAGE。"
 grep -Fq 'export QT_QPA_PLATFORM=xcb' "$VERIFY_ROOT/AppRun" || die "最终 AppRun 缺少 xcb 设置。"
 
-log "检查 XnView 主程序能从包内解析 libpulse"
-set +e
-LD_LIBRARY_PATH="$VERIFY_ROOT/opt/XnView:$VERIFY_ROOT/opt/XnView/lib:$VERIFY_ROOT/opt/XnView/Plugins:$VERIFY_ROOT/opt/XnView/qml:$VERIFY_ROOT/usr/lib:$VERIFY_ROOT/usr/lib/x86_64-linux-gnu:$VERIFY_ROOT/usr/lib/x86_64-linux-gnu/pulseaudio" \
-ldd "$VERIFY_ROOT/opt/XnView/XnView" > "$VERIFY_DIR/ldd.log" 2>&1
-ldd_rc=$?
-set -e
-cat "$VERIFY_DIR/ldd.log"
-[[ "$ldd_rc" -eq 0 ]] || die "XnView ldd 检查失败。"
-grep -F 'libpulse.so.0 => ' "$VERIFY_DIR/ldd.log" | grep -Fq "$VERIFY_ROOT/usr/lib/x86_64-linux-gnu/libpulse.so.0" || \
-  die "XnView 没有解析到包内 libpulse.so.0。"
-
-LD_LIBRARY_PATH="$VERIFY_ROOT/opt/XnView:$VERIFY_ROOT/opt/XnView/lib:$VERIFY_ROOT/opt/XnView/Plugins:$VERIFY_ROOT/opt/XnView/qml:$VERIFY_ROOT/usr/lib:$VERIFY_ROOT/usr/lib/x86_64-linux-gnu:$VERIFY_ROOT/usr/lib/x86_64-linux-gnu/pulseaudio" \
-ldd "$VERIFY_ROOT/opt/XnView/lib/libQt5Multimedia.so.5" > "$VERIFY_DIR/qt-multimedia-ldd.log" 2>&1
+log "检查 QtMultimedia 优先解析包内 PulseAudio client libraries"
+QT_VERIFY_LIBRARY_DIR="$VERIFY_ROOT/$QT_MULTIMEDIA_DIR_REL"
+readonly QT_VERIFY_LIBRARY_DIR
+LD_LIBRARY_PATH="$QT_VERIFY_LIBRARY_DIR" \
+ldd "$VERIFY_ROOT/$QT_MULTIMEDIA_REL" > "$VERIFY_DIR/qt-multimedia-ldd.log" 2>&1
 cat "$VERIFY_DIR/qt-multimedia-ldd.log"
-grep -F 'libpulse.so.0 => ' "$VERIFY_DIR/qt-multimedia-ldd.log" | grep -Fq "$VERIFY_ROOT/usr/lib/x86_64-linux-gnu/libpulse.so.0" || \
-  die "Qt5Multimedia 没有解析到包内 libpulse.so.0。"
-grep -F 'libpulse-mainloop-glib.so.0 => ' "$VERIFY_DIR/qt-multimedia-ldd.log" | grep -Fq "$VERIFY_ROOT/usr/lib/x86_64-linux-gnu/libpulse-mainloop-glib.so.0" || \
-  die "Qt5Multimedia 没有解析到包内 libpulse-mainloop-glib.so.0。"
+grep -F 'libpulse.so.0 => ' "$VERIFY_DIR/qt-multimedia-ldd.log" | grep -Fq "$QT_VERIFY_LIBRARY_DIR/libpulse.so.0" || \
+  die "Qt5Multimedia 没有解析到 XnView 包内 libpulse.so.0。"
+grep -F 'libpulse-mainloop-glib.so.0 => ' "$VERIFY_DIR/qt-multimedia-ldd.log" | grep -Fq "$QT_VERIFY_LIBRARY_DIR/libpulse-mainloop-glib.so.0" || \
+  die "Qt5Multimedia 没有解析到 XnView 包内 libpulse-mainloop-glib.so.0。"
 if grep -Fq 'not found' "$VERIFY_DIR/qt-multimedia-ldd.log"; then
   die "Qt5Multimedia 仍存在未解析的共享库。"
-fi
-if grep -Fq 'not found' "$VERIFY_DIR/ldd.log"; then
-  die "最终包仍存在未解析的共享库。"
 fi
 
 log "在隔离 HOME / XDG 目录中执行 Xvfb 冒烟测试"
