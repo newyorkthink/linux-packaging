@@ -78,6 +78,10 @@ MAIN_FILE_INFO="$(file -Lb "$MAIN_SOURCE")"
 [[ -d "$APP_ROOT/bin" ]] || fail "official runtime bin directory is missing"
 ICON_SOURCE="$APP_ROOT/v2rayN.png"
 [[ -s "$ICON_SOURCE" ]] || fail "official v2rayN.png icon is missing"
+# 统一为 desktop 中的 Icon=v2rayn，避免大小写不一致导致菜单图标丢失。
+PACKAGING_ICON="$WORK_DIR/v2rayn.png"
+cp -a "$ICON_SOURCE" "$PACKAGING_ICON"
+[[ -s "$PACKAGING_ICON" ]] || fail "normalized v2rayN icon is missing"
 
 DESKTOP_FILE="$WORK_DIR/v2rayn.desktop"
 cat > "$DESKTOP_FILE" <<'DESKTOP'
@@ -89,14 +93,16 @@ Exec=v2rayN
 Icon=v2rayn
 Terminal=false
 Categories=Network;
+StartupWMClass=v2rayN
 DESKTOP
+printf 'X-AppImage-Version=%s\n' "$VERSION" >> "$DESKTOP_FILE"
 desktop-file-validate "$DESKTOP_FILE"
 
 export ARCH=x86_64
 export VERSION
 export APPNAME="v2rayN"
 export STARTUPWMCLASS="v2rayN"
-export ICON="$ICON_SOURCE"
+export ICON="$PACKAGING_ICON"
 export DESKTOP="$DESKTOP_FILE"
 export OUTPATH="$DIST_DIR"
 export OUTNAME="v2rayn.AppImage"
@@ -148,26 +154,35 @@ mkdir -p "$EXTRACT_DIR"
 )
 EXTRACTED="$EXTRACT_DIR/squashfs-root"
 [[ -x "$EXTRACTED/AppRun" ]] || fail "extracted AppRun is missing"
+[[ -f "$EXTRACTED/v2rayn.desktop" ]] || fail "extracted desktop file is missing"
+[[ -s "$EXTRACTED/v2rayn.png" ]] || fail "extracted desktop icon is missing"
 [[ -x "$EXTRACTED/shared/bin/v2rayN" ]] || fail "extracted v2rayN executable is missing"
 [[ -d "$EXTRACTED/shared/bin/bin" ]] || fail "extracted core/data directory is missing"
+desktop-file-validate "$EXTRACTED/v2rayn.desktop"
+grep -Fxq 'Icon=v2rayn' "$EXTRACTED/v2rayn.desktop" || fail "desktop icon name is inconsistent"
 
 # The extracted executable is launched through sharun; the isolated GUI smoke test below
 # is the authoritative runtime dependency check for the bundled loader/library path.
 SMOKE_HOME="$VERIFY_DIR/smoke-home"
+SMOKE_RUNTIME="$VERIFY_DIR/smoke-runtime"
 SMOKE_LOG="$VERIFY_DIR/smoke.log"
-mkdir -p "$SMOKE_HOME/config" "$SMOKE_HOME/cache" "$SMOKE_HOME/data"
+mkdir -p "$SMOKE_HOME/config" "$SMOKE_HOME/cache" "$SMOKE_HOME/data" "$SMOKE_RUNTIME"
+chmod 0700 "$SMOKE_RUNTIME"
 set +e
 HOME="$SMOKE_HOME" \
 XDG_CONFIG_HOME="$SMOKE_HOME/config" \
 XDG_CACHE_HOME="$SMOKE_HOME/cache" \
 XDG_DATA_HOME="$SMOKE_HOME/data" \
+XDG_RUNTIME_DIR="$SMOKE_RUNTIME" \
 APPIMAGE_EXTRACT_AND_RUN=1 \
 timeout 20s dbus-run-session -- xvfb-run -a "$APPIMAGE" >"$SMOKE_LOG" 2>&1
 SMOKE_RC=$?
 set -e
 
 cat "$SMOKE_LOG"
-if grep -Eqi 'Unhandled exception|DllNotFoundException|Segmentation fault|core dumped|Exec format error|wrong ELF class' "$SMOKE_LOG"; then
+if grep -Eqi \
+  'Unhandled exception|DllNotFoundException|error while loading shared libraries|cannot open shared object file|symbol lookup error|invalid ELF header|Segmentation fault|core dumped|Exec format error|wrong ELF class' \
+  "$SMOKE_LOG"; then
   fail "fatal runtime error detected during smoke test"
 fi
 [[ "$SMOKE_RC" -eq 124 ]] || fail "GUI did not remain running for the 20-second smoke test (exit=$SMOKE_RC)"

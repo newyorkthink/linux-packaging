@@ -185,7 +185,8 @@ case "$SOURCE_ICON" in
   *) die "Xmind 官方图标格式不是 PNG/SVG。" ;;
 esac
 readonly ICON_EXT
-readonly BUILD_ICON="$SCRIPT_DIR/xmind-build-icon.$ICON_EXT"
+# 图标文件名必须与 desktop 的 Icon=xmind 对应；放在 source/ 中可随项目构建目录统一清理。
+readonly BUILD_ICON="$SOURCE_DIR/xmind.$ICON_EXT"
 
 printf 'Xmind runtime: %s\nXmind desktop: %s\nXmind icon: %s\n' \
   "${SOURCE_APP_ROOT#"$PACKAGE_ROOT"/}" \
@@ -363,6 +364,7 @@ mkdir -p "$VERIFY_DIR"
 readonly VERIFY_APPDIR="$VERIFY_DIR/squashfs-root"
 [[ -x "$VERIFY_APPDIR/AppRun" ]] || die "最终 AppImage 缺少 AppRun。"
 [[ -f "$VERIFY_APPDIR/xmind.desktop" ]] || die "最终 AppImage 缺少 xmind.desktop。"
+[[ -f "$VERIFY_APPDIR/xmind.$ICON_EXT" ]] || die "最终 AppImage 缺少与 desktop 匹配的 Xmind 图标。"
 [[ -f "$VERIFY_APPDIR/bin/resources/app.asar" ]] || die "最终 AppImage 缺少 resources/app.asar。"
 
 for node_relative_path in "${source_node_relative_paths[@]}"; do
@@ -419,9 +421,14 @@ if grep -Eqi \
   die "Xmind 冒烟测试检测到致命运行时错误。"
 fi
 if [[ "$smoke_rc" -eq 124 ]]; then
-  if grep -Eqi 'FATAL:' "$SMOKE_LOG"; then
+  # timeout 会终止仍在正常运行的 Electron；只忽略由该终止动作产生的精确关停日志。
+  if grep -Ei 'FATAL:' "$SMOKE_LOG" | \
+    grep -Evqi \
+      'FATAL:((src/)?electron/shell/browser/electron_browser_main_parts\.cc:[0-9]+\] Failed to shutdown\.|dbus/bus\.cc:[0-9]+\] D-Bus connection was disconnected\. Aborting\.)$'; then
     die "Xmind 冒烟测试检测到致命 Electron 错误。"
   fi
+elif grep -Eqi 'FATAL:' "$SMOKE_LOG"; then
+  die "Xmind 冒烟测试检测到致命 Electron 错误。"
 elif [[ "$smoke_rc" -ne 0 ]]; then
   die "Xmind 在 Xvfb 冒烟测试中异常退出：$smoke_rc"
 fi

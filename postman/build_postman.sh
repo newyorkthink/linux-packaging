@@ -138,6 +138,15 @@ install -Dm0755 /usr/bin/xdg-settings "$APP_ROOT/xdg-settings"
 
 # Node 原生模块由 Electron/Node 在运行时 dlopen，不把执行位当成独立程序入口。
 find "$APP_ROOT" -type f -name '*.node' -exec chmod 0644 {} +
+mapfile -d '' source_node_modules < <(
+  find "$APP_ROOT" -type f -name '*.node' -print0
+)
+source_node_relative_paths=()
+for node_module in "${source_node_modules[@]}"; do
+  readelf -h "$node_module" >/dev/null 2>&1 || die "Postman Node 模块不是 ELF：$node_module"
+  source_node_relative_paths+=("${node_module#"$APP_ROOT"/}")
+done
+printf 'Postman Node native modules: %s\n' "${#source_node_relative_paths[@]}"
 
 # AUR 的 postman.desktop 是独立打包资源，不在官方 tar.gz 内；这里生成等价的便携 desktop 入口。
 install -Dm0644 "$SOURCE_ICON" "$BUILD_ICON"
@@ -227,6 +236,9 @@ LD_LIBRARY_PATH="$BUILD_LIBRARY_PATH" quick-sharun \
 quick-sharun --make-appimage
 [[ -s "$OUTFILE" ]] || die "未生成预期文件：$OUTFILE"
 chmod 0755 "$OUTFILE"
+file "$OUTFILE"
+"$OUTFILE" --appimage-version >/dev/null
+sha256sum "$OUTFILE" > "$OUTFILE.sha256"
 
 # 解包最终 AppImage，核对官方应用资源、desktop、图标与 AppRun。
 mkdir -p "$VERIFY_DIR"
@@ -240,6 +252,13 @@ readonly VERIFY_APPDIR="$VERIFY_DIR/squashfs-root"
 [[ -f "$VERIFY_APPDIR/postman.png" ]] || die "最终 AppImage 缺少 postman.png。"
 [[ -x "$VERIFY_APPDIR/bin/Postman" ]] || die "最终 AppImage 缺少 Postman 主程序。"
 [[ -f "$VERIFY_APPDIR/bin/resources/app/package.json" ]] || die "最终 AppImage 缺少 Postman 应用资源。"
+
+for node_relative_path in "${source_node_relative_paths[@]}"; do
+  node_module="$VERIFY_APPDIR/bin/$node_relative_path"
+  [[ -f "$node_module" ]] || die "最终 AppImage 缺少 Node 原生模块：$node_relative_path"
+  readelf -h "$node_module" >/dev/null 2>&1 || \
+    die "最终 AppImage 中的 Node 模块不是 ELF：$node_relative_path"
+done
 
 desktop-file-validate "$VERIFY_APPDIR/postman.desktop"
 
@@ -265,13 +284,15 @@ set -e
 cat "$SMOKE_LOG"
 printf 'Postman smoke test exit code: %s\n' "$smoke_rc"
 if grep -Eqi \
-  'error while loading shared libraries|cannot open shared object file|invalid ELF header|wrong ELF class|Exec format error|Trace/breakpoint trap|Segmentation fault' \
+  'error while loading shared libraries|cannot open shared object file|symbol lookup error|invalid ELF header|wrong ELF class|Exec format error|Trace/breakpoint trap|Segmentation fault|Aborted \(core dumped\)' \
   "$SMOKE_LOG"; then
   die "Postman 冒烟测试检测到致命运行错误。"
 fi
 if [[ "$smoke_rc" -eq 124 ]]; then
+  # timeout 会终止仍在正常运行的 Electron；只忽略由该终止动作产生的精确关停日志。
   if grep -Ei 'FATAL:' "$SMOKE_LOG" | \
-    grep -Evqi 'FATAL:(src/)?electron/shell/browser/electron_browser_main_parts\.cc:[0-9]+\] Failed to shutdown\.$'; then
+    grep -Evqi \
+      'FATAL:((src/)?electron/shell/browser/electron_browser_main_parts\.cc:[0-9]+\] Failed to shutdown\.|dbus/bus\.cc:[0-9]+\] D-Bus connection was disconnected\. Aborting\.)$'; then
     die "Postman 冒烟测试检测到致命运行错误。"
   fi
 elif grep -Eqi 'FATAL:' "$SMOKE_LOG"; then
