@@ -9,7 +9,7 @@ APPDIR="$SCRIPT_DIR/AppDir"
 DIST_DIR="$SCRIPT_DIR/dist"
 OUTFILE="$DIST_DIR/xnviewmp.AppImage"
 CHECKSUMS="$SOURCE_DIR/XnView_MP-CHECKSUMS.txt"
-OFFICIAL="$SOURCE_DIR/XnView_MP.AppImage"
+DEB="$SOURCE_DIR/XnView_MP.deb"
 LINUXDEPLOY="$SOURCE_DIR/linuxdeploy-x86_64.AppImage"
 QT_PLUGIN="$SOURCE_DIR/linuxdeploy-plugin-qt-x86_64.AppImage"
 
@@ -20,23 +20,18 @@ curl -fL --retry 3 \
   https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt \
   -o "$CHECKSUMS"
 
-read -r EXPECTED_SHA APPIMAGE_NAME < <(
-  awk '{gsub(/\r/, "", $2)} $2 ~ /^XnView_MP-[0-9.]+\.glibc[0-9.]+-x86_64\.AppImage$/ {print $1, $2; exit}' "$CHECKSUMS"
+read -r EXPECTED_SHA DEB_NAME < <(
+  awk '{gsub(/\r/, "", $2)} $2 ~ /^XnView_MP-[0-9.]+-linux-x64\.deb$/ {print $1, $2; exit}' "$CHECKSUMS"
 )
 test -n "${EXPECTED_SHA:-}"
-test -n "${APPIMAGE_NAME:-}"
+test -n "${DEB_NAME:-}"
 
 curl -fL --retry 3 \
-  "https://download.xnview.com/versions/XnView_MP/$APPIMAGE_NAME" \
-  -o "$OFFICIAL"
-echo "$EXPECTED_SHA  $OFFICIAL" | sha256sum -c -
-chmod +x "$OFFICIAL"
+  "https://download.xnview.com/versions/XnView_MP/$DEB_NAME" \
+  -o "$DEB"
+echo "$EXPECTED_SHA  $DEB" | sha256sum -c -
 
-(
-  cd "$SOURCE_DIR"
-  "$OFFICIAL" --appimage-extract >/dev/null
-)
-mv "$SOURCE_DIR/squashfs-root" "$APPDIR"
+dpkg-deb -x "$DEB" "$APPDIR"
 
 curl -fL --retry 3 \
   https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
