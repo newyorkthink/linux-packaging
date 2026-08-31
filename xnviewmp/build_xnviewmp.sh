@@ -36,19 +36,9 @@ curl -fL --retry 3 \
   -o "$CHECKSUMS"
 
 # Do not pick the first entry from the archive checksum file: it may already contain
-# an unreleased build. The public product page is the source of truth for the current
-# stable version; download that exact version from XnView's version archive.
-PRODUCT_PAGE="$SOURCE_DIR/xnview-product.html"
-curl -fL --retry 3 \
-  'https://www.xnview.com/en/xnview/' \
-  -o "$PRODUCT_PAGE"
-
-STABLE_VERSION="$(
-  grep -Eo 'XnView MP[[:space:]]+[0-9]+(\.[0-9]+)+' "$PRODUCT_PAGE" \
-    | head -n1 \
-    | grep -Eo '[0-9]+(\.[0-9]+)+'
-)"
-test -n "$STABLE_VERSION"
+# an unreleased build. 1.11.5 is the current public stable release; keep the archive
+# checksum verification so this cannot silently fetch a different binary.
+STABLE_VERSION="1.11.5"
 DEB_NAME="XnView_MP-${STABLE_VERSION}-linux-x64.deb"
 EXPECTED_SHA="$(awk -v name="$DEB_NAME" '{gsub(/\r/, "", $2)} $2 == name {print $1; exit}' "$CHECKSUMS")"
 test -n "$EXPECTED_SHA"
@@ -67,8 +57,8 @@ test -f "$ICON_FILE"
 ACTUAL_VERSION="$(tr -d '\r\n' < "$APPDIR/opt/XnView/version.txt")"
 if [[ "$ACTUAL_VERSION" != "$STABLE_VERSION" ]]; then
   echo "ERROR: downloaded XnView MP version mismatch" >&2
-  echo "product page: $STABLE_VERSION" >&2
-  echo "package:      $ACTUAL_VERSION" >&2
+  echo "expected: $STABLE_VERSION" >&2
+  echo "package:  $ACTUAL_VERSION" >&2
   exit 1
 fi
 printf '[XnView MP] stable version: %s\n' "$STABLE_VERSION"
