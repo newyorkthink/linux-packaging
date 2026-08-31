@@ -10,6 +10,8 @@ DIST_DIR="$SCRIPT_DIR/dist"
 OUTFILE="$DIST_DIR/xnviewmp.AppImage"
 OFFICIAL_APPIMAGE="$SOURCE_DIR/XnView_MP.AppImage"
 LINUXDEPLOY="$SOURCE_DIR/linuxdeploy-x86_64.AppImage"
+APPIMAGETOOL="$SOURCE_DIR/appimagetool-x86_64.AppImage"
+RUNTIME_FILE="$SOURCE_DIR/runtime-x86_64"
 CUSTOM_APPRUN="$SOURCE_DIR/AppRun"
 
 rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
@@ -54,15 +56,24 @@ chmod +x "$CUSTOM_APPRUN" "$APPDIR/AppRun.official"
 curl -fL --retry 3 \
   https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
   -o "$LINUXDEPLOY"
-chmod +x "$LINUXDEPLOY"
+curl -fL --retry 3 \
+  https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage \
+  -o "$APPIMAGETOOL"
+curl -fL --retry 3 \
+  https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64 \
+  -o "$RUNTIME_FILE"
+chmod +x "$LINUXDEPLOY" "$APPIMAGETOOL"
 
 export ARCH=x86_64
-export LDAI_OUTPUT="$OUTFILE"
 NO_STRIP=1 APPIMAGE_EXTRACT_AND_RUN=1 \
   "$LINUXDEPLOY" \
   --appdir "$APPDIR" \
   --custom-apprun "$CUSTOM_APPRUN" \
-  --exclude-library='*' \
-  --output appimage
+  --exclude-library='*'
+
+APPIMAGE_EXTRACT_AND_RUN=1 \
+  "$APPIMAGETOOL" -n \
+  --runtime-file "$RUNTIME_FILE" \
+  "$APPDIR" "$OUTFILE"
 
 chmod +x "$OUTFILE"
