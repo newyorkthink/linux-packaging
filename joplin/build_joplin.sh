@@ -95,15 +95,25 @@ sed -i -e 's|^Exec=.*|Exec=joplin %U|' -e 's|^Icon=.*|Icon=joplin|' "$DESKTOP_FI
 # linuxdeploy 不接受 1024x1024 图标；保留官方 512x512 及其他标准尺寸。
 rm -f "$APPDIR/usr/share/icons/hicolor/1024x1024/apps/joplin.png"
 
+# 复现旧版已验证 AppImage 的启动环境；入口位于 usr/bin，因此先解析回 AppDir 根目录。
 mkdir -p "$APPDIR/usr/bin"
 cat > "$APPDIR/usr/bin/joplin" <<'WRAPPER'
-#!/usr/bin/env bash
-set -e
-HERE="$(dirname "$(readlink -f "$0")")"
-ROOT="$(readlink -f "$HERE/../..")"
-exec "$ROOT/opt/Joplin/joplin" "$@"
+#!/usr/bin/env sh
+
+HERE="$(readlink -f "$(dirname "$(readlink -f "${0}")")/../..")"
+
+export PATH="$HERE"/opt/Joplin:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/share:"$PATH"
+export LD_LIBRARY_PATH="$HERE"/opt/Joplin:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/share:"$LD_LIBRARY_PATH"
+export XDG_DATA_DIRS="$HERE"/opt/Joplin:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/share:"$XDG_DATA_DIRS"
+export GSETTINGS_SCHEMA_DIR="${HERE}"/usr/share/glib-2.0/schemas/:"${GSETTINGS_SCHEMA_DIR}"
+
+export GTK_THEME=Adwaita-dark
+export NO_AT_BRIDGE=1
+
+exec "$HERE"/opt/Joplin/joplin "$@"
 WRAPPER
 chmod +x "$APPDIR/usr/bin/joplin"
+sh -n "$APPDIR/usr/bin/joplin"
 
 # Electron/NSS 会 dlopen 这些模块；linuxdeploy 只跟踪 ELF NEEDED，不会自动收集它们。
 MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
