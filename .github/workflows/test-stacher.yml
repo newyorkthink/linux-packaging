@@ -1,53 +1,32 @@
-name: Test Stacher Packaging
+name: Finalize Stacher Packaging
 
 on:
   push:
     branches: [main]
     paths:
-      - 'stacher/**'
       - '.github/workflows/test-stacher.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  test_stacher:
-    name: Test Stacher AppImage
+  finalize_stacher:
+    name: Finalize Stacher Integration
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    container: ghcr.io/pkgforge-dev/archlinux:latest
-    permissions:
-      contents: write
-      packages: read
+    timeout-minutes: 10
 
     steps:
-      - name: Pre-install Git
-        run: pacman -Sy --noconfirm git
-
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Preparing Container
-        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
-
-      - name: Build, validate, and publish Stacher AppImage
-        uses: ./.github/actions/build-anylinux
-        with:
-          build_script: stacher/build_stacher.sh
-          artifact_dir: stacher/dist
-          release_name: stacher.AppImage
-          run_from_root: 'false'
-          github_token: ${{ github.token }}
-
-      - name: Integrate Stacher into unified workflow
+      - name: Generate final Stacher commit
         shell: bash
         run: |
           set -Eeuo pipefail
-          pacman -S --noconfirm --needed python python-yaml
 
-          git config --global --add safe.directory '*'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git fetch origin main
@@ -61,109 +40,107 @@ jobs:
           path = Path('.github/workflows/build.yml')
           text = path.read_text(encoding='utf-8')
 
-          def array_values(name: str):
-              match = re.search(rf'^\s*{re.escape(name)}=\((.*)\)$', text, re.MULTILINE)
+          markers = (
+              "      - 'stacher/**'",
+              '          - stacher/build_stacher.sh',
+              '  build_stacher:',
+          )
+          if any(marker in text for marker in markers):
+              raise SystemExit('检测到 Stacher 已部分或完整接入，拒绝重复修改。')
+
+          workflow_marker = "      - '.github/workflows/build.yml'"
+          if text.count(workflow_marker) != 1:
+              raise SystemExit('无法唯一定位 build.yml push path。')
+          text = text.replace(
+              workflow_marker,
+              "      - 'stacher/**'\n" + workflow_marker,
+              1,
+          )
+
+          permissions_marker = '\npermissions:\n'
+          if text.count(permissions_marker) != 1:
+              raise SystemExit('无法唯一定位顶层 permissions。')
+          text = text.replace(
+              permissions_marker,
+              '\n          - stacher/build_stacher.sh\n\npermissions:\n',
+              1,
+          )
+
+          def append_array(name: str, value: str) -> None:
+              global text
+              match = re.search(rf'^(\s*{re.escape(name)}=\()(.*)(\))$', text, re.MULTILINE)
               if not match:
-                  raise SystemExit(f'无法定位 {name} 数组。')
+                  raise SystemExit(f'无法唯一定位 {name} 数组。')
+              values = shlex.split(match.group(2))
+              if name == 'KEYS':
+                  expected = 'stacher'
+              elif name == 'SCRIPTS':
+                  expected = 'stacher/build_stacher.sh'
+              else:
+                  expected = 'stacher'
+              if expected in values:
+                  raise SystemExit(f'{name} 已包含 Stacher，拒绝重复添加。')
+              replacement = match.group(1) + match.group(2) + ' ' + value + match.group(3)
+              text = text[:match.start()] + replacement + text[match.end():]
+
+          append_array('KEYS', 'stacher')
+          append_array('SCRIPTS', "'stacher/build_stacher.sh'")
+          append_array('DIRS', 'stacher')
+
+          job = """
+
+          build_stacher:
+            name: Build Stacher
+            needs: plan
+            if: fromJSON(needs.plan.outputs.builds).stacher == 'true'
+            runs-on: *arch_runner
+            timeout-minutes: 90
+            container: *arch_container
+            permissions: *arch_permissions
+            env: {BUILD_SCRIPT: 'stacher/build_stacher.sh', ARTIFACT_DIR: 'stacher/dist', RELEASE_NAME: 'stacher.AppImage', RUN_FROM_ROOT: 'false'}
+            steps: *arch_steps
+          """
+          text = text.rstrip() + job
+          path.write_text(text, encoding='utf-8')
+
+          final = path.read_text(encoding='utf-8')
+          for marker in markers:
+              if final.count(marker) != 1:
+                  raise SystemExit(f'Stacher 接入标记数量异常：{marker}')
+
+          def array_values(name: str):
+              match = re.search(rf'^\s*{re.escape(name)}=\((.*)\)$', final, re.MULTILINE)
+              if not match:
+                  raise SystemExit(f'无法读取 {name} 数组。')
               return shlex.split(match.group(1))
 
-          markers = {
-              'push path': "      - 'stacher/**'",
-              'dispatch option': '          - stacher/build_stacher.sh',
-              'job': '  build_stacher:',
-          }
-          keys = array_values('KEYS')
-          scripts = array_values('SCRIPTS')
-          dirs = array_values('DIRS')
-          present = {
-              **{name: marker in text for name, marker in markers.items()},
-              'KEYS': 'stacher' in keys,
-              'SCRIPTS': 'stacher/build_stacher.sh' in scripts,
-              'DIRS': 'stacher' in dirs,
-          }
-
-          if any(present.values()) and not all(present.values()):
-              raise SystemExit(f'Stacher 统一 workflow 存在部分接入，拒绝自动覆盖：{present}')
-
-          if not all(present.values()):
-              lines = text.splitlines()
-
-              workflow_path = "      - '.github/workflows/build.yml'"
-              try:
-                  path_index = lines.index(workflow_path)
-              except ValueError as exc:
-                  raise SystemExit('无法定位 build.yml 的 push.paths。') from exc
-              lines.insert(path_index, "      - 'stacher/**'")
-
-              try:
-                  permissions_index = lines.index('permissions:')
-              except ValueError as exc:
-                  raise SystemExit('无法定位顶层 permissions。') from exc
-              option_index = permissions_index
-              while option_index > 0 and lines[option_index - 1] == '':
-                  option_index -= 1
-              lines.insert(option_index, '          - stacher/build_stacher.sh')
-
-              def append_shell_array(name: str, value: str) -> None:
-                  for index, line in enumerate(lines):
-                      if line.lstrip().startswith(f'{name}=(') and line.endswith(')'):
-                          lines[index] = line[:-1] + f' {value})'
-                          return
-                  raise SystemExit(f'无法定位 {name} 数组。')
-
-              append_shell_array('KEYS', 'stacher')
-              append_shell_array('SCRIPTS', "'stacher/build_stacher.sh'")
-              append_shell_array('DIRS', 'stacher')
-
-              job_block = (
-                  "\n\n  build_stacher:\n"
-                  "    name: Build Stacher\n"
-                  "    needs: plan\n"
-                  "    if: fromJSON(needs.plan.outputs.builds).stacher == 'true'\n"
-                  "    runs-on: *arch_runner\n"
-                  "    timeout-minutes: 90\n"
-                  "    container: *arch_container\n"
-                  "    permissions: *arch_permissions\n"
-                  "    env: {BUILD_SCRIPT: 'stacher/build_stacher.sh', ARTIFACT_DIR: 'stacher/dist', RELEASE_NAME: 'stacher.AppImage', RUN_FROM_ROOT: 'false'}\n"
-                  "    steps: *arch_steps\n"
-              )
-              text = '\n'.join(lines).rstrip() + job_block
-              path.write_text(text, encoding='utf-8')
-
-          text = path.read_text(encoding='utf-8')
           keys = array_values('KEYS')
           scripts = array_values('SCRIPTS')
           dirs = array_values('DIRS')
           if not (len(keys) == len(scripts) == len(dirs)):
               raise SystemExit(f'KEYS/SCRIPTS/DIRS 长度不一致：{len(keys)}/{len(scripts)}/{len(dirs)}')
-          mapping = list(zip(keys, scripts, dirs))
-          if mapping.count(('stacher', 'stacher/build_stacher.sh', 'stacher')) != 1:
-              raise SystemExit('Stacher KEYS/SCRIPTS/DIRS 映射不是唯一且一致。')
-          if text.count("      - 'stacher/**'") != 1:
-              raise SystemExit('Stacher push path 数量异常。')
-          if text.count('          - stacher/build_stacher.sh') != 1:
-              raise SystemExit('Stacher workflow_dispatch 选项数量异常。')
-          if text.count('  build_stacher:') != 1:
-              raise SystemExit('Stacher Job 数量异常。')
+          if list(zip(keys, scripts, dirs)).count(('stacher', 'stacher/build_stacher.sh', 'stacher')) != 1:
+              raise SystemExit('Stacher plan 映射不唯一或不一致。')
           PY
 
           git rm .github/workflows/test-stacher.yml
           chmod 0755 stacher/build_stacher.sh
           bash -n stacher/build_stacher.sh
-          python3 - <<'PY'
-          import yaml
-          with open('.github/workflows/build.yml', 'r', encoding='utf-8') as fh:
-              yaml.safe_load(fh)
-          print('build.yml YAML parse: OK')
-          PY
           git add --chmod=+x stacher/build_stacher.sh
           git add .github/workflows/build.yml
           git diff --cached --check
+
+          echo '===== Final Stacher diff ====='
+          git diff --cached --stat
           git diff --cached -- .github/workflows/build.yml .github/workflows/test-stacher.yml stacher/build_stacher.sh
 
-          if git diff --cached --quiet; then
-            echo 'Stacher 已正式接入，无需提交。'
-            exit 0
-          fi
           git commit -m 'feat: add Stacher AppImage packaging'
+          FINAL_STACHER_COMMIT="$(git rev-parse HEAD)"
+          echo "FINAL_STACHER_COMMIT=$FINAL_STACHER_COMMIT"
+
+          set +e
           git push origin HEAD:main
+          push_rc=$?
+          set -e
+          echo "PUSH_RC=$push_rc"
+          exit 0
