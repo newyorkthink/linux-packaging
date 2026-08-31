@@ -302,7 +302,7 @@ for required_lib in \
     die "AppImage 缺少 XCB 运行依赖：$required_lib"
 done
 
-mapfile -d '' desktop_files < <(find "$VERIFY_ROOT" -maxdepth 1 -type f -name '*.desktop' -print0)
+mapfile -d '' desktop_files < <(find "$VERIFY_ROOT" -maxdepth 1 \( -type f -o -type l \) -name '*.desktop' -print0)
 [[ ${#desktop_files[@]} -ge 1 ]] || die "提取后的 AppImage 根目录没有 desktop 文件。"
 for desktop_file in "${desktop_files[@]}"; do
   desktop-file-validate "$desktop_file"
