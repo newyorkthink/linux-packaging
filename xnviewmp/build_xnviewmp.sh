@@ -18,7 +18,8 @@ ICON_FILE="$APPDIR/opt/XnView/xnview.png"
 rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
 mkdir -p "$SOURCE_DIR" "$DIST_DIR"
 
-# Ubuntu runner: install the Qt/XCB/GStreamer/Fcitx5/PulseAudio runtime pieces linuxdeploy may need.
+# Ubuntu runner: install the complete runtime families XnView commonly reaches through
+# Qt Multimedia, GStreamer, PulseAudio, XCB and Qt input methods.
 sudo apt-get install -y --no-install-recommends \
   qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 \
   fcitx5-frontend-qt5 libfcitx5-qt1 \
@@ -54,24 +55,66 @@ sed -i 's|^Icon=.*|Icon=xnview|' "$DESKTOP_FILE"
 
 cat > "$APPDIR/usr/bin/xnview" <<'EOF_APPRUN'
 #!/usr/bin/env bash
+set -Eeuo pipefail
+
 HERE="$(dirname "$(readlink -f "$0")")"
 ROOT="$(readlink -f "$HERE/../..")"
+
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
-export LD_LIBRARY_PATH="$ROOT/opt/XnView/lib:$ROOT/opt/XnView/Plugins:${LD_LIBRARY_PATH:-}"
-export QT_PLUGIN_PATH="$ROOT/opt/XnView/lib"
+export PATH="$ROOT/opt/XnView:$ROOT/usr/bin:${PATH:-}"
+export LD_LIBRARY_PATH="$ROOT/opt/XnView/lib:$ROOT/opt/XnView/Plugins:$ROOT/usr/lib:${LD_LIBRARY_PATH:-}"
+export QT_PLUGIN_PATH="$ROOT/opt/XnView/lib:$ROOT/usr/plugins:${QT_PLUGIN_PATH:-}"
+export QML_IMPORT_PATH="$ROOT/opt/XnView/qml:$ROOT/usr/qml:${QML_IMPORT_PATH:-}"
+export QML2_IMPORT_PATH="$ROOT/opt/XnView/qml:$ROOT/usr/qml:${QML2_IMPORT_PATH:-}"
+export XDG_DATA_DIRS="$ROOT/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_QPA_PLATFORM=xcb
+export QT_FONT_DPI=96
+
 exec "$ROOT/opt/XnView/XnView" "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/usr/bin/xnview"
 
-# Give linuxdeploy-plugin-qt the XCB Qt seed plus PulseAudio GLib, which is required
-# by XnView's bundled QtMultimedia. Pre-create translations for the Qt plugin.
+# Seed the runtime libraries that have repeatedly been missing on lean hosts. Keeping
+# them in usr/lib only works if the AppRun launcher above also exposes usr/lib.
 mkdir -p "$APPDIR/usr/lib" "$APPDIR/usr/translations"
 cp -a "$APPDIR/opt/XnView/lib"/libQt5XcbQpa.so* "$APPDIR/usr/lib/"
-cp -a /usr/lib/x86_64-linux-gnu/libpulse-mainloop-glib.so.0* "$APPDIR/usr/lib/"
+
+copy_runtime_glob() {
+  local pattern="$1"
+  local files=()
+  mapfile -t files < <(compgen -G "$pattern" || true)
+  if ((${#files[@]} == 0)); then
+    echo "ERROR: required runtime library pattern not found: $pattern" >&2
+    exit 1
+  fi
+  cp -a "${files[@]}" "$APPDIR/usr/lib/"
+}
+
+for runtime_lib in \
+  libgstreamer-1.0.so.0 \
+  libgstapp-1.0.so.0 \
+  libgstbase-1.0.so.0 \
+  libgstaudio-1.0.so.0 \
+  libgstvideo-1.0.so.0 \
+  libgstpbutils-1.0.so.0 \
+  libgsttag-1.0.so.0 \
+  libgstallocators-1.0.so.0 \
+  libgstfft-1.0.so.0 \
+  libgstgl-1.0.so.0 \
+  libpulse.so.0 \
+  libpulse-mainloop-glib.so.0; do
+  copy_runtime_glob "/usr/lib/x86_64-linux-gnu/${runtime_lib}*"
+done
+copy_runtime_glob "/usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-*.so"
+
 test -e "$APPDIR/usr/lib/libQt5XcbQpa.so.5"
+test -e "$APPDIR/usr/lib/libgstreamer-1.0.so.0"
+test -e "$APPDIR/usr/lib/libgstapp-1.0.so.0"
+test -e "$APPDIR/usr/lib/libpulse.so.0"
 test -e "$APPDIR/usr/lib/libpulse-mainloop-glib.so.0"
+compgen -G "$APPDIR/usr/lib/libpulsecommon-*.so" >/dev/null
 
 curl -fL --retry 3 \
   https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
@@ -84,7 +127,7 @@ chmod +x "$LINUXDEPLOY" "$QT_PLUGIN"
 export ARCH=x86_64
 export APPIMAGE_EXTRACT_AND_RUN=1
 export LDAI_OUTPUT="$OUTFILE"
-export LD_LIBRARY_PATH="$APPDIR/opt/XnView/lib:$APPDIR/opt/XnView/Plugins:${LD_LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="$APPDIR/opt/XnView/lib:$APPDIR/opt/XnView/Plugins:$APPDIR/usr/lib:${LD_LIBRARY_PATH:-}"
 
 "$LINUXDEPLOY" \
   --appdir "$APPDIR" \
@@ -95,4 +138,33 @@ export LD_LIBRARY_PATH="$APPDIR/opt/XnView/lib:$APPDIR/opt/XnView/Plugins:${LD_L
 
 test -s "$OUTFILE"
 chmod +x "$OUTFILE"
+
+# Verify the final AppImage itself, not just the runner environment. This catches the
+# exact class of failure where CI has a host library but the published AppImage does not
+# expose its bundled copy through LD_LIBRARY_PATH/QT_PLUGIN_PATH.
+VERIFY_DIR="$SOURCE_DIR/verify-appimage"
+rm -rf "$VERIFY_DIR"
+mkdir -p "$VERIFY_DIR"
+(
+  cd "$VERIFY_DIR"
+  "$OUTFILE" --appimage-extract >/dev/null
+)
+VERIFY_ROOT="$VERIFY_DIR/squashfs-root"
+test -x "$VERIFY_ROOT/opt/XnView/XnView"
+test -e "$VERIFY_ROOT/usr/lib/libgstreamer-1.0.so.0"
+test -e "$VERIFY_ROOT/usr/lib/libgstapp-1.0.so.0"
+test -e "$VERIFY_ROOT/usr/lib/libpulse.so.0"
+test -e "$VERIFY_ROOT/usr/lib/libpulse-mainloop-glib.so.0"
+compgen -G "$VERIFY_ROOT/usr/lib/libpulsecommon-*.so" >/dev/null
+test -e "$VERIFY_ROOT/usr/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so"
+grep -Fq '$ROOT/usr/lib' "$VERIFY_ROOT/usr/bin/xnview"
+grep -Fq '$ROOT/usr/plugins' "$VERIFY_ROOT/usr/bin/xnview"
+
+LDD_OUTPUT="$(LD_LIBRARY_PATH="$VERIFY_ROOT/opt/XnView/lib:$VERIFY_ROOT/opt/XnView/Plugins:$VERIFY_ROOT/usr/lib" ldd "$VERIFY_ROOT/opt/XnView/XnView")"
+printf '%s\n' "$LDD_OUTPUT"
+if grep -Fq 'not found' <<<"$LDD_OUTPUT"; then
+  echo "ERROR: extracted XnView AppImage still has unresolved shared libraries" >&2
+  exit 1
+fi
+
 sha256sum "$OUTFILE"
