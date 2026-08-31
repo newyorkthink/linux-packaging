@@ -287,9 +287,20 @@ export NO_STRIP=1
 
 elf_targets=()
 while IFS= read -r -d '' target; do
-  if readelf -h "$target" >/dev/null 2>&1; then
-    elf_targets+=("$target")
+  if ! readelf -h "$target" >/dev/null 2>&1; then
+    continue
   fi
+
+  # 上游 Electron 资源可能同时附带 glibc/musl 预编译 Node 模块。
+  # AppImage 目标是 glibc；musl 变体保留在资源中，但不参与 ldd 与 quick-sharun。
+  case "$target" in
+    *musl*)
+      printf 'Tencent Docs skip optional musl ELF: %s\n' "${target#"$APP_ROOT"/}"
+      continue
+      ;;
+  esac
+
+  elf_targets+=("$target")
 done < <(find "$APP_ROOT" -type f -print0)
 [[ ${#elf_targets[@]} -gt 0 ]] || die "官方腾讯文档运行目录中未找到 ELF 文件。"
 printf 'Tencent Docs ELF files: %s\n' "${#elf_targets[@]}"
