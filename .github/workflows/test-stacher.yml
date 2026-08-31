@@ -89,16 +89,16 @@ jobs:
 
           job = """
 
-          build_stacher:
-            name: Build Stacher
-            needs: plan
-            if: fromJSON(needs.plan.outputs.builds).stacher == 'true'
-            runs-on: *arch_runner
-            timeout-minutes: 90
-            container: *arch_container
-            permissions: *arch_permissions
-            env: {BUILD_SCRIPT: 'stacher/build_stacher.sh', ARTIFACT_DIR: 'stacher/dist', RELEASE_NAME: 'stacher.AppImage', RUN_FROM_ROOT: 'false'}
-            steps: *arch_steps
+            build_stacher:
+              name: Build Stacher
+              needs: plan
+              if: fromJSON(needs.plan.outputs.builds).stacher == 'true'
+              runs-on: *arch_runner
+              timeout-minutes: 90
+              container: *arch_container
+              permissions: *arch_permissions
+              env: {BUILD_SCRIPT: 'stacher/build_stacher.sh', ARTIFACT_DIR: 'stacher/dist', RELEASE_NAME: 'stacher.AppImage', RUN_FROM_ROOT: 'false'}
+              steps: *arch_steps
           """
           text = text.rstrip() + job
           path.write_text(text, encoding='utf-8')
