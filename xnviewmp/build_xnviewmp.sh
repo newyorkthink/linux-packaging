@@ -48,19 +48,26 @@ curl -fL --retry 3 \
   -o "$DEB"
 echo "$EXPECTED_SHA  $DEB" | sha256sum -c -
 
-dpkg-deb -x "$DEB" "$APPDIR"
-test -x "$APPDIR/opt/XnView/XnView"
-test -f "$APPDIR/opt/XnView/version.txt"
-test -f "$DESKTOP_FILE"
-test -f "$ICON_FILE"
-
-ACTUAL_VERSION="$(tr -d '\r\n' < "$APPDIR/opt/XnView/version.txt")"
-if [[ "$ACTUAL_VERSION" != "$STABLE_VERSION" ]]; then
-  echo "ERROR: downloaded XnView MP version mismatch" >&2
+PACKAGE_VERSION="$(dpkg-deb -f "$DEB" Version | tr -d '\r\n')"
+if [[ "$PACKAGE_VERSION" != "$STABLE_VERSION" ]]; then
+  echo "ERROR: downloaded XnView MP package version mismatch" >&2
   echo "expected: $STABLE_VERSION" >&2
-  echo "package:  $ACTUAL_VERSION" >&2
+  echo "package:  $PACKAGE_VERSION" >&2
   exit 1
 fi
+
+dpkg-deb -x "$DEB" "$APPDIR"
+for required_path in \
+  "$APPDIR/opt/XnView/XnView" \
+  "$DESKTOP_FILE" \
+  "$ICON_FILE"; do
+  if [[ ! -e "$required_path" ]]; then
+    echo "ERROR: required XnView package path missing: $required_path" >&2
+    find "$APPDIR" -maxdepth 4 \( -type f -o -type l \) -print >&2
+    exit 1
+  fi
+done
+test -x "$APPDIR/opt/XnView/XnView"
 printf '[XnView MP] stable version: %s\n' "$STABLE_VERSION"
 
 # The official desktop uses an absolute /opt icon path; linuxdeploy expects an icon name.
