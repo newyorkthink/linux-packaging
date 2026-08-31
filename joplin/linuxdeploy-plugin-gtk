@@ -237,7 +237,7 @@ case "$COLOR_SCHEME" in
 esac
 APPIMAGE_GTK_THEME="${APPIMAGE_GTK_THEME:-"Adwaita:$GTK_THEME_VARIANT"}" # Allow user to override theme (discouraged)
 
-export APTDIR="${APPDIR:-"$(dirname "$(realpath "$0")")"}" # Workaround to run extracted AppImage
+export APPDIR="${APPDIR:-"$(dirname "$(realpath "$0")")"}" # Workaround to run extracted AppImage
 export GTK_DATA_PREFIX="$APPDIR"
 export GTK_THEME="$APPIMAGE_GTK_THEME" # Custom themes are broken
 export GDK_BACKEND=x11 # Crash with Wayland backend on Wayland
@@ -262,13 +262,6 @@ EOF
 echo "Installing GIO modules"
 gio_moduledir="$(get_pkgconf_variable "giomoduledir" "gio-2.0" "/usr/lib/x86_64-linux-gnu/gio/modules")"
 copy_tree "$gio_moduledir" "$APPDIR/"
-
-if $(pkg-config "webkit2gtk-4.0" --exists); then
-    echo "Installing Webkit2 GTK engine"
-    webkit2gtk_dir="$(get_pkgconf_variable "libdir" "webkit2gtk-4.0" "/usr/lib/x86_64-linux-gnu")"/webkit2gtk-4.0
-    copy_tree "$webkit2gtk_dir" "$APPDIR/"
-fi
-
 
 case "$DEPLOY_GTK_VERSION" in
     2)
@@ -322,7 +315,7 @@ esac
 echo "Installing GDK PixBufs"
 gdk_libdir="$(get_pkgconf_variable "libdir" "gdk-pixbuf-2.0" "$LD_GTK_LIBRARY_PATH")"
 gdk_pixbuf_binarydir="$(get_pkgconf_variable "gdk_pixbuf_binarydir" "gdk-pixbuf-2.0" "$gdk_libdir/gdk-pixbuf-2.0/2.10.0")"
-gdk_pixbuf_cache_file="$(get_pkgconf_variable "gdk_pixbuf_cache_file" "gdk-pixbuf_binarydir/loaders.cache")"
+gdk_pixbuf_cache_file="$(get_pkgconf_variable "gdk_pixbuf_cache_file" "gdk-pixbuf-2.0" "$gdk_pixbuf_binarydir/loaders.cache")"
 gdk_pixbuf_moduledir="$(get_pkgconf_variable "gdk_pixbuf_moduledir" "gdk-pixbuf-2.0" "$gdk_pixbuf_binarydir/loaders")"
 # Note: gdk_pixbuf_query_loaders variable is not defined on some systems
 gdk_pixbuf_query="$(search_tool "gdk-pixbuf-query-loaders" "gdk-pixbuf-2.0")"
@@ -344,8 +337,6 @@ sed -i "s|$gdk_pixbuf_moduledir/||g" "$APPDIR/${gdk_pixbuf_cache_file/$LD_GTK_LI
 echo "Copying more libraries"
 gobject_libdir="$(get_pkgconf_variable "libdir" "gobject-2.0" "$LD_GTK_LIBRARY_PATH")"
 gio_libdir="$(get_pkgconf_variable "libdir" "gio-2.0" "$LD_GTK_LIBRARY_PATH")"
-javascriptcore3_libdir="$(get_pkgconf_variable "libdir" "javascriptcoregtk-3.0" "/usr/lib/x86_64-linux-gnu")"
-javascriptcore4_libdir="$(get_pkgconf_variable "libdir" "javascriptcoregtk-4.0" "/usr/lib/x86_64-linux-gnu")"
 librsvg_libdir="$(get_pkgconf_variable "libdir" "librsvg-2.0" "$LD_GTK_LIBRARY_PATH")"
 pango_libdir="$(get_pkgconf_variable "libdir" "pango" "$LD_GTK_LIBRARY_PATH")"
 pangocairo_libdir="$(get_pkgconf_variable "libdir" "pangocairo" "$LD_GTK_LIBRARY_PATH")"
@@ -354,8 +345,6 @@ FIND_ARRAY=(
     "$gdk_libdir"        "libgdk_pixbuf-*.so*"
     "$gobject_libdir"    "libgobject-*.so*"
     "$gio_libdir"        "libgio-*.so*"
-    "$javascriptcore3_libdir"   "libjavascriptcoregtk*.so*"
-    "$javascriptcore4_libdir"   "libjavascriptcoregtk*.so*"
     "$librsvg_libdir"    "librsvg-*.so*"
     "$pango_libdir"      "libpango-*.so*"
     "$pangocairo_libdir" "libpangocairo-*.so*"

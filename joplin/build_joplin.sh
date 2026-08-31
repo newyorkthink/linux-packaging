@@ -24,7 +24,7 @@ fi
 
 "${APT[@]}" update
 DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
-  ca-certificates curl dpkg-dev file findutils gawk grep pkg-config python3 sed \
+  ca-certificates curl dpkg-dev file findutils gawk grep pkgconf python3 sed \
   libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-dev \
   libgdk-pixbuf-2.0-dev librsvg2-dev libpango1.0-dev \
   libasound2 libatk-bridge2.0-0 libcups2 libdbus-1-3 libdrm2 libgbm1 \
