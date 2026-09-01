@@ -98,31 +98,28 @@ cp -a "$APP_PAYLOAD_DIR" AppDir/bin/resources/app.asar.unpacked
 
 APPDIR_PAYLOAD="AppDir/bin/resources/app.asar.unpacked"
 
-# 如果 AUR 为系统安装把 process.resourcesPath 硬编码成实际安装根目录，则恢复为 Electron 自己的
-# process.resourcesPath，使路径自然落到 AppDir/bin/resources；未写死路径时无需修改应用代码。
+# 保持 8 月 28 日已验证的单引号资源路径修补语义，只动态代入当前 AUR 的实际资源根目录。
+AUR_RESOURCE_LITERAL="'$AUR_RESOURCE_ROOT'"
 mapfile -t RESOURCE_PATCH_FILES < <(
-  grep -RIl --fixed-strings "$AUR_RESOURCE_ROOT" "$APPDIR_PAYLOAD" 2>/dev/null || true
+  grep -RIl --fixed-strings "$AUR_RESOURCE_LITERAL" "$APPDIR_PAYLOAD" 2>/dev/null || true
 )
 
-for patched_file in "${RESOURCE_PATCH_FILES[@]}"; do
-  sed -i \
-    -e "s#'$AUR_RESOURCE_ROOT'#process.resourcesPath#g" \
-    -e "s#\"$AUR_RESOURCE_ROOT\"#process.resourcesPath#g" \
-    -e "s#\`$AUR_RESOURCE_ROOT\`#process.resourcesPath#g" \
-    "$patched_file"
-done
-
-# 修复后不允许应用文本代码继续硬编码当前 AUR 的系统资源根目录。
-if grep -RIl --fixed-strings "$AUR_RESOURCE_ROOT" "$APPDIR_PAYLOAD" 2>/dev/null | grep -q .; then
-  echo "Error: hard-coded AUR resource root remains after AppImage resource-path restoration: $AUR_RESOURCE_ROOT"
+if [[ "${#RESOURCE_PATCH_FILES[@]}" -eq 0 ]]; then
+  echo "Error: expected AUR resource-path patch was not found: $AUR_RESOURCE_LITERAL"
   exit 1
 fi
 
-if [[ "${#RESOURCE_PATCH_FILES[@]}" -gt 0 ]]; then
-  echo "Restored process.resourcesPath in ${#RESOURCE_PATCH_FILES[@]} file(s)."
-else
-  echo "No hard-coded AUR resource root found; no resource-path restoration was required."
+for patched_file in "${RESOURCE_PATCH_FILES[@]}"; do
+  sed -i "s#$AUR_RESOURCE_LITERAL#process.resourcesPath#g" "$patched_file"
+done
+
+# 修复后不允许应用文本代码继续保留当前 AUR 的单引号系统资源路径。
+if grep -RIl --fixed-strings "$AUR_RESOURCE_LITERAL" "$APPDIR_PAYLOAD" 2>/dev/null | grep -q .; then
+  echo "Error: hard-coded AUR resource root remains after AppImage resource-path restoration: $AUR_RESOURCE_LITERAL"
+  exit 1
 fi
+
+echo "Restored process.resourcesPath in ${#RESOURCE_PATCH_FILES[@]} file(s)."
 
 # 只保留当前 x86_64 所需的 @lydell node-pty 平台包，避免把 macOS/Windows/ARM 原生模块带入 Linux AppImage。
 PTY_ROOT="$APPDIR_PAYLOAD/node_modules/@lydell"
