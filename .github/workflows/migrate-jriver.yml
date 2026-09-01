@@ -148,3 +148,62 @@ jobs:
           path: .github/workflows/build.yml
           if-no-files-found: error
           retention-days: 1
+
+      - name: Commit verified migration to main
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+
+          git config --global --add safe.directory '*'
+          git fetch origin main
+          REMOTE_HEAD="$(git rev-parse origin/main)"
+          if [[ "$REMOTE_HEAD" != "$EXPECTED_HEAD" ]]; then
+            echo "main 在验证期间发生变化：expected=$EXPECTED_HEAD current=$REMOTE_HEAD" >&2
+            exit 1
+          fi
+
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('jriver/README.md')
+          text = path.read_text()
+          marker = '> 为避免依赖另一仓库的 Git 历史，原稳定构建链已本地化为 `build_jriver.sh` → `build_jriver_audio.sh` → `build_jriver_base.sh`。`build_jriver_base.sh` 保持源仓库已验证 blob `a589c8f8e11480b1805226d8d8c247bc7d689d4e` 原样不变；外层仍只追加已经实机验证过的 Bookworm Pulse 音频闭包和 JRWeb CEF shutdown guard。\n'
+          addition = '> 正式构建入口已接入本仓库统一 `.github/workflows/build.yml`，Release 资产固定为 `jriver.AppImage`。\n'
+          if text.count(marker) != 1:
+              raise SystemExit('JRiver README migration anchor mismatch')
+          if addition not in text:
+              text = text.replace(marker, marker + '>\n' + addition, 1)
+          path.write_text(text)
+          PY
+
+          rm -f .github/workflows/migrate-jriver.yml
+
+          python3 <<'PY'
+          import subprocess
+
+          lines = subprocess.check_output(['git', 'status', '--porcelain=v1'], text=True).splitlines()
+          paths = set()
+          for line in lines:
+              path = line[3:]
+              if ' -> ' in path:
+                  path = path.split(' -> ', 1)[1]
+              paths.add(path)
+
+          expected = {
+              '.github/workflows/build.yml',
+              '.github/workflows/migrate-jriver.yml',
+              'jriver/README.md',
+          }
+          if paths != expected:
+              raise SystemExit(f'unexpected final migration diff: {sorted(paths)}')
+          PY
+
+          git add .github/workflows/build.yml jriver/README.md
+          git add -u .github/workflows/migrate-jriver.yml
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(jriver): integrate unified AppImage build'
+          git push origin HEAD:main
