@@ -75,7 +75,7 @@ if [[ "$RAW_VERSION" =~ ^(百度网盘Linux电脑客户端)?V?([0-9]+(\.[0-9]+)+
 else
   die "unexpected official version string: $RAW_VERSION"
 fi
-PACKAGE_URL="https://pkg-ant.baidu.com/issue/netdisk/LinuxGuanjia/$VERSION/baidunetdisk_${VERSION}_amd64.deb"
+PACKAGE_URL="https://issuepcdn.baidupcs.com/issue/netdisk/LinuxGuanjia/$VERSION/baidunetdisk_${VERSION}_amd64.deb"
 
 log "download official DEB: $VERSION"
 curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 "$PACKAGE_URL" -o "$DEB"
