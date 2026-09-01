@@ -14,7 +14,7 @@ fi
 
 # 安装 AppImage 打包和 Electron 运行所需的基础依赖；WorkBuddy 自身 Linux 适配由 AUR 配方负责。
 yay -S --noconfirm --needed \
-  gcc base-devel git curl wget tar gzip binutils patchelf coreutils dash file p7zip \
+  gcc base-devel git curl wget tar gzip binutils patchelf coreutils file p7zip \
   appstream-glib desktop-file-utils util-linux zsync \
   xorg-server xorg-server-common xorg-server-xvfb \
   nss alsa-lib gtk3 at-spi2-core libsecret libxkbfile \
@@ -92,16 +92,11 @@ cp -a "$ELECTRON_ROOT"/. AppDir/bin/
 # AppImage 不捆绑整套 Qt6，避免 quick-sharun 把可选 shim 当作必需 ELF 并因缺少 Qt6 中止。
 rm -f AppDir/bin/libqt6_shim.so
 
-# AUR 的 Linux 适配不只有 app.asar.unpacked；关键配置和辅助资源可能与 payload 同级。
-# 将完整 AUR resource root 覆盖进 Electron resources，避免只复制 payload 后运行时误判“安装文件损坏”。
-cp -a "$AUR_RESOURCE_ROOT"/. AppDir/bin/resources/
+# 保留 Electron runtime 自己的 resources 内容，同时加入 AUR 已经完成 Linux 适配的 WorkBuddy 应用目录。
+rm -rf AppDir/bin/resources/app.asar.unpacked
+cp -a "$APP_PAYLOAD_DIR" AppDir/bin/resources/app.asar.unpacked
 
 APPDIR_PAYLOAD="AppDir/bin/resources/app.asar.unpacked"
-
-if [[ ! -f "$APPDIR_PAYLOAD/package.json" ]]; then
-  echo "Error: WorkBuddy payload was not preserved under AppImage resources."
-  exit 1
-fi
 
 # 如果 AUR 为系统安装把 process.resourcesPath 硬编码成实际安装根目录，则恢复为 Electron 自己的
 # process.resourcesPath，使路径自然落到 AppDir/bin/resources；未写死路径时无需修改应用代码。
@@ -248,38 +243,15 @@ for native_file in "$LINUX_PTY_NODE" "$SQLITE_PREBUILD"; do
   ldd "$native_file" || true
 done
 
-# 使用仓库统一 quick-sharun 路径部署 Electron 依赖，并显式部署 WorkBuddy 会调用的 grep/ln。
-# 这两个命令在 AppImage 中必须存在真实 shared/bin 目标，后面会给 bin/ 放 POSIX sh 兼容入口。
+# 使用仓库统一 quick-sharun 路径部署 Electron 依赖，并补齐输入法、NSS、hostname 运行项。
 quick-sharun \
   ./AppDir/bin/* \
-  /usr/bin/grep \
-  /usr/bin/ln \
   /usr/bin/hostname \
   /usr/lib/libnss* \
   /usr/lib/libsoftokn3.so \
   /usr/lib/libfreeblpriv3.so \
   /usr/lib/pkcs11/* \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
-
-# WorkBuddy 的命令执行链会经 /bin/sh 解析 grep/ln 路径；quick-sharun 默认在 bin/ 创建 sharun 硬链接，
-# 被 sh 当脚本读取时会出现 Syntax error。保留 shared/bin 的真实 ELF，只把 bin/ 入口改成 POSIX sh wrapper。
-for tool in grep ln; do
-  if [[ ! -x "AppDir/shared/bin/$tool" ]]; then
-    echo "Error: quick-sharun did not deploy shared/bin/$tool."
-    exit 1
-  fi
-
-  rm -f "AppDir/bin/$tool"
-  cat > "AppDir/bin/$tool" <<EOF_TOOL_WRAPPER
-#!/bin/sh
-HERE=\$(CDPATH= cd "\$(dirname "\$0")" && pwd)
-exec "\$HERE/../sharun" "$tool" "\$@"
-EOF_TOOL_WRAPPER
-  chmod +x "AppDir/bin/$tool"
-
-  # 用 dash 直接做语法检查，确保 Kali /bin/sh 路径不会再解析失败。
-  dash -n "AppDir/bin/$tool"
-done
 
 # 生成最终单文件 AppImage。
 quick-sharun --make-appimage
