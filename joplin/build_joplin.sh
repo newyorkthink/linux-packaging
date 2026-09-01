@@ -13,6 +13,7 @@ LINUXDEPLOY="$SOURCE_DIR/linuxdeploy"
 GTK_PLUGIN="$SOURCE_DIR/linuxdeploy-plugin-gtk"
 APPIMAGETOOL="$SOURCE_DIR/appimagetool"
 RUNTIME_FILE="$SOURCE_DIR/runtime-x86_64"
+THEME_DEB_DIR="$SOURCE_DIR/theme-debs"
 OUTFILE="$DIST_DIR/joplin.AppImage"
 
 rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
@@ -96,6 +97,16 @@ dpkg-deb -x "$DEB_FILE" "$APPDIR"
 test -x "$APPDIR/opt/Joplin/joplin"
 test -f "$APPDIR/opt/Joplin/resources/app.asar"
 
+# 将 Ubuntu 22.04 的 Adwaita 图标与 GTK 主题包直接解包进 AppDir。
+mkdir -p "$THEME_DEB_DIR"
+(
+  cd "$THEME_DEB_DIR"
+  apt-get download adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
+)
+for theme_deb in "$THEME_DEB_DIR"/*.deb; do
+  dpkg-deb -x "$theme_deb" "$APPDIR"
+done
+
 DESKTOP_FILE="$(find "$APPDIR/usr/share/applications" -maxdepth 1 -type f -iname '*joplin*.desktop' -print -quit)"
 test -n "$DESKTOP_FILE"
 sed -i -e 's|^Exec=.*|Exec=joplin %U|' -e 's|^Icon=.*|Icon=joplin|' "$DESKTOP_FILE"
@@ -123,7 +134,11 @@ export PATH="$HERE"/opt/Joplin:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/share
 export LD_LIBRARY_PATH="$HERE"/opt/Joplin:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/share:"$LD_LIBRARY_PATH"
 export XDG_DATA_DIRS="$HERE"/opt/Joplin:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/share:"$XDG_DATA_DIRS"
 export GSETTINGS_SCHEMA_DIR="${HERE}"/usr/share/glib-2.0/schemas/:"${GSETTINGS_SCHEMA_DIR}"
+export GIO_MODULE_DIR="$HERE"/usr/lib/x86_64-linux-gnu/gio/modules
 
+export GTK_IM_MODULE=ibus
+export QT_IM_MODULE=ibus
+export XMODIFIERS=@im=ibus
 export GTK_THEME=Adwaita-dark
 export NO_AT_BRIDGE=1
 
