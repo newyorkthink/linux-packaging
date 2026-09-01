@@ -30,16 +30,16 @@ pacman -Qlq workbuddy
 
 ## 当前稳定基线
 
-当前稳定基线来自 **2026-08-28 已在 Kali Linux 实机验证可以正常启动的 WorkBuddy AppImage 构建逻辑**。
+当前稳定基线来自 **2026-08-28 已在 Linux 实机验证可以正常启动的 WorkBuddy AppImage 构建逻辑**。
 
 后续只做了以下必要适配，并继续以该基线为准：
 
 - WorkBuddy 版本改为从当前 AUR 实际安装结果动态获取，不锁版本。
 - `app.asar.unpacked/package.json` 和 AUR 资源根目录改为从 `pacman -Qlq workbuddy` 动态定位，不写死 `/opt/workbuddy` 或 `/opt/WorkBuddy`。
 - 保持 2026-08-28 已验证的 Electron runtime、资源复制、`process.resourcesPath` 修补、native module、托盘图标、CI `/dev/shm` 和 `quick-sharun` 构建逻辑。
-- 在 `quick-sharun` 输入中额外加入 `/usr/bin/ln` 和 `/usr/bin/grep`，解决 Kali Linux 下 AppImage 内 `ln`、`grep` 出现 `/bin/sh` 语法错误的问题。
+- 在 `quick-sharun` 输入中额外加入 `/usr/bin/ln` 和 `/usr/bin/grep`，解决目标 Linux 环境下 AppImage 内 `ln`、`grep` 出现 `/bin/sh` 语法错误的问题。
 
-当前 Kali Linux 实机已验证：WorkBuddy 可以正常进入主界面，原先的 `ln` / `grep` `Syntax error: "(" unexpected` 已消失。
+当前 Linux 实机已验证：WorkBuddy 可以正常进入主界面，原先的 `ln` / `grep` `Syntax error: "(" unexpected` 已消失。
 
 **除非出现明确的实际功能故障，否则不要再改动上述稳定基线，也不要为了清理非致命日志重构打包逻辑。**
 
@@ -76,7 +76,7 @@ workbuddy.AppImage
 - **Linux native module 必须检查。** `node-pty` 和 `better-sqlite3` 必须是 Linux x86_64 ELF，不能混入 macOS、Windows 或其他架构的原生模块。
 - **CI 下需要规避 `/dev/shm` 容量问题。** GitHub Actions 启动 Electron 时使用 `--disable-dev-shm-usage`，避免 Chromium shared-memory `ENOSPC`。
 - **托盘图标不能只放 desktop icon。** WorkBuddy Linux AppIndicator 需要 `AppDir/bin/.workbuddy-linux/workbuddy.png`，否则主程序可以启动但 i3/i3bar 托盘可能缺少图标。
-- **`ln` 和 `grep` 必须作为 `quick-sharun` 输入显式部署。** 否则 Kali Linux 下可能调用到 AppImage 内错误入口并出现 `/bin/sh` 语法错误。
+- **`ln` 和 `grep` 必须作为 `quick-sharun` 输入显式部署。** 否则目标 Linux 环境下可能调用到 AppImage 内错误入口并出现 `/bin/sh` 语法错误。
 
 ## 当前可忽略的非致命日志
 
