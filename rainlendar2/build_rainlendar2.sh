@@ -55,7 +55,7 @@ export DEPLOY_GTK_VERSION=3
 ROOT="$PWD"
 APPDIR="$ROOT/AppDir"
 OUTDIR="$ROOT/dist"
-OUTFILE="$OUTDIR/rainlendar.AppImage"
+OUTFILE="$OUTDIR/rainlendar2.AppImage"
 
 apt-get update
 apt-get install -y --no-install-recommends \
