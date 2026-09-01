@@ -244,6 +244,8 @@ done
 quick-sharun \
   ./AppDir/bin/* \
   /usr/bin/hostname \
+  /usr/bin/ln \
+  /usr/bin/grep \
   /usr/lib/libnss* \
   /usr/lib/libsoftokn3.so \
   /usr/lib/libfreeblpriv3.so \
