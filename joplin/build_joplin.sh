@@ -101,15 +101,37 @@ sed -i -e 's|^Exec=.*|Exec=joplin %U|' -e 's|^Icon=.*|Icon=joplin|' "$DESKTOP_FI
 # linuxdeploy 不接受 1024x1024 图标；保留官方 512x512 及其他标准尺寸。
 rm -f "$APPDIR/usr/share/icons/hicolor/1024x1024/apps/joplin.png"
 
-# usr/bin/joplin 只负责启动并强制使用 Adwaita dark；其余运行环境由 linuxdeploy GTK 插件提供。
+# 保留 usr/bin/joplin 作为 desktop Exec 入口。
 mkdir -p "$APPDIR/usr/bin"
 cat > "$APPDIR/usr/bin/joplin" <<'WRAPPER'
 #!/usr/bin/env sh
-export GTK_THEME=Adwaita:dark
 exec "${APPDIR}/opt/Joplin/joplin" "$@"
 WRAPPER
 chmod +x "$APPDIR/usr/bin/joplin"
 sh -n "$APPDIR/usr/bin/joplin"
+
+# 预先创建根目录 AppRun。linuxdeploy 发现 GTK hook 后会把它重命名为普通文件 AppRun.wrapped，
+# 再生成新的 AppRun 负责 source GTK hook；这样运行环境在 AppRun.wrapped 中完整保留。
+cat > "$APPDIR/AppRun" <<'APPRUN'
+#!/usr/bin/env sh
+
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+export PATH="$HERE"/opt/Joplin:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/share:"$PATH"
+export LD_LIBRARY_PATH="$HERE"/opt/Joplin:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/share:"$LD_LIBRARY_PATH"
+export XDG_DATA_DIRS="$HERE"/opt/Joplin:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/share:"$XDG_DATA_DIRS"
+export GSETTINGS_SCHEMA_DIR="${HERE}"/usr/share/glib-2.0/schemas/:"${GSETTINGS_SCHEMA_DIR}"
+
+export GTK_THEME=Adwaita-dark
+export GTK_IM_MODULE=ibus
+export QT_IM_MODULE=ibus
+export XMODIFIERS=@im=ibus
+export NO_AT_BRIDGE=1
+
+exec "$HERE"/opt/Joplin/joplin "$@"
+APPRUN
+chmod +x "$APPDIR/AppRun"
+sh -n "$APPDIR/AppRun"
 
 # Electron/NSS 会 dlopen 这些模块；linuxdeploy 只跟踪 ELF NEEDED，不会自动收集它们。
 MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
