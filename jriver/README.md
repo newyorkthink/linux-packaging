@@ -5,6 +5,8 @@
 > **2026-09-01：已从 `qq895311511/appimage-packaging` 迁移到本仓库。**
 >
 > 为避免依赖另一仓库的 Git 历史，原稳定构建链已本地化为 `build_jriver.sh` → `build_jriver_audio.sh` → `build_jriver_base.sh`。`build_jriver_base.sh` 保持源仓库已验证 blob `a589c8f8e11480b1805226d8d8c247bc7d689d4e` 原样不变；外层仍只追加已经实机验证过的 Bookworm Pulse 音频闭包和 JRWeb CEF shutdown guard。
+>
+> 正式构建入口已接入本仓库统一 `.github/workflows/build.yml`，Release 资产固定为 `jriver.AppImage`。
 
 > **2026-08-14：当前版本正式冻结为“最终可用稳定基线”。**
 >
