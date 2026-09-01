@@ -5,8 +5,9 @@ set -euo pipefail
 # JRiver Media Center AnyLinux AppImage 构建入口
 # ==============================================================================
 # 迁移保持源仓库 jriver 目录结构：README.md / build_jriver.sh /
-# jriver_cef_runtime.sh。源仓库稳定构建链原本依赖 Git 历史；本仓库同样从已经
-# 提交过的迁移基线读取音频 wrapper 与核心基线，构建时临时展开，不把辅助层留在目录中。
+# jriver_cef_runtime.sh。源仓库稳定构建链原本依赖 private 仓库 Git 历史；目标仓库
+# 不再要求 Actions checkout 必须包含旧 commit，而是从本仓库公开的固定迁移提交读取
+# 已校验音频 wrapper 与核心基线，构建时临时展开，不把辅助层留在 jriver 目录中。
 #
 # 为复现 2026-08-20 源仓库成功发布的运行结构，固定当时的 quick-sharun 版本，
 # 同时固定当时仍为 latest 的 appimagetool 0.3.3。后续上游 quick-sharun / uruntime /
@@ -17,6 +18,7 @@ cd "$(dirname "$0")"
 BASE_COMMIT='4a08912cd31a5659bb43395dfeda0c5257abdeab'
 AUDIO_BLOB='3a247e16dab1f444982e4e9ec66bd0eabe1183bc'
 CORE_BLOB='a589c8f8e11480b1805226d8d8c247bc7d689d4e'
+BASE_RAW="https://raw.githubusercontent.com/newyorkthink/linux-packaging/${BASE_COMMIT}/jriver"
 WRAPPED="$(mktemp "$PWD/.build_jriver_verified.XXXXXX.sh")"
 BASE_FILE="$PWD/build_jriver_base.sh"
 TOOL_DIR="$(mktemp -d "$PWD/.jriver-toolchain.XXXXXX")"
@@ -27,13 +29,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! git cat-file -e "${BASE_COMMIT}^{commit}" 2>/dev/null; then
-  echo "错误：当前 Git checkout 缺少 JRiver 迁移固定基线提交：$BASE_COMMIT" >&2
-  exit 1
-fi
-
-git show "${BASE_COMMIT}:jriver/build_jriver_audio.sh" > "$WRAPPED"
-git show "${BASE_COMMIT}:jriver/build_jriver_base.sh" > "$BASE_FILE"
+# 固定迁移提交是公开仓库内容，不依赖当前 checkout 是否保留完整 Git 历史。
+curl -fL --retry 3 --retry-delay 2 \
+  "$BASE_RAW/build_jriver_audio.sh" -o "$WRAPPED"
+curl -fL --retry 3 --retry-delay 2 \
+  "$BASE_RAW/build_jriver_base.sh" -o "$BASE_FILE"
 
 if [[ "$(git hash-object "$WRAPPED")" != "$AUDIO_BLOB" ]]; then
   echo '错误：JRiver 已验证音频基线与固定 blob SHA 不一致。' >&2
