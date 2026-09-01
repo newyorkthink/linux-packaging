@@ -27,7 +27,7 @@ yay -S --noconfirm --needed \
   libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau \
   pulseaudio pulseaudio-alsa pipewire-audio ibus imagemagick
 
-# 安装当前 AUR workbuddy；当前配方跟踪 5.3.x，并注入 Linux x64 node-pty 与 better-sqlite3 预构建。
+# 安装当前 AUR workbuddy；不在本仓库锁定 WorkBuddy 版本。
 yay -S --noconfirm --needed workbuddy
 
 # 从实际安装结果读取版本，避免在本仓库重复维护 WorkBuddy 版本号。
@@ -44,9 +44,8 @@ echo "WorkBuddy AUR version: $VERSION"
 echo "=== Installed WorkBuddy files ==="
 pacman -Ql workbuddy
 
-# 当前 AUR 5.3.x 会把上游 app.asar 完整展开后安装为 /opt/workbuddy/app.asar.unpacked。
-# 直接依据 package.json 定位实际应用目录，不再错误要求安装结果中存在 app.asar。
-APP_PACKAGE_JSON="$(pacman -Qlq workbuddy | grep -E '/opt/workbuddy/app\.asar\.unpacked/package\.json$' | head -n 1 || true)"
+# 从当前 AUR 实际安装文件清单动态定位展开后的 Electron payload，不锁定 /opt 下的目录大小写或版本布局。
+APP_PACKAGE_JSON="$(pacman -Qlq workbuddy | grep -E '/app\.asar\.unpacked/package\.json$' | head -n 1 || true)"
 
 if [[ -z "$APP_PACKAGE_JSON" || ! -f "$APP_PACKAGE_JSON" ]]; then
   echo "Error: WorkBuddy app.asar.unpacked/package.json was not found in the installed AUR package."
@@ -54,7 +53,9 @@ if [[ -z "$APP_PACKAGE_JSON" || ! -f "$APP_PACKAGE_JSON" ]]; then
 fi
 
 APP_PAYLOAD_DIR="$(dirname "$APP_PACKAGE_JSON")"
+AUR_RESOURCE_ROOT="$(dirname "$APP_PAYLOAD_DIR")"
 echo "WorkBuddy payload: $APP_PAYLOAD_DIR"
+echo "WorkBuddy resource root: $AUR_RESOURCE_ROOT"
 
 # AUR 当前明确依赖系统 electron；先通过已验证可执行的版本命令取得主版本，再定位 Arch 的真实 runtime 目录。
 ELECTRON_BIN="$(command -v electron || true)"
@@ -90,7 +91,7 @@ mkdir -p AppDir/bin/resources dist
 # 复制完整 Linux Electron runtime，保留 locales、resources、snapshot 等运行文件。
 cp -a "$ELECTRON_ROOT"/. AppDir/bin/
 
-# Electron 的 Qt6 shim 只用于可选的 Qt 原生主题集成；Arch electron43 不把 qt6-base 作为运行时依赖。
+# Electron 的 Qt6 shim 只用于可选的 Qt 原生主题集成；Arch electron 不把 qt6-base 作为必需运行时依赖。
 # AppImage 不捆绑整套 Qt6，避免 quick-sharun 把可选 shim 当作必需 ELF 并因缺少 Qt6 中止。
 rm -f AppDir/bin/libqt6_shim.so
 
@@ -100,28 +101,31 @@ cp -a "$APP_PAYLOAD_DIR" AppDir/bin/resources/app.asar.unpacked
 
 APPDIR_PAYLOAD="AppDir/bin/resources/app.asar.unpacked"
 
-# AUR 为系统安装把 process.resourcesPath 硬编码成 '/opt/workbuddy'。
-# AppImage 内恢复为 Electron 自己的 process.resourcesPath，使路径自然落到 AppDir/bin/resources。
+# 如果 AUR 为系统安装把 process.resourcesPath 硬编码成实际安装根目录，则恢复为 Electron 自己的
+# process.resourcesPath，使路径自然落到 AppDir/bin/resources；未写死路径时无需修改应用代码。
 mapfile -t RESOURCE_PATCH_FILES < <(
-  grep -RIl --fixed-strings "'/opt/workbuddy'" "$APPDIR_PAYLOAD" 2>/dev/null || true
+  grep -RIl --fixed-strings "$AUR_RESOURCE_ROOT" "$APPDIR_PAYLOAD" 2>/dev/null || true
 )
 
-if [[ "${#RESOURCE_PATCH_FILES[@]}" -eq 0 ]]; then
-  echo "Error: expected AUR '/opt/workbuddy' resource-path patch was not found."
-  exit 1
-fi
-
 for patched_file in "${RESOURCE_PATCH_FILES[@]}"; do
-  sed -i "s#'/opt/workbuddy'#process.resourcesPath#g" "$patched_file"
+  sed -i \
+    -e "s#'$AUR_RESOURCE_ROOT'#process.resourcesPath#g" \
+    -e "s#\"$AUR_RESOURCE_ROOT\"#process.resourcesPath#g" \
+    -e "s#\`$AUR_RESOURCE_ROOT\`#process.resourcesPath#g" \
+    "$patched_file"
 done
 
-# 修复后不允许应用文本代码继续硬编码系统 /opt/workbuddy。
-if grep -RIl --fixed-strings "'/opt/workbuddy'" "$APPDIR_PAYLOAD" 2>/dev/null | grep -q .; then
-  echo "Error: hard-coded /opt/workbuddy remains after AppImage resource-path restoration."
+# 修复后不允许应用文本代码继续硬编码当前 AUR 的系统资源根目录。
+if grep -RIl --fixed-strings "$AUR_RESOURCE_ROOT" "$APPDIR_PAYLOAD" 2>/dev/null | grep -q .; then
+  echo "Error: hard-coded AUR resource root remains after AppImage resource-path restoration: $AUR_RESOURCE_ROOT"
   exit 1
 fi
 
-echo "Restored process.resourcesPath in ${#RESOURCE_PATCH_FILES[@]} file(s)."
+if [[ "${#RESOURCE_PATCH_FILES[@]}" -gt 0 ]]; then
+  echo "Restored process.resourcesPath in ${#RESOURCE_PATCH_FILES[@]} file(s)."
+else
+  echo "No hard-coded AUR resource root found; no resource-path restoration was required."
+fi
 
 # 只保留当前 x86_64 所需的 @lydell node-pty 平台包，避免把 macOS/Windows/ARM 原生模块带入 Linux AppImage。
 PTY_ROOT="$APPDIR_PAYLOAD/node_modules/@lydell"
@@ -148,7 +152,7 @@ if ! file -b "$LINUX_PTY_NODE" | grep -q '^ELF '; then
   exit 1
 fi
 
-# better-sqlite3 13.x 自带 Linux x64 N-API 预构建；确认 AUR 替换后的目标平台二进制确实存在。
+# 确认 AUR 适配后的 better-sqlite3 Linux x64 prebuild 确实存在。
 SQLITE_PREBUILD="$(find "$APPDIR_PAYLOAD/node_modules/better-sqlite3/prebuilds" -maxdepth 1 -type f -name 'linux-x64*.node' -print -quit 2>/dev/null || true)"
 
 if [[ -z "$SQLITE_PREBUILD" || ! -f "$SQLITE_PREBUILD" ]]; then
@@ -162,7 +166,7 @@ if ! file -b "$SQLITE_PREBUILD" | grep -q '^ELF '; then
   exit 1
 fi
 
-# 固定 AppImage 内部入口；不创建或修改系统 /opt/workbuddy。
+# 固定 AppImage 内部入口；不创建或修改系统 WorkBuddy 安装目录。
 cat > AppDir/bin/workbuddy <<EOF_WRAPPER
 #!/usr/bin/env bash
 set -e
@@ -196,7 +200,7 @@ else
   echo "X-AppImage-Version=$VERSION" >> ./workbuddy.desktop
 fi
 
-# AUR 5.3.x 已安装官方应用图标，直接复制，不重新生成图像内容。
+# AUR 已安装官方应用图标，直接复制，不重新生成图像内容。
 ICON_SOURCE="$(pacman -Qlq workbuddy | grep -Ei '/icons/.*/workbuddy\.png$' | sort -V | tail -n 1 || true)"
 
 if [[ -z "$ICON_SOURCE" || ! -f "$ICON_SOURCE" ]]; then

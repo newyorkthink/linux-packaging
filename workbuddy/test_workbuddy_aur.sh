@@ -16,7 +16,8 @@ trap cleanup EXIT
 # 创建本次检查使用的临时目录。
 mkdir -p "$WORK_ROOT"
 
-MATCHED_54=0
+DETECTED_VERSION=""
+METADATA_FAILED=0
 AUDIT_FAILED=0
 CLONED=0
 
@@ -55,7 +56,7 @@ check_package() {
   # AUR 仓库必须同时包含 PKGBUILD 与提交后的 .SRCINFO；缺失时不继续猜版本。
   if [[ ! -f "$pkgbuild" || ! -f "$srcinfo" ]]; then
     echo "ERROR: ${pkg} 缺少 PKGBUILD 或 .SRCINFO。" >&2
-    AUDIT_FAILED=1
+    METADATA_FAILED=1
     return 0
   fi
 
@@ -71,12 +72,13 @@ check_package() {
   echo "AUR version: ${version:-unknown}${pkgrel:+-$pkgrel}"
   echo "AUR commit : $commit"
 
-  # 当前配方明确属于 5.4.x 时，记为已经跟踪 WorkBuddy 5.4 系列；这不等价于运行验证通过。
-  if [[ "$version" == 5.4.* ]]; then
-    MATCHED_54=$((MATCHED_54 + 1))
-    echo "5.4.x track: YES"
+  # 只要求当前 AUR 配方能解析出版本，不锁定任何 WorkBuddy 主版本或次版本系列。
+  if [[ -z "$version" ]]; then
+    echo "ERROR: 无法从 ${pkg} 的 .SRCINFO 解析 pkgver。" >&2
+    METADATA_FAILED=1
   else
-    echo "5.4.x track: NO"
+    DETECTED_VERSION="${version}${pkgrel:+-$pkgrel}"
+    echo "Version metadata: PASS"
   fi
 
   echo
@@ -127,9 +129,9 @@ if [[ "$CLONED" -eq 0 ]]; then
   exit 2
 fi
 
-# 当前 workbuddy 配方不是 5.4.x 时明确返回失败，避免把旧版适配误判成当前版本可用。
-if [[ "$MATCHED_54" -eq 0 ]]; then
-  echo "ERROR: 当前 AUR workbuddy 配方未跟踪 5.4.x。" >&2
+# 当前 AUR 元数据无法解析时停止，不通过写死版本号来规避元数据异常。
+if [[ "$METADATA_FAILED" -ne 0 || -z "$DETECTED_VERSION" ]]; then
+  echo "ERROR: AUR workbuddy 当前元数据检查未通过。" >&2
   exit 3
 fi
 
@@ -139,6 +141,6 @@ if [[ "$AUDIT_FAILED" -ne 0 ]]; then
   exit 4
 fi
 
-# 本阶段只确认当前 workbuddy 的版本跟踪与 PKGBUILD 静态安全，不宣称 Linux GUI 已经运行验证通过。
-echo "OK: AUR workbuddy 当前跟踪 5.4.x，且 PKGBUILD 未命中本脚本定义的高风险模式。"
+# 本阶段只确认当前 workbuddy 的版本元数据与 PKGBUILD 静态安全，不宣称 Linux GUI 已经运行验证通过。
+echo "OK: AUR workbuddy 当前版本 ${DETECTED_VERSION}，且 PKGBUILD 未命中本脚本定义的高风险模式。"
 echo "NEXT: 若要确认真正适配，需要再做安装包提取、ELF/native module 检查和 Xvfb 启动 smoke test。"

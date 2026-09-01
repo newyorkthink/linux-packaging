@@ -34,7 +34,7 @@ workbuddy/
 
 ## AUR 构建来源
 
-当前构建与审计统一固定使用 AUR `workbuddy`，不做候选配方比较或自动切换，确保审计对象与实际 AppImage 构建来源完全一致。
+当前构建与审计统一固定使用 AUR `workbuddy`，不做候选配方比较或自动切换，确保审计对象与实际 AppImage 构建来源完全一致。WorkBuddy 版本不在本仓库锁定，始终读取当前 AUR 实际版本。
 
 ## 当前构建基线
 
@@ -42,9 +42,9 @@ workbuddy/
 
 1. 先执行 `test_workbuddy_aur.sh`，审计失败则停止构建；
 2. 安装当前 AUR `workbuddy`，从实际安装结果读取版本，不在本仓库重复维护 WorkBuddy 版本号；
-3. 使用 AUR 已完成 Linux 适配的 `/opt/workbuddy/app.asar.unpacked` 作为应用 payload；
+3. 从 `pacman` 的当前安装文件清单动态定位 `app.asar.unpacked/package.json`，以其所在目录作为应用 payload，不锁定 `/opt` 下的目录名称或大小写；
 4. 复制完整系统 Electron runtime，并保留 Electron 自带的 `locales`、`resources`、snapshot 等运行文件；
-5. 将 AUR 为系统安装写死的 `/opt/workbuddy` resource path 恢复为 `process.resourcesPath`，适配 AppImage 内部目录；
+5. 如果 AUR 为系统安装写死了实际资源根目录，则将该路径恢复为 `process.resourcesPath`，适配 AppImage 内部目录；未写死时不修改应用代码；
 6. 仅保留 Linux x86_64 所需的 `node-pty` 平台包，并检查 `node-pty` 与 `better-sqlite3` 的 Linux ELF native module；
 7. 复用 AUR desktop 元数据和官方 PNG 图标；
 8. 使用 `quick-sharun` 部署 Electron、GTK、NSS、输入法、OpenGL、Vulkan、PipeWire 等运行依赖；
