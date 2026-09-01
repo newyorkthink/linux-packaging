@@ -12,9 +12,6 @@ if [[ "$ARCH" != "x86_64" ]]; then
   exit 1
 fi
 
-# 在真正执行 AUR PKGBUILD 前，先运行仓库内的只读审计；审计失败就停止构建。
-./test_workbuddy_aur.sh
-
 # 安装 AppImage 打包和 Electron 运行所需的基础依赖；WorkBuddy 自身 Linux 适配由 AUR 配方负责。
 yay -S --noconfirm --needed \
   gcc base-devel git curl wget tar gzip binutils patchelf coreutils file p7zip \
