@@ -14,7 +14,7 @@ fi
 
 # 安装 AppImage 打包和 Electron 运行所需的基础依赖；WorkBuddy 自身 Linux 适配由 AUR 配方负责。
 yay -S --noconfirm --needed \
-  gcc base-devel git curl wget tar gzip binutils patchelf coreutils file p7zip \
+  gcc base-devel git curl wget tar gzip binutils patchelf coreutils dash file p7zip \
   appstream-glib desktop-file-utils util-linux zsync \
   xorg-server xorg-server-common xorg-server-xvfb \
   nss alsa-lib gtk3 at-spi2-core libsecret libxkbfile \
