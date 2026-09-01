@@ -545,6 +545,8 @@ fi
 [[ "$codex_sandbox_rc" -eq 0 ]] || die "ChatGPT Codex 沙盒测试失败：$codex_sandbox_rc"
 
 # 在隔离 HOME、XDG 目录、D-Bus 会话和虚拟 X11 中直接启动最终 AppImage。
+# timeout 放在 Xvfb/D-Bus 会话内部，确保测试结束时先终止应用，再释放会话总线和虚拟显示。
+# 当前 OpenAI ChatGPT Linux 桌面应用不支持完整禁用 GPU；Xvfb 下保留 Electron 自身的软件渲染回退。
 mkdir -p \
   "$SMOKE_HOME/.config" \
   "$SMOKE_HOME/.cache" \
@@ -558,9 +560,8 @@ XDG_CACHE_HOME="$SMOKE_HOME/.cache" \
 XDG_DATA_HOME="$SMOKE_HOME/.local/share" \
 XDG_RUNTIME_DIR="$SMOKE_RUNTIME" \
 APPIMAGE_EXTRACT_AND_RUN=1 \
-timeout 40s xvfb-run -a dbus-run-session -- \
+xvfb-run -a dbus-run-session -- timeout 40s \
   "$OUTFILE" \
-  --disable-gpu \
   --user-data-dir="$SMOKE_HOME/profile" \
   >"$SMOKE_LOG" 2>&1
 smoke_rc=$?
