@@ -1222,7 +1222,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          chmod +x workbuddy/build_workbuddy.sh workbuddy/test_workbuddy_aur.sh
+          chmod +x workbuddy/build_workbuddy.sh
           cd workbuddy
           ./build_workbuddy.sh
 
