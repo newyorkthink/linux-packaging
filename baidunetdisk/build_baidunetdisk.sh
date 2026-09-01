@@ -22,6 +22,7 @@ OUTFILE="$DIST_DIR/baidunetdisk.AppImage"
 DEB="$SOURCE_DIR/baidunetdisk.deb"
 LINUXDEPLOY="$SOURCE_DIR/linuxdeploy"
 GTK_PLUGIN="$SOURCE_DIR/linuxdeploy-plugin-gtk"
+THEME_DEB_DIR="$SOURCE_DIR/theme-debs"
 VERIFY_DIR="$SOURCE_DIR/verify-appimage"
 SMOKE_HOME="$SOURCE_DIR/smoke-home"
 SMOKE_RUNTIME="$SOURCE_DIR/smoke-runtime"
@@ -47,7 +48,8 @@ DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   ibus-gtk3 \
   libasound2 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcairo2 libcups2 \
   libdbus-1-3 libdrm2 libgbm1 libgdk-pixbuf-2.0-0 libglib2.0-0 libgtk-3-0 \
-  libgtkmm-3.0-1v5 libnotify4 libnss3 libnspr4 libpango-1.0-0 libsecret-1-0 \
+  libgtkmm-2.4-1v5 libnotify4 libnss3 libnspr4 libpango-1.0-0 libsecret-1-0 \
+  libappindicator3-1 \
   libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 \
   libxfixes3 libxi6 libxkbcommon0 libxrandr2 libxrender1 libxss1 libxtst6 \
   xdg-utils shared-mime-info hicolor-icon-theme
@@ -88,6 +90,16 @@ APP_ROOT="$APPDIR/opt/baidunetdisk"
 MAIN_BIN="$APP_ROOT/baidunetdisk"
 [[ -x "$MAIN_BIN" ]] || die "official package is missing /opt/baidunetdisk/baidunetdisk"
 file "$MAIN_BIN" | grep -q 'ELF 64-bit' || die "main executable is not a 64-bit ELF"
+
+# Bundle the Adwaita assets used by the GTK hook instead of relying on the host theme installation.
+mkdir -p "$THEME_DEB_DIR"
+(
+  cd "$THEME_DEB_DIR"
+  apt-get download adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
+)
+for theme_deb in "$THEME_DEB_DIR"/*.deb; do
+  dpkg-deb -x "$theme_deb" "$APPDIR"
+done
 
 mapfile -d '' desktop_candidates < <(
   find "$APPDIR/usr/share/applications" -maxdepth 1 -type f \
@@ -137,6 +149,31 @@ EOF_LAUNCHER
 chmod +x "$APPDIR/usr/bin/baidunetdisk"
 bash -n "$APPDIR/usr/bin/baidunetdisk"
 
+# Keep the Electron NSS core and dlopen modules on one Ubuntu 22.04 runtime set.
+MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
+mkdir -p "$APPDIR/usr/lib"
+cp -a \
+  "/usr/lib/$MULTIARCH/libnss3.so" \
+  "/usr/lib/$MULTIARCH/libnssutil3.so" \
+  "/usr/lib/$MULTIARCH/libsmime3.so" \
+  "/usr/lib/$MULTIARCH/libssl3.so" \
+  "/usr/lib/$MULTIARCH/libfreebl3.so" \
+  "/usr/lib/$MULTIARCH/libfreebl3.chk" \
+  "/usr/lib/$MULTIARCH/libfreeblpriv3.so" \
+  "/usr/lib/$MULTIARCH/libfreeblpriv3.chk" \
+  "/usr/lib/$MULTIARCH/nss/libnssckbi.so" \
+  "/usr/lib/$MULTIARCH/nss/libnssdbm3.so" \
+  "/usr/lib/$MULTIARCH/nss/libnssdbm3.chk" \
+  "/usr/lib/$MULTIARCH/nss/libsoftokn3.so" \
+  "/usr/lib/$MULTIARCH/nss/libsoftokn3.chk" \
+  "$APPDIR/usr/lib/"
+
+# Baidu Netdisk loads GTKmm 2.4 dynamically through Koffi, so normal ldd on the Electron binary cannot discover it.
+GTKMM2_LIB="/usr/lib/$MULTIARCH/libgtkmm-2.4.so.1"
+APPINDICATOR_LIB="/usr/lib/$MULTIARCH/libappindicator3.so.1"
+[[ -e "$GTKMM2_LIB" ]] || die "required GTKmm 2.4 runtime is missing: $GTKMM2_LIB"
+[[ -e "$APPINDICATOR_LIB" ]] || die "required AppIndicator runtime is missing: $APPINDICATOR_LIB"
+
 curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
   https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
   -o "$LINUXDEPLOY"
@@ -156,6 +193,8 @@ log "package with Ubuntu 22.04 + linuxdeploy + GTK plugin"
   --appdir "$APPDIR" \
   --desktop-file "$DESKTOP_FILE" \
   --icon-file "$ICON_FILE" \
+  --library "$GTKMM2_LIB" \
+  --library "$APPINDICATOR_LIB" \
   --plugin gtk \
   --output appimage
 
@@ -173,6 +212,8 @@ VERIFY_ROOT="$VERIFY_DIR/squashfs-root"
 [[ -x "$VERIFY_ROOT/usr/bin/baidunetdisk" ]] || die "final AppImage is missing launcher"
 [[ -x "$VERIFY_ROOT/opt/baidunetdisk/baidunetdisk" ]] || die "final AppImage is missing official executable"
 grep -Fq -- '--no-sandbox' "$VERIFY_ROOT/usr/bin/baidunetdisk" || die "final launcher is incorrect"
+find "$VERIFY_ROOT/usr/lib" -maxdepth 1 -name 'libgtkmm-2.4.so.1*' -print -quit | grep -q . || die "final AppImage is missing GTKmm 2.4"
+[[ -e "$VERIFY_ROOT/usr/lib/libnss3.so" ]] || die "final AppImage is missing bundled NSS"
 
 LDD_OUTPUT="$(LD_LIBRARY_PATH="$VERIFY_ROOT/opt/baidunetdisk:$VERIFY_ROOT/usr/lib" ldd "$VERIFY_ROOT/opt/baidunetdisk/baidunetdisk" 2>&1 || true)"
 printf '%s\n' "$LDD_OUTPUT"
@@ -208,7 +249,7 @@ run_smoke() {
   esac
 
   if grep -Eqi \
-    'sqlcipher_page_cipher: hmac check failed|sqlite3Codec: error decrypting|sqlcipher_codec_ctx_set_error|segmentation fault|trace/breakpoint trap|symbol lookup error|error while loading shared libraries|wrong ELF class|invalid ELF' \
+    'failed to load shared library|cannot open shared object file|sqlcipher_page_cipher: hmac check failed|sqlite3Codec: error decrypting|sqlcipher_codec_ctx_set_error|segmentation fault|trace/breakpoint trap|symbol lookup error|error while loading shared libraries|wrong ELF class|invalid ELF' \
     "$log_file"; then
     die "smoke pass $pass detected a fatal runtime error"
   fi
