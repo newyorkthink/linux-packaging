@@ -141,9 +141,6 @@ jobs:
           grep -Fqx "BASE_BLOB='3a247e16dab1f444982e4e9ec66bd0eabe1183bc'" jriver/build_jriver.sh
           ! grep -Eq 'git show .*jriver/build_jriver\.sh' jriver/build_jriver.sh jriver/build_jriver_audio.sh
 
-          git -C "$GITHUB_WORKSPACE" diff --check
-          git -C "$GITHUB_WORKSPACE" diff -- .github/workflows/build.yml
-
       - name: Upload patched unified workflow
         uses: actions/upload-artifact@v4
         with:
@@ -151,12 +148,3 @@ jobs:
           path: .github/workflows/build.yml
           if-no-files-found: error
           retention-days: 1
-
-      - name: Build and publish JRiver AppImage
-        uses: ./.github/actions/build-anylinux
-        with:
-          build_script: jriver/build_jriver.sh
-          artifact_dir: jriver/dist
-          release_name: jriver.AppImage
-          run_from_root: 'false'
-          github_token: ${{ github.token }}
