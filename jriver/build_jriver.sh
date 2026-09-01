@@ -9,9 +9,9 @@ set -euo pipefail
 # 不再要求 Actions checkout 必须包含旧 commit，而是从本仓库公开的固定迁移提交读取
 # 已校验音频 wrapper 与核心基线，构建时临时展开，不把辅助层留在 jriver 目录中。
 #
-# 为复现 2026-08-20 源仓库成功发布的运行结构，固定当时的 quick-sharun 版本，
-# 同时固定当时仍为 latest 的 appimagetool 0.3.3。后续上游 quick-sharun / uruntime /
-# appimagetool 变化不得无验证地进入 JRiver 稳定包。
+# quick-sharun 由与源仓库一致的 AnyLinux setup action 提供，不在本脚本另行覆盖。
+# 源仓库 2026-08-20 成功发布时 appimagetool latest 为 0.3.3；这里只固定该版本，
+# 避免 2026-08-31 发布的 0.3.4 改变 AppImage/uruntime 结构。
 
 cd "$(dirname "$0")"
 
@@ -21,11 +21,9 @@ CORE_BLOB='a589c8f8e11480b1805226d8d8c247bc7d689d4e'
 BASE_RAW="https://raw.githubusercontent.com/newyorkthink/linux-packaging/${BASE_COMMIT}/jriver"
 WRAPPED="$(mktemp "$PWD/.build_jriver_verified.XXXXXX.sh")"
 BASE_FILE="$PWD/build_jriver_base.sh"
-TOOL_DIR="$(mktemp -d "$PWD/.jriver-toolchain.XXXXXX")"
 
 cleanup() {
   rm -f "$WRAPPED" "$BASE_FILE"
-  rm -rf "$TOOL_DIR"
 }
 trap cleanup EXIT
 
@@ -44,14 +42,8 @@ if [[ "$(git hash-object "$BASE_FILE")" != "$CORE_BLOB" ]]; then
   exit 1
 fi
 
-# 源仓库 2026-08-20 成功发布 mediacenter36.AppImage 时，quick-sharun 的最新提交为
-# 80a66c80...；appimagetool latest 为 0.3.3。固定这两个构建入口，避免上游漂移改变
-# AppImage 的 Sharun / uruntime 结构。
-PINNED_QUICK_SHARUN='https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/80a66c80eee841445944eaeb1a7248fb7e210569/useful-tools/quick-sharun.sh'
-curl -fL --retry 3 --retry-delay 2 "$PINNED_QUICK_SHARUN" -o "$TOOL_DIR/quick-sharun"
-chmod +x "$TOOL_DIR/quick-sharun"
-PATH="$TOOL_DIR:$PATH"
-export PATH
+# 源仓库与目标仓库都由相同 AnyLinux setup action 提供 quick-sharun；不要在这里
+# 再覆盖 quick-sharun，否则 01-path-mapping-hardcoded.hook 的格式可能偏离稳定基线。
 export APPIMAGETOOL_LINK='https://github.com/pkgforge-dev/appimagetool/releases/download/0.3.3/appimagetool-x86_64-linux'
 
 # 在上一版音频 wrapper 生成最终构建脚本后、真正执行前，只追加 CEF shutdown 保护。
