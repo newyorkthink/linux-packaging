@@ -1,29 +1,19 @@
-# GitHub Release 资产列表按文件名显示；统一给 RunImage 资产加前缀，使其在页面中连续分组。
-name: Group Latest Release RunImages
-run-name: Group latest Release RunImages
+# 临时恢复此前错误改名的 RunImage Release 资产；恢复完成后删除本 workflow。
+name: Restore Latest Release RunImage Names
+run-name: Restore latest Release RunImage names
 
 on:
   push:
     branches: [main]
     paths:
       - '.github/workflows/order_release_assets.yml'
-  workflow_run:
-    workflows:
-      - Build RunImages
-    types: [completed]
-  workflow_dispatch:
 
 permissions:
   contents: write
 
-concurrency:
-  group: group-latest-release-runimages
-  cancel-in-progress: false
-
 jobs:
-  group_latest_release_runimages:
-    name: Group latest Release RunImages
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+  restore_runimage_names:
+    name: Restore RunImage asset names
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -33,7 +23,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Group RunImage assets
+      - name: Restore original RunImage asset names
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -41,7 +31,7 @@ jobs:
           set -Eeuo pipefail
 
           RELEASE_TAG=latest
-          WORK_DIR="$RUNNER_TEMP/release-runimage-group"
+          WORK_DIR="$RUNNER_TEMP/release-runimage-restore"
           mkdir -p "$WORK_DIR"
 
           release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.id')"
@@ -84,58 +74,55 @@ jobs:
 
           sort -f -u "$WORK_DIR/runimage-names.txt" -o "$WORK_DIR/runimage-names.txt"
 
-          while IFS= read -r legacy_name; do
-            [[ -n "$legacy_name" ]] || continue
-            grouped_name="runimage-$legacy_name"
+          while IFS= read -r original_name; do
+            [[ -n "$original_name" ]] || continue
+            wrong_name="runimage-$original_name"
 
             fetch_assets "$WORK_DIR/assets-current.json"
 
-            legacy_json="$(jq -c --arg name "$legacy_name" '.[] | select(.name == $name)' "$WORK_DIR/assets-current.json")"
-            grouped_json="$(jq -c --arg name "$grouped_name" '.[] | select(.name == $name)' "$WORK_DIR/assets-current.json")"
+            original_json="$(jq -c --arg name "$original_name" '.[] | select(.name == $name)' "$WORK_DIR/assets-current.json")"
+            wrong_json="$(jq -c --arg name "$wrong_name" '.[] | select(.name == $name)' "$WORK_DIR/assets-current.json")"
 
-            if [[ -z "$legacy_json" ]]; then
-              if [[ -n "$grouped_json" ]]; then
-                echo "已分组：$grouped_name"
-                continue
+            if [[ -n "$original_json" ]]; then
+              if [[ -n "$wrong_json" ]]; then
+                wrong_id="$(jq -r '.id' <<< "$wrong_json")"
+                gh api --method DELETE \
+                  "repos/$GITHUB_REPOSITORY/releases/assets/$wrong_id" >/dev/null
+                echo "已删除错误命名的重复资产：$wrong_name"
+              else
+                echo "原文件名已存在：$original_name"
               fi
+              continue
+            fi
 
-              echo "latest Release 缺少 RunImage 资产：$legacy_name / $grouped_name" >&2
+            if [[ -z "$wrong_json" ]]; then
+              echo "latest Release 同时缺少 $original_name 和 $wrong_name。" >&2
               exit 1
             fi
 
-            legacy_id="$(jq -r '.id' <<< "$legacy_json")"
-
-            if [[ -n "$grouped_json" ]]; then
-              grouped_id="$(jq -r '.id' <<< "$grouped_json")"
-              if [[ "$grouped_id" != "$legacy_id" ]]; then
-                gh api --method DELETE \
-                  "repos/$GITHUB_REPOSITORY/releases/assets/$grouped_id" >/dev/null
-                echo "已删除旧分组资产：$grouped_name"
-              fi
-            fi
-
+            wrong_id="$(jq -r '.id' <<< "$wrong_json")"
             gh api --method PATCH \
-              "repos/$GITHUB_REPOSITORY/releases/assets/$legacy_id" \
-              -f name="$grouped_name" >/dev/null
+              "repos/$GITHUB_REPOSITORY/releases/assets/$wrong_id" \
+              -f name="$original_name" >/dev/null
 
-            echo "已分组：$legacy_name -> $grouped_name"
+            echo "已恢复：$wrong_name -> $original_name"
           done < "$WORK_DIR/runimage-names.txt"
 
           fetch_assets "$WORK_DIR/assets-final.json"
 
-          while IFS= read -r legacy_name; do
-            [[ -n "$legacy_name" ]] || continue
-            grouped_name="runimage-$legacy_name"
+          while IFS= read -r original_name; do
+            [[ -n "$original_name" ]] || continue
+            wrong_name="runimage-$original_name"
 
-            if jq -e --arg name "$legacy_name" '.[] | select(.name == $name)' "$WORK_DIR/assets-final.json" >/dev/null; then
-              echo "仍存在未分组 RunImage 资产：$legacy_name" >&2
+            if ! jq -e --arg name "$original_name" '.[] | select(.name == $name)' "$WORK_DIR/assets-final.json" >/dev/null; then
+              echo "恢复后缺少原文件名资产：$original_name" >&2
               exit 1
             fi
 
-            if ! jq -e --arg name "$grouped_name" '.[] | select(.name == $name)' "$WORK_DIR/assets-final.json" >/dev/null; then
-              echo "缺少分组后的 RunImage 资产：$grouped_name" >&2
+            if jq -e --arg name "$wrong_name" '.[] | select(.name == $name)' "$WORK_DIR/assets-final.json" >/dev/null; then
+              echo "恢复后仍存在错误文件名：$wrong_name" >&2
               exit 1
             fi
           done < "$WORK_DIR/runimage-names.txt"
 
-          echo 'RunImage Release 资产已统一使用 runimage- 前缀并连续分组。'
+          echo 'RunImage Release 资产文件名已全部恢复。'
