@@ -190,17 +190,33 @@ AppImage 应只包含应用正常运行所需内容。
 允许并常用的路线包括：
 
 - **quick-sharun / sharun：** 适合需要较强跨发行版兼容性、自包含运行库、非 FHS / 较旧发行版兼容，或现有相近项目已经通过该路线稳定运行的应用。quick-sharun 使用的 uruntime 具备在 FUSE 不可用时回退到其他运行方式的能力，因此不能把它简单等同于传统 AppImage 的 FUSE 依赖模型。
-- **linuxdeploy：** 适合构建或整理 AppDir、自动收集 ELF 共享库和相关资源，以及配合 Qt / GTK 等插件部署运行时依赖。linuxdeploy 的核心职责是部署 AppDir；使用 `--output appimage` 时最终仍通过 AppImage 输出插件 / appimagetool 生成 AppImage。
-- **linuxdeploy + 官方 appimagetool：** 如果需要 linuxdeploy 负责收集依赖，但希望使用当前官方 appimagetool / 官方最新 type2 runtime 生成最终 AppImage，可以让 linuxdeploy 只完成 AppDir 和依赖部署，不使用它的最终 AppImage 输出，然后再由官方 appimagetool 对完成的 AppDir 打包。需要当前较新的 runtime / FUSE 兼容行为时，优先考虑并验证这条链路。
+- **linuxdeploy + 官方 appimagetool：** 凡选择 linuxdeploy 路线，linuxdeploy 只负责构建 / 整理 AppDir、自动收集 ELF 共享库和相关资源，以及通过 Qt / GTK 等插件部署运行时依赖；**最终 AppImage 必须单独使用官方 appimagetool 封装**，不得把 `linuxdeploy --output appimage` 作为本仓库 linuxdeploy 路线的最终输出方式。
 - **官方 appimagetool 直接打包：** 适用于 AppDir 本身已经完整、依赖已经由上游、手工逻辑或其他工具正确部署的项目。appimagetool 的职责是把 AppDir 转为 AppImage，**不会替代 linuxdeploy / sharun 自动发现并补齐缺失运行库**。
+
+### 使用 linuxdeploy 时最终必须由 appimagetool 封装
+
+凡使用 linuxdeploy 的项目，标准链路固定为：先由 linuxdeploy 完成 AppDir 和依赖部署，再由官方 appimagetool 使用明确的 runtime 文件生成最终 AppImage。示例结构如下，实际路径和插件按项目填写：
+
+```bash
+export ARCH=x86_64; linuxdeploy --appdir <AppDir路径> --plugin <插件>
+export ARCH=x86_64; appimagetool -n <AppDir路径> <输出AppImage> --runtime-file <runtime文件>
+```
+
+强制规则：
+
+- linuxdeploy 命令不得附加 `--output appimage` 作为最终封装步骤；依赖部署完成后必须单独调用 appimagetool。
+- appimagetool 和对应 runtime 应在最终封装前明确准备好，并使用失败即退出、重试和合理超时的下载逻辑；不得依赖打包阶段临时自动下载未知 runtime。
+- **网络故障不是更换打包路线的理由。** 如果 appimagetool、runtime 或其官方下载源出现临时网络失败、GitHub / CDN 超时、重定向异常、HTTP 错误等，应重试；重试后仍失败则让当前构建明确失败，等待网络恢复或修正下载地址。
+- 不得因为 appimagetool / runtime 下载失败，就临时改成 `linuxdeploy --output appimage`、改用旧 runtime、改用另一个 AppImage 输出插件、改成 quick-sharun / sharun，或使用其他未经当前项目验证的工具，只为了让 Actions 变绿。
+- 不得加入“下载 appimagetool 失败就自动回退到 linuxdeploy 输出”“runtime 下载失败就自动换旧 runtime”之类 fallback。构建工具和最终 runtime 必须是明确、可审计、可复现的。
+- 只有确认存在与网络无关的真实兼容性问题，并完成原因核实后，才可以考虑改变既定打包路线；已经验证有效的现有项目仍按稳定基线处理，不得因一次临时下载失败推翻整个方案。
 
 选择规则：
 
-- 不得把“quick-sharun”“linuxdeploy”“appimagetool”中的任意一种写成仓库唯一标准工具。
-- 不得简单把工具名称永久等同于某个固定 FUSE 版本。最终 FUSE / runtime 行为取决于实际嵌入的 AppImage runtime 和工具版本；linuxdeploy 的 AppImage 输出链路也使用 appimagetool，相关 runtime 可能随版本变化。
-- 如果实际验证发现 linuxdeploy 默认输出使用的 runtime 不符合当前目标环境，而 linuxdeploy 的依赖部署本身正常，应优先保留 linuxdeploy 的依赖收集结果，再改用当前官方 appimagetool / 指定官方 runtime 完成最终打包，而不是重写整套依赖部署逻辑。
+- 不得把“quick-sharun”“linuxdeploy”“appimagetool”中的任意一种写成仓库所有项目的唯一标准工具；但**一旦当前项目选择 linuxdeploy，最终封装必须遵守上面的 appimagetool 规则**。
+- 不得简单把工具名称永久等同于某个固定 FUSE 版本。最终 FUSE / runtime 行为取决于实际嵌入的 AppImage runtime 和工具版本；因此 linuxdeploy 路线必须显式使用已选定的 appimagetool / runtime，而不是依赖 linuxdeploy 输出插件隐式决定最终 runtime。
 - AI 应自行根据项目情况选择最稳妥的一套方案，不应因为存在多种工具就把选择题转交给用户；只有不同方案会造成用户可感知的功能、兼容范围、体积或运行权限差异时，才需要明确说明取舍。
-- 已经验证稳定的现有项目，其打包方式视为稳定基线。不得仅因为 AI 更偏好另一种工具，就把 quick-sharun 改成 linuxdeploy、把 linuxdeploy 改成 quick-sharun，或改写为另一套 appimagetool 流程。
+- 已经验证稳定的现有项目，其打包方式视为稳定基线。不得仅因为 AI 更偏好另一种工具，就把 quick-sharun 改成 linuxdeploy、把 linuxdeploy 改成 quick-sharun，或改写为另一套未经验证的流程。
 - 新应用可以在临时 test workflow 中验证所选路线；如果首选方案暴露明确兼容性问题，可以在完成原因分析后切换工具，但禁止依赖 GitHub Actions 反复盲试多套方案。
 - 无论采用哪种路线，最终都必须验证 AppImage 可提取、关键依赖无缺失、desktop / icon / AppRun 正确，并根据项目情况执行隔离 smoke test；涉及 FUSE / runtime 兼容性时，应额外核对最终实际 runtime，而不是只根据构建命令推断。
 
