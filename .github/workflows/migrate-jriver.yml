@@ -141,8 +141,8 @@ jobs:
           grep -Fqx "BASE_BLOB='3a247e16dab1f444982e4e9ec66bd0eabe1183bc'" jriver/build_jriver.sh
           ! grep -Eq 'git show .*jriver/build_jriver\.sh' jriver/build_jriver.sh jriver/build_jriver_audio.sh
 
-          git diff --check -- .github/workflows/build.yml jriver
-          git diff -- .github/workflows/build.yml
+          git -C "$GITHUB_WORKSPACE" diff --check
+          git -C "$GITHUB_WORKSPACE" diff -- .github/workflows/build.yml
 
       - name: Upload patched unified workflow
         uses: actions/upload-artifact@v4
