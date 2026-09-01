@@ -72,6 +72,26 @@ exec "$ROOT/opt/XnConvert/XnConvert" "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/usr/bin/xnconvert"
 
+# Pre-create a real root AppRun. When the Qt plugin installs apprun-hooks, linuxdeploy
+# renames this file to AppRun.wrapped and generates the hook AppRun instead of wrapping a symlink.
+cat > "$APPDIR/AppRun" <<'EOF_ROOT_APPRUN'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(dirname "$(readlink -f "$0")")"
+
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
+export LD_LIBRARY_PATH="$ROOT/opt/XnConvert/lib:$ROOT/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export QT_PLUGIN_PATH="$ROOT/opt/XnConvert/lib:$ROOT/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
+export QT_QPA_PLATFORM_PLUGIN_PATH="$ROOT/opt/XnConvert/lib/platforms"
+export QT_QPA_PLATFORM=xcb
+
+exec "$ROOT/opt/XnConvert/XnConvert" "$@"
+EOF_ROOT_APPRUN
+chmod +x "$APPDIR/AppRun"
+bash -n "$APPDIR/AppRun"
+
 # Give linuxdeploy-plugin-qt one XCB-related Qt seed only. Do not seed every Qt module,
 # otherwise unrelated Multimedia/QML modules drag in unnecessary dependency chains.
 # Pre-create translations so the Qt plugin can link XnConvert's own language files cleanly.
@@ -101,7 +121,7 @@ export LD_LIBRARY_PATH="$APPDIR/opt/XnConvert/lib:${LD_LIBRARY_PATH:-}"
 test -s "$OUTFILE"
 chmod +x "$OUTFILE"
 
-# Check the exact Qt/xcb path used by the final launcher, not the runner's host Qt plugin.
+# Check the real final AppRun chain and the exact Qt/xcb path used by XnConvert.
 VERIFY_DIR="$SOURCE_DIR/verify-appimage"
 rm -rf "$VERIFY_DIR"
 mkdir -p "$VERIFY_DIR"
@@ -110,6 +130,9 @@ mkdir -p "$VERIFY_DIR"
   "$OUTFILE" --appimage-extract >/dev/null
 )
 VERIFY_ROOT="$VERIFY_DIR/squashfs-root"
+test -x "$VERIFY_ROOT/AppRun"
+test -x "$VERIFY_ROOT/AppRun.wrapped"
+test ! -L "$VERIFY_ROOT/AppRun.wrapped"
 test -x "$VERIFY_ROOT/usr/bin/xnconvert"
 test -x "$VERIFY_ROOT/opt/XnConvert/XnConvert"
 test -e "$VERIFY_ROOT/opt/XnConvert/lib/platforms/libqxcb.so"
@@ -121,9 +144,10 @@ test -e "$VERIFY_ROOT/usr/lib/libxcb-render-util.so.0"
 test -e "$VERIFY_ROOT/usr/lib/libxcb-xkb.so.1"
 test -e "$VERIFY_ROOT/usr/lib/libxkbcommon-x11.so.0"
 
-grep -Fqx 'export QT_PLUGIN_PATH="$ROOT/opt/XnConvert/lib:$ROOT/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"' "$VERIFY_ROOT/usr/bin/xnconvert"
-grep -Fqx 'export QT_QPA_PLATFORM_PLUGIN_PATH="$ROOT/opt/XnConvert/lib/platforms"' "$VERIFY_ROOT/usr/bin/xnconvert"
-grep -Fqx 'export QT_QPA_PLATFORM=xcb' "$VERIFY_ROOT/usr/bin/xnconvert"
+grep -Fq 'AppRun.wrapped' "$VERIFY_ROOT/AppRun"
+grep -Fqx 'export QT_PLUGIN_PATH="$ROOT/opt/XnConvert/lib:$ROOT/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"' "$VERIFY_ROOT/AppRun.wrapped"
+grep -Fqx 'export QT_QPA_PLATFORM_PLUGIN_PATH="$ROOT/opt/XnConvert/lib/platforms"' "$VERIFY_ROOT/AppRun.wrapped"
+grep -Fqx 'export QT_QPA_PLATFORM=xcb' "$VERIFY_ROOT/AppRun.wrapped"
 
 LDD_OUTPUT="$(LD_LIBRARY_PATH="$VERIFY_ROOT/opt/XnConvert/lib:$VERIFY_ROOT/usr/lib" ldd "$VERIFY_ROOT/opt/XnConvert/lib/platforms/libqxcb.so")"
 printf '%s\n' "$LDD_OUTPUT"
