@@ -51,6 +51,7 @@ on:
       - 'realvnc-rvnc-connect/**'
       - 'remotedesktopmanager/**'
       - 'github-desktop/**'
+      - 'hermes-desktop/**'
       - 'workbuddy/**'
       - 'mailmaster/**'
       - 'alttab/**'
@@ -127,6 +128,7 @@ on:
           - realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh
           - remotedesktopmanager/build_remotedesktopmanager.sh
           - github-desktop/build_github-desktop.sh
+          - hermes-desktop/build_hermes-desktop.sh
           - workbuddy/build_workbuddy.sh
           - mailmaster/build_mailmaster.sh
           - alttab/build_alttab.sh
@@ -170,9 +172,9 @@ jobs:
           AFTER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          KEYS=(antigravity_ide antigravity cc_switch zen copyq flameshot goldendict_ng htop i3wm keepassxc keepass kde_suite kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor trae trae_work deepseek_harness obs_studio dingtalk winpodx alacritty keyviz remmina dconf_editor rainlendar realvnc_connect remotedesktopmanager github_desktop workbuddy mailmaster alttab baidunetdisk aionui wechat folo feishu joplin jriver chatgpt xmind postman v2rayn xnviewmp xnconvert stacher tencent_docs webcamoid)
-          SCRIPTS=('antigravity-ide/build_antigravity-ide.sh' 'antigravity/build_antigravity.sh' 'cc-switch/build_cc-switch.sh' 'zen/build_zen.sh' 'copyq/build_copyq.sh' 'flameshot/build_flameshot.sh' 'goldendict-ng/build_goldendict-ng.sh' 'htop/build_htop.sh' 'i3wm/build_i3wm.sh' 'keepassxc/build_keepassxc.sh' 'keepass/build_keepass.sh' 'kde-suite/build_kde_suite.sh' 'kitty/build_kitty.sh' 'mpv/build_mpv.sh' 'nvtop/build_nvtop.sh' 'ripdrag/build_ripdrag.sh' 'smplayer/build_smplayer.sh' 'sunshine/build_sunshine.sh' 'freerdp/build_freerdp.sh' 'newsboat/build_newsboat.sh' 'zotero/build_zotero.sh' 'vscode/build_vscode.sh' 'simplescreenrecorder/build_simplescreenrecorder.sh' 'rofi/build_rofi.sh' 'picom/build_picom.sh' 'obsidian/build_obsidian.sh' 'freedownloadmanager/build_freedownloadmanager.sh' 'deskflow/build_deskflow.sh' 'cursor/build_cursor.sh' 'trae/build_trae.sh' 'trae-work/build_trae-work.sh' 'deepseek-harness/build_deepseek-harness.sh' 'obs-studio/build_obs-studio.sh' 'dingtalk/build_dingtalk.sh' 'winpodx/build_winpodx_release.sh' 'alacritty/build_alacritty_linuxdeploy.sh' 'Keyviz/build_keyviz.sh' 'remmina/build_remmina.sh' 'dconf-editor/build_dconf-editor.sh' 'rainlendar/build_rainlendar.sh' 'realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh' 'remotedesktopmanager/build_remotedesktopmanager.sh' 'github-desktop/build_github-desktop.sh' 'workbuddy/build_workbuddy.sh' 'mailmaster/build_mailmaster.sh' 'alttab/build_alttab.sh' 'baidunetdisk/build_baidunetdisk.sh' 'aionui/build_aionui.sh' 'wechat/build_wechat.sh' 'folo/build_folo.sh' 'feishu/build_feishu.sh' 'joplin/build_joplin.sh' 'jriver/build_jriver.sh' 'chatgpt/build_chatgpt.sh' 'xmind/build_xmind.sh' 'postman/build_postman.sh' 'v2rayn/build_v2rayn.sh' 'xnviewmp/build_xnviewmp.sh' 'xnconvert/build_xnconvert.sh' 'stacher/build_stacher.sh' 'tencent-docs/build_tencent-docs.sh' 'webcamoid/build_webcamoid.sh')
-          DIRS=(antigravity-ide antigravity cc-switch zen copyq flameshot goldendict-ng htop i3wm keepassxc keepass kde-suite kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor trae trae-work deepseek-harness obs-studio dingtalk winpodx alacritty Keyviz remmina dconf-editor rainlendar realvnc-rvnc-connect remotedesktopmanager github-desktop workbuddy mailmaster alttab baidunetdisk aionui wechat folo feishu joplin jriver chatgpt xmind postman v2rayn xnviewmp xnconvert stacher tencent-docs webcamoid)
+          KEYS=(antigravity_ide antigravity cc_switch zen copyq flameshot goldendict_ng htop i3wm keepassxc keepass kde_suite kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor trae trae_work deepseek_harness obs_studio dingtalk winpodx alacritty keyviz remmina dconf_editor rainlendar realvnc_connect remotedesktopmanager github_desktop hermes_desktop workbuddy mailmaster alttab baidunetdisk aionui wechat folo feishu joplin jriver chatgpt xmind postman v2rayn xnviewmp xnconvert stacher tencent_docs webcamoid)
+          SCRIPTS=('antigravity-ide/build_antigravity-ide.sh' 'antigravity/build_antigravity.sh' 'cc-switch/build_cc-switch.sh' 'zen/build_zen.sh' 'copyq/build_copyq.sh' 'flameshot/build_flameshot.sh' 'goldendict-ng/build_goldendict-ng.sh' 'htop/build_htop.sh' 'i3wm/build_i3wm.sh' 'keepassxc/build_keepassxc.sh' 'keepass/build_keepass.sh' 'kde-suite/build_kde_suite.sh' 'kitty/build_kitty.sh' 'mpv/build_mpv.sh' 'nvtop/build_nvtop.sh' 'ripdrag/build_ripdrag.sh' 'smplayer/build_smplayer.sh' 'sunshine/build_sunshine.sh' 'freerdp/build_freerdp.sh' 'newsboat/build_newsboat.sh' 'zotero/build_zotero.sh' 'vscode/build_vscode.sh' 'simplescreenrecorder/build_simplescreenrecorder.sh' 'rofi/build_rofi.sh' 'picom/build_picom.sh' 'obsidian/build_obsidian.sh' 'freedownloadmanager/build_freedownloadmanager.sh' 'deskflow/build_deskflow.sh' 'cursor/build_cursor.sh' 'trae/build_trae.sh' 'trae-work/build_trae-work.sh' 'deepseek-harness/build_deepseek-harness.sh' 'obs-studio/build_obs-studio.sh' 'dingtalk/build_dingtalk.sh' 'winpodx/build_winpodx_release.sh' 'alacritty/build_alacritty_linuxdeploy.sh' 'Keyviz/build_keyviz.sh' 'remmina/build_remmina.sh' 'dconf-editor/build_dconf-editor.sh' 'rainlendar/build_rainlendar.sh' 'realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh' 'remotedesktopmanager/build_remotedesktopmanager.sh' 'github-desktop/build_github-desktop.sh' 'hermes-desktop/build_hermes-desktop.sh' 'workbuddy/build_workbuddy.sh' 'mailmaster/build_mailmaster.sh' 'alttab/build_alttab.sh' 'baidunetdisk/build_baidunetdisk.sh' 'aionui/build_aionui.sh' 'wechat/build_wechat.sh' 'folo/build_folo.sh' 'feishu/build_feishu.sh' 'joplin/build_joplin.sh' 'jriver/build_jriver.sh' 'chatgpt/build_chatgpt.sh' 'xmind/build_xmind.sh' 'postman/build_postman.sh' 'v2rayn/build_v2rayn.sh' 'xnviewmp/build_xnviewmp.sh' 'xnconvert/build_xnconvert.sh' 'stacher/build_stacher.sh' 'tencent-docs/build_tencent-docs.sh' 'webcamoid/build_webcamoid.sh')
+          DIRS=(antigravity-ide antigravity cc-switch zen copyq flameshot goldendict-ng htop i3wm keepassxc keepass kde-suite kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian freedownloadmanager deskflow cursor trae trae-work deepseek-harness obs-studio dingtalk winpodx alacritty Keyviz remmina dconf-editor rainlendar realvnc-rvnc-connect remotedesktopmanager github-desktop hermes-desktop workbuddy mailmaster alttab baidunetdisk aionui wechat folo feishu joplin jriver chatgpt xmind postman v2rayn xnviewmp xnconvert stacher tencent-docs webcamoid)
           declare -A BUILD SCRIPT_KEY DIR_KEY
           for i in "${!KEYS[@]}"; do key=${KEYS[$i]}; BUILD[$key]=false; SCRIPT_KEY[${SCRIPTS[$i]}]=$key; DIR_KEY[${DIRS[$i]}]=$key; done
           select_all() { for key in "${KEYS[@]}"; do BUILD[$key]=true; done; }
@@ -1118,6 +1120,52 @@ jobs:
             tail -n 250 "$LOG" >&2 || true
             exit 126
           fi
+
+  build_hermes_desktop:
+    name: Build Hermes Desktop
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).hermes_desktop == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 26
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+
+      - name: Static check Hermes Desktop migration
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n hermes-desktop/build_hermes-desktop.sh
+          python3 -m py_compile hermes-desktop/patch_hermes_desktop.py
+
+      - name: Build and verify Hermes Desktop AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x hermes-desktop/build_hermes-desktop.sh hermes-desktop/patch_hermes_desktop.py
+          ./hermes-desktop/build_hermes-desktop.sh
+          test -s hermes-desktop/dist/hermes-desktop.AppImage
+          sha256sum hermes-desktop/dist/hermes-desktop.AppImage
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest hermes-desktop/dist/hermes-desktop.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
 
   build_workbuddy:
     name: Build WorkBuddy AppImage
