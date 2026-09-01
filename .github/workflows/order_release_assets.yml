@@ -1,6 +1,6 @@
-# GitHub Release 网页按资产创建时间显示；构建本身保持独立，本 workflow 只负责发布后的顺序整理。
-name: Order Latest Release Assets
-run-name: Order latest Release assets
+# GitHub Release 资产列表按文件名显示；统一给 RunImage 资产加前缀，使其在页面中连续分组。
+name: Group Latest Release RunImages
+run-name: Group latest Release RunImages
 
 on:
   push:
@@ -9,25 +9,23 @@ on:
       - '.github/workflows/order_release_assets.yml'
   workflow_run:
     workflows:
-      - Build AppImages
       - Build RunImages
     types: [completed]
   workflow_dispatch:
 
 permissions:
-  actions: read
   contents: write
 
 concurrency:
-  group: order-latest-release-assets
+  group: group-latest-release-runimages
   cancel-in-progress: false
 
 jobs:
-  order_latest_release_assets:
-    name: Order latest Release assets
+  group_latest_release_runimages:
+    name: Group latest Release RunImages
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 10
 
     steps:
       - name: Checkout Code
@@ -35,38 +33,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Wait until AppImage and RunImage builds are idle
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          idle_checks=0
-          for attempt in $(seq 1 240); do
-            active_count="$(
-              gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=100" \
-                --jq '[.workflow_runs[] | select((.path == ".github/workflows/build.yml" or .path == ".github/workflows/build_runimage.yml") and .status != "completed")] | length'
-            )"
-
-            if [[ "$active_count" -eq 0 ]]; then
-              idle_checks=$((idle_checks + 1))
-              if [[ "$idle_checks" -ge 2 ]]; then
-                echo 'AppImage / RunImage 构建已连续两次检查为空闲状态。'
-                exit 0
-              fi
-            else
-              idle_checks=0
-              echo "仍有 $active_count 个 AppImage / RunImage workflow 在运行或排队，等待完成。"
-            fi
-
-            sleep 30
-          done
-
-          echo '等待 AppImage / RunImage workflow 完成超时。' >&2
-          exit 1
-
-      - name: Reorder latest Release assets
+      - name: Group RunImage assets
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -74,9 +41,8 @@ jobs:
           set -Eeuo pipefail
 
           RELEASE_TAG=latest
-          WORK_DIR="$RUNNER_TEMP/release-asset-order"
-          DOWNLOAD_DIR="$WORK_DIR/download"
-          mkdir -p "$WORK_DIR" "$DOWNLOAD_DIR"
+          WORK_DIR="$RUNNER_TEMP/release-runimage-group"
+          mkdir -p "$WORK_DIR"
 
           release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.id')"
           if [[ -z "$release_id" || "$release_id" == null ]]; then
@@ -91,42 +57,15 @@ jobs:
               | jq 'add' > "$output"
           }
 
-          active_build_count() {
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=100" \
-              --jq '[.workflow_runs[] | select((.path == ".github/workflows/build.yml" or .path == ".github/workflows/build_runimage.yml") and .status != "completed")] | length'
-          }
-
-          wait_for_idle() {
-            local active
-            while :; do
-              active="$(active_build_count)"
-              if [[ "$active" -eq 0 ]]; then
-                return 0
-              fi
-              echo "检测到 $active 个构建 workflow 仍在运行或排队，暂停 Release 排序。"
-              sleep 30
-            done
-          }
-
-          sort_names() {
-            python3 -c 'import sys; names=[line.rstrip("\n") for line in sys.stdin if line.rstrip("\n")]; names.sort(key=lambda value: value.casefold()); sys.stdout.write("\n".join(names) + ("\n" if names else ""))'
-          }
-
-          sort_appimages() {
-            python3 -c 'import sys; suffix=".AppImage"; names=[line.rstrip("\n") for line in sys.stdin if line.rstrip("\n")]; names.sort(key=lambda value: (value[:-len(suffix)].casefold() if value.endswith(suffix) else value.casefold(), value.casefold())); sys.stdout.write("\n".join(names) + ("\n" if names else ""))'
-          }
-
-          fetch_assets "$WORK_DIR/assets-before.json"
-          asset_count="$(jq 'length' "$WORK_DIR/assets-before.json")"
-          if [[ "$asset_count" -eq 0 ]]; then
-            echo 'latest Release 当前没有资产，无需排序。'
-            exit 0
-          fi
-
           : > "$WORK_DIR/runimage-names.txt"
           shopt -s nullglob
           runimage_scripts=(runimage/setup_*.sh)
           shopt -u nullglob
+
+          if [[ "${#runimage_scripts[@]}" -eq 0 ]]; then
+            echo '未找到 runimage/setup_*.sh。' >&2
+            exit 1
+          fi
 
           for script in "${runimage_scripts[@]}"; do
             output_name="$(awk '/^[[:space:]]*rim-build[[:space:]]+/ {print $NF}' "$script" | tail -n 1)"
@@ -134,184 +73,69 @@ jobs:
             output_name="${output_name%\'}"
             output_name="${output_name#\"}"
             output_name="${output_name%\"}"
-            if [[ -n "$output_name" ]]; then
-              printf '%s\n' "$output_name" >> "$WORK_DIR/runimage-names.txt"
-            fi
-          done
-          sort_names < "$WORK_DIR/runimage-names.txt" | awk '!seen[$0]++' > "$WORK_DIR/runimage-names.sorted.txt"
-          mv "$WORK_DIR/runimage-names.sorted.txt" "$WORK_DIR/runimage-names.txt"
 
-          jq -r '.[].name | select(endswith(".AppImage"))' "$WORK_DIR/assets-before.json" \
-            | sort_appimages > "$WORK_DIR/appimages.txt"
-
-          : > "$WORK_DIR/runimages.unsorted.txt"
-          : > "$WORK_DIR/other-assets.unsorted.txt"
-          while IFS= read -r name; do
-            if [[ "$name" == *.AppImage ]]; then
-              continue
-            fi
-            if grep -Fxq -- "$name" "$WORK_DIR/runimage-names.txt"; then
-              printf '%s\n' "$name" >> "$WORK_DIR/runimages.unsorted.txt"
-            else
-              printf '%s\n' "$name" >> "$WORK_DIR/other-assets.unsorted.txt"
-            fi
-          done < <(jq -r '.[].name' "$WORK_DIR/assets-before.json")
-
-          sort_names < "$WORK_DIR/runimages.unsorted.txt" > "$WORK_DIR/runimages.txt"
-          sort_names < "$WORK_DIR/other-assets.unsorted.txt" > "$WORK_DIR/other-assets.txt"
-          cat "$WORK_DIR/appimages.txt" "$WORK_DIR/runimages.txt" "$WORK_DIR/other-assets.txt" > "$WORK_DIR/desired-order.txt"
-
-          jq -r 'sort_by(.created_at, .id) | .[].name' "$WORK_DIR/assets-before.json" > "$WORK_DIR/current-order.txt"
-
-          echo '目标顺序：AppImage A-Z -> RunImage A-Z -> 其他资产 A-Z'
-          cat "$WORK_DIR/desired-order.txt"
-
-          mapfile -t current_order < "$WORK_DIR/current-order.txt"
-          mapfile -t desired_order < "$WORK_DIR/desired-order.txt"
-
-          if [[ "${#current_order[@]}" -ne "${#desired_order[@]}" ]]; then
-            echo '当前资产数量与目标资产数量不一致。' >&2
-            exit 1
-          fi
-
-          first_mismatch=${#desired_order[@]}
-          for i in "${!desired_order[@]}"; do
-            if [[ "${current_order[$i]}" != "${desired_order[$i]}" ]]; then
-              first_mismatch=$i
-              break
-            fi
-          done
-
-          if [[ "$first_mismatch" -eq "${#desired_order[@]}" ]]; then
-            echo 'latest Release 资产已经处于目标顺序，无需重新上传。'
-            exit 0
-          fi
-
-          printf '%s\n' "${desired_order[@]:$first_mismatch}" > "$WORK_DIR/reorder-tail.txt"
-          echo "从第 $((first_mismatch + 1)) 个资产开始重新上传；已正确的前缀不会重复处理。"
-
-          while IFS= read -r name; do
-            [[ -n "$name" ]] || continue
-            if [[ "$name" == */* || "$name" == *'*'* || "$name" == *'?'* || "$name" == *'['* ]]; then
-              echo "Release 资产名包含不适合安全精确下载的字符，拒绝处理：$name" >&2
+            if [[ -z "$output_name" ]]; then
+              echo "无法从 $script 读取 rim-build 输出名称。" >&2
               exit 1
             fi
 
-            while :; do
-              wait_for_idle
-              fetch_assets "$WORK_DIR/assets-current.json"
-              asset_json="$(jq -c --arg name "$name" '.[] | select(.name == $name)' "$WORK_DIR/assets-current.json")"
-              if [[ -z "$asset_json" ]]; then
-                echo "未找到待排序资产：$name" >&2
-                exit 1
-              fi
+            printf '%s\n' "$output_name" >> "$WORK_DIR/runimage-names.txt"
+          done
 
-              asset_id="$(jq -r '.id' <<< "$asset_json")"
-              expected_size="$(jq -r '.size' <<< "$asset_json")"
-              expected_digest="$(jq -r '.digest // empty' <<< "$asset_json")"
-              asset_label="$(jq -r '.label // empty' <<< "$asset_json")"
-              asset_path="$DOWNLOAD_DIR/$name"
+          sort -f -u "$WORK_DIR/runimage-names.txt" -o "$WORK_DIR/runimage-names.txt"
 
-              rm -rf "$DOWNLOAD_DIR"
-              mkdir -p "$DOWNLOAD_DIR"
-              gh release download "$RELEASE_TAG" \
-                --repo "$GITHUB_REPOSITORY" \
-                --pattern "$name" \
-                --dir "$DOWNLOAD_DIR"
+          while IFS= read -r legacy_name; do
+            [[ -n "$legacy_name" ]] || continue
+            grouped_name="runimage-$legacy_name"
 
-              if [[ ! -f "$asset_path" ]]; then
-                echo "下载后未找到资产文件：$name" >&2
-                exit 1
-              fi
+            fetch_assets "$WORK_DIR/assets-current.json"
 
-              actual_size="$(stat -c '%s' "$asset_path")"
-              if [[ "$actual_size" != "$expected_size" ]]; then
-                echo "下载后的资产大小不一致：$name，expected=$expected_size actual=$actual_size" >&2
-                exit 1
-              fi
+            legacy_json="$(jq -c --arg name "$legacy_name" '.[] | select(.name == $name)' "$WORK_DIR/assets-current.json")"
+            grouped_json="$(jq -c --arg name "$grouped_name" '.[] | select(.name == $name)' "$WORK_DIR/assets-current.json")"
 
-              actual_sha256="$(sha256sum "$asset_path" | awk '{print $1}')"
-              if [[ "$expected_digest" == sha256:* && "sha256:$actual_sha256" != "$expected_digest" ]]; then
-                echo "下载后的 SHA-256 不一致：$name" >&2
-                exit 1
-              fi
-
-              if [[ "$(active_build_count)" -ne 0 ]]; then
-                echo "下载 $name 后检测到新的构建 workflow，放弃当前副本并等待最新产物。"
-                rm -f -- "$asset_path"
-                wait_for_idle
+            if [[ -z "$legacy_json" ]]; then
+              if [[ -n "$grouped_json" ]]; then
+                echo "已分组：$grouped_name"
                 continue
               fi
 
-              if ! gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" >/dev/null; then
-                echo "$name 在删除前已被其他发布任务替换，重新读取最新资产。"
-                rm -f -- "$asset_path"
-                wait_for_idle
-                continue
+              echo "latest Release 缺少 RunImage 资产：$legacy_name / $grouped_name" >&2
+              exit 1
+            fi
+
+            legacy_id="$(jq -r '.id' <<< "$legacy_json")"
+
+            if [[ -n "$grouped_json" ]]; then
+              grouped_id="$(jq -r '.id' <<< "$grouped_json")"
+              if [[ "$grouped_id" != "$legacy_id" ]]; then
+                gh api --method DELETE \
+                  "repos/$GITHUB_REPOSITORY/releases/assets/$grouped_id" >/dev/null
+                echo "已删除旧分组资产：$grouped_name"
               fi
+            fi
 
-              uploaded=false
-              restart_asset=false
-              for attempt in 1 2 3 4 5; do
-                if gh release upload "$RELEASE_TAG" "$asset_path" --repo "$GITHUB_REPOSITORY"; then
-                  uploaded=true
-                  break
-                fi
+            gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$legacy_id" \
+              -f name="$grouped_name" >/dev/null
 
-                fetch_assets "$WORK_DIR/assets-after-upload-failure.json"
-                if jq -e --arg name "$name" '.[] | select(.name == $name)' "$WORK_DIR/assets-after-upload-failure.json" >/dev/null; then
-                  echo "$name 在重新上传期间被其他发布任务创建，改为重新读取最新资产。"
-                  restart_asset=true
-                  break
-                fi
+            echo "已分组：$legacy_name -> $grouped_name"
+          done < "$WORK_DIR/runimage-names.txt"
 
-                echo "重新上传 $name 失败，5 秒后重试（$attempt/5）。" >&2
-                sleep 5
-              done
+          fetch_assets "$WORK_DIR/assets-final.json"
 
-              if [[ "$restart_asset" == true ]]; then
-                rm -f -- "$asset_path"
-                wait_for_idle
-                continue
-              fi
+          while IFS= read -r legacy_name; do
+            [[ -n "$legacy_name" ]] || continue
+            grouped_name="runimage-$legacy_name"
 
-              if [[ "$uploaded" != true ]]; then
-                echo "重新上传 $name 连续 5 次失败。" >&2
-                exit 1
-              fi
+            if jq -e --arg name "$legacy_name" '.[] | select(.name == $name)' "$WORK_DIR/assets-final.json" >/dev/null; then
+              echo "仍存在未分组 RunImage 资产：$legacy_name" >&2
+              exit 1
+            fi
 
-              fetch_assets "$WORK_DIR/assets-after-one.json"
-              new_asset_json="$(jq -c --arg name "$name" '.[] | select(.name == $name)' "$WORK_DIR/assets-after-one.json")"
-              new_asset_id="$(jq -r '.id' <<< "$new_asset_json")"
-              new_size="$(jq -r '.size' <<< "$new_asset_json")"
-              new_digest="$(jq -r '.digest // empty' <<< "$new_asset_json")"
+            if ! jq -e --arg name "$grouped_name" '.[] | select(.name == $name)' "$WORK_DIR/assets-final.json" >/dev/null; then
+              echo "缺少分组后的 RunImage 资产：$grouped_name" >&2
+              exit 1
+            fi
+          done < "$WORK_DIR/runimage-names.txt"
 
-              if [[ "$new_size" != "$expected_size" ]]; then
-                echo "重新上传后的资产大小不一致：$name" >&2
-                exit 1
-              fi
-              if [[ "$new_digest" == sha256:* && "$new_digest" != "sha256:$actual_sha256" ]]; then
-                echo "重新上传后的 SHA-256 不一致：$name" >&2
-                exit 1
-              fi
-
-              if [[ -n "$asset_label" ]]; then
-                gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/assets/$new_asset_id" -f label="$asset_label" >/dev/null
-              fi
-
-              rm -f -- "$asset_path"
-              echo "已按顺序重新上传：$name"
-              break
-            done
-          done < "$WORK_DIR/reorder-tail.txt"
-
-          fetch_assets "$WORK_DIR/assets-after.json"
-          jq -r 'sort_by(.created_at, .id) | .[].name' "$WORK_DIR/assets-after.json" > "$WORK_DIR/final-order.txt"
-
-          if ! cmp -s "$WORK_DIR/final-order.txt" "$WORK_DIR/desired-order.txt"; then
-            echo 'Release 资产最终顺序与目标顺序不一致。' >&2
-            diff -u "$WORK_DIR/desired-order.txt" "$WORK_DIR/final-order.txt" || true
-            exit 1
-          fi
-
-          echo 'Release 资产排序完成：AppImage A-Z -> RunImage A-Z -> 其他资产 A-Z。'
+          echo 'RunImage Release 资产已统一使用 runimage- 前缀并连续分组。'
