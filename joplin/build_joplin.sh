@@ -41,8 +41,20 @@ DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   libxshmfence1 libxss1 libxtst6 \
   xdg-utils shared-mime-info hicolor-icon-theme
 
+GITHUB_API_HEADERS=(-H 'Accept: application/vnd.github+json')
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+  GITHUB_API_HEADERS+=(-H "Authorization: Bearer $GITHUB_TOKEN")
+elif [[ -n "${GH_TOKEN:-}" ]]; then
+  GITHUB_API_HEADERS+=(-H "Authorization: Bearer $GH_TOKEN")
+elif command -v git >/dev/null 2>&1; then
+  CHECKOUT_AUTH_HEADER="$(git config --get http.https://github.com/.extraheader 2>/dev/null || true)"
+  if [[ -n "$CHECKOUT_AUTH_HEADER" ]]; then
+    GITHUB_API_HEADERS+=(-H "$CHECKOUT_AUTH_HEADER")
+  fi
+fi
+
 curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
-  -H 'Accept: application/vnd.github+json' \
+  "${GITHUB_API_HEADERS[@]}" \
   'https://api.github.com/repos/laurent22/joplin/releases?per_page=30' \
   -o "$RELEASES_JSON"
 
