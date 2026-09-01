@@ -114,7 +114,9 @@ log "使用官方 Desktop electron-builder 链生成 AppImage"
   cd "$UPSTREAM_DIR/apps/desktop"
   export CSC_IDENTITY_AUTO_DISCOVERY=false
   npm run build
-  npm run builder -- --linux AppImage --x64 --publish never
+
+  # electron-builder 26.x 会根据 GitHub Actions CI 环境进入隐式发布解析；本仓库只构建文件，发布统一由 build.yml 负责。
+  env -u CI -u GITHUB_ACTIONS npm run builder -- --linux AppImage --x64 --publish never
 )
 
 mapfile -t appimages < <(
