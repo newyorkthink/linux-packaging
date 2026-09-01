@@ -239,7 +239,9 @@ if about_marker not in about_text:
 
 package_path = root / "apps/desktop/package.json"
 package_data = json.loads(package_path.read_text(encoding="utf-8"))
-extra_resources = package_data.setdefault("build", {}).setdefault("extraResources", [])
+build_config = package_data.setdefault("build", {})
+build_config["publish"] = None
+extra_resources = build_config.setdefault("extraResources", [])
 libsecret_resource = {
     "from": "build/linux-libs/libsecret-1.so.0",
     "to": "linux-libs/libsecret-1.so.0",
@@ -301,6 +303,7 @@ checks = [
     (context_path, "configuredLocale == null ? normalizeLocale(initialLocale)"),
     (preload_path, "Hermes standalone Linux AppImage: disable source-checkout desktop self-update"),
     (about_path, "Hermes standalone Linux AppImage: hide source-checkout desktop update controls"),
+    (package_path, '"publish": null'),
     (package_path, '"to": "linux-libs/libsecret-1.so.0"'),
     (after_pack_path, "Hermes standalone Linux AppImage: add the bundled libsecret directory to Electron RUNPATH"),
 ]
