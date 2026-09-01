@@ -132,12 +132,24 @@ APPRUN
 chmod +x "$APPDIR/AppRun"
 sh -n "$APPDIR/AppRun"
 
-# Electron/NSS 会 dlopen 这些模块；linuxdeploy 只跟踪 ELF NEEDED，不会自动收集它们。
+# NSS 核心库和 dlopen 模块必须来自同一套 Ubuntu 22.04 libnss3，避免与宿主机新版 NSS 混用。
 MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
-if compgen -G "/usr/lib/$MULTIARCH/nss/*.so" >/dev/null; then
-  mkdir -p "$APPDIR/usr/lib"
-  cp -a /usr/lib/"$MULTIARCH"/nss/*.so "$APPDIR/usr/lib/"
-fi
+mkdir -p "$APPDIR/usr/lib"
+cp -a \
+  "/usr/lib/$MULTIARCH/libnss3.so" \
+  "/usr/lib/$MULTIARCH/libnssutil3.so" \
+  "/usr/lib/$MULTIARCH/libsmime3.so" \
+  "/usr/lib/$MULTIARCH/libssl3.so" \
+  "/usr/lib/$MULTIARCH/libfreebl3.so" \
+  "/usr/lib/$MULTIARCH/libfreebl3.chk" \
+  "/usr/lib/$MULTIARCH/libfreeblpriv3.so" \
+  "/usr/lib/$MULTIARCH/libfreeblpriv3.chk" \
+  "/usr/lib/$MULTIARCH/nss/libnssckbi.so" \
+  "/usr/lib/$MULTIARCH/nss/libnssdbm3.so" \
+  "/usr/lib/$MULTIARCH/nss/libnssdbm3.chk" \
+  "/usr/lib/$MULTIARCH/nss/libsoftokn3.so" \
+  "/usr/lib/$MULTIARCH/nss/libsoftokn3.chk" \
+  "$APPDIR/usr/lib/"
 
 curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
   https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
