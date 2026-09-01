@@ -64,7 +64,7 @@ ROOT="$(readlink -f "$HERE/../..")"
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
 export LD_LIBRARY_PATH="$ROOT/opt/XnConvert/lib:$ROOT/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export QT_PLUGIN_PATH="$ROOT/opt/XnConvert/lib"
+export QT_PLUGIN_PATH="$ROOT/opt/XnConvert/lib:$ROOT/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
 export QT_QPA_PLATFORM_PLUGIN_PATH="$ROOT/opt/XnConvert/lib/platforms"
 export QT_QPA_PLATFORM=xcb
 
@@ -113,6 +113,7 @@ VERIFY_ROOT="$VERIFY_DIR/squashfs-root"
 test -x "$VERIFY_ROOT/usr/bin/xnconvert"
 test -x "$VERIFY_ROOT/opt/XnConvert/XnConvert"
 test -e "$VERIFY_ROOT/opt/XnConvert/lib/platforms/libqxcb.so"
+test -e "$VERIFY_ROOT/usr/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so"
 test -e "$VERIFY_ROOT/usr/lib/libxcb-icccm.so.4"
 test -e "$VERIFY_ROOT/usr/lib/libxcb-image.so.0"
 test -e "$VERIFY_ROOT/usr/lib/libxcb-keysyms.so.1"
@@ -120,7 +121,7 @@ test -e "$VERIFY_ROOT/usr/lib/libxcb-render-util.so.0"
 test -e "$VERIFY_ROOT/usr/lib/libxcb-xkb.so.1"
 test -e "$VERIFY_ROOT/usr/lib/libxkbcommon-x11.so.0"
 
-grep -Fqx 'export QT_PLUGIN_PATH="$ROOT/opt/XnConvert/lib"' "$VERIFY_ROOT/usr/bin/xnconvert"
+grep -Fqx 'export QT_PLUGIN_PATH="$ROOT/opt/XnConvert/lib:$ROOT/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"' "$VERIFY_ROOT/usr/bin/xnconvert"
 grep -Fqx 'export QT_QPA_PLATFORM_PLUGIN_PATH="$ROOT/opt/XnConvert/lib/platforms"' "$VERIFY_ROOT/usr/bin/xnconvert"
 grep -Fqx 'export QT_QPA_PLATFORM=xcb' "$VERIFY_ROOT/usr/bin/xnconvert"
 
