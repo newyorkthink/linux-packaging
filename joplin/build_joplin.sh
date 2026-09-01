@@ -136,9 +136,6 @@ export XDG_DATA_DIRS="$HERE"/opt/Joplin:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/
 export GSETTINGS_SCHEMA_DIR="${HERE}"/usr/share/glib-2.0/schemas/:"${GSETTINGS_SCHEMA_DIR}"
 export GIO_MODULE_DIR="$HERE"/usr/lib/x86_64-linux-gnu/gio/modules
 
-export GTK_IM_MODULE=ibus
-export QT_IM_MODULE=ibus
-export XMODIFIERS=@im=ibus
 export GTK_THEME=Adwaita-dark
 export NO_AT_BRIDGE=1
 
