@@ -57,3 +57,32 @@ codex sandbox /usr/bin/true
 OpenAI 当前将 Linux 桌面版标记为预览版，并正式支持指定版本的 Ubuntu、Debian 和 Fedora。这里生成的 AppImage 是本仓库的便携重打包产物，不是 OpenAI 官方发布格式。
 
 虽然官方 Linux 包内含相关运行资源，但 OpenAI 当前文档明确说明 Computer Use 尚未在 Linux 预览版开放；本项目不会绕过该产品限制。
+
+## 修复记录
+
+本节用于持续记录 ChatGPT AppImage 的实际修复。后续每次修复都在这里追加新记录，不覆盖、删除或改写已有修复记录。每条至少写明日期、故障现象、根因、修改文件、具体修复内容和对应提交；单纯文档整理不作为运行故障修复记录。
+
+### 2026-09-01 — 修复当前 Electron 冒烟测试失败
+
+- 提交：`78b3cd277292b7d60c5b5c4ec30fbab77e1b0f57`
+- 故障现象：ChatGPT AppImage 已完成构建，Codex 沙盒测试也以退出码 `0` 通过，但图形冒烟测试最终失败。日志明确出现 `GPU access not allowed`，随后测试结束阶段又出现 D-Bus 断开触发的 `FATAL`。
+- 根因：冒烟测试额外传入 `--disable-gpu`，而当前 OpenAI ChatGPT Linux 桌面应用内部同时禁用了软件光栅回退，因此应用直接拒绝这种完整禁用 GPU 的启动方式；同时原来的 `timeout 40s xvfb-run -a dbus-run-session -- ...` 会先结束外层测试进程，再释放 D-Bus / Xvfb，会把正常 teardown 阶段的总线断开表现成致命错误。
+- 修改文件：`chatgpt/build_chatgpt.sh`
+- 修复内容：删除冒烟测试中的 `--disable-gpu`，让 Xvfb 环境下保留 Electron 自身的软件渲染回退；同时把 `timeout 40s` 移到 `xvfb-run -a dbus-run-session --` 内部，确保先终止 ChatGPT，再释放 D-Bus 会话和虚拟显示。
+- 保留内容：没有改应用版本获取方式，没有锁版本，没有移除既有的 Codex `bubblewrap` 沙盒验证，也没有放宽原有共享库、ELF、sandbox 和启动致命错误检查。
+
+### 2026-08-31 — 修复 Codex `bubblewrap` PATH 优先级
+
+- 提交：`f7534deb1583cf8c27ced9b86280d9a69f9e8a2a`
+- 故障现象：ChatGPT 主界面能够启动，但 Codex Linux 命令沙盒执行时出现 `bwrap: unknown cap: --proc`。
+- 根因：AppImage 启动入口原先把 `$APPDIR/bin` 放在 PATH 最前，Codex 会优先调用 AppImage 内由打包工具带入的 `bwrap`，而不是宿主系统安装的 `/usr/bin/bwrap`。
+- 修改文件：`chatgpt/build_chatgpt.sh`、`chatgpt/README.md`
+- 修复内容：将启动 PATH 固定为 `/usr/bin:/bin` 优先、AppImage 内工具目录最后；构建时显式要求 `/usr/bin/bwrap` 存在；并在最终 AppImage 验证阶段直接运行 `resources/codex sandbox /usr/bin/true`，任何 `bwrap` 错误或非零退出码都会使构建失败。
+
+### 2026-08-31 — 修复 CI 中 Codex 沙盒权限不足
+
+- 提交：`e93c922606e3d5569185bc27c4ccdce06fa8ee2b`
+- 故障现象：新增真实 Codex `bubblewrap` 沙盒测试后，GitHub Actions 的默认 Arch Linux 容器无法完成嵌套 namespace 沙盒验证。
+- 根因：这是 CI 构建容器权限限制，不是最终 AppImage 运行时权限问题；默认容器缺少执行这项嵌套 `bubblewrap` 测试所需的 namespace 能力。
+- 修改文件：`.github/workflows/build.yml`、`chatgpt/README.md`
+- 修复内容：仅 ChatGPT Job 使用 `ghcr.io/pkgforge-dev/archlinux:latest` 并增加 `options: --privileged`，用于 CI 中执行真实 Codex 沙盒验证；该权限只属于临时构建容器，不会写入 AppImage，也不会改变终端用户运行时权限模型。
