@@ -44,7 +44,7 @@ DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   binutils patchelf xz-utils bzip2 zstd dbus dbus-x11 xvfb xauth \
   libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-dev \
   libgdk-pixbuf-2.0-dev librsvg2-dev libpango1.0-dev \
-  ibus-gtk3 libibus-1.0-5 \
+  ibus-gtk3 \
   libasound2 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcairo2 libcups2 \
   libdbus-1-3 libdrm2 libgbm1 libgdk-pixbuf-2.0-0 libglib2.0-0 libgtk-3-0 \
   libgtkmm-3.0-1v5 libnotify4 libnss3 libnspr4 libpango-1.0-0 libsecret-1-0 \
