@@ -16,7 +16,7 @@ trap cleanup EXIT
 # 创建本次检查使用的临时目录。
 mkdir -p "$WORK_ROOT"
 
-MATCHED_53=0
+MATCHED_54=0
 AUDIT_FAILED=0
 CLONED=0
 
@@ -71,12 +71,12 @@ check_package() {
   echo "AUR version: ${version:-unknown}${pkgrel:+-$pkgrel}"
   echo "AUR commit : $commit"
 
-  # 当前配方明确属于 5.3.x 时，记为已经跟踪 WorkBuddy 5.3 系列；这不等价于运行验证通过。
-  if [[ "$version" == 5.3.* ]]; then
-    MATCHED_53=$((MATCHED_53 + 1))
-    echo "5.3.x track: YES"
+  # 当前配方明确属于 5.4.x 时，记为已经跟踪 WorkBuddy 5.4 系列；这不等价于运行验证通过。
+  if [[ "$version" == 5.4.* ]]; then
+    MATCHED_54=$((MATCHED_54 + 1))
+    echo "5.4.x track: YES"
   else
-    echo "5.3.x track: NO"
+    echo "5.4.x track: NO"
   fi
 
   echo
@@ -127,9 +127,9 @@ if [[ "$CLONED" -eq 0 ]]; then
   exit 2
 fi
 
-# 当前 workbuddy 配方不是 5.3.x 时明确返回失败，避免把旧版适配误判成当前版本可用。
-if [[ "$MATCHED_53" -eq 0 ]]; then
-  echo "ERROR: 当前 AUR workbuddy 配方未跟踪 5.3.x。" >&2
+# 当前 workbuddy 配方不是 5.4.x 时明确返回失败，避免把旧版适配误判成当前版本可用。
+if [[ "$MATCHED_54" -eq 0 ]]; then
+  echo "ERROR: 当前 AUR workbuddy 配方未跟踪 5.4.x。" >&2
   exit 3
 fi
 
@@ -140,5 +140,5 @@ if [[ "$AUDIT_FAILED" -ne 0 ]]; then
 fi
 
 # 本阶段只确认当前 workbuddy 的版本跟踪与 PKGBUILD 静态安全，不宣称 Linux GUI 已经运行验证通过。
-echo "OK: AUR workbuddy 当前跟踪 5.3.x，且 PKGBUILD 未命中本脚本定义的高风险模式。"
+echo "OK: AUR workbuddy 当前跟踪 5.4.x，且 PKGBUILD 未命中本脚本定义的高风险模式。"
 echo "NEXT: 若要确认真正适配，需要再做安装包提取、ELF/native module 检查和 Xvfb 启动 smoke test。"
