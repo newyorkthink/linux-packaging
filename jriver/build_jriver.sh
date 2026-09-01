@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ==============================================================================
+# JRiver Media Center AnyLinux AppImage 构建入口
+# ==============================================================================
+# 2026-09-01：迁移到 linux-packaging 后，不再依赖源仓库 Git 历史。
+# 以本目录 build_jriver_audio.sh 作为已验证“网页/蓝牙音频正常”基线。
+# 本入口只追加 JRWeb 的 CEF 退出阶段保护；Bookworm Pulse 音频闭包、CEF 版本、
+# AppRun、pathmap、glibc 隔离、Fcitx5 与其它稳定逻辑全部原样保留。
+#
+# 当前实机现象：点击“打开媒体文件”后，JRWeb 在退出/销毁阶段报
+# base/observer_list.h: observers_.empty()，随后主程序出现 waitpid error 并退出。
+# JRWeb 自身明确链接 cef_shutdown；这里仅在 JRWeb 进程退出时跳过 CefShutdown 的
+# 破坏性清理，让操作系统在该专用子进程退出后回收资源。其它进程仍调用真实 cef_shutdown。
+
+cd "$(dirname "$0")"
+
+BASE_FILE="$PWD/build_jriver_audio.sh"
+BASE_BLOB='3a247e16dab1f444982e4e9ec66bd0eabe1183bc'
+WRAPPED="$(mktemp "$PWD/.build_jriver_verified.XXXXXX.sh")"
+
+cleanup() {
+  rm -f "$WRAPPED"
+}
+trap cleanup EXIT
+
+if [[ ! -f "$BASE_FILE" ]]; then
+  echo "错误：缺少 JRiver 已验证音频基线文件：$BASE_FILE" >&2
+  exit 1
+fi
+
+cp -f "$BASE_FILE" "$WRAPPED"
+
+if [[ "$(git hash-object "$WRAPPED")" != "$BASE_BLOB" ]]; then
+  echo '错误：JRiver 已验证音频基线与迁移固定 blob SHA 不一致。' >&2
+  exit 1
+fi
+
+# 在上一版音频 wrapper 生成最终构建脚本后、真正执行前，只追加 CEF shutdown 保护。
+python3 - "$WRAPPED" <<'PY_OUTER_PATCH'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+
+execute_anchor = '''chmod +x "$PATCHED"
+bash -n "$PATCHED"
+bash "$PATCHED" "$@"'''
+
+execute_patch = r"""chmod +x "$PATCHED"
+bash -n "$PATCHED"
+
+python3 - "$PATCHED" <<'PY_CEF_SHUTDOWN_PATCH'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+
+runtime_anchor = '''cp -a "$CEF_ROOT/Release/." "$CEF_PRIVATE_DIR/"
+cp -a "$CEF_ROOT/Resources/." "$CEF_PRIVATE_DIR/"
+'''
+runtime_patch = runtime_anchor + r'''
+# 2026-08-14：仅保护 JRWeb 的 CEF 退出阶段。
+# 不替换 libcef.so，不改 CEF ABI，不改 Pulse/ALSA，也不恢复全局 LD_LIBRARY_PATH。
+cat > AppDir/.jriver-cef-shutdown-guard.c <<'EOF_CEF_SHUTDOWN_GUARD'
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#include <dlfcn.h>
+#include <stdlib.h>
+
+typedef void (*cef_shutdown_fn_t)(void);
+
+__attribute__((visibility("default")))
+void cef_shutdown(void)
+{
+    const char *skip = getenv("JRIVER_CEF_SKIP_SHUTDOWN");
+    cef_shutdown_fn_t real_shutdown;
+
+    if (skip && *skip)
+        return;
+
+    real_shutdown = (cef_shutdown_fn_t)dlsym(RTLD_NEXT, "cef_shutdown");
+    if (real_shutdown)
+        real_shutdown();
+}
+EOF_CEF_SHUTDOWN_GUARD
+
+cc -shared -fPIC -O2 -Wall -Wextra -Werror \
+  AppDir/.jriver-cef-shutdown-guard.c \
+  -o AppDir/lib/jriver-cef-shutdown-guard.so -ldl
+rm -f AppDir/.jriver-cef-shutdown-guard.c
+
+# 由 Sharun 加载该极小 guard；只有 JRWeb wrapper 设置跳过变量，其他进程继续转发真实 cef_shutdown。
+sed -i '/^jriver-cef-shutdown-guard\\.so$/d' AppDir/.preload
+echo 'jriver-cef-shutdown-guard.so' >> AppDir/.preload
+
+if ! nm -D --defined-only AppDir/lib/jriver-cef-shutdown-guard.so \
+     | awk '{print $3}' | grep -qxF 'cef_shutdown'; then
+  echo '错误：JRWeb CEF shutdown guard 未导出 cef_shutdown。' >&2
+  exit 1
+fi
+'''
+
+wrapper_anchor = '''if [ "$CHILD_NAME" = "JRWeb" ] && [ -d "$HERE/cef-runtime" ]; then
+  LD_LIBRARY_PATH="$HERE/cef-runtime"
+  export LD_LIBRARY_PATH
+fi
+
+exec "$SHARUN_CHILD" "$@"
+'''
+wrapper_patch = '''if [ "$CHILD_NAME" = "JRWeb" ] && [ -d "$HERE/cef-runtime" ]; then
+  LD_LIBRARY_PATH="$HERE/cef-runtime"
+  export LD_LIBRARY_PATH
+
+  # JRWeb 关闭内嵌 CEF 时存在 observer 未清理断言；仅该专用子进程跳过 cef_shutdown。
+  # JRWebChromium、主程序及其它进程不设置此变量，不改变其 CEF 生命周期。
+  JRIVER_CEF_SKIP_SHUTDOWN=1
+  export JRIVER_CEF_SKIP_SHUTDOWN
+fi
+
+exec "$SHARUN_CHILD" "$@"
+'''
+
+preload_check_anchor = '''if lines.index("anylinux.so") > lines.index("jriver-cef-env.so"):
+    raise SystemExit("jriver-cef-env.so must load after anylinux.so")
+'''
+preload_check_patch = preload_check_anchor + '''if lines.count("jriver-cef-shutdown-guard.so") != 1:
+    raise SystemExit("jriver-cef-shutdown-guard.so preload entry must appear exactly once")
+if lines.index("jriver-cef-env.so") > lines.index("jriver-cef-shutdown-guard.so"):
+    raise SystemExit("CEF shutdown guard must load after jriver-cef-env.so")
+'''
+
+for name, anchor in (
+    ("CEF private runtime", runtime_anchor),
+    ("JRWeb wrapper exec", wrapper_anchor),
+    ("preload order validator", preload_check_anchor),
+):
+    count = text.count(anchor)
+    if count != 1:
+        raise SystemExit(f"JRiver verified baseline changed: {name} anchor count={count}")
+
+text = text.replace(runtime_anchor, runtime_patch, 1)
+text = text.replace(wrapper_anchor, wrapper_patch, 1)
+text = text.replace(preload_check_anchor, preload_check_patch, 1)
+path.write_text(text)
+PY_CEF_SHUTDOWN_PATCH
+
+bash -n "$PATCHED"
+bash "$PATCHED" "$@"
+"""
+
+if text.count(execute_anchor) != 1:
+    raise SystemExit("JRiver audio wrapper changed: final execution anchor mismatch")
+
+text = text.replace(execute_anchor, execute_patch, 1)
+path.write_text(text)
+PY_OUTER_PATCH
+
+chmod +x "$WRAPPED"
+bash -n "$WRAPPED"
+bash "$WRAPPED" "$@"

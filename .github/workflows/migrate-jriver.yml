@@ -1,0 +1,162 @@
+name: Migrate JRiver AppImage
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'jriver/**'
+      - '.github/workflows/migrate-jriver.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  migrate_jriver:
+    name: Validate JRiver migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
+
+      - name: Patch and validate unified workflow
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          python3 <<'PY'
+          from pathlib import Path
+          import shlex
+
+          path = Path('.github/workflows/build.yml')
+          text = path.read_text()
+
+          def replace_once(name, old, new):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{name}: expected exactly one anchor, found {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              'push path',
+              "      - 'joplin/**'\n      - 'chatgpt/**'\n",
+              "      - 'joplin/**'\n      - 'jriver/**'\n      - 'chatgpt/**'\n",
+          )
+          replace_once(
+              'workflow dispatch option',
+              "          - joplin/build_joplin.sh\n          - chatgpt/build_chatgpt.sh\n",
+              "          - joplin/build_joplin.sh\n          - jriver/build_jriver.sh\n          - chatgpt/build_chatgpt.sh\n",
+          )
+
+          lines = text.splitlines()
+          array_changes = {
+              'KEYS=': ('joplin chatgpt', 'joplin jriver chatgpt'),
+              'SCRIPTS=': (
+                  "'joplin/build_joplin.sh' 'chatgpt/build_chatgpt.sh'",
+                  "'joplin/build_joplin.sh' 'jriver/build_jriver.sh' 'chatgpt/build_chatgpt.sh'",
+              ),
+              'DIRS=': ('joplin chatgpt', 'joplin jriver chatgpt'),
+          }
+          for prefix, (old, new) in array_changes.items():
+              indexes = [i for i, line in enumerate(lines) if line.lstrip().startswith(prefix)]
+              if len(indexes) != 1:
+                  raise SystemExit(f'{prefix}: expected exactly one array, found {len(indexes)}')
+              index = indexes[0]
+              if lines[index].count(old) != 1:
+                  raise SystemExit(f'{prefix}: insertion anchor mismatch')
+              lines[index] = lines[index].replace(old, new, 1)
+          text = '\n'.join(lines) + '\n'
+
+          jriver_job = """  build_jriver:
+            name: Build JRiver
+            needs: plan
+            if: fromJSON(needs.plan.outputs.builds).jriver == 'true'
+            runs-on: *arch_runner
+            timeout-minutes: 90
+            container: *arch_container
+            permissions: *arch_permissions
+            env: {BUILD_SCRIPT: 'jriver/build_jriver.sh', ARTIFACT_DIR: 'jriver/dist', RELEASE_NAME: 'jriver.AppImage', RUN_FROM_ROOT: 'false'}
+            steps: *arch_steps
+
+          """
+          replace_once('JRiver job', '  build_chatgpt:\n', jriver_job + '  build_chatgpt:\n')
+
+          lines = text.splitlines()
+
+          def parse_array(prefix):
+              matches = [line.strip() for line in lines if line.lstrip().startswith(prefix)]
+              if len(matches) != 1:
+                  raise SystemExit(f'{prefix}: expected one final array')
+              value = matches[0].split('=', 1)[1]
+              if not (value.startswith('(') and value.endswith(')')):
+                  raise SystemExit(f'{prefix}: malformed array')
+              return shlex.split(value[1:-1])
+
+          keys = parse_array('KEYS=')
+          scripts = parse_array('SCRIPTS=')
+          dirs = parse_array('DIRS=')
+          if not (len(keys) == len(scripts) == len(dirs)):
+              raise SystemExit('KEYS/SCRIPTS/DIRS length mismatch')
+          if len(keys) != len(set(keys)) or len(scripts) != len(set(scripts)) or len(dirs) != len(set(dirs)):
+              raise SystemExit('KEYS/SCRIPTS/DIRS contains duplicates')
+          index = keys.index('jriver')
+          if scripts[index] != 'jriver/build_jriver.sh' or dirs[index] != 'jriver':
+              raise SystemExit('JRiver KEYS/SCRIPTS/DIRS mapping mismatch')
+
+          checks = {
+              "'jriver/**'": 1,
+              'jriver/build_jriver.sh': 3,
+              'build_jriver:': 1,
+              "fromJSON(needs.plan.outputs.builds).jriver == 'true'": 1,
+              "RELEASE_NAME: 'jriver.AppImage'": 1,
+          }
+          for needle, expected in checks.items():
+              count = text.count(needle)
+              if count != expected:
+                  raise SystemExit(f'{needle}: expected {expected}, found {count}')
+
+          path.write_text(text)
+          PY
+
+          bash -n jriver/build_jriver.sh
+          bash -n jriver/build_jriver_audio.sh
+          bash -n jriver/build_jriver_base.sh
+          bash -n jriver/jriver_cef_runtime.sh
+
+          test "$(git hash-object jriver/build_jriver_base.sh)" = 'a589c8f8e11480b1805226d8d8c247bc7d689d4e'
+          grep -Fqx "BASE_BLOB='a589c8f8e11480b1805226d8d8c247bc7d689d4e'" jriver/build_jriver_audio.sh
+          grep -Fqx "BASE_BLOB='3a247e16dab1f444982e4e9ec66bd0eabe1183bc'" jriver/build_jriver.sh
+          ! grep -Eq 'git show .*jriver/build_jriver\.sh' jriver/build_jriver.sh jriver/build_jriver_audio.sh
+
+          git diff --check -- .github/workflows/build.yml jriver
+          git diff -- .github/workflows/build.yml
+
+      - name: Upload patched unified workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: jriver-unified-workflow
+          path: .github/workflows/build.yml
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Build and publish JRiver AppImage
+        uses: ./.github/actions/build-anylinux
+        with:
+          build_script: jriver/build_jriver.sh
+          artifact_dir: jriver/dist
+          release_name: jriver.AppImage
+          run_from_root: 'false'
+          github_token: ${{ github.token }}
