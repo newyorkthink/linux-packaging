@@ -11,6 +11,7 @@ DEB_FILE="$SOURCE_DIR/joplin.deb"
 RELEASES_JSON="$SOURCE_DIR/releases.json"
 LINUXDEPLOY="$SOURCE_DIR/linuxdeploy"
 GTK_PLUGIN="$SOURCE_DIR/linuxdeploy-plugin-gtk"
+APPIMAGETOOL="$SOURCE_DIR/appimagetool"
 RUNTIME_FILE="$SOURCE_DIR/runtime-x86_64"
 OUTFILE="$DIST_DIR/joplin.AppImage"
 
@@ -142,9 +143,12 @@ curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
   https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
   -o "$LINUXDEPLOY"
 curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
+  https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+  -o "$APPIMAGETOOL"
+curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
   https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64 \
   -o "$RUNTIME_FILE"
-chmod +x "$LINUXDEPLOY"
+chmod +x "$LINUXDEPLOY" "$APPIMAGETOOL"
 cp "$SCRIPT_DIR/linuxdeploy-plugin-gtk" "$GTK_PLUGIN"
 chmod +x "$GTK_PLUGIN"
 
@@ -152,11 +156,12 @@ export PATH="$SOURCE_DIR:$PATH"
 export LINUXDEPLOY="$LINUXDEPLOY"
 export DEPLOY_GTK_VERSION=3
 export APPIMAGE_EXTRACT_AND_RUN=1
-export LDAI_OUTPUT="$OUTFILE"
-export LDAI_RUNTIME_FILE="$RUNTIME_FILE"
 
-# 使用已验证的 linuxdeploy + GTK 插件命令打包。
-export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
+# linuxdeploy 只负责整理 AppDir 和 GTK 依赖。
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk
+
+# 最终由 appimagetool 使用指定 runtime 封装 AppImage。
+export ARCH=x86_64; appimagetool -n ./AppDir "$OUTFILE" --runtime-file "$RUNTIME_FILE"
 
 test -s "$OUTFILE"
 sha256sum "$OUTFILE"
