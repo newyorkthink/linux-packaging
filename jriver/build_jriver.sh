@@ -4,38 +4,55 @@ set -euo pipefail
 # ==============================================================================
 # JRiver Media Center AnyLinux AppImage 构建入口
 # ==============================================================================
-# 2026-09-01：迁移到 linux-packaging 后，不再依赖源仓库 Git 历史。
-# 以本目录 build_jriver_audio.sh 作为已验证“网页/蓝牙音频正常”基线。
-# 本入口只追加 JRWeb 的 CEF 退出阶段保护；Bookworm Pulse 音频闭包、CEF 版本、
-# AppRun、pathmap、glibc 隔离、Fcitx5 与其它稳定逻辑全部原样保留。
+# 迁移保持源仓库 jriver 目录结构：README.md / build_jriver.sh /
+# jriver_cef_runtime.sh。源仓库稳定构建链原本依赖 Git 历史；本仓库同样从已经
+# 提交过的迁移基线读取音频 wrapper 与核心基线，构建时临时展开，不把辅助层留在目录中。
 #
-# 当前实机现象：点击“打开媒体文件”后，JRWeb 在退出/销毁阶段报
-# base/observer_list.h: observers_.empty()，随后主程序出现 waitpid error 并退出。
-# JRWeb 自身明确链接 cef_shutdown；这里仅在 JRWeb 进程退出时跳过 CefShutdown 的
-# 破坏性清理，让操作系统在该专用子进程退出后回收资源。其它进程仍调用真实 cef_shutdown。
+# 为复现 2026-08-20 源仓库成功发布的运行结构，固定当时的 quick-sharun 版本，
+# 同时固定当时仍为 latest 的 appimagetool 0.3.3。后续上游 quick-sharun / uruntime /
+# appimagetool 变化不得无验证地进入 JRiver 稳定包。
 
 cd "$(dirname "$0")"
 
-BASE_FILE="$PWD/build_jriver_audio.sh"
-BASE_BLOB='3a247e16dab1f444982e4e9ec66bd0eabe1183bc'
+BASE_COMMIT='4a08912cd31a5659bb43395dfeda0c5257abdeab'
+AUDIO_BLOB='3a247e16dab1f444982e4e9ec66bd0eabe1183bc'
+CORE_BLOB='a589c8f8e11480b1805226d8d8c247bc7d689d4e'
 WRAPPED="$(mktemp "$PWD/.build_jriver_verified.XXXXXX.sh")"
+BASE_FILE="$PWD/build_jriver_base.sh"
+TOOL_DIR="$(mktemp -d "$PWD/.jriver-toolchain.XXXXXX")"
 
 cleanup() {
-  rm -f "$WRAPPED"
+  rm -f "$WRAPPED" "$BASE_FILE"
+  rm -rf "$TOOL_DIR"
 }
 trap cleanup EXIT
 
-if [[ ! -f "$BASE_FILE" ]]; then
-  echo "错误：缺少 JRiver 已验证音频基线文件：$BASE_FILE" >&2
+if ! git cat-file -e "${BASE_COMMIT}^{commit}" 2>/dev/null; then
+  echo "错误：当前 Git checkout 缺少 JRiver 迁移固定基线提交：$BASE_COMMIT" >&2
   exit 1
 fi
 
-cp -f "$BASE_FILE" "$WRAPPED"
+git show "${BASE_COMMIT}:jriver/build_jriver_audio.sh" > "$WRAPPED"
+git show "${BASE_COMMIT}:jriver/build_jriver_base.sh" > "$BASE_FILE"
 
-if [[ "$(git hash-object "$WRAPPED")" != "$BASE_BLOB" ]]; then
-  echo '错误：JRiver 已验证音频基线与迁移固定 blob SHA 不一致。' >&2
+if [[ "$(git hash-object "$WRAPPED")" != "$AUDIO_BLOB" ]]; then
+  echo '错误：JRiver 已验证音频基线与固定 blob SHA 不一致。' >&2
   exit 1
 fi
+if [[ "$(git hash-object "$BASE_FILE")" != "$CORE_BLOB" ]]; then
+  echo '错误：JRiver 核心稳定基线与固定 blob SHA 不一致。' >&2
+  exit 1
+fi
+
+# 源仓库 2026-08-20 成功发布 mediacenter36.AppImage 时，quick-sharun 的最新提交为
+# 80a66c80...；appimagetool latest 为 0.3.3。固定这两个构建入口，避免上游漂移改变
+# AppImage 的 Sharun / uruntime 结构。
+PINNED_QUICK_SHARUN='https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/80a66c80eee841445944eaeb1a7248fb7e210569/useful-tools/quick-sharun.sh'
+curl -fL --retry 3 --retry-delay 2 "$PINNED_QUICK_SHARUN" -o "$TOOL_DIR/quick-sharun"
+chmod +x "$TOOL_DIR/quick-sharun"
+PATH="$TOOL_DIR:$PATH"
+export PATH
+export APPIMAGETOOL_LINK='https://github.com/pkgforge-dev/appimagetool/releases/download/0.3.3/appimagetool-x86_64-linux'
 
 # 在上一版音频 wrapper 生成最终构建脚本后、真正执行前，只追加 CEF shutdown 保护。
 python3 - "$WRAPPED" <<'PY_OUTER_PATCH'

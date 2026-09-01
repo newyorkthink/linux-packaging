@@ -2,12 +2,6 @@
 
 本目录用于构建 **JRiver Media Center Linux AppImage**。
 
-> **2026-09-01：已从 `qq895311511/appimage-packaging` 迁移到本仓库。**
->
-> 为避免依赖另一仓库的 Git 历史，原稳定构建链已本地化为 `build_jriver.sh` → `build_jriver_audio.sh` → `build_jriver_base.sh`。`build_jriver_base.sh` 保持源仓库已验证 blob `a589c8f8e11480b1805226d8d8c247bc7d689d4e` 原样不变；外层仍只追加已经实机验证过的 Bookworm Pulse 音频闭包和 JRWeb CEF shutdown guard。
->
-> 正式构建入口已接入本仓库统一 `.github/workflows/build.yml`，Release 资产固定为 `jriver.AppImage`。
-
 > **2026-08-14：当前版本正式冻结为“最终可用稳定基线”。**
 >
 > 核心功能已经可用，但 **“文件 → 打开媒体文件 / 打开文件夹”仍会导致 JRiver/JRWeb 相关进程异常退出或当前实例闪退**。经过多轮最小补丁和 Kali Linux 实机验证后，没有拿到足以安全定位根因的 crash stack；因此停止继续根据 warning 猜测式修改。
@@ -16,7 +10,7 @@
 
 ## 1. 最终稳定基线
 
-源仓库功能稳定基线提交：
+功能稳定基线提交：
 
 ```text
 2eb58f38ae1c3ba568cbcd224a821c02b790b0f7
