@@ -120,6 +120,12 @@ if [[ -z "$WORK_APP_PACKAGE" ]]; then
   exit 1
 fi
 WORK_APP="$(dirname "$WORK_APP_PACKAGE")"
+WORK_ROOT="$(dirname "$(dirname "$WORK_APP")")"
+WORK_MANIFEST="$WORK_ROOT/manifest.json"
+if [[ ! -f "$WORK_MANIFEST" ]]; then
+  echo "Error: TraeWork manifest.json not found at $WORK_MANIFEST."
+  exit 1
+fi
 
 # 下载并校验官方 Linux TraeCode/Trae 运行时。
 wget --retry-connrefused --tries=30 "$TRAE_URL" -O /tmp/trae-linux.tar.gz
@@ -155,6 +161,10 @@ cp -a "$LINUX_APP" /tmp/traecode-linux-app
 cp -a "$LINUX_APP/resources/linux/code.png" ./trae-work.png
 rm -rf AppDir/bin/resources/app
 cp -a "$WORK_APP" AppDir/bin/resources/app
+
+# TraeWork 的根目录 manifest.json 定义 appId、packageType、region、registryUrl 与 ahaNet 网络身份。
+# Linux Trae Electron 外壳自带的是 TraeCode manifest；若继续保留会造成 TraeWork 产品层与服务端应用身份错配。
+cp -a "$WORK_MANIFEST" AppDir/bin/manifest.json
 
 # 将 Linux TraeCode 中已有的 ELF/.so/.node 原生组件覆盖/补入 TraeWork 对应目录。
 # 这一步解决 Windows DLL/EXE 不能在 Linux 直接加载的问题，同时保留 TraeWork 自己的 JS/产品资源。
