@@ -36,7 +36,7 @@ Qt plugin 不再通过手写 `QT_PLUGIN_PATH` / `QT_QPA_PLATFORM_PLUGIN_PATH` �
 2. 校验下载域名、资产命名和版本格式，并记录实际下载归档的 SHA-256 到 `dist/source.sha256`。
 3. 明确检查官方主运行库目录存在 `libQt6Core.so*`，同时拒绝 `libQt5*.so*`；主程序 `ldd` 也必须解析到 Qt6 且不能出现 Qt5。
 4. `quick-sharun` 部署时以官方归档自带的 `lib/` 作为 Modern CSV 的 Qt6 主运行时来源，不再把 Qt5 runtime 混入最终 AppImage。
-5. Ubuntu 24.04 的 Qt6 plugin 目录只作为 Qt6 plugin 来源，由 `quick-sharun` 自动收集 XCB、Fcitx5 Qt6 `platforminputcontexts` 和 Qt6 OpenSSL TLS backend；构建阶段通过官方 Qt6 `lib/` 解析这些 plugin 的 Qt 依赖，避免额外混入另一套 Qt runtime。
+5. Ubuntu 24.04 的 Qt6 plugin 目录只作为 Qt6 plugin 来源，由 `quick-sharun` 自动收集 XCB、Compose / Fcitx5 / IBus 三个 Qt6 `platforminputcontexts` plugin 和 Qt6 OpenSSL TLS backend；构建阶段通过官方 Qt6 `lib/` 解析这些 plugin 的 Qt 依赖，避免额外混入另一套 Qt runtime。
 6. `quick-sharun` 生成标准 `bin/moderncsv`、`shared/bin/moderncsv`、`bin/qt.conf`、`AppRun` 和 `lib/qt6/plugins/...` 结构；最终包中明确禁止出现旧的 `usr/bin/moderncsv` 手写 wrapper。
 7. 中文 locale 和 XCB 设置只写入 sharun 的 `.env`，不再通过自制启动脚本设置 `LD_LIBRARY_PATH`、`QT_PLUGIN_PATH` 或手工 exec `/opt/moderncsv/moderncsv`。
 8. 最后由 `quick-sharun --make-appimage` 生成 `dist/moderncsv.AppImage`，再重新提取并执行 Xvfb/Fcitx5 Qt6 smoke test。
@@ -53,9 +53,9 @@ LANGUAGE=zh_CN:zh
 QT_QPA_PLATFORM=xcb
 ```
 
-同时 `quick-sharun` 从 Qt6 plugin 树部署 Fcitx5 Qt6 platform input context plugin。宿主系统已经运行并配置 Fcitx5 时，Modern CSV 可以使用宿主 Fcitx5 输入中文；AppImage 不强制覆盖宿主的 `QT_IM_MODULE`。
+`quick-sharun` 从 Qt6 plugin 树部署 `libcomposeplatforminputcontextplugin.so`、`libfcitx5platforminputcontextplugin.so`、`libibusplatforminputcontextplugin.so` 三个输入上下文 plugin。宿主系统已经运行并配置 Fcitx5 时，Modern CSV 可以使用宿主 Fcitx5 输入中文；使用 IBus 或 Qt Compose 时，对应 Qt6 输入上下文也保留在 AppImage 中。AppImage 不强制覆盖宿主的 `QT_IM_MODULE`。
 
-这里的“中文环境”解决 UTF-8 中文 locale 和 Fcitx5 中文输入，不向 Modern CSV 注入非官方中文界面翻译；应用界面语言仍以当前上游稳定版本身提供的语言资源为准。
+这里的“中文环境”解决 UTF-8 中文 locale 和 Linux Qt 输入上下文兼容，不向 Modern CSV 注入非官方中文界面翻译；应用界面语言仍以当前上游稳定版本身提供的语言资源为准。
 
 ## 构建
 
@@ -91,11 +91,11 @@ dist/source.sha256
 
 - 官方 tarball 能正常解包，并包含 `moderncsv`、`moderncsv.desktop`、Qt6 主运行库和图标。
 - 官方主运行库目录与主程序依赖均为 Qt6；检测到任何 `libQt5*.so*` 或主程序解析到 Qt5 时直接停止。
-- Qt6 XCB、Fcitx5 Qt6 和 OpenSSL TLS plugin 在进入 `quick-sharun` 前均执行 `ldd` 检查，不能出现 `not found` 或 Qt5 依赖解析。
-- `quick-sharun` AppDir 必须存在 `bin/moderncsv`、`shared/bin/moderncsv`、`bin/qt.conf`、Qt6 XCB/Fcitx5/TLS plugin，并明确不存在 `usr/bin/moderncsv`。
+- Qt6 XCB、Compose / Fcitx5 / IBus 三个输入上下文 plugin 和 OpenSSL TLS plugin 在进入 `quick-sharun` 前均执行 `ldd` 检查，不能出现 `not found` 或 Qt5 依赖解析。
+- `quick-sharun` AppDir 必须存在 `bin/moderncsv`、`shared/bin/moderncsv`、`bin/qt.conf`、Qt6 XCB、Compose / Fcitx5 / IBus 输入上下文和 TLS plugin，并明确不存在 `usr/bin/moderncsv`。
 - sharun `.env` 只保留中文 locale、`LANGUAGE` 和 XCB 设置；若出现 `QT_PLUGIN_PATH` 则直接失败，Qt plugin 必须由 `qt.conf` 定位。
-- 最终 AppImage 重新提取后再次检查标准 sharun 目录、Qt6 runtime/plugin、中文 `.env`、desktop 和 Qt5 排除条件。
-- 最终 AppImage 使用 Xvfb + `QT_IM_MODULE=fcitx` + `QT_DEBUG_PLUGINS=1` 实际启动；日志若出现 Qt5/Qt6 plugin 不兼容、Qt platform plugin 加载失败、Fcitx5 plugin 加载失败、TLS backend 缺失、动态库错误或崩溃则构建失败。
+- 最终 AppImage 重新提取后再次检查标准 sharun 目录、Qt6 runtime/plugin、三个输入上下文 plugin 的存在性和动态依赖、中文 `.env`、desktop 和 Qt5 排除条件。
+- 最终 AppImage 使用 Xvfb + `QT_IM_MODULE=fcitx` + `QT_DEBUG_PLUGINS=1` 实际启动；日志若出现 Qt5/Qt6 plugin 不兼容、Qt platform plugin 加载失败、输入上下文 plugin 加载失败、TLS backend 缺失、动态库错误或崩溃则构建失败。
 
 ## 变更记录
 
@@ -136,3 +136,9 @@ dist/source.sha256
 - Fcitx5 继续使用 Qt6 platform input context plugin，TLS 继续使用 Qt6 OpenSSL backend；中文 locale 与 XCB 设置移入 sharun `.env`。
 - 新增结构检查：最终 AppImage 必须不存在 `usr/bin/moderncsv` 和 `libQt5*.so*`，并必须存在 Qt6 XCB、Fcitx5、TLS plugin 与 `bin/qt.conf`。
 - 静态检查包括 `bash -n`；实际构建仍由统一 CI 的 Ubuntu 24.04 Job 执行，并由脚本内和 workflow 的 Xvfb/Fcitx5 smoke test 验证最终产物。
+
+### 2026-09-02：补齐 Qt6 platforminputcontexts 输入上下文插件
+
+- 保持现有 quick-sharun / sharun Qt6 打包路线不变，不回退到 linuxdeploy，也不恢复手写 `AppRun` / `usr/bin/moderncsv` wrapper。
+- 构建前必须同时找到并检查 `libcomposeplatforminputcontextplugin.so`、`libfcitx5platforminputcontextplugin.so`、`libibusplatforminputcontextplugin.so` 三个 Qt6 输入上下文 plugin；任意一个缺失、存在 `not found` 或解析到 Qt5 都直接失败。
+- quick-sharun 构建后的 AppDir 和最终 AppImage 都必须实际包含上述三个 plugin；最终提取后再次对三个 plugin 执行 `ldd`，防止构建机上存在但成品遗漏依赖。

@@ -154,9 +154,21 @@ QT_LOCATION="$(dirname "$(dirname "$(dirname "$SYSTEM_QXCB")")")"
   exit 1
 }
 
+SYSTEM_COMPOSE="$(find "$QT_LOCATION/plugins/platforminputcontexts" -type f -name 'libcomposeplatforminputcontextplugin.so' -print -quit 2>/dev/null || true)"
+[[ -f "$SYSTEM_COMPOSE" ]] || {
+  echo "错误：找不到 Qt6 Compose platform input context plugin。" >&2
+  exit 1
+}
+
 SYSTEM_FCITX="$(find "$QT_LOCATION/plugins/platforminputcontexts" -type f -name 'libfcitx5platforminputcontextplugin.so' -print -quit 2>/dev/null || true)"
 [[ -f "$SYSTEM_FCITX" ]] || {
   echo "错误：找不到 Fcitx5 Qt6 platform input context plugin。" >&2
+  exit 1
+}
+
+SYSTEM_IBUS="$(find "$QT_LOCATION/plugins/platforminputcontexts" -type f -name 'libibusplatforminputcontextplugin.so' -print -quit 2>/dev/null || true)"
+[[ -f "$SYSTEM_IBUS" ]] || {
+  echo "错误：找不到 Qt6 IBus platform input context plugin。" >&2
   exit 1
 }
 
@@ -166,7 +178,7 @@ SYSTEM_TLS="$(find "$QT_LOCATION/plugins/tls" -type f -name 'libqopensslbackend.
   exit 1
 }
 
-for plugin in "$SYSTEM_QXCB" "$SYSTEM_FCITX" "$SYSTEM_TLS"; do
+for plugin in "$SYSTEM_QXCB" "$SYSTEM_COMPOSE" "$SYSTEM_FCITX" "$SYSTEM_IBUS" "$SYSTEM_TLS"; do
   PLUGIN_LDD="$(LD_LIBRARY_PATH="$SOURCE_DIR/lib" ldd "$plugin")"
   printf '%s\n' "$PLUGIN_LDD"
   if grep -Fq 'not found' <<<"$PLUGIN_LDD"; then
@@ -239,7 +251,12 @@ test -f "$APPDIR/bin/qt.conf"
 test ! -e "$APPDIR/usr/bin/moderncsv"
 find "$APPDIR/lib" \( -type f -o -type l \) -name 'libQt6Core.so*' -print -quit | grep -q .
 find "$APPDIR/lib/qt6/plugins/platforms" -type f -name 'libqxcb.so' -print -quit | grep -q .
-find "$APPDIR/lib/qt6/plugins/platforminputcontexts" -type f -name 'libfcitx5platforminputcontextplugin.so' -print -quit | grep -q .
+for input_plugin in \
+  libcomposeplatforminputcontextplugin.so \
+  libfcitx5platforminputcontextplugin.so \
+  libibusplatforminputcontextplugin.so; do
+  find "$APPDIR/lib/qt6/plugins/platforminputcontexts" -type f -name "$input_plugin" -print -quit | grep -q .
+done
 find "$APPDIR/lib/qt6/plugins/tls" -type f -name 'libqopensslbackend.so' -print -quit | grep -q .
 if find "$APPDIR" \( -type f -o -type l \) -name 'libQt5*.so*' -print -quit | grep -q .; then
   echo "错误：quick-sharun AppDir 中检测到 Qt5 运行库。" >&2
@@ -288,7 +305,26 @@ test ! -e "$VERIFY_ROOT/usr/bin/moderncsv"
 test -f "$VERIFY_ROOT/.env"
 find "$VERIFY_ROOT/lib" \( -type f -o -type l \) -name 'libQt6Core.so*' -print -quit | grep -q .
 find "$VERIFY_ROOT/lib/qt6/plugins/platforms" -type f -name 'libqxcb.so' -print -quit | grep -q .
-find "$VERIFY_ROOT/lib/qt6/plugins/platforminputcontexts" -type f -name 'libfcitx5platforminputcontextplugin.so' -print -quit | grep -q .
+for input_plugin in \
+  libcomposeplatforminputcontextplugin.so \
+  libfcitx5platforminputcontextplugin.so \
+  libibusplatforminputcontextplugin.so; do
+  VERIFY_INPUT_PLUGIN="$(find "$VERIFY_ROOT/lib/qt6/plugins/platforminputcontexts" -type f -name "$input_plugin" -print -quit)"
+  [[ -f "$VERIFY_INPUT_PLUGIN" ]] || {
+    echo "错误：最终 AppImage 缺少 Qt6 输入上下文 plugin：$input_plugin" >&2
+    exit 1
+  }
+  VERIFY_INPUT_LDD="$(LD_LIBRARY_PATH="$VERIFY_ROOT/lib" ldd "$VERIFY_INPUT_PLUGIN")"
+  printf '%s\n' "$VERIFY_INPUT_LDD"
+  if grep -Fq 'not found' <<<"$VERIFY_INPUT_LDD"; then
+    echo "错误：最终 AppImage 的 Qt6 输入上下文 plugin 存在缺失动态库：$input_plugin" >&2
+    exit 1
+  fi
+  if grep -Fq 'libQt5' <<<"$VERIFY_INPUT_LDD"; then
+    echo "错误：最终 AppImage 的 Qt6 输入上下文 plugin 解析到了 Qt5：$input_plugin" >&2
+    exit 1
+  fi
+done
 find "$VERIFY_ROOT/lib/qt6/plugins/tls" -type f -name 'libqopensslbackend.so' -print -quit | grep -q .
 if find "$VERIFY_ROOT" \( -type f -o -type l \) -name 'libQt5*.so*' -print -quit | grep -q .; then
   echo "错误：最终 AppImage 中检测到 Qt5 运行库。" >&2
@@ -322,9 +358,9 @@ set -e
 cat "$SMOKE_LOG"
 
 if grep -Eqi \
-  'Plugin uses incompatible Qt library|libQt5|No functional TLS backend was found|No TLS backend is available|TLS initialization failed|Could not load the Qt platform plugin|no Qt platform plugin could be initialized|error while loading shared libraries|Cannot load library.*libfcitx5platforminputcontextplugin|Segmentation fault|Aborted' \
+  'Plugin uses incompatible Qt library|libQt5|No functional TLS backend was found|No TLS backend is available|TLS initialization failed|Could not load the Qt platform plugin|no Qt platform plugin could be initialized|error while loading shared libraries|Cannot load library.*(libcomposeplatforminputcontextplugin|libfcitx5platforminputcontextplugin|libibusplatforminputcontextplugin)|Segmentation fault|Aborted' \
   "$SMOKE_LOG"; then
-  echo "错误：最终 AppImage 启动 smoke test 检测到 Qt / Fcitx5 / TLS / 动态库错误。" >&2
+  echo "错误：最终 AppImage 启动 smoke test 检测到 Qt / 输入法 / TLS / 动态库错误。" >&2
   exit 1
 fi
 

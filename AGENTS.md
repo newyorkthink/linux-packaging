@@ -287,6 +287,17 @@ export ARCH=x86_64; appimagetool -n <AppDir路径> <输出AppImage> --runtime-fi
 - 不得加入“下载 appimagetool 失败就自动回退到 linuxdeploy 输出”“runtime 下载失败就自动换旧 runtime”之类 fallback。构建工具和最终 runtime 必须是明确、可审计、可复现的。
 - 只有确认存在与网络无关的真实兼容性问题，并完成原因核实后，才可以考虑改变既定打包路线；已经验证有效的现有项目仍按稳定基线处理，不得因一次临时下载失败推翻整个方案。
 
+### linuxdeploy 打包 Qt 应用时必须保持 Qt 主版本一致
+
+凡使用 linuxdeploy 打包 Qt 应用，必须先根据主程序实际 ELF 依赖和随程序提供的 Qt 运行库确认 Qt 主版本，再选择对应的 Qt 部署环境和插件，禁止凭模板、包名或其他项目经验猜测。
+
+- 主程序依赖 `libQt6*.so.6` 或上游运行时明确为 Qt 6 时，linuxdeploy 的 Qt 部署链路、qmake / qtpaths、Qt plugin 和额外补入的 Qt 组件必须全部使用 Qt 6；**不得用 Qt 5 环境、Qt 5 plugin 或 Qt 5 输入法插件给 Qt 6 主程序打包。** Qt 5 主程序同理不得混入 Qt 6 部署链路。
+- 上游包如果同时残留其他 Qt 主版本的 plugin，必须隔离或移出当前 Qt plugin 搜索路径；最终 smoke test 发现 `Plugin uses incompatible Qt library` 等 Qt 主版本不兼容信息时必须直接失败，不得带病发布。
+- 使用 linuxdeploy 前应先把项目需要的自定义 `AppRun` 写入 AppDir。linuxdeploy 在存在非空 `apprun-hooks` 时会把原有 `AppRun` 重命名为 `AppRun.wrapped`，再生成新的顶层 `AppRun` 负责加载 hooks 并执行 `AppRun.wrapped`；**不得手工编写或覆盖 `AppRun.wrapped`，也不得在 linuxdeploy 完成后重新覆盖它生成的顶层 `AppRun`。**
+- linuxdeploy 完成后必须核对最终 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks` 的实际关系及执行链，确认自定义启动逻辑仍位于 `AppRun.wrapped` 并由 linuxdeploy 生成的顶层 `AppRun` 正确调用。
+- 对需要标准 Linux 输入上下文支持的 Qt 6 GUI 应用，最终 `usr/plugins/platforminputcontexts/` 至少必须检查并按项目需要完整保留 `libcomposeplatforminputcontextplugin.so`、`libfcitx5platforminputcontextplugin.so`、`libibusplatforminputcontextplugin.so` 及其必要运行库；不得只因为当前测试使用 Fcitx5 就遗漏 Compose 或 IBus。
+- 最终 AppImage 提取验证必须检查上述输入上下文 plugin 的实际存在性和动态依赖；只在构建机上能找到 plugin、最终产物中缺失，不视为构建完成。
+
 选择规则：
 
 - 不得把“quick-sharun”“linuxdeploy”“appimagetool”中的任意一种写成仓库所有项目的唯一标准工具；但**一旦当前项目选择 linuxdeploy，最终封装必须遵守上面的 appimagetool 规则**。
