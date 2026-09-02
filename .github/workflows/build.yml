@@ -1197,7 +1197,6 @@ jobs:
 
       - name: Preparing AnyLinux Container
         uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
-
       - name: Setup Yay for Root execution
         shell: bash
         run: |
@@ -1599,60 +1598,12 @@ jobs:
     name: Build Modern CSV
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).moderncsv == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Static check Modern CSV build script
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          bash -n moderncsv/build_moderncsv.sh
-
-      - name: Build Modern CSV AppImage
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          chmod +x moderncsv/build_moderncsv.sh
-          ./moderncsv/build_moderncsv.sh
-          test -s moderncsv/dist/moderncsv.AppImage
-
-      - name: Smoke test Modern CSV with Fcitx5 Qt6
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          sudo apt-get install -y --no-install-recommends xvfb
-          HOME="$RUNNER_TEMP/moderncsv-home"
-          LOG="$RUNNER_TEMP/moderncsv-smoke.log"
-          mkdir -p "$HOME"
-
-          set +e
-          HOME="$HOME" \
-          QT_IM_MODULE=fcitx \
-          QT_DEBUG_PLUGINS=1 \
-          APPIMAGE_EXTRACT_AND_RUN=1 \
-          timeout 20s xvfb-run -a ./moderncsv/dist/moderncsv.AppImage >"$LOG" 2>&1
-          rc=$?
-          set -e
-
-          cat "$LOG"
-          if grep -Eqi 'Could not load the Qt platform plugin|no Qt platform plugin could be initialized|error while loading shared libraries|Cannot load library.*libfcitx5platforminputcontextplugin|Segmentation fault|Aborted' "$LOG"; then
-            exit 1
-          fi
-          grep -Fq 'libfcitx5platforminputcontextplugin.so' "$LOG"
-          [[ "$rc" -eq 0 || "$rc" -eq 124 ]]
-
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          gh release upload latest moderncsv/dist/moderncsv.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'moderncsv/build_moderncsv.sh', ARTIFACT_DIR: 'moderncsv/dist', RELEASE_NAME: 'moderncsv.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
 
   build_gitkraken:
     name: Build GitKraken
