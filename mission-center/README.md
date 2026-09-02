@@ -21,6 +21,7 @@ Mission Center 是 Rust 编写的 GTK4 / Libadwaita 原生 Linux 应用。Arch L
 - `/usr/bin/missioncenter-magpie`：系统信息采集后端。
 - GSettings schema、图标、desktop、AppStream、硬件数据库和 gresource 等运行资源。
 - GNU gettext 翻译资源，其中 `zh` 为简体中文，`zh_TW` 为繁体中文。
+- Fcitx5 中文输入通过 Arch `fcitx5-gtk` 提供的 GTK4 IM module 与宿主 Fcitx5 服务通信；AppImage 只封装 GTK4 客户端输入模块及其依赖，不内置或启动 Fcitx5 守护进程。
 
 ## 打包方式
 
@@ -28,10 +29,10 @@ Mission Center 是 Rust 编写的 GTK4 / Libadwaita 原生 Linux 应用。Arch L
 
 构建脚本执行以下步骤：
 
-1. 使用 `pacman` 安装 Arch Linux Extra 当前正式版 `mission-center`，不锁定具体应用版本。
-2. 核对主程序、`missioncenter-magpie`、desktop、图标以及简体/繁体中文 gettext 文件。
+1. 使用 `pacman` 安装 Arch Linux Extra 当前正式版 `mission-center`、`fcitx5-gtk` 及构建所需依赖，不锁定具体应用版本。
+2. 核对主程序、`missioncenter-magpie`、desktop、图标、简体/繁体中文 gettext 文件，以及 GTK4 Fcitx5 IM module 与系统生成的 `giomodule.cache`。
 3. 按 Mission Center 上游当前 AppImage 方案，同时把 `missioncenter` 与 `missioncenter-magpie` 交给 `quick-sharun` 部署。
-4. 由 `quick-sharun` 收集 GTK4、Libadwaita、运行库、应用数据和 gettext 资源，并保留其现有 AppImage 路径映射逻辑。
+4. 由 `quick-sharun` 收集 GTK4、Libadwaita、Fcitx5 GTK4 IM module 及其 ELF 依赖、应用数据和 gettext 资源；随后在 AppDir 的 GTK4 `immodules` 目录执行 `gio-querymodules`，生成适用于 GTK4 的 `giomodule.cache`。
 5. 生成 AppImage 自带的 `zh_CN.UTF-8` glibc locale 数据，在 `.env` 中设置简体中文消息环境。
 6. 由 `quick-sharun --make-appimage` 生成稳定文件名 `dist/mission-center.AppImage`。
 
@@ -55,6 +56,14 @@ LOCPATH=${SHARUN_DIR}/lib/locale
 - `LC_MESSAGES` 只固定界面消息语言，不强制覆盖其他区域格式类别。
 - `zh_TW/LC_MESSAGES/missioncenter.mo` 同样随包保留，但默认界面选择简体中文。
 
+## Fcitx5 中文输入
+
+Mission Center 是 GTK4 应用。构建时额外安装 Arch `fcitx5-gtk`，由 `quick-sharun` 按现有 GTK 部署逻辑自动收集 GTK4 的 `libim-fcitx5.so` 及其动态链接依赖，不手工复制库文件。
+
+GTK4 与 GTK2/GTK3 的输入模块缓存机制不同：GTK4 的 `immodules` 目录属于 GIO 模块机制，缓存文件是同目录下的 `giomodule.cache`，由 `gio-querymodules` 生成，而不是 GTK2/GTK3 使用的 `immodules.cache`。因此构建脚本在 `quick-sharun` 部署完成后，会对 AppDir 自己的 GTK4 `immodules` 目录重新执行 `gio-querymodules`，并强制确认缓存包含 `libim-fcitx5.so: gtk-im-module`。
+
+AppImage 不内置 Fcitx5 输入法守护进程、输入方案或用户配置。运行时仍由宿主会话中已经运行的 Fcitx5 服务提供实际输入；当会话使用 `GTK_IM_MODULE=fcitx` 时，AppImage 内置的 GTK4 Fcitx5 IM module 负责让 Mission Center 的 GTK4 文本框连接宿主 Fcitx5。
+
 ## 运行与验证
 
 在当前目录执行：
@@ -67,6 +76,9 @@ LOCPATH=${SHARUN_DIR}/lib/locale
 
 - Arch Linux 官方包中的主程序与 magpie 后端均存在。
 - 简体中文与繁体中文 `missioncenter.mo` 均存在且可由 `msgunfmt` 正确解析。
+- Arch `fcitx5-gtk` 已提供 GTK4 `libim-fcitx5.so`，且系统 GTK4 `giomodule.cache` 已登记 `libim-fcitx5.so: gtk-im-module`。
+- `quick-sharun` 打包后 GTK4 Fcitx5 IM module 仍存在，并通过 `ldd` 检查，不允许存在 `not found` 动态链接依赖。
+- AppDir 的 GTK4 `immodules` 目录重新生成 `giomodule.cache` 后，缓存必须登记 `libim-fcitx5.so: gtk-im-module`。
 - `quick-sharun` 打包后两套中文翻译仍存在于 AppDir。
 - AppImage 内的 `zh_CN.UTF-8` locale 数据成功生成。
 - `.env` 中的中文环境变量和 `LOCPATH` 均完整写入。
@@ -91,3 +103,11 @@ Mission Center 的部分硬件指标仍取决于宿主内核、驱动、硬件�
 - 修改文件：`mission-center/build_mission-center.sh`、`mission-center/README.md`。
 - 处理：在 Mission Center 构建依赖中显式加入 `patchelf`，并将 `patchelf` 纳入构建命令自检，使缺失依赖在调用 `quick-sharun` 前即可被明确检测。
 - 验证：已核对失败 Job `100167329168` 的完整日志以及当前 `quick-sharun` 的硬依赖列表；该 Job 在进入打包前唯一报告的缺失硬依赖为 `patchelf`。修复提交由 Mission Center 独立 Job 再次执行完整构建验证。
+
+### 2026-09-02：修复 GTK4 / Fcitx5 中文输入
+
+- 现象：Linux 实机运行 AppImage 时界面中文显示正常，但 GTK4 搜索框只能直接输入 ASCII；终端同时报告 `Gtk-WARNING: No IM module matching GTK_IM_MODULE=fcitx found`。
+- 根因：构建环境没有安装 `fcitx5-gtk`，因此没有 GTK4 `libim-fcitx5.so` 可供 `quick-sharun` 收集；进一步核对 GTK4 和当前 `quick-sharun` 后确认，GTK4 输入模块使用 `immodules/giomodule.cache`，而 `quick-sharun` 对 `gtk-*/*/immodules/*.so` 的通用缓存后处理仍尝试读取 GTK2/GTK3 风格的 `immodules.cache`，因此仅安装模块仍不足以保证 GTK4 能发现 Fcitx5。
+- 修改文件：`mission-center/build_mission-center.sh`、`mission-center/README.md`。
+- 处理：在构建依赖中加入 Arch `fcitx5-gtk`，继续由 `quick-sharun` 部署 GTK4 Fcitx5 IM module 及 ELF 依赖；随后在 AppDir 的 GTK4 `immodules` 目录执行 `gio-querymodules` 重新生成 `giomodule.cache`。不手工复制库，也不修改已经生效的中文 locale、GPU 或 workflow 逻辑。
+- 验证：构建前检查系统 `libim-fcitx5.so` 与 GTK4 `giomodule.cache`；打包后检查 AppDir 内模块、`ldd` 依赖以及重新生成的 `giomodule.cache`，并要求缓存明确包含 `libim-fcitx5.so: gtk-im-module`。实际输入仍由宿主正在运行的 Fcitx5 服务提供。
