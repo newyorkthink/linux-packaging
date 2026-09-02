@@ -436,3 +436,13 @@ export ARCH=x86_64; appimagetool -n <AppDir路径> <输出AppImage> --runtime-fi
 - 重构现有架构；
 
 则可以执行，但只能处理用户明确指定的范围，不得扩散到无关项目。
+
+### Git 提交“撤销”必须删除原 commit
+
+当用户明确要求“撤销某次提交”“取消这次 commit”“删除这个 commit”等，而没有明确要求使用 `git revert` 时，含义固定为：**让该 commit 从目标分支提交历史中消失**，而不是保留原 commit 再新增一个反向提交。
+
+- 禁止用 `git revert`、GitHub 的 Revert 操作或新增 `revert: ...` commit 来代替删除原 commit；“原 commit + 新 revert commit”不视为完成撤销。
+- 应先检查目标 commit 之后是否存在需要保留的有效提交，并采用最小范围的历史重写，仅移除用户指定的 commit，不得丢失或改写无关有效提交。
+- 如需要 force-push 或会影响共享历史，必须在执行前说明具体影响；用户已经明确要求“删除/撤销该 commit”时，视为允许为完成该目标进行必要的最小历史重写，但不得扩大范围。
+- 完成后必须重新读取目标分支提交历史，确认原 commit 已不存在，并确认没有新增用于抵消它的 revert commit。
+- 只有用户明确要求“保留历史并 revert”或明确指定 `git revert` 时，才允许新增反向提交。
