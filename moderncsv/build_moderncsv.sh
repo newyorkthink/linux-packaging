@@ -27,7 +27,7 @@ DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   ca-certificates coreutils curl desktop-file-utils file findutils grep gzip sed tar \
   xvfb xauth \
   fcitx5-frontend-qt6 libfcitx5-qt6-1 libfcitx5utils2 \
-  libqt6network6 libssl3 \
+  libqt6network6t64 libssl3t64 \
   libx11-xcb1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
   libxcb-randr0 libxcb-render-util0 libxcb-render0 libxcb-shape0 libxcb-shm0 \
   libxcb-sync1 libxcb-util1 libxcb-xfixes0 libxcb-xinerama0 libxcb-xkb1 libxcb1 \
@@ -171,11 +171,11 @@ FCITX_PLUGIN="$(
 cp -a "$FCITX_PLUGIN" "$QT_INPUT_DIR/"
 
 TLS_OPENSSL_PLUGIN="$(
-  dpkg -L libqt6network6 \
+  dpkg -L libqt6network6t64 \
     | awk '/\/qt6\/plugins\/tls\/libqopensslbackend[.]so$/ && !found {print; found=1}'
 )"
 TLS_CERTONLY_PLUGIN="$(
-  dpkg -L libqt6network6 \
+  dpkg -L libqt6network6t64 \
     | awk '/\/qt6\/plugins\/tls\/libqcertonlybackend[.]so$/ && !found {print; found=1}'
 )"
 [[ -f "$TLS_OPENSSL_PLUGIN" ]] || {
