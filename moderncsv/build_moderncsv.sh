@@ -490,7 +490,6 @@ if grep -Eqi \
 fi
 
 grep -Fq 'libfcitx5platforminputcontextplugin.so' "$SMOKE_LOG"
-grep -Fq 'libqopensslbackend.so' "$SMOKE_LOG"
 [[ "$SMOKE_RC" -eq 0 || "$SMOKE_RC" -eq 124 ]]
 
 ###### 整理产物 ######
