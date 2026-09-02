@@ -36,11 +36,11 @@ pkgforge-dev/anylinux-setup-action
 
 1. 设置 `STARTUPWMCLASS`、`ICON`、`DESKTOP`、`OUTPATH`、`OUTNAME`、`DEPLOY_OPENGL`。
 2. 使用 `yay` 安装 quick-sharun 通用基础依赖，以及 Modern CSV 官方 Qt6 运行时需要的 OpenSSL、OpenGL、XKB / XCB 等非 Qt 系统依赖；不再安装 Arch 当前版本的 `qt6-base`、`qt6-5compat`、`fcitx5-qt`。
-3. 下载官方 `ModernCSV-Linux-v2.4.3.tar.gz`，去掉压缩包最外层 `moderncsvv2.4.3/` 目录后，完整解压到 `AppDir/bin/`；保留官方 `moderncsv`、`moderncsv.desktop`、`moderncsv.png`、`lib/`、`plugins/`、`qt.conf` 等全部内容。
-4. `ICON` 和 `DESKTOP` 直接指向 `AppDir/bin/` 中的官方文件，然后执行：
+3. 下载官方 `ModernCSV-Linux-v2.4.3.tar.gz`，去掉压缩包最外层 `moderncsvv2.4.3/` 目录后，完整解压到 `AppDir/shared/bin/`；保留官方 `moderncsv`、`moderncsv.desktop`、`moderncsv.png`、`lib/`、`plugins/`、`qt.conf` 等全部内容。
+4. `ICON` 和 `DESKTOP` 直接指向 `AppDir/shared/bin/` 中的官方文件，然后执行：
 
 ```bash
-quick-sharun ./AppDir/bin/moderncsv
+quick-sharun ./AppDir/shared/bin/moderncsv
 ```
 
 5. 只在 `AppDir/.env` 补充当前需要的中文 locale 与 XCB 环境：
@@ -61,9 +61,11 @@ quick-sharun --make-appimage
 
 ## AppDir 结构说明
 
-`quick-sharun` 完成后，`AppDir/bin/moderncsv` 是 sharun 生成的启动入口；原始 Modern CSV ELF 会放在 `AppDir/shared/bin/moderncsv`。因此最终 `AppDir/bin` 只看到一个 `moderncsv` 属于正常的 sharun 布局，并不表示官方 tar 只解压了一个文件。
+官方 tar 的完整程序目录先放入 `AppDir/shared/bin/`，使 `moderncsv` 与官方自带的 `lib/`、`plugins/`、`qt.conf` 保持原有相对目录关系。
 
-官方 tar 直接在 `AppDir/bin/` 中准备，不再使用 `$PWD/moderncsv-source` 或 `/usr/lib/moderncsv` 这类额外 staging 路径。
+`quick-sharun` 使用 `AppDir/shared/bin/` 保存真实程序，并在 `AppDir/bin/` 为对应程序生成 sharun 启动入口。因此最终结构中，`AppDir/bin/moderncsv` 是启动入口，真实 Modern CSV ELF 与其官方运行时目录位于 `AppDir/shared/bin/`。
+
+不再使用 `$PWD/moderncsv-source` 或 `/usr/lib/moderncsv` 这类额外 staging 路径。
 
 ## Qt 与中文输入
 
@@ -103,3 +105,10 @@ CopyQ 中 `lib/copyq/plugins` 的符号链接修复属于 CopyQ 自身插件搜�
 
 - 删除构建脚本中的 `xvfb-run`、`timeout`、`SMOKE_RC` 和 smoke log 判断代码。
 - Modern CSV 构建脚本只保留实际打包所需步骤，最后直接执行 `quick-sharun --make-appimage`。
+
+### 2026-09-03：修正官方 tar staging 到 AppDir/shared/bin
+
+- 实际运行旧产物时，Qt 从 `bin/plugins/` 加载 plugin，出现 `Plugin uses incompatible Qt library (5.12.0)`，并伴随 `No functional TLS backend was found`。
+- 根因是完整官方目录被直接放入 `AppDir/bin/`，与 quick-sharun 将 `AppDir/bin/` 用作 sharun 启动入口、将真实程序放入 `AppDir/shared/bin/` 的布局发生冲突。
+- `build_moderncsv.sh` 现将官方 tar 完整解压到 `AppDir/shared/bin/`，并改为执行 `quick-sharun ./AppDir/shared/bin/moderncsv`；官方 `lib/`、`plugins/`、`qt.conf` 与真实程序继续保持同级相对关系。
+- 当前已完成脚本与目录结构修正；新产物的实际运行结果以本次构建完成后的实机反馈为准。
