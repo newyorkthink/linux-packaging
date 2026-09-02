@@ -38,9 +38,11 @@ export OUTPATH=./dist
 export OUTNAME="antigravity.AppImage"
 
 export DEPLOY_GTK=1
+export DEPLOY_LOCALE=1
 export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
 
 quick-sharun ./AppDir/bin/* /usr/lib/libnss_nis.so* /usr/lib/libnsl.so* /usr/lib/libnss_mdns*_minimal.so* /usr/bin/bwrap
+printf 'LANG=zh_CN.UTF-8\nLANGUAGE=zh_CN:zh\n' >> ./AppDir/.env
 patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 ./AppDir/shared/bin/language_server
 quick-sharun --make-appimage
