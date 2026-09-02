@@ -21,7 +21,7 @@ GitKraken Desktop 是基于 Electron / Chromium 的图形化 Git 客户端。本
 
 GitKraken Desktop Linux 版采用 Electron / Chromium 技术栈。官方 Linux tar.gz 包含 GitKraken 主程序、Electron / Chromium 组件、`resources`、官方 launcher、`chrome-sandbox` 和应用图标。
 
-当前 AppImage 目标架构为 `x86_64`。AUR 当前主要运行依赖为 GTK3、NSS、libsecret 和 libxkbfile；本项目在此基础上补齐 Electron / Chromium 常见运行库以及 GTK3 输入法模块。
+当前 AppImage 目标架构为 `x86_64`。AUR 当前主要运行依赖为 GTK3、NSS、libsecret 和 libxkbfile；本项目在此基础上补齐 Electron / Chromium 常见运行库、GTK3 输入法模块以及 AppImage 内可独立使用的 `zh_CN.UTF-8` glibc locale 数据。
 
 ## 打包方式
 
@@ -32,12 +32,13 @@ GitKraken Desktop Linux 版采用 Electron / Chromium 技术栈。官方 Linux t
 3. 检查归档路径安全性，要求全部文件位于官方 `gitkraken/` 顶层目录下。
 4. 原样保留官方应用目录内容，仅将其放入 AppImage 的应用目录；不修改 GitKraken 的 JS / Electron 资源和授权逻辑。
 5. 保留上游 `chrome-sandbox` 的 `4755` 文件模式。正式启动不会强制添加 `--no-sandbox`；只有 GitHub Actions 的 root 图形冒烟测试临时使用该参数。
-6. 扫描官方应用目录中的全部 ELF，并由 quick-sharun 收集运行依赖，同时带入 GTK3 的 IBus 与 Fcitx5 input method module。
-7. 根据上游 desktop 语义生成 AppImage desktop 入口并使用官方图标，最终输出 `dist/gitkraken.AppImage`。
+6. 扫描官方应用目录中的全部 ELF，并由 quick-sharun 收集运行依赖，同时带入 GTK3 的 IBus 与 Fcitx5 input method module 和对应 `immodules.cache`。
+7. 使用 `localedef --no-archive` 生成 `zh_CN.UTF-8` glibc locale，并放入 quick-sharun / AnyLinux 使用的 AppImage locale 目录，避免仅设置 `LANG` 但 AppImage 内没有对应 locale 数据。
+8. 根据上游 desktop 语义生成 AppImage desktop 入口并使用官方图标，最终输出 `dist/gitkraken.AppImage`。
 
 ## 中文环境与输入法
 
-AppImage 启动 wrapper 固定以下中文 UTF-8 locale：
+AppImage 启动 wrapper 设置以下中文 UTF-8 locale：
 
 ```text
 LANG=zh_CN.UTF-8
@@ -50,6 +51,14 @@ LANGUAGE=zh_CN:zh
 /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
 /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
 ```
+
+并在 AppImage 内生成：
+
+```text
+shared/lib/locale/zh_CN.utf8
+```
+
+quick-sharun 本身会为 AnyLinux runtime 准备 `C.UTF-8` / `en_US.UTF-8` fallback；本项目另外显式生成 `zh_CN.UTF-8`，使 wrapper 设置的中文 locale 在宿主没有对应 glibc locale 时仍可由 AppImage 内部数据解析。
 
 wrapper 不强制覆盖宿主已经配置的 `GTK_IM_MODULE`，因此宿主正在使用 Fcitx5 或 IBus 时仍按现有输入法会话工作。正常输入中文仍要求宿主已经启动并配置相应中文输入法；中文字符字形显示也取决于宿主可用的 CJK 字体。
 
@@ -91,7 +100,9 @@ dist/source.sha256
 - 官方包包含 x86_64 GitKraken 主程序、launcher、PNG 图标和 `chrome-sandbox`。
 - 打包前扫描官方应用目录全部 ELF，逐项检查 `ldd` 不存在 `not found`。
 - desktop 文件通过 `desktop-file-validate`。
-- 最终 AppImage 能重新提取，并确认 GitKraken 主程序、官方 launcher、图标、desktop、`chrome-sandbox`、`zh_CN.UTF-8` / `zh_CN:zh` 设置以及 IBus / Fcitx5 GTK3 输入模块真实存在。
+- quick-sharun 部署后按最终 GTK3 路径核对 IBus / Fcitx5 module、有效 ELF 目标和 `immodules.cache` 注册项；允许 quick-sharun 按共享库语义使用指向有效 ELF 的符号链接。
+- 最终 AppImage 能重新提取，并确认 GitKraken 主程序、官方 launcher、图标、desktop、`chrome-sandbox`、`zh_CN.UTF-8` / `zh_CN:zh` 设置、真实 `zh_CN.utf8` locale 数据以及 IBus / Fcitx5 GTK3 输入模块存在。
+- 使用最终提取出的 `shared/lib/locale` 通过 `locale charmap` 验证 `zh_CN.UTF-8` 实际解析为 `UTF-8`，而不是只检查环境变量文本。
 - 最终主程序再次检查动态库依赖。
 - 使用隔离 HOME / XDG 目录和 Xvfb 进行非交互 GUI 冒烟测试；只在 root CI 的测试命令中关闭 Chromium sandbox，不改变正式 AppImage 启动参数。
 - 生成最终 AppImage SHA-256 供审计。
@@ -106,3 +117,21 @@ dist/source.sha256
 - 加入 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`，并带入 GTK3 的 Fcitx5 / IBus 输入模块；不覆盖宿主输入法选择。
 - 明确不注入第三方中文 UI，不修改 GitKraken 授权或订阅逻辑。
 - 接入仓库统一 `build.yml`，并增加归档安全、ELF / `ldd`、desktop、最终 AppImage 提取和隔离 Xvfb 冒烟检查。
+
+### 2026-09-02：修复构建环境缺少 hostname
+
+- 故障现象：GitHub Actions 在进入 GitKraken 构建脚本后报 `构建环境缺少命令：hostname`，尚未进入正式 AppImage 封装。
+- 根因：脚本需要把 `/usr/bin/hostname` 一并交给 quick-sharun，但 Arch Linux 构建容器中该命令由 `inetutils` 提供，原依赖列表没有安装该包。
+- 修改文件：`gitkraken/build_gitkraken.sh`。
+- 修复内容：仅在构建依赖中增加 `inetutils`，不改变 GitKraken 下载、中文环境、输入法、sandbox 或打包逻辑。
+- 对应提交：`d9a1627dd9c3f5547fecab7aa6216d9e2dd73435`。
+- 验证结果：后续 Actions 已通过原 `hostname` 故障点并完成约 269.7 MiB AppImage 的 DwarFS 封装，随后暴露出更靠后的 GTK 输入模块最终校验问题。
+
+### 2026-09-02：修正 GTK 输入模块最终校验并补齐真实 zh_CN locale
+
+- 故障现象：AppImage 已成功完成 DwarFS 封装，但最终提取验证报 `最终 AppImage 缺少 IBus GTK3 输入模块`。
+- 根因：Actions 日志已确认 quick-sharun 在打包输入阶段把 `im-ibus.so` 与 `im-fcitx5.so` 部署到 GTK3 immodules 目录；原验证却使用 `find -type f`，只接受普通文件，与 quick-sharun 对共享库原名可保留为指向有效 ELF 的符号链接这一部署语义不一致。
+- 同步核实：quick-sharun 对 glibc 默认只保证 `C.UTF-8` 与 `en_US.UTF-8` fallback；此前虽然设置了 `LANG=zh_CN.UTF-8`，但没有显式生成 AppImage 内的 `zh_CN` glibc locale 数据。
+- 修改文件：`gitkraken/build_gitkraken.sh`、`gitkraken/README.md`。
+- 修复内容：按确定的 GTK3 最终路径使用 `-e` 与 `readelf` 验证 IBus / Fcitx5 module，同时验证 `immodules.cache` 注册项；使用 `localedef --no-archive` 生成 `zh_CN.utf8` 并加入 AnyLinux locale 目录；最终提取后再验证 locale 数据并用 `locale charmap` 确认实际为 `UTF-8`。
+- 验证结果：以对应 GitHub Actions 最终运行结果为准；本记录不把尚未完成的 CI 描述为已成功。

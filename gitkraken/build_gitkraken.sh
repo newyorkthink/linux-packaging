@@ -34,6 +34,8 @@ readonly APP_ROOT="$APPDIR/bin"
 readonly DIST_DIR="$SCRIPT_DIR/dist"
 readonly OUTFILE="$DIST_DIR/gitkraken.AppImage"
 readonly VERIFY_DIR="$WORK_DIR/verify"
+readonly ZH_LOCALE_ROOT="$WORK_DIR/zh-locale-root"
+readonly ZH_LOCALE_SOURCE="$ZH_LOCALE_ROOT/usr/lib/locale/zh_CN.utf8"
 readonly BUILD_DESKTOP="$SCRIPT_DIR/gitkraken.desktop"
 readonly BUILD_ICON="$SCRIPT_DIR/gitkraken.png"
 readonly SMOKE_HOME="$WORK_DIR/smoke-home"
@@ -57,7 +59,7 @@ yay -S --noconfirm --needed \
   hicolor-icon-theme adwaita-icon-theme ibus fcitx5-gtk
 
 for command_name in \
-  chmod cp curl desktop-file-validate file find grep hostname jq ldd quick-sharun readelf \
+  chmod cp curl desktop-file-validate file find grep hostname jq ldd locale localedef quick-sharun readelf \
   sed sha256sum sort stat tar timeout xvfb-run; do
   command -v "$command_name" >/dev/null 2>&1 || \
     die "构建环境缺少命令：$command_name"
@@ -223,6 +225,29 @@ LD_LIBRARY_PATH="$BUILD_LIBRARY_PATH" quick-sharun \
   "$IBUS_GTK3_MODULE" \
   "$FCITX5_GTK3_MODULE"
 
+# quick-sharun 会保留 GTK input module 的原路径语义；原库名可能是指向实际 ELF 的有效符号链接。
+readonly APPDIR_GTK3_IMMODULE_DIR="$APPDIR/lib/gtk-3.0/3.0.0/immodules"
+readonly APPDIR_GTK3_IMMODULE_CACHE="$APPDIR/lib/gtk-3.0/3.0.0/immodules.cache"
+readonly APPDIR_IBUS_GTK3_MODULE="$APPDIR_GTK3_IMMODULE_DIR/im-ibus.so"
+readonly APPDIR_FCITX5_GTK3_MODULE="$APPDIR_GTK3_IMMODULE_DIR/im-fcitx5.so"
+[[ -e "$APPDIR_IBUS_GTK3_MODULE" ]] || die "quick-sharun 部署后缺少 IBus GTK3 输入模块。"
+[[ -e "$APPDIR_FCITX5_GTK3_MODULE" ]] || die "quick-sharun 部署后缺少 Fcitx5 GTK3 输入模块。"
+readelf -h "$APPDIR_IBUS_GTK3_MODULE" >/dev/null 2>&1 || die "IBus GTK3 输入模块不是有效 ELF。"
+readelf -h "$APPDIR_FCITX5_GTK3_MODULE" >/dev/null 2>&1 || die "Fcitx5 GTK3 输入模块不是有效 ELF。"
+[[ -f "$APPDIR_GTK3_IMMODULE_CACHE" ]] || die "quick-sharun 部署后缺少 GTK3 immodules.cache。"
+grep -Fq 'im-ibus.so' "$APPDIR_GTK3_IMMODULE_CACHE" || die "GTK3 immodules.cache 未注册 IBus。"
+grep -Fq 'im-fcitx5.so' "$APPDIR_GTK3_IMMODULE_CACHE" || die "GTK3 immodules.cache 未注册 Fcitx5。"
+
+# quick-sharun 默认只保证 C.UTF-8 / en_US.UTF-8 fallback；这里额外生成真正的 zh_CN.UTF-8 glibc locale 数据。
+mkdir -p "$ZH_LOCALE_ROOT/usr/lib/locale"
+localedef --prefix "$ZH_LOCALE_ROOT" --no-archive -i zh_CN -f UTF-8 zh_CN.UTF-8
+[[ -f "$ZH_LOCALE_SOURCE/LC_CTYPE" ]] || die "生成 zh_CN.UTF-8 locale 数据失败。"
+mkdir -p "$APPDIR/lib/locale"
+if [[ ! -f "$APPDIR/lib/locale/zh_CN.utf8/LC_CTYPE" ]]; then
+  cp -a "$ZH_LOCALE_SOURCE" "$APPDIR/lib/locale/"
+fi
+[[ -f "$APPDIR/lib/locale/zh_CN.utf8/LC_CTYPE" ]] || die "AppDir 缺少 zh_CN.UTF-8 locale 数据。"
+
 # 保留上游 Electron sandbox 文件权限；CI 的 root 冒烟测试另行使用 --no-sandbox，不改变正式启动方式。
 chmod 4755 "$APP_ROOT/chrome-sandbox"
 quick-sharun --make-appimage
@@ -240,18 +265,29 @@ mkdir -p "$VERIFY_DIR"
   "$OUTFILE" --appimage-extract >/dev/null
 )
 readonly VERIFY_APPDIR="$VERIFY_DIR/squashfs-root"
+readonly VERIFY_GTK3_IMMODULE_DIR="$VERIFY_APPDIR/lib/gtk-3.0/3.0.0/immodules"
+readonly VERIFY_GTK3_IMMODULE_CACHE="$VERIFY_APPDIR/lib/gtk-3.0/3.0.0/immodules.cache"
+readonly VERIFY_IBUS_GTK3_MODULE="$VERIFY_GTK3_IMMODULE_DIR/im-ibus.so"
+readonly VERIFY_FCITX5_GTK3_MODULE="$VERIFY_GTK3_IMMODULE_DIR/im-fcitx5.so"
+readonly VERIFY_ZH_LOCALE_DIR="$VERIFY_APPDIR/shared/lib/locale/zh_CN.utf8"
 [[ -x "$VERIFY_APPDIR/AppRun" ]] || die "最终 AppImage 缺少 AppRun。"
 [[ -f "$VERIFY_APPDIR/gitkraken.desktop" ]] || die "最终 AppImage 缺少 gitkraken.desktop。"
 [[ -f "$VERIFY_APPDIR/gitkraken.png" ]] || die "最终 AppImage 缺少 gitkraken.png。"
 [[ -x "$VERIFY_APPDIR/bin/gitkraken" ]] || die "最终 AppImage 缺少 GitKraken 主程序。"
 [[ -f "$VERIFY_APPDIR/bin/resources/bin/gitkraken.sh" ]] || die "最终 AppImage 缺少官方 launcher。"
 [[ -f "$VERIFY_APPDIR/bin/chrome-sandbox" ]] || die "最终 AppImage 缺少 chrome-sandbox。"
-find "$VERIFY_APPDIR" -type f -name 'im-ibus.so' -print -quit | grep -q . || \
-  die "最终 AppImage 缺少 IBus GTK3 输入模块。"
-find "$VERIFY_APPDIR" -type f -name 'im-fcitx5.so' -print -quit | grep -q . || \
-  die "最终 AppImage 缺少 Fcitx5 GTK3 输入模块。"
+[[ -e "$VERIFY_IBUS_GTK3_MODULE" ]] || die "最终 AppImage 缺少 IBus GTK3 输入模块。"
+[[ -e "$VERIFY_FCITX5_GTK3_MODULE" ]] || die "最终 AppImage 缺少 Fcitx5 GTK3 输入模块。"
+readelf -h "$VERIFY_IBUS_GTK3_MODULE" >/dev/null 2>&1 || die "最终 AppImage 的 IBus GTK3 输入模块不是有效 ELF。"
+readelf -h "$VERIFY_FCITX5_GTK3_MODULE" >/dev/null 2>&1 || die "最终 AppImage 的 Fcitx5 GTK3 输入模块不是有效 ELF。"
+[[ -f "$VERIFY_GTK3_IMMODULE_CACHE" ]] || die "最终 AppImage 缺少 GTK3 immodules.cache。"
+grep -Fq 'im-ibus.so' "$VERIFY_GTK3_IMMODULE_CACHE" || die "最终 AppImage 的 GTK3 immodules.cache 未注册 IBus。"
+grep -Fq 'im-fcitx5.so' "$VERIFY_GTK3_IMMODULE_CACHE" || die "最终 AppImage 的 GTK3 immodules.cache 未注册 Fcitx5。"
+[[ -f "$VERIFY_ZH_LOCALE_DIR/LC_CTYPE" ]] || die "最终 AppImage 缺少 zh_CN.UTF-8 locale 数据。"
 grep -R -Fq 'LANG=zh_CN.UTF-8' "$VERIFY_APPDIR" || die "最终 AppImage 缺少 zh_CN.UTF-8 locale 设置。"
 grep -R -Fq 'LANGUAGE=zh_CN:zh' "$VERIFY_APPDIR" || die "最终 AppImage 缺少 zh_CN:zh locale 设置。"
+final_charmap="$(LOCPATH="$VERIFY_APPDIR/shared/lib/locale" LC_ALL=zh_CN.UTF-8 LANG=zh_CN.UTF-8 locale charmap 2>/dev/null || true)"
+[[ "$final_charmap" == UTF-8 ]] || die "最终 AppImage 的 zh_CN.UTF-8 locale 数据不可用：${final_charmap:-无输出}"
 desktop-file-validate "$VERIFY_APPDIR/gitkraken.desktop"
 
 final_main_dependencies="$(
@@ -267,6 +303,7 @@ fi
 mkdir -p "$SMOKE_HOME" "$SMOKE_RUNTIME"
 chmod 0700 "$SMOKE_RUNTIME"
 set +e
+LC_ALL= \
 HOME="$SMOKE_HOME" \
 XDG_CONFIG_HOME="$SMOKE_HOME/.config" \
 XDG_CACHE_HOME="$SMOKE_HOME/.cache" \
