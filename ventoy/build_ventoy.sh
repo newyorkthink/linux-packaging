@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+###### 初始化与构建环境 ######
+
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
@@ -21,6 +23,9 @@ mkdir -p "$APPDIR" "$DIST_DIR"
 yay -S --noconfirm --needed \
   wget jq git tar gzip coreutils file desktop-file-utils gtk3 squashfs-tools
 
+###### 下载与校验辅助函数 ######
+
+# 读取 GitHub API JSON；存在 GH_TOKEN 时附带鉴权头，降低公开 API 限流影响。
 fetch_json() {
   local url="$1"
   local output="$2"
@@ -49,6 +54,7 @@ fetch_json() {
   fi
 }
 
+# 下载普通 Release 文件，并统一使用重试和超时参数。
 download_file() {
   local url="$1"
   local output="$2"
@@ -62,6 +68,7 @@ download_file() {
     "$url"
 }
 
+# 校验 GitHub Release API 提供的 SHA-256 digest，防止下载内容与 Release 元数据不一致。
 verify_release_asset_digest() {
   local file="$1"
   local digest="$2"
@@ -86,6 +93,9 @@ verify_release_asset_digest() {
   fi
 }
 
+###### 下载 Ventoy 上游文件 ######
+
+# 动态读取 Ventoy 最新稳定 Release，并解析 Linux 归档与官方校验文件。
 VENTOY_RELEASE_JSON="$WORKDIR/ventoy-release.json"
 VENTOY_RELEASE_API="https://api.github.com/repos/ventoy/Ventoy/releases/latest"
 fetch_json "$VENTOY_RELEASE_API" "$VENTOY_RELEASE_JSON"
@@ -122,6 +132,9 @@ CHECKSUM_FILE="$WORKDIR/$CHECKSUM_ASSET"
 download_file "$LINUX_URL" "$LINUX_ARCHIVE"
 download_file "$CHECKSUM_URL" "$CHECKSUM_FILE"
 
+###### 校验 Ventoy 上游文件 ######
+
+# 先校验 GitHub Release digest，再用上游 sha256.txt 对 Linux 归档做第二层校验。
 verify_release_asset_digest "$LINUX_ARCHIVE" "$LINUX_DIGEST" "$LINUX_ASSET"
 verify_release_asset_digest "$CHECKSUM_FILE" "$CHECKSUM_DIGEST" "$CHECKSUM_ASSET"
 
@@ -140,6 +153,7 @@ if [[ "$ACTUAL_LINUX_SHA256" != "$UPSTREAM_SHA256" ]]; then
   exit 1
 fi
 
+# 将动态 Release tag 解析到不可变 Git commit，后续图标直接从该 commit 获取。
 REMOTE_REFS="$(git ls-remote https://github.com/ventoy/Ventoy.git \
   "refs/tags/${VENTOY_TAG}" \
   "refs/tags/${VENTOY_TAG}^{}")"
@@ -155,6 +169,9 @@ fi
 printf 'Ventoy release: %s\nVentoy commit: %s\nVentoy archive SHA-256: %s\n' \
   "$VENTOY_TAG" "$VENTOY_COMMIT" "$ACTUAL_LINUX_SHA256"
 
+###### 解包并准备 AppDir ######
+
+# 解包官方 Linux Release，并检查后续打包依赖的关键程序和资源是否完整。
 SOURCE_PARENT="$WORKDIR/source"
 mkdir -p "$SOURCE_PARENT"
 tar -xzf "$LINUX_ARCHIVE" -C "$SOURCE_PARENT"
@@ -173,9 +190,11 @@ if [[ "$PACKAGED_VERSION" != "$VENTOY_VERSION" ]]; then
   exit 1
 fi
 
+# 完整复制 Ventoy 官方 Linux 包，不重排或删减上游目录结构。
 mkdir -p "$APPDIR/ventoy"
 cp -a "$SOURCE_DIR/." "$APPDIR/ventoy/"
 
+# 顶层 AppRun 只准备 Ventoy 官方 GUI 启动所需环境，不加入额外系统修改逻辑。
 cat > "$APPDIR/AppRun" <<'EOF_APPRUN'
 #!/usr/bin/env bash
 set -Eeuo pipefail
@@ -191,6 +210,8 @@ exec "$MAIN" "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/AppRun"
 
+###### 准备桌面文件与图标 ######
+
 cat > "$APPDIR/ventoy.desktop" <<'EOF_DESKTOP'
 [Desktop Entry]
 Type=Application
@@ -205,11 +226,15 @@ EOF_DESKTOP
 
 desktop-file-validate "$APPDIR/ventoy.desktop"
 
+# 图标固定读取当前 Ventoy Release tag 对应的不可变 commit，避免跟随 main 漂移。
 ICON_URL="https://raw.githubusercontent.com/ventoy/Ventoy/${VENTOY_COMMIT}/ICON/logo_72.png"
 download_file "$ICON_URL" "$APPDIR/ventoy.png"
 file "$APPDIR/ventoy.png" | grep -q 'PNG image data'
 ln -s ventoy.png "$APPDIR/.DirIcon"
 
+###### 校验 Ventoy GUI 依赖 ######
+
+# 检查 x86_64 launcher 与 GTK3 后端的 ELF 类型，并拒绝存在缺失动态库的构建。
 file "$APPDIR/ventoy/VentoyGUI.x86_64" | grep -q 'ELF 64-bit'
 file "$APPDIR/ventoy/tool/x86_64/Ventoy2Disk.gtk3" | grep -q 'ELF 64-bit'
 if ldd "$APPDIR/ventoy/tool/x86_64/Ventoy2Disk.gtk3" | grep -q 'not found'; then
@@ -218,6 +243,9 @@ if ldd "$APPDIR/ventoy/tool/x86_64/Ventoy2Disk.gtk3" | grep -q 'not found'; then
   exit 1
 fi
 
+###### 下载 AppImage 打包工具 ######
+
+# 动态获取官方 appimagetool，并校验对应 Release digest。
 APPIMAGETOOL_JSON="$WORKDIR/appimagetool-release.json"
 fetch_json "https://api.github.com/repos/AppImage/appimagetool/releases/latest" "$APPIMAGETOOL_JSON"
 jq -e '.draft == false and .prerelease == false' "$APPIMAGETOOL_JSON" >/dev/null
@@ -228,6 +256,7 @@ download_file "$APPIMAGETOOL_URL" "$APPIMAGETOOL"
 verify_release_asset_digest "$APPIMAGETOOL" "$APPIMAGETOOL_DIGEST" "appimagetool-x86_64.AppImage"
 chmod +x "$APPIMAGETOOL"
 
+# 动态获取官方 x86_64 type2 runtime，并在封装前校验 Release digest。
 RUNTIME_JSON="$WORKDIR/type2-runtime-release.json"
 fetch_json "https://api.github.com/repos/AppImage/type2-runtime/releases/latest" "$RUNTIME_JSON"
 jq -e '.draft == false and .prerelease == false' "$RUNTIME_JSON" >/dev/null
@@ -237,6 +266,9 @@ RUNTIME_FILE="$WORKDIR/runtime-x86_64"
 download_file "$RUNTIME_URL" "$RUNTIME_FILE"
 verify_release_asset_digest "$RUNTIME_FILE" "$RUNTIME_DIGEST" "runtime-x86_64"
 
+###### 核心打包 ######
+
+# 使用明确的 x86_64 type2 runtime 直接封装已经准备完整的 AppDir。
 OUTPUT="$DIST_DIR/ventoy.AppImage"
 ARCH=x86_64 \
 VERSION="$VENTOY_VERSION" \
@@ -246,6 +278,9 @@ APPIMAGE_EXTRACT_AND_RUN=1 \
     "$APPDIR" \
     "$OUTPUT"
 
+###### 测试与验证 ######
+
+# 先检查最终产物基本类型，再提取 AppImage 对内部关键文件做一致性验证。
 chmod +x "$OUTPUT"
 test -s "$OUTPUT"
 file "$OUTPUT" | grep -q 'ELF 64-bit'
@@ -267,10 +302,14 @@ test "$(tr -d '[:space:]' < "$EXTRACTED/ventoy/ventoy/version")" = "$VENTOY_VERS
 cmp -s "$APPDIR/AppRun" "$EXTRACTED/AppRun"
 cmp -s "$APPDIR/ventoy.desktop" "$EXTRACTED/ventoy.desktop"
 
+# 再次检查提取后 GTK3 后端的动态库，确认最终封装没有引入依赖缺失。
 if ldd "$EXTRACTED/ventoy/tool/x86_64/Ventoy2Disk.gtk3" | grep -q 'not found'; then
   echo "错误：最终 AppImage 中的 Ventoy GTK3 GUI 存在缺失动态库。" >&2
   ldd "$EXTRACTED/ventoy/tool/x86_64/Ventoy2Disk.gtk3" >&2
   exit 1
 fi
 
+###### 整理产物 ######
+
+# 输出最终 AppImage 的 SHA-256，供 Release 产物审计。
 sha256sum "$OUTPUT"
