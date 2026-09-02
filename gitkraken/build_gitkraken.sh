@@ -18,6 +18,28 @@ die() {
   exit 1
 }
 
+verify_native_addons_unchanged() {
+  local target_root="$1"
+  local phase="$2"
+  local source_addon relative target_addon source_hash target_hash source_mode target_mode
+
+  while IFS= read -r -d '' source_addon; do
+    relative="${source_addon#"$SOURCE_APP_ROOT"/}"
+    target_addon="$target_root/$relative"
+    [[ -f "$target_addon" ]] || die "$phase 缺少官方 Node 原生模块：$relative"
+
+    source_hash="$(sha256sum "$source_addon" | awk '{print $1}')"
+    target_hash="$(sha256sum "$target_addon" | awk '{print $1}')"
+    [[ "$source_hash" == "$target_hash" ]] || \
+      die "$phase 修改了官方 Node 原生模块内容：$relative"
+
+    source_mode="$(stat -c '%a' "$source_addon")"
+    target_mode="$(stat -c '%a' "$target_addon")"
+    [[ "$source_mode" == "$target_mode" ]] || \
+      die "$phase 修改了官方 Node 原生模块权限：$relative ($source_mode -> $target_mode)"
+  done < <(find "$SOURCE_APP_ROOT" -type f -name '*.node' -print0)
+}
+
 HOST_ARCH="$(uname -m)"
 readonly HOST_ARCH
 [[ "$HOST_ARCH" == x86_64 ]] || die "当前仅支持 x86_64。"
@@ -41,6 +63,7 @@ readonly BUILD_ICON="$SCRIPT_DIR/gitkraken.png"
 readonly SMOKE_HOME="$WORK_DIR/smoke-home"
 readonly SMOKE_RUNTIME="$WORK_DIR/smoke-runtime"
 readonly SMOKE_LOG="$WORK_DIR/gitkraken-smoke.log"
+readonly SMOKE_WINDOW_LOG="$WORK_DIR/gitkraken-window-tree.log"
 
 # 每次只清理 GitKraken 当前项目自己的构建目录、临时元数据和旧产物。
 rm -rf "$WORK_DIR" "$APPDIR" "$DIST_DIR"
@@ -51,7 +74,7 @@ mkdir -p "$WORK_DIR" "$EXTRACT_DIR" "$APP_ROOT" "$DIST_DIR"
 yay -S --noconfirm --needed \
   base-devel binutils coreutils curl file findutils gawk grep inetutils jq patchelf sed tar \
   appstream-glib desktop-file-utils util-linux zsync \
-  xorg-server xorg-server-common xorg-server-xvfb \
+  xorg-server xorg-server-common xorg-server-xvfb xorg-xwininfo \
   nss nspr gtk3 libsecret libxkbfile at-spi2-core cups dbus glib2 pango cairo expat \
   fontconfig freetype2 libx11 libxext libxi libxtst libxss libxrandr libxcomposite \
   libxdamage libxfixes libxkbcommon libxcb libdrm mesa libglvnd libva libvdpau wayland \
@@ -60,7 +83,7 @@ yay -S --noconfirm --needed \
 
 for command_name in \
   chmod cp curl desktop-file-validate file find grep hostname jq ldd locale localedef quick-sharun readelf \
-  sed sha256sum sort stat tar timeout xvfb-run; do
+  sed sha256sum sort stat tar timeout xwininfo xvfb-run; do
   command -v "$command_name" >/dev/null 2>&1 || \
     die "构建环境缺少命令：$command_name"
 done
@@ -186,15 +209,22 @@ export DEPLOY_PIPEWIRE=1
 export STRACE_MODE=0
 export NO_STRIP=1
 
-# 扫描官方应用目录中的全部 ELF，避免遗漏 Chromium helper、原生模块和私有库。
+# 扫描官方应用目录全部 ELF；Node *.node 是 dlopen 原生模块，必须与普通可执行文件分开处理。
 elf_targets=()
+native_addons=()
 while IFS= read -r -d '' target; do
   if readelf -h "$target" >/dev/null 2>&1; then
-    elf_targets+=("$target")
+    if [[ "$target" == *.node ]]; then
+      native_addons+=("$target")
+    else
+      elf_targets+=("$target")
+    fi
   fi
 done < <(find "$APP_ROOT" -type f -print0)
-[[ ${#elf_targets[@]} -gt 0 ]] || die "官方 GitKraken 运行目录中未找到 ELF 文件。"
-printf 'GitKraken ELF files: %s\n' "${#elf_targets[@]}"
+[[ $((${#elf_targets[@]} + ${#native_addons[@]})) -gt 0 ]] || \
+  die "官方 GitKraken 运行目录中未找到 ELF 文件。"
+printf 'GitKraken non-node ELF files: %s\n' "${#elf_targets[@]}"
+printf 'GitKraken native Node addons: %s\n' "${#native_addons[@]}"
 
 mapfile -t app_library_dirs < <(
   find "$APP_ROOT" -type f -printf '%h\n' | sort -u
@@ -203,8 +233,9 @@ mapfile -t app_library_dirs < <(
 BUILD_LIBRARY_PATH="$(IFS=:; printf '%s' "${app_library_dirs[*]}")"
 BUILD_LIBRARY_PATH="$BUILD_LIBRARY_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
+all_elf_targets=("${elf_targets[@]}" "${native_addons[@]}")
 missing_dependencies=0
-for target in "${elf_targets[@]}"; do
+for target in "${all_elf_targets[@]}"; do
   target_library_path="$(dirname -- "$target"):$BUILD_LIBRARY_PATH"
   target_dependencies="$(LD_LIBRARY_PATH="$target_library_path" ldd "$target" 2>&1 || true)"
   if grep -Fq 'not found' <<< "$target_dependencies"; then
@@ -214,9 +245,29 @@ for target in "${elf_targets[@]}"; do
 done
 [[ "$missing_dependencies" -eq 0 ]] || die "官方 GitKraken 组件仍存在缺失动态库。"
 
-# Electron 运行库由 quick-sharun 收集；同时带入 IBus/Fcitx5 的 GTK3 输入法模块。
+# *.node 必须保留官方文件本体；只把它们从 AppDir 外解析到的动态库依赖交给 quick-sharun。
+native_addon_dependencies=()
+declare -A native_dependency_seen=()
+for addon in "${native_addons[@]}"; do
+  addon_library_path="$(dirname -- "$addon"):$BUILD_LIBRARY_PATH"
+  while IFS= read -r dependency; do
+    [[ -f "$dependency" ]] || continue
+    [[ "$dependency" == "$APP_ROOT"/* ]] && continue
+    if [[ -z "${native_dependency_seen[$dependency]+x}" ]]; then
+      native_dependency_seen["$dependency"]=1
+      native_addon_dependencies+=("$dependency")
+    fi
+  done < <(
+    LD_LIBRARY_PATH="$addon_library_path" ldd "$addon" 2>/dev/null | \
+      awk '/=> \/[^ ]+/ {print $3} $1 ~ /^\// {print $1}'
+  )
+done
+printf 'GitKraken native addon external dependencies: %s\n' "${#native_addon_dependencies[@]}"
+
+# Electron 运行库由 quick-sharun 收集；Node *.node 本体不作为 executable 输入，避免被 sharun wrapper 替换。
 LD_LIBRARY_PATH="$BUILD_LIBRARY_PATH" quick-sharun \
   "${elf_targets[@]}" \
+  "${native_addon_dependencies[@]}" \
   /usr/bin/hostname \
   /usr/lib/libnss* \
   /usr/lib/libsoftokn3.so \
@@ -224,6 +275,9 @@ LD_LIBRARY_PATH="$BUILD_LIBRARY_PATH" quick-sharun \
   /usr/lib/pkcs11/* \
   "$IBUS_GTK3_MODULE" \
   "$FCITX5_GTK3_MODULE"
+
+# quick-sharun 处理后再次逐个比对，确保所有官方 Node 原生模块内容和权限均未被 wrapper 改写。
+verify_native_addons_unchanged "$APP_ROOT" "quick-sharun 部署后"
 
 # quick-sharun 会保留 GTK input module 的原路径语义；原库名可能是指向实际 ELF 的有效符号链接。
 readonly APPDIR_GTK3_IMMODULE_DIR="$APPDIR/lib/gtk-3.0/3.0.0/immodules"
@@ -248,7 +302,7 @@ if [[ ! -f "$APPDIR/lib/locale/zh_CN.utf8/LC_CTYPE" ]]; then
 fi
 [[ -f "$APPDIR/lib/locale/zh_CN.utf8/LC_CTYPE" ]] || die "AppDir 缺少 zh_CN.UTF-8 locale 数据。"
 
-# 保留上游 Electron sandbox 文件权限；CI 的 root 冒烟测试另行使用 --no-sandbox，不改变正式启动方式。
+# 保留上游 Electron sandbox 文件权限；CI 的 root GUI 验证另行使用 --no-sandbox，不改变正式启动方式。
 chmod 4755 "$APP_ROOT/chrome-sandbox"
 quick-sharun --make-appimage
 
@@ -258,7 +312,7 @@ file "$OUTFILE"
 "$OUTFILE" --appimage-version >/dev/null
 sha256sum "$OUTFILE" > "$OUTFILE.sha256"
 
-# 解包最终 AppImage，核对上游程序、中文 locale、输入模块、desktop 和图标。
+# 解包最终 AppImage，核对上游程序、原生模块、中文 locale、输入模块、desktop 和图标。
 mkdir -p "$VERIFY_DIR"
 (
   cd "$VERIFY_DIR"
@@ -289,6 +343,7 @@ grep -R -Fq 'LANGUAGE=zh_CN:zh' "$VERIFY_APPDIR" || die "最终 AppImage 缺少 
 final_charmap="$(LOCPATH="$VERIFY_APPDIR/shared/lib/locale" LC_ALL=zh_CN.UTF-8 LANG=zh_CN.UTF-8 locale charmap 2>/dev/null || true)"
 [[ "$final_charmap" == UTF-8 ]] || die "最终 AppImage 的 zh_CN.UTF-8 locale 数据不可用：${final_charmap:-无输出}"
 desktop-file-validate "$VERIFY_APPDIR/gitkraken.desktop"
+verify_native_addons_unchanged "$VERIFY_APPDIR/bin" "最终 AppImage"
 
 final_main_dependencies="$(
   LD_LIBRARY_PATH="$VERIFY_APPDIR/bin:$VERIFY_APPDIR/shared/lib" \
@@ -299,7 +354,7 @@ if grep -Fq 'not found' <<< "$final_main_dependencies"; then
   die "最终 AppImage 的 GitKraken 主程序仍存在缺失动态库。"
 fi
 
-# 使用隔离 HOME/XDG 目录做非交互 GUI 冒烟测试；root CI 仅在测试命令中关闭 Chromium sandbox。
+# 使用隔离 HOME/XDG 与 Xvfb 启动最终 AppImage，并要求实际出现 GitKraken X11 顶层窗口。
 mkdir -p "$SMOKE_HOME" "$SMOKE_RUNTIME"
 chmod 0700 "$SMOKE_RUNTIME"
 set +e
@@ -309,25 +364,59 @@ XDG_CONFIG_HOME="$SMOKE_HOME/.config" \
 XDG_CACHE_HOME="$SMOKE_HOME/.cache" \
 XDG_RUNTIME_DIR="$SMOKE_RUNTIME" \
 APPIMAGE_EXTRACT_AND_RUN=1 \
-timeout 25s xvfb-run -a \
-  "$OUTFILE" \
-  --no-sandbox \
-  --disable-setuid-sandbox \
-  --disable-gpu \
-  --user-data-dir="$SMOKE_HOME/profile" \
-  >"$SMOKE_LOG" 2>&1
+timeout 40s xvfb-run -a bash -c '
+  set -u
+  app="$1"
+  smoke_log="$2"
+  window_log="$3"
+  smoke_home="$4"
+
+  "$app" \
+    --no-sandbox \
+    --disable-setuid-sandbox \
+    --disable-gpu \
+    --user-data-dir="$smoke_home/profile" \
+    >"$smoke_log" 2>&1 &
+  app_pid=$!
+  window_found=0
+
+  for _ in {1..30}; do
+    xwininfo -root -tree >"$window_log" 2>&1 || true
+    if grep -Eqi "GitKraken|gitkraken" "$window_log"; then
+      window_found=1
+      break
+    fi
+    if ! kill -0 "$app_pid" 2>/dev/null; then
+      break
+    fi
+    sleep 1
+  done
+
+  if kill -0 "$app_pid" 2>/dev/null; then
+    kill "$app_pid" 2>/dev/null || true
+    for _ in {1..5}; do
+      kill -0 "$app_pid" 2>/dev/null || break
+      sleep 1
+    done
+    kill -9 "$app_pid" 2>/dev/null || true
+  fi
+  wait "$app_pid" 2>/dev/null || true
+  [[ "$window_found" -eq 1 ]]
+' _ "$OUTFILE" "$SMOKE_LOG" "$SMOKE_WINDOW_LOG" "$SMOKE_HOME"
 smoke_rc=$?
 set -e
 
 cat "$SMOKE_LOG"
-printf 'GitKraken smoke test exit code: %s\n' "$smoke_rc"
+printf '%s\n' '--- GitKraken X11 window tree ---'
+cat "$SMOKE_WINDOW_LOG" 2>/dev/null || true
+printf 'GitKraken GUI smoke test exit code: %s\n' "$smoke_rc"
 if grep -Eqi \
-  'error while loading shared libraries|cannot open shared object file|symbol lookup error|invalid ELF header|wrong ELF class|Exec format error|Trace/breakpoint trap|Segmentation fault|Aborted \(core dumped\)' \
+  'UnhandledPromiseRejectionWarning: Error: .*\.node|无法动态加载位置无关可执行文件|cannot dynamically load position-independent executable|error while loading shared libraries|cannot open shared object file|symbol lookup error|invalid ELF header|wrong ELF class|Exec format error|Trace/breakpoint trap|Segmentation fault|Aborted \(core dumped\)' \
   "$SMOKE_LOG"; then
-  die "GitKraken 冒烟测试检测到致命运行错误。"
+  die "GitKraken GUI 冒烟测试检测到致命运行错误。"
 fi
-if [[ "$smoke_rc" -ne 0 && "$smoke_rc" -ne 124 ]]; then
-  die "GitKraken 冒烟测试异常退出：$smoke_rc"
+if [[ "$smoke_rc" -ne 0 ]]; then
+  die "GitKraken GUI 冒烟测试未检测到可见窗口或异常退出：$smoke_rc"
 fi
 
 log "构建完成：$OUTFILE"

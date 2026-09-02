@@ -21,6 +21,8 @@ GitKraken Desktop 是基于 Electron / Chromium 的图形化 Git 客户端。本
 
 GitKraken Desktop Linux 版采用 Electron / Chromium 技术栈。官方 Linux tar.gz 包含 GitKraken 主程序、Electron / Chromium 组件、`resources`、官方 launcher、`chrome-sandbox` 和应用图标。
 
+GitKraken 自身还包含多个 Node.js 原生扩展（`*.node`），例如仓库扫描、NodeGit、PTY、文件监听等模块。这些文件本质上是由 Electron / Node.js 通过 `dlopen()` 加载的共享对象，不能按普通可执行程序替换为 sharun wrapper。
+
 当前 AppImage 目标架构为 `x86_64`。AUR 当前主要运行依赖为 GTK3、NSS、libsecret 和 libxkbfile；本项目在此基础上补齐 Electron / Chromium 常见运行库、GTK3 输入法模块以及 AppImage 内可独立使用的 `zh_CN.UTF-8` glibc locale 数据。
 
 ## 打包方式
@@ -32,9 +34,11 @@ GitKraken Desktop Linux 版采用 Electron / Chromium 技术栈。官方 Linux t
 3. 检查归档路径安全性，要求全部文件位于官方 `gitkraken/` 顶层目录下。
 4. 原样保留官方应用目录内容，仅将其放入 AppImage 的应用目录；不修改 GitKraken 的 JS / Electron 资源和授权逻辑。
 5. 保留上游 `chrome-sandbox` 的 `4755` 文件模式。正式启动不会强制添加 `--no-sandbox`；只有 GitHub Actions 的 root 图形冒烟测试临时使用该参数。
-6. 扫描官方应用目录中的全部 ELF，并由 quick-sharun 收集运行依赖，同时带入 GTK3 的 IBus 与 Fcitx5 input method module 和对应 `immodules.cache`。
-7. 使用 `localedef --no-archive` 生成 `zh_CN.UTF-8` glibc locale，并放入 quick-sharun / AnyLinux 使用的 AppImage locale 目录，避免仅设置 `LANG` 但 AppImage 内没有对应 locale 数据。
-8. 根据上游 desktop 语义生成 AppImage desktop 入口并使用官方图标，最终输出 `dist/gitkraken.AppImage`。
+6. 扫描官方应用目录中的全部 ELF；普通 ELF 交给 quick-sharun 收集运行依赖，`*.node` Node 原生模块保留官方文件本体，不作为 quick-sharun executable 输入，只把这些模块解析到的外部动态库依赖交给 quick-sharun。
+7. quick-sharun 完成后逐个对比官方 `*.node` 的 SHA-256 与文件模式，防止原生模块被 sharun wrapper、strip、patchelf 或其他后处理改写。
+8. 带入 GTK3 的 IBus 与 Fcitx5 input method module 和对应 `immodules.cache`。
+9. 使用 `localedef --no-archive` 生成 `zh_CN.UTF-8` glibc locale，并放入 quick-sharun / AnyLinux 使用的 AppImage locale 目录，避免仅设置 `LANG` 但 AppImage 内没有对应 locale 数据。
+10. 根据上游 desktop 语义生成 AppImage desktop 入口并使用官方图标，最终输出 `dist/gitkraken.AppImage`。
 
 ## 中文环境与输入法
 
@@ -99,12 +103,15 @@ dist/source.sha256
 - 官方 tar.gz 可正常读取，全部归档内容位于 `gitkraken/` 顶层目录且不存在绝对路径或 `..` 路径穿越。
 - 官方包包含 x86_64 GitKraken 主程序、launcher、PNG 图标和 `chrome-sandbox`。
 - 打包前扫描官方应用目录全部 ELF，逐项检查 `ldd` 不存在 `not found`。
+- 将 `*.node` 与普通 executable ELF 分开处理，并在 quick-sharun 部署后逐个核对官方原生模块的 SHA-256 和文件模式没有变化。
 - desktop 文件通过 `desktop-file-validate`。
 - quick-sharun 部署后按最终 GTK3 路径核对 IBus / Fcitx5 module、有效 ELF 目标和 `immodules.cache` 注册项；允许 quick-sharun 按共享库语义使用指向有效 ELF 的符号链接。
 - 最终 AppImage 能重新提取，并确认 GitKraken 主程序、官方 launcher、图标、desktop、`chrome-sandbox`、`zh_CN.UTF-8` / `zh_CN:zh` 设置、真实 `zh_CN.utf8` locale 数据以及 IBus / Fcitx5 GTK3 输入模块存在。
+- 最终提取后再次逐个比对所有官方 `*.node` 的 SHA-256 和文件模式，确保 DwarFS/AppImage 封装没有改写 Node 原生模块。
 - 使用最终提取出的 `shared/lib/locale` 通过 `locale charmap` 验证 `zh_CN.UTF-8` 实际解析为 `UTF-8`，而不是只检查环境变量文本。
 - 最终主程序再次检查动态库依赖。
-- 使用隔离 HOME / XDG 目录和 Xvfb 进行非交互 GUI 冒烟测试；只在 root CI 的测试命令中关闭 Chromium sandbox，不改变正式 AppImage 启动参数。
+- 使用隔离 HOME / XDG 目录和 Xvfb 启动最终 AppImage；除了要求进程正常运行，还必须通过 `xwininfo` 检测到实际 GitKraken X11 顶层窗口。
+- GUI 验证日志显式拦截 Node 原生模块 `dlopen()` 失败、`cannot dynamically load position-independent executable` / `无法动态加载位置无关可执行文件`、共享库加载失败、ELF 格式错误和崩溃等致命错误，不能再仅以 `timeout` 返回码判断成功。
 - 生成最终 AppImage SHA-256 供审计。
 
 ## 变更记录
@@ -135,3 +142,12 @@ dist/source.sha256
 - 修改文件：`gitkraken/build_gitkraken.sh`、`gitkraken/README.md`。
 - 修复内容：按确定的 GTK3 最终路径使用 `-e` 与 `readelf` 验证 IBus / Fcitx5 module，同时验证 `immodules.cache` 注册项；使用 `localedef --no-archive` 生成 `zh_CN.utf8` 并加入 AnyLinux locale 目录；最终提取后再验证 locale 数据并用 `locale charmap` 确认实际为 `UTF-8`。
 - 验证结果：以对应 GitHub Actions 最终运行结果为准；本记录不把尚未完成的 CI 描述为已成功。
+
+### 2026-09-02：修复 GitKraken Node 原生模块被 quick-sharun wrapper 替换
+
+- 故障现象：Actions 构建显示成功，但实际运行 `gitkraken.AppImage` 没有任何 GUI；终端报 `find-git-repositories/build/Release/findGitRepos.node: 无法动态加载位置无关可执行文件`，随后出现 `UnhandledPromiseRejectionWarning`。
+- 根因：Run `33616739549` 的完整构建日志已经显示 quick-sharun 把 `findGitRepos.node`、`nodegit.node`、`pty.node`、`nsfw.node` 等 `*.node` 文件识别为 nested executable，并执行 `Wrapped nested bin executable ... with sharun`。Node/Electron 需要通过 `dlopen()` 加载这些原生模块，文件被替换为 sharun executable wrapper 后就会触发该错误。
+- 原验证缺陷：同一个 Run 的 Xvfb 日志其实已经出现完全相同的 `findGitRepos.node` 错误，但旧验证只接受进程存活到 25 秒并允许 `timeout` 返回 `124`，致命错误正则也没有覆盖 Node 原生模块 `dlopen()` 失败，因此产生了错误的绿色 CI。
+- 修复内容：`*.node` 不再作为 quick-sharun executable 输入；仍对其执行 `ldd`，并把解析到的 AppDir 外部动态库依赖交给 quick-sharun；quick-sharun 前后和最终 AppImage 提取后均逐个比对官方 `*.node` 的 SHA-256 与文件模式。
+- GUI 验证增强：新增 `xorg-xwininfo`，Xvfb 测试必须实际检测到 GitKraken X11 顶层窗口；同时显式拦截 `UnhandledPromiseRejectionWarning` 的 `.node` 错误和中英文 `cannot dynamically load position-independent executable` 报错。
+- `libva` / VA-API 初始化警告不是此次无界面的根因，因此没有用 `--no-sandbox`、禁用 VA-API 或其他无关参数去掩盖该问题。
