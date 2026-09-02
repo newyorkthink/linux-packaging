@@ -83,3 +83,11 @@ Mission Center 的部分硬件指标仍取决于宿主内核、驱动、硬件�
 - 修改文件：`mission-center/build_mission-center.sh`、`mission-center/README.md`、`.github/workflows/build.yml`。
 - 处理：基于 Arch Linux Extra 当前 `mission-center` 包和上游 `quick-sharun` AppImage 路线新增构建；保留官方 `zh` / `zh_TW` 翻译，内置 `zh_CN.UTF-8` locale，并固定界面消息使用简体中文。
 - 验证：构建脚本包含 gettext、locale、`.env` 和最终 AppImage 的强制检查；workflow 纳入 push、手动选择、定时全量构建与 latest Release 发布路径。
+
+### 2026-09-02：修复 quick-sharun 缺少 patchelf
+
+- 现象：GitHub Actions 的 `Build Mission Center` 在安装 `mission-center` 1.2.0-1 后，于首次执行 `quick-sharun` 时直接报错 `ERROR: Missing dependency 'patchelf'!` 并退出。
+- 根因：仓库统一 AnyLinux 环境安装了 `base-devel`，但当前 `quick-sharun` 的硬依赖列表明确包含 `patchelf`；Arch Linux 的 `base-devel` 不提供该命令，原 Mission Center 构建脚本也未显式安装。
+- 修改文件：`mission-center/build_mission-center.sh`、`mission-center/README.md`。
+- 处理：在 Mission Center 构建依赖中显式加入 `patchelf`，并将 `patchelf` 纳入构建命令自检，使缺失依赖在调用 `quick-sharun` 前即可被明确检测。
+- 验证：已核对失败 Job `100167329168` 的完整日志以及当前 `quick-sharun` 的硬依赖列表；该 Job 在进入打包前唯一报告的缺失硬依赖为 `patchelf`。修复提交由 Mission Center 独立 Job 再次执行完整构建验证。

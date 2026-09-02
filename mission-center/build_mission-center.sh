@@ -11,13 +11,14 @@ OUTFILE="$DIST_DIR/mission-center.AppImage"
 rm -rf "$APPDIR" "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
-# 使用 Arch Linux Extra 当前正式版 Mission Center，并安装中文环境校验所需 gettext。
+# 使用 Arch Linux Extra 当前正式版 Mission Center，并安装 quick-sharun 所需 patchelf 与中文环境校验所需 gettext。
 pacman -Syu --noconfirm --needed \
   gettext \
   mission-center \
+  patchelf \
   zsync
 
-for required_command in localedef msgunfmt pacman quick-sharun; do
+for required_command in localedef msgunfmt pacman patchelf quick-sharun; do
   command -v "$required_command" >/dev/null 2>&1 || {
     echo "错误：缺少构建命令：$required_command" >&2
     exit 1
