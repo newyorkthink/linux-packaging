@@ -113,7 +113,7 @@ README 必须基于当前目录的真实脚本、workflow、上游来源和已�
 - 建立实际文件对应关系，确认源 workflow / build script 引用的每个仓库内文件在迁移后都有对应目标；如果目录结构或文件名发生变化，必须同步修改全部引用，不能留下失效路径。
 - 不得只迁移 `build.sh` 却漏掉它依赖的 `AppRun`、patch、desktop、icon 或辅助脚本，也不得凭印象重新造一套“差不多”的文件。
 - 源仓库中的 secrets 名称、仓库专用 token、branch/tag 条件、Release 名称、路径、仓库 owner/name 等不应机械复制；只迁移构建本身确实需要的逻辑，并适配本仓库现有约定。
-- 如果源仓库脚本存在应用版本硬编码，迁移时仍必须遵守本文件“应用版本必须动态获取”的规则；“原仓库这样写”不是继续写死版本的理由。除非用户本人在当前任务中明确要求固定版本，否则 AI 不得自行锁定应用版本。
+- 如果源仓库脚本存在应用版本硬编码，迁移时仍必须遵守本文件“应用版本必须动态获取”的规则；“原仓库这样写”不是继续写死版本的理由。除非用户本人在当前任务中明确要求固定版本，否则 AI 不得自行锁版本。
 
 ### 必须核实源仓库 Actions 真实成功过
 
@@ -287,16 +287,27 @@ export ARCH=x86_64; appimagetool -n <AppDir路径> <输出AppImage> --runtime-fi
 - 不得加入“下载 appimagetool 失败就自动回退到 linuxdeploy 输出”“runtime 下载失败就自动换旧 runtime”之类 fallback。构建工具和最终 runtime 必须是明确、可审计、可复现的。
 - 只有确认存在与网络无关的真实兼容性问题，并完成原因核实后，才可以考虑改变既定打包路线；已经验证有效的现有项目仍按稳定基线处理，不得因一次临时下载失败推翻整个方案。
 
-### linuxdeploy 打包 Qt 应用时必须保持 Qt 主版本一致
+### Qt 应用打包必须保持 Qt 主版本一致
 
-凡使用 linuxdeploy 打包 Qt 应用，必须先根据主程序实际 ELF 依赖和随程序提供的 Qt 运行库确认 Qt 主版本，再选择对应的 Qt 部署环境和插件，禁止凭模板、包名或其他项目经验猜测。
+无论使用 linuxdeploy、quick-sharun / sharun 还是其他 Qt 部署路线，都必须先根据主程序实际 ELF 依赖和随程序提供的 Qt 运行库确认 Qt 主版本，再选择对应的 Qt 部署环境、运行库和插件，禁止凭模板、包名或其他项目经验猜测。
 
-- 主程序依赖 `libQt6*.so.6` 或上游运行时明确为 Qt 6 时，linuxdeploy 的 Qt 部署链路、qmake / qtpaths、Qt plugin 和额外补入的 Qt 组件必须全部使用 Qt 6；**不得用 Qt 5 环境、Qt 5 plugin 或 Qt 5 输入法插件给 Qt 6 主程序打包。** Qt 5 主程序同理不得混入 Qt 6 部署链路。
+- 主程序依赖 `libQt6*.so.6` 或上游运行时明确为 Qt 6 时，Qt 部署链路、qmake / qtpaths、Qt plugin 和额外补入的 Qt 组件必须全部使用 Qt 6；**不得用 Qt 5 环境、Qt 5 plugin 或 Qt 5 输入法插件给 Qt 6 主程序打包。** Qt 5 主程序同理不得混入 Qt 6 部署链路。
 - 上游包如果同时残留其他 Qt 主版本的 plugin，必须隔离或移出当前 Qt plugin 搜索路径；最终 smoke test 发现 `Plugin uses incompatible Qt library` 等 Qt 主版本不兼容信息时必须直接失败，不得带病发布。
+- 对需要标准 Linux 输入上下文支持的 Qt GUI 应用，**Qt 5 和 Qt 6 都必须按主程序实际 Qt 主版本检查对应 Qt plugin 根目录中的 `platforminputcontexts/`**，并完整保留 `libcomposeplatforminputcontextplugin.so`、`libfcitx5platforminputcontextplugin.so`、`libibusplatforminputcontextplugin.so` 及其必要运行库。三个 plugin 必须全部与主程序使用相同 Qt 主版本，不得把 Qt 5 输入上下文 plugin 塞给 Qt 6，也不得把 Qt 6 输入上下文 plugin 塞给 Qt 5。
+- `platforminputcontexts/` 的最终路径由当前打包工具和 AppDir 布局决定，例如可能位于 `usr/plugins/platforminputcontexts/`、`lib/qt/plugins/platforminputcontexts/` 或 `lib/qt6/plugins/platforminputcontexts/`；不得把某一个路径写成 Qt5 / Qt6 通用的唯一固定路径。
+- 最终 AppImage 提取验证必须检查上述三个输入上下文 plugin 的实际存在性、Qt 主版本一致性和必要动态依赖；只在构建机上能找到 plugin、最终产物中缺失，不视为构建完成。
+
+linuxdeploy 额外规则：
+
 - 使用 linuxdeploy 前应先把项目需要的自定义 `AppRun` 写入 AppDir。linuxdeploy 在存在非空 `apprun-hooks` 时会把原有 `AppRun` 重命名为 `AppRun.wrapped`，再生成新的顶层 `AppRun` 负责加载 hooks 并执行 `AppRun.wrapped`；**不得手工编写或覆盖 `AppRun.wrapped`，也不得在 linuxdeploy 完成后重新覆盖它生成的顶层 `AppRun`。**
 - linuxdeploy 完成后必须核对最终 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks` 的实际关系及执行链，确认自定义启动逻辑仍位于 `AppRun.wrapped` 并由 linuxdeploy 生成的顶层 `AppRun` 正确调用。
-- 对需要标准 Linux 输入上下文支持的 Qt 6 GUI 应用，最终 `usr/plugins/platforminputcontexts/` 至少必须检查并按项目需要完整保留 `libcomposeplatforminputcontextplugin.so`、`libfcitx5platforminputcontextplugin.so`、`libibusplatforminputcontextplugin.so` 及其必要运行库；不得只因为当前测试使用 Fcitx5 就遗漏 Compose 或 IBus。
-- 最终 AppImage 提取验证必须检查上述输入上下文 plugin 的实际存在性和动态依赖；只在构建机上能找到 plugin、最终产物中缺失，不视为构建完成。
+
+### quick-sharun / sharun 打包阶段必须使用 Arch Linux
+
+- quick-sharun / sharun 的**实际依赖收集、Qt / GTK plugin 部署和 AppDir 构建阶段固定使用 Arch Linux 环境**；不得在 Ubuntu / Debian 中通过 `apt` 安装 Qt、Fcitx5 或其他打包依赖后直接执行 quick-sharun / sharun。
+- GitHub Actions 的外层 runner 可以为了运行 Linux job / Docker 容器而使用 Ubuntu，但如果当前 Job 不是直接运行在 Arch Linux container 中，则必须在执行 quick-sharun / sharun 之前先进入明确的 Arch Linux container / chroot；`pacman` 安装依赖、Qt / Fcitx5 plugin 来源和 quick-sharun / sharun 本体执行都必须发生在 Arch Linux 内。
+- Qt 项目在 Arch Linux 中仍必须遵守上面的 Qt 主版本一致规则：Qt5 主程序使用对应 Qt5 runtime / plugin，Qt6 主程序使用对应 Qt6 runtime / plugin；Fcitx5 输入上下文也必须选择相同 Qt 主版本，禁止跨主版本混装。
+- 最终 AppImage 的跨发行版 smoke test 可以在 Ubuntu、Debian 或其他目标环境执行；这属于**成品兼容性验证**，不得反过来把该发行版当成 quick-sharun / sharun 的实际打包环境。
 
 选择规则：
 
