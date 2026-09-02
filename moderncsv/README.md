@@ -18,7 +18,7 @@ Modern CSV 是 CSV / TSV / DSV 等表格文本文件的编辑器和查看器。�
 
 ## 技术栈
 
-Modern CSV 2.x 为 C++ / Qt 6 桌面应用。官方 Linux 归档自带 Modern CSV 程序本体、Qt 6 运行库、Qt platform plugins、desktop 文件和 hicolor 图标资源。
+Modern CSV 2.x 为 C++ / Qt 6 桌面应用。官方 Linux 归档自带 Modern CSV 程序本体、Qt 6 运行库、Qt platform plugin、desktop 文件和 hicolor 图标资源。
 
 当前 AppImage 目标架构为 `x86_64`。Modern CSV Linux 版按上游现有打包要求使用 Qt XCB backend，因此启动 wrapper 固定：
 
@@ -32,11 +32,12 @@ QT_QPA_PLATFORM=xcb
 
 1. 从 Modern CSV 官方 `release/` 目录动态解析最新稳定版 `ModernCSV-Linux-v<版本>.tar.gz`，不在仓库中锁定应用版本。
 2. 校验下载域名、资产命名和版本格式，并记录实际下载归档的 SHA-256 到 `dist/source.sha256`。
-3. 完整保留官方归档内容到 `AppDir/opt/moderncsv`，不重排或裁剪上游程序本体。
-4. 根据官方归档中的 `libQt6Core.so*` 和 `libqxcb.so` 自动定位 Qt 6 library / plugin 目录。
+3. 保留官方程序本体和资源到 `AppDir/opt/moderncsv`；对官方 `plugins` 中已确认属于 Qt 5.12 的遗留插件不继续暴露给 Qt6，只提取已经实机验证可用的上游 Qt6 `libqxcb.so`。
+4. 建立独立的 `AppDir/usr/plugins` 作为唯一附加 Qt6 plugin 根目录：`platforms` 放 XCB、`platforminputcontexts` 放 Fcitx5 Qt6、`tls` 放 Qt6 OpenSSL TLS backend。
 5. 从 Ubuntu 24.04 补入 Qt XCB plugin 所需的 XCB helper 运行库，包括 `libxcb-xinerama`、`libxcb-icccm`、`libxcb-image`、`libxcb-keysyms`、`libxcb-render-util`、`libxcb-xkb`、`libxkbcommon-x11` 等，避免最终 AppImage 依赖构建机恰好已经安装这些库。
 6. 从 Ubuntu 24.04 的 Fcitx5 Qt6 组件中加入 `libfcitx5platforminputcontextplugin.so`，并补充其必要的 Fcitx5 运行库；不会用系统 Qt 6 覆盖 Modern CSV 自带 Qt 6。
-7. 生成 AppImage wrapper、desktop 和顶层图标；上游 desktop 若把应用版本写入 Desktop Entry 的 `Version` 字段，会规范化为 Desktop Entry 规范版本 `1.0`，再通过官方 `appimagetool` 封装为 `dist/moderncsv.AppImage`。
+7. 从 Ubuntu 24.04 `libqt6network6` 加入 `libqopensslbackend.so`，并把 `libssl.so.3` / `libcrypto.so.3` 一并放入 AppImage，避免 Modern CSV 启动后的 HTTPS/TLS 请求出现 `No functional TLS backend was found`。
+8. 生成 AppImage wrapper、desktop 和顶层图标；上游 desktop 若把应用版本写入 Desktop Entry 的 `Version` 字段，会规范化为 Desktop Entry 规范版本 `1.0`，再通过官方 `appimagetool` 封装为 `dist/moderncsv.AppImage`。
 
 官方 Release 目录当前没有随 Linux tarball 提供可动态获取的官方 SHA-256 清单，因此脚本不会把第三方 AUR checksum 当作官方供应链校验值。构建时仍会记录实际下载文件的 SHA-256，便于后续审计。
 
@@ -61,7 +62,7 @@ LANGUAGE=zh_CN:zh
 ./build_moderncsv.sh
 ```
 
-脚本会自动安装构建封装、Qt XCB helper 和 Fcitx5 Qt6 输入模块所需的软件包，并生成：
+脚本会自动安装构建封装、Qt XCB helper、Qt6 TLS backend 和 Fcitx5 Qt6 输入模块所需的软件包，并生成：
 
 ```text
 dist/moderncsv.AppImage
@@ -86,13 +87,13 @@ dist/source.sha256
 构建脚本会执行以下检查：
 
 - 官方 tarball 能正常解包，且包含 `moderncsv`、`moderncsv.desktop` 和 hicolor 图标。
-- 官方程序仍为 Qt 6，并能找到 XCB platform plugin；如果技术栈发生变化则直接停止，避免错误混用输入法插件。
+- 官方程序仍为 Qt 6，并能找到上游 XCB platform plugin；如果技术栈发生变化则直接停止。
+- AppImage 内不再保留会被 Qt6 扫描的上游 Qt 5.12 `plugins` 目录，只使用 `usr/plugins` 的干净 Qt6 plugin 根目录。
 - 打包后的 desktop 通过 `desktop-file-validate`，并确认 `Version=1.0`。
-- Modern CSV 主程序、Fcitx5 Qt6 plugin 和 Qt XCB platform plugin 的 `ldd` 均不存在 `not found`。
+- Modern CSV 主程序、Fcitx5 Qt6 plugin、Qt XCB platform plugin 和 Qt6 OpenSSL TLS backend 的 `ldd` 均不存在 `not found`。
 - 对 `libqxcb.so` 实际使用的 XCB helper 逐项检查解析路径；相关依赖必须来自当前 AppDir / 最终 AppImage，不能借用构建机 `/usr/lib` 或 `/lib` 让 CI 误通过。
-- 最终 AppImage 能重新提取，程序本体、wrapper、中文 locale 环境变量、desktop 规范版本、Fcitx5 plugin 和关键 XCB helper 均真实存在。
-- 最终封装后的主程序、Fcitx5 plugin 和 `libqxcb.so` 再次执行动态库与依赖来源检查。
-- GitHub Actions 使用 Xvfb 启动最终 AppImage，并显式设置 `QT_IM_MODULE=fcitx` 检查 Fcitx5 Qt6 plugin 能被 Qt 发现，同时拒绝 Qt platform plugin、共享库、崩溃等启动错误。
+- 最终 AppImage 能重新提取，程序本体、wrapper、中文 locale、Fcitx5 plugin、XCB plugin、TLS plugin、OpenSSL 运行库和关键 XCB helper 均真实存在。
+- 构建脚本自身使用 Xvfb + `QT_DEBUG_PLUGINS=1` 真正启动最终 AppImage；日志中只要出现 `Plugin uses incompatible Qt library`、`No functional TLS backend was found`、Qt platform plugin 加载失败、Fcitx plugin 加载失败、动态库错误或崩溃，就直接判定构建失败。
 
 ## 变更记录
 
@@ -108,12 +109,18 @@ dist/source.sha256
 
 - 首次 CI 在 `desktop-file-validate` 处失败，上游 `moderncsv.desktop` 使用 `Version=2.4.3`。
 - 根因是 Desktop Entry 的 `Version` 表示规范版本，不是 Modern CSV 应用版本；`2.4.3` 不是该字段可识别的规范版本。
-- `build_moderncsv.sh` 只对 AppImage 内复制出的 desktop 文件将该字段规范化为 `Version=1.0`，不修改 Modern CSV 程序版本，也不改动保留在 `/opt/moderncsv` 下的上游原始文件。
-- 增加打包前 desktop 校验和最终 AppImage 内 `Version=1.0` 检查，避免同类问题再次进入产物。
+- `build_moderncsv.sh` 只对 AppImage 内复制出的 desktop 文件将该字段规范化为 `Version=1.0`，不修改 Modern CSV 程序版本。
 
 ### 2026-09-02：修复 Linux 实机无法加载 Qt XCB platform plugin
 
 - Linux 实机运行已发布的 `moderncsv.AppImage` 时出现 `Could not load the Qt platform plugin "xcb" ... even though it was found`，应用在 Qt 初始化阶段直接退出。
 - 根因是原构建只检查 Modern CSV 主程序和 Fcitx5 Qt6 plugin，没有检查 `libqxcb.so` 自身依赖；Ubuntu CI runner 已安装 XCB helper，因此旧 smoke test 会借用构建机运行库并误判为可用。
-- `build_moderncsv.sh` 现在将 Qt XCB 常用 helper 运行库一并加入 `AppDir/usr/lib`，覆盖 `libxcb-xinerama`、`libxcb-icccm`、`libxcb-image`、`libxcb-keysyms`、`libxcb-render-util`、`libxcb-xkb`、`libxkbcommon-x11` 等依赖链。
-- 新增 `libqxcb.so` 的构建前和最终 AppImage 双重 `ldd` 检查，并要求其实际使用的 XCB helper 必须解析到 AppImage 内部路径，禁止继续借用 CI 宿主库通过验证。
+- `build_moderncsv.sh` 现在将 Qt XCB 常用 helper 运行库一并加入 `AppDir/usr/lib`，并新增构建前和最终 AppImage 双重 `ldd` / 依赖来源检查。
+
+### 2026-09-02：修复 Qt5 遗留 plugin 污染与 Qt6 TLS backend 缺失
+
+- Linux 实机已能正常打开 Modern CSV，但终端持续出现 `Plugin uses incompatible Qt library (5.12.0)`，说明 Qt6 仍在扫描官方归档中的 Qt 5.12 遗留 plugin。
+- 同时出现 `No functional TLS backend was found`、`No TLS backend is available` 和 `TLS initialization failed`，说明 AppImage 没有提供 Qt6 Network 所需的 OpenSSL TLS backend。
+- 现在只从官方 plugin 目录保留已经验证可用的 Qt6 `libqxcb.so`，并改用独立 `usr/plugins` 作为干净 Qt6 plugin 根目录，Fcitx5、XCB 和 TLS plugin 分目录放置。
+- 加入 `libqopensslbackend.so`、`libssl.so.3` 和 `libcrypto.so.3`，并对 TLS plugin 执行构建前和最终 AppImage 双重 `ldd` 检查。
+- 构建脚本新增 Xvfb 实际启动验证；如果日志再次出现 Qt5/Qt6 plugin 不兼容或 TLS backend 缺失，CI 会直接失败，不再发布该产物。
