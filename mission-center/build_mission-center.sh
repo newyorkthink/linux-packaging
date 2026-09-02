@@ -39,20 +39,10 @@ for required_file in \
   }
 done
 
-# 确认 Arch fcitx5-gtk 已提供 GTK4 Fcitx5 输入模块，并且 pacman 的 GTK4 hook 已生成 GIO 模块缓存。
+# 确认 Arch fcitx5-gtk 已提供 GTK4 Fcitx5 输入模块；系统级 giomodule.cache 不是 AppImage 构建前置条件。
 FCITX_GTK4_MODULE="$(find /usr/lib/gtk-4.0 -type f -path '*/immodules/libim-fcitx5.so' -print -quit)"
 [[ -n "$FCITX_GTK4_MODULE" && -s "$FCITX_GTK4_MODULE" ]] || {
   echo "错误：fcitx5-gtk 未提供 GTK4 输入模块 libim-fcitx5.so。" >&2
-  exit 1
-}
-FCITX_GTK4_MODULE_DIR="${FCITX_GTK4_MODULE%/libim-fcitx5.so}"
-FCITX_GTK4_CACHE="$FCITX_GTK4_MODULE_DIR/giomodule.cache"
-[[ -s "$FCITX_GTK4_CACHE" ]] || {
-  echo "错误：GTK4 Fcitx5 GIO 模块缓存不存在：$FCITX_GTK4_CACHE" >&2
-  exit 1
-}
-grep -Fq 'libim-fcitx5.so: gtk-im-module' "$FCITX_GTK4_CACHE" || {
-  echo "错误：GTK4 giomodule.cache 未登记 Fcitx5 gtk-im-module。" >&2
   exit 1
 }
 

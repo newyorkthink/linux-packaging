@@ -30,9 +30,9 @@ Mission Center 是 Rust 编写的 GTK4 / Libadwaita 原生 Linux 应用。Arch L
 构建脚本执行以下步骤：
 
 1. 使用 `pacman` 安装 Arch Linux Extra 当前正式版 `mission-center`、`fcitx5-gtk` 及构建所需依赖，不锁定具体应用版本。
-2. 核对主程序、`missioncenter-magpie`、desktop、图标、简体/繁体中文 gettext 文件，以及 GTK4 Fcitx5 IM module 与系统生成的 `giomodule.cache`。
+2. 核对主程序、`missioncenter-magpie`、desktop、图标、简体/繁体中文 gettext 文件，以及 GTK4 Fcitx5 IM module 本体。
 3. 按 Mission Center 上游当前 AppImage 方案，同时把 `missioncenter` 与 `missioncenter-magpie` 交给 `quick-sharun` 部署。
-4. 由 `quick-sharun` 收集 GTK4、Libadwaita、Fcitx5 GTK4 IM module 及其 ELF 依赖、应用数据和 gettext 资源；随后在 AppDir 的 GTK4 `immodules` 目录执行 `gio-querymodules`，生成适用于 GTK4 的 `giomodule.cache`。
+4. 由 `quick-sharun` 收集 GTK4、Libadwaita、Fcitx5 GTK4 IM module 及其 ELF 依赖、应用数据和 gettext 资源；随后在 AppDir 的 GTK4 `immodules` 目录执行 `gio-querymodules`，生成适用于最终 AppImage 内容的 `giomodule.cache`。
 5. 生成 AppImage 自带的 `zh_CN.UTF-8` glibc locale 数据，在 `.env` 中设置简体中文消息环境。
 6. 由 `quick-sharun --make-appimage` 生成稳定文件名 `dist/mission-center.AppImage`。
 
@@ -60,7 +60,9 @@ LOCPATH=${SHARUN_DIR}/lib/locale
 
 Mission Center 是 GTK4 应用。构建时额外安装 Arch `fcitx5-gtk`，由 `quick-sharun` 按现有 GTK 部署逻辑自动收集 GTK4 的 `libim-fcitx5.so` 及其动态链接依赖，不手工复制库文件。
 
-GTK4 与 GTK2/GTK3 的输入模块缓存机制不同：GTK4 的 `immodules` 目录属于 GIO 模块机制，缓存文件是同目录下的 `giomodule.cache`，由 `gio-querymodules` 生成，而不是 GTK2/GTK3 使用的 `immodules.cache`。因此构建脚本在 `quick-sharun` 部署完成后，会对 AppDir 自己的 GTK4 `immodules` 目录重新执行 `gio-querymodules`，并强制确认缓存包含 `libim-fcitx5.so: gtk-im-module`。
+GTK4 与 GTK2/GTK3 的输入模块缓存机制不同：GTK4 的 `immodules` 目录属于 GIO 模块机制，缓存文件是同目录下的 `giomodule.cache`，由 `gio-querymodules` 生成，而不是 GTK2/GTK3 使用的 `immodules.cache`。构建脚本在 `quick-sharun` 部署完成后，对 AppDir 自己的 GTK4 `immodules` 目录执行 `gio-querymodules`，并强制确认缓存包含 `libim-fcitx5.so: gtk-im-module`。
+
+系统 `/usr/lib/gtk-4.0/.../immodules/giomodule.cache` 属于系统安装环境针对实际模块目录生成的派生缓存，不是 `fcitx5-gtk` 软件包必须固定提供的文件，也不是 AppImage 构建前置条件。构建前只要求源 GTK4 `libim-fcitx5.so` 存在；最终是否可由 GTK4 发现 Fcitx5，以 AppDir 内重新生成并校验的 `giomodule.cache` 为准。
 
 AppImage 不内置 Fcitx5 输入法守护进程、输入方案或用户配置。运行时仍由宿主会话中已经运行的 Fcitx5 服务提供实际输入；当会话使用 `GTK_IM_MODULE=fcitx` 时，AppImage 内置的 GTK4 Fcitx5 IM module 负责让 Mission Center 的 GTK4 文本框连接宿主 Fcitx5。
 
@@ -76,7 +78,7 @@ AppImage 不内置 Fcitx5 输入法守护进程、输入方案或用户配置。
 
 - Arch Linux 官方包中的主程序与 magpie 后端均存在。
 - 简体中文与繁体中文 `missioncenter.mo` 均存在且可由 `msgunfmt` 正确解析。
-- Arch `fcitx5-gtk` 已提供 GTK4 `libim-fcitx5.so`，且系统 GTK4 `giomodule.cache` 已登记 `libim-fcitx5.so: gtk-im-module`。
+- Arch `fcitx5-gtk` 已提供 GTK4 `libim-fcitx5.so`。
 - `quick-sharun` 打包后 GTK4 Fcitx5 IM module 仍存在，并通过 `ldd` 检查，不允许存在 `not found` 动态链接依赖。
 - AppDir 的 GTK4 `immodules` 目录重新生成 `giomodule.cache` 后，缓存必须登记 `libim-fcitx5.so: gtk-im-module`。
 - `quick-sharun` 打包后两套中文翻译仍存在于 AppDir。
@@ -111,3 +113,11 @@ Mission Center 的部分硬件指标仍取决于宿主内核、驱动、硬件�
 - 修改文件：`mission-center/build_mission-center.sh`、`mission-center/README.md`。
 - 处理：在构建依赖中加入 Arch `fcitx5-gtk`，继续由 `quick-sharun` 部署 GTK4 Fcitx5 IM module 及 ELF 依赖；随后在 AppDir 的 GTK4 `immodules` 目录执行 `gio-querymodules` 重新生成 `giomodule.cache`。不手工复制库，也不修改已经生效的中文 locale、GPU 或 workflow 逻辑。
 - 验证：构建前检查系统 `libim-fcitx5.so` 与 GTK4 `giomodule.cache`；打包后检查 AppDir 内模块、`ldd` 依赖以及重新生成的 `giomodule.cache`，并要求缓存明确包含 `libim-fcitx5.so: gtk-im-module`。实际输入仍由宿主正在运行的 Fcitx5 服务提供。
+
+### 2026-09-02：修正 GTK4 系统缓存前置校验
+
+- 现象：GitHub Actions Job `100180092730` 在 `pacman` 已执行 `Updating GTK4 module cache...` 后，构建脚本仍因 `/usr/lib/gtk-4.0/4.0.0/immodules/giomodule.cache` 不存在而提前退出，尚未进入 `quick-sharun` 部署。
+- 根因：上一版把系统安装环境中的 `giomodule.cache` 错误当成了构建前置条件。`fcitx5-gtk` 软件包实际提供的是 GTK4 `libim-fcitx5.so`；`giomodule.cache` 是由 `gio-querymodules` 针对具体模块目录生成的派生缓存，不是 `fcitx5-gtk` 包内固定文件，也不应作为 AppImage 是否可构建的判断依据。
+- 修改文件：`mission-center/build_mission-center.sh`、`mission-center/README.md`。
+- 处理：删除系统 `/usr/lib/.../giomodule.cache` 的存在性与内容校验，只保留源 GTK4 `libim-fcitx5.so` 本体检查；`quick-sharun` 完成后继续在 AppDir 自己的 GTK4 `immodules` 目录执行 `gio-querymodules`，并对最终缓存和模块依赖做强校验。
+- 验证：已核对 Arch 当前 `fcitx5-gtk` 文件清单、GTK4 的 pacman hook 脚本以及 GIO `gio-querymodules` 行为；静态检查确认构建不再依赖系统缓存，最终 AppDir 缓存校验仍保留。完整构建结果以本次修改触发的 Mission Center Job 为准。
