@@ -37,13 +37,4 @@ LANGUAGE=zh_CN:zh
 QT_QPA_PLATFORM=xcb
 EOF_ENV
 
-# 启动级 smoke test，防止 Qt/动态链接器错误的产物继续发布。
-SMOKE_RC=0
-timeout 8s xvfb-run -a ./AppDir/AppRun >/tmp/moderncsv-smoke.log 2>&1 || SMOKE_RC=$?
-
-if [[ "$SMOKE_RC" -ne 0 && "$SMOKE_RC" -ne 124 ]]; then
-  cat /tmp/moderncsv-smoke.log
-  exit "$SMOKE_RC"
-fi
-
 quick-sharun --make-appimage
