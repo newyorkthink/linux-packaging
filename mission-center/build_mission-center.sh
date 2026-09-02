@@ -19,7 +19,7 @@ pacman -Syu --noconfirm --needed \
   patchelf \
   zsync
 
-for required_command in gio-querymodules localedef msgunfmt pacman patchelf quick-sharun; do
+for required_command in localedef msgunfmt pacman patchelf quick-sharun; do
   command -v "$required_command" >/dev/null 2>&1 || {
     echo "错误：缺少构建命令：$required_command" >&2
     exit 1
@@ -63,7 +63,7 @@ export GTK_DIR=gtk-4.0
 export DEPLOY_LOCALE=1
 
 # 与 Mission Center 上游 AppImage 当前方案一致，同时部署主程序和 magpie 后端。
-# quick-sharun 会从已安装的 fcitx5-gtk 收集 GTK4 IM module 及其 ELF 依赖；GTK4 的 GIO 模块缓存随后单独生成。
+# quick-sharun 会从已安装的 fcitx5-gtk 收集 GTK4 IM module 及其 ELF 依赖；GTK4 的模块缓存随后针对最终 AppDir 内容生成。
 quick-sharun /usr/bin/missioncenter /usr/bin/missioncenter-magpie
 
 # 强校验 AppDir 内确实包含可加载的 GTK4 Fcitx5 输入模块。
@@ -81,13 +81,13 @@ if ldd "$BUNDLED_FCITX_GTK4_MODULE" | grep -q 'not found'; then
   exit 1
 fi
 
-# GTK4 输入模块通过 GIO 扩展机制加载，必须在 AppDir 自己的 immodules 目录生成 giomodule.cache。
-gio-querymodules "$BUNDLED_FCITX_GTK4_MODULE_DIR"
+# GTK4 的 Fcitx5 GIO 模块注册项固定为 gtk-im-module；为 quick-sharun 最终部署目录生成对应缓存，避免再次用宿主 gio-querymodules 加载已重定位模块。
+printf '%s\n' 'libim-fcitx5.so: gtk-im-module' > "$BUNDLED_FCITX_GTK4_CACHE"
 [[ -s "$BUNDLED_FCITX_GTK4_CACHE" ]] || {
   echo "错误：AppDir GTK4 giomodule.cache 生成失败：$BUNDLED_FCITX_GTK4_CACHE" >&2
   exit 1
 }
-grep -Fq 'libim-fcitx5.so: gtk-im-module' "$BUNDLED_FCITX_GTK4_CACHE" || {
+grep -Fxq 'libim-fcitx5.so: gtk-im-module' "$BUNDLED_FCITX_GTK4_CACHE" || {
   echo "错误：AppDir GTK4 giomodule.cache 未登记 Fcitx5 gtk-im-module。" >&2
   exit 1
 }
