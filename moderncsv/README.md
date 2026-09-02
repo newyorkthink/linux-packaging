@@ -81,4 +81,4 @@ CopyQ 中 `lib/copyq/plugins` 的符号链接修复属于 CopyQ 自身插件搜�
 - 根因：官方 tar 包本身已经包含 `moderncsvv2.4.3/` 顶层目录以及完整的 `moderncsv.desktop`、`moderncsv.png`、主程序、`lib/`、`plugins/` 和 `qt.conf`，不应重复创建 desktop / icon，也不应丢失顶层目录层级信息。
 - 修改文件：`moderncsv/build_moderncsv.sh`、`moderncsv/README.md`。
 - 修复内容：下载官方 tar 后使用 `--strip-components=1` 解压到 `AppDir/bin`，直接把官方 `moderncsv.desktop` 和 `moderncsv.png` 交给 quick-sharun，并以官方 `moderncsv` 真实程序作为入口。
-- 验证：提交前 `build_moderncsv.sh` 已通过 `bash -n` 静态语法检查；GitHub Actions 继续执行完整构建验证。
+- 验证：`build_moderncsv.sh` 已通过 `bash -n` 静态语法检查；旧 run `33641969241` 基于已经被替换的旧提交 `06d6b824f7984aee78044b9ae5103afd2ceea413`，不代表当前修正版，当前修正版重新执行完整 GitHub Actions 构建验证。
