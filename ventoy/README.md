@@ -38,9 +38,20 @@ Ventoy Linux 包不是单一 GTK 程序。其 x86_64 图形入口为原生 `Vent
 
 顶层 `AppRun` 本身不执行 `sudo`、`pkexec`、systemd、udev、网络配置或系统文件修改，只负责启动官方 `VentoyGUI.x86_64`。
 
-Ventoy 的核心功能是向用户选择的 USB / 磁盘设备安装或更新 Ventoy，因此官方 GUI 在非 root 环境下会按上游逻辑尝试通过 `pkexec` 取得必要权限。实际安装 / 更新过程中，官方 worker 会进行分区和块设备写入。这属于 Ventoy 的核心功能，不是 AppImage wrapper 额外加入的系统修改。
+当前 AppImage 在 Linux 实机上应直接以 root 权限启动。Ventoy 需要枚举、分区并写入 USB / 磁盘块设备；实际测试中普通用户直接运行还可能在进入 Ventoy GUI 前出现内部 `VentoyGUI.x86_64: Permission denied`，因此不要依赖非 root 启动后再由上游提权。
 
-因此，执行安装、更新等磁盘操作前应确认 GUI 中选中的目标设备；这些操作可能重建分区或写入块设备。CI 只做非破坏性的静态、ELF、封装和提取验证，不执行任何实际磁盘安装 / 更新操作。
+在 `ventoy.AppImage` 所在目录打开 Linux 终端执行：
+
+```bash
+# 以 root 权限启动 Ventoy AppImage
+sudo ./ventoy.AppImage
+```
+
+命令示例统一以“当前目录”为基准，不假设 AppImage 位于 `Downloads` 或其他固定路径。
+
+如果当前 Linux 图形会话本身已经使用中文 locale，则无需额外执行 `export LANG=...`、`export LC_ALL=...` 等环境变量命令，直接执行上面的 `sudo ./ventoy.AppImage` 即可。需要手动切换界面语言时，可在 Ventoy GUI 的 `Language` 菜单中选择 `Chinese Simplified (简体中文)`。
+
+Ventoy 的核心功能是向用户选择的 USB / 磁盘设备安装或更新 Ventoy。实际安装 / 更新过程中，官方 worker 会进行分区和块设备写入。因此，执行安装、更新等磁盘操作前应确认 GUI 中选中的目标设备；这些操作可能重建分区或写入块设备。CI 只做非破坏性的静态、ELF、封装和提取验证，不执行任何实际磁盘安装 / 更新操作。
 
 ## 构建与验证
 
@@ -68,3 +79,11 @@ Ventoy 的核心功能是向用户选择的 USB / 磁盘设备安装或更新 Ve
 - 修改文件：`ventoy/build_ventoy.sh`、`ventoy/README.md`、`.github/workflows/build.yml`。
 - 修复：改为官方 latest Release 动态解析，校验 Release digest 与 `sha256.txt`，完整保留官方 Ventoy Linux 包，并接入统一 `Build AppImages` workflow，发布稳定资产 `ventoy.AppImage`。
 - 验证：构建脚本内加入 checksum、ELF、desktop、动态库、AppImage 提取和关键文件一致性检查；最终 CI 构建结果以对应 GitHub Actions run 为准。
+
+### 2026-09-02：补充实际运行权限与语言说明
+
+- 现象：普通用户直接启动 AppImage 时，可能在进入 GUI 前出现内部 `VentoyGUI.x86_64: Permission denied`；以 root 权限启动后 GUI 可以正常进入。中文图形会话无需额外导出 locale 环境变量。
+- 根因：Ventoy 本身需要直接访问和写入块设备，当前 AppImage 的实际运行方式应以 root 启动为准；原 README 对非 root / `pkexec` 路径的说明与实机行为不一致。
+- 修改文件：`ventoy/README.md`。
+- 修复：明确统一使用当前目录下的 `sudo ./ventoy.AppImage` 启动，不再在示例中写死 `Downloads` 等目录；同时说明中文 locale 环境无需额外执行 `export LANG` / `LC_ALL`。
+- 验证：Linux 实机中 `sudo ./ventoy.AppImage` 可进入 Ventoy GUI，并可在 `Language` 菜单中看到 `Chinese Simplified (简体中文)` 语言选项。
