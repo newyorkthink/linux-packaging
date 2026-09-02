@@ -47,7 +47,7 @@ mkdir -p "$WORK_DIR" "$EXTRACT_DIR" "$APP_ROOT" "$DIST_DIR"
 
 # 安装 Electron/Chromium 运行依赖、GTK 输入法模块以及构建验证工具。
 yay -S --noconfirm --needed \
-  base-devel binutils coreutils curl file findutils gawk grep jq patchelf sed tar \
+  base-devel binutils coreutils curl file findutils gawk grep inetutils jq patchelf sed tar \
   appstream-glib desktop-file-utils util-linux zsync \
   xorg-server xorg-server-common xorg-server-xvfb \
   nss nspr gtk3 libsecret libxkbfile at-spi2-core cups dbus glib2 pango cairo expat \
