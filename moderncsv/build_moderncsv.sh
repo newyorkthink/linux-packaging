@@ -22,10 +22,10 @@ yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-gli
   libxkbcommon libxkbcommon-x11 libxss libxtst libice libsm libinput libxrender libxrandr wayland \
   wayland-protocols xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xdg-utils dbus shared-mime-info \
   fontconfig freetype2 harfbuzz libjpeg-turbo libpng libtiff libwebp gtk3 gtk4 gdk-pixbuf2 \
-  pango cairo librsvg hicolor-icon-theme adwaita-icon-theme glib2 qt6-base qt6-svg qt6ct lxqt-qtplugin kvantum libcups \
-  libpulse alsa-lib fcitx5 fcitx5-qt fcitx5-gtk fcitx5-rime
+  pango cairo librsvg hicolor-icon-theme adwaita-icon-theme glib2 libpulse alsa-lib fcitx5 fcitx5-qt fcitx5-gtk \
+  qt6-base qt6ct lxqt-qtplugin
 
-# Modern CSV 当前没有需要在 Qt6 通用基础环境之外额外安装的软件包；后续如有额外依赖，必须使用独立 yay 命令，不得并入上面的基础命令。
+yay -S --noconfirm moderncsv-bin
 
 mkdir -p ./AppDir/shared/bin ./dist
 
