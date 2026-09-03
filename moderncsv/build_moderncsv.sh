@@ -15,15 +15,7 @@ export DEPLOY_OPENGL=1
 
 ###### 准备构建环境 ######
 
-# 安装 quick-sharun 的 Qt6、GTK、Fcitx5/Rime、TLS、OpenGL、X11/XCB、Wayland、字体、打印及常用图形运行时完整基础依赖。
-yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux glycin \
-  libheif zsync strace xorg-server xorg-server-common xorg-server-xvfb openssl ca-certificates ca-certificates-utils nss \
-  mesa libglvnd egl-wayland libdrm libx11 libxext libxfixes libxi libxinerama libxcb \
-  libxkbcommon libxkbcommon-x11 libxss libxtst libice libsm libinput libxrender libxrandr wayland \
-  wayland-protocols xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xdg-utils dbus shared-mime-info \
-  fontconfig freetype2 harfbuzz libjpeg-turbo libpng libtiff libwebp gtk3 gtk4 gdk-pixbuf2 \
-  pango cairo librsvg hicolor-icon-theme adwaita-icon-theme glib2 libpulse alsa-lib fcitx5 fcitx5-qt fcitx5-gtk \
-  qt6-base qt6ct lxqt-qtplugin
+yay -S --noconfirm openssl mesa libglvnd libxkbcommon-x11 xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xdg-utils
 
 yay -S --noconfirm moderncsv-bin
 
