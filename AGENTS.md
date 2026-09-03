@@ -521,8 +521,8 @@ yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-gli
   libxkbcommon libxkbcommon-x11 libxss libxtst libice libsm libinput libxrender libxrandr wayland \
   wayland-protocols xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xdg-utils dbus shared-mime-info \
   fontconfig freetype2 harfbuzz libjpeg-turbo libpng libtiff libwebp gtk3 gtk4 gdk-pixbuf2 \
-  pango cairo librsvg hicolor-icon-theme adwaita-icon-theme glib2 qt6-base qt6-svg qt6-tools qt6-5compat \
-  qt6-wayland qt6-declarative qt6-imageformats qt6-multimedia qt6-translations qt6ct lxqt-qtplugin kvantum qca-qt6 libcups \
+  pango cairo librsvg hicolor-icon-theme adwaita-icon-theme glib2 qt6-base qt6-svg \
+  qt6-wayland qt6-declarative qt6-imageformats qt6-multimedia qt6-translations qt6ct lxqt-qtplugin kvantum libcups \
   libpulse alsa-lib fcitx5 fcitx5-qt fcitx5-gtk fcitx5-rime
 ```
 
