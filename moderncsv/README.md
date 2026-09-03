@@ -30,12 +30,14 @@ pkgforge-dev/anylinux-setup-action
 
 应用脚本本身不再启动额外 Docker / chroot，也不重复下载 quick-sharun。
 
+当前 `build_moderncsv.sh` 复用仓库 quick-sharun 通用基础环境，一次安装 Qt6、GTK3/GTK4、Fcitx5/IBus/Rime、TLS/OpenSSL、X11/XCB、Wayland、OpenGL、字体、图标、SVG/QML/Multimedia、打印和主题插件等构建期依赖。该依赖集合用于给 quick-sharun 提供完整的可收集运行环境；Modern CSV 官方 tar 自带的 `lib/`、`plugins/` 和 `qt.conf` 仍保持原有目录关系，不直接用系统 Qt 文件覆盖官方目录。
+
 ## 打包流程
 
 `build_moderncsv.sh` 保持普通 quick-sharun 项目的简单结构：
 
 1. 设置 `STARTUPWMCLASS`、`ICON`、`DESKTOP`、`OUTPATH`、`OUTNAME`、`DEPLOY_OPENGL`。
-2. 使用 `yay` 安装 quick-sharun 通用基础依赖，以及 Modern CSV 官方 Qt6 运行时需要的 OpenSSL、OpenGL、XKB / XCB 等非 Qt 系统依赖；不再安装 Arch 当前版本的 `qt6-base`、`qt6-5compat`、`fcitx5-qt`。
+2. 使用一条 `yay -S --noconfirm ...` 安装仓库 quick-sharun 通用基础环境；其中包含 Qt6、GTK3/GTK4、Fcitx5、Fcitx5 Qt、Fcitx5 Rime、IBus、IBus Rime、OpenSSL/NSS、X11/XCB、Wayland、OpenGL、字体、图标、SVG/QML/Multimedia、打印及主题插件。
 3. 下载官方 `ModernCSV-Linux-v2.4.3.tar.gz`，去掉压缩包最外层 `moderncsvv2.4.3/` 目录后，完整解压到 `AppDir/shared/bin/`；保留官方 `moderncsv`、`moderncsv.desktop`、`moderncsv.png`、`lib/`、`plugins/`、`qt.conf` 等全部内容。
 4. `ICON` 和 `DESKTOP` 直接指向 `AppDir/shared/bin/` 中的官方文件，然后执行：
 
@@ -69,9 +71,9 @@ quick-sharun --make-appimage
 
 ## Qt 与中文输入
 
-Modern CSV 官方 Linux tar 包自带 Qt 运行库和 plugin。当前打包优先保持官方运行时，不把 Arch 当前 Qt6 运行库直接混入。
+Modern CSV 官方 Linux tar 包自带 Qt 运行库和 plugin。当前打包继续保持官方 runtime 的目录关系，同时在 Arch Linux 构建环境中准备与 Qt6 主版本一致的 Qt6、Fcitx5 Qt、IBus、Fcitx5 Rime 和 IBus Rime 组件，供 quick-sharun 收集实际需要的运行库与输入环境。
 
-Qt5 与 Qt6 都有各自主版本对应的 Compose、Fcitx5、IBus 输入上下文；除了 Qt 主版本必须一致外，实际 plugin 还必须与最终 Qt runtime ABI 兼容。官方 tar 缺少或包含不兼容的输入上下文 plugin 时，需要单独针对实际 Qt runtime 处理，不能仅为了凑齐文件名直接复制其他 Qt 版本的 plugin。
+Qt5 与 Qt6 都有各自主版本对应的 Compose、Fcitx5、IBus 输入上下文；除了 Qt 主版本必须一致外，实际 plugin 还必须与最终 Qt runtime ABI 兼容。最终 AppImage 中的 `platforminputcontexts/` 必须保持 Qt6 主版本一致，不能把 Qt5 输入上下文 plugin 混入 Qt6 runtime。
 
 本脚本不设置 `LD_LIBRARY_PATH`、`QT_PLUGIN_PATH`、`QT_QPA_PLATFORM_PLUGIN_PATH` 或 `QT_LOCATION`，避免人为覆盖 quick-sharun 和官方 Qt runtime 的正常搜索关系。
 
@@ -112,3 +114,9 @@ CopyQ 中 `lib/copyq/plugins` 的符号链接修复属于 CopyQ 自身插件搜�
 - 根因是完整官方目录被直接放入 `AppDir/bin/`，与 quick-sharun 将 `AppDir/bin/` 用作 sharun 启动入口、将真实程序放入 `AppDir/shared/bin/` 的布局发生冲突。
 - `build_moderncsv.sh` 现将官方 tar 完整解压到 `AppDir/shared/bin/`，并改为执行 `quick-sharun ./AppDir/shared/bin/moderncsv`；官方 `lib/`、`plugins/`、`qt.conf` 与真实程序继续保持同级相对关系。
 - 当前已完成脚本与目录结构修正；新产物的实际运行结果以本次构建完成后的实机反馈为准。
+
+### 2026-09-03：校准 quick-sharun 通用基础环境
+
+- `build_moderncsv.sh` 将原先拆分的最小依赖改为仓库 quick-sharun 通用基础依赖集合，并保持单条 `yay -S --noconfirm ...` 安装命令。
+- 基础环境补齐 Qt6、GTK3/GTK4、Fcitx5/IBus、Fcitx5 Rime、IBus Rime、TLS/OpenSSL、X11/XCB、Wayland、OpenGL、字体、图标、SVG/QML/Multimedia、打印和主题插件相关包。
+- 官方 Modern CSV 的 `lib/`、`plugins/`、`qt.conf` 目录布局不改；本次只校准构建期依赖环境，不新增测试代码。

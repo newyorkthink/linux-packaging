@@ -498,3 +498,38 @@ linuxdeploy 额外规则：
 - 如需要 force-push 或会影响共享历史，必须在执行前说明具体影响；用户已经明确要求“删除/撤销该 commit”时，视为允许为完成该目标进行必要的最小历史重写，但不得扩大范围。
 - 完成后必须重新读取目标分支提交历史，确认原 commit 已不存在，并确认没有新增用于抵消它的 revert commit。
 - 只有用户明确要求“保留历史并 revert”或明确指定 `git revert` 时，才允许新增反向提交。
+
+## 13. AppImage 构建基础环境复用规则
+
+### quick-sharun / sharun：Arch Linux 通用基础环境
+
+quick-sharun / sharun 项目在 Arch Linux 构建阶段应优先复用统一的基础依赖集合，避免每个项目重复维护一套残缺环境。基础环境至少覆盖 Qt6、GTK3/GTK4、Fcitx5/IBus/Rime、TLS/OpenSSL、X11/XCB、Wayland、OpenGL、字体、图标、SVG/QML/Multimedia、打印、主题插件以及常用打包工具。当前 Qt6 通用基线为：
+
+```bash
+yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib xorg-server xorg-server-common xorg-server-xvfb openssl ca-certificates nss qt6-base qt6-5compat qt6-svg qt6-tools qt6-wayland qt6-declarative qt6-imageformats qt6-multimedia qt6ct lxqt-qtplugin kvantum qca-qt6 fcitx5 fcitx5-qt fcitx5-rime ibus ibus-rime gtk3 gtk4 gdk-pixbuf2 pango cairo librsvg hicolor-icon-theme adwaita-icon-theme libx11 libxext libxrender libxrandr libxfixes libxi libxinerama libxcb libxkbcommon libxkbcommon-x11 libxss libxtst xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm wayland wayland-protocols libglvnd mesa libdrm fontconfig freetype2 harfbuzz libpng libjpeg-turbo libtiff libwebp libpulse alsa-lib cups glib2 dbus xdg-utils shared-mime-info zsync strace util-linux
+```
+
+- 这条基础依赖命令是 quick-sharun Qt6 项目的可复用基线；项目确有额外技术栈时可以在此之外增加依赖，但不得无理由删掉 TLS、输入法、图形、字体、图标等通用环境后再依赖 Actions 失败逐项补包。
+- `fcitx5`、`fcitx5-qt`、`fcitx5-rime`、`ibus`、`ibus-rime` 属于基础输入环境，处理桌面 GUI / Qt 项目时不得遗漏。
+- Qt5 项目不得机械复用其中的 Qt6 runtime / plugin；必须按本文件前述 Qt 主版本一致规则替换为实际 Qt5 对应组件。
+- 安装完整构建环境不代表可以覆盖上游自带 runtime。上游已经携带 `lib/`、`plugins/`、`qt.conf` 等运行时目录时，仍必须保持原有布局并按实际 ABI 处理，禁止为了复用基础环境而强行用系统库覆盖官方运行时。
+
+### linuxdeploy / appimagetool：Ubuntu 基础环境
+
+linuxdeploy + appimagetool 路线与 quick-sharun 路线分开处理：**linuxdeploy / appimagetool 项目的实际打包阶段使用 Ubuntu runner / Ubuntu 构建环境，不得把 Arch Linux 的 `yay` / `pacman` 包名原样复制过去。**
+
+Ubuntu 构建环境先使用 `apt-get` 安装 `aptitude`，之后由 `aptitude` 安装项目所需的完整基础依赖：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y aptitude
+sudo aptitude install -y <Ubuntu 对应的构建依赖包>
+```
+
+强制规则：
+
+- `apt-get` 在这里用于准备 `aptitude`；后续那组 Qt、GTK、Fcitx5/IBus/Rime、TLS/OpenSSL、X11/XCB、Wayland、OpenGL、字体、图标、SVG/QML/Multimedia、打印和主题相关基础依赖统一由 `aptitude install` 安装。
+- **Arch 与 Ubuntu 包名不是一一同名。** 从 quick-sharun 基线迁移依赖概念时必须按当前 Ubuntu runner 实际仓库换成 Ubuntu 包名，例如 Arch 的 `fcitx5-qt` 在 Ubuntu 中按对应 Qt 主版本使用 `fcitx5-frontend-qt5` / `fcitx5-frontend-qt6`，Qt、QCA、GTK、XCB、Mesa、CUPS 等也必须使用 Ubuntu 实际包名；不得把 `qt6-base`、`qca-qt6`、`gdk-pixbuf2` 等 Arch 名称直接塞进 `aptitude`。
+- IBus / Rime 不能遗漏。Linux GUI / Qt 项目需要输入环境时，Ubuntu 依赖中必须同时核对 `ibus`、`ibus-rime`，以及实际需要的 Fcitx5 / Rime 与对应 Qt frontend。
+- Ubuntu 的包名会随 runner 发行版发生 `t64` 等迁移；编写或修改 linuxdeploy 项目时必须先按 workflow 当前 `ubuntu-*` 版本核实包名，再写入正式脚本，不能机械复用旧 Ubuntu 版本的包名。
+- linuxdeploy 只负责 AppDir / 依赖部署，最终仍按本文件现有规则单独使用官方 appimagetool 封装；“使用 Ubuntu + aptitude”不得改变 `linuxdeploy -> appimagetool` 的既定链路。
