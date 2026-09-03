@@ -86,10 +86,10 @@ cp -a "$COMPAT_DIR/fcitx5-frontend-qt6/usr/lib/x86_64-linux-gnu/qt6/plugins/plat
 cp -a "$COMPAT_DIR/libqt6network6/usr/lib/x86_64-linux-gnu/qt6/plugins/tls/." \
   "$SOURCE_DIR/plugins/tls/"
 
-# 补入 Fcitx5 Qt6 输入插件所需的同代运行库，避免依赖宿主机 Fcitx5 Qt 库。
-cp -a "$COMPAT_DIR/libfcitx5-qt6-1/usr/lib/x86_64-linux-gnu/"libFcitx5Qt6DBusAddons.so.1* \
+# 补入 Fcitx5 Qt6 输入插件所需运行库的完整 SONAME 链，避免只复制符号链接而丢失真实版本文件。
+cp -a "$COMPAT_DIR/libfcitx5-qt6-1/usr/lib/x86_64-linux-gnu/"libFcitx5Qt6DBusAddons.so.* \
   "$SOURCE_DIR/lib/"
-cp -a "$COMPAT_DIR/libfcitx5utils2/usr/lib/x86_64-linux-gnu/"libFcitx5Utils.so.2* \
+cp -a "$COMPAT_DIR/libfcitx5utils2/usr/lib/x86_64-linux-gnu/"libFcitx5Utils.so.* \
   "$SOURCE_DIR/lib/"
 
 ###### 核心打包 ######
@@ -97,7 +97,7 @@ cp -a "$COMPAT_DIR/libfcitx5utils2/usr/lib/x86_64-linux-gnu/"libFcitx5Utils.so.2
 # 由 quick-sharun 以官方 Qt 6.4.3 runtime 为基线收集依赖，并显式部署 Fcitx5 Qt6 输入插件所需运行库。
 quick-sharun \
   "$SOURCE_DIR/moderncsv" \
-  "$SOURCE_DIR/lib/"libFcitx5Qt6DBusAddons.so.1* \
-  "$SOURCE_DIR/lib/"libFcitx5Utils.so.2*
+  "$SOURCE_DIR/lib/libFcitx5Qt6DBusAddons.so.1" \
+  "$SOURCE_DIR/lib/libFcitx5Utils.so.2"
 
 quick-sharun --make-appimage

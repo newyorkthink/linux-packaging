@@ -49,18 +49,18 @@ plugins/platforminputcontexts/libibus*.so          Debian Qt 6.4.2
 plugins/platforminputcontexts/libfcitx5*.so        Debian Qt 6.4.2 ABI
 plugins/tls/libqcertonlybackend.so                  Debian Qt 6.4.2
 plugins/tls/libqopensslbackend.so                   Debian Qt 6.4.2
-lib/libFcitx5Qt6DBusAddons.so.1*                   Debian Bookworm
-lib/libFcitx5Utils.so.2*                            Debian Bookworm
+lib/libFcitx5Qt6DBusAddons.so.*                    Debian Bookworm
+lib/libFcitx5Utils.so.*                             Debian Bookworm
 ```
 
-6. Debian 兼容包只提供缺失 plugin 和 Fcitx5 运行库，不复制其中的 `libQt6*.so`；最终 Qt Core / Gui / Widgets / Network / PrintSupport 等主运行库仍全部来自 Modern CSV 官方 Qt 6.4.3。
-7. 执行 quick-sharun 时，将主程序以及 Fcitx5 Qt6 输入插件所需的 `libFcitx5Qt6DBusAddons.so.1*`、`libFcitx5Utils.so.2*` 一起作为显式输入，使这些运行库进入标准 AppDir library 目录：
+6. Debian 兼容包只提供缺失 plugin 和 Fcitx5 运行库，不复制其中的 `libQt6*.so`；最终 Qt Core / Gui / Widgets / Network / PrintSupport 等主运行库仍全部来自 Modern CSV 官方 Qt 6.4.3。Fcitx5 运行库复制完整 `.so.*` 链，保留 SONAME symlink 与其真实版本文件。
+7. 执行 quick-sharun 时，将主程序以及 Fcitx5 Qt6 输入插件实际需要的两个 SONAME 路径一起作为显式输入，使这些运行库进入标准 AppDir library 目录：
 
 ```bash
 quick-sharun \
   "$SOURCE_DIR/moderncsv" \
-  "$SOURCE_DIR/lib/"libFcitx5Qt6DBusAddons.so.1* \
-  "$SOURCE_DIR/lib/"libFcitx5Utils.so.2*
+  "$SOURCE_DIR/lib/libFcitx5Qt6DBusAddons.so.1" \
+  "$SOURCE_DIR/lib/libFcitx5Utils.so.2"
 ```
 
 8. 最后直接执行：
@@ -75,7 +75,7 @@ quick-sharun --make-appimage
 
 官方完整程序目录先解压到 AppDir 外部的 `$PWD/moderncsv-source`。该目录作为 `QT_LOCATION`，使 quick-sharun 从官方 Qt 6.4.3 runtime 和清理后的 Qt6 plugin 树收集实际运行内容，而不是从 Arch 当前 Qt6 包收集 Qt runtime。
 
-`quick-sharun` 最终仍按标准结构生成 `AppDir/bin/`、`AppDir/shared/bin/`、`AppDir/lib/` 等运行目录；`moderncsv-source` 只是构建期 staging 目录，不作为最终 AppImage 内的额外安装前缀。Fcitx5 Qt6 输入插件依赖的两个运行库通过 quick-sharun 显式输入部署到最终 AppImage 的标准 library 目录，不再只停留在构建期 `moderncsv-source/lib/`。
+`quick-sharun` 最终仍按标准结构生成 `AppDir/bin/`、`AppDir/shared/bin/`、`AppDir/lib/` 等运行目录；`moderncsv-source` 只是构建期 staging 目录，不作为最终 AppImage 内的额外安装前缀。Fcitx5 Qt6 输入插件依赖的运行库先以完整 SONAME 链复制到 staging，再通过 quick-sharun 的精确 SONAME 输入部署到最终 AppImage 的标准 library 目录。
 
 ## Qt 与中文输入
 
@@ -85,7 +85,7 @@ Modern CSV 2.4.3 主程序使用 Qt6，并且官方运行库为 Qt 6.4.3。当�
 
 TLS 同样只补入 Debian Bookworm `libqt6network6` 提供的 Qt 6.4.2 OpenSSL / certificate-only backend；主程序实际使用的 `libQt6Network.so.6` 继续来自官方 Qt 6.4.3。
 
-Fcitx5 Qt6 input context 本身依赖 `libFcitx5Qt6DBusAddons.so.1`，后者继续依赖 Fcitx5 Utils。仅把这些库复制到构建期 source tree 并不能保证 quick-sharun 将它们部署进最终 AppImage，因此当前脚本把 `libFcitx5Qt6DBusAddons.so.1*` 和 `libFcitx5Utils.so.2*` 明确作为 quick-sharun 输入。
+Fcitx5 Qt6 input context 本身依赖 `libFcitx5Qt6DBusAddons.so.1`，后者继续依赖 Fcitx5 Utils。Debian 运行库使用“真实版本文件 + SONAME symlink”的动态库链，因此构建时复制完整 `libFcitx5Qt6DBusAddons.so.*` 和 `libFcitx5Utils.so.*`，再把精确的 `.so.1` / `.so.2` SONAME 路径交给 quick-sharun；不能只复制 `.so.1*` / `.so.2*`，否则可能只留下指向未复制真实文件的断链。
 
 本脚本不强制设置 `QT_IM_MODULE`，由宿主输入法环境选择 Fcitx5、IBus 或 Compose；这里的中文环境只负责 Linux 输入法兼容，不向 Modern CSV 注入非官方中文界面翻译。
 
@@ -165,3 +165,11 @@ Modern CSV 的特殊点是“官方 Qt6 runtime + 官方混入 Qt5 plugin”。�
 - 修改文件：`moderncsv/build_moderncsv.sh`、`moderncsv/README.md`。
 - 修复内容：保持官方 Qt 6.4.3、Debian Qt 6.4.2 输入插件和现有 TLS 处理不变；调用 quick-sharun 时除主程序外，显式传入 `libFcitx5Qt6DBusAddons.so.1*` 和 `libFcitx5Utils.so.2*`，使其进入标准 AppDir library 目录并由最终 AppImage 提供。
 - 已知结果：已对比新旧真实 AppImage 的 Fcitx5 plugin `NEEDED` 与打包内容，确认缺失的是 Fcitx5 Qt6 运行库；本次仅调整实际打包输入和 README，不新增任何测试代码或 workflow。
+
+### 2026-09-03：补齐 Fcitx5 运行库 SONAME 链，修复构建失败
+
+- 故障现象：Actions Run `33721724921` 在 quick-sharun 开始部署时直接报 `moderncsv-source/lib/libFcitx5Qt6DBusAddons.so.1 is NOT present` 并退出。
+- 根因核实：之前使用 `libFcitx5Qt6DBusAddons.so.1*` / `libFcitx5Utils.so.2*` 复制 Debian 运行库，只覆盖了 SONAME symlink 的命名范围；真实版本文件使用 VERSION 文件名，不一定以 `.so.1` / `.so.2` 开头，导致复制到 `moderncsv-source/lib/` 的 SONAME symlink 变成断链。quick-sharun 对显式输入执行文件存在性检查时因此判断为不存在。
+- 修改文件：`moderncsv/build_moderncsv.sh`、`moderncsv/README.md`。
+- 修复内容：复制模式扩大为 `libFcitx5Qt6DBusAddons.so.*` 和 `libFcitx5Utils.so.*`，完整保留 SONAME symlink 与真实版本文件；quick-sharun 显式输入改为准确的 `libFcitx5Qt6DBusAddons.so.1` 和 `libFcitx5Utils.so.2`。
+- 已知结果：已读取失败 Job `100542108333` 的完整日志，确认失败点发生在 quick-sharun 的输入文件存在性检查；构建脚本已通过 `bash -n` 静态语法检查，本次不新增测试代码或 workflow。
