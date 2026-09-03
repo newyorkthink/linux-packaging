@@ -54,10 +54,13 @@ lib/libFcitx5Utils.so.2*                            Debian Bookworm
 ```
 
 6. Debian 兼容包只提供缺失 plugin 和 Fcitx5 运行库，不复制其中的 `libQt6*.so`；最终 Qt Core / Gui / Widgets / Network / PrintSupport 等主运行库仍全部来自 Modern CSV 官方 Qt 6.4.3。
-7. 执行：
+7. 执行 quick-sharun 时，将主程序以及 Fcitx5 Qt6 输入插件所需的 `libFcitx5Qt6DBusAddons.so.1*`、`libFcitx5Utils.so.2*` 一起作为显式输入，使这些运行库进入标准 AppDir library 目录：
 
 ```bash
-quick-sharun "$SOURCE_DIR/moderncsv"
+quick-sharun \
+  "$SOURCE_DIR/moderncsv" \
+  "$SOURCE_DIR/lib/"libFcitx5Qt6DBusAddons.so.1* \
+  "$SOURCE_DIR/lib/"libFcitx5Utils.so.2*
 ```
 
 8. 最后直接执行：
@@ -72,7 +75,7 @@ quick-sharun --make-appimage
 
 官方完整程序目录先解压到 AppDir 外部的 `$PWD/moderncsv-source`。该目录作为 `QT_LOCATION`，使 quick-sharun 从官方 Qt 6.4.3 runtime 和清理后的 Qt6 plugin 树收集实际运行内容，而不是从 Arch 当前 Qt6 包收集 Qt runtime。
 
-`quick-sharun` 最终仍按标准结构生成 `AppDir/bin/`、`AppDir/shared/bin/`、`AppDir/lib/` 等运行目录；`moderncsv-source` 只是构建期 staging 目录，不作为最终 AppImage 内的额外安装前缀。
+`quick-sharun` 最终仍按标准结构生成 `AppDir/bin/`、`AppDir/shared/bin/`、`AppDir/lib/` 等运行目录；`moderncsv-source` 只是构建期 staging 目录，不作为最终 AppImage 内的额外安装前缀。Fcitx5 Qt6 输入插件依赖的两个运行库通过 quick-sharun 显式输入部署到最终 AppImage 的标准 library 目录，不再只停留在构建期 `moderncsv-source/lib/`。
 
 ## Qt 与中文输入
 
@@ -81,6 +84,8 @@ Modern CSV 2.4.3 主程序使用 Qt6，并且官方运行库为 Qt 6.4.3。当�
 官方 tar 自带的 Compose / IBus input context 实际链接 Qt5，因此不能继续放在 Qt6 plugin 路径中；当前改用 Debian Bookworm Qt 6.4.2 的 Compose / IBus plugin，并补入同样针对 Qt 6.4.2 ABI 构建的 Fcitx5 Qt6 input context。Qt 6.4.2 与官方 Qt 6.4.3 属于同一 Qt 6.4 系列，且补充包不替换任何官方 `libQt6*.so`。
 
 TLS 同样只补入 Debian Bookworm `libqt6network6` 提供的 Qt 6.4.2 OpenSSL / certificate-only backend；主程序实际使用的 `libQt6Network.so.6` 继续来自官方 Qt 6.4.3。
+
+Fcitx5 Qt6 input context 本身依赖 `libFcitx5Qt6DBusAddons.so.1`，后者继续依赖 Fcitx5 Utils。仅把这些库复制到构建期 source tree 并不能保证 quick-sharun 将它们部署进最终 AppImage，因此当前脚本把 `libFcitx5Qt6DBusAddons.so.1*` 和 `libFcitx5Utils.so.2*` 明确作为 quick-sharun 输入。
 
 本脚本不强制设置 `QT_IM_MODULE`，由宿主输入法环境选择 Fcitx5、IBus 或 Compose；这里的中文环境只负责 Linux 输入法兼容，不向 Modern CSV 注入非官方中文界面翻译。
 
@@ -147,8 +152,16 @@ Modern CSV 的特殊点是“官方 Qt6 runtime + 官方混入 Qt5 plugin”。�
 
 ### 2026-09-03：恢复官方 Qt 6.4.3 runtime，修复 GNU_PROPERTY 启动崩溃
 
-- 故障现象：最新 Release AppImage 在 Kali Linux 启动时，`libQt6Widgets.so.6` 报 `direct reference to protected function`，随后因 `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` 直接终止。
+- 故障现象：最新 Release AppImage 在真实 Linux 环境启动时，`libQt6Widgets.so.6` 报 `direct reference to protected function`，随后因 `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` 直接终止。
 - 根因核实：故障 AppImage 内的 `libQt6Widgets.so.6` 已被替换为 Arch Qt 6.11.2，并带有 `1_needed: indirect external access` GNU property；Modern CSV 主程序对 `QStyledItemDelegate::initStyleOption` 存在直接符号引用。官方 tar 自带的 Qt 6.4.3 `libQt6Widgets.so.6` 不带该 property，因此将官方 Qt 6.4.3 runtime 整体替换为 Arch Qt 6.11.2 是本次启动崩溃的直接原因。
 - 修改文件：`moderncsv/build_moderncsv.sh`、`moderncsv/README.md`。
 - 修复内容：删除 Arch Qt6 runtime/plugin 安装命令，恢复完整官方 Qt 6.4.3 runtime，并重新启用 `QT_LOCATION="$SOURCE_DIR"`；官方 plugin 树只保留同包 Qt6 `libqxcb.so`，其余 Qt5 plugin 删除。TLS、Compose / IBus 和 Fcitx5 Qt6 input context 改为只补入 Debian Bookworm Qt 6.4.2 同代 plugin，同时补入对应 Fcitx5 运行库，且不复制 Debian 的任何 `libQt6*.so`。
-- 已知结果：已对用户实际报错 AppImage 与官方 `ModernCSV-Linux-v2.4.3.tar.gz` 的 ELF 属性、QtWidgets 符号和 plugin Qt 主版本完成静态核对；构建脚本已通过 `bash -n` 静态语法检查，未加入 smoke test 或其他测试代码。最终运行结果以本次 GitHub Actions 正常构建后的实机反馈为准。
+- 已知结果：已对故障 AppImage 与官方 `ModernCSV-Linux-v2.4.3.tar.gz` 的 ELF 属性、QtWidgets 符号和 plugin Qt 主版本完成静态核对；构建脚本已通过 `bash -n` 静态语法检查，未加入 smoke test 或其他测试代码。最终运行结果以本次 GitHub Actions 正常构建后的实机反馈为准。
+
+### 2026-09-03：显式部署 Fcitx5 Qt6 运行库，修复中文输入
+
+- 故障现象：恢复官方 Qt 6.4.3 runtime 后，程序可以正常启动，TLS backend 也已恢复，但真实 Linux 环境仍无法通过 Fcitx5 输入中文。
+- 根因核实：新产物已经包含 `libfcitx5platforminputcontextplugin.so`，但最终 AppImage 中缺少其 `NEEDED` 运行库 `libFcitx5Qt6DBusAddons.so.1`；旧的可中文输入产物同时包含 `libFcitx5Qt6DBusAddons.so.1` 和 `libFcitx5Utils.so.2`。构建脚本虽然把这两个库复制到了 `moderncsv-source/lib/`，但之前只把 `moderncsv` 主程序交给 quick-sharun，因此这两个 Fcitx5 运行库没有进入最终 AppImage。
+- 修改文件：`moderncsv/build_moderncsv.sh`、`moderncsv/README.md`。
+- 修复内容：保持官方 Qt 6.4.3、Debian Qt 6.4.2 输入插件和现有 TLS 处理不变；调用 quick-sharun 时除主程序外，显式传入 `libFcitx5Qt6DBusAddons.so.1*` 和 `libFcitx5Utils.so.2*`，使其进入标准 AppDir library 目录并由最终 AppImage 提供。
+- 已知结果：已对比新旧真实 AppImage 的 Fcitx5 plugin `NEEDED` 与打包内容，确认缺失的是 Fcitx5 Qt6 运行库；本次仅调整实际打包输入和 README，不新增任何测试代码或 workflow。
