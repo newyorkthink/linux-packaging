@@ -34,10 +34,4 @@ tar -xzf /tmp/ModernCSV-Linux.tar.gz -C ./AppDir/shared/bin --strip-components=1
 # 直接使用 AppDir/shared/bin 中官方自带的真实主程序、desktop、icon、lib、plugins 和 qt.conf。
 quick-sharun ./AppDir/shared/bin/moderncsv
 
-cat >> AppDir/.env <<'EOF_ENV'
-LANG=zh_CN.UTF-8
-LANGUAGE=zh_CN:zh
-QT_QPA_PLATFORM=xcb
-EOF_ENV
-
 quick-sharun --make-appimage
