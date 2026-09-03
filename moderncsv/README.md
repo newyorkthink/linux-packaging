@@ -37,7 +37,7 @@ pkgforge-dev/anylinux-setup-action
 `build_moderncsv.sh` 保持 quick-sharun 主线，同时对 Modern CSV 的 Qt runtime / plugin 组合做最小兼容处理：
 
 1. 设置 `STARTUPWMCLASS`、`ICON`、`DESKTOP`、`OUTPATH`、`OUTNAME`、`DEPLOY_OPENGL`，并将 `QT_LOCATION` 指向官方完整程序目录 `moderncsv-source`。
-2. 现有非 Qt 系统依赖命令保持不变；不安装 Arch `qt6-base`、`qt6-5compat`、`qt6-svg`、`qt6-imageformats`、`fcitx5-qt`，避免 Arch Qt 6.11.x 覆盖官方 Qt 6.4.3 runtime。
+2. 先安装仓库统一的 23 个 quick-sharun / AppImage 最小基础工具，按 10 + 10 + 3 分行；再使用独立 `yay` 命令安装 Modern CSV 已确认需要的非 Qt 系统依赖。通用基础包不预装 GTK、Qt、Fcitx、Mesa 等应用运行时；Modern CSV 因既有运行依赖仍单独保留 `openssl`、`mesa`、XCB 相关组件、`xdg-utils` 和 `fontconfig`。不安装 Arch `qt6-base`、`qt6-5compat`、`qt6-svg`、`qt6-imageformats`、`fcitx5-qt`，避免 Arch Qt 6.11.x 覆盖官方 Qt 6.4.3 runtime。
 3. 下载官方 `ModernCSV-Linux-v2.4.3.tar.gz`，完整解压到 `moderncsv-source/`，保留官方主程序、`lib/`、desktop、icon、`qt.conf` 和 Qt6 XCB platform plugin。
 4. 先保存官方 `plugins/platforms/libqxcb.so`，删除其余混有 Qt5 的官方 plugin，再重建干净的 Qt6 plugin 目录。
 5. 固定下载 Debian Bookworm Qt 6.4.2 / Fcitx5 兼容包，只提取并补入以下运行组件：
@@ -182,3 +182,9 @@ Modern CSV 的特殊点是“官方 Qt6 runtime + 官方混入 Qt5 plugin”。�
 - 修改文件：`moderncsv/build_moderncsv.sh`、`moderncsv/README.md`。
 - 修复内容：保持官方 Qt 6.4.3、Debian Qt 6.4.2 输入/TLS plugin 和 Fcitx5 SONAME 链不变；仅在 quick-sharun 主部署调用期间设置 `LD_LIBRARY_PATH="$SOURCE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"`，让 `ldd` 和依赖收集从官方 Qt runtime 解析 Qt6 Core / DBus。该变量不写入最终 AppImage 运行环境。
 - 已知结果：已读取失败 Job 的完整日志，并核对 quick-sharun 当前实现确实在部署前直接通过 `ldd "$bin" | grep "not found"` 判断显式输入是否缺库；构建脚本已通过 `bash -n` 静态语法检查，本次不新增测试代码或 workflow。
+
+### 2026-09-03：同步最小通用基础包
+
+- `build_moderncsv.sh` 的通用 quick-sharun 基础包统一为 23 个：`base-devel git wget curl jq binutils patchelf file coreutils findutils grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib desktop-file-utils zsync ca-certificates`，按 10 + 10 + 3 使用 `\` 分行。
+- Modern CSV 已确认需要的 `openssl`、`mesa`、XCB 相关组件、`xdg-utils`、`fontconfig` 继续使用独立应用级 `yay` 命令，不回填到通用基础包；`patchelf` 已由通用基础包提供，因此从应用级依赖中移除重复项。
+- 官方 Qt 6.4.3 runtime、Debian Qt 6.4.2 plugin、Fcitx5 运行库和现有 quick-sharun 打包逻辑均保持不变，本次只同步构建期基础包分层。
