@@ -15,9 +15,8 @@ export DEPLOY_OPENGL=1
 
 ###### 准备构建环境 ######
 
+# 安装官方 Modern CSV Qt6 运行时所需的非 Qt 系统依赖，避免混入 Arch 当前 Qt6 运行库。
 yay -S --noconfirm openssl mesa libglvnd libxkbcommon-x11 xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xdg-utils
-
-yay -S --noconfirm moderncsv-bin
 
 mkdir -p ./AppDir/shared/bin ./dist
 
