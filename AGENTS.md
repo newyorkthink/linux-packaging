@@ -499,96 +499,117 @@ linuxdeploy 额外规则：
 - 完成后必须重新读取目标分支提交历史，确认原 commit 已不存在，并确认没有新增用于抵消它的 revert commit。
 - 只有用户明确要求“保留历史并 revert”或明确指定 `git revert` 时，才允许新增反向提交。
 
-## 13. AppImage 构建基础环境复用规则
+## 13. AppImage 构建最小基础环境与 quick-sharun 默认流程
 
-通用基础环境必须作为稳定基线复用，**不得把当前应用特有的额外依赖直接塞进基础命令**。当前应用如果确实需要基线之外的软件包，必须在基础命令下面另起一条独立的 `yay -S --noconfirm ...` 或 `sudo aptitude install -y ...` 命令；当前应用没有额外依赖时，不得为了形式制造空命令。
+本节是新增、迁移后适配或重做 AppImage 打包方案时的**强制默认基线**：先使用最小依赖和最短打包链路完成正式构建，只有出现明确、可定位的构建或运行时缺失后，才允许增加应用级依赖、复制额外库 / plugin 或加入特殊兼容处理。
 
-依赖列表较长时按约每 10 个包换一行，使用 `\` 续行，禁止把几十个包全部挤在同一行。Qt5 与 Qt6 的基础环境必须严格分开，任何项目只使用与主程序实际 Qt 主版本一致的一套，不得混装另一主版本的 Qt runtime / plugin。
+已经验证稳定的现有项目如果确实包含必要的特殊处理，应继续保留，不得为了套用模板而删除；但不得把某个应用的特殊依赖反向扩充成所有项目的通用基础环境。
 
-本节四套基线均不安装 `ibus` / `ibus-rime`；输入环境统一使用 Fcitx5 / Rime。构建脚本本身仍按本文件规范使用 `#!/usr/bin/env bash`。
+### 通用基础包必须保持最小
 
-### quick-sharun / sharun：Arch Linux 基础环境
+通用基础包只安装构建、下载、ELF 处理、desktop 元数据和 AppImage 打包本身需要的基础工具。**GTK、Qt、Fcitx、Mesa / OpenGL、Wayland、音频、多媒体、打印、主题等桌面或应用运行时组件一律不得预装进通用基础包。**
 
-quick-sharun / sharun 的实际依赖收集和 AppDir 构建仍固定在 Arch Linux 环境中完成。
-
-#### Qt6 基线
+Arch Linux / quick-sharun 默认基础包：
 
 ```bash
-# 安装 quick-sharun 的 Qt6、GTK、Fcitx5/Rime、TLS、OpenGL、X11/XCB、Wayland、字体、打印及常用图形运行时完整基础依赖
-yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux glycin \
-  libheif zsync strace xorg-server xorg-server-common xorg-server-xvfb openssl ca-certificates ca-certificates-utils nss \
-  mesa libglvnd egl-wayland libdrm libx11 libxext libxfixes libxi libxinerama libxcb \
-  libxkbcommon libxkbcommon-x11 libxss libxtst libice libsm libinput libxrender libxrandr wayland \
-  wayland-protocols xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xdg-utils dbus shared-mime-info \
-  fontconfig freetype2 harfbuzz libjpeg-turbo libpng libtiff libwebp gtk3 gtk4 gdk-pixbuf2 \
-  pango cairo librsvg hicolor-icon-theme adwaita-icon-theme glib2 qt6-base qt6-svg \
-  qt6-wayland qt6-declarative qt6-imageformats qt6-multimedia qt6-translations qt6ct lxqt-qtplugin kvantum libcups \
-  libpulse alsa-lib fcitx5 fcitx5-qt fcitx5-gtk fcitx5-rime
+# 安装 quick-sharun / AppImage 打包所需的最小基础工具
+yay -S --noconfirm base-devel git wget binutils patchelf file appstream-glib desktop-file-utils zsync ca-certificates
 ```
 
-#### Qt5 基线
+Ubuntu / linuxdeploy 默认基础包：
 
 ```bash
-# 安装 quick-sharun 的 Qt5、GTK、Fcitx5/Rime、TLS、OpenGL、X11/XCB、Wayland、字体、打印及常用图形运行时完整基础依赖
-yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux glycin \
-  libheif zsync strace xorg-server xorg-server-common xorg-server-xvfb openssl ca-certificates ca-certificates-utils nss \
-  mesa libglvnd egl-wayland libdrm libx11 libxext libxfixes libxi libxinerama libxcb \
-  libxkbcommon libxkbcommon-x11 libxss libxtst libice libsm libinput libxrender libxrandr wayland \
-  wayland-protocols xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xdg-utils dbus shared-mime-info \
-  fontconfig freetype2 harfbuzz libjpeg-turbo libpng libtiff libwebp gtk3 gtk4 gdk-pixbuf2 \
-  pango cairo librsvg hicolor-icon-theme adwaita-icon-theme glib2 qt5-base qt5-svg qt5-tools qt5-wayland \
-  qt5-declarative qt5-imageformats qt5-multimedia qt5-translations qt5-x11extras qt5ct kvantum-qt5 qca-qt5 libcups libpulse \
-  alsa-lib fcitx5 fcitx5-qt fcitx5-gtk fcitx5-rime
-```
-
-Arch 当前 `fcitx5-qt` 同时提供 Qt5 与 Qt6 integration，但项目仍必须按主程序实际 Qt 主版本处理最终 plugin 和 runtime；不能因为包名相同就混入错误 Qt 主版本。上游已经携带 `lib/`、`plugins/`、`qt.conf` 等运行时目录时，也不得因为安装了完整基础环境就覆盖上游官方 runtime。
-
-### linuxdeploy / appimagetool：Ubuntu 基础环境
-
-linuxdeploy + appimagetool 路线与 quick-sharun 路线分开处理。实际打包使用 Ubuntu runner / Ubuntu 构建环境，禁止把 Arch Linux 的 `yay` / `pacman` 包名原样复制到 Ubuntu。
-
-Ubuntu 构建环境先使用 `apt-get` 准备 `aptitude`：
-
-```bash
-# 更新 Ubuntu 软件包索引
+# 更新软件包索引并准备 aptitude
 sudo apt-get update
-
-# 安装 aptitude
 sudo apt-get install -y aptitude
+
+# 安装 linuxdeploy / appimagetool 打包所需的最小基础工具
+sudo aptitude install -y build-essential git wget binutils patchelf file appstream-util desktop-file-utils zsync ca-certificates
 ```
 
-后续完整基础依赖统一由 `aptitude` 安装；项目额外依赖也必须另起独立 `sudo aptitude install -y ...` 命令，不得混入下面的通用基线。
+要求：
 
-#### Qt6 基线
+- 不得在上述基础命令中加入 `gtk3` / `gtk4`、`qt5-*` / `qt6-*`、`fcitx5-*`、Mesa、Wayland、PulseAudio、ALSA、GStreamer 等应用或桌面运行时包。
+- 应用包本身通过包管理器依赖链自动拉入 GTK、Qt、Fcitx、Mesa 等真实依赖是正常行为；禁止的是 AI 为了“保险”把这些组件预先塞进所有项目的基础包。
+- 当前应用确实还需要额外软件包时，必须在基础命令下面使用**独立的一条应用级安装命令**，不得回填到通用基础包。
+- 不得把其他项目的依赖列表整段复制过来，也不得因为某个项目曾缺过一个库，就把该库永久加入所有应用的基础环境。
+
+### quick-sharun 默认必须走最短链路
+
+对于能够通过 Arch 官方仓库 / AUR 正常安装，并且存在可用 `/usr/bin/<主程序>` 的应用，默认结构固定为：
 
 ```bash
-# 安装 linuxdeploy Qt6、GTK、Fcitx5/Rime、TLS、OpenGL、X11/XCB、Wayland、字体、打印及常用图形运行时完整基础依赖
-sudo aptitude install -y gcc g++ build-essential wget binutils patchelf coreutils appstream-util desktop-file-utils util-linux \
-  libheif1 zsync strace xserver-xorg-core xserver-common xvfb openssl ca-certificates libnss3 libgl1 \
-  libglx0 libegl1 libopengl0 libglvnd0 libgl1-mesa-dri libegl-mesa0 libglx-mesa0 libdrm2 libx11-6 libxext6 \
-  libxfixes3 libxi6 libxinerama1 libxcb1 libxkbcommon0 libxkbcommon-x11-0 libxss1 libxtst6 libice6 libsm6 \
-  libinput10 libxrender1 libxrandr2 libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 wayland-protocols libxcb-util1 libxcb-cursor0 \
-  libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-icccm4 libxcb-ewmh2 xdg-utils dbus shared-mime-info fontconfig libfreetype6 \
-  libharfbuzz0b libjpeg-turbo8 libpng16-16t64 libtiff6 libwebp7 libgtk-3-0t64 libgtk-4-1 libgdk-pixbuf-2.0-0 libpango-1.0-0 libpangocairo-1.0-0 \
-  libcairo2 librsvg2-2 hicolor-icon-theme adwaita-icon-theme libglib2.0-0t64 qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-tools-dev-tools qt6-svg-dev \
-  qt6-5compat-dev qt6-wayland qt6-wayland-dev qt6-declarative-dev qt6-image-formats-plugins qt6-multimedia-dev qt6-translations-l10n qt6ct libqca-qt6-dev libqca-qt6-plugins \
-  libcups2t64 libpulse0 libasound2t64 fcitx5 fcitx5-frontend-qt6 fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-rime
+# 设置当前应用实际需要的 quick-sharun / AppImage 元数据
+export ARCH="$(uname -m)"
+export STARTUPWMCLASS="<StartupWMClass>"
+export ICON="<desktop/icon 实际路径>"
+export DESKTOP="<desktop 文件实际路径>"
+export OUTPATH="./dist"
+export OUTNAME="<应用名>.AppImage"
+
+# 安装通用最小基础包
+yay -S --noconfirm base-devel git wget binutils patchelf file appstream-glib desktop-file-utils zsync ca-certificates
+
+# 单独安装当前应用；让包管理器按该应用真实依赖关系拉入运行时
+ yay -S --noconfirm <应用包>
+
+# 直接从标准 /usr/bin 入口交给 quick-sharun 收集依赖
+quick-sharun /usr/bin/<主程序>
+
+# 生成最终 AppImage
+quick-sharun --make-appimage
 ```
 
-#### Qt5 基线
+实际脚本中不得保留示例占位符，变量只设置当前项目真实需要的值；不需要的 export 不得为了模板完整而硬加。应用存在标准 `/usr/bin` 入口时，**不得先手工复制整个程序、依赖库或 plugin 到 AppDir，再调用 quick-sharun**。
+
+### 只有非标准 `/opt` / tar 布局才先放入 `AppDir/shared/bin`
+
+如果 AUR / 上游包没有可直接使用的 `/usr/bin/<主程序>`，而是把完整应用放在 `/opt/<应用>/`，或者上游只提供 tar / tar.gz / tar.xz 等非标准目录包，才先把**应用自身目录**复制或解压到 `AppDir/shared/bin/`，保持应用内部相对布局，然后对其中真实主程序调用 quick-sharun。
+
+典型结构：
 
 ```bash
-# 安装 linuxdeploy 的 Qt5、GTK、Fcitx5/Rime、TLS、OpenGL、X11/XCB、Wayland、字体、打印及常用图形运行时完整基础依赖
-sudo aptitude install -y gcc g++ build-essential wget binutils patchelf coreutils appstream-util desktop-file-utils util-linux \
-  libheif1 zsync strace xserver-xorg-core xserver-common xvfb openssl ca-certificates libnss3 libgl1 \
-  libglx0 libegl1 libopengl0 libglvnd0 libgl1-mesa-dri libegl-mesa0 libglx-mesa0 libdrm2 libx11-6 libxext6 \
-  libxfixes3 libxi6 libxinerama1 libxcb1 libxkbcommon0 libxkbcommon-x11-0 libxss1 libxtst6 libice6 libsm6 \
-  libinput10 libxrender1 libxrandr2 libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 wayland-protocols libxcb-util1 libxcb-cursor0 \
-  libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-icccm4 libxcb-ewmh2 xdg-utils dbus shared-mime-info fontconfig libfreetype6 \
-  libharfbuzz0b libjpeg-turbo8 libpng16-16t64 libtiff6 libwebp7 libgtk-3-0t64 libgtk-4-1 libgdk-pixbuf-2.0-0 libpango-1.0-0 libpangocairo-1.0-0 \
-  libcairo2 librsvg2-2 hicolor-icon-theme adwaita-icon-theme libglib2.0-0t64 qtbase5-dev qtbase5-dev-tools qttools5-dev qttools5-dev-tools libqt5svg5-dev \
-  qtwayland5 qtdeclarative5-dev qtdeclarative5-dev-tools qt5-image-formats-plugins qtmultimedia5-dev qttranslations5-l10n libqt5x11extras5-dev qt5ct qt5-style-kvantum libqca-qt5-2-dev \
-  libcups2t64 libpulse0 libasound2t64 fcitx5 fcitx5-frontend-qt5 fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-rime
+# 仅非标准 /opt 或 tar 应用需要预先准备真实程序目录
+mkdir -p ./AppDir/shared/bin
+
+# /opt 应用：复制应用自身文件并保持内部布局
+cp -a /opt/<应用目录>/. ./AppDir/shared/bin/
+
+# 或 tar 应用：按上游真实目录结构解压到 shared/bin
+tar -xf <上游归档> -C ./AppDir/shared/bin
+
+# 对 shared/bin 中的真实主程序执行 quick-sharun
+quick-sharun ./AppDir/shared/bin/<主程序>
+
+# 最后统一生成 AppImage
+quick-sharun --make-appimage
 ```
 
-Ubuntu 包名必须按 workflow 当前使用的 Ubuntu 版本核实；不得把 Arch 包名直接塞入 `aptitude`，也不得把其他 Ubuntu 版本的旧包名机械复制过来。linuxdeploy 只负责 AppDir / 依赖部署，最终仍按本文件既有规则单独使用官方 appimagetool 封装，保持 `linuxdeploy -> appimagetool` 链路不变。
+要求：
+
+- `AppDir/shared/bin/` 用于放真实应用文件；不得把真实主程序误塞进 quick-sharun 用于 launcher / wrapper 的 `AppDir/bin/`。
+- 复制 `/opt` 或解压 tar 时只处理当前应用自身目录，不得顺带复制整个 `/opt`、整个 `/usr/lib` 或宿主文件系统。
+- 上游应用依赖固定相对目录时必须保持其内部布局，不得为了“目录看起来整齐”擅自扁平化。
+- 如果 AUR 包虽然主要内容位于 `/opt`，但已经提供正常且经过验证的 `/usr/bin` launcher，应优先按实际 launcher 结构判断，不得机械重复复制。
+
+### 只有最小打包明确失败后才允许额外补包或复制
+
+**不得在第一次正式打包之前预防性地加入大批兼容包、Qt / GTK / Fcitx plugin、OpenGL / Mesa 组件、额外 runtime、整套 `/usr/lib` 或其他项目的 workaround。** 默认先执行上面的最小流程。
+
+只有出现下列有证据的问题时，才允许偏离最小流程：
+
+- Actions / quick-sharun 明确报告某个 `lib*.so` 缺失；
+- 主程序、plugin 或 `dlopen` 组件的 ELF 依赖明确显示缺失库；
+- 真实运行反馈明确显示 TLS、输入法、Qt / GTK plugin、图形后端或其他运行时组件缺失；
+- 上游 `/opt` / tar 包自带 runtime、plugin 或特殊相对目录，最小流程无法保持其正常加载关系；
+- 已确认存在版本 / ABI 一致性问题，必须保留或补入特定版本的 runtime / plugin。
+
+发生上述情况后：
+
+- 先根据日志、ELF 依赖、上游包元数据和已有真实运行结果定位根因，再一次性补当前根因所需的**最小集合**。
+- 缺软件包时，优先新增独立的应用级 `yay -S --noconfirm <缺失包>` / `sudo aptitude install -y <缺失包>`，不得修改通用基础包。
+- 只有包管理器安装仍不能正确进入产物，或上游特殊布局确实要求时，才手工复制明确需要的 library、plugin、runtime 或目录。
+- 手工复制必须精确到当前应用需要的内容；禁止复制整个 `/usr/lib`、整个 Qt / GTK plugin 树或大批“可能有用”的库。
+- 上游已经自带 Qt、GTK、Electron / Chromium 或其他 runtime 时，默认优先保持上游 runtime；不得因为构建环境安装了更新版本，就无证据覆盖上游整套 runtime。
+- Qt runtime / plugin 的额外处理继续严格遵守本文件的 Qt 主版本与 ABI 一致性规则。
+- 所有偏离最小流程的特殊处理都必须能说明“原始最小流程报什么错、根因是什么、为什么只补这些内容”，并同步记录到对应应用 README；不得把临时试错残留变成永久模板。
