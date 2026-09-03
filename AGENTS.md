@@ -551,7 +551,7 @@ export OUTNAME="<应用名>.AppImage"
 yay -S --noconfirm base-devel git wget binutils patchelf file appstream-glib desktop-file-utils zsync ca-certificates
 
 # 单独安装当前应用；让包管理器按该应用真实依赖关系拉入运行时
- yay -S --noconfirm <应用包>
+yay -S --noconfirm <应用包>
 
 # 直接从标准 /usr/bin 入口交给 quick-sharun 收集依赖
 quick-sharun /usr/bin/<主程序>
