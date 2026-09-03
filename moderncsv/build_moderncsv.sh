@@ -19,8 +19,13 @@ export QT_LOCATION="$SOURCE_DIR"
 
 ###### 准备构建环境 ######
 
-# 安装官方 Modern CSV Qt6 运行时所需的非 Qt 系统依赖，保留现有已成功构建的依赖基线。
-yay -S --noconfirm openssl mesa libglvnd libxkbcommon-x11 xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xdg-utils patchelf fontconfig
+# 安装 quick-sharun / AppImage 打包所需的通用最小基础工具。
+yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
+  grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
+  desktop-file-utils zsync ca-certificates
+
+# 安装 Modern CSV 官方 Qt6 运行时实际需要的非 Qt 系统依赖，不混入通用基础包。
+yay -S --noconfirm openssl mesa libglvnd libxkbcommon-x11 xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xdg-utils fontconfig
 
 mkdir -p "$SOURCE_DIR" "$COMPAT_DIR" ./dist
 
