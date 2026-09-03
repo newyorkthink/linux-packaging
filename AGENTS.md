@@ -513,7 +513,9 @@ Arch Linux / quick-sharun 默认基础包：
 
 ```bash
 # 安装 quick-sharun / AppImage 打包所需的最小基础工具
-yay -S --noconfirm base-devel git wget binutils patchelf file appstream-glib desktop-file-utils zsync ca-certificates
+yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
+  grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
+  desktop-file-utils zsync ca-certificates
 ```
 
 Ubuntu / linuxdeploy 默认基础包：
@@ -548,7 +550,9 @@ export OUTPATH="./dist"
 export OUTNAME="<应用名>.AppImage"
 
 # 安装通用最小基础包
-yay -S --noconfirm base-devel git wget binutils patchelf file appstream-glib desktop-file-utils zsync ca-certificates
+yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
+  grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
+  desktop-file-utils zsync ca-certificates
 
 # 单独安装当前应用；让包管理器按该应用真实依赖关系拉入运行时
 yay -S --noconfirm <应用包>
