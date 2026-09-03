@@ -15,8 +15,18 @@ export DEPLOY_OPENGL=1
 
 ###### 准备构建环境 ######
 
-# quick-sharun 通用基础环境：Qt6、GTK3/GTK4、Fcitx5/IBus/Rime、TLS/OpenSSL、X11/XCB、Wayland、OpenGL、字体、图标、SVG/QML/Multimedia、打印和主题插件。
-yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils xorg-server xorg-server-common xorg-server-xvfb openssl ca-certificates nss qt6-base qt6-5compat qt6-svg qt6-tools qt6-wayland qt6-declarative qt6-imageformats qt6-multimedia qt6ct lxqt-qtplugin kvantum qca-qt6 fcitx5 fcitx5-qt fcitx5-rime ibus ibus-rime gtk3 gtk4 gdk-pixbuf2 pango cairo librsvg hicolor-icon-theme adwaita-icon-theme libx11 libxext libxrender libxrandr libxfixes libxi libxinerama libxcb libxkbcommon libxkbcommon-x11 libxss libxtst xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm wayland wayland-protocols libglvnd mesa fontconfig freetype2 harfbuzz libpng libjpeg-turbo libtiff libwebp libpulse alsa-lib cups glib2 dbus xdg-utils shared-mime-info zsync strace util-linux
+# 安装 quick-sharun 的 Qt6、GTK、Fcitx5/Rime、TLS、OpenGL、X11/XCB、Wayland、字体、打印及常用图形运行时完整基础依赖。
+yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux glycin \
+  libheif zsync strace xorg-server xorg-server-common xorg-server-xvfb openssl ca-certificates ca-certificates-utils nss \
+  mesa libglvnd egl-wayland libdrm libx11 libxext libxfixes libxi libxinerama libxcb \
+  libxkbcommon libxkbcommon-x11 libxss libxtst libice libsm libinput libxrender libxrandr wayland \
+  wayland-protocols xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xdg-utils dbus shared-mime-info \
+  fontconfig freetype2 harfbuzz libjpeg-turbo libpng libtiff libwebp gtk3 gtk4 gdk-pixbuf2 \
+  pango cairo librsvg hicolor-icon-theme adwaita-icon-theme glib2 qt6-base qt6-svg qt6-tools qt6-5compat \
+  qt6-wayland qt6-declarative qt6-imageformats qt6-multimedia qt6-translations qt6ct lxqt-qtplugin kvantum qca-qt6 libcups \
+  libpulse alsa-lib fcitx5 fcitx5-qt fcitx5-gtk fcitx5-rime
+
+# Modern CSV 当前没有需要在 Qt6 通用基础环境之外额外安装的软件包；后续如有额外依赖，必须使用独立 yay 命令，不得并入上面的基础命令。
 
 mkdir -p ./AppDir/shared/bin ./dist
 
