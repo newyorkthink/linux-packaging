@@ -54,9 +54,10 @@ lib/libFcitx5Utils.so.*                             Debian Bookworm
 ```
 
 6. Debian 兼容包只提供缺失 plugin 和 Fcitx5 运行库，不复制其中的 `libQt6*.so`；最终 Qt Core / Gui / Widgets / Network / PrintSupport 等主运行库仍全部来自 Modern CSV 官方 Qt 6.4.3。Fcitx5 运行库复制完整 `.so.*` 链，保留 SONAME symlink 与其真实版本文件。
-7. 执行 quick-sharun 时，将主程序以及 Fcitx5 Qt6 输入插件实际需要的两个 SONAME 路径一起作为显式输入，使这些运行库进入标准 AppDir library 目录：
+7. 执行 quick-sharun 时，将主程序以及 Fcitx5 Qt6 输入插件实际需要的两个 SONAME 路径一起作为显式输入；仅在这次构建调用期间把 `LD_LIBRARY_PATH` 指向官方 Qt 6.4.3 的 `lib/`，让 quick-sharun 的 `ldd` 前置检查能够解析 `libQt6DBus.so.6`、`libQt6Core.so.6` 等官方运行库。该变量不写入最终 AppImage 运行环境：
 
 ```bash
+LD_LIBRARY_PATH="$SOURCE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
 quick-sharun \
   "$SOURCE_DIR/moderncsv" \
   "$SOURCE_DIR/lib/libFcitx5Qt6DBusAddons.so.1" \
@@ -85,7 +86,7 @@ Modern CSV 2.4.3 主程序使用 Qt6，并且官方运行库为 Qt 6.4.3。当�
 
 TLS 同样只补入 Debian Bookworm `libqt6network6` 提供的 Qt 6.4.2 OpenSSL / certificate-only backend；主程序实际使用的 `libQt6Network.so.6` 继续来自官方 Qt 6.4.3。
 
-Fcitx5 Qt6 input context 本身依赖 `libFcitx5Qt6DBusAddons.so.1`，后者继续依赖 Fcitx5 Utils。Debian 运行库使用“真实版本文件 + SONAME symlink”的动态库链，因此构建时复制完整 `libFcitx5Qt6DBusAddons.so.*` 和 `libFcitx5Utils.so.*`，再把精确的 `.so.1` / `.so.2` SONAME 路径交给 quick-sharun；不能只复制 `.so.1*` / `.so.2*`，否则可能只留下指向未复制真实文件的断链。
+Fcitx5 Qt6 input context 本身依赖 `libFcitx5Qt6DBusAddons.so.1`，后者继续依赖 Fcitx5 Utils。Debian 运行库使用“真实版本文件 + SONAME symlink”的动态库链，因此构建时复制完整 `libFcitx5Qt6DBusAddons.so.*` 和 `libFcitx5Utils.so.*`，再把精确的 `.so.1` / `.so.2` SONAME 路径交给 quick-sharun；不能只复制 `.so.1*` / `.so.2*`，否则可能只留下指向未复制真实文件的断链。由于 quick-sharun 会先直接对每个显式输入执行 `ldd` 并在出现 `not found` 时中止，构建调用额外临时设置 `LD_LIBRARY_PATH="$SOURCE_DIR/lib..."`，只用于让这一步从官方 Qt 6.4.3 目录解析 Qt6 Core / DBus；最终 AppImage 不依赖该构建期变量。
 
 本脚本不强制设置 `QT_IM_MODULE`，由宿主输入法环境选择 Fcitx5、IBus 或 Compose；这里的中文环境只负责 Linux 输入法兼容，不向 Modern CSV 注入非官方中文界面翻译。
 
@@ -173,3 +174,11 @@ Modern CSV 的特殊点是“官方 Qt6 runtime + 官方混入 Qt5 plugin”。�
 - 修改文件：`moderncsv/build_moderncsv.sh`、`moderncsv/README.md`。
 - 修复内容：复制模式扩大为 `libFcitx5Qt6DBusAddons.so.*` 和 `libFcitx5Utils.so.*`，完整保留 SONAME symlink 与真实版本文件；quick-sharun 显式输入改为准确的 `libFcitx5Qt6DBusAddons.so.1` 和 `libFcitx5Utils.so.2`。
 - 已知结果：已读取失败 Job `100542108333` 的完整日志，确认失败点发生在 quick-sharun 的输入文件存在性检查；构建脚本已通过 `bash -n` 静态语法检查，本次不新增测试代码或 workflow。
+
+### 2026-09-03：为 Fcitx5 显式输入补充官方 Qt 依赖解析路径
+
+- 故障现象：Actions Run `33722567482` 的 Job `100544635972` 已能找到 `libFcitx5Qt6DBusAddons.so.1`，但 quick-sharun 在前置依赖检查阶段报 `libQt6DBus.so.6 => not found`、`libQt6Core.so.6 => not found`，随后以 `is missing libraries! Aborting` 退出。
+- 根因核实：`libQt6DBus.so.6` 和 `libQt6Core.so.6` 实际位于官方 `moderncsv-source/lib/`；quick-sharun 对显式输入直接执行 `ldd` 检查，而构建机动态链接器默认搜索路径不包含该 staging 目录，因此误判 Fcitx5 Qt6 运行库缺失 Qt 依赖。
+- 修改文件：`moderncsv/build_moderncsv.sh`、`moderncsv/README.md`。
+- 修复内容：保持官方 Qt 6.4.3、Debian Qt 6.4.2 输入/TLS plugin 和 Fcitx5 SONAME 链不变；仅在 quick-sharun 主部署调用期间设置 `LD_LIBRARY_PATH="$SOURCE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"`，让 `ldd` 和依赖收集从官方 Qt runtime 解析 Qt6 Core / DBus。该变量不写入最终 AppImage 运行环境。
+- 已知结果：已读取失败 Job 的完整日志，并核对 quick-sharun 当前实现确实在部署前直接通过 `ldd "$bin" | grep "not found"` 判断显式输入是否缺库；构建脚本已通过 `bash -n` 静态语法检查，本次不新增测试代码或 workflow。
