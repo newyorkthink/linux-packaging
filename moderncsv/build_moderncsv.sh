@@ -1,44 +1,100 @@
 #!/usr/bin/env bash
 set -e
 
-rm -rf AppDir dist || true
+SOURCE_DIR="$PWD/moderncsv-source"
+COMPAT_DIR="/tmp/moderncsv-qt6-compat"
+
+rm -rf AppDir dist "$SOURCE_DIR" "$COMPAT_DIR" || true
 
 ARCH="$(uname -m)"
 export ARCH
 
 export STARTUPWMCLASS=moderncsv
-export ICON=./AppDir/shared/bin/moderncsv.png
-export DESKTOP=./AppDir/shared/bin/moderncsv.desktop
+export ICON="$SOURCE_DIR/moderncsv.png"
+export DESKTOP="$SOURCE_DIR/moderncsv.desktop"
 export OUTPATH=./dist
 export OUTNAME="moderncsv.AppImage"
 export DEPLOY_OPENGL=1
+export QT_LOCATION="$SOURCE_DIR"
 
 ###### 准备构建环境 ######
 
 # 安装官方 Modern CSV Qt6 运行时所需的非 Qt 系统依赖，保留现有已成功构建的依赖基线。
 yay -S --noconfirm openssl mesa libglvnd libxkbcommon-x11 xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xdg-utils patchelf fontconfig
 
-# 单独安装同一套 Arch Qt6 runtime / plugins，避免与官方 tar 中的 Qt5 plugin 混装。
-yay -S --noconfirm qt6-base qt6-5compat qt6-svg qt6-imageformats fcitx5-qt
-
-mkdir -p ./AppDir/shared/bin ./dist
+mkdir -p "$SOURCE_DIR" "$COMPAT_DIR" ./dist
 
 ###### 下载上游文件 ######
 
-# 下载官方 Linux tar 包。
+# 下载并完整提取官方 Linux tar 包，保留官方 Qt 6.4.3 runtime。
 wget --retry-connrefused --tries=30 \
   https://www.moderncsv.com/release/ModernCSV-Linux-v2.4.3.tar.gz \
   -O /tmp/ModernCSV-Linux.tar.gz
 
-# 只提取应用本体、desktop 和 icon；不带入官方混有 Qt5 plugin 的 lib、plugins 和 qt.conf。
-tar -xzf /tmp/ModernCSV-Linux.tar.gz -C ./AppDir/shared/bin --strip-components=1 \
-  moderncsv2.4.3/moderncsv \
-  moderncsv2.4.3/moderncsv.desktop \
-  moderncsv2.4.3/moderncsv.png
+tar -xzf /tmp/ModernCSV-Linux.tar.gz -C "$SOURCE_DIR" --strip-components=1
+
+###### 准备兼容的 Qt6 插件 ######
+
+# 保存官方 Qt6 XCB platform plugin，删除官方 tar 中其余仍链接 Qt5 的 plugin。
+cp -a "$SOURCE_DIR/plugins/platforms/libqxcb.so" /tmp/moderncsv-libqxcb.so
+rm -rf "$SOURCE_DIR/plugins"
+mkdir -p "$SOURCE_DIR/plugins/platforms" "$SOURCE_DIR/plugins/platforminputcontexts" "$SOURCE_DIR/plugins/tls"
+cp -a /tmp/moderncsv-libqxcb.so "$SOURCE_DIR/plugins/platforms/libqxcb.so"
+
+# 下载与官方 Qt 6.4.3 runtime 同一 Qt 6.4 系列的 Debian Bookworm Qt6 / Fcitx5 兼容组件。
+wget --retry-connrefused --tries=30 \
+  https://deb.debian.org/debian/pool/main/q/qt6-base/libqt6gui6_6.4.2+dfsg-10_amd64.deb \
+  -O /tmp/libqt6gui6.deb
+
+wget --retry-connrefused --tries=30 \
+  https://deb.debian.org/debian/pool/main/q/qt6-base/libqt6network6_6.4.2+dfsg-10_amd64.deb \
+  -O /tmp/libqt6network6.deb
+
+wget --retry-connrefused --tries=30 \
+  https://deb.debian.org/debian/pool/main/f/fcitx5-qt/fcitx5-frontend-qt6_5.0.16-1+b3_amd64.deb \
+  -O /tmp/fcitx5-frontend-qt6.deb
+
+wget --retry-connrefused --tries=30 \
+  https://deb.debian.org/debian/pool/main/f/fcitx5-qt/libfcitx5-qt6-1_5.0.16-1+b3_amd64.deb \
+  -O /tmp/libfcitx5-qt6-1.deb
+
+wget --retry-connrefused --tries=30 \
+  https://deb.debian.org/debian/pool/main/f/fcitx5/libfcitx5utils2_5.0.21-3_amd64.deb \
+  -O /tmp/libfcitx5utils2.deb
+
+extract_deb() {
+  local deb_file="$1"
+  local dest_dir="$2"
+  local data_member
+
+  data_member="$(ar t "$deb_file" | awk '/^data[.]tar[.]/ {print; exit}')"
+  mkdir -p "$dest_dir"
+  ar p "$deb_file" "$data_member" | bsdtar -xf - -C "$dest_dir"
+}
+
+extract_deb /tmp/libqt6gui6.deb "$COMPAT_DIR/libqt6gui6"
+extract_deb /tmp/libqt6network6.deb "$COMPAT_DIR/libqt6network6"
+extract_deb /tmp/fcitx5-frontend-qt6.deb "$COMPAT_DIR/fcitx5-frontend-qt6"
+extract_deb /tmp/libfcitx5-qt6-1.deb "$COMPAT_DIR/libfcitx5-qt6-1"
+extract_deb /tmp/libfcitx5utils2.deb "$COMPAT_DIR/libfcitx5utils2"
+
+# 补入 Qt 6.4.2 Compose / IBus 输入上下文、Fcitx5 Qt6 输入上下文和 TLS backend。
+cp -a "$COMPAT_DIR/libqt6gui6/usr/lib/x86_64-linux-gnu/qt6/plugins/platforminputcontexts/." \
+  "$SOURCE_DIR/plugins/platforminputcontexts/"
+cp -a "$COMPAT_DIR/fcitx5-frontend-qt6/usr/lib/x86_64-linux-gnu/qt6/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so" \
+  "$SOURCE_DIR/plugins/platforminputcontexts/"
+cp -a "$COMPAT_DIR/libqt6network6/usr/lib/x86_64-linux-gnu/qt6/plugins/tls/." \
+  "$SOURCE_DIR/plugins/tls/"
+
+# 补入 Fcitx5 Qt6 输入插件所需的同代运行库，避免依赖宿主机 Fcitx5 Qt 库。
+cp -a "$COMPAT_DIR/libfcitx5-qt6-1/usr/lib/x86_64-linux-gnu/"libFcitx5Qt6DBusAddons.so.1* \
+  "$SOURCE_DIR/lib/"
+cp -a "$COMPAT_DIR/libfcitx5utils2/usr/lib/x86_64-linux-gnu/"libFcitx5Utils.so.2* \
+  "$SOURCE_DIR/lib/"
 
 ###### 核心打包 ######
 
-# 由 quick-sharun 从同一套 Arch Qt6 环境收集 Qt6 runtime、TLS、输入上下文及图形插件。
-quick-sharun ./AppDir/shared/bin/moderncsv
+# 由 quick-sharun 以官方 Qt 6.4.3 runtime 为基线收集依赖，并使用已经清理后的 Qt6 plugin 树。
+quick-sharun "$SOURCE_DIR/moderncsv"
 
 quick-sharun --make-appimage
