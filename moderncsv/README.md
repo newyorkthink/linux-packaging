@@ -30,30 +30,30 @@ pkgforge-dev/anylinux-setup-action
 
 应用脚本本身不再启动额外 Docker / chroot，也不重复下载 quick-sharun。
 
-当前 `build_moderncsv.sh` 复用仓库 quick-sharun Qt6 通用基础环境，基础命令单独保持，不把当前应用的额外依赖混入其中。基础环境覆盖 Qt6、GTK3/GTK4、Fcitx5/Rime、TLS/OpenSSL、X11/XCB、Wayland、OpenGL、字体、图标、SVG/QML/Multimedia、打印和主题插件等构建期依赖；当前 Modern CSV 没有需要在该通用基线之外额外安装的软件包。Modern CSV 官方 tar 自带的 `lib/`、`plugins/` 和 `qt.conf` 仍保持原有目录关系，不直接用系统 Qt 文件覆盖官方目录。
+官方 `ModernCSV-Linux-v2.4.3.tar.gz` 的主程序明确链接 Qt6，随包 `libQt6Core.so.6` 为 Qt 6.4.3；但官方 `plugins/` 中除 `platforms/libqxcb.so` 外存在多项仍链接 Qt5 的 plugin，并且缺少 Qt6 TLS backend 和 Fcitx5 Qt6 输入上下文。当前打包因此只保留官方应用本体、desktop 和 icon，不再把官方 `lib/`、`plugins/`、`qt.conf` 带入 AppDir；Qt runtime 与 plugin 统一改由同一次 Arch 构建环境中的 Qt6 包提供，再交给 quick-sharun 收集。
 
 ## 打包流程
 
 `build_moderncsv.sh` 保持普通 quick-sharun 项目的简单结构：
 
 1. 设置 `STARTUPWMCLASS`、`ICON`、`DESKTOP`、`OUTPATH`、`OUTNAME`、`DEPLOY_OPENGL`。
-2. 使用独立的一条 `yay -S --noconfirm ...` 安装仓库 quick-sharun Qt6 通用基础环境，依赖列表按约每 10 个包换行；其中包含 Qt6、GTK3/GTK4、Fcitx5、Fcitx5 Qt/GTK、Fcitx5 Rime、OpenSSL/NSS、X11/XCB、Wayland、OpenGL、字体、图标、SVG/QML/Multimedia、打印及主题插件，不安装 `ibus` / `ibus-rime`。
-3. 当前 Modern CSV 没有额外软件包；后续如果出现项目特有依赖，必须另起一条独立 `yay` 命令，禁止并入通用基础命令。
-4. 下载官方 `ModernCSV-Linux-v2.4.3.tar.gz`，去掉压缩包最外层 `moderncsvv2.4.3/` 目录后，完整解压到 `AppDir/shared/bin/`；保留官方 `moderncsv`、`moderncsv.desktop`、`moderncsv.png`、`lib/`、`plugins/`、`qt.conf` 等全部内容。
+2. 已有非 Qt 系统依赖命令保持不变；另起一条独立 `yay` 命令安装 `qt6-base`、`qt6-5compat`、`qt6-svg`、`qt6-imageformats`、`fcitx5-qt`，使 Qt6 library、TLS plugin、图像 plugin、Compose / IBus / Fcitx5 输入上下文来自同一套 Arch Qt6 环境。
+3. 下载官方 `ModernCSV-Linux-v2.4.3.tar.gz`，只从最外层 `moderncsv2.4.3/` 中提取：
+
+```text
+moderncsv
+moderncsv.desktop
+moderncsv.png
+```
+
+4. 不提取官方 `lib/`、`plugins/`、`qt.conf`，避免继续携带官方包中的 Qt5 / Qt6 plugin 混装。
 5. `ICON` 和 `DESKTOP` 直接指向 `AppDir/shared/bin/` 中的官方文件，然后执行：
 
 ```bash
 quick-sharun ./AppDir/shared/bin/moderncsv
 ```
 
-6. 只在 `AppDir/.env` 补充当前需要的中文 locale 与 XCB 环境：
-
-```text
-LANG=zh_CN.UTF-8
-LANGUAGE=zh_CN:zh
-QT_QPA_PLATFORM=xcb
-```
-
+6. quick-sharun 根据 Modern CSV 的 Qt6 ELF 依赖从 Arch Qt6 plugin 根目录收集 `platforms/`、`platforminputcontexts/`、`platformthemes/`、`imageformats/`、`iconengines/`、`xcbglintegrations/` 和 `tls/` 等需要的 plugin，并同时收集对应动态库。
 7. 最后直接执行：
 
 ```bash
@@ -64,27 +64,27 @@ quick-sharun --make-appimage
 
 ## AppDir 结构说明
 
-官方 tar 的完整程序目录先放入 `AppDir/shared/bin/`，使 `moderncsv` 与官方自带的 `lib/`、`plugins/`、`qt.conf` 保持原有相对目录关系。
+官方应用本体先放入 `AppDir/shared/bin/`。该目录只保留 Modern CSV 自身的 `moderncsv`、`moderncsv.desktop` 和 `moderncsv.png`，不再保留官方 Qt runtime 目录。
 
-`quick-sharun` 使用 `AppDir/shared/bin/` 保存真实程序，并在 `AppDir/bin/` 为对应程序生成 sharun 启动入口。因此最终结构中，`AppDir/bin/moderncsv` 是启动入口，真实 Modern CSV ELF 与其官方运行时目录位于 `AppDir/shared/bin/`。
+`quick-sharun` 使用 `AppDir/shared/bin/` 保存真实程序，并在 `AppDir/bin/` 为对应程序生成 sharun 启动入口。因此最终结构中，`AppDir/bin/moderncsv` 是启动入口，真实 Modern CSV ELF 位于 `AppDir/shared/bin/moderncsv`；统一的 Qt6 动态库和 plugin 由 quick-sharun 部署到其标准 AppDir 目录。
 
 不再使用 `$PWD/moderncsv-source` 或 `/usr/lib/moderncsv` 这类额外 staging 路径。
 
 ## Qt 与中文输入
 
-Modern CSV 官方 Linux tar 包自带 Qt 运行库和 plugin。当前打包继续保持官方 runtime 的目录关系，同时在 Arch Linux 构建环境中准备与 Qt6 主版本一致的 Qt6、Fcitx5 Qt/GTK 和 Fcitx5 Rime 组件，供 quick-sharun 收集实际需要的运行库与输入环境；通用基础环境不安装 `ibus` / `ibus-rime`。
+Modern CSV 2.4.3 主程序本身是 Qt6 程序。当前打包不再沿用官方 tar 中混有 Qt5 plugin 的 `plugins/`，而是让 Qt6 runtime 与全部 Qt plugin 来自同一次 Arch Qt6 构建环境。
 
-Qt5 与 Qt6 都有各自主版本对应的输入上下文；除了 Qt 主版本必须一致外，实际 plugin 还必须与最终 Qt runtime ABI 兼容。最终 AppImage 中的 `platforminputcontexts/` 必须保持 Qt6 主版本一致，不能把 Qt5 输入上下文 plugin 混入 Qt6 runtime。官方 runtime 已经携带的 plugin 不因基础依赖列表调整而擅自删除。
+`qt6-base` 提供 Qt6 的 Compose / IBus `platforminputcontexts` 和 TLS backend；`fcitx5-qt` 提供 Qt6 的 `libfcitx5platforminputcontextplugin.so`；`qt6-svg` 与 `qt6-imageformats` 提供对应的 Qt6 SVG / 图像 plugin。这样最终 `platforminputcontexts/` 中的 Compose、IBus、Fcitx5 plugin 与最终 Qt runtime 保持同一 Qt 主版本和同一构建环境，不再混入 Qt5 input context。
 
-本脚本不设置 `LD_LIBRARY_PATH`、`QT_PLUGIN_PATH`、`QT_QPA_PLATFORM_PLUGIN_PATH` 或 `QT_LOCATION`，避免人为覆盖 quick-sharun 和官方 Qt runtime 的正常搜索关系。
+本脚本不设置 `LD_LIBRARY_PATH`、`QT_PLUGIN_PATH`、`QT_QPA_PLATFORM_PLUGIN_PATH` 或 `QT_LOCATION`，避免人为覆盖 quick-sharun 的 Qt runtime / plugin 搜索关系；也不强制设置 `QT_IM_MODULE`，由宿主输入法环境选择 Fcitx5、IBus 或 Compose。
 
-这里的中文环境只负责 UTF-8 locale 和 Linux 输入环境，不向 Modern CSV 注入非官方中文界面翻译。
+这里的中文环境只负责 Linux 输入法兼容，不向 Modern CSV 注入非官方中文界面翻译。
 
 ## 特殊处理原则
 
 CopyQ 中 `lib/copyq/plugins` 的符号链接修复属于 CopyQ 自身插件搜索行为，不复制到 Modern CSV。
 
-普通程序默认保持“准备上游程序与依赖 -> 设置 quick-sharun 变量 -> quick-sharun 主程序 -> 必要 `.env` -> `--make-appimage`”这一条主线。只有程序出现能够明确定位的特有运行问题时，才增加对应的最小兼容处理；不得加入测试代码。
+普通程序默认保持“准备上游程序与依赖 -> 设置 quick-sharun 变量 -> quick-sharun 主程序 -> 必要运行环境 -> `--make-appimage`”这一条主线。只有程序出现能够明确定位的特有运行问题时，才增加对应的最小兼容处理；不得加入测试代码。
 
 ## 修复记录
 
@@ -132,3 +132,11 @@ CopyQ 中 `lib/copyq/plugins` 的符号链接修复属于 CopyQ 自身插件搜�
 ### 2026-09-03：精简 Qt6 通用基线
 
 - 按当前基线调整，先从 quick-sharun Qt6 通用基础环境中删除 `qca-qt6`、`qt6-5compat`、`qt6-tools`；其他依赖暂不调整。
+
+### 2026-09-03：统一 Qt6 runtime，修复 TLS 与中文输入链路
+
+- 故障现象：当前 Release AppImage 能启动，但持续输出 `No functional TLS backend was found` / `TLS initialization failed`，并且 Qt GUI 无法使用中文输入法。
+- 根因核实：官方 `ModernCSV-Linux-v2.4.3.tar.gz` 的 `moderncsv` 主程序链接 Qt6，随包 `libQt6Core.so.6` 为 Qt 6.4.3；但官方 `plugins/` 中的 Compose / IBus input context、GTK3 platform theme、SVG / imageformat、XCB GL integration 等多项 plugin 实际仍链接 Qt5，且官方包没有 `plugins/tls/`，也没有 Fcitx5 Qt6 input context。
+- 修改文件：`moderncsv/build_moderncsv.sh`、`moderncsv/README.md`。
+- 修复内容：官方 tar 只提取应用本体、desktop 和 icon；不再带入官方 `lib/`、`plugins/`、`qt.conf`。原有非 Qt 依赖命令逐字保留，另起独立 `yay` 命令补回 `qt6-base`、`qt6-5compat`、`qt6-svg`、`qt6-imageformats`、`fcitx5-qt`，由 quick-sharun 从同一套 Arch Qt6 环境部署 Qt6 runtime、TLS backend、Compose / IBus / Fcitx5 input context 和其他 Qt6 plugin。
+- 已知结果：已完成上游 tar、ELF `NEEDED`、Qt plugin 依赖及 quick-sharun Qt plugin 收集逻辑的静态核对；本次不新增任何测试代码，最终运行结果以正常 GitHub Actions 构建和后续真实 Linux 运行反馈为准。
