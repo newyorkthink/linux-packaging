@@ -94,7 +94,8 @@ cp -a "$COMPAT_DIR/libfcitx5utils2/usr/lib/x86_64-linux-gnu/"libFcitx5Utils.so.*
 
 ###### 核心打包 ######
 
-# 由 quick-sharun 以官方 Qt 6.4.3 runtime 为基线收集依赖，并显式部署 Fcitx5 Qt6 输入插件所需运行库。
+# 构建期仅让动态链接器从官方 Qt 6.4.3 lib 目录解析显式 Fcitx5 输入依赖，避免误用构建机 Qt。
+LD_LIBRARY_PATH="$SOURCE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
 quick-sharun \
   "$SOURCE_DIR/moderncsv" \
   "$SOURCE_DIR/lib/libFcitx5Qt6DBusAddons.so.1" \
