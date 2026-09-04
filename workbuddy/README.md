@@ -62,6 +62,7 @@ pacman -Qlq workbuddy
 - 继续动态读取版本和安装布局，不锁版本、不写死 `/opt/workbuddy` 或 `/opt/WorkBuddy`。
 - AUR `.SRCINFO` 与 `PKGBUILD` 初始 `pkgver` 必须在 source 下载前保持一致；不能只相信最终 `pacman -Q` 的包版本。
 - 最终安装 payload 版本必须与本次 AUR 对外发布版本一致，否则停止构建，不能发布“新版本号 + 旧 payload”的 AppImage。
+- **当前 AUR 临时版本修正逻辑属于 workaround。** 后续确认 AUR `PKGBUILD` 初始 `pkgver` 与 `.SRCINFO` 已恢复一致，且 source 能直接解析到同版本官方 Linux x64 DEB 后，应删除临时 clone、`sed` 修正及覆盖 `pkgver()` 的逻辑，恢复 `yay -S --noconfirm --needed workbuddy` 直接安装；安装后的 payload 版本一致性校验继续保留，防止再次出现元数据与实际应用版本错配。
 - 继续保留 Electron 完整 runtime。
 - 继续把 AUR 系统安装目录硬编码恢复成 `process.resourcesPath`。
 - 继续保留托盘图标路径、CI `/dev/shm` 处理以及 `quick-sharun` 中的 `/usr/bin/ln`、`/usr/bin/grep`。
@@ -92,6 +93,7 @@ workbuddy.AppImage
 
 - **不要锁 WorkBuddy 版本。** 始终从当前 AUR `.SRCINFO` 动态取得本次对外发布版本。
 - **不要直接假设 AUR `PKGBUILD` 初始 `pkgver` 与 `.SRCINFO` 一致。** source 数组会在 `pkgver()` 更新版本前解析；初始版本滞后会下载旧 DEB，再生成带新版本号的软件包。
+- **不要长期保留已失效的 AUR workaround。** 一旦 AUR `PKGBUILD` 初始 `pkgver`、`.SRCINFO` 与对应官方 DEB source 已恢复一致，应回到直接安装 AUR 包的简单流程；但仍保留 payload 版本一致性校验作为防回归保护。
 - **不要只看 `pacman -Q workbuddy` 判断 payload 是否正确。** 同时检查 `app.asar.unpacked/package.json`，防止软件包元数据与实际应用版本错配。
 - **不要写死 AUR 安装路径。** 从 `pacman -Qlq workbuddy` 动态定位 `app.asar.unpacked/package.json`，再推导资源根目录。
 - **不要要求安装结果必须存在 `app.asar`。** 当前打包入口是 AUR 已展开的 `app.asar.unpacked`。
@@ -113,6 +115,7 @@ workbuddy.AppImage
 - 修改文件：`workbuddy/build_workbuddy.sh`、`workbuddy/README.md`。
 - 修改内容：构建前临时克隆 AUR，以 `.SRCINFO` 版本修正本次临时 `PKGBUILD` 的初始 `pkgver`，并固定本次 `pkgver()` 返回相同版本；安装后同时校验包版本与 payload 主版本，不一致时直接停止构建。
 - 不修改 AUR 上游仓库，不写死 `5.5.2` 或其他具体版本。
+- 后续处理：该版本修正仅作为 AUR 元数据不同步期间的临时 workaround；确认 AUR 修复后恢复 `yay -S --noconfirm --needed workbuddy` 直接安装，并删除临时 clone / `pkgver` 修正逻辑，payload 版本一致性校验继续保留。
 
 ### 2026-09-04：跟随 AUR 官方 Linux 包精简 AppImage 逻辑
 
