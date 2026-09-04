@@ -9,9 +9,9 @@ die() {
 rm -rf AppDir dist workbuddy.desktop workbuddy.png
 [[ "$(uname -m)" == "x86_64" ]] || die "this script only supports x86_64 / linux-x64."
 
-# AppImage 构建依赖；WorkBuddy 的 Linux 应用适配由当前 AUR workbuddy 配方负责。
+# AppImage 构建依赖；WorkBuddy 的 Linux 应用适配继续复用当前 AUR workbuddy 配方。
 yay -S --noconfirm --needed \
-  gcc base-devel git curl wget tar gzip binutils patchelf coreutils file p7zip \
+  gcc base-devel git curl jq wget tar gzip binutils patchelf coreutils file p7zip \
   appstream-glib desktop-file-utils util-linux zsync \
   xorg-server xorg-server-common xorg-server-xvfb \
   nss alsa-lib gtk3 at-spi2-core libsecret libxkbfile \
@@ -21,12 +21,76 @@ yay -S --noconfirm --needed \
   libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau \
   pulseaudio pulseaudio-alsa pipewire-audio ibus imagemagick
 
-yay -S --noconfirm --needed workbuddy
+# AUR 的 .SRCINFO 与 PKGBUILD 曾出现版本不同步；先按 AUR 对外声明版本修正本次临时 PKGBUILD。
+AUR_BUILD_PARENT="$(mktemp -d)"
+AUR_BUILD_DIR="$AUR_BUILD_PARENT/workbuddy"
+trap 'rm -rf "$AUR_BUILD_PARENT"' EXIT
+
+for attempt in 1 2 3; do
+  rm -rf "$AUR_BUILD_DIR"
+  if git -c http.version=HTTP/1.1 clone --depth=1 \
+    https://aur.archlinux.org/workbuddy.git "$AUR_BUILD_DIR"; then
+    break
+  fi
+  if [[ "$attempt" -eq 3 ]]; then
+    die "failed to clone the AUR workbuddy PKGBUILD."
+  fi
+  sleep 5
+done
+
+[[ -f "$AUR_BUILD_DIR/PKGBUILD" ]] || die "AUR workbuddy PKGBUILD was not found."
+[[ -f "$AUR_BUILD_DIR/.SRCINFO" ]] || die "AUR workbuddy .SRCINFO was not found."
+
+AUR_PKGVER="$(sed -n 's/^pkgver=//p' "$AUR_BUILD_DIR/PKGBUILD" | head -n 1)"
+EXPECTED_PKGVER="$(awk -F ' = ' '/^[[:space:]]*pkgver = / {print $2; exit}' "$AUR_BUILD_DIR/.SRCINFO")"
+[[ -n "$AUR_PKGVER" && -n "$EXPECTED_PKGVER" ]] || die "AUR workbuddy version metadata was not found."
+[[ "$EXPECTED_PKGVER" =~ ^[0-9A-Za-z._+:-]+$ ]] || die "unexpected AUR workbuddy pkgver: $EXPECTED_PKGVER"
+
+EXPECTED_DEB="WorkBuddy-linux-x64-deb-${EXPECTED_PKGVER//_/-}.deb"
+grep -Fq "$EXPECTED_DEB" "$AUR_BUILD_DIR/.SRCINFO" || \
+  die "AUR .SRCINFO version and Linux x64 DEB source do not match."
+
+sed -i "0,/^pkgver=.*/s//pkgver=$EXPECTED_PKGVER/" "$AUR_BUILD_DIR/PKGBUILD"
+cat >> "$AUR_BUILD_DIR/PKGBUILD" <<EOF_PKGVER
+
+# Keep source resolution and package metadata on the same AUR-advertised version.
+pkgver() {
+  printf '%s\n' '$EXPECTED_PKGVER'
+}
+EOF_PKGVER
+
+echo "AUR WorkBuddy version: $EXPECTED_PKGVER"
+if [[ "$AUR_PKGVER" != "$EXPECTED_PKGVER" ]]; then
+  echo "Correcting stale AUR PKGBUILD pkgver: $AUR_PKGVER -> $EXPECTED_PKGVER"
+fi
+
+if [[ "$EUID" -eq 0 ]]; then
+  id builduser >/dev/null 2>&1 || die "builduser is required when running as root."
+  chown -R builduser: "$AUR_BUILD_PARENT"
+  sudo -HE -u builduser bash -lc "cd '$AUR_BUILD_DIR' && makepkg -si --noconfirm"
+else
+  (
+    cd "$AUR_BUILD_DIR"
+    makepkg -si --noconfirm
+  )
+fi
 
 VERSION="$(pacman -Q workbuddy | awk '{print $2}')"
+INSTALLED_PKGVER="${VERSION%-*}"
+[[ "$INSTALLED_PKGVER" == "$EXPECTED_PKGVER" ]] || \
+  die "installed WorkBuddy package version mismatch: $INSTALLED_PKGVER != $EXPECTED_PKGVER"
+
 PACKAGE_FILES="$(pacman -Qlq workbuddy)"
 APP_PACKAGE_JSON="$(awk '/\/app\.asar\.unpacked\/package\.json$/ && !found {print; found=1}' <<< "$PACKAGE_FILES")"
 [[ -f "$APP_PACKAGE_JSON" ]] || die "WorkBuddy app.asar.unpacked/package.json was not found."
+
+APP_PAYLOAD_VERSION="$(jq -r '.version // empty' "$APP_PACKAGE_JSON")"
+APP_PAYLOAD_VERSION="${APP_PAYLOAD_VERSION#v}"
+EXPECTED_VERSION_BASE="${EXPECTED_PKGVER%%_*}"
+IFS='.' read -r EXPECTED_MAJOR EXPECTED_MINOR EXPECTED_PATCH _ <<< "$EXPECTED_VERSION_BASE"
+EXPECTED_APP_VERSION="$EXPECTED_MAJOR.$EXPECTED_MINOR.$EXPECTED_PATCH"
+[[ "$APP_PAYLOAD_VERSION" == "$EXPECTED_APP_VERSION" || "$APP_PAYLOAD_VERSION" == "$EXPECTED_APP_VERSION".* ]] || \
+  die "WorkBuddy payload version mismatch: $APP_PAYLOAD_VERSION != $EXPECTED_APP_VERSION"
 
 APP_PAYLOAD_DIR="$(dirname "$APP_PACKAGE_JSON")"
 AUR_RESOURCE_ROOT="$(dirname "$APP_PAYLOAD_DIR")"
@@ -39,7 +103,8 @@ ELECTRON_ROOT="/usr/lib/electron${ELECTRON_MAJOR}"
 [[ -x "$ELECTRON_ROOT/electron" && -d "$ELECTRON_ROOT/resources" ]] || \
   die "Electron runtime is incomplete: $ELECTRON_ROOT"
 
-echo "WorkBuddy AUR version: $VERSION"
+echo "WorkBuddy package version: $VERSION"
+echo "WorkBuddy payload version: $APP_PAYLOAD_VERSION"
 echo "WorkBuddy payload: $APP_PAYLOAD_DIR"
 echo "Electron runtime: $ELECTRON_ROOT"
 
