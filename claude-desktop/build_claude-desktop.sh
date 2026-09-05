@@ -27,6 +27,9 @@ yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils 
 # 跟随当前 AUR 包版本，由 makepkg 校验官方 DEB 的 SHA-256 并安装真实依赖。
 yay -S --noconfirm claude-desktop
 
+# 补齐实际缺失的 Fcitx5 GTK 输入模块，仅安装到临时 CI 构建环境。
+yay -S --noconfirm fcitx5-gtk
+
 # 从实际安装结果读取版本和官方桌面入口，不写死应用版本。
 VERSION="$(pacman -Q claude-desktop | awk '{print $2}')"
 export VERSION
@@ -63,6 +66,7 @@ export NO_STRIP=1
 export STRACE_MODE=0
 
 # 先从标准 /usr/bin 入口收集依赖并生成 sharun 启动入口。
+# GTK3 部署会自动收集已安装的 im-fcitx5.so、所需运行库及输入法模块缓存。
 quick-sharun /usr/bin/claude-desktop
 
 # 标准入口是 ELF 软链接；单独收集 ELF 不会复制其旁边的 Electron 资源。
