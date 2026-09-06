@@ -24,6 +24,7 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 程序布局：解包官方 DEB 后完整保留 `/opt/AdsPower Global/` 内部文件结构，复制到 `AppDir/shared/bin/`，避免破坏 Chromium / Electron 资源之间的相对路径。
 - desktop / 图标：从官方 DEB 提取 `adspower_global.desktop` 和 hicolor 官方 PNG 图标，只把 `Exec` / `Icon` 调整为 AppImage 内入口，并写入动态版本元数据。
 - 依赖部署：由 quick-sharun 针对真实主程序 `AppDir/shared/bin/adspower_global` 收集当前正式构建所需依赖；不预先复制其他应用的 Qt、输入法、沙盒或其他兼容 workaround。
+- Chromium / Electron runtime：启用 `URUNTIME_PRELOAD=1`，让 uruntime 在程序多进程运行期间持续保留 AppImage 挂载点，避免 Chromium / Electron 子进程继承的 ICU 数据文件描述符因挂载生命周期异常而失效。
 - workflow：通过 `.github/workflows/build.yml` 的独立 `build_adspower_global` Job 构建，沿用仓库统一 AnyLinux 构建与 `latest` Release 发布流程。
 
 ## 运行与兼容说明
@@ -31,7 +32,7 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 仅支持 x86_64。
 - 默认保持 AdsPower 官方程序和授权机制，不破解、不绕过订阅、许可证、账号或其他访问控制。
 - 不修改宿主系统的内核参数、浏览器 sandbox 策略或其他全局配置。
-- 当前首次接入只采用最小正式打包链路；如果后续 GitHub Actions 或真实 Linux 运行反馈出现明确缺库、输入法、图形后端或 Chromium runtime 问题，再依据实际日志做最小补充。
+- 当前已针对首次 Linux 实机启动暴露的 Chromium ICU 文件描述符错误补充 uruntime 挂载保持逻辑；后续如果出现明确缺库、输入法、图形后端或其他 runtime 问题，再依据实际日志做最小补充。
 - AdsPower 为专有软件，使用、账号、订阅及其他权利义务仍受 AdsPower 官方许可协议与服务条款约束。
 
 ### 直接运行
@@ -49,3 +50,11 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 修改文件：`adspower-global/build_adspower-global.sh`、`adspower-global/README.md`、`.github/workflows/build.yml`。
 - 实现：保留官方 `/opt/AdsPower Global/` 应用目录和官方资源，通过 quick-sharun 收集主程序运行依赖，并接入仓库统一 AnyLinux Job / latest Release 流程。
 - 已知结果：本条记录的是首次构建接入；GitHub Actions 构建结果和最终 AppImage 的真实 Linux 运行结果以后续实际输出为准，不预先视为稳定基准。
+
+### 2026-09-06：修复 Chromium ICU 文件描述符启动错误
+
+- 故障现象：首次生成的 AppImage 在 Linux 实机直接启动时立即退出，并输出 `[ERROR:icu_util.cc(223)] Invalid file descriptor to ICU data received.`。
+- 根因：初次构建使用 quick-sharun 默认 uruntime，没有启用 Chromium / Electron 多进程场景所需的挂载保持模式；结合该错误、首次构建日志以及仓库内已验证 Chromium 与 PkgForge Chrome 打包基线，定位为 AppImage 挂载生命周期与 Chromium / Electron 子进程 ICU 文件描述符继承不兼容。
+- 修改文件：`adspower-global/build_adspower-global.sh`、`adspower-global/README.md`。
+- 修复内容：加入 `URUNTIME_PRELOAD=1`，使 uruntime 持续保留 AppImage 挂载点；没有引入 Chromium 项目的语言、输入法、namespace 或其他与当前故障无关的兼容逻辑。
+- 已知结果：修复已进入正式构建配置；新的 GitHub Actions 构建结果及 AppImage 实机启动结果以本次提交后的实际输出为准。
