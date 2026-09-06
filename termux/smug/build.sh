@@ -6,7 +6,7 @@ git clone --depth 1 https://github.com/ivaaaan/smug.git /tmp/smug
 cd /tmp/smug
 
 # 核心：编译为 Android 兼容格式
-GOOS=android GOARCH=arm64 CGO_ENABLED=0 go build -o smug .
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -buildmode=pie -o smug .
 
 # 打包为压缩包
 tar -czvf smug.termux.tar.gz smug
