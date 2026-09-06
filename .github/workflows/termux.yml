@@ -1,0 +1,38 @@
+name: Termux Builds
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'termux/**'
+      - '.github/workflows/termux.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-termux-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Run Smug Build Script
+        run: |
+          chmod +x ./termux/smug/build.sh
+          ./termux/smug/build.sh
+
+      - name: Publish to Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 自动创建或覆盖名为 termux-latest 的 Release，上传压缩包
+          gh release create "termux-latest" ./smug.termux.tar.gz \
+            --title "Termux Binaries" \
+            --force || \
+          gh release upload "termux-latest" ./smug.termux.tar.gz --clobber
