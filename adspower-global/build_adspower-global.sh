@@ -20,6 +20,10 @@ export OUTPATH=./dist
 export OUTNAME="adspower-global.AppImage"
 export URUNTIME_PRELOAD=1
 
+# 仅在构建容器中探测主程序动态依赖，不把沙盒参数写入运行入口。
+export STRACE_BINARY=adspower_global
+export STRACE_FLAGS='--no-sandbox'
+
 ###### 准备构建环境：安装最小基础包 ######
 yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
   grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
@@ -97,8 +101,17 @@ if ! file "$SOURCE_MAIN" | grep -q 'ELF 64-bit.*x86-64'; then
   exit 1
 fi
 
-mkdir -p ./AppDir/shared/bin
-cp -a "$SOURCE_APP_DIR"/. ./AppDir/shared/bin/
+# ICU 数据是 Chromium 初始化所必需的输入，缺失时立即停止构建。
+if [ ! -s "$SOURCE_APP_DIR/icudtl.dat" ]; then
+  echo "Error: AdsPower ICU data not found: $SOURCE_APP_DIR/icudtl.dat" >&2
+  exit 1
+fi
+
+# sharun 启动时 /proc/self/exe 指向 bin 入口，ICU、locales 和 resources 必须位于此处。
+# quick-sharun 会把真实 ELF 部署到 shared/bin，并在 bin 中生成对应启动入口。
+mkdir -p ./AppDir/bin
+# 完整保留官方应用资源和随包运行库的相对布局。
+cp -a "$SOURCE_APP_DIR"/. ./AppDir/bin/
 
 ###### 准备官方 desktop 与图标，并改为 AppImage 内入口 ######
 SOURCE_DESKTOP="$ROOT_DIR/usr/share/applications/adspower_global.desktop"
@@ -135,6 +148,7 @@ cp -v "$ICON_SRC" ./adspower-global.png
 export DESKTOP=./adspower-global.desktop
 export ICON=./adspower-global.png
 
-###### 核心打包：保持官方程序内部布局，只让 quick-sharun 收集主程序运行依赖 ######
-quick-sharun ./AppDir/shared/bin/adspower_global
+###### 核心打包：部署主程序、辅助程序与随包运行库，资源保留在 bin 入口旁 ######
+quick-sharun ./AppDir/bin/*
+# 将完成依赖部署的 AppDir 封装为最终 AppImage。
 quick-sharun --make-appimage
