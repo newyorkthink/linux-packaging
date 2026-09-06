@@ -36,6 +36,10 @@ yay -S --noconfirm \
   libx11 libxcb libxcomposite libxdamage libxext libxfixes libxkbcommon libxrandr \
   mesa nspr nss pango
 
+###### 补齐 Fcitx5 GTK3 中文输入模块 ######
+# 现有构建日志只包含 GTK3 内置输入模块；补装 Fcitx5 GTK3 前端供 quick-sharun 自动收集。
+yay -S --noconfirm fcitx5-gtk
+
 ###### 从 AdsPower 官方下载页动态获取当前 Linux x64 稳定版 ######
 DOWNLOAD_PAGE_URL="https://www.adspower.com/download"
 DOWNLOAD_PAGE="$(curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 120 "$DOWNLOAD_PAGE_URL")"
@@ -150,5 +154,9 @@ export ICON=./adspower-global.png
 
 ###### 核心打包：部署主程序、辅助程序与随包运行库，资源保留在 bin 入口旁 ######
 quick-sharun ./AppDir/bin/*
+
+###### 固定 AppImage 内 AdsPower 的 Linux 界面语言为简体中文 ######
+printf '%s\n' 'LANGUAGE=zh-CN' >> ./AppDir/.env
+
 # 将完成依赖部署的 AppDir 封装为最终 AppImage。
 quick-sharun --make-appimage
