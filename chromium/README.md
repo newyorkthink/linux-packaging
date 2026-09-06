@@ -32,6 +32,35 @@ Chromium / Blink，GTK3 原生界面组件。依赖由 `pacman`/`yay` 按 `chrom
 - sandbox 保持 Chromium 自身行为；不集成会通过 `pkexec` 持久修改宿主 `sysctl` 的 `fix-namespaces.hook`。目标系统若限制非特权 user namespace，应由宿主系统按其自身安全策略处理；`--no-sandbox` 仅作为明确的故障诊断参数，不作为默认运行方式。
 - Fcitx5 中文输入已经在实际 AppImage 中确认可用；IBus 打包逻辑保留，但尚未单独进行实机验证。
 
+### 直接运行
+
+```bash
+./chromium.AppImage
+```
+
+正常运行不需要默认追加 `--no-sandbox`。
+
+## 稳定基准版
+
+2026-09-06 的 Linux 实机验证确认当前方案可作为后续修改基准，功能实现对应 commit `97f0c45cda7054644a4322115ddcb7eabb8a52ef`。
+
+已确认行为：
+
+- `./chromium.AppImage` 可直接启动 Chromium，不需要 `--no-sandbox` 才能打开。
+- Chromium 主界面、新标签页及恢复提示均能正常显示简体中文。
+- Fcitx5 中文输入候选框与中文输入正常工作。
+- Chromium 主窗口、地址栏和新标签页可正常使用。
+- `AppDir/bin/*`、`/usr/lib/chromium/` 完整程序目录、`qt6-base`、`URUNTIME_PRELOAD=1`、`LANGUAGE=zh-CN`、IBus / Fcitx5 GTK3 immodule 均属于当前稳定基线；后续修改不得无依据删除或替换这些已确认逻辑。
+
+当前已知但未造成启动或主要功能故障的日志：
+
+- `WARNING: Glycin running without sandbox.`：Glycin 图像处理组件警告，不等同于 Chromium 主进程要求 `--no-sandbox`。
+- `Registration response error message: DEPRECATED_ENDPOINT`：GCM / 推送注册相关错误；当前实机验证中未影响浏览器启动、中文界面或中文输入。
+- `Requested load of chrome://newtab/ for incorrect profile type.`：新标签页 WebUI profile 类型日志；当前实机验证中新标签页仍能正常显示和使用。
+- `Chromium 未正确关闭` / 恢复页面提示：属于上一次会话未正常结束后的恢复提示，不作为 AppImage 打包故障判断依据。
+
+除非后续出现可复现的实际功能故障，不应仅为了消除上述非致命日志而改动当前稳定基线。
+
 ## 修复记录
 
 ### 2026-09-06：修复 AppImage 启动立即退出
@@ -66,3 +95,10 @@ Chromium / Blink，GTK3 原生界面组件。依赖由 `pacman`/`yay` 按 `chrom
 - 修改文件：`chromium/build_chromium.sh`、`chromium/README.md`。
 - 修复内容：在 quick-sharun 完成 AppDir 部署后向 `AppDir/.env` 写入 `LANGUAGE=zh-CN`，由 sharun 在 AppImage 运行时注入该环境变量；不修改 desktop `Exec`，不添加 Linux 上不可靠的 `--lang=zh-CN`，也不覆盖宿主机 `LANG` / `LC_ALL`。
 - 已知结果：Fcitx5 中文输入已由实际 AppImage 确认可用；新增中文 UI 设置已完成脚本静态语法检查，需下一次构建后确认界面显示结果。
+
+### 2026-09-06：确认稳定基准版
+
+- 实机结果：最新 AppImage 已确认可直接启动，简体中文 UI 生效，Fcitx5 中文输入正常，主窗口与新标签页可正常使用。
+- 基准实现：commit `97f0c45cda7054644a4322115ddcb7eabb8a52ef`。
+- 修改文件：本次仅整理 `chromium/README.md`，不改动已经实机验证正常的 `chromium/build_chromium.sh`。
+- 基准原则：以后处理 Chromium 打包问题时，应以本节记录的程序目录、Qt6、runtime、中文界面和输入法逻辑为稳定基线，不因单纯非致命日志而擅自改写已验证内容。
