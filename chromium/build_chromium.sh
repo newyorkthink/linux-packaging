@@ -19,6 +19,8 @@ export OUTPATH=./dist
 export OUTNAME="chromium.AppImage"
 export DEPLOY_GTK=1
 export DEPLOY_OPENGL=1
+export STRACE_BINARY=chromium
+export STRACE_FLAGS='about:blank --no-sandbox'
 
 ###### 准备构建环境：安装最小基础包 ######
 yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
@@ -37,17 +39,16 @@ if [ ! -x /usr/bin/chromium ]; then
   exit 1
 fi
 
-###### 解析主二进制真实位置：资源文件如与二进制同目录，需整体交给 quick-sharun ######
-REAL_BIN="$(readlink -f /usr/bin/chromium)"
-REAL_DIR="$(dirname "$REAL_BIN")"
-
-CHROMIUM_TARGETS=("$REAL_BIN")
-if [ -f "$REAL_DIR/resources.pak" ] || [ -d "$REAL_DIR/locales" ]; then
-  # resources.pak / icudtl.dat / locales 等资源与主二进制同目录（非独立单文件布局）。
-  # 仿照本仓库 vscode 等 Electron/Chromium 系应用的既有做法，把整个目录展开传给
-  # quick-sharun，避免只收集到 ELF 共享库依赖、漏掉这些非 ELF 资源文件。
-  CHROMIUM_TARGETS=("$REAL_DIR"/*)
+###### 使用 Arch Chromium 的真实程序目录，避免把 /usr/bin/chromium 启动器误当成主二进制 ######
+CHROMIUM_DIR=/usr/lib/chromium
+if [ ! -x "$CHROMIUM_DIR/chromium" ]; then
+  echo "Error: $CHROMIUM_DIR/chromium not found after installing the chromium package." >&2
+  exit 1
 fi
+
+###### 准备 Chromium AppDir：完整保留主程序、资源、locales、sandbox 与随包运行库 ######
+mkdir -p ./AppDir/bin
+cp -a "$CHROMIUM_DIR"/. ./AppDir/bin/
 
 ###### 准备 desktop 与图标：复制官方文件到本地再注入版本信息，不改系统原文件、不自制品牌 ######
 if [ ! -f /usr/share/applications/chromium.desktop ]; then
@@ -87,9 +88,9 @@ if ! grep -q '^X-AppImage-Version=' ./chromium.desktop; then
   echo "X-AppImage-Version=$VERSION" >> ./chromium.desktop
 fi
 
-###### 核心打包：quick-sharun 收集依赖并生成 AppImage ######
+###### 核心打包：以真实 Chromium 主程序及完整资源目录为输入，补充 GTK3 中文输入法模块 ######
 quick-sharun \
-  "${CHROMIUM_TARGETS[@]}" \
+  ./AppDir/bin/* \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
 
