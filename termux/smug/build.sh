@@ -22,15 +22,13 @@ func getArgs() []string {
 }
 CODE
 
-# 编译为 Linux 标准 PIE 格式
-GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -buildmode=pie -o smug .
+# [究极黑科技]: 修复 Go >= 1.20 引入的 faccessat2 导致安卓内核杀进程 (SIGSYS) Bug
+# 安卓内核的 seccomp 沙箱不认识较新的 faccessat2 系统调用。
+# 我们必须降级回到传统的 android 编译目标，因为标准 Linux 构建必然触发这个调用。
+# 但是为了防止 os.Args 漂移 bug，我们前面已经打过 getArgs() 补丁了！
+# 所以我们现在可以安全地使用 GOOS=android 来避免 SIGSYS！
 
-# 使用 termux-elf-cleaner 自动修复 Android Bionic 的 64字节 TLS 对齐限制
-sudo apt-get update && sudo apt-get install -y build-essential cmake
-git clone https://github.com/termux/termux-elf-cleaner.git /tmp/termux-elf-cleaner
-cd /tmp/termux-elf-cleaner
-cmake . && make
-./termux-elf-cleaner /tmp/smug/smug
+GOOS=android GOARCH=arm64 CGO_ENABLED=0 go build -o smug .
 
 cd /tmp/smug
 tar -czvf smug.termux.tar.gz smug
