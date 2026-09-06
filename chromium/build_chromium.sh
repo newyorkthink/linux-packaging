@@ -96,4 +96,7 @@ quick-sharun \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
 
+###### 固定 AppImage 内 Chromium 的 Linux 界面语言为简体中文，不改宿主机 locale ######
+printf '%s\n' 'LANGUAGE=zh-CN' >> ./AppDir/.env
+
 quick-sharun --make-appimage
