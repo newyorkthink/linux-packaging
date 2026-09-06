@@ -1,7 +1,20 @@
-name: Termux Builds
+name: Build Termux
 
 on:
   workflow_dispatch:
+    inputs:
+      tool:
+        description: '选择要构建的脚本（选择 all 构建全部）'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - smug
+          - asdf
+  schedule:
+    # 每天 UTC 时间 00:00 (北京时间早上 8:00) 自动执行
+    - cron: '0 0 * * *'
   push:
     paths:
       - 'termux/**'
@@ -23,14 +36,35 @@ jobs:
           go-version: 'stable'
 
       - name: Run Smug Build Script
+        # 定时任务/Push事件 默认全量构建；手动触发时根据选项判断
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.tool == 'all' || inputs.tool == 'smug' }}
         run: |
           chmod +x ./termux/smug/build.sh
           ./termux/smug/build.sh
+
+      - name: Run asdf Build Script
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.tool == 'all' || inputs.tool == 'asdf' }}
+        run: |
+          mkdir -p ./termux/asdf
+          chmod +x ./termux/asdf/build.sh
+          ./termux/asdf/build.sh
 
       - name: Publish to Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # 统一上传到名为 latest 的 Release 中
-          gh release upload "latest" ./smug.termux.tar.gz --clobber || \
-          gh release create "latest" ./smug.termux.tar.gz --title "Latest Build"
+          # 动态判断哪些文件被打包了，防止未选择的工具报错
+          FILES=""
+          if [ -f "./smug.termux.tar.gz" ]; then
+            FILES="$FILES ./smug.termux.tar.gz"
+          fi
+          if [ -f "./asdf.termux.tar.gz" ]; then
+            FILES="$FILES ./asdf.termux.tar.gz"
+          fi
+          
+          if [ -n "$FILES" ]; then
+            gh release upload "latest" $FILES --clobber || \
+            gh release create "latest" $FILES --title "Latest Build"
+          else
+            echo "No files generated to upload."
+          fi
