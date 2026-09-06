@@ -21,10 +21,10 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 版本：不锁版本。脚本每次从 AdsPower 官方下载页解析当前 Linux x64 稳定版 DEB 地址，并从官方文件名取得实际版本号。
 - 程序来源：直接下载 `version.adspower.net` 官方 DEB，不重新编译、不修改应用业务代码。
 - 依赖来源：运行依赖名称参考当前 AUR `adspower-global` 配方，在构建容器内通过 Arch 软件包安装；AUR 本身不提供本项目的应用二进制。
-- 程序布局：解包官方 DEB 后完整保留 `/opt/AdsPower Global/` 内部文件结构，复制到 `AppDir/shared/bin/`，避免破坏 Chromium / Electron 资源之间的相对路径。
+- 程序布局：解包官方 DEB 后将完整 `/opt/AdsPower Global/` 复制到 `AppDir/bin/`，由 quick-sharun 将真实 ELF 部署到 `shared/bin/` 并在 `bin/` 生成对应入口；`icudtl.dat`、PAK、快照、`locales/`、`resources/` 与随包运行库保留在 `bin/`，匹配 Chromium / Electron 通过 `/proc/self/exe` 定位资源的行为。
 - desktop / 图标：从官方 DEB 提取 `adspower_global.desktop` 和 hicolor 官方 PNG 图标，只把 `Exec` / `Icon` 调整为 AppImage 内入口，并写入动态版本元数据。
-- 依赖部署：由 quick-sharun 针对真实主程序 `AppDir/shared/bin/adspower_global` 收集当前正式构建所需依赖；不预先复制其他应用的 Qt、输入法、沙盒或其他兼容 workaround。
-- Chromium / Electron runtime：启用 `URUNTIME_PRELOAD=1`，让 uruntime 在程序多进程运行期间持续保留 AppImage 挂载点，避免 Chromium / Electron 子进程继承的 ICU 数据文件描述符因挂载生命周期异常而失效。
+- 依赖部署：将 `AppDir/bin/*` 交给 quick-sharun，覆盖主程序、`chrome-sandbox`、`chrome_crashpad_handler` 与随包运行库；设置 `STRACE_BINARY=adspower_global`、`STRACE_FLAGS='--no-sandbox'`，仅在构建容器中探测主程序动态依赖，不改变最终入口的 sandbox 参数。
+- Chromium / Electron runtime：保留 `URUNTIME_PRELOAD=1`，让 uruntime 在程序多进程运行期间持续保留 AppImage 挂载点；该设置不能替代正确的 ICU 和应用资源布局。
 - workflow：通过 `.github/workflows/build.yml` 的独立 `build_adspower_global` Job 构建，沿用仓库统一 AnyLinux 构建与 `latest` Release 发布流程。
 
 ## 运行与兼容说明
@@ -32,12 +32,15 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 仅支持 x86_64。
 - 默认保持 AdsPower 官方程序和授权机制，不破解、不绕过订阅、许可证、账号或其他访问控制。
 - 不修改宿主系统的内核参数、浏览器 sandbox 策略或其他全局配置。
-- 当前已针对首次 Linux 实机启动暴露的 Chromium ICU 文件描述符错误补充 uruntime 挂载保持逻辑；后续如果出现明确缺库、输入法、图形后端或其他 runtime 问题，再依据实际日志做最小补充。
+- 当前已修正 ICU 与应用资源的部署路径，并保留 uruntime 挂载保持逻辑；新的 AppImage 尚待手动构建及 Linux 实机启动确认。
 - AdsPower 为专有软件，使用、账号、订阅及其他权利义务仍受 AdsPower 官方许可协议与服务条款约束。
 
 ### 直接运行
 
+在 Linux 终端中进入 AppImage 所在目录后执行：
+
 ```bash
+# 启动 AdsPower Global。
 ./adspower-global.AppImage
 ```
 
@@ -51,10 +54,18 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 实现：保留官方 `/opt/AdsPower Global/` 应用目录和官方资源，通过 quick-sharun 收集主程序运行依赖，并接入仓库统一 AnyLinux Job / latest Release 流程。
 - 已知结果：本条记录的是首次构建接入；GitHub Actions 构建结果和最终 AppImage 的真实 Linux 运行结果以后续实际输出为准，不预先视为稳定基准。
 
-### 2026-09-06：修复 Chromium ICU 文件描述符启动错误
+### 2026-09-06：补充 Chromium runtime 挂载保持（未解决 ICU 错误）
 
 - 故障现象：首次生成的 AppImage 在 Linux 实机直接启动时立即退出，并输出 `[ERROR:icu_util.cc(223)] Invalid file descriptor to ICU data received.`。
-- 根因：初次构建使用 quick-sharun 默认 uruntime，没有启用 Chromium / Electron 多进程场景所需的挂载保持模式；结合该错误、首次构建日志以及仓库内已验证 Chromium 与 PkgForge Chrome 打包基线，定位为 AppImage 挂载生命周期与 Chromium / Electron 子进程 ICU 文件描述符继承不兼容。
+- 当时判断：初次构建未启用挂载保持模式，因此推测错误与挂载生命周期有关；后续构建已启用该模式但仍出现相同错误，不能将此推测视为已确认根因。
 - 修改文件：`adspower-global/build_adspower-global.sh`、`adspower-global/README.md`。
 - 修复内容：加入 `URUNTIME_PRELOAD=1`，使 uruntime 持续保留 AppImage 挂载点；没有引入 Chromium 项目的语言、输入法、namespace 或其他与当前故障无关的兼容逻辑。
-- 已知结果：修复已进入正式构建配置；新的 GitHub Actions 构建结果及 AppImage 实机启动结果以本次提交后的实际输出为准。
+- 已知结果：commit `73b7922ea0f584e741f5c768749a87ab5ef16766` 对应的构建日志已显示 `Setting runtime to keep mount point...`，但产物仍报告相同 ICU 错误；实际资源路径问题见下一条记录。
+
+### 2026-09-06：修正 sharun 入口与 ICU / Electron 资源错位
+
+- 故障现象：启用 `URUNTIME_PRELOAD=1` 后，AppImage 直接启动仍输出 `Invalid file descriptor to ICU data received.` 并退出。
+- 根因：已有产物的入口为 `bin/adspower_global`，但 `icudtl.dat`、PAK、快照、`locales/` 与 `resources/` 只在 `shared/bin/`。sharun 通过用户态加载器运行主程序，Chromium 从 `/proc/self/exe` 取得的是 `bin/` 入口路径，因而无法打开该目录下缺失的 ICU 数据；产物 `.env` 的随包库搜索路径也指向 `bin/`。
+- 修改文件：`adspower-global/build_adspower-global.sh`、`adspower-global/README.md`。
+- 修复内容：参照仓库 Chromium 与 PkgForge Chrome-AppImage，将完整应用先复制到 `AppDir/bin/`，再以 `AppDir/bin/*` 部署主程序、辅助程序与随包运行库；补充上游 ICU 文件的构建输入检查，并明确主程序动态依赖探测目标。保留 `URUNTIME_PRELOAD=1`，不增加运行时 sandbox 参数或宿主系统修改。
+- 已知结果：已核对既有构建日志、AppImage 文件布局及 sharun / Chromium 源码，并完成 Bash、ShellCheck 和完整 diff 静态检查。本次仅提交修复，Actions 由用户手动运行；尚未确认新产物的实机启动结果。
