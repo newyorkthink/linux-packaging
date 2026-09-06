@@ -28,12 +28,13 @@ yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils 
   grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
   desktop-file-utils zsync ca-certificates
 
-###### 安装 Chromium 官方仓库包及中文输入法（IBus / Fcitx5）GTK3 组件 ######
+###### 安装 Chromium 官方仓库包、Qt6 shim 依赖及中文输入法（IBus / Fcitx5）GTK3 组件 ######
 # Chromium 上游没有官方通用 Linux 二进制发行版；这里使用 Arch [extra] 官方仓库的 chromium 包，
 # 该包直接基于 Google chromium-browser-official 官方源码构建，随 Arch 仓库持续更新，天然满足
-# “应用版本必须动态获取”的要求。pacman 会校验官方包签名；chromium 自身的运行库依赖由包
-# 管理器按真实依赖关系自动拉入，这里只需额外安装输入法组件。
-yay -S --noconfirm chromium ibus fcitx5-gtk
+# “应用版本必须动态获取”的要求。Arch chromium 包自带 libqt6_shim.so，但 qt6-base 被声明为
+# 可选依赖；由于构建会把 AppDir/bin/* 整体交给 quick-sharun，因此需要显式安装 qt6-base，
+# 让该上游 shim 的 Qt6 依赖完整可解析。中文输入法组件继续额外安装 IBus / Fcitx5 GTK3 模块。
+yay -S --noconfirm chromium qt6-base ibus fcitx5-gtk
 
 if [ ! -x /usr/bin/chromium ]; then
   echo "Error: /usr/bin/chromium not found after installing the chromium package." >&2
