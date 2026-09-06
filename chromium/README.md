@@ -21,14 +21,16 @@ Chromium / Blink，GTK3 原生界面组件。依赖由 `pacman`/`yay` 按 `chrom
 - Qt6 shim：Arch Chromium 包自带 `libqt6_shim.so`，同时把 `qt6-base` 声明为可选的 Qt 支持依赖。由于构建会把 `AppDir/bin/*` 整体交给 quick-sharun，脚本显式安装官方 Arch `qt6-base`，让该上游 shim 的 `libQt6Core.so.6`、`libQt6Gui.so.6`、`libQt6Widgets.so.6` 依赖可解析；quick-sharun 检测到 `libQt6Core` 后会自动启用 Qt6 部署。
 - 动态依赖探测：显式设置 `STRACE_BINARY=chromium` 与 `STRACE_FLAGS='about:blank --no-sandbox'`，让 quick-sharun 在构建阶段针对真正的 Chromium 主二进制收集动态加载依赖。
 - AppImage runtime：设置 `URUNTIME_PRELOAD=1`，沿用 PkgForge Chrome-AppImage 对 Chromium/Chrome 多进程程序的处理，让 uruntime 保持 AppImage 挂载点，避免运行期间挂载点被提前回收。
+- 中文界面：quick-sharun 部署完成后向 `AppDir/.env` 写入 `LANGUAGE=zh-CN`。Chromium Linux 使用 `LANGUAGE` / `LC_*` / `LANG` 环境变量选择 UI locale，因此直接执行 AppImage 和 desktop 启动都会默认使用简体中文，同时不修改宿主机 locale。
 - 中文输入法：额外装 `ibus`、`fcitx5-gtk`，把两者的 GTK3 immodule 一并打包，同时兼顾 IBus 与 Fcitx5。
 
 ## 运行与兼容说明
 
 - 仅支持 x86_64。
 - 未自定义 AppRun，未强制指定 Ozone 平台；X11/Wayland 行为保持 Chromium 上游默认逻辑。
+- AppImage 默认把 Chromium 主界面设为简体中文；仅设置 AppImage 内的 `LANGUAGE=zh-CN`，不覆盖宿主机 `LANG`、`LC_ALL` 或其他程序的语言环境。
 - sandbox 保持 Chromium 自身行为；不集成会通过 `pkexec` 持久修改宿主 `sysctl` 的 `fix-namespaces.hook`。目标系统若限制非特权 user namespace，应由宿主系统按其自身安全策略处理；`--no-sandbox` 仅作为明确的故障诊断参数，不作为默认运行方式。
-- Fcitx5/IBus 在最终 AppImage 里的实际输入效果以重新构建后的真实 Linux 环境反馈为准。
+- Fcitx5 中文输入已经在实际 AppImage 中确认可用；IBus 打包逻辑保留，但尚未单独进行实机验证。
 
 ## 修复记录
 
@@ -56,3 +58,11 @@ Chromium / Blink，GTK3 原生界面组件。依赖由 `pacman`/`yay` 按 `chrom
 - 修复内容：在原有 Chromium / 输入法安装命令中加入官方 Arch `qt6-base`，保留 `libqt6_shim.so` 和 `./AppDir/bin/*` 既有打包方式，不删除上游库，也不额外硬编码 `DEPLOY_QT=1`；quick-sharun 会在检测到 `libQt6Core` 后自动选择 Qt6 部署。
 - 参考依据：PkgForge `Chrome-AppImage` 使用的 `get-debloated-pkgs --add-common` 明确包含 `qt6-base-mini`，说明其 Chrome 打包同样为 Qt6 shim 准备 Qt6 运行库；本仓库按来源优先级使用 Arch 官方 `qt6-base`。
 - 已知结果：修复后的 `build_chromium.sh` 已完成 Bash 静态语法检查；尚未重新运行 GitHub Actions，构建与最终 AppImage 启动结果以后续真实运行反馈为准。
+
+### 2026-09-06：修复中文输入正常但 Chromium UI 仍为英文
+
+- 故障现象：实际 AppImage 已能正常启动，Fcitx5 中文输入候选框工作正常，但 Chromium 菜单、新标签页等主界面仍显示英文。
+- 根因：`locales/zh-CN.pak` 已随 `/usr/lib/chromium/` 正确打包，但 Chromium Linux 不以 `--lang` 作为主界面语言选择依据，而是读取 `LANGUAGE`、`LC_ALL`、`LC_MESSAGES`、`LANG`。AppImage 之前继承宿主机英文 locale，因此最终选择英文 UI。
+- 修改文件：`chromium/build_chromium.sh`、`chromium/README.md`。
+- 修复内容：在 quick-sharun 完成 AppDir 部署后向 `AppDir/.env` 写入 `LANGUAGE=zh-CN`，由 sharun 在 AppImage 运行时注入该环境变量；不修改 desktop `Exec`，不添加 Linux 上不可靠的 `--lang=zh-CN`，也不覆盖宿主机 `LANG` / `LC_ALL`。
+- 已知结果：Fcitx5 中文输入已由实际 AppImage 确认可用；新增中文 UI 设置已完成脚本静态语法检查，需下一次构建后确认界面显示结果。
