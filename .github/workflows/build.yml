@@ -150,6 +150,7 @@ on:
           - xmind/build_xmind.sh
           - postman/build_postman.sh
           - v2rayn/build_v2rayn.sh
+          - chromium/build_chromium.sh
           - xnviewmp/build_xnviewmp.sh
           - xnconvert/build_xnconvert.sh
 
