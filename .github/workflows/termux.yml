@@ -31,6 +31,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # 先尝试上传并覆盖文件（如果 release 已存在）；如果不存在则新建 release
-          gh release upload "termux-latest" ./smug.termux.tar.gz --clobber || \
-          gh release create "termux-latest" ./smug.termux.tar.gz --title "Termux Binaries"
+          # 统一上传到名为 latest 的 Release 中
+          gh release upload "latest" ./smug.termux.tar.gz --clobber || \
+          gh release create "latest" ./smug.termux.tar.gz --title "Latest Build"
