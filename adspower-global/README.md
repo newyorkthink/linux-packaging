@@ -20,11 +20,13 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 路线：Arch Linux AnyLinux 构建环境 + quick-sharun。
 - 版本：不锁版本。脚本每次从 AdsPower 官方下载页解析当前 Linux x64 稳定版 DEB 地址，并从官方文件名取得实际版本号。
 - 程序来源：直接下载 `version.adspower.net` 官方 DEB，不重新编译、不修改应用业务代码。
-- 依赖来源：运行依赖名称参考当前 AUR `adspower-global` 配方，在构建容器内通过 Arch 软件包安装；AUR 本身不提供本项目的应用二进制。
+- 依赖来源：运行依赖名称参考当前 AUR `adspower-global` 配方，在构建容器内通过 Arch 软件包安装；AUR 本身不提供本项目的应用二进制。针对已反馈的 Fcitx5 中文输入缺失，单独补装 `fcitx5-gtk`。
 - 程序布局：解包官方 DEB 后将完整 `/opt/AdsPower Global/` 复制到 `AppDir/bin/`，由 quick-sharun 将真实 ELF 部署到 `shared/bin/` 并在 `bin/` 生成对应入口；`icudtl.dat`、PAK、快照、`locales/`、`resources/` 与随包运行库保留在 `bin/`，匹配 Chromium / Electron 通过 `/proc/self/exe` 定位资源的行为。
 - desktop / 图标：从官方 DEB 提取 `adspower_global.desktop` 和 hicolor 官方 PNG 图标，只把 `Exec` / `Icon` 调整为 AppImage 内入口，并写入动态版本元数据。
 - 依赖部署：将 `AppDir/bin/*` 交给 quick-sharun，覆盖主程序、`chrome-sandbox`、`chrome_crashpad_handler` 与随包运行库；设置 `STRACE_BINARY=adspower_global`、`STRACE_FLAGS='--no-sandbox'`，仅在构建容器中探测主程序动态依赖，不改变最终入口的 sandbox 参数。
 - Chromium / Electron runtime：保留 `URUNTIME_PRELOAD=1`，让 uruntime 在程序多进程运行期间持续保留 AppImage 挂载点；该设置不能替代正确的 ICU 和应用资源布局。
+- 中文输入法：安装 `fcitx5-gtk` 后继续沿用 quick-sharun 已启用的 GTK3 部署逻辑，由其自动收集 `im-fcitx5.so`、客户端运行库及输入模块缓存；不启动输入法守护进程，也不覆盖宿主输入法配置。
+- 中文环境：依赖部署完成后向 `AppDir/.env` 写入 `LANGUAGE=zh-CN`，让 AppImage 运行时优先使用简体中文 locale，不修改宿主机全局 locale。
 - workflow：通过 `.github/workflows/build.yml` 的独立 `build_adspower_global` Job 构建，沿用仓库统一 AnyLinux 构建与 `latest` Release 发布流程。
 
 ## 运行与兼容说明
@@ -32,7 +34,9 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 仅支持 x86_64。
 - 默认保持 AdsPower 官方程序和授权机制，不破解、不绕过订阅、许可证、账号或其他访问控制。
 - 不修改宿主系统的内核参数、浏览器 sandbox 策略或其他全局配置。
-- 当前已修正 ICU 与应用资源的部署路径，并保留 uruntime 挂载保持逻辑；新的 AppImage 尚待手动构建及 Linux 实机启动确认。
+- 当前 ICU 与应用资源部署已由最新 AppImage 实机启动确认可进入登录页；登录行为与输入法支持分别处理。
+- Fcitx5 中文输入通过包内 GTK3 前端连接宿主已经运行的 Fcitx5 会话；本 AppImage 不启动输入法守护进程，也不覆盖输入法环境变量。
+- AppImage 内设置 `LANGUAGE=zh-CN` 作为简体中文运行环境偏好；AdsPower 页面自身若另有语言设置，仍以其实际行为为准。
 - AdsPower 为专有软件，使用、账号、订阅及其他权利义务仍受 AdsPower 官方许可协议与服务条款约束。
 
 ### 直接运行
@@ -69,3 +73,11 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 修改文件：`adspower-global/build_adspower-global.sh`、`adspower-global/README.md`。
 - 修复内容：参照仓库 Chromium 与 PkgForge Chrome-AppImage，将完整应用先复制到 `AppDir/bin/`，再以 `AppDir/bin/*` 部署主程序、辅助程序与随包运行库；补充上游 ICU 文件的构建输入检查，并明确主程序动态依赖探测目标。保留 `URUNTIME_PRELOAD=1`，不增加运行时 sandbox 参数或宿主系统修改。
 - 已知结果：已核对既有构建日志、AppImage 文件布局及 sharun / Chromium 源码，并完成 Bash、ShellCheck 和完整 diff 静态检查。本次仅提交修复，Actions 由用户手动运行；尚未确认新产物的实机启动结果。
+
+### 2026-09-06：补齐 Fcitx5 中文输入与简体中文运行环境
+
+- 故障现象：最新 AppImage 已能进入 AdsPower 登录页，但界面仍为英文，输入框无法使用 Fcitx5 输入中文。
+- 根因：现有构建没有安装 `fcitx5-gtk`，本次成功构建日志中的 GTK3 输入模块列表也没有 `im-fcitx5.so`；同时 AppImage 没有设置简体中文 locale 偏好，因此不会主动使用中文运行环境。
+- 修改文件：`adspower-global/build_adspower-global.sh`、`adspower-global/README.md`。
+- 修复内容：在既有运行依赖命令之外单独安装 `fcitx5-gtk`，由当前已经工作的 quick-sharun GTK3 部署逻辑自动收集 Fcitx5 输入模块及其依赖；依赖部署后向 `AppDir/.env` 写入 `LANGUAGE=zh-CN`。现有 ICU、`locales/`、`resources/`、`URUNTIME_PRELOAD=1`、sandbox 和启动入口均保持不变。
+- 已知结果：本次只补当前已定位的 Fcitx5 与中文 locale 缺项，没有额外加入 IBus、强制 `GTK_IM_MODULE` 或新的 GTK 部署开关；最终中文界面和中文输入效果以后续正式构建与 Linux 实机反馈为准。
