@@ -71,6 +71,7 @@ on:
       - 'xnconvert/**'
       - 'stacher/**'
       - 'tencent-docs/**'
+      - 'chromium/**'
       - 'ventoy/**'
       - 'moderncsv/**'
       - 'gitkraken/**'
