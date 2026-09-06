@@ -18,6 +18,7 @@ export ARCH
 export STARTUPWMCLASS="AdsPower Global"
 export OUTPATH=./dist
 export OUTNAME="adspower-global.AppImage"
+export URUNTIME_PRELOAD=1
 
 ###### 准备构建环境：安装最小基础包 ######
 yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
