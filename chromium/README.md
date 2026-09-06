@@ -19,13 +19,14 @@ Chromium / Blink，GTK3 原生界面组件。依赖由 `pacman`/`yay` 按 `chrom
 - desktop / 图标：直接复制官方包安装的 `/usr/share/applications/chromium.desktop` 与 hicolor/pixmaps 中的官方图标，不自制、不改品牌。
 - 主程序与资源：Arch 的 `/usr/bin/chromium` 是启动器，真正的 Chromium 主程序及 `resources.pak`、`icudtl.dat`、`locales/`、`chrome-sandbox`、ANGLE / SwiftShader 运行文件都位于 `/usr/lib/chromium/`。构建时把该目录完整复制到 `AppDir/bin/`，再交给 quick-sharun 部署，避免只打包启动器而遗漏真正的浏览器程序和资源。
 - 动态依赖探测：显式设置 `STRACE_BINARY=chromium` 与 `STRACE_FLAGS='about:blank --no-sandbox'`，让 quick-sharun 在构建阶段针对真正的 Chromium 主二进制收集动态加载依赖。
+- AppImage runtime：设置 `URUNTIME_PRELOAD=1`，沿用 PkgForge Chrome-AppImage 对 Chromium/Chrome 多进程程序的处理，让 uruntime 保持 AppImage 挂载点，避免运行期间挂载点被提前回收。
 - 中文输入法：额外装 `ibus`、`fcitx5-gtk`，把两者的 GTK3 immodule 一并打包，同时兼顾 IBus 与 Fcitx5。
 
 ## 运行与兼容说明
 
 - 仅支持 x86_64。
 - 未自定义 AppRun，未强制指定 Ozone 平台；X11/Wayland 行为保持 Chromium 上游默认逻辑。
-- 当前 AppImage 仍保留 Chromium 自身的 sandbox 行为；目标环境若无法初始化 sandbox，可在确认风险后使用 `--no-sandbox` 运行。
+- sandbox 保持 Chromium 自身行为；不集成会通过 `pkexec` 持久修改宿主 `sysctl` 的 `fix-namespaces.hook`。目标系统若限制非特权 user namespace，应由宿主系统按其自身安全策略处理；`--no-sandbox` 仅作为明确的故障诊断参数，不作为默认运行方式。
 - Fcitx5/IBus 在最终 AppImage 里的实际输入效果以重新构建后的真实 Linux 环境反馈为准。
 
 ## 修复记录
@@ -37,3 +38,11 @@ Chromium / Blink，GTK3 原生界面组件。依赖由 `pacman`/`yay` 按 `chrom
 - 修改文件：`chromium/build_chromium.sh`、`chromium/README.md`。
 - 修复内容：改为显式使用 `/usr/lib/chromium/`，完整复制到 `AppDir/bin/` 后交给 quick-sharun；同时指定 `STRACE_BINARY=chromium` 与 `STRACE_FLAGS='about:blank --no-sandbox'`，确保动态依赖探测针对真实主程序执行；保留原有 IBus / Fcitx5 GTK3 输入法模块打包逻辑。
 - 已知结果：脚本已完成静态语法检查；尚未重新构建新的 AppImage，因此启动结果需要以下一次真实构建和实机运行反馈为准。
+
+### 2026-09-06：补充 Chromium 多进程 AppImage 挂载保持
+
+- 修改原因：横向核对 PkgForge `Chrome-AppImage` 后确认，其 quick-sharun 构建明确设置 `URUNTIME_PRELOAD=1`，用于要求 uruntime 持续保持 AppImage 挂载点；Chromium 与 Chrome 使用相同的多进程浏览器运行模型，应保留这一 runtime 处理。
+- 修改文件：`chromium/build_chromium.sh`、`chromium/README.md`。
+- 修改内容：仅新增 `URUNTIME_PRELOAD=1`；保留已经确认正确的 `./AppDir/bin/*` quick-sharun 输入和 `/usr/lib/chromium/` AppDir 布局，不复制 Chrome 专用的运行时下载逻辑、`ar` / `tar` / `xz` 依赖或测试步骤。
+- 安全边界：未加入 PkgForge 的 `fix-namespaces.hook`。该 hook 会通过提权写入 `/etc/sysctl.d/20-fix-namespaces.conf` 并全局关闭 `kernel.apparmor_restrict_unprivileged_userns`，不符合本仓库最小宿主修改原则。
+- 已知结果：修改后的构建脚本已完成 Bash 静态语法检查；尚未重新构建 AppImage，实际启动结果以后续真实构建与实机反馈为准。
