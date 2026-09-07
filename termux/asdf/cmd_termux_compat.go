@@ -2,23 +2,18 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 )
 
+func init() {
+	fixTermuxArgs()
+}
+
 func fixTermuxArgs() {
-	if len(os.Args) < 2 {
-		return
-	}
-
-	// Termux Android linker64 启动时可能多插入一个参数：
-	// /system/bin/linker64 /data/data/com.termux/files/usr/bin/asdf plugin add python
-	//
-	// 修正为：
-	// /data/data/com.termux/files/usr/bin/asdf plugin add python
-
-	if os.Args[0] != "/data/data/com.termux/files/usr/bin/asdf" &&
-		len(os.Args) > 1 &&
-		os.Args[1] == "/data/data/com.termux/files/usr/bin/asdf" {
-
-		os.Args = append([]string{os.Args[1]}, os.Args[2:]...)
+	// 与 smug 的已验证实现一致，按实际进程入口识别 linker 模式。
+	// 正常直接启动时不删参数，不依赖安装路径或程序文件名。
+	executable, err := os.Executable()
+	if err == nil && filepath.Base(executable) == "linker64" && len(os.Args) > 1 {
+		os.Args = os.Args[1:]
 	}
 }
