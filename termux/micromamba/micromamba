@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# 此入口在 Termux 执行；真实 micromamba 和 Python 始终位于 Linux 容器中。
+if [[ -z "${PREFIX:-}" || "$(uname -m)" != aarch64 ]]; then
+  echo "此包面向 ARM64 Termux，请按 README 使用。" >&2
+  exit 1
+fi
+if ! command -v proot-distro >/dev/null 2>&1; then
+  echo "需要先安装 PRoot-Distro 5 或更新版本，并按 README 导入镜像。" >&2
+  exit 1
+fi
+
+# 宿主 shell 不能直接激活容器内的环境，统一通过 run 执行或进入环境。
+case "${1:-}" in
+  activate|deactivate|shell)
+    echo "此 Termux 入口请使用 run -n <环境名> <程序>；交互环境可运行 run -n <环境名> bash。" >&2
+    exit 2
+    ;;
+esac
+
+# /work 是本包固定的项目挂载点，当前目录可读写；不会共享宿主 shell 配置。
+PROJECT_DIR="$(pwd -P)"
+if [[ "$PROJECT_DIR" == *:* ]]; then
+  echo "PRoot 绑定路径不能包含冒号，请从不含冒号的项目目录运行。" >&2
+  exit 1
+fi
+# 禁用镜像的自动 base 激活，避免覆盖 run -n 指定的环境。
+# 参数逐项传递，由 PRoot-Distro 保留引号；不拼接用户命令。
+exec proot-distro login --isolated --bind "$PROJECT_DIR:/work" --work-dir /work \
+  --env MAMBA_ROOT_PREFIX=/opt/conda --env MAMBA_SKIP_ACTIVATE=1 \
+  micromamba-termux -- /bin/micromamba "$@"
