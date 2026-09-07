@@ -30,6 +30,12 @@ patches = {
             'return execute.TermuxExec(executablePath, args, env)',
         ),
     ),
+    "internal/plugins/plugins.go": (
+        (
+            'cmd.Env = environment',
+            'cmd.Env = termuxPythonInstallEnv(p.Name, name, environment)',
+        ),
+    ),
 }
 for filename, replacements in patches.items():
     source = Path(filename)
@@ -45,6 +51,8 @@ PY
 cp "$SCRIPT_DIR/cmd_termux_compat.go" ./cmd/asdf/termux_compat_android.go
 # execute 包提供 Bash 子进程及 asdf exec / shim 共用的适配。
 cp "$SCRIPT_DIR/execute_termux_compat.go" ./internal/execute/termux_compat_android.go
+# plugins 包仅为 Python 安装回调补充 Android 编译环境。
+cp "$SCRIPT_DIR/plugins_termux_python.go" ./internal/plugins/termux_python_android.go
 
 ###### 编译 Android ARM64 程序 ######
 # 采用 smug 已实测的 Android 目标，避免 Linux 目标的系统调用兼容问题。

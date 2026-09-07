@@ -1,5 +1,7 @@
 # micromamba（Termux / PRoot）
 
+**本方案必须使用 PRoot-Distro。不使用 PRoot 的原生 Termux 环境不适用，不作为本次 Python 安装问题的处理路线；原生编译适配见 [asdf](../asdf/README.md)。本目录保留供 PRoot 场景参考。**
+
 ## 用途与产物
 
 - 用途：在 ARM64 Termux 中管理预编译 Python 和 Conda 环境，避免通过 asdf-python / pyenv 在手机上编译 CPython。
@@ -77,5 +79,11 @@ micromamba run -n "<环境名>" bash
 - 修改文件：新增 `build.sh`、`micromamba`、本 README，并接入现有 Termux workflow；保留 asdf / smug 构建和运行实现。
 - 路线：保留官方 Linux ARM64 micromamba 镜像，通过 PRoot-Distro 提供 glibc 环境，再下载 Conda Python 二进制包，不声称将 Linux 包转换成 Android 原生包。
 - 已知结果：已核对官方镜像结构、ARM64 发布配置、PRoot-Distro 的 OCI 导入及参数传递源码，并完成 Bash / YAML / 路径静态检查；尚无本包的 Actions 构建和手机实测结果。
+
+### 2026-09-07：明确 PRoot 使用边界
+
+- 背景：需要原生 Termux 的 Python 安装方式，不采用 PRoot。
+- 修改文件：仅本 README，在开头明确本方案必须使用 PRoot-Distro，并指向 asdf 的原生编译适配。
+- 已知结果：本次只补充适用范围，保留现有打包文件和 workflow；没有将 micromamba 或 Conda 的 Linux 包描述为 Android 原生包。
 
 依据：[micromamba 的 glibc 要求](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html)、[官方镜像内容](https://micromamba-docker.readthedocs.io/en/latest/quick_start.html)、[PRoot-Distro OCI 导入与运行](https://github.com/termux/proot-distro#commands-reference)。

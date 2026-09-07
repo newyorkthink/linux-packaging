@@ -15,6 +15,7 @@
 - `build.sh` 保持原有上游默认分支来源，每次在独立 Actions 临时目录获取源码，不固定应用版本。
 - `cmd_termux_compat.go` 复制到上游 `cmd/asdf/termux_compat_android.go`，由 `init` 在命令行解析前归一化 linker 参数。
 - `execute_termux_compat.go` 复制到上游 `internal/execute/termux_compat_android.go`；同时接入 `internal/execute/execute.go` 的 Bash 子进程和 `internal/exec/exec.go` 的进程替换入口。
+- `plugins_termux_python.go` 复制到上游 `internal/plugins/termux_python_android.go`，仅在 Python 插件的 `install` 回调补充编译环境，支持指定 Python 安装及根据 `.tool-versions` 批量安装。
 - 补丁只替换已核对的入口，匹配失败即终止构建；保留上游版本信息，构建日志记录上游提交、打包提交和归档 SHA-256。
 - 仅打包可执行文件，不打包插件、语言运行时或个人配置，不修改 shell 配置和 PATH。
 
@@ -35,7 +36,16 @@ asdf plugin add python
 - 仅在实际进程入口是 `linker64` 时移除多出的首个参数；不硬编码安装路径，正常直接启动时保持原参数。
 - linker 模式下由系统 linker 启动 PATH 中的 Termux `sh`，再通过 `exec "$@"` 调用上游 Bash 或目标程序；应保留正常 Termux 环境及其 `LD_PRELOAD` 设置。
 - `asdf exec`、shim 和插件扩展复用同一执行链，并保留进程替换及上游传入环境的语义。
-- 本次修复针对 asdf 主程序的启动与执行链；插件自身及其下载、编译的语言运行时是否支持 Android，仍取决于对应插件和上游项目，不能由 asdf 主程序修复推定。
+- Python 安装回调默认设置 `ac_cv_func_close_range=no`、`ac_cv_func_copy_file_range=no`、`ac_cv_func_preadv2=no`、`ac_cv_func_pwritev2=no`，并设置 `LN=ln -s`，处理已出现的未声明函数及硬链接错误。保留已有 `PYTHON_CONFIGURE_OPTS`；显式设置的同名环境变量优先。
+- 这些设置只传入 Python 安装子进程，不改变 shell 配置、全局 PATH、系统 `ln` 或其他插件的环境。Python 仍在原生 Termux 中通过 python-build 编译，不需要 PRoot。
+- 以上适配针对已记录的故障；其他语言运行时及 Python 扩展的 Android 支持仍取决于对应插件和上游项目，不能据此推定全部可用。
+
+手动构建 `asdf` 并安装新产物后，在 **Termux 终端**执行；将 `<Python版本>` 替换为需要的版本。已有 Python 插件不必重复添加。
+
+```bash
+# 安装所需 Python，编译兼容设置由新产物自动传入
+asdf install python "<Python版本>"
+```
 
 ## 修复记录
 
@@ -55,4 +65,12 @@ asdf plugin add python
 - 处理：本次不向 asdf 主程序注入 Python 专用编译选项。需要避免手机编译 Python 时，使用新增的 [micromamba / PRoot 入口](../micromamba/README.md)。
 - 修改文件：仅本 README；micromamba 的独立接入见对应目录。未声称 Python 安装或全部 asdf 功能已通过实测。
 
-依据：[asdf 执行入口](https://github.com/asdf-vm/asdf/blob/master/internal/exec/exec.go)、[Termux linker 执行链](https://github.com/termux/termux-exec-package/blob/master/site/pages/en/projects/docs/technical/index.md)、[Go Android 系统调用分支](https://github.com/golang/go/blob/master/src/syscall/syscall_linux.go)、[本次 CPython 报错及回退源码](https://github.com/python/cpython/blob/v3.11.13/Python/fileutils.c)。
+### 2026-09-07：补充原生 Termux 的 Python 编译适配
+
+- 现象：禁用 `close_range` 后，继续报 `preadv2`、`pwritev2`、`copy_file_range` 未声明；补齐四项后，构建推进到 `libpython`，因 `ln -f` 创建硬链接被拒绝而失败。
+- 根因：CPython 的函数链接探测与 Android 目标 API 头文件声明不一致；共享库 Makefile 默认使用硬链接，而当前 Android 应用环境拒绝创建硬链接。
+- 修改文件：`build.sh`、新增 `plugins_termux_python.go`、本 README；已可用的命令参数和进程执行兼容文件保持原样。
+- 修复内容：在 Python 安装回调中补齐四项 configure 缓存默认值，并通过 CPython 原有 `LN` 配置入口改用软链接；不替换系统工具、不修改插件仓库。此前 PRoot 路线不适用于原生 Termux 需求，本次使用此适配继续处理。
+- 已知结果：现有实测日志证明四项禁用已使构建推进到共享库链接阶段；本次已核对上游环境传递、`LN` 配置及 Makefile 用途，并完成补丁匹配与语法静态检查。新产物尚待 Actions 构建及 Termux 实测，未声称整个 Python 安装已成功。
+
+依据：[asdf 执行入口](https://github.com/asdf-vm/asdf/blob/master/internal/exec/exec.go)、[Termux linker 执行链](https://github.com/termux/termux-exec-package/blob/master/site/pages/en/projects/docs/technical/index.md)、[Go Android 系统调用分支](https://github.com/golang/go/blob/master/src/syscall/syscall_linux.go)、[本次 CPython 报错及回退源码](https://github.com/python/cpython/blob/v3.11.13/Python/fileutils.c)、[Termux 官方 Python 特性禁用](https://github.com/termux/termux-packages/blob/master/packages/python/build.sh)、[CPython 的 LN 配置](https://github.com/python/cpython/blob/v3.11.13/configure.ac)、[CPython 共享库链接规则](https://github.com/python/cpython/blob/v3.11.13/Makefile.pre.in)。
