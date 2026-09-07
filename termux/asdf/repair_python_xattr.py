@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """为已安装的 Termux CPython 修补 shutil 扩展属性复制，无需重编译。"""
 
 import ast
