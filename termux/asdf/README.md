@@ -37,6 +37,7 @@ asdf plugin add python
 - linker 模式下由系统 linker 启动 PATH 中的 Termux `sh`，再通过 `exec "$@"` 调用上游 Bash 或目标程序；应保留正常 Termux 环境及其 `LD_PRELOAD` 设置。
 - `asdf exec`、shim 和插件扩展复用同一执行链，并保留进程替换及上游传入环境的语义。
 - Python 安装回调默认设置 `ac_cv_func_close_range=no`、`ac_cv_func_copy_file_range=no`、`ac_cv_func_preadv2=no`、`ac_cv_func_pwritev2=no`，并设置 `LN=ln -s`，处理已出现的未声明函数及硬链接错误。保留已有 `PYTHON_CONFIGURE_OPTS`；显式设置的同名环境变量优先。
+- 后续 Python 构建另设 `ac_cv_header_sys_xattr_h=no`，沿用 Termux 官方 Python 的配置，避免文件复制尝试写入 Android 不允许设置的扩展属性。此选项不会追溯修改已安装的解释器。
 - Python 安装回调还根据当前 Termux 的 `$PREFIX`，向 `CPPFLAGS`、`LDFLAGS` 和 `PKG_CONFIG_PATH` 补入头文件、库及 pkg-config 目录，保留已有设置并避免重复添加。CPython 3.11 的扩展探测需要这些路径；仅让编译器默认找到头文件并不保证扩展探测能找到库。
 - 这些设置只传入 Python 安装子进程，不改变 shell 配置、全局 PATH、系统 `ln` 或其他插件的环境。Python 仍在原生 Termux 中通过 python-build 编译，不需要 PRoot。
 - 以上适配针对已记录的故障；其他语言运行时及 Python 扩展的 Android 支持仍取决于对应插件和上游项目，不能据此推定全部可用。
@@ -68,6 +69,21 @@ asdf uninstall python "<Python版本>"
 # 使用已补齐依赖和搜索路径的环境重新安装该版本
 asdf install python "<Python版本>"
 ```
+
+### 已安装 Python 的 pip 元数据复制错误
+
+若安装源码包时在 `.egg-info.__bkp__` 出现批量 `Permission denied`，与 Termux 已记录的 `shutil.copytree` / 扩展属性复制问题吻合。此阶段还未开始编译该包的 C 扩展；不能通过更改 `ln` 解决。
+
+目录中的 `repair_python_xattr.py` 可修补现有解释器，无需卸载 Python、虚拟环境或已安装包。它仅将标准库 `shutil._copyxattr` 改为空操作，保留文件内容、权限和时间戳的复制逻辑；不会忽略普通文件读写权限错误。脚本先保存唯一命名的原文件备份，再原子替换。**修改作用于当前虚拟环境所用基础 Python 的 `shutil.py`，使用同一基础 Python 的其他虚拟环境也会生效。**
+
+在 **Termux 终端**激活需要修复的虚拟环境，下载本目录的 `repair_python_xattr.py`，进入其所在目录后执行：
+
+```bash
+# 修补当前解释器的文件扩展属性复制兼容性
+python ./repair_python_xattr.py
+```
+
+随后重试原来的 pip 安装命令。已有 Python 使用此入口即可；本次不必为了该问题重新运行 Actions 或重编 Python。脚本只处理元数据复制，不代表目标包后续编译及全部运行功能已经通过验证。
 
 ## 修复记录
 
@@ -104,4 +120,13 @@ asdf install python "<Python版本>"
 - 修复内容：仅对 Python 安装回调补齐动态搜索路径，保留原有 flags；补充 Termux 依赖命令和单个已安装版本的重编步骤，不自动安装包或删除版本。
 - 已知结果：已核对 CPython 扩展探测、Termux 包名及 asdf 的已安装版本跳过行为，并完成 Go 语法与 diff 静态检查；新产物及三个扩展的完整安装仍待 Termux 实测。
 
-依据：[asdf 执行入口](https://github.com/asdf-vm/asdf/blob/master/internal/exec/exec.go)、[Termux linker 执行链](https://github.com/termux/termux-exec-package/blob/master/site/pages/en/projects/docs/technical/index.md)、[Go Android 系统调用分支](https://github.com/golang/go/blob/master/src/syscall/syscall_linux.go)、[本次 CPython 报错及回退源码](https://github.com/python/cpython/blob/v3.11.13/Python/fileutils.c)、[Termux 官方 Python 依赖与特性禁用](https://github.com/termux/termux-packages/blob/master/packages/python/build.sh)、[CPython 的 LN 配置](https://github.com/python/cpython/blob/v3.11.13/configure.ac)、[CPython 共享库链接规则](https://github.com/python/cpython/blob/v3.11.13/Makefile.pre.in)、[CPython 扩展搜索路径](https://github.com/python/cpython/blob/v3.11.13/setup.py)。
+### 2026-09-07：补齐 pip 元数据复制的 xattr 兼容处理
+
+- 实测进展：新一次 Python 安装完成，安装摘要中不再出现 `_curses`、`_ctypes`、`readline` 缺失提示；虚拟环境创建和 pip 升级也已成功。保留 `6c78eea` 的依赖路径及此前编译兼容处理。
+- 新现象：安装 `psutil` 时，setuptools 备份 `.egg-info` 目录报批量 `Permission denied`，导致 `metadata-generation-failed`。
+- 原因依据：上游 setuptools 在此调用 `shutil.copytree`；日志与 Termux 官方问题 #16879、#20809 的扩展属性复制失败一致。官方 CPython 使用 `ac_cv_header_sys_xattr_h=no` 处理该平台限制；现有安装摘要没有单独列出失败的系统调用，按此已知问题进行针对性适配。
+- 修改文件：`plugins_termux_python.go`、新增 `repair_python_xattr.py`、本 README。
+- 修复内容：为后续构建补充官方 xattr 配置；为已有解释器提供独立、带备份的标准库修补入口，不要求重新安装 Python 或虚拟环境。
+- 已知结果：已核对官方配置与 setuptools / CPython 复制链，完成 Python、Go 语法及变更范围静态检查；当前修补尚待 Termux 实测，不声称 `psutil` 或其下游依赖全部可用。
+
+依据：[asdf 执行入口](https://github.com/asdf-vm/asdf/blob/master/internal/exec/exec.go)、[Termux linker 执行链](https://github.com/termux/termux-exec-package/blob/master/site/pages/en/projects/docs/technical/index.md)、[Go Android 系统调用分支](https://github.com/golang/go/blob/master/src/syscall/syscall_linux.go)、[本次 CPython 报错及回退源码](https://github.com/python/cpython/blob/v3.11.13/Python/fileutils.c)、[Termux 官方 Python 依赖与特性禁用](https://github.com/termux/termux-packages/blob/master/packages/python/build.sh)、[CPython 的 LN 配置](https://github.com/python/cpython/blob/v3.11.13/configure.ac)、[CPython 共享库链接规则](https://github.com/python/cpython/blob/v3.11.13/Makefile.pre.in)、[CPython 扩展搜索路径](https://github.com/python/cpython/blob/v3.11.13/setup.py)、[setuptools 元数据备份](https://github.com/pypa/setuptools/blob/main/setuptools/command/dist_info.py)、[Termux 同类元数据复制错误](https://github.com/termux/termux-packages/issues/20809)。

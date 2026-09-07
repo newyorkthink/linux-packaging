@@ -25,6 +25,8 @@ func termuxPythonInstallEnv(plugin, callback string, environment map[string]stri
 		"ac_cv_func_copy_file_range": "no",
 		"ac_cv_func_preadv2":         "no",
 		"ac_cv_func_pwritev2":        "no",
+		// 沿用 Termux 官方配置，避免 shutil 复制 SELinux 扩展属性失败。
+		"ac_cv_header_sys_xattr_h": "no",
 		// CPython configure 支持 LN，生成的 Makefile 使用软链接。
 		"LN": "ln -s",
 	}
