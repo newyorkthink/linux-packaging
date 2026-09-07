@@ -74,7 +74,7 @@ asdf install python "<Python版本>"
 
 若安装源码包时在 `.egg-info.__bkp__` 出现批量 `Permission denied`，与 Termux 已记录的 `shutil.copytree` / 扩展属性复制问题吻合。此阶段还未开始编译该包的 C 扩展；不能通过更改 `ln` 解决。
 
-目录中的 `repair_python_xattr.py` 可修补现有解释器，无需卸载 Python、虚拟环境或已安装包。它仅将标准库 `shutil._copyxattr` 改为空操作，保留文件内容、权限和时间戳的复制逻辑；不会忽略普通文件读写权限错误。脚本先保存唯一命名的原文件备份，再原子替换。**修改作用于当前虚拟环境所用基础 Python 的 `shutil.py`，使用同一基础 Python 的其他虚拟环境也会生效。**
+目录中的 `repair_python_xattr.py` 可修补现有解释器，无需卸载 Python、虚拟环境或已安装包。默认入口仅将标准库 `shutil._copyxattr` 改为空操作，保留文件内容、权限和时间戳的复制逻辑；不会忽略普通文件读写权限错误。脚本先保存唯一命名的原文件备份，再原子替换。**修改作用于当前虚拟环境所用基础 Python 的 `shutil.py`，使用同一基础 Python 的其他虚拟环境也会生效。**
 
 在 **Termux 终端**激活需要修复的虚拟环境，下载本目录的 `repair_python_xattr.py`，进入其所在目录后执行：
 
@@ -93,7 +93,7 @@ chmod +x ./repair_python_xattr.py
 ./repair_python_xattr.py
 ```
 
-随后重试原来的 pip 安装命令。已有 Python 使用此入口即可；本次不必为了该问题重新运行 Actions 或重编 Python。脚本只处理元数据复制，不代表目标包后续编译及全部运行功能已经通过验证。
+随后重试原来的 pip 安装命令。已有 Python 使用此入口即可；本次不必为了该问题重新运行 Actions 或重编 Python。默认入口只处理元数据复制，不代表目标包后续编译及全部运行功能已经通过验证。
 
 ### pip 构建依赖提示缺少 Rust
 
@@ -107,6 +107,71 @@ pkg install rust clang make pkg-config openssl libffi
 ```
 
 此步骤针对当前缺少工具链的报错，尚不代表 `cryptography` 完整构建及运行已通过实测。依据：[maturin 的 cargo 探测与自动安装入口](https://github.com/PyO3/maturin/blob/main/setup.py)、[cryptography 源码构建依赖](https://cryptography.io/en/latest/installation/)、[Termux Rust 包](https://github.com/termux/termux-packages/blob/master/packages/rust/build.sh)。
+
+### asdf Python 与已有安装的修补入口
+
+可以直接使用 asdf 选定的 Python，虚拟环境用于隔离项目依赖，不是运行前提。上面的虚拟环境步骤仅适用于原本使用虚拟环境的项目；直接使用 asdf 时，应在该解释器环境中安装依赖和运行修补脚本。
+
+`plugins_termux_python.go` 已把 xattr 特性禁用接入新 Python 的安装流程。独立脚本用于修补此前已经安装的解释器；`build.sh` 不会将该脚本嵌入 asdf 二进制。第三方包是在手机上由 pip 安装的，其安装后修补保留为显式操作。
+
+若项目使用 `zoneinfo`，但报缺少 `tzdata` 或找不到命名时区，在 **Termux 当前 Python 环境**执行已确认有效的命令：
+
+```bash
+# 给当前 Python 补充时区数据库
+python -m pip install tzdata
+```
+
+### cryptography 已安装但缺少 Python 符号
+
+若 `_rust.abi3.so` 导入时报 `cannot locate symbol "PyExc_Warning"`，可使用目录中修补脚本新增的 `--cryptography` 选项。它沿用已实测成功的步骤：先备份扩展内容，再通过 `patchelf --add-needed` 补入当前 Python 的共享库完整路径；相同依赖已存在时不重复修改。**此选项会修改当前解释器所找到的 cryptography 扩展文件；重新安装或升级该包可能覆盖修补。** 默认的 xattr 入口不变。
+
+在 **Termux 当前 Python 环境**、已下载的新版脚本所在目录执行；此选项需要系统已安装 `patchelf`：
+
+```bash
+# 仅修补当前 cryptography 的 Python 共享库依赖
+python ./repair_python_xattr.py --cryptography
+```
+
+依据：[Termux 官方 cryptography 补链接步骤](https://github.com/termux/termux-packages/blob/master/packages/python-cryptography/build.sh)。
+
+### coincurve 构建时找不到 cffi 许可证
+
+`coincurve 21.0.0` 的 `hatch_build.py` 只接受 `.dist-info/LICENSE`，不能识别新版 cffi 的 `.dist-info/licenses/LICENSE`，因此在生成元数据时失败。可在所需版本的独立源码副本中采用上游已修正的路径判断；保留实际许可证文件及打包步骤，不降级当前环境的 cffi，不修改 cryptography。
+
+在 **Termux 当前 Python 环境**执行；将 `<coincurve版本>` 替换为依赖实际要求、且仍使用该旧判断的版本。需要已有 Git、Clang、CMake、Ninja 和 pkg-config。括号内任一步失败即停止；源码目录会保留以便查看构建错误。
+
+```bash
+(
+# 只在本次安装子 shell 中启用出错即停
+set -e
+
+# 创建独立源码目录
+coincurve_src="$(mktemp -d "${TMPDIR:-$PREFIX/tmp}/coincurve.XXXXXX")"
+
+# 下载依赖要求的原版源码
+git clone --depth 1 --branch "v<coincurve版本>" https://github.com/ofek/coincurve.git "$coincurve_src"
+
+# 仅修正许可证路径判断，源码不匹配时停止
+python - "$coincurve_src/hatch_build.py" <<'PATCH_PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+source = path.read_text()
+old = 'f.parent.name.endswith(".dist-info")'
+new = 'f.parts[0].endswith(".dist-info")'
+if source.count(old) != 1:
+    raise SystemExit("源码许可证入口不匹配，未修改文件。")
+path.write_text(source.replace(old, new))
+PATCH_PY
+
+# 使用当前解释器安装修正后的同版本包，不更改已有运行依赖
+python -m pip install --no-deps "$coincurve_src"
+)
+```
+
+安装完成后，原样重试项目原来的 pip 安装命令。当前已核对旧版与上游修正的许可证查找逻辑、构建依赖及语法，完整 Termux 构建与项目运行仍待实测。
+
+依据：[旧版许可证判断](https://github.com/ofek/coincurve/blob/v21.0.0/hatch_build.py)、[上游路径修正](https://github.com/ofek/coincurve/blob/master/hatch_build.py)、[同类 Termux 问题](https://github.com/ofek/coincurve/issues/187)。
 
 ## 修复记录
 
@@ -159,5 +224,13 @@ pkg install rust clang make pkg-config openssl libffi
 - 修改文件：`repair_python_xattr.py`、本 README。
 - 修复内容：添加 `#!/usr/bin/env python3` 和 Git 可执行权限，补充下载后的直接运行说明；原有修补逻辑和 `python ./repair_python_xattr.py` 命令保持原样。
 - 已知结果：已完成 Python 语法和原有代码一致性静态检查；实测日志已显示 `psutil` 元数据生成、wheel 构建及安装成功。后续 `cryptography` 在 `maturin` 自动安装 Rust 阶段失败，README 补充原生工具链依赖，未将该依赖的完整构建标记为通过。
+
+### 2026-09-07：保存已验证的 cryptography 修补及 coincurve 构建处理
+
+- 实测进展：安装 Rust 后，cryptography 和业务依赖已完成安装；补充 tzdata 并为 cryptography 添加当前 Python 共享库依赖后，Schwab 导入及行情列表已正常运行，保留这些已验证步骤。
+- 现象与根因：cryptography 的 Rust 扩展因缺少 Python 共享库链接而导入失败；另一次依赖安装中，coincurve 的旧许可证路径判断未匹配新版 cffi 的许可证布局。
+- 修改文件：`repair_python_xattr.py`、本 README；asdf 构建及 Go 兼容源码保持原样。
+- 修复内容：将已验证的备份和补链接代码收进 `--cryptography` 手动选项，完整保留原 xattr 函数；记录当前解释器与虚拟环境的关系，并给出仅修正 coincurve 许可证判断的同版本源码安装步骤。
+- 已知结果：cryptography 的独立修补步骤已有实机成功结果；新增选项及 coincurve 指令完成静态检查，未在云端代替手机运行安装，不把尚未取得结果的 coincurve 构建标记为通过。
 
 依据：[asdf 执行入口](https://github.com/asdf-vm/asdf/blob/master/internal/exec/exec.go)、[Termux linker 执行链](https://github.com/termux/termux-exec-package/blob/master/site/pages/en/projects/docs/technical/index.md)、[Go Android 系统调用分支](https://github.com/golang/go/blob/master/src/syscall/syscall_linux.go)、[本次 CPython 报错及回退源码](https://github.com/python/cpython/blob/v3.11.13/Python/fileutils.c)、[Termux 官方 Python 依赖与特性禁用](https://github.com/termux/termux-packages/blob/master/packages/python/build.sh)、[CPython 的 LN 配置](https://github.com/python/cpython/blob/v3.11.13/configure.ac)、[CPython 共享库链接规则](https://github.com/python/cpython/blob/v3.11.13/Makefile.pre.in)、[CPython 扩展搜索路径](https://github.com/python/cpython/blob/v3.11.13/setup.py)、[setuptools 元数据备份](https://github.com/pypa/setuptools/blob/main/setuptools/command/dist_info.py)、[Termux 同类元数据复制错误](https://github.com/termux/termux-packages/issues/20809)。
