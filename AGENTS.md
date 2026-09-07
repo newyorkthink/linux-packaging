@@ -360,6 +360,15 @@ linuxdeploy 额外规则：
 - 通过 plan 阶段决定需要构建的项目；
 - 能复用 `.github/actions/build-anylinux` 时优先复用。
 
+### 按产物类型使用现有入口
+
+- AppImage 使用 `.github/workflows/build.yml`。
+- RunImage 使用 `.github/workflows/build_runimage.yml`。
+- Termux 原生工具使用 `.github/workflows/termux.yml`，脚本放在 `termux/<工具名>/`；不得套用桌面 AppImage / RunImage 打包步骤。
+- 三类流程都保留每个项目独立 Job、独立构建环境和手动选择入口；push 限定 main，并按实际变更选择项目。
+- 用户已确认有效的应用实现，以对应 README 记录的提交和实测范围作为稳定基线；整理文档或 workflow 不得顺带改动该实现，也不得把确认范围扩大到其他工具或未验证的用法。
+- 用户明确要求自己运行 Actions 时，提交使用 `[skip ci]` 跳过本次 push 构建，不主动 dispatch 或轮询；保留已有手动、定时及后续正常 push 触发设置。
+
 ### 永久禁止临时 test workflow 和测试 Job
 
 - 不得因为“新应用首次接入”“隔离排查”“临时验证”“smoke test”“先跑通再删”等理由创建任何独立 test workflow。

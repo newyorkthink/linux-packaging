@@ -18,8 +18,10 @@ on:
   schedule:
     - cron: '0 0 * * *'
   push:
+    branches: [main]
     paths:
       - 'termux/**'
+      - '!termux/**/*.md'
       - '.github/workflows/termux.yml'
 
 permissions:
@@ -33,30 +35,68 @@ jobs:
       smug: ${{ steps.plan.outputs.smug }}
       asdf: ${{ steps.plan.outputs.asdf }}
     steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
       - name: Select build jobs
         id: plan
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SELECTED_TOOL: ${{ inputs.tool }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
         run: |
+          set -euo pipefail
           BUILD_SMUG=false
           BUILD_ASDF=false
-          
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            if [[ "${{ inputs.tool }}" == "all" ]]; then
+
+          case "$EVENT_NAME" in
+            workflow_dispatch)
+              case "${SELECTED_TOOL:-all}" in
+                all)
+                  BUILD_SMUG=true
+                  BUILD_ASDF=true
+                  ;;
+                smug) BUILD_SMUG=true ;;
+                asdf) BUILD_ASDF=true ;;
+                *)
+                  echo "不支持的工具：$SELECTED_TOOL" >&2
+                  exit 1
+                  ;;
+              esac
+              ;;
+            push)
+              # 与现有 RunImage 流程一致，根据本次提交范围选择独立 Job。
+              if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+                CHANGED_FILES="$(git show --pretty='' --name-only "$AFTER_SHA")"
+              else
+                CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"
+              fi
+              while IFS= read -r file; do
+                case "$file" in
+                  *.md) ;;
+                  .github/workflows/termux.yml)
+                    BUILD_SMUG=true
+                    BUILD_ASDF=true
+                    ;;
+                  termux/smug/*) BUILD_SMUG=true ;;
+                  termux/asdf/*) BUILD_ASDF=true ;;
+                esac
+              done <<< "$CHANGED_FILES"
+              ;;
+            schedule)
+              # 保留现有每日全量构建。
               BUILD_SMUG=true
               BUILD_ASDF=true
-            elif [[ "${{ inputs.tool }}" == "smug" ]]; then
-              BUILD_SMUG=true
-            elif [[ "${{ inputs.tool }}" == "asdf" ]]; then
-              BUILD_ASDF=true
-            fi
-          else
-            # push 或 schedule 默认全量构建
-            BUILD_SMUG=true
-            BUILD_ASDF=true
-          fi
-          
-          echo "smug=$BUILD_SMUG" >> $GITHUB_OUTPUT
-          echo "asdf=$BUILD_ASDF" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "不支持的触发事件：$EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "smug=$BUILD_SMUG" >> "$GITHUB_OUTPUT"
+          echo "asdf=$BUILD_ASDF" >> "$GITHUB_OUTPUT"
 
   build-smug:
     name: Build smug
