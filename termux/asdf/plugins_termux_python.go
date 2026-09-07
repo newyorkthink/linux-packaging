@@ -1,6 +1,11 @@
 package plugins
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+)
 
 // termuxPythonInstallEnv 仅作用于 Python 安装，不修改进程全局环境。
 func termuxPythonInstallEnv(plugin, callback string, environment map[string]string) map[string]string {
@@ -32,6 +37,35 @@ func termuxPythonInstallEnv(plugin, callback string, environment map[string]stri
 			env[key] = inherited
 		} else {
 			env[key] = value
+		}
+	}
+
+	// CPython 的扩展探测还会自行搜索文件，需要显式传入 Termux 目录。
+	getEnv := func(key string) string {
+		if value, ok := env[key]; ok {
+			return value
+		}
+		return os.Getenv(key)
+	}
+	if prefix := getEnv("PREFIX"); prefix != "" {
+		for key, flag := range map[string]string{
+			"CPPFLAGS": "-I" + filepath.Join(prefix, "include"),
+			"LDFLAGS":  "-L" + filepath.Join(prefix, "lib"),
+		} {
+			existing := getEnv(key)
+			if !slices.Contains(strings.Fields(existing), flag) {
+				env[key] = strings.TrimSpace(existing + " " + flag)
+			}
+		}
+		// 保留已有 pkg-config 搜索顺序，避免覆盖自定义依赖配置。
+		pkgConfigPath := getEnv("PKG_CONFIG_PATH")
+		pkgConfigDir := filepath.Join(prefix, "lib", "pkgconfig")
+		if !slices.Contains(filepath.SplitList(pkgConfigPath), pkgConfigDir) {
+			if pkgConfigPath == "" {
+				env["PKG_CONFIG_PATH"] = pkgConfigDir
+			} else {
+				env["PKG_CONFIG_PATH"] = pkgConfigPath + string(os.PathListSeparator) + pkgConfigDir
+			}
 		}
 	}
 	return env
