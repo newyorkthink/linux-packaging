@@ -83,7 +83,30 @@ asdf install python "<Python版本>"
 python ./repair_python_xattr.py
 ```
 
+脚本首行指定 `#!/usr/bin/env python3`，也支持直接执行；此时使用当前 PATH 中的 `python3`。通过网页下载的文件可能没有执行权限，在同一 **Termux 终端**及脚本目录执行：
+
+```bash
+# 为下载的修补脚本添加执行权限
+chmod +x ./repair_python_xattr.py
+
+# 使用当前环境中的 Python 3 直接运行脚本
+./repair_python_xattr.py
+```
+
 随后重试原来的 pip 安装命令。已有 Python 使用此入口即可；本次不必为了该问题重新运行 Actions 或重编 Python。脚本只处理元数据复制，不代表目标包后续编译及全部运行功能已经通过验证。
+
+### pip 构建依赖提示缺少 Rust
+
+若 `cryptography` 安装在构建 `maturin` 时出现 `Rust not found, installing into a temporary directory`，随后报告 `Unsupported platform`，说明构建进程没有在 PATH 找到 `cargo`，转而尝试自动安装 Rust。原生 Termux 应使用自己的 Rust 工具链；重新构建 asdf 或 Python 不会补装该工具链。
+
+在 **Termux 终端**补齐源码构建所需依赖，然后在原虚拟环境中重试原来的 pip 安装命令：
+
+```bash
+# 安装 Rust、C 编译工具及 cryptography 所需原生库
+pkg install rust clang make pkg-config openssl libffi
+```
+
+此步骤针对当前缺少工具链的报错，尚不代表 `cryptography` 完整构建及运行已通过实测。依据：[maturin 的 cargo 探测与自动安装入口](https://github.com/PyO3/maturin/blob/main/setup.py)、[cryptography 源码构建依赖](https://cryptography.io/en/latest/installation/)、[Termux Rust 包](https://github.com/termux/termux-packages/blob/master/packages/rust/build.sh)。
 
 ## 修复记录
 
@@ -128,5 +151,13 @@ python ./repair_python_xattr.py
 - 修改文件：`plugins_termux_python.go`、新增 `repair_python_xattr.py`、本 README。
 - 修复内容：为后续构建补充官方 xattr 配置；为已有解释器提供独立、带备份的标准库修补入口，不要求重新安装 Python 或虚拟环境。
 - 已知结果：已核对官方配置与 setuptools / CPython 复制链，完成 Python、Go 语法及变更范围静态检查；当前修补尚待 Termux 实测，不声称 `psutil` 或其下游依赖全部可用。
+
+### 2026-09-07：补齐修补脚本的直接执行入口
+
+- 现象：直接执行 `./repair_python_xattr.py` 报 `import: not found` 和 shell 语法错误。
+- 根因：脚本缺少解释器首行，直接启动被 shell 当作 shell 脚本解析。
+- 修改文件：`repair_python_xattr.py`、本 README。
+- 修复内容：添加 `#!/usr/bin/env python3` 和 Git 可执行权限，补充下载后的直接运行说明；原有修补逻辑和 `python ./repair_python_xattr.py` 命令保持原样。
+- 已知结果：已完成 Python 语法和原有代码一致性静态检查；实测日志已显示 `psutil` 元数据生成、wheel 构建及安装成功。后续 `cryptography` 在 `maturin` 自动安装 Rust 阶段失败，README 补充原生工具链依赖，未将该依赖的完整构建标记为通过。
 
 依据：[asdf 执行入口](https://github.com/asdf-vm/asdf/blob/master/internal/exec/exec.go)、[Termux linker 执行链](https://github.com/termux/termux-exec-package/blob/master/site/pages/en/projects/docs/technical/index.md)、[Go Android 系统调用分支](https://github.com/golang/go/blob/master/src/syscall/syscall_linux.go)、[本次 CPython 报错及回退源码](https://github.com/python/cpython/blob/v3.11.13/Python/fileutils.c)、[Termux 官方 Python 依赖与特性禁用](https://github.com/termux/termux-packages/blob/master/packages/python/build.sh)、[CPython 的 LN 配置](https://github.com/python/cpython/blob/v3.11.13/configure.ac)、[CPython 共享库链接规则](https://github.com/python/cpython/blob/v3.11.13/Makefile.pre.in)、[CPython 扩展搜索路径](https://github.com/python/cpython/blob/v3.11.13/setup.py)、[setuptools 元数据备份](https://github.com/pypa/setuptools/blob/main/setuptools/command/dist_info.py)、[Termux 同类元数据复制错误](https://github.com/termux/termux-packages/issues/20809)。
