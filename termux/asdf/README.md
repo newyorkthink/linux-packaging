@@ -47,4 +47,12 @@ asdf plugin add python
 - 修复内容：接入参数初始化和两类执行入口，采用 smug 已实测的 linker / Termux shell 思路，并将 Linux PIE 目标改为 Android ARM64，使用 Go 的 Android 系统调用兼容分支。
 - 已知结果：按当前上游源码核对入口、参数、环境、包依赖、补丁匹配、Bash / Go 语法及 workflow 产物路径；尚未取得本次 asdf 产物的 Actions 构建和手机实测结果，不能将 smug 的成功结论直接视为 asdf 已通过。
 
-依据：[asdf 执行入口](https://github.com/asdf-vm/asdf/blob/master/internal/exec/exec.go)、[Termux linker 执行链](https://github.com/termux/termux-exec-package/blob/master/site/pages/en/projects/docs/technical/index.md)、[Go Android 系统调用分支](https://github.com/golang/go/blob/master/src/syscall/syscall_linux.go)。
+### 2026-09-07：确认插件入口可用，记录 CPython 编译边界
+
+- 实测范围：`f21120f` 产物已成功执行 `asdf plugin add python`，安装命令能够下载并启动 python-build；本次保留三个构建 / 兼容源文件不变。
+- 后续故障：CPython 3.11.13 的 `Python/fileutils.c` 编译报 `close_range` 未声明，属于插件构建 CPython 时的 Android C 库兼容问题，不是 asdf 自身云编译失败或原参数偏移复发。
+- 源码依据：该调用受 `HAVE_CLOSE_RANGE` 控制，CPython 自带逐个关闭文件描述符的回退；仅禁用该特性可避开此处调用，但当前证据不能证明整个 Android Python 构建及扩展均可用。
+- 处理：本次不向 asdf 主程序注入 Python 专用编译选项。需要避免手机编译 Python 时，使用新增的 [micromamba / PRoot 入口](../micromamba/README.md)。
+- 修改文件：仅本 README；micromamba 的独立接入见对应目录。未声称 Python 安装或全部 asdf 功能已通过实测。
+
+依据：[asdf 执行入口](https://github.com/asdf-vm/asdf/blob/master/internal/exec/exec.go)、[Termux linker 执行链](https://github.com/termux/termux-exec-package/blob/master/site/pages/en/projects/docs/technical/index.md)、[Go Android 系统调用分支](https://github.com/golang/go/blob/master/src/syscall/syscall_linux.go)、[本次 CPython 报错及回退源码](https://github.com/python/cpython/blob/v3.11.13/Python/fileutils.c)。

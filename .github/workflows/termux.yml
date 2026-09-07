@@ -15,6 +15,7 @@ on:
           - all
           - smug
           - asdf
+          - micromamba
   schedule:
     - cron: '0 0 * * *'
   push:
@@ -34,6 +35,7 @@ jobs:
     outputs:
       smug: ${{ steps.plan.outputs.smug }}
       asdf: ${{ steps.plan.outputs.asdf }}
+      micromamba: ${{ steps.plan.outputs.micromamba }}
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
@@ -49,6 +51,7 @@ jobs:
           set -euo pipefail
           BUILD_SMUG=false
           BUILD_ASDF=false
+          BUILD_MICROMAMBA=false
 
           case "$EVENT_NAME" in
             workflow_dispatch)
@@ -56,9 +59,11 @@ jobs:
                 all)
                   BUILD_SMUG=true
                   BUILD_ASDF=true
+                  BUILD_MICROMAMBA=true
                   ;;
                 smug) BUILD_SMUG=true ;;
                 asdf) BUILD_ASDF=true ;;
+                micromamba) BUILD_MICROMAMBA=true ;;
                 *)
                   echo "不支持的工具：$SELECTED_TOOL" >&2
                   exit 1
@@ -78,9 +83,11 @@ jobs:
                   .github/workflows/termux.yml)
                     BUILD_SMUG=true
                     BUILD_ASDF=true
+                    BUILD_MICROMAMBA=true
                     ;;
                   termux/smug/*) BUILD_SMUG=true ;;
                   termux/asdf/*) BUILD_ASDF=true ;;
+                  termux/micromamba/*) BUILD_MICROMAMBA=true ;;
                 esac
               done <<< "$CHANGED_FILES"
               ;;
@@ -88,6 +95,7 @@ jobs:
               # 保留现有每日全量构建。
               BUILD_SMUG=true
               BUILD_ASDF=true
+              BUILD_MICROMAMBA=true
               ;;
             *)
               echo "不支持的触发事件：$EVENT_NAME" >&2
@@ -97,6 +105,7 @@ jobs:
 
           echo "smug=$BUILD_SMUG" >> "$GITHUB_OUTPUT"
           echo "asdf=$BUILD_ASDF" >> "$GITHUB_OUTPUT"
+          echo "micromamba=$BUILD_MICROMAMBA" >> "$GITHUB_OUTPUT"
 
   build-smug:
     name: Build smug
@@ -140,3 +149,24 @@ jobs:
         run: |
           gh release upload "latest" ./asdf.termux.tar.gz --clobber || \
           gh release create "latest" ./asdf.termux.tar.gz --title "Latest Build"
+
+  build-micromamba:
+    name: Package micromamba for Termux PRoot
+    needs: plan
+    if: needs.plan.outputs.micromamba == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install packaging dependency
+        run: |
+          # 仅在 Actions runner 安装 OCI 镜像复制工具。
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends skopeo
+      - name: Run Build Script
+        run: bash ./termux/micromamba/build.sh
+      - name: Publish to Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "latest" ./micromamba.termux.tar.gz --clobber || \
+          gh release create "latest" ./micromamba.termux.tar.gz --title "Latest Build"

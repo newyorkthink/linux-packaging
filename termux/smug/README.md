@@ -10,7 +10,7 @@
 ## 打包方式
 
 - 入口：`.github/workflows/termux.yml` 的 `build-smug` Job；手动构建时选择 `smug`，每日全量构建保持不变。
-- push 仅接受 main；按工具目录的实际改动选择 smug / asdf，修改 workflow 时构建全部，仅修改 Markdown 文档时不触发构建。
+- push 仅接受 main；按工具目录的实际改动选择对应 Job，修改 workflow 时构建全部，仅修改 Markdown 文档时不触发构建。
 - `build.sh` 在 Actions 临时目录下载上游默认分支，保持原有动态源码来源；`actions/setup-go` 提供稳定版 Go。
 - `termux_compat_android.go` 修复 Android linker 启动时的参数偏移，并适配子进程执行；构建脚本将上游命令入口接入该适配。
 - 保持 `GOOS=android GOARCH=arm64 CGO_ENABLED=0`，由 Go 的 Android 分支生成可执行文件，不再切换到 Linux 目标。
