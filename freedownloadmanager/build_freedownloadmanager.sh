@@ -50,10 +50,26 @@ yay -S --noconfirm \
 
 ###### 核心打包 ######
 
-# 保留标准入口，显式带入 Qt6 输入模块及网络状态检测后端。
+# FDM 的下载模块由主程序按需加载，启动阶段不会全部触发；quick-sharun 只接收文件，因此显式收集这些运行库。
+mapfile -t FDM_RUNTIME_LIBS < <(
+  find /opt/freedownloadmanager/lib -maxdepth 1 \
+    \( -type f -o -type l \) \
+    \( -name 'libdownloads*.so*' \
+       -o -name 'liblogger.so*' \
+       -o -name 'libvmsclshared.so*' \
+       -o -name 'libquazip1-qt6.so*' \) \
+    -print | sort
+)
+
+if [ "${#FDM_RUNTIME_LIBS[@]}" -eq 0 ]; then
+  echo "Error: FDM runtime libraries were not found."
+  exit 1
+fi
+
+# 保留标准入口，显式带入 FDM 按需运行库、Qt6 输入模块及网络状态检测后端。
 quick-sharun \
   /opt/freedownloadmanager/fdm \
-  /opt/freedownloadmanager \
+  "${FDM_RUNTIME_LIBS[@]}" \
   /usr/bin/xdg-open \
   /usr/lib/qt6/plugins/platforminputcontexts/libibusplatforminputcontextplugin.so \
   /usr/lib/qt6/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so \
@@ -66,7 +82,7 @@ quick-sharun \
 
 ###### 保留 FDM 翻译资源 ######
 
-# quick-sharun 的目录输入只收集 ELF，需另行保留完整的 FDM 翻译目录。
+# FDM 翻译是非 ELF 资源，需另行保留完整目录。
 cp -a /opt/freedownloadmanager/translations AppDir/shared/bin/
 
 # 标准 sharun 入口与真实程序共用同一份翻译，不增加启动脚本。
