@@ -100,8 +100,8 @@ quick-sharun \
 
 ###### 恢复 FDM 私有模块相对路径 ######
 
-# FDM 会按真实主程序目录下的 lib/ 查找下载模块；恢复上游 fdm + lib/ 的相对布局，不增加自定义启动逻辑。
-ln -s ../../lib/freedownloadmanager/lib AppDir/shared/bin/lib
+# FDM 运行时以 AppDir/bin/fdm 作为自身程序路径，并固定从旁边的 lib/ 搜索下载模块。
+ln -s ../lib/freedownloadmanager/lib AppDir/bin/lib
 
 ###### 保留 FDM 翻译资源 ######
 
