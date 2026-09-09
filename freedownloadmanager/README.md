@@ -11,9 +11,9 @@
 
 ## 技术栈
 
-当前脚本按 Linux 原生桌面应用路线处理 FDM，主程序入口为 `/opt/freedownloadmanager/fdm`。
+当前脚本按 Linux 原生 Qt6 桌面应用路线处理 FDM，主程序入口为 `/opt/freedownloadmanager/fdm`。
 
-打包侧显式部署 Qt6、GTK3、GStreamer / FFmpeg、libtorrent、NSS、X11、OpenGL / Vulkan、PulseAudio / PipeWire、字体与图像渲染等运行时组件，并使用 `xdg-open` 处理宿主桌面打开操作。中文输入兼容同时包含 IBus 与 Fcitx5 的 GTK3 / Qt6 输入模块。
+打包侧显式部署 Qt6、GTK3、GStreamer / FFmpeg、libtorrent、NSS、X11、OpenGL / Vulkan、PulseAudio / PipeWire、字体与图像渲染等运行时组件，并使用 `xdg-open` 处理宿主桌面打开操作。中文输入兼容仅显式带入 Qt6 的 IBus 与 Fcitx5 platform input context 模块。
 
 当前仅构建 x86_64 AppImage。
 
@@ -22,10 +22,10 @@
 - 路线：PkgForge AnyLinux 构建环境 + quick-sharun，保持仓库统一的 AnyLinux AppImage 打包方式。
 - 程序来源：通过 `yay -S --noconfirm --mflags "--skipinteg" freedownloadmanager` 安装当前 AUR FDM 包；脚本不另外下载或修改 FDM 主程序。
 - 程序布局：以 `/opt/freedownloadmanager/fdm` 和完整 `/opt/freedownloadmanager/` 作为 quick-sharun 输入，保留上游程序目录及资源。
-- 依赖部署：显式加入 `xdg-open`、NSS / PKCS#11 相关运行库，并启用 GTK、Qt、OpenGL、Vulkan、PipeWire 和 locale 部署；同时安装并打包 IBus / Fcitx5 的 GTK3、Qt6 输入模块。
+- 依赖部署：显式加入 `xdg-open`、NSS / PKCS#11 相关运行库，并启用 GTK、Qt、OpenGL、Vulkan、PipeWire 和 locale 部署；输入法仅额外安装 `fcitx5-qt`，并显式打包 Qt6 的 IBus / Fcitx5 platform input context 模块。
 - desktop / 图标：使用上游 `/usr/share/applications/freedownloadmanager.desktop` 与 `/opt/freedownloadmanager/icon.png`。
 - 中文环境：在 AppImage 内生成 `zh_CN.UTF-8` locale，并通过 `.env` 设置 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_MESSAGES=zh_CN.UTF-8`；不修改宿主机全局 locale。
-- 输入法：打包 IBus / Fcitx5 的 GTK3 与 Qt6 输入模块，不强制设置 `GTK_IM_MODULE` / `QT_IM_MODULE`，由宿主已经运行的输入法会话选择实际输入法。
+- 输入法：仅打包 Qt6 IBus / Fcitx5 platform input context，不强制设置 `QT_IM_MODULE`，由宿主已经运行的输入法会话选择实际输入法。
 - AppImage 生成：由 `quick-sharun --make-appimage` 生成 `dist/freedownloadmanager.AppImage`。
 - workflow：通过 `.github/workflows/build.yml` 的独立 `build_freedownloadmanager` Job 构建，沿用仓库统一 AnyLinux 构建与 `latest` Release 发布流程。
 
@@ -49,7 +49,7 @@
 - 仅支持 x86_64。
 - AppImage 直接运行 FDM 主程序，不要求额外后台服务、helper 或初始化步骤。
 - AppImage 自带 `zh_CN.UTF-8` locale，并优先使用简体中文消息环境；FDM 实际可显示的界面翻译仍以其上游自带语言资源为准。
-- IBus / Fcitx5 输入支持只打包客户端输入模块和依赖，不启动输入法守护进程，也不覆盖宿主输入法环境变量。
+- IBus / Fcitx5 输入支持只打包 Qt6 platform input context 及依赖，不启动输入法守护进程，也不覆盖宿主输入法环境变量。
 - 当前构建脚本不会主动向浏览器 Native Messaging 目录写入配置，也不会创建宿主机 `fdm-wenativehost` 包装脚本。
 - 将上游 `wenativehost` 等文件包含在 `/opt/freedownloadmanager/` 内，不等同于自动注册浏览器集成；只有额外的注册 / 启动逻辑才会产生宿主机配置写入，本目录明确不加入此类逻辑。
 
@@ -84,3 +84,10 @@
 - 修改文件：`freedownloadmanager/build_freedownloadmanager.sh`、`freedownloadmanager/README.md`。
 - 修改内容：启用 `DEPLOY_LOCALE=1`，生成 AppImage 自带的 `zh_CN.UTF-8` locale；加入 `fcitx5-gtk`、`fcitx5-qt`，并将 IBus / Fcitx5 的 GTK3、Qt6 platform input context 模块作为 quick-sharun 输入；`.env` 仅设置中文 locale，不强制指定输入法类型。
 - 已知结果：本次不加入自定义 `AppRun`、wrapper、Native Messaging 注册或其他宿主机写入逻辑；最终中文界面与输入效果以本次正式 GitHub Actions 构建产物的实际运行结果为准。
+
+### 2026-09-09：移除多余 GTK3 输入法模块
+
+- 原因：FDM 当前 Linux 主界面走 Qt6 输入栈，GTK3 的 `im-ibus.so` / `im-fcitx5.so` 不属于其实际输入法入口，继续显式打包只会增加无关组件。
+- 修改文件：`freedownloadmanager/build_freedownloadmanager.sh`、`freedownloadmanager/README.md`。
+- 修改内容：删除 `fcitx5-gtk` 依赖，并移除 GTK3 `im-ibus.so` / `im-fcitx5.so` quick-sharun 输入；保留 Qt6 的 IBus / Fcitx5 platform input context、中文 locale 和现有 AnyLinux / quick-sharun 路线。
+- 已知结果：本次仅收窄输入法打包范围，不加入自定义 `AppRun`、Native Messaging 或其他额外运行逻辑。
