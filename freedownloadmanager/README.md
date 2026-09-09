@@ -23,7 +23,7 @@ FDM 的 `libdownloads*.so*` 下载模块属于按需加载运行库，不保证�
 
 - 路线：PkgForge AnyLinux 构建环境 + quick-sharun，保持仓库统一的 AnyLinux AppImage 打包方式。
 - 程序来源：通过 `yay -S --noconfirm --mflags "--skipinteg" freedownloadmanager` 安装当前 AUR FDM 包；脚本不另外下载或修改 FDM 主程序。
-- 程序布局：quick-sharun 接收文件参数，不会自动展开 `/opt/freedownloadmanager/` 目录。构建脚本因此显式传入主程序，以及 `libdownloads*.so*`、`liblogger.so*`、`libvmsclshared.so*`、`libquazip1-qt6.so*` 等 FDM 自身运行库；这些库仍由 quick-sharun 收集依赖，不手工复制二进制或共享库。上游 `translations/` 原样复制到 `AppDir/shared/bin/translations/`，并从 `AppDir/bin/translations` 建立相对符号链接，供标准入口与真实程序共用。
+- 程序布局：quick-sharun 接收文件参数，不会自动展开 `/opt/freedownloadmanager/` 目录。构建脚本因此显式传入主程序，以及 `libdownloads*.so*`、`liblogger.so*`、`libvmsclshared.so*`、`libquazip.so*` 等 FDM 自身运行库；这些库仍由 quick-sharun 收集依赖，不手工复制二进制或共享库。部署阶段的动态链接解析以 `/usr/lib` 为优先，再回退到 `/opt/freedownloadmanager/lib`，使 FDM 私有 SONAME 能被解析，同时继续沿用系统 Qt / OpenSSL。上游 `translations/` 原样复制到 `AppDir/shared/bin/translations/`，并从 `AppDir/bin/translations` 建立相对符号链接，供标准入口与真实程序共用。
 - 依赖部署：显式加入 `xdg-open`、NSS / PKCS#11 相关运行库，并启用 GTK、Qt、OpenGL、Vulkan、PipeWire 和 locale 部署；输入法仅额外安装 `fcitx5-qt`，并显式打包 Qt6 的 IBus / Fcitx5 platform input context 模块。
 - desktop / 图标：使用上游 `/usr/share/applications/freedownloadmanager.desktop` 与 `/opt/freedownloadmanager/icon.png`。
 - 中文环境：在 AppImage 内生成 `zh_CN.UTF-8` locale，并通过 `.env` 设置 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_MESSAGES=zh_CN.UTF-8`；不修改宿主机全局 locale。
@@ -111,8 +111,16 @@ FDM 的 `libdownloads*.so*` 下载模块属于按需加载运行库，不保证�
 
 - 故障：中文、输入法和网络状态恢复后，QQ 官方 HTTPS 直链和 GitHub Release HTTPS 直链仍被 FDM 判定为“`不支持的链接`”。
 - 根因：quick-sharun 接收文件参数，不会自动展开 `/opt/freedownloadmanager/` 目录；原脚本把该目录作为参数并不能把整个私有运行库目录带入。FDM 的 `libdownloadswww.so*`、`libdownloadsbt.so*`、`libdownloadsbatch.so*` 等下载模块又是按需加载，正常启动阶段不会全部触发，因此未被自动跟踪收集。
-- 核对范围：旧版工作产物的 FDM 私有 `lib/` 中，除 Qt6 库外，应用运行库由 `libdownloads*.so*`、`liblogger.so*`、`libvmsclshared.so*`、`libquazip1-qt6.so*` 组成；本次统一显式收集这些系列，而不是只单独补 `libdownloadswww.so`。
+- 核对范围：旧版工作产物的 FDM 私有 `lib/` 中，除 Qt6 库外，应用运行库由 `libdownloads*.so*`、`liblogger.so*`、`libvmsclshared.so*`、`libquazip.so*` 组成；本次统一显式收集这些系列，而不是只单独补 `libdownloadswww.so`。
 - 修改文件：`freedownloadmanager/build_freedownloadmanager.sh`、`freedownloadmanager/README.md`。
 - 修复内容：移除无效的目录参数，构建时动态枚举上述 FDM 私有运行库并统一作为 quick-sharun 文件输入，由 quick-sharun 继续负责依赖解析和部署；中文翻译、Qt6 输入模块、网络状态后端及 locale 修复保持不变。
 - 维护边界：不手工复制二进制 / 共享库，不加入自定义 `AppRun`、Native Messaging、wrapper 或宿主机配置写入。
 - 已知结果：构建脚本层面已消除按需下载模块的漏包来源；最终 HTTPS / BitTorrent / 批量下载行为仍以本次 GitHub Actions 新产物实际运行验证为准。
+
+### 2026-09-09：修正 FDM 私有库解析路径
+
+- 故障：Actions 在处理 `libdownloadsbatch.so` 时报告 `libvmsclshared.so.6 => not found`，构建直接退出。
+- 根因：`libvmsclshared.so.6` 实际存在于 `/opt/freedownloadmanager/lib/`，但 quick-sharun 调用 `ldd` 时默认动态链接搜索路径看不到同目录的 FDM 私有 SONAME；同时上一版脚本误写了不存在的 `libquazip1-qt6.so*` 名称，当前上游实际为 `libquazip.so*`。
+- 修复内容：将 FDM 私有库目录纳入部署阶段动态链接搜索路径，并保持 `/usr/lib` 优先，避免无意切换到 FDM 自带的另一套 Qt / OpenSSL；同时修正 `libquazip.so*` 匹配。
+- 完整性检查：在 quick-sharun 前对主程序和全部显式收集的 FDM 私有运行库执行 `ldd` 预检，只要仍存在 `=> not found` 就立即失败并打印完整解析结果，不再生成已知残缺的 AppImage。
+- 维护边界：继续使用标准 AnyLinux / quick-sharun；不新增自定义 `AppRun`、Native Messaging、wrapper、浏览器注册或宿主机配置写入。
