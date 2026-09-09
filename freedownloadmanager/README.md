@@ -58,6 +58,7 @@ FDM 的 `libdownloads*.so*` 下载模块属于按需加载运行库，不保证�
 - HTTP / HTTPS、BitTorrent、批量下载等 FDM 按需下载模块通过 `libdownloads*.so*` 统一显式部署，并通过 `AppDir/bin/lib` 相对链接恢复 FDM 实际运行入口所使用的模块发现路径。
 - 当前构建脚本不会主动向浏览器 Native Messaging 目录写入配置，也不会创建宿主机 `fdm-wenativehost` 包装脚本。
 - 将上游 `wenativehost` 等文件包含在 `/opt/freedownloadmanager/` 内，不等同于自动注册浏览器集成；只有额外的注册 / 启动逻辑才会产生宿主机配置写入，本目录明确不加入此类逻辑。
+- FDM 运行时仍会按上游正常行为写入自身设置、缓存、状态数据和用户选择的下载文件；这些属于 FDM 本身的应用数据，不是本仓库额外注入的宿主机写入逻辑。
 
 ### 直接运行
 
@@ -67,6 +68,30 @@ FDM 的 `libdownloads*.so*` 下载模块属于按需加载运行库，不保证�
 # 启动 Free Download Manager。
 ./freedownloadmanager.AppImage
 ```
+
+## 稳定基准
+
+当前稳定运行行为以代码提交 `3a95799ad40a1064be8fea499b7f98c41a16eec0` 为基准。
+
+已确认：
+
+- GitHub Actions Run `#338` 构建成功。
+- 简体中文界面正常显示。
+- Qt6 下 IBus / Fcitx5 中文输入正常。
+- 网络状态正常，不再误报 `No Internet connection`。
+- GitHub Release 普通 HTTPS 直链已能正确识别文件名、文件大小并进入实际下载，`libdownloadswww.so` 等下载模块正常加载。
+- `QString::arg: Argument missing` 属于上游中文翻译字符串缺少 Qt 占位符产生的 warning，不影响下载、联网、中文输入或当前打包结构，本仓库不为此修改上游翻译文件。
+
+宿主机写入边界：
+
+- 本仓库没有自定义 `AppRun`、wrapper、`--fdm-native-host` 或浏览器自动注册代码。
+- 不创建或修改 `~/.config/*/NativeMessagingHosts/`。
+- 不创建 `~/.local/bin/fdm-wenativehost` 或其他自定义 helper。
+- 不主动修改 `/etc`、浏览器配置、输入法配置、网络 / DNS / 代理配置或其他宿主系统设置。
+- 构建脚本中的 `AppDir/`、`dist/`、符号链接和 `.env` 都只属于 AppImage 构建产物内部；不会在运行 AppImage 时按这些构建路径向宿主机持久写入。
+- AnyLinux / quick-sharun 保持标准打包与启动机制；除 AppImage 自身临时挂载和 FDM 上游正常应用数据外，没有额外设计第三方持久写入路径。
+
+后续如果没有新的真实运行故障，不再调整当前 FDM 打包结构；升级上游版本时应以本节基准逐项核对，避免重新引入旧问题。
 
 ## 变更记录
 
@@ -143,3 +168,12 @@ FDM 的 `libdownloads*.so*` 下载模块属于按需加载运行库，不保证�
 - 修复内容：将模块链接改为 `AppDir/bin/lib -> ../lib/freedownloadmanager/lib`。在仓库外对同一发布产物按该目录关系运行后，FDM 日志已确认 `libdownloadswww.so` 等模块均为 `YES`，并显示 `loaded modules pack (): count: 7`；传入 HTTPS 直链后已经进入实际网络下载阶段，而不再停在“链接不支持”的判断阶段。
 - 维护边界：继续使用标准 AnyLinux / quick-sharun；不新增自定义 `AppRun`、Native Messaging、wrapper、浏览器注册、宿主机写入或测试代码。
 - 对应代码提交：`3a95799ad40a1064be8fea499b7f98c41a16eec0`。
+
+### 2026-09-09：确立稳定基准版
+
+- 基准代码：`3a95799ad40a1064be8fea499b7f98c41a16eec0`。
+- 构建结果：GitHub Actions Run `#338` 已成功完成。
+- 实际结果：简体中文界面、Qt6 中文输入、网络状态和普通 HTTPS 直链下载均已确认正常；GitHub Release 资产可以正确识别并实际下载。
+- 文档整理：新增“稳定基准”章节，明确当前已验证功能、上游翻译 warning 的处理边界，以及 AppImage / FDM 正常数据写入与本仓库额外宿主机写入逻辑之间的区别。
+- 宿主机边界：当前方案不加入自定义 `AppRun`、Native Messaging、wrapper、浏览器注册、`~/.local/bin` helper、系统配置修改或其他额外持久化路径。
+- 后续策略：无新的真实运行故障时保持此结构不变；上游升级时以本基准逐项复核，不主动重构已验证逻辑。
