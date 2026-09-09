@@ -21,11 +21,12 @@
 
 - 路线：PkgForge AnyLinux 构建环境 + quick-sharun，保持仓库统一的 AnyLinux AppImage 打包方式。
 - 程序来源：通过 `yay -S --noconfirm --mflags "--skipinteg" freedownloadmanager` 安装当前 AUR FDM 包；脚本不另外下载或修改 FDM 主程序。
-- 程序布局：以 `/opt/freedownloadmanager/fdm` 和完整 `/opt/freedownloadmanager/` 作为 quick-sharun 输入，保留上游程序目录及资源。
+- 程序布局：以 `/opt/freedownloadmanager/fdm` 和 `/opt/freedownloadmanager/` 作为 quick-sharun 输入收集程序与共享库；目录输入不会完整复制非 ELF 资源。另将上游 `translations/` 原样复制到 `AppDir/shared/bin/translations/`，并从 `AppDir/bin/translations` 建立相对符号链接，供标准入口与真实程序共用。
 - 依赖部署：显式加入 `xdg-open`、NSS / PKCS#11 相关运行库，并启用 GTK、Qt、OpenGL、Vulkan、PipeWire 和 locale 部署；输入法仅额外安装 `fcitx5-qt`，并显式打包 Qt6 的 IBus / Fcitx5 platform input context 模块。
 - desktop / 图标：使用上游 `/usr/share/applications/freedownloadmanager.desktop` 与 `/opt/freedownloadmanager/icon.png`。
 - 中文环境：在 AppImage 内生成 `zh_CN.UTF-8` locale，并通过 `.env` 设置 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_MESSAGES=zh_CN.UTF-8`；不修改宿主机全局 locale。
 - 输入法：仅打包 Qt6 IBus / Fcitx5 platform input context，不强制设置 `QT_IM_MODULE`，由宿主已经运行的输入法会话选择实际输入法。
+- 网络状态：显式打包与现有系统 Qt6 部署配套的 `networkinformation/libqnetworkmanager.so` 与 `libqglib.so` 及其依赖，供 FDM 的 `QNetworkInformation` 查询网络可达状态；不启动或修改宿主网络服务。
 - AppImage 生成：由 `quick-sharun --make-appimage` 生成 `dist/freedownloadmanager.AppImage`。
 - workflow：通过 `.github/workflows/build.yml` 的独立 `build_freedownloadmanager` Job 构建，沿用仓库统一 AnyLinux 构建与 `latest` Release 发布流程。
 
@@ -37,6 +38,7 @@
 - 不增加额外 wrapper、启动脚本或隐藏的运行时分支。
 - 不加入 `--fdm-native-host` 等本仓库自定义入口。
 - 不加入自动浏览器 Native Messaging 注册逻辑。
+- 此限制针对浏览器自动注册与额外启动代码，不禁止打包 FDM 显示、联网、中文输入所必需的 Qt 插件及运行库。
 - 不自动创建或修改宿主机 `~/.config/*/NativeMessagingHosts/`。
 - 不自动创建 `~/.local/bin/fdm-wenativehost` 或其他宿主机 helper。
 - 不在启动 AppImage 时自动修改浏览器、用户配置目录或其他宿主系统状态。
@@ -91,3 +93,12 @@
 - 修改文件：`freedownloadmanager/build_freedownloadmanager.sh`、`freedownloadmanager/README.md`。
 - 修改内容：删除 `fcitx5-gtk` 依赖，并移除 GTK3 `im-ibus.so` / `im-fcitx5.so` quick-sharun 输入；保留 Qt6 的 IBus / Fcitx5 platform input context、中文 locale 和现有 AnyLinux / quick-sharun 路线。
 - 已知结果：本次仅收窄输入法打包范围，不加入自定义 `AppRun`、Native Messaging 或其他额外运行逻辑。
+
+### 2026-09-09：补齐 FDM 翻译资源与网络状态后端
+
+- 故障：发布产物不能显示 FDM 中文界面，并出现 `No Internet connection` 提示。
+- 根因与证据：对比旧版与故障产物，旧版包含 72 个 `fdm_*.qm`，故障产物为 0；quick-sharun 的目录输入只收集程序和共享库，未复制 FDM 的非 ELF 翻译资源，Qt 通用翻译与中文 locale 不能替代它们。故障产物也缺少 `networkinformation` 后端，而 FDM 二进制包含 `QNetworkInformation::loadBackendByFeatures(Reachability)` 调用；网络提示的唯一运行时根因仍未确认。
+- 修改文件：`freedownloadmanager/build_freedownloadmanager.sh`、`freedownloadmanager/README.md`。
+- 修复内容：原样保留上游完整翻译目录，并用相对链接适配标准 sharun 入口；显式带入现有 Qt6 对应的 NetworkManager / GLib 网络状态插件及依赖。保留现有 Qt 部署，不因产物同时包含两个 Qt 版本就未经验证整体替换运行时。
+- 维护边界：不新增或替换自定义 `AppRun`、wrapper、浏览器自动注册、宿主 helper 或测试代码；不修改宿主网络、代理、DNS 或输入法设置。
+- 已知结果：已从故障产物与打包工具源码确认上述遗漏；构建成功与文件齐全不等同于实际界面、联网功能已经恢复，最终效果仍需真实运行确认。
