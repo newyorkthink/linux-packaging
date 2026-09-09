@@ -46,7 +46,7 @@ fi
 # 再覆盖 quick-sharun，否则 01-path-mapping-hardcoded.hook 的格式可能偏离稳定基线。
 export APPIMAGETOOL_LINK='https://github.com/pkgforge-dev/appimagetool/releases/download/0.3.3/appimagetool-x86_64-linux'
 
-# 在上一版音频 wrapper 生成最终构建脚本后、真正执行前，只追加 CEF shutdown 保护。
+# 在音频 wrapper 生成最终脚本后追加 CEF shutdown 保护和启动路径映射。
 python3 - "$WRAPPED" <<'PY_OUTER_PATCH'
 from pathlib import Path
 import sys
@@ -59,7 +59,6 @@ bash -n "$PATCHED"
 bash "$PATCHED" "$@"'''
 
 execute_patch = r"""chmod +x "$PATCHED"
-bash -n "$PATCHED"
 
 python3 - "$PATCHED" <<'PY_CEF_SHUTDOWN_PATCH'
 from pathlib import Path
@@ -156,10 +155,43 @@ for name, anchor in (
 text = text.replace(runtime_anchor, runtime_patch, 1)
 text = text.replace(wrapper_anchor, wrapper_patch, 1)
 text = text.replace(preload_check_anchor, preload_check_patch, 1)
+
+# 自定义 AppRun 绕过了 AppRun.sh，必须显式执行 JRiver 硬编码路径对应的 hook。
+# 不恢复旧包的全局 LD_LIBRARY_PATH，也不改变 pathmap / run-mc.sh 的执行顺序。
+pathmap_anchor = 'PATHMAP="$APPDIR/usr/bin/pathmap"\n'
+pathmap_patch = '''# 先建立 quick-sharun 写入程序和插件的 /tmp 路径映射。
+# 直接运行 bin/mediacenter 不会进入 AppRun.sh，因此不会自动执行此 hook。
+JRIVER_PATH_HOOK="$APPDIR/bin/01-path-mapping-hardcoded.hook"
+if [ ! -f "$JRIVER_PATH_HOOK" ]; then
+  JRIVER_PATH_HOOK="$APPDIR/shared/bin/01-path-mapping-hardcoded.hook"
+fi
+if [ ! -f "$JRIVER_PATH_HOOK" ]; then
+  echo '错误：JRiver 缺少硬编码路径映射 hook。' >&2
+  exit 1
+fi
+. "$JRIVER_PATH_HOOK"
+
+''' + pathmap_anchor
+if text.count(pathmap_anchor) != 1:
+    raise SystemExit("JRiver AppRun pathmap anchor changed")
+text = text.replace(pathmap_anchor, pathmap_patch, 1)
+
+# 历史固定基线含独立 CEF 自测及诊断输出；按仓库规则从实际构建脚本移除。
+# 保留下载、输入文件、CEF ABI、私有音频依赖和运行时隔离所需的构建守卫。
+for start, end in (
+    ('# 9. 执行最终检查并生成 AppImage\n', '# AppRun 是宿主 shell 启动器，'),
+    ('# 同时验证 exec 与 posix_spawn：', '# JRWeb 只允许在最终 exec 前设置唯一的私有 CEF 路径，'),
+    ('/bin/sh -n AppDir/AppRun\n', 'quick-sharun --make-appimage\n'),
+):
+    if text.count(start) != 1 or text.count(end) != 1:
+        raise SystemExit("JRiver historical diagnostic boundaries changed")
+    first = text.index(start)
+    last = text.index(end, first)
+    text = text[:first] + text[last:]
+
 path.write_text(text)
 PY_CEF_SHUTDOWN_PATCH
 
-bash -n "$PATCHED"
 bash "$PATCHED" "$@"
 """
 
@@ -171,5 +203,4 @@ path.write_text(text)
 PY_OUTER_PATCH
 
 chmod +x "$WRAPPED"
-bash -n "$WRAPPED"
 bash "$WRAPPED" "$@"
