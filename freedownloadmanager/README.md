@@ -23,7 +23,7 @@ FDM 的 `libdownloads*.so*` 下载模块属于按需加载运行库，不保证�
 
 - 路线：PkgForge AnyLinux 构建环境 + quick-sharun，保持仓库统一的 AnyLinux AppImage 打包方式。
 - 程序来源：通过 `yay -S --noconfirm --mflags "--skipinteg" freedownloadmanager` 安装当前 AUR FDM 包；脚本不另外下载或修改 FDM 主程序。
-- 程序布局：quick-sharun 接收文件参数，不会自动展开 `/opt/freedownloadmanager/` 目录。构建脚本因此显式传入主程序，以及 `libdownloads*.so*`、`liblogger.so*`、`libvmsclshared.so*`、`libquazip.so*` 等 FDM 自身运行库；这些库仍由 quick-sharun 收集依赖，不手工复制二进制或共享库。部署阶段的动态链接解析以 `/usr/lib` 为优先，再回退到 `/opt/freedownloadmanager/lib`，使 FDM 私有 SONAME 能被解析，同时继续沿用系统 Qt / OpenSSL。上游 `translations/` 原样复制到 `AppDir/shared/bin/translations/`，并从 `AppDir/bin/translations` 建立相对符号链接，供标准入口与真实程序共用。
+- 程序布局：quick-sharun 接收文件参数，不会自动展开 `/opt/freedownloadmanager/` 目录。构建脚本因此显式传入主程序，以及 `libdownloads*.so*`、`liblogger.so*`、`libvmsclshared.so*`、`libquazip.so*` 等 FDM 自身运行库；这些库仍由 quick-sharun 收集依赖，不手工复制二进制或共享库。部署阶段的动态链接解析以 `/usr/lib` 为优先，再回退到 `/opt/freedownloadmanager/lib`，使 FDM 私有 SONAME 能被解析，同时继续沿用系统 Qt / OpenSSL。quick-sharun 会把真实主程序放到 `AppDir/shared/bin/fdm`、FDM 私有库放到 `AppDir/lib/freedownloadmanager/lib/`，因此构建脚本建立 `AppDir/shared/bin/lib -> ../../lib/freedownloadmanager/lib` 相对链接，恢复上游 `fdm` 与 `lib/` 相邻的运行时目录关系，供 FDM 按自身应用目录发现下载模块。上游 `translations/` 原样复制到 `AppDir/shared/bin/translations/`，并从 `AppDir/bin/translations` 建立相对符号链接，供标准入口与真实程序共用。
 - 依赖部署：显式加入 `xdg-open`、NSS / PKCS#11 相关运行库，并启用 GTK、Qt、OpenGL、Vulkan、PipeWire 和 locale 部署；输入法仅额外安装 `fcitx5-qt`，并显式打包 Qt6 的 IBus / Fcitx5 platform input context 模块。
 - desktop / 图标：使用上游 `/usr/share/applications/freedownloadmanager.desktop` 与 `/opt/freedownloadmanager/icon.png`。
 - 中文环境：在 AppImage 内生成 `zh_CN.UTF-8` locale，并通过 `.env` 设置 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_MESSAGES=zh_CN.UTF-8`；不修改宿主机全局 locale。
@@ -55,7 +55,7 @@ FDM 的 `libdownloads*.so*` 下载模块属于按需加载运行库，不保证�
 - AppImage 直接运行 FDM 主程序，不要求额外后台服务、helper 或初始化步骤。
 - AppImage 自带 `zh_CN.UTF-8` locale，并优先使用简体中文消息环境；FDM 实际可显示的界面翻译仍以其上游自带语言资源为准。
 - IBus / Fcitx5 输入支持只打包 Qt6 platform input context 及依赖，不启动输入法守护进程，也不覆盖宿主输入法环境变量。
-- HTTP / HTTPS、BitTorrent、批量下载等 FDM 按需下载模块通过 `libdownloads*.so*` 统一显式部署，避免只依赖启动阶段跟踪而漏包。
+- HTTP / HTTPS、BitTorrent、批量下载等 FDM 按需下载模块通过 `libdownloads*.so*` 统一显式部署，并通过真实主程序目录下的 `lib` 相对链接恢复 FDM 原有模块发现路径。
 - 当前构建脚本不会主动向浏览器 Native Messaging 目录写入配置，也不会创建宿主机 `fdm-wenativehost` 包装脚本。
 - 将上游 `wenativehost` 等文件包含在 `/opt/freedownloadmanager/` 内，不等同于自动注册浏览器集成；只有额外的注册 / 启动逻辑才会产生宿主机配置写入，本目录明确不加入此类逻辑。
 
@@ -124,3 +124,13 @@ FDM 的 `libdownloads*.so*` 下载模块属于按需加载运行库，不保证�
 - 修复内容：将 FDM 私有库目录纳入部署阶段动态链接搜索路径，并保持 `/usr/lib` 优先，避免无意切换到 FDM 自带的另一套 Qt / OpenSSL；同时修正 `libquazip.so*` 匹配。
 - 完整性检查：在 quick-sharun 前对主程序和全部显式收集的 FDM 私有运行库执行 `ldd` 预检，只要仍存在 `=> not found` 就立即失败并打印完整解析结果，不再生成已知残缺的 AppImage。
 - 维护边界：继续使用标准 AnyLinux / quick-sharun；不新增自定义 `AppRun`、Native Messaging、wrapper、浏览器注册或宿主机配置写入。
+
+### 2026-09-09：恢复 FDM 下载模块的运行时相对目录
+
+- 故障：新产物已经包含 `libdownloadswww.so*` 等 FDM 下载模块，但普通 HTTPS 直链仍被判定为“`不支持的链接`”。
+- 根因与证据：解包实际发布产物后确认，真实 FDM 主程序位于 `AppDir/shared/bin/fdm`，而下载模块被 quick-sharun 部署到 `AppDir/lib/freedownloadmanager/lib/`。FDM 主程序自身 RUNPATH 包含 `$ORIGIN/lib`，并使用应用目录定位按需模块；旧版正常产物则保持 `fdm` 与 `lib/` 直接相邻。因此“模块已经打包”并不等于“FDM 能按原路径发现模块”。
+- 修改文件：`freedownloadmanager/build_freedownloadmanager.sh`、`freedownloadmanager/README.md`。
+- 修复内容：在真实主程序目录建立 `AppDir/shared/bin/lib -> ../../lib/freedownloadmanager/lib` 相对符号链接，恢复上游 `fdm + lib/` 的目录关系，同时继续由 quick-sharun 管理实际库文件与依赖。
+- 维护边界：不复制私有库，不新增或替换自定义 `AppRun`，不加入 Native Messaging、wrapper、浏览器注册或宿主机配置写入。
+- 对应提交：`f399fcc28ba2f41c836df9e22a4faba60940d60c`。
+- 已知结果：修复已进入正式构建流程；最终 HTTPS、BitTorrent 与批量下载行为以新产物实际运行结果为准。
