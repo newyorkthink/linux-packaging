@@ -43,18 +43,16 @@ yay -S --noconfirm \
   libxcomposite libxdamage libxfixes libxcb libxkbcommon libxkbcommon-x11 \
   mesa libglvnd libva libvdpau vulkan-icd-loader \
   alsa-lib pulseaudio pulseaudio-alsa pipewire-audio \
-  gtk3 ibus fcitx5-gtk fcitx5-qt shared-mime-info hicolor-icon-theme adwaita-icon-theme \
+  gtk3 ibus fcitx5-qt shared-mime-info hicolor-icon-theme adwaita-icon-theme \
   fontconfig freetype2 harfbuzz cairo pango gdk-pixbuf2 librsvg \
   qt6-base qt6-declarative qt6-svg qt6-multimedia \
   qt6ct kvantum lxqt-qtplugin
 
-# 核心打包：保留现有 AnyLinux / quick-sharun 路线，并显式带入 IBus / Fcitx5 输入模块
+# 核心打包：保留现有 AnyLinux / quick-sharun 路线，并显式带入 Qt6 IBus / Fcitx5 输入模块
 quick-sharun \
   /opt/freedownloadmanager/fdm \
   /opt/freedownloadmanager \
   /usr/bin/xdg-open \
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so \
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so \
   /usr/lib/qt6/plugins/platforminputcontexts/libibusplatforminputcontextplugin.so \
   /usr/lib/qt6/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so \
   /usr/lib/libnss* \
