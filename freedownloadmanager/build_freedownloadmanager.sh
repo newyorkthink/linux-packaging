@@ -98,6 +98,11 @@ quick-sharun \
   /usr/lib/libfreeblpriv3.so \
   /usr/lib/pkcs11/*
 
+###### 恢复 FDM 私有模块相对路径 ######
+
+# FDM 会按真实主程序目录下的 lib/ 查找下载模块；恢复上游 fdm + lib/ 的相对布局，不增加自定义启动逻辑。
+ln -s ../../lib/freedownloadmanager/lib AppDir/shared/bin/lib
+
 ###### 保留 FDM 翻译资源 ######
 
 # FDM 翻译是非 ELF 资源，需另行保留完整目录。
