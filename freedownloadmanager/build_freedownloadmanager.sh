@@ -50,14 +50,16 @@ yay -S --noconfirm \
 
 ###### 核心打包 ######
 
+FDM_LIB_DIR="/opt/freedownloadmanager/lib"
+
 # FDM 的下载模块由主程序按需加载，启动阶段不会全部触发；quick-sharun 只接收文件，因此显式收集这些运行库。
 mapfile -t FDM_RUNTIME_LIBS < <(
-  find /opt/freedownloadmanager/lib -maxdepth 1 \
+  find "$FDM_LIB_DIR" -maxdepth 1 \
     \( -type f -o -type l \) \
     \( -name 'libdownloads*.so*' \
        -o -name 'liblogger.so*' \
        -o -name 'libvmsclshared.so*' \
-       -o -name 'libquazip1-qt6.so*' \) \
+       -o -name 'libquazip.so*' \) \
     -print | sort
 )
 
@@ -66,7 +68,23 @@ if [ "${#FDM_RUNTIME_LIBS[@]}" -eq 0 ]; then
   exit 1
 fi
 
+# 解析 FDM 私有库时优先使用系统 Qt/OpenSSL，只在系统没有对应 SONAME 时回退到 FDM 私有目录。
+FDM_DEPLOY_LD_LIBRARY_PATH="/usr/lib:$FDM_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# 在进入 quick-sharun 前检查主程序与全部 FDM 私有运行库，避免遗漏依赖后继续生成残缺 AppImage。
+FDM_LDD_OUTPUT="$(
+  LD_LIBRARY_PATH="$FDM_DEPLOY_LD_LIBRARY_PATH" \
+    ldd /opt/freedownloadmanager/fdm "${FDM_RUNTIME_LIBS[@]}" 2>&1 || true
+)"
+
+if grep -q '=> not found' <<<"$FDM_LDD_OUTPUT"; then
+  echo "Error: unresolved FDM runtime libraries:" >&2
+  printf '%s\n' "$FDM_LDD_OUTPUT" >&2
+  exit 1
+fi
+
 # 保留标准入口，显式带入 FDM 按需运行库、Qt6 输入模块及网络状态检测后端。
+LD_LIBRARY_PATH="$FDM_DEPLOY_LD_LIBRARY_PATH" \
 quick-sharun \
   /opt/freedownloadmanager/fdm \
   "${FDM_RUNTIME_LIBS[@]}" \
