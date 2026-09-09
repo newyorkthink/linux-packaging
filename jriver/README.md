@@ -2,6 +2,8 @@
 
 本目录用于构建 **JRiver Media Center Linux AppImage**。
 
+> **当前维护状态（2026-09-09）：** 补回自定义启动器遗漏的硬编码路径映射 hook，详见第 11 节。下方 2026-08-14 的记录保留为历史基线，不代表后续滚动构建的产物已经完成实机验证。
+
 > **2026-08-14：当前版本正式冻结为“最终可用稳定基线”。**
 >
 > 核心功能已经可用，但 **“文件 → 打开媒体文件 / 打开文件夹”仍会导致 JRiver/JRWeb 相关进程异常退出或当前实例闪退**。经过多轮最小补丁和 Kali Linux 实机验证后，没有拿到足以安全定位根因的 crash stack；因此停止继续根据 warning 猜测式修改。
@@ -304,3 +306,42 @@ Arch runner 的 ABI 可能高于目标 Kali；网页音频使用当前已经验�
 **JRiver AppImage 当前作为最终可用版本收尾。**
 
 可正常使用的主功能保留；“打开媒体文件/文件夹”闪退作为已知问题记录，不再继续盲修。
+
+---
+
+## 11. 2026-09-09：补回启动前的硬编码路径映射
+
+### 用途、技术栈与当前打包入口
+
+- 上游来源：AUR `jriver-media-center` 配方获取的 JRiver 官方 Linux 包；应用版本继续随当前配方更新，不固定到旧版。
+- 技术栈：x86_64 原生 C/C++ 主程序、GTK3 运行依赖、JRWeb/CEF 和音频插件；沿用已有私有 CEF、Pulse/ALSA、Fcitx5 与 glibc 隔离处理。
+- 打包方式：Arch Linux 容器内由 quick-sharun 收集依赖，保留 JRiver 原始资源目录；自定义 `AppRun` 经 pathmap、`run-mc.sh` 和 Sharun 启动主程序，最终由 quick-sharun 调用固定的 appimagetool 0.3.3 封装。
+- 正式入口：`.github/workflows/build.yml` 的独立 `Build JRiver` Job；目录变更仅选择 JRiver 构建，发布资产名为 `jriver.AppImage`。
+- `jriver_cef_runtime.sh` 是历史辅助脚本，当前构建入口没有调用它；当前 CEF 运行时由固定核心基线处理。
+
+### 故障与定位依据
+
+新版构建成功并发布，但实际启动无法正常显示主界面。2026-09-07 对比旧版正常包与当天 Release 后，发现以下启动链缺口；2026-09-09 复核时相关脚本仍未改变：
+
+- 旧包内 Sharun 为 2.2.4，对照 Release 为 2.3.0；setup action 从上游 main 获取 quick-sharun，固定最终封装工具并不等于固定整个依赖部署链。
+- 对照 Release 的主程序、`mc36`、`libJRTools.so` 和 `Plugins/libout_Main.so` 已使用 `/tmp/<构建时生成的目录>/jriver/Media Center N` 路径。
+- 创建该路径的代码位于 `bin/01-path-mapping-hardcoded.hook`，通常由上游 `AppRun.sh` 执行。自定义入口直接进入 pathmap 和 `bin/mediacenterN`，没有调用这个 hook；Sharun 的普通二进制启动模式也不会代为执行它。
+- 因此在没有遗留映射的环境中，程序引用的路径没有被建立。旧包仍保留不同的原始路径和加载方式，不能直接恢复全局库路径，也不能把全部启动问题归因于 Sharun 版本号。
+
+### 修改内容与已知结果
+
+- 修改文件：`jriver/build_jriver.sh`、`jriver/README.md`。
+- 在自定义 `AppRun` 启动 pathmap 前，显式加载随包生成的硬编码路径映射 hook；兼容原构建逻辑已接受的 `bin` 和 `shared/bin` 两种 hook 位置。
+- 保留原有 pathmap、主程序、CEF、网页音频和输入法链；不恢复全局 `LD_LIBRARY_PATH`，不改变 JRiver 应用版本或其它应用的构建。
+- 从展开后的历史脚本中移除独立 CEF 自测、非阻断诊断列表和专用语法检查命令；保留下载、必要输入、CEF ABI 和隔离相关的构建守卫，不新增测试代码或 workflow。
+- 已通过旧包、对照 Release、上游 Sharun 源码及构建脚本静态检查确认这个缺口。补丁只解决该缺口；GUI、播放和文件选择器仍需真实运行反馈，不能仅因 Actions 成功就宣称全部恢复正常。
+
+在 Linux 终端进入下载文件所在目录后执行：
+
+```bash
+# 为下载的 JRiver AppImage 添加执行权限
+chmod +x ./jriver.AppImage
+
+# 启动 JRiver Media Center
+./jriver.AppImage
+```
