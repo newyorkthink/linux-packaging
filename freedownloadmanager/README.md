@@ -6,7 +6,7 @@
 
 - 打包对象：Free Download Manager（FDM），桌面下载管理器。
 - 最终产物：`freedownloadmanager.AppImage`，由统一 `.github/workflows/build.yml` 中的 `build_freedownloadmanager` Job 构建并发布到仓库 `latest` Release。
-- 上游来源：构建脚本通过 AUR `freedownloadmanager` 安装 FDM Linux 包，并保留其 `/opt/freedownloadmanager/` 程序目录作为主要打包输入。
+- 上游来源：构建脚本通过 AUR `freedownloadmanager` 安装 FDM Linux 包，并以 `/opt/freedownloadmanager/` 中的主程序、FDM 自身运行库和翻译资源作为打包来源。
 - 本目录只负责 AppImage 重打包与运行依赖部署，不修改 FDM 的业务功能。
 
 ## 技术栈
@@ -15,13 +15,15 @@
 
 打包侧显式部署 Qt6、GTK3、GStreamer / FFmpeg、libtorrent、NSS、X11、OpenGL / Vulkan、PulseAudio / PipeWire、字体与图像渲染等运行时组件，并使用 `xdg-open` 处理宿主桌面打开操作。中文输入兼容仅显式带入 Qt6 的 IBus 与 Fcitx5 platform input context 模块。
 
+FDM 的 `libdownloads*.so*` 下载模块属于按需加载运行库，不保证在程序启动阶段被 quick-sharun 的运行跟踪发现，因此构建脚本会从上游私有 `lib/` 目录显式收集这些模块及其 FDM 支撑库。
+
 当前仅构建 x86_64 AppImage。
 
 ## 打包方式
 
 - 路线：PkgForge AnyLinux 构建环境 + quick-sharun，保持仓库统一的 AnyLinux AppImage 打包方式。
 - 程序来源：通过 `yay -S --noconfirm --mflags "--skipinteg" freedownloadmanager` 安装当前 AUR FDM 包；脚本不另外下载或修改 FDM 主程序。
-- 程序布局：以 `/opt/freedownloadmanager/fdm` 和 `/opt/freedownloadmanager/` 作为 quick-sharun 输入收集程序与共享库；目录输入不会完整复制非 ELF 资源。另将上游 `translations/` 原样复制到 `AppDir/shared/bin/translations/`，并从 `AppDir/bin/translations` 建立相对符号链接，供标准入口与真实程序共用。
+- 程序布局：quick-sharun 接收文件参数，不会自动展开 `/opt/freedownloadmanager/` 目录。构建脚本因此显式传入主程序，以及 `libdownloads*.so*`、`liblogger.so*`、`libvmsclshared.so*`、`libquazip1-qt6.so*` 等 FDM 自身运行库；这些库仍由 quick-sharun 收集依赖，不手工复制二进制或共享库。上游 `translations/` 原样复制到 `AppDir/shared/bin/translations/`，并从 `AppDir/bin/translations` 建立相对符号链接，供标准入口与真实程序共用。
 - 依赖部署：显式加入 `xdg-open`、NSS / PKCS#11 相关运行库，并启用 GTK、Qt、OpenGL、Vulkan、PipeWire 和 locale 部署；输入法仅额外安装 `fcitx5-qt`，并显式打包 Qt6 的 IBus / Fcitx5 platform input context 模块。
 - desktop / 图标：使用上游 `/usr/share/applications/freedownloadmanager.desktop` 与 `/opt/freedownloadmanager/icon.png`。
 - 中文环境：在 AppImage 内生成 `zh_CN.UTF-8` locale，并通过 `.env` 设置 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_MESSAGES=zh_CN.UTF-8`；不修改宿主机全局 locale。
@@ -38,11 +40,12 @@
 - 不增加额外 wrapper、启动脚本或隐藏的运行时分支。
 - 不加入 `--fdm-native-host` 等本仓库自定义入口。
 - 不加入自动浏览器 Native Messaging 注册逻辑。
-- 此限制针对浏览器自动注册与额外启动代码，不禁止打包 FDM 显示、联网、中文输入所必需的 Qt 插件及运行库。
+- 此限制针对浏览器自动注册与额外启动代码，不禁止打包 FDM 显示、联网、下载协议、中文输入所必需的 Qt 插件及运行库。
 - 不自动创建或修改宿主机 `~/.config/*/NativeMessagingHosts/`。
 - 不自动创建 `~/.local/bin/fdm-wenativehost` 或其他宿主机 helper。
 - 不在启动 AppImage 时自动修改浏览器、用户配置目录或其他宿主系统状态。
-- 上游 `/opt/freedownloadmanager/` 本身已有的文件按原样打包；如果其中包含 `wenativehost` 等上游组件，只视为上游文件，不额外为其增加注册、包装或宿主机写入逻辑。
+- 上游 `/opt/freedownloadmanager/` 本身已有的文件只作为上游程序与资源来源；如果其中包含 `wenativehost` 等组件，不额外为其增加注册、包装或宿主机写入逻辑。
+- FDM 自身运行库必须通过 quick-sharun 的文件参数部署；不要再次把 `/opt/freedownloadmanager/` 目录当成能够自动展开的输入，也不要手工复制二进制或共享库。
 
 保持这些边界可以让产物行为直接对应当前构建脚本，避免额外内嵌代码在后续维护中被遗忘、误判来源或产生非预期修改。
 
@@ -52,6 +55,7 @@
 - AppImage 直接运行 FDM 主程序，不要求额外后台服务、helper 或初始化步骤。
 - AppImage 自带 `zh_CN.UTF-8` locale，并优先使用简体中文消息环境；FDM 实际可显示的界面翻译仍以其上游自带语言资源为准。
 - IBus / Fcitx5 输入支持只打包 Qt6 platform input context 及依赖，不启动输入法守护进程，也不覆盖宿主输入法环境变量。
+- HTTP / HTTPS、BitTorrent、批量下载等 FDM 按需下载模块通过 `libdownloads*.so*` 统一显式部署，避免只依赖启动阶段跟踪而漏包。
 - 当前构建脚本不会主动向浏览器 Native Messaging 目录写入配置，也不会创建宿主机 `fdm-wenativehost` 包装脚本。
 - 将上游 `wenativehost` 等文件包含在 `/opt/freedownloadmanager/` 内，不等同于自动注册浏览器集成；只有额外的注册 / 启动逻辑才会产生宿主机配置写入，本目录明确不加入此类逻辑。
 
@@ -97,8 +101,18 @@
 ### 2026-09-09：补齐 FDM 翻译资源与网络状态后端
 
 - 故障：发布产物不能显示 FDM 中文界面，并出现 `No Internet connection` 提示。
-- 根因与证据：对比旧版与故障产物，旧版包含 72 个 `fdm_*.qm`，故障产物为 0；quick-sharun 的目录输入只收集程序和共享库，未复制 FDM 的非 ELF 翻译资源，Qt 通用翻译与中文 locale 不能替代它们。故障产物也缺少 `networkinformation` 后端，而 FDM 二进制包含 `QNetworkInformation::loadBackendByFeatures(Reachability)` 调用；网络提示的唯一运行时根因仍未确认。
+- 根因与证据：对比旧版与故障产物，旧版包含 72 个 `fdm_*.qm`，故障产物为 0；quick-sharun 的目录参数不会自动展开，未复制 FDM 的非 ELF 翻译资源，Qt 通用翻译与中文 locale 不能替代它们。故障产物也缺少 `networkinformation` 后端，而 FDM 二进制包含 `QNetworkInformation::loadBackendByFeatures(Reachability)` 调用。
 - 修改文件：`freedownloadmanager/build_freedownloadmanager.sh`、`freedownloadmanager/README.md`。
 - 修复内容：原样保留上游完整翻译目录，并用相对链接适配标准 sharun 入口；显式带入现有 Qt6 对应的 NetworkManager / GLib 网络状态插件及依赖。保留现有 Qt 部署，不因产物同时包含两个 Qt 版本就未经验证整体替换运行时。
 - 维护边界：不新增或替换自定义 `AppRun`、wrapper、浏览器自动注册、宿主 helper 或测试代码；不修改宿主网络、代理、DNS 或输入法设置。
-- 已知结果：已从故障产物与打包工具源码确认上述遗漏；构建成功与文件齐全不等同于实际界面、联网功能已经恢复，最终效果仍需真实运行确认。
+- 已知结果：实际运行已确认中文界面、中文输入和网络状态显示恢复正常。
+
+### 2026-09-09：补齐 FDM 按需下载模块
+
+- 故障：中文、输入法和网络状态恢复后，QQ 官方 HTTPS 直链和 GitHub Release HTTPS 直链仍被 FDM 判定为“`不支持的链接`”。
+- 根因：quick-sharun 接收文件参数，不会自动展开 `/opt/freedownloadmanager/` 目录；原脚本把该目录作为参数并不能把整个私有运行库目录带入。FDM 的 `libdownloadswww.so*`、`libdownloadsbt.so*`、`libdownloadsbatch.so*` 等下载模块又是按需加载，正常启动阶段不会全部触发，因此未被自动跟踪收集。
+- 核对范围：旧版工作产物的 FDM 私有 `lib/` 中，除 Qt6 库外，应用运行库由 `libdownloads*.so*`、`liblogger.so*`、`libvmsclshared.so*`、`libquazip1-qt6.so*` 组成；本次统一显式收集这些系列，而不是只单独补 `libdownloadswww.so`。
+- 修改文件：`freedownloadmanager/build_freedownloadmanager.sh`、`freedownloadmanager/README.md`。
+- 修复内容：移除无效的目录参数，构建时动态枚举上述 FDM 私有运行库并统一作为 quick-sharun 文件输入，由 quick-sharun 继续负责依赖解析和部署；中文翻译、Qt6 输入模块、网络状态后端及 locale 修复保持不变。
+- 维护边界：不手工复制二进制 / 共享库，不加入自定义 `AppRun`、Native Messaging、wrapper 或宿主机配置写入。
+- 已知结果：构建脚本层面已消除按需下载模块的漏包来源；最终 HTTPS / BitTorrent / 批量下载行为仍以本次 GitHub Actions 新产物实际运行验证为准。
