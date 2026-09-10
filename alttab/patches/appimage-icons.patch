@@ -8,7 +8,7 @@
  //#include <sys/time.h>
  #include "alttab.h"
  #include "util.h"
-@@ -38,6 +39,215 @@
+@@ -38,6 +39,234 @@
  extern Display *dpy;
  extern int scr;
  extern Window root;
@@ -66,11 +66,27 @@
 +        return ICON_EXT_UNKNOWN;
 +
 +    const char *suffix = strrchr(path, '.');
-+    if (!suffix)
++    if (suffix) {
++        if (!g_ascii_strcasecmp(suffix, ".png"))
++            return ICON_EXT_PNG;
++        if (!g_ascii_strcasecmp(suffix, ".xpm"))
++            return ICON_EXT_XPM;
++    }
++
++    unsigned char header[9] = {0};
++    FILE *file = fopen(path, "rb");
++    if (!file)
 +        return ICON_EXT_UNKNOWN;
-+    if (!g_ascii_strcasecmp(suffix, ".png"))
++    size_t header_size = fread(header, 1, sizeof(header), file);
++    fclose(file);
++
++    static const unsigned char png_signature[8] = {
++        0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'
++    };
++    if (header_size >= sizeof(png_signature) &&
++        !memcmp(header, png_signature, sizeof(png_signature)))
 +        return ICON_EXT_PNG;
-+    if (!g_ascii_strcasecmp(suffix, ".xpm"))
++    if (header_size >= 9 && !memcmp(header, "/* XPM */", 9))
 +        return ICON_EXT_XPM;
 +    return ICON_EXT_UNKNOWN;
 +}
@@ -88,6 +104,9 @@
 +static char *findAppDirIcon(const char *appdir)
 +{
 +    char *diricon = g_build_filename(appdir, ".DirIcon", NULL);
++    if (appDirIconExt(diricon) != ICON_EXT_UNKNOWN)
++        return diricon;
++
 +    char *target = g_file_read_link(diricon, NULL);
 +    g_free(diricon);
 +
@@ -224,7 +243,7 @@
  
  // PRIVATE
  
-@@ -476,6 +686,8 @@
+@@ -476,6 +705,8 @@
      } else {
          msg(0, "can't find WM_CLASS for \"%s\"\n", wi->name);
      }

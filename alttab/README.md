@@ -43,7 +43,7 @@
 - 按 XDG 数据目录查找 desktop 文件，通过文件 ID、`StartupWMClass` 与 `Icon` 映射宿主图标；只读取元数据，不执行 `Exec`。
 - 查找用户及系统图标目录，并补充 `hicolor` 回退；避免直接修改进程的 `XDG_DATA_DIRS` 环境字符串。
 - 支持映射到已有 PNG / XPM 图标，以及 PNG / XPM 绝对路径。PNG 使用文件头中的真实尺寸创建画布，并修正透明背景颜色转换。
-- 宿主图标查找没有命中时，根据目标窗口的 `_NET_WM_PID` 读取该进程的 `APPDIR`，优先使用运行中 AppImage 根目录的 `.DirIcon`，并回退读取根目录 desktop 的 `Icon` 对应 PNG / XPM 文件；不按应用名称写死路径。
+- 宿主图标查找没有命中时，根据目标窗口的 `_NET_WM_PID` 读取该进程的 `APPDIR`，优先使用运行中 AppImage 根目录的 `.DirIcon`；支持 `.DirIcon` 为普通文件或符号链接，并通过文件内容识别无扩展名 PNG / XPM；再回退读取根目录 desktop 的 `Icon` 对应 PNG / XPM 文件，不按应用名称写死路径。
 
 普通程序仍依赖宿主可读取的 desktop 文件和图标资源；直接运行的 AppImage 可额外从其运行时 `APPDIR` 读取内嵌图标。当前补丁未增加 SVG 窗口图标解码，也不是完整的图标主题继承实现。应用自身使用 SVG 作为 AppImage 图标，不代表窗口图标读取支持 SVG。
 
@@ -79,3 +79,11 @@
 - 修改文件：`apply-icon-patch.sh`、`patches/appimage-icons.patch`、`README.md`。
 - 修复内容：保留原 `desktop-icons.patch` 不变，新增独立 `src/win.c` 补丁；宿主图标查找失败时，通过 `_NET_WM_PID` 读取目标进程环境中的 `APPDIR`，优先解析 `.DirIcon`，再读取 AppImage 根目录 desktop 的 `Icon`，仅加载现有 PNG / XPM，不写死具体应用名称。
 - 已知结果：新补丁的格式、目标函数和当前上游稳定版相关源码上下文已完成静态核对；未新增测试代码或 workflow。新产物的实际窗口图标效果需重新构建后确认。
+
+### 2026-09-10：兼容 quick-sharun 无扩展名 `.DirIcon`
+
+- 现象：前述 AppImage 内嵌图标回退已经对部分应用生效，但 VS Code 窗口仍没有图标。
+- 根因：VS Code 构建脚本把 `ICON` 设置为远程 `code.png`；quick-sharun 下载图标后使用 `cp` 生成 AppImage 根目录 `.DirIcon`，因此 `.DirIcon` 是没有扩展名的普通文件。首版 AppImage 回退主要按扩展名和符号链接识别图标，无法识别这种布局。
+- 修改文件：`patches/appimage-icons.patch`、`README.md`。
+- 修复内容：读取 `.DirIcon` 时先识别其实际文件内容；PNG 使用标准 8 字节签名，XPM 使用文件头识别。保留原有扩展名、符号链接和 desktop `Icon` 回退，不写死 VS Code 或其他应用名称。
+- 已知结果：已核对 VS Code 当前构建脚本和 quick-sharun 的 `.DirIcon` 生成逻辑，并完成补丁 hunk 与当前上游稳定版相关源码上下文的静态检查；未新增测试代码或 workflow。新产物实际显示效果需重新构建后确认。
