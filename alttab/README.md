@@ -47,6 +47,15 @@
 
 普通程序仍依赖宿主可读取的 desktop 文件和图标资源；直接运行的 AppImage 可额外从其运行时 `APPDIR` 读取内嵌图标。当前补丁未增加 SVG 窗口图标解码，也不是完整的图标主题继承实现。应用自身使用 SVG 作为 AppImage 图标，不代表窗口图标读取支持 SVG。
 
+## 稳定基线
+
+当前图标兼容行为已经 Linux 实机验证有效，作为本目录当前稳定基线。后续修改必须保留现有查找顺序和已验证行为，不得仅为整理、重构或风格统一改写。
+
+- 宿主应用继续按 XDG desktop、`StartupWMClass`、`Icon`、主题目录和 `pixmaps` 规则查找图标。
+- AppImage 仅在宿主图标查找未命中时，通过目标窗口 `_NET_WM_PID` 获取所属进程的 `APPDIR`，再读取 `.DirIcon` 或根目录 desktop 的 `Icon`。
+- `.DirIcon` 同时兼容普通文件和符号链接；没有扩展名时按文件内容识别 PNG / XPM，不依赖固定文件名。
+- 运行时不匹配具体被切换应用名称，不写死用户路径、临时挂载目录或某个 AppImage 文件名。AltTab 自身的上游仓库、`StartupWMClass=AltTab` 等项目固有元数据不属于被切换应用的硬编码。
+
 ## 修复记录
 
 ### 2026-09-10：补充桌面图标映射，修复 PNG 画布尺寸
@@ -87,3 +96,10 @@
 - 修改文件：`patches/appimage-icons.patch`、`README.md`。
 - 修复内容：读取 `.DirIcon` 时先识别其实际文件内容；PNG 使用标准 8 字节签名，XPM 使用文件头识别。保留原有扩展名、符号链接和 desktop `Icon` 回退，不写死 VS Code 或其他应用名称。
 - 已知结果：已核对 VS Code 当前构建脚本和 quick-sharun 的 `.DirIcon` 生成逻辑，并完成补丁 hunk 与当前上游稳定版相关源码上下文的静态检查；未新增测试代码或 workflow。新产物实际显示效果需重新构建后确认。
+
+### 2026-09-10：实机确认图标修复并设为稳定基线
+
+- 结果：宿主应用、直接运行的 AppImage、quick-sharun 无扩展名 `.DirIcon` 场景均已在 Linux 实机确认窗口图标显示正常。
+- 核查：运行逻辑没有写死具体被切换应用名称、用户路径或固定 AppImage 挂载目录；具体应用名称仅保留在历史故障记录中，不参与运行时匹配。
+- 基线：保留“宿主 XDG 图标查找 → AppImage `APPDIR` 回退 → `.DirIcon` / desktop `Icon` → PNG / XPM 内容识别”的现有逻辑和执行顺序。
+- 修改文件：`README.md`、`apply-icon-patch.sh`；本次只整理文档与注释，不改变已验证的运行逻辑、补丁内容或应用顺序。
