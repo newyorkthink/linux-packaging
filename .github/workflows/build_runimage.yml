@@ -10,7 +10,7 @@ on:
       - 'runimage/setup_browser.sh'
       - 'runimage/setup_general_env.sh'
       - 'runimage/setup_trading_env.sh'
-      - 'runimage/setup_jriver.sh'
+      - 'runimage/jriver-media-center/setup_jriver.sh'
       - 'runimage/setup_touchegg.sh'
       - '.github/workflows/build_runimage.yml'
   schedule:
@@ -27,7 +27,7 @@ on:
           - runimage/setup_browser.sh
           - runimage/setup_general_env.sh
           - runimage/setup_trading_env.sh
-          - runimage/setup_jriver.sh
+          - runimage/jriver-media-center/setup_jriver.sh
           - runimage/setup_touchegg.sh
 
 permissions:
@@ -64,7 +64,7 @@ jobs:
             'runimage/setup_browser.sh'
             'runimage/setup_general_env.sh'
             'runimage/setup_trading_env.sh'
-            'runimage/setup_jriver.sh'
+            'runimage/jriver-media-center/setup_jriver.sh'
             'runimage/setup_touchegg.sh'
           )
 
@@ -241,7 +241,7 @@ jobs:
     runs-on: *runimage_runner
     timeout-minutes: *runimage_timeout
     permissions: *runimage_permissions
-    env: {SCRIPT: 'runimage/setup_jriver.sh'}
+    env: {SCRIPT: 'runimage/jriver-media-center/setup_jriver.sh'}
     steps: *runimage_steps
 
   build_touchegg:
