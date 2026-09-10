@@ -18,5 +18,5 @@ SOURCE_DIR="$(cd -- "$1" && pwd)"
 # 保留原有补丁参数；重复应用或上下文不匹配时直接失败。
 patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/desktop-icons.patch"
 
-# 在宿主图标查找失败时，为直接运行的 AppImage 补充运行时内嵌图标回退。
+# 泛化回退：宿主图标查找失败时，从目标窗口所属 AppImage 的运行时 APPDIR 读取内嵌图标，不匹配具体应用名称。
 patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/appimage-icons.patch"
