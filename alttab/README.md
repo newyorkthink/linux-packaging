@@ -28,6 +28,8 @@
 4. 生成 desktop 文件，使用上游 `doc/alttab.svg` 作为应用自身图标，将主程序与动态依赖交给 quick-sharun，并保留上游 GPL-3.0 许可证。
 5. 生成 `dist/alttab.AppImage`；公共构建 Action 将其上传至仓库 `latest` Release，资产名固定为 `alttab.AppImage`。
 
+构建脚本显式覆盖 quick-sharun 的 `SHARUN_LINK`，使用 `pkgforge-dev/Anylinux-sharun` 的 `latest` 对应架构资产；只修正 quick-sharun 当前默认的已迁移旧地址，不锁死 sharun 版本，也不修改仓库公共 AnyLinux Action。
+
 构建脚本、补丁脚本和补丁文件需要一起保留。构建流程由现有 Action 在应用目录内执行；无需在真实主机上运行依赖安装或打包命令。
 
 ## 运行与图标兼容
@@ -114,3 +116,11 @@
 - 修改文件：`apply-icon-patch.sh`、`patches/icon-source-priority.patch`、`README.md`。
 - 修复内容：仅将上游 `ISRC_DEFAULT` 从 `ISRC_SIZE` 改为 `ISRC_FALLBACK`；保留 0～5 全部模式和前述已验证图标补丁不变。默认顺序变为 `_NET_WM_ICON` → WM hints → 文件图标，文件阶段仍继续使用宿主 XDG 与 AppImage `APPDIR` 回退。
 - 已知结果：已按当前上游稳定版源码核对常量定义和 `addWindowInfo()` 图标选择路径；修复不写死具体应用名、路径或 AppImage 文件名。新产物的最终图标样式需重新构建后做 Linux 实机确认。
+
+### 2026-09-10：修复 quick-sharun 下载 sharun 失败
+
+- 现象：图标优先级补丁已成功应用且 AltTab 已编译完成，但 quick-sharun 在部署阶段连续下载 `pkgforge-dev/sharun` 2.3.0 失败，构建退出。
+- 根因：当前 quick-sharun 默认 `SHARUN_LINK` 仍指向已迁移的 `pkgforge-dev/sharun` 旧地址；当前维护的 AnyLinux sharun Release 位于 `pkgforge-dev/Anylinux-sharun`。
+- 修改文件：`build_alttab.sh`、`README.md`。
+- 修复内容：使用 quick-sharun 已有的 `SHARUN_LINK` 覆盖接口，将来源改为 `pkgforge-dev/Anylinux-sharun` 的 `releases/latest/download/sharun-${ARCH}`，动态跟随最新 Release，不写死版本号；未修改已验证图标补丁、编译命令或 workflow。
+- 已知结果：已核对失败日志、当前 quick-sharun 默认地址以及 AnyLinux-sharun 最新 Release 的资产命名；本次提交对应构建结果需由现有 Action 确认。

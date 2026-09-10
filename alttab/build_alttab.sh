@@ -22,6 +22,9 @@ ARCH="$(uname -m)"
 # 导出 AppImage 架构。
 export ARCH
 
+# quick-sharun 当前默认 sharun 地址仍指向已迁移仓库；显式使用 AnyLinux sharun 的最新 Release 资产。
+export SHARUN_LINK="https://github.com/pkgforge-dev/Anylinux-sharun/releases/latest/download/sharun-${ARCH}"
+
 # 创建本次构建使用的临时目录。
 WORKDIR="$(mktemp -d)"
 
