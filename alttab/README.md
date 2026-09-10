@@ -14,6 +14,7 @@
 | `apply-icon-patch.sh` | 接收源码目录，依次应用同目录下的图标补丁 |
 | `patches/desktop-icons.patch` | 对上游 `src/icon.c` 的宿主 desktop / 图标查找与 PNG 处理修复 |
 | `patches/appimage-icons.patch` | 对上游 `src/win.c` 的运行中 AppImage 内嵌图标回退 |
+| `patches/icon-source-priority.patch` | 对上游 `src/alttab.h` 的默认图标源优先级调整 |
 
 以后修改图标逻辑时维护对应 `.patch` 文件；补丁路径和应用顺序由 `apply-icon-patch.sh` 管理，不再把大段补丁放进构建脚本。
 
@@ -22,7 +23,7 @@
 正式构建使用 `.github/workflows/build.yml` 的 AltTab Job，并复用 `.github/actions/build-anylinux`，在 Arch Linux / AnyLinux 构建环境中执行。手动构建入口选择 `alttab/build_alttab.sh`。
 
 1. 从官方 `releases/latest` 获取非草稿、非预发布版本，将 tag 解析为具体 commit SHA，下载该 commit 的源码归档并记录 SHA-256。
-2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch` 和 `patches/appimage-icons.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
+2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch`、`patches/appimage-icons.patch` 和 `patches/icon-source-priority.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
 3. 使用现有 `configure --prefix=/usr` 和 `make` 编译，传入 GLib 的头文件及链接参数。
 4. 生成 desktop 文件，使用上游 `doc/alttab.svg` 作为应用自身图标，将主程序与动态依赖交给 quick-sharun，并保留上游 GPL-3.0 许可证。
 5. 生成 `dist/alttab.AppImage`；公共构建 Action 将其上传至仓库 `latest` Release，资产名固定为 `alttab.AppImage`。
@@ -38,8 +39,9 @@
 ./alttab.AppImage
 ```
 
-图标补丁保留上游窗口图标来源选项和界面行为，补充以下处理：
+保留上游 `icon.source` 的 0～5 全部模式；默认模式由 `2` 调整为 `1`，使默认图标来源优先使用窗口自身 X11 图标，窗口未提供可用图标时才进入文件查找。文件图标兼容逻辑补充以下处理：
 
+- 默认先读取窗口 `_NET_WM_ICON`，缺失时读取 WM hints；两者都没有可用图标时才查找文件图标。
 - 按 XDG 数据目录查找 desktop 文件，通过文件 ID、`StartupWMClass` 与 `Icon` 映射宿主图标；只读取元数据，不执行 `Exec`。
 - 查找用户及系统图标目录，并补充 `hicolor` 回退；避免直接修改进程的 `XDG_DATA_DIRS` 环境字符串。
 - 支持映射到已有 PNG / XPM 图标，以及 PNG / XPM 绝对路径。PNG 使用文件头中的真实尺寸创建画布，并修正透明背景颜色转换。
@@ -49,10 +51,11 @@
 
 ## 稳定基线
 
-当前图标兼容行为已经 Linux 实机验证有效，作为本目录当前稳定基线。后续修改必须保留现有查找顺序和已验证行为，不得仅为整理、重构或风格统一改写。
+已经实机确认有效的宿主 XDG 图标映射、AppImage `APPDIR` 回退和无扩展名 `.DirIcon` 识别继续作为稳定基线；本次只在其前面调整默认图标来源优先级，不改写这些已验证逻辑。
 
-- 宿主应用继续按 XDG desktop、`StartupWMClass`、`Icon`、主题目录和 `pixmaps` 规则查找图标。
-- AppImage 仅在宿主图标查找未命中时，通过目标窗口 `_NET_WM_PID` 获取所属进程的 `APPDIR`，再读取 `.DirIcon` 或根目录 desktop 的 `Icon`。
+- 默认 `icon.source` 使用上游 `ISRC_FALLBACK`（值 `1`）：`_NET_WM_ICON` → WM hints → 文件图标；显式 `-s` 或 Xresource 仍可选择上游其他模式。
+- 文件图标继续按 XDG desktop、`StartupWMClass`、`Icon`、主题目录和 `pixmaps` 规则查找。
+- AppImage 仅在宿主文件图标查找未命中时，通过目标窗口 `_NET_WM_PID` 获取所属进程的 `APPDIR`，再读取 `.DirIcon` 或根目录 desktop 的 `Icon`。
 - `.DirIcon` 同时兼容普通文件和符号链接；没有扩展名时按文件内容识别 PNG / XPM，不依赖固定文件名。
 - 运行时不匹配具体被切换应用名称，不写死用户路径、临时挂载目录或某个 AppImage 文件名。AltTab 自身的上游仓库、`StartupWMClass=AltTab` 等项目固有元数据不属于被切换应用的硬编码。
 
@@ -103,3 +106,11 @@
 - 核查：运行逻辑没有写死具体被切换应用名称、用户路径或固定 AppImage 挂载目录；具体应用名称仅保留在历史故障记录中，不参与运行时匹配。
 - 基线：保留“宿主 XDG 图标查找 → AppImage `APPDIR` 回退 → `.DirIcon` / desktop `Icon` → PNG / XPM 内容识别”的现有逻辑和执行顺序。
 - 修改文件：`README.md`、`apply-icon-patch.sh`；本次只整理文档与注释，不改变已验证的运行逻辑、补丁内容或应用顺序。
+
+### 2026-09-10：统一默认图标来源优先级
+
+- 现象：所有窗口已经能够显示图标后，个别应用在 AltTab 中显示的图标仍与其他窗口切换器不同。
+- 根因：上游默认 `icon.source=2`（`ISRC_SIZE`），会先读取窗口自身图标，再允许文件图标按目标尺寸比较后替换；因此存在窗口自身图标正常但最终显示成另一套 desktop / 主题图标的情况。
+- 修改文件：`apply-icon-patch.sh`、`patches/icon-source-priority.patch`、`README.md`。
+- 修复内容：仅将上游 `ISRC_DEFAULT` 从 `ISRC_SIZE` 改为 `ISRC_FALLBACK`；保留 0～5 全部模式和前述已验证图标补丁不变。默认顺序变为 `_NET_WM_ICON` → WM hints → 文件图标，文件阶段仍继续使用宿主 XDG 与 AppImage `APPDIR` 回退。
+- 已知结果：已按当前上游稳定版源码核对常量定义和 `addWindowInfo()` 图标选择路径；修复不写死具体应用名、路径或 AppImage 文件名。新产物的最终图标样式需重新构建后做 Linux 实机确认。
