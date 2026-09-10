@@ -1,7 +1,7 @@
 # 统一 AppImage 构建入口；每个项目都是独立 Job、独立运行环境，不使用 Matrix。
 name: Build AppImages
 run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && (inputs.script_to_build == 'all' && 'Build all AppImages' || format('Build {0}', inputs.script_to_build)) || github.event_name == 'schedule' && 'Daily build all AppImages' || github.event.head_commit.message }}
+  ${{ github.event_name == 'workflow_dispatch' && (inputs.script_search != '' && format('Build {0}', inputs.script_search) || inputs.script_to_build == 'all' && 'Build all AppImages' || format('Build {0}', inputs.script_to_build)) || github.event_name == 'schedule' && 'Daily build all AppImages' || github.event.head_commit.message }}
 
 on:
   push:
@@ -162,6 +162,11 @@ on:
           - moderncsv/build_moderncsv.sh
           - gitkraken/build_gitkraken.sh
           - mission-center/build_mission-center.sh
+      script_search:
+        description: '模糊输入脚本名称（可留空；填写时优先于上方下拉）'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -182,6 +187,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           SELECTED_SCRIPT: ${{ inputs.script_to_build }}
+          SCRIPT_SEARCH: ${{ inputs.script_search }}
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
         run: |
@@ -192,6 +198,56 @@ jobs:
           declare -A BUILD SCRIPT_KEY DIR_KEY
           for i in "${!KEYS[@]}"; do key=${KEYS[$i]}; BUILD[$key]=false; SCRIPT_KEY[${SCRIPTS[$i]}]=$key; DIR_KEY[${DIRS[$i]}]=$key; done
           select_all() { for key in "${KEYS[@]}"; do BUILD[$key]=true; done; }
+          normalize_search() {
+            local value="${1,,}"
+            value="${value//[![:alnum:]]/}"
+            printf '%s' "$value"
+          }
+          resolve_search() {
+            local query
+            query="$(normalize_search "$1")"
+            if [[ -z "$query" ]]; then
+              echo "模糊输入没有有效字符：$1" >&2
+              exit 1
+            fi
+            if [[ "$query" == all ]]; then
+              SELECTED_SCRIPT=all
+              return
+            fi
+            local -a exact_matches=() fuzzy_matches=() matches=()
+            local i key_norm script_norm dir_norm
+            for i in "${!KEYS[@]}"; do
+              key_norm="$(normalize_search "${KEYS[$i]}")"
+              script_norm="$(normalize_search "${SCRIPTS[$i]}")"
+              dir_norm="$(normalize_search "${DIRS[$i]}")"
+              if [[ "$query" == "$key_norm" || "$query" == "$script_norm" || "$query" == "$dir_norm" ]]; then
+                exact_matches+=("$i")
+              elif [[ "$key_norm" == *"$query"* || "$script_norm" == *"$query"* || "$dir_norm" == *"$query"* ]]; then
+                fuzzy_matches+=("$i")
+              fi
+            done
+            if (( ${#exact_matches[@]} > 0 )); then
+              matches=("${exact_matches[@]}")
+            else
+              matches=("${fuzzy_matches[@]}")
+            fi
+            if (( ${#matches[@]} == 1 )); then
+              SELECTED_SCRIPT="${SCRIPTS[${matches[0]}]}"
+              echo "模糊输入已匹配：$1 -> $SELECTED_SCRIPT"
+            elif (( ${#matches[@]} == 0 )); then
+              echo "未找到匹配脚本：$1" >&2
+              exit 1
+            else
+              echo "模糊输入匹配到多个脚本：$1" >&2
+              for i in "${matches[@]}"; do
+                echo "  - ${SCRIPTS[$i]}" >&2
+              done
+              exit 1
+            fi
+          }
+          if [[ "$EVENT_NAME" == workflow_dispatch && -n "${SCRIPT_SEARCH:-}" ]]; then
+            resolve_search "$SCRIPT_SEARCH"
+          fi
           case "$EVENT_NAME" in
             workflow_dispatch) if [[ "${SELECTED_SCRIPT:-all}" == all ]]; then select_all; elif [[ -n "${SCRIPT_KEY[${SELECTED_SCRIPT:-}]:-}" ]]; then BUILD[${SCRIPT_KEY[$SELECTED_SCRIPT]}]=true; else echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2; exit 1; fi ;;
             push)
