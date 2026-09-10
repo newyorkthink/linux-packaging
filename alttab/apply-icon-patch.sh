@@ -20,3 +20,6 @@ patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/des
 
 # 泛化回退：宿主图标查找失败时，从目标窗口所属 AppImage 的运行时 APPDIR 读取内嵌图标，不匹配具体应用名称。
 patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/appimage-icons.patch"
+
+# 保留上游全部 icon.source 模式，只把默认模式改为优先使用窗口自身 X11 图标，缺失时再回退到文件图标。
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/icon-source-priority.patch"
