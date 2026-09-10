@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# 定位当前 JRiver 构建目录，确保独立兼容代码从固定位置读取。
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 # 1. 更新系统镜像源 (Arch Linux & BlackArch)
 sudo tee /etc/pacman.d/mirrorlist > /dev/null << 'EOF'
 Server = https://mirrors.ustc.edu.cn/archlinux/$repo/os/$arch
@@ -60,80 +63,16 @@ EOF
 # 为 JRiver 的空初始目录调用准备专用兼容库，不修改 GTK/GIO 系统库。
 mkdir -p /usr/local/lib/jriver /usr/local/bin
 
-# 只把空字符串替换为 Home；非空路径和 GTK 的原有返回值保持不变。
-cat > /usr/local/lib/jriver/filechooser-empty-path.c << 'EOF'
-#define _GNU_SOURCE
-#include <dlfcn.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-/* GTK3 的 GtkFileChooser 不透明类型；gboolean 的 ABI 为 int。 */
-typedef struct _GtkFileChooser GtkFileChooser;
-typedef int (*SetCurrentFolder)(GtkFileChooser *, const char *);
-static SetCurrentFolder real_set_current_folder;
-static pthread_once_t gtk_once = PTHREAD_ONCE_INIT;
-
-/* 主进程加载后恢复原环境，避免把本兼容库传给 JRWeb 或宿主 helper。 */
-__attribute__((constructor))
-static void restore_preload_environment(void)
-{
-    const char *saved = getenv("JRIVER_FILECHOOSER_SAVED_PRELOAD");
-    if (saved == NULL)
-        return;
-    if ((*saved ? setenv("LD_PRELOAD", saved, 1) : unsetenv("LD_PRELOAD")) != 0 ||
-        unsetenv("JRIVER_FILECHOOSER_SAVED_PRELOAD") != 0) {
-        perror("JRiver: restore preload environment");
-        _exit(127);
-    }
-}
-
-static void resolve_gtk(void)
-{
-    /* JRiver 延迟加载 GTK；从已经加载的 GTK 获取真实函数，兼容 RTLD_LOCAL。 */
-    void *gtk = dlopen("libgtk-3.so.0", RTLD_LAZY | RTLD_NOLOAD);
-    if (gtk != NULL)
-        real_set_current_folder = (SetCurrentFolder)dlsym(gtk, "gtk_file_chooser_set_current_folder");
-    if (real_set_current_folder == NULL) {
-        fputs("JRiver: cannot resolve GTK file chooser function\n", stderr);
-        _exit(127);
-    }
-}
-
-int gtk_file_chooser_set_current_folder(GtkFileChooser *chooser, const char *filename)
-{
-    pthread_once(&gtk_once, resolve_gtk);
-    if (filename != NULL && filename[0] == '\0') {
-        const char *home = getenv("HOME");
-        filename = home != NULL && home[0] == '/' ? home : "/";
-    }
-    return real_set_current_folder(chooser, filename);
-}
-EOF
+# 将独立的空目录兼容源码安装到 RunImage 内，源码逻辑保持与已验证版本一致。
+install -m 0644 "$SCRIPT_DIR/filechooser-empty-path.c" /usr/local/lib/jriver/filechooser-empty-path.c
 
 # 编译专用兼容库；只使用现有 base-devel 和 glibc，不增加运行依赖。
 cc -shared -fPIC -O2 -Wall -Wextra -Werror \
   /usr/local/lib/jriver/filechooser-empty-path.c \
   -o /usr/local/lib/jriver/filechooser-empty-path.so -ldl -pthread
 
-# 仅给 JRiver 主进程加载兼容库，保留上游可执行文件路径与全部启动参数。
-cat > /usr/local/bin/jriver-filechooser-launch << 'EOF'
-#!/bin/bash
-set -e
-
-# 保存原有预加载配置，兼容库加载后立即恢复，供后续子进程继承。
-export JRIVER_FILECHOOSER_SAVED_PRELOAD="${LD_PRELOAD-}"
-
-# 只在即将启动的 JRiver 主进程中加入空目录兼容库。
-export LD_PRELOAD="/usr/local/lib/jriver/filechooser-empty-path.so${LD_PRELOAD:+:$LD_PRELOAD}"
-
-# 启动未修改的上游 JRiver，完整传递文件名和其他参数。
-exec /usr/bin/mediacenter36 "$@"
-EOF
-
-# 为容器内专用启动器添加执行权限。
-chmod +x /usr/local/bin/jriver-filechooser-launch
+# 安装独立启动器，仅负责给 JRiver 主进程加载兼容库并完整传递参数。
+install -m 0755 "$SCRIPT_DIR/jriver-filechooser-launch.sh" /usr/local/bin/jriver-filechooser-launch
 
 
 # 6. 写入运行时持久化配置 (Run.rcfg)

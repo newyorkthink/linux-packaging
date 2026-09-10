@@ -10,7 +10,7 @@ on:
       - 'runimage/setup_browser.sh'
       - 'runimage/setup_general_env.sh'
       - 'runimage/setup_trading_env.sh'
-      - 'runimage/jriver-media-center/setup_jriver.sh'
+      - 'runimage/jriver-media-center/**'
       - 'runimage/setup_touchegg.sh'
       - '.github/workflows/build_runimage.yml'
   schedule:
@@ -111,6 +111,11 @@ jobs:
                     BUILD[$key]=true
                   fi
                 done
+
+                # JRiver 的 setup、独立 Patch、启动器和 README 位于同一应用目录；目录内任一文件变化都只触发 JRiver 构建。
+                if grep -Eq '^runimage/jriver-media-center/' <<< "$CHANGED_FILES"; then
+                  BUILD[jriver]=true
+                fi
               fi
               ;;
 
