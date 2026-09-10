@@ -14,7 +14,6 @@
 | `apply-icon-patch.sh` | 接收源码目录，依次应用同目录下的图标补丁 |
 | `patches/desktop-icons.patch` | 对上游 `src/icon.c` 的宿主 desktop / 图标查找与 PNG 处理修复 |
 | `patches/appimage-icons.patch` | 对上游 `src/win.c` 的运行中 AppImage 内嵌图标回退 |
-| `patches/icon-source-priority.patch` | 对上游 `src/alttab.h` 的默认图标源优先级调整 |
 
 以后修改图标逻辑时维护对应 `.patch` 文件；补丁路径和应用顺序由 `apply-icon-patch.sh` 管理，不再把大段补丁放进构建脚本。
 
@@ -23,7 +22,7 @@
 正式构建使用 `.github/workflows/build.yml` 的 AltTab Job，并复用 `.github/actions/build-anylinux`，在 Arch Linux / AnyLinux 构建环境中执行。手动构建入口选择 `alttab/build_alttab.sh`。
 
 1. 从官方 `releases/latest` 获取非草稿、非预发布版本，将 tag 解析为具体 commit SHA，下载该 commit 的源码归档并记录 SHA-256。
-2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch`、`patches/appimage-icons.patch` 和 `patches/icon-source-priority.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
+2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch` 和 `patches/appimage-icons.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
 3. 使用现有 `configure --prefix=/usr` 和 `make` 编译，传入 GLib 的头文件及链接参数。
 4. 生成 desktop 文件，使用上游 `doc/alttab.svg` 作为应用自身图标，将主程序与动态依赖交给 quick-sharun，并保留上游 GPL-3.0 许可证。
 5. 生成 `dist/alttab.AppImage`；公共构建 Action 将其上传至仓库 `latest` Release，资产名固定为 `alttab.AppImage`。
@@ -41,9 +40,8 @@
 ./alttab.AppImage
 ```
 
-保留上游 `icon.source` 的 0～5 全部模式；默认模式由 `2` 调整为 `1`，使默认图标来源优先使用窗口自身 X11 图标，窗口未提供可用图标时才进入文件查找。文件图标兼容逻辑补充以下处理：
+保留上游 `icon.source` 的 0～5 全部模式及默认策略，不额外修改窗口自身图标与文件图标之间的上游优先级。文件图标兼容逻辑补充以下处理：
 
-- 默认先读取窗口 `_NET_WM_ICON`，缺失时读取 WM hints；两者都没有可用图标时才查找文件图标。
 - 按 XDG 数据目录查找 desktop 文件，通过文件 ID、`StartupWMClass` 与 `Icon` 映射宿主图标；只读取元数据，不执行 `Exec`。
 - 查找用户及系统图标目录，并补充 `hicolor` 回退；避免直接修改进程的 `XDG_DATA_DIRS` 环境字符串。
 - 支持映射到已有 PNG / XPM 图标，以及 PNG / XPM 绝对路径。PNG 使用文件头中的真实尺寸创建画布，并修正透明背景颜色转换。
@@ -51,15 +49,17 @@
 
 普通程序仍依赖宿主可读取的 desktop 文件和图标资源；直接运行的 AppImage 可额外从其运行时 `APPDIR` 读取内嵌图标。当前补丁未增加 SVG 窗口图标解码，也不是完整的图标主题继承实现。应用自身使用 SVG 作为 AppImage 图标，不代表窗口图标读取支持 SVG。
 
+不同窗口切换器可能因为图标来源、主题匹配和尺寸选择策略不同而显示同一应用的不同图标样式；只要图标能够正常显示，这类样式差异不作为本项目的缺陷处理。
+
 ## 稳定基线
 
-已经实机确认有效的宿主 XDG 图标映射、AppImage `APPDIR` 回退和无扩展名 `.DirIcon` 识别继续作为稳定基线；本次只在其前面调整默认图标来源优先级，不改写这些已验证逻辑。
+当前版本作为最终稳定基线：保留已经实机确认有效的宿主 XDG 图标映射、AppImage `APPDIR` 回退和无扩展名 `.DirIcon` 识别，同时保持上游 `icon.source` 默认策略不变。
 
-- 默认 `icon.source` 使用上游 `ISRC_FALLBACK`（值 `1`）：`_NET_WM_ICON` → WM hints → 文件图标；显式 `-s` 或 Xresource 仍可选择上游其他模式。
 - 文件图标继续按 XDG desktop、`StartupWMClass`、`Icon`、主题目录和 `pixmaps` 规则查找。
 - AppImage 仅在宿主文件图标查找未命中时，通过目标窗口 `_NET_WM_PID` 获取所属进程的 `APPDIR`，再读取 `.DirIcon` 或根目录 desktop 的 `Icon`。
 - `.DirIcon` 同时兼容普通文件和符号链接；没有扩展名时按文件内容识别 PNG / XPM，不依赖固定文件名。
-- 运行时不匹配具体被切换应用名称，不写死用户路径、临时挂载目录或某个 AppImage 文件名。AltTab 自身的上游仓库、`StartupWMClass=AltTab` 等项目固有元数据不属于被切换应用的硬编码。
+- 运行时不匹配具体被切换应用名称，不写死用户路径、临时挂载目录、固定 AppImage 文件名或 sharun 版本号。
+- AltTab 自身名称、`StartupWMClass=AltTab`、上游仓库地址、标准 `/usr` 安装前缀、Release 资产名等属于项目固有元数据或构建接口，不属于环境相关硬编码。
 
 ## 修复记录
 
@@ -109,18 +109,24 @@
 - 基线：保留“宿主 XDG 图标查找 → AppImage `APPDIR` 回退 → `.DirIcon` / desktop `Icon` → PNG / XPM 内容识别”的现有逻辑和执行顺序。
 - 修改文件：`README.md`、`apply-icon-patch.sh`；本次只整理文档与注释，不改变已验证的运行逻辑、补丁内容或应用顺序。
 
-### 2026-09-10：统一默认图标来源优先级
+### 2026-09-10：尝试调整默认图标来源优先级
 
 - 现象：所有窗口已经能够显示图标后，个别应用在 AltTab 中显示的图标仍与其他窗口切换器不同。
-- 根因：上游默认 `icon.source=2`（`ISRC_SIZE`），会先读取窗口自身图标，再允许文件图标按目标尺寸比较后替换；因此存在窗口自身图标正常但最终显示成另一套 desktop / 主题图标的情况。
+- 判断：上游默认 `icon.source=2`（`ISRC_SIZE`）会综合窗口自身图标和文件图标进行尺寸选择，因此曾尝试把默认值改为 `ISRC_FALLBACK`。
 - 修改文件：`apply-icon-patch.sh`、`patches/icon-source-priority.patch`、`README.md`。
-- 修复内容：仅将上游 `ISRC_DEFAULT` 从 `ISRC_SIZE` 改为 `ISRC_FALLBACK`；保留 0～5 全部模式和前述已验证图标补丁不变。默认顺序变为 `_NET_WM_ICON` → WM hints → 文件图标，文件阶段仍继续使用宿主 XDG 与 AppImage `APPDIR` 回退。
-- 已知结果：已按当前上游稳定版源码核对常量定义和 `addWindowInfo()` 图标选择路径；修复不写死具体应用名、路径或 AppImage 文件名。新产物的最终图标样式需重新构建后做 Linux 实机确认。
+- 已知结果：构建和 Linux 实机运行后，目标图标样式差异仍然存在，说明该默认优先级调整没有带来已确认收益；最终稳定基线不保留这一改动。
 
 ### 2026-09-10：修复 quick-sharun 下载 sharun 失败
 
-- 现象：图标优先级补丁已成功应用且 AltTab 已编译完成，但 quick-sharun 在部署阶段连续下载 `pkgforge-dev/sharun` 2.3.0 失败，构建退出。
+- 现象：图标补丁已成功应用且 AltTab 已编译完成，但 quick-sharun 在部署阶段连续下载 `pkgforge-dev/sharun` 2.3.0 失败，构建退出。
 - 根因：当前 quick-sharun 默认 `SHARUN_LINK` 仍指向已迁移的 `pkgforge-dev/sharun` 旧地址；当前维护的 AnyLinux sharun Release 位于 `pkgforge-dev/Anylinux-sharun`。
 - 修改文件：`build_alttab.sh`、`README.md`。
 - 修复内容：使用 quick-sharun 已有的 `SHARUN_LINK` 覆盖接口，将来源改为 `pkgforge-dev/Anylinux-sharun` 的 `releases/latest/download/sharun-${ARCH}`，动态跟随最新 Release，不写死版本号；未修改已验证图标补丁、编译命令或 workflow。
-- 已知结果：已核对失败日志、当前 quick-sharun 默认地址以及 AnyLinux-sharun 最新 Release 的资产命名；本次提交对应构建结果需由现有 Action 确认。
+- 已知结果：对应 GitHub Actions 构建已成功完成，确认新的 sharun 下载来源和现有打包流程可正常工作。
+
+### 2026-09-10：整理最终稳定基线
+
+- 结果：当前图标缺失问题已在 Linux 实机确认解决；个别应用与其他窗口切换器之间仅存在图标样式差异，不影响窗口识别和切换功能。
+- 修改文件：`apply-icon-patch.sh`、`README.md`，并移除未带来已确认收益的 `patches/icon-source-priority.patch`。
+- 基线：保留宿主 XDG 图标映射、AppImage `APPDIR` 回退、无扩展名 `.DirIcon` 内容识别和动态 sharun 下载来源；恢复并保持上游 `icon.source` 默认策略。
+- 核查：最终运行逻辑不按具体被切换应用名称匹配，不写死用户环境路径、临时挂载目录、固定 AppImage 文件名或 sharun 版本号；未新增测试代码、workflow 或分支。
