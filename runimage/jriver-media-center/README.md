@@ -49,7 +49,9 @@ runimage/jriver-media-center/setup_jriver.sh
 - `gvfs`：提供 GTK/GIO 的 Recent、Trash 等虚拟文件系统后端。
 - GTK3 `org.gtk.Settings.FileChooser` 的 `startup-mode='cwd'` override：让文件选择器默认从当前工作目录启动。
 - `GIO_USE_VOLUME_MONITOR=unix`：避免共享宿主会话 D-Bus 时请求容器内的 UDisks2 GVFS 卷监视器。
-- `RIM_AUTORUN=("dbus-run-session" "--" "mediacenter36")`：让 JRiver 主进程及其子进程运行在同一个容器内独立 session D-Bus 生命周期中，使 GVFS Recent 后端可以按容器内 service 文件正常激活。
+- `/etc/gtk-3.0/settings.ini` 的 `gtk-recent-files-enabled=false`：保留既有 Recent 列表设置；该设置不能修正应用主动传入的空目录。
+- `RIM_AUTORUN=("dbus-run-session" "--" "/usr/local/bin/jriver-filechooser-launch")`：保留容器内独立 session D-Bus，由专用启动器执行未修改的 `/usr/bin/mediacenter36`。
+- `filechooser-empty-path.so`：只在 JRiver 主进程中处理 `gtk_file_chooser_set_current_folder()` 的空字符串，将其替换为运行时 Home；非空路径原样交给 GTK。加载后立即恢复原 `LD_PRELOAD` 环境，避免把新增兼容库传给 JRWeb 或外部 helper。
 
 真实运行检查已经确认：
 
@@ -74,7 +76,9 @@ dbus-run-session -- gio list recent:///
 
 可以成功激活 `org.gtk.vfs.Daemon` 并列出 Recent 条目；独立 D-Bus 会话结束时仍会出现总线断开提示。该结果证明 GVFS Recent 后端文件本身可用，关键问题位于 session D-Bus 激活边界。
 
-正式构建脚本现通过 `RIM_AUTORUN` 使用 `dbus-run-session -- mediacenter36` 启动 JRiver。该修改只作用于 JRiver autorun 进程，不启用 RunImage 全局 `RIM_UNSHARE_DBUS`，也不改动其他 RunImage 环境。重新构建后的 JRiver 文件选择器行为仍需真实运行确认。
+后续真实运行日志已确认独立 session D-Bus 中的 `org.gtk.vfs.Daemon`、`org.gtk.vfs.Metadata` 和 `ca.desrt.dconf` 成功激活，但打开文件选择器仍报错，点 Home 后可正常浏览。因此不能再把该弹窗直接等同于 Recent 后端激活失败。
+
+当前修复针对空初始目录的 GTK/GIO 兼容性缺口，保留上述独立 D-Bus 生命周期及既有宿主集成。尚未捕获报错实机的函数实参，空字符串是结合上游调用链和运行现象作出的判断；本次未执行构建或实机运行，不能宣称弹窗已实测消失。
 
 ## 修复记录
 
@@ -113,6 +117,15 @@ dbus-run-session -- gio list recent:///
 - 修复：在 `Run.rcfg` 中加入 `RIM_AUTORUN=("dbus-run-session" "--" "mediacenter36")`，由 RunImage autorun 在容器内先建立独立 session D-Bus，再启动 JRiver，使 JRiver 及其子进程在同一总线生命周期内使用容器内 GVFS 服务。
 - 保留内容：保留已经实际生效的 `startup-mode='cwd'`、`GIO_USE_VOLUME_MONITOR=unix`、既有宿主集成和打包流程；不启用全局 `RIM_UNSHARE_DBUS`，不修改其他 RunImage 项目或 workflow。
 - 已知结果：`dbus-run-session` 对 `recent:///` 的直接验证已经成功；正式重新构建后的 JRiver 文件选择器行为仍需真实运行确认。
+
+### 2026-09-10：补充空初始目录的 GTK/GIO 兼容处理
+
+- 现象：独立 D-Bus 已成功激活 GVFS 和 dconf，文件选择器仍提示 `Operation not supported`；关闭提示后内容空白，点 Home 后正常。
+- 定位依据：上游 JRiver 的 `libJRTools.so` 在创建文件选择器后直接调用 `gtk_file_chooser_set_current_folder()`，调用处没有空字符串检查。GTK 将该参数交给 `g_file_new_for_path()`；GIO 对空字符串构造不支持目录查询的 dummy file，并返回相同错误。默认目录 schema 与 Recent 开关不能拦截这一显式调用。参考 [GTK 调用实现](https://github.com/GNOME/gtk/blob/gtk-3-24/gtk/gtkfilechooser.c)、[GIO 空路径处理](https://github.com/GNOME/glib/blob/main/gio/glocalvfs.c) 和 [GIO 目录查询错误](https://github.com/GNOME/glib/blob/main/gio/gfile.c)。这些证据确认了空路径兼容性缺口，但尚未直接确认报错实机传入的参数。
+- 修改文件：`runimage/jriver-media-center/setup_jriver.sh`、`runimage/jriver-media-center/README.md`。
+- 修复：构建时生成仅拦截上述 GTK 函数的兼容库；只将空字符串替换为运行时 Home，Home 未设置为绝对路径时使用根目录。非空路径、NULL 参数和 GTK 返回值保持原有行为，不强制 local-only，不屏蔽真实目录错误。
+- 启动范围：在既有独立 D-Bus 内经专用启动器加载兼容库，再执行上游主程序并完整传递参数。兼容库加载后立即恢复原有预加载环境；不修改上游二进制、系统 GTK/GIO 库、JRWeb、音频链或其他 RunImage 项目。
+- 已知结果：脚本、启动器和 C 源码静态检查通过；本次提交使用 `[skip ci]`，未执行 Actions、打包或实机验证，实际弹窗结果仍待确认。
 
 ## 目录维护规则
 
