@@ -2,9 +2,13 @@
 
 ## 状态
 
-当前测试版：**未解决，不作为正式发布版本。**
+当前 RunImage 问题：**未解决。**
 
-正式 `setup_jriver.sh` 已恢复到 2026-09-10 文件选择器实验开始前的旧构建逻辑；本文件只记录 `_test` 线的问题与后续定位依据。
+2026-09-10 已将正式 `setup_jriver.sh` 回退到文件选择器实验开始之前的旧构建逻辑，但用户随后实机确认：**换回旧版 RunImage 后，Rofi 启动 `mediacenter36` 仍然会出现无 GUI 的问题。**
+
+因此，不能再把问题简单归因于后来新增的 `gvfs`、`dbus-run-session`、`LD_PRELOAD` Patch 或 `jriver-filechooser-launch` 中的任意单一修改，也不能把回退后的 RunImage 称为“已验证稳定版”。目前尚未确认究竟是哪一项运行时、构建产物或会话状态变化导致该严重回归。
+
+当前实际使用方案：**暂时停用 JRiver RunImage，换回可正常使用的 AppImage 版本。**
 
 ## 现象矩阵
 
@@ -12,36 +16,24 @@
 
 | 启动方式 | 结果 |
 | --- | --- |
-| 终端直接启动 `mediacenter36` | JRiver GUI 可以显示 |
-| nwg-drawer 启动 | 重启系统并调整测试版 launcher 后，目前可正常显示 |
-| Rofi 启动 `mediacenter36` | 仍然只有后台进程，GUI 不显示 |
+| 终端直接启动实验版 `mediacenter36` | 曾可显示 JRiver GUI |
+| nwg-drawer 启动 | 重启系统并调整测试版 launcher 后曾恢复正常 |
+| Rofi 启动实验版 `mediacenter36` | 只有后台进程，GUI 不显示 |
+| Rofi 启动回退后的旧版 RunImage | **仍然无 GUI** |
 | Rofi 启动其他 RunImage | 正常 |
+| JRiver AppImage | 当前已换回使用 |
 
-Rofi 在本次 JRiver 修改之前可以正常启动 `mediacenter36`，且 Rofi 自身没有对应改动。因此当前故障范围继续限定在 JRiver 测试版启动链，不修改 Rofi。
+Rofi 在本轮 JRiver 修改之前可以正常启动 `mediacenter36`，且其他 RunImage 目前仍可由 Rofi 正常启动。因此在没有直接证据前，不修改 Rofi、nwg-drawer 或其他正常组件。
 
-## 伴随现象
+## 重要更正：回退旧版仍复现
 
-故障发生时可以看到 JRiver/RunImage 相关后台进程仍存在，包括 `mediacenter36`、RunImage/DwarFS、`dbus-run-session` 和专用 launcher，但桌面没有出现 JRiver 主窗口。
-
-一次故障会话中，后续通过其他 GUI 启动入口也出现异常；系统重启后相关会话状态被清理，nwg-drawer 恢复正常。这说明曾存在运行时进程/会话残留，但目前没有证据证明宿主系统配置被永久修改或损坏。
-
-## 旧正式基线
-
-文件选择器实验开始前的构建脚本来自提交：
+最初曾把以下提交中的旧构建脚本作为回退基线：
 
 ```text
 d54b5702a820d5c779eb1216b05bdd8a0f779da2
 ```
 
-该旧版启动链很简单：
-
-```text
-RunImage
-→ mediacenter36
-→ /usr/bin/mediacenter36
-```
-
-旧版没有以下测试逻辑：
+该旧版不包含：
 
 - `gvfs` 补充；
 - GTK3 `startup-mode='cwd'` override；
@@ -52,7 +44,23 @@ RunImage
 - `LD_PRELOAD`；
 - `jriver-filechooser-launch`。
 
-因此正式线已经回到该旧逻辑，避免继续影响正常启动入口。
+旧版启动链为：
+
+```text
+RunImage
+→ mediacenter36
+→ /usr/bin/mediacenter36
+```
+
+但回退并重新使用这条旧启动逻辑后，用户确认 **Rofi → mediacenter36 仍然无法显示 GUI**。
+
+这一结果非常关键：代码回退并没有恢复此前的实际行为。因此，当前问题不能再表述为“测试 launcher 导致，回退即可解决”。需要同时考虑 RunImage 构建产物、运行时状态、挂载环境、进程/会话残留，以及本轮操作期间发生但尚未被定位的其他变化。
+
+## 伴随现象
+
+故障发生时可以看到 JRiver/RunImage 相关后台进程仍存在，包括 `mediacenter36`、RunImage/DwarFS、`dbus-run-session` 和专用 launcher，但桌面没有出现 JRiver 主窗口。
+
+一次故障会话中，后续通过其他 GUI 启动入口也出现异常；系统重启后部分现象恢复。该情况说明曾存在运行时进程/会话残留，但目前没有足够证据确认是否还有其他持久状态变化，也不能据此断言宿主系统配置已经损坏。
 
 ## 2026-09-10 文件选择器实验时间线
 
@@ -68,13 +76,9 @@ RunImage
 
 提交：`80edb90e3a7427d4d22bbfcf15830eeac380e18a`
 
-加入：
+加入 `startup-mode='cwd'`、`GIO_USE_VOLUME_MONITOR=unix` 和 GTK Recent 设置。
 
-- `startup-mode='cwd'`；
-- `GIO_USE_VOLUME_MONITOR=unix`；
-- GTK Recent 设置。
-
-结果：这些设置实际生效，但 `recent:///` 仍不能直接工作。
+结果：这些设置生效，但 `recent:///` 仍不能直接工作。
 
 ### 3. 独立 session D-Bus
 
@@ -86,7 +90,7 @@ RunImage
 RIM_AUTORUN=("dbus-run-session" "--" "mediacenter36")
 ```
 
-已验证 `dbus-run-session -- gio list recent:///` 能激活 GVFS 服务，但正式 JRiver 文件选择器仍有问题。
+`dbus-run-session -- gio list recent:///` 可以激活 GVFS 服务，但正式 JRiver 文件选择器仍有问题。
 
 ### 4. 空路径 GTK Patch
 
@@ -96,7 +100,7 @@ RIM_AUTORUN=("dbus-run-session" "--" "mediacenter36")
 
 实际结果：Linux 实机上“打开媒体文件”可以直接进入 Home，原 `The folder contents could not be displayed` / `Operation not supported` 弹窗消失。
 
-但该方案同时引入新的启动结构：
+但启动结构同时变为：
 
 ```text
 RunImage
@@ -110,59 +114,51 @@ RunImage
 
 提交：`840a4757c1dafc458a822d5db329d4257a044a17`
 
-把内嵌 C Patch 与 launcher 拆成独立文件。逻辑上保持上述测试版启动链。
+把内嵌 C Patch 与 launcher 拆成独立文件。
 
 ### 6. 尝试隔离外层 `LD_PRELOAD`
 
 提交：`984519bee49eb1d6d8bbaf319ba46480bc8ff730`
 
-发现 Rofi/nwg-drawer 等便携启动器可能带有自己的 `LD_PRELOAD`。测试版 launcher 改为不再拼接外层 `LD_PRELOAD`，只加载 JRiver 自己的 Patch。
+测试版 launcher 改为不再拼接外层 `LD_PRELOAD`，只加载 JRiver 自己的 Patch。
 
-结果：nwg-drawer 当前看起来恢复正常，但 **Rofi 启动 JRiver 仍无 GUI**。因此“外层 `LD_PRELOAD` 污染”不是完整根因，不能把该提交称为最终修复。
+结果：nwg-drawer 曾恢复，但 Rofi 启动 JRiver 仍无 GUI，因此外层 `LD_PRELOAD` 不是完整根因。
+
+### 7. 回退旧 RunImage 逻辑
+
+提交：`bcfb7a35973e8ca92898ad33c42f35a7c4b370f0`
+
+正式 `setup_jriver.sh` 回到文件选择器实验前的旧构建逻辑，实验代码改为 `_test` 保留。
+
+结果：**用户实机确认回退版仍存在 Rofi 启动无 GUI 的问题。** 因此该回退版只代表“代码已回退”，不代表“运行问题已恢复”。
 
 ## 当前能够确认的事实
 
-1. Rofi 在 JRiver 文件选择器实验之前能正常启动 JRiver RunImage。
-2. Rofi 目前仍能正常启动其他 RunImage。
-3. nwg-drawer 当前能正常启动 JRiver。
-4. 终端直接启动 JRiver 正常。
-5. 当前异常只在 Rofi → JRiver 测试版这条组合链上稳定出现。
-6. 测试版加入了旧版没有的 D-Bus、GVFS、GTK override、launcher 与 `LD_PRELOAD` Patch。
-7. 将外层 `LD_PRELOAD` 从 JRiver launcher 中剔除后，Rofi 问题仍存在。
-8. 目前没有足够证据把根因定为 Rofi、宿主系统、软链接、`LD_PRELOAD`、D-Bus 中的任意单一项。
+1. 本轮 JRiver 修改之前，Rofi 可以正常启动 `mediacenter36` RunImage。
+2. Rofi 当前仍能正常启动其他 RunImage。
+3. 实验版 JRiver 从 Rofi 启动时出现“后台进程存在、GUI 不显示”。
+4. 回退到文件选择器实验前的旧 RunImage 代码后，Rofi 启动问题仍然存在。
+5. 因此新增 launcher、`LD_PRELOAD`、D-Bus、GVFS 等不能被单独认定为最终根因。
+6. 当前无法确认是哪一项修改、构建产物变化或运行时状态造成了该严重回归。
+7. 当前已换回 JRiver AppImage 版本使用，RunImage 暂不作为日常使用基线。
 
 ## 暂时不能下的结论
 
 - 不能说 Rofi 本身坏了；
 - 不能说 nwg-drawer 本身坏了；
 - 不能说 `/usr/local/bin/mediacenter36` 软链接坏了；
-- 不能说宿主系统被永久修改或损坏；
-- 不能再把问题简单归因于外层 `LD_PRELOAD`；
+- 不能说问题只由 `LD_PRELOAD` 或 `dbus-run-session` 引起；
+- 不能说回退旧代码已经恢复稳定；
+- 不能在没有证据的情况下断言宿主系统被永久修改或损坏；
 - 不能把当前 `_test` 代码合回正式版。
 
-## 后续定位范围
+## 后续处理原则
 
-如果以后继续修 `_test`，只在 JRiver 测试线逐项隔离，不修改宿主系统和正常启动器。推荐按以下顺序做二分：
+当前先以 AppImage 作为可用方案，不再继续修改 Rofi、nwg-drawer 或宿主系统。
 
-1. 旧版 + 仅 `gvfs`；
-2. 再加入 GTK schema / Recent 设置；
-3. 再加入 `GIO_USE_VOLUME_MONITOR=unix`；
-4. 再加入 `dbus-run-session`；
-5. 最后单独加入 `LD_PRELOAD` Patch 与 launcher。
+若以后重新定位 RunImage，应从“此前确实能由 Rofi 正常启动的实际二进制/构建产物”开始做对照，而不只比较 Git 源码。需要同时记录：构建所用 RunImage 版本、最终产物哈希、启动入口、父进程环境、挂载路径、残留进程以及重启前后差异。
 
-每一步都同时验证：
-
-```text
-终端启动
-Rofi 启动
-nwg-drawer 启动
-打开媒体文件
-退出后是否残留后台进程
-```
-
-只有明确找到“从哪一步开始 Rofi 无 GUI”，才能继续修复；在此之前不再修改 Rofi、nwg-drawer 或宿主环境。
-
-## 当前测试文件
+实验代码继续保留：
 
 ```text
 setup_jriver_test.sh
@@ -170,4 +166,4 @@ filechooser-empty-path_test.c
 jriver-filechooser-launch_test.sh
 ```
 
-`setup_jriver_test.sh` 产物为 `mediacenter36_test`，只用于后续定位，不由当前正式 JRiver GitHub Actions 自动发布。
+`setup_jriver_test.sh` 仅用于后续定位，不应覆盖当前日常使用的 AppImage 方案。
