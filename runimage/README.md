@@ -53,7 +53,7 @@ browser 保留这两个参数，适合通过桌面入口、i3 快捷键等方式
 
 ## JRiver Media Center RunImage 软件包说明
 
-`setup_jriver.sh` 用于构建 JRiver Media Center RunImage。当前额外加入 `gvfs`，为 GTK/GIO 文件选择器补齐 `recent://`、`trash://` 等虚拟位置后端。
+`setup_jriver.sh` 用于构建 JRiver Media Center RunImage。保留 `gvfs` 作为 GTK/GIO 虚拟文件系统依赖；文件选择器默认启动模式改为 `cwd`，并使用 `GIO_USE_VOLUME_MONITOR=unix`，避免启动文件选择器时依赖共享宿主会话 D-Bus 无法激活的容器内 UDisks2 GVFS 卷监视器。
 
 ## JRiver Media Center RunImage 修复记录
 
@@ -64,3 +64,12 @@ browser 保留这两个参数，适合通过桌面入口、i3 快捷键等方式
 - 修改文件：`runimage/setup_jriver.sh`。
 - 修复：在 JRiver RunImage 依赖中加入 `gvfs`，同时保留原有运行参数和打包流程不变。
 - 已知结果：构建依赖已补齐；重新构建后的实际文件选择器行为仍需实机确认。
+
+### 2026-09-10：补充修复 RunImage 共享 D-Bus 下的 GVFS 激活失败
+
+- 现象：加入 `gvfs` 后，文件选择器启动时仍提示 `Operation not supported`；终端同时报告 `org.gtk.vfs.UDisks2VolumeMonitor` 未由任何 D-Bus service file 提供。
+- 根因：`gvfs` 软件包本身已经包含 `org.gtk.vfs.UDisks2VolumeMonitor.service`，并依赖 `udisks2`；问题不是继续缺包，而是 RunImage 默认共享宿主会话 D-Bus，宿主会话总线不会按容器内 `/usr/share/dbus-1/services` 自动激活该服务。前一项修复只补齐了容器文件，未解决该 D-Bus 激活边界。
+- 修改文件：`runimage/setup_jriver.sh`、`runimage/README.md`。
+- 修复：保留 `gvfs`；为 GTK3 的 `org.gtk.Settings.FileChooser` 写入 schema override，将默认 `startup-mode` 从 `recent` 改为 `cwd`，并重新编译 GSettings schema；同时在 RunImage 运行配置中设置 `GIO_USE_VOLUME_MONITOR=unix`，避免请求 UDisks2 远程卷监视器。
+- 保留内容：不启用 `RIM_UNSHARE_DBUS`，不额外启动私有 `dbus-daemon`，不改变 JRiver 原有运行参数、宿主集成和 `rim-build mediacenter36` 打包流程。
+- 已知结果：已按新的终端错误定位并调整配置；重新构建后的实际文件选择器行为仍需实机确认。

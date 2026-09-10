@@ -37,7 +37,16 @@ yay -S --noconfirm jriver-media-center gnome-themes-extra adwaita-icon-theme adw
   libxau libxcb libxdmcp libxext util-linux musepack-tools pulseaudio-alsa freetype2 harfbuzz xdg-utils lcms2 vulkan-icd-loader vulkan-intel gstreamer cairo libxss libxtst \
   libxcrypt-compat hicolor-icon-theme gvfs
 
-# gvfs：补齐 GTK/GIO 文件选择器的 recent://、trash:// 等虚拟位置后端。
+# gvfs：提供 GTK/GIO 的 Recent、Trash 等虚拟文件系统后端。
+
+# 让 GTK3 文件选择器默认从当前工作目录启动，避免每次打开时自动进入 recent://。
+cat > /usr/share/glib-2.0/schemas/99-jriver-filechooser.gschema.override << 'EOF'
+[org.gtk.Settings.FileChooser]
+startup-mode='cwd'
+EOF
+
+# 重新编译 GSettings schema，使 JRiver RunImage 内的文件选择器默认设置生效。
+glib-compile-schemas /usr/share/glib-2.0/schemas
 
 
 # 6. 写入运行时持久化配置 (Run.rcfg)
@@ -50,8 +59,11 @@ mkdir -p /var/RunDir/config/
   echo 'RIM_SHARE_FONTS=1'
   echo 'RIM_SHARE_THEMES=1'
   echo 'RIM_SHARE_ICONS=1'
+  echo 'GIO_USE_VOLUME_MONITOR=unix'
   echo 'RIM_QUIET_MODE=1'
 } >> /var/RunDir/config/Run.rcfg
+
+# GIO_USE_VOLUME_MONITOR=unix：避免共享宿主会话 D-Bus 时请求容器内的 UDisks2 GVFS 卷监视器服务。
 
 # 7. 瘦身并打包
 rim-shrink --all
