@@ -35,7 +35,9 @@ pac -S --noconfirm yay
 yay -S --noconfirm jriver-media-center gnome-themes-extra adwaita-icon-theme adwaita-cursors desktop-file-utils zlib tar nss nspr libva ibus gtk3 libsoup3 python libepoxy gst-libav \
   coreutils glibc libuvc libusb mesa ffmpeg base-devel polkit dbus webkit2gtk-4.1 vorbis-tools alsa-lib ca-certificates gcc-libs libx11 pango fribidi fontconfig gst-plugins-ugly \
   libxau libxcb libxdmcp libxext util-linux musepack-tools pulseaudio-alsa freetype2 harfbuzz xdg-utils lcms2 vulkan-icd-loader vulkan-intel gstreamer cairo libxss libxtst \
-  libxcrypt-compat hicolor-icon-theme
+  libxcrypt-compat hicolor-icon-theme gvfs
+
+# gvfs：补齐 GTK/GIO 文件选择器的 recent://、trash:// 等虚拟位置后端。
 
 
 # 6. 写入运行时持久化配置 (Run.rcfg)
