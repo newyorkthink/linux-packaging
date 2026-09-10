@@ -144,6 +144,7 @@ Icon=alttab
 Terminal=false
 Categories=Utility;
 StartupNotify=false
+StartupWMClass=AltTab
 EOF_DESKTOP
 
 # 校验 desktop 文件语法。
