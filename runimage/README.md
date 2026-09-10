@@ -50,3 +50,17 @@ browser 保留这两个参数，适合通过桌面入口、i3 快捷键等方式
 - `qt6-svg`：补充 Qt6 程序的 SVG 图片、SVG 图标和相关渲染支持。
 - `libsecret`：提供 Secret Service 客户端库，供程序访问 KeePassXC、GNOME Keyring 等密码与凭据存储后端。
 - `gsettings-desktop-schemas`：补充 GTK/GNOME 程序常用的 GSettings 桌面配置 schema，并自动依赖安装 `dconf`。
+
+## JRiver Media Center RunImage 软件包说明
+
+`setup_jriver.sh` 用于构建 JRiver Media Center RunImage。当前额外加入 `gvfs`，为 GTK/GIO 文件选择器补齐 `recent://`、`trash://` 等虚拟位置后端。
+
+## JRiver Media Center RunImage 修复记录
+
+### 2026-09-10：文件选择器 Recent 报 `Operation not supported`
+
+- 现象：JRiver 通过“打开媒体文件”调用 GTK 文件选择器时，首次进入 Recent 位置会提示 `The folder contents could not be displayed` / `Operation not supported`，切换到 Home 后可正常浏览本地目录。
+- 根因：`setup_jriver.sh` 已包含 GTK3，但未安装提供 `gvfsd-recent` 和 `recent://` 后端的 `gvfs`。
+- 修改文件：`runimage/setup_jriver.sh`。
+- 修复：在 JRiver RunImage 依赖中加入 `gvfs`，同时保留原有运行参数和打包流程不变。
+- 已知结果：构建依赖已补齐；重新构建后的实际文件选择器行为仍需实机确认。
