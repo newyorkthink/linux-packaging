@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# 测试版：保留 2026-09-10 尚未解决 Rofi 无 GUI 问题的 JRiver 文件选择器兼容链，仅用于后续定位。
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 # 1. 更新系统镜像源 (Arch Linux & BlackArch)
 sudo tee /etc/pacman.d/mirrorlist > /dev/null << 'EOF'
 Server = https://mirrors.ustc.edu.cn/archlinux/$repo/os/$arch
@@ -35,7 +38,41 @@ pac -S --noconfirm yay
 yay -S --noconfirm jriver-media-center gnome-themes-extra adwaita-icon-theme adwaita-cursors desktop-file-utils zlib tar nss nspr libva ibus gtk3 libsoup3 python libepoxy gst-libav \
   coreutils glibc libuvc libusb mesa ffmpeg base-devel polkit dbus webkit2gtk-4.1 vorbis-tools alsa-lib ca-certificates gcc-libs libx11 pango fribidi fontconfig gst-plugins-ugly \
   libxau libxcb libxdmcp libxext util-linux musepack-tools pulseaudio-alsa freetype2 harfbuzz xdg-utils lcms2 vulkan-icd-loader vulkan-intel gstreamer cairo libxss libxtst \
-  libxcrypt-compat hicolor-icon-theme
+  libxcrypt-compat hicolor-icon-theme gvfs
+
+# gvfs：提供 GTK/GIO 的 Recent、Trash 等虚拟文件系统后端。
+
+# 让 GTK3 文件选择器默认从当前工作目录启动，避免每次打开时自动进入 recent://。
+cat > /usr/share/glib-2.0/schemas/99-jriver-filechooser.gschema.override << 'EOF'
+[org.gtk.Settings.FileChooser]
+startup-mode='cwd'
+EOF
+
+# 重新编译 GSettings schema，使 JRiver RunImage 内的文件选择器默认设置生效。
+glib-compile-schemas /usr/share/glib-2.0/schemas
+
+# 创建 JRiver RunImage 内的 GTK3 配置目录。
+mkdir -p /etc/gtk-3.0
+
+# 禁用 GTK3 Recent 列表，避免 JRiver 文件选择器继续进入不可用的 Recent 位置。
+cat > /etc/gtk-3.0/settings.ini << 'EOF'
+[Settings]
+gtk-recent-files-enabled=false
+EOF
+
+# 为测试版的空初始目录调用准备专用兼容库，不修改 GTK/GIO 系统库。
+mkdir -p /usr/local/lib/jriver /usr/local/bin
+
+# 将测试版兼容源码安装到 RunImage 内。
+install -m 0644 "$SCRIPT_DIR/filechooser-empty-path_test.c" /usr/local/lib/jriver/filechooser-empty-path_test.c
+
+# 编译测试版兼容库。
+cc -shared -fPIC -O2 -Wall -Wextra -Werror \
+  /usr/local/lib/jriver/filechooser-empty-path_test.c \
+  -o /usr/local/lib/jriver/filechooser-empty-path_test.so -ldl -pthread
+
+# 安装测试版启动器。
+install -m 0755 "$SCRIPT_DIR/jriver-filechooser-launch_test.sh" /usr/local/bin/jriver-filechooser-launch_test
 
 
 # 6. 写入运行时持久化配置 (Run.rcfg)
@@ -48,11 +85,15 @@ mkdir -p /var/RunDir/config/
   echo 'RIM_SHARE_FONTS=1'
   echo 'RIM_SHARE_THEMES=1'
   echo 'RIM_SHARE_ICONS=1'
+  echo 'GIO_USE_VOLUME_MONITOR=unix'
+  # 测试版仍保留独立 session D-Bus 与专用启动器，问题尚未解决，不作为正式发布基线。
+  echo 'RIM_AUTORUN=("dbus-run-session" "--" "/usr/local/bin/jriver-filechooser-launch_test")'
   echo 'RIM_QUIET_MODE=1'
 } >> /var/RunDir/config/Run.rcfg
 
 # 7. 瘦身并打包
 rim-shrink --all
 
-# 注意：mediacenter36 中的 36 为版本号，后续版本更新时需同步检查并修改。
+# 先按真实入口 mediacenter36 构建，再改名为测试产物，避免与正式 mediacenter36 混淆。
 rim-build mediacenter36
+mv -f mediacenter36 mediacenter36_test
