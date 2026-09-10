@@ -48,6 +48,15 @@ EOF
 # 重新编译 GSettings schema，使 JRiver RunImage 内的文件选择器默认设置生效。
 glib-compile-schemas /usr/share/glib-2.0/schemas
 
+# 创建 JRiver RunImage 内的 GTK3 配置目录。
+mkdir -p /etc/gtk-3.0
+
+# 禁用 GTK3 Recent 列表，避免 JRiver 文件选择器继续进入不可用的 Recent 位置。
+cat > /etc/gtk-3.0/settings.ini << 'EOF'
+[Settings]
+gtk-recent-files-enabled=false
+EOF
+
 
 # 6. 写入运行时持久化配置 (Run.rcfg)
 mkdir -p /var/RunDir/config/
