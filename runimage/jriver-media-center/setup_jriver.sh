@@ -60,6 +60,8 @@ mkdir -p /var/RunDir/config/
   echo 'RIM_SHARE_THEMES=1'
   echo 'RIM_SHARE_ICONS=1'
   echo 'GIO_USE_VOLUME_MONITOR=unix'
+  # 使用容器内独立 session D-Bus 启动 JRiver，使 GVFS Recent 后端在应用生命周期内可正常激活。
+  echo 'RIM_AUTORUN=("dbus-run-session" "--" "mediacenter36")'
   echo 'RIM_QUIET_MODE=1'
 } >> /var/RunDir/config/Run.rcfg
 
