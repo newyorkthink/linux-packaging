@@ -9,6 +9,15 @@
 - 最终产物：`mediacenter36` RunImage。
 - `mediacenter36` 中的 `36` 为当前 JRiver 主版本号；后续主版本变化时，需要同步检查构建脚本和 workflow 中与产物名有关的逻辑。
 
+## 目录文件
+
+- `setup_jriver.sh`：安装 JRiver、依赖与运行时配置，并编译、安装兼容代码。
+- `filechooser-empty-path.c`：JRiver 文件选择器空路径兼容 Patch；仅把 `gtk_file_chooser_set_current_folder()` 收到的空字符串替换为运行时 Home。
+- `jriver-filechooser-launch.sh`：JRiver 专用启动器；仅为主进程加载兼容库，随后执行未修改的 `/usr/bin/mediacenter36`。
+- `README.md`：记录当前打包方式、兼容逻辑、实机结果和历史修复。
+
+`filechooser-empty-path.c` 与 `jriver-filechooser-launch.sh` 必须作为独立源码维护，不再内嵌到 `setup_jriver.sh`；后续修改兼容逻辑时直接修改对应文件，避免大型 heredoc 难以审阅。
+
 ## 技术栈
 
 JRiver Media Center Linux 版本为 x86_64 原生应用，主要涉及 GTK3、GIO/GVFS、GStreamer、WebKitGTK、ALSA/PulseAudio、Mesa/Vulkan 等运行时组件。
@@ -50,8 +59,8 @@ runimage/jriver-media-center/setup_jriver.sh
 - GTK3 `org.gtk.Settings.FileChooser` 的 `startup-mode='cwd'` override：让文件选择器默认从当前工作目录启动。
 - `GIO_USE_VOLUME_MONITOR=unix`：避免共享宿主会话 D-Bus 时请求容器内的 UDisks2 GVFS 卷监视器。
 - `/etc/gtk-3.0/settings.ini` 的 `gtk-recent-files-enabled=false`：保留既有 Recent 列表设置；该设置不能修正应用主动传入的空目录。
-- `RIM_AUTORUN=("dbus-run-session" "--" "/usr/local/bin/jriver-filechooser-launch")`：保留容器内独立 session D-Bus，由专用启动器执行未修改的 `/usr/bin/mediacenter36`。
-- `filechooser-empty-path.so`：只在 JRiver 主进程中处理 `gtk_file_chooser_set_current_folder()` 的空字符串，将其替换为运行时 Home；非空路径原样交给 GTK。加载后立即恢复原 `LD_PRELOAD` 环境，避免把新增兼容库传给 JRWeb 或外部 helper。
+- `jriver-filechooser-launch.sh`：构建时安装为 `/usr/local/bin/jriver-filechooser-launch`；`RIM_AUTORUN` 仍通过 `dbus-run-session` 调用它，保持独立 session D-Bus 生命周期。
+- `filechooser-empty-path.c`：构建时编译为 `/usr/local/lib/jriver/filechooser-empty-path.so`；只在 JRiver 主进程中处理 `gtk_file_chooser_set_current_folder()` 的空字符串，将其替换为运行时 Home；非空路径原样交给 GTK。加载后立即恢复原 `LD_PRELOAD` 环境，避免把新增兼容库传给 JRWeb 或外部 helper。
 
 真实运行检查已经确认：
 
@@ -78,7 +87,9 @@ dbus-run-session -- gio list recent:///
 
 后续真实运行日志已确认独立 session D-Bus 中的 `org.gtk.vfs.Daemon`、`org.gtk.vfs.Metadata` 和 `ca.desrt.dconf` 成功激活，但打开文件选择器仍报错，点 Home 后可正常浏览。因此不能再把该弹窗直接等同于 Recent 后端激活失败。
 
-当前修复针对空初始目录的 GTK/GIO 兼容性缺口，保留上述独立 D-Bus 生命周期及既有宿主集成。尚未捕获报错实机的函数实参，空字符串是结合上游调用链和运行现象作出的判断；本次未执行构建或实机运行，不能宣称弹窗已实测消失。
+后续 Linux 实机验证已经确认：加入空路径兼容层后，“打开媒体文件”直接进入 Home，原 `The folder contents could not be displayed` / `Operation not supported` 弹窗消失。该行为以提交 `c8b020a08a63cacddd438ac9f2270d841563fba7` 为稳定逻辑基线。
+
+当前重构只把已经验证有效的 C Patch 和启动器从 `setup_jriver.sh` heredoc 拆成独立文件；兼容逻辑、编译参数、安装路径、`LD_PRELOAD` 范围、D-Bus 启动方式和上游 JRiver 可执行文件均保持不变。
 
 ## 修复记录
 
@@ -125,7 +136,25 @@ dbus-run-session -- gio list recent:///
 - 修改文件：`runimage/jriver-media-center/setup_jriver.sh`、`runimage/jriver-media-center/README.md`。
 - 修复：构建时生成仅拦截上述 GTK 函数的兼容库；只将空字符串替换为运行时 Home，Home 未设置为绝对路径时使用根目录。非空路径、NULL 参数和 GTK 返回值保持原有行为，不强制 local-only，不屏蔽真实目录错误。
 - 启动范围：在既有独立 D-Bus 内经专用启动器加载兼容库，再执行上游主程序并完整传递参数。兼容库加载后立即恢复原有预加载环境；不修改上游二进制、系统 GTK/GIO 库、JRWeb、音频链或其他 RunImage 项目。
-- 已知结果：脚本、启动器和 C 源码静态检查通过；本次提交使用 `[skip ci]`，未执行 Actions、打包或实机验证，实际弹窗结果仍待确认。
+- 已知结果：后续 Linux 实机验证确认“打开媒体文件”直接进入 Home，原 `Operation not supported` 弹窗消失；提交 `c8b020a08a63cacddd438ac9f2270d841563fba7` 作为该修复的稳定逻辑基线。
+
+### 2026-09-10：将内嵌兼容 Patch 拆分为独立源码
+
+- 目的：把已经实机确认有效的文件选择器兼容逻辑从 `setup_jriver.sh` heredoc 中独立出来，降低后续审阅和维护成本。
+- 修改文件：`runimage/jriver-media-center/setup_jriver.sh`、`filechooser-empty-path.c`、`jriver-filechooser-launch.sh`、`README.md`。
+- 调整：`setup_jriver.sh` 只负责从当前应用目录安装独立源码和启动器，再使用原有 `cc -shared -fPIC -O2 -Wall -Wextra -Werror ... -ldl -pthread` 参数编译兼容库。
+- 保留内容：C Patch 逻辑、启动器逻辑、安装路径、`LD_PRELOAD` 作用范围、`RIM_AUTORUN`、独立 session D-Bus 和 `/usr/bin/mediacenter36` 均不改变。
+- 已知结果：这是代码组织重构，不引入新的运行兼容逻辑；运行行为继续以 `c8b020a08a63cacddd438ac9f2270d841563fba7` 的实机验证结果为基线。
+
+## 已知运行日志
+
+以下日志在已确认文件选择器正常的运行中仍可能出现，不应单独作为本兼容修复失效的判断依据：
+
+- `dbind-WARNING` / `at-spi`：无障碍总线连接警告。
+- `Fontconfig warning`：字体配置兼容警告。
+- `xdg-desktop-portal` 的 `last-resort fallback`、PipeWire / RealtimeKit 相关提示：容器内桌面 Portal 或媒体服务的回退信息。
+- `org.gtk.vfs.Daemon`、`org.gtk.vfs.Metadata`、`ca.desrt.dconf` 的 `Successfully activated`：独立 session D-Bus 下的正常服务激活信息。
+- `free(): invalid next size (normal)` 属于内存分配器异常信息；如果后续伴随实际崩溃或闪退，应单独定位，不得归入上述普通警告。
 
 ## 目录维护规则
 
