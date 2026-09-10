@@ -11,17 +11,18 @@
 | 文件 | 用途 |
 | --- | --- |
 | `build_alttab.sh` | 获取稳定版源码、安装构建依赖、调用补丁脚本、编译和打包 |
-| `apply-icon-patch.sh` | 接收源码目录，应用同目录下的图标补丁 |
-| `patches/desktop-icons.patch` | 对上游 `src/icon.c` 的图标修复 |
+| `apply-icon-patch.sh` | 接收源码目录，依次应用同目录下的图标补丁 |
+| `patches/desktop-icons.patch` | 对上游 `src/icon.c` 的宿主 desktop / 图标查找与 PNG 处理修复 |
+| `patches/appimage-icons.patch` | 对上游 `src/win.c` 的运行中 AppImage 内嵌图标回退 |
 
-以后修改图标逻辑时维护 `.patch` 文件；补丁路径和应用方式由 `apply-icon-patch.sh` 管理，不再把大段补丁放进构建脚本。
+以后修改图标逻辑时维护对应 `.patch` 文件；补丁路径和应用顺序由 `apply-icon-patch.sh` 管理，不再把大段补丁放进构建脚本。
 
 ## 打包流程
 
 正式构建使用 `.github/workflows/build.yml` 的 AltTab Job，并复用 `.github/actions/build-anylinux`，在 Arch Linux / AnyLinux 构建环境中执行。手动构建入口选择 `alttab/build_alttab.sh`。
 
 1. 从官方 `releases/latest` 获取非草稿、非预发布版本，将 tag 解析为具体 commit SHA，下载该 commit 的源码归档并记录 SHA-256。
-2. 调用 `apply-icon-patch.sh`，向本次解压的源码应用 `patches/desktop-icons.patch`。补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
+2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch` 和 `patches/appimage-icons.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
 3. 使用现有 `configure --prefix=/usr` 和 `make` 编译，传入 GLib 的头文件及链接参数。
 4. 生成 desktop 文件，使用上游 `doc/alttab.svg` 作为应用自身图标，将主程序与动态依赖交给 quick-sharun，并保留上游 GPL-3.0 许可证。
 5. 生成 `dist/alttab.AppImage`；公共构建 Action 将其上传至仓库 `latest` Release，资产名固定为 `alttab.AppImage`。
@@ -39,11 +40,12 @@
 
 图标补丁保留上游窗口图标来源选项和界面行为，补充以下处理：
 
-- 按 XDG 数据目录查找 desktop 文件，通过文件 ID、`StartupWMClass` 与 `Icon` 映射图标；只读取元数据，不执行 `Exec`。
+- 按 XDG 数据目录查找 desktop 文件，通过文件 ID、`StartupWMClass` 与 `Icon` 映射宿主图标；只读取元数据，不执行 `Exec`。
 - 查找用户及系统图标目录，并补充 `hicolor` 回退；避免直接修改进程的 `XDG_DATA_DIRS` 环境字符串。
 - 支持映射到已有 PNG / XPM 图标，以及 PNG / XPM 绝对路径。PNG 使用文件头中的真实尺寸创建画布，并修正透明背景颜色转换。
+- 宿主图标查找没有命中时，根据目标窗口的 `_NET_WM_PID` 读取该进程的 `APPDIR`，优先使用运行中 AppImage 根目录的 `.DirIcon`，并回退读取根目录 desktop 的 `Icon` 对应 PNG / XPM 文件；不按应用名称写死路径。
 
-窗口图标仍依赖宿主可读取的 desktop 文件和图标资源。当前补丁未增加 SVG 窗口图标解码，也不是完整的图标主题继承实现。应用自身使用 SVG 作为 AppImage 图标，不代表窗口图标读取支持 SVG。
+普通程序仍依赖宿主可读取的 desktop 文件和图标资源；直接运行的 AppImage 可额外从其运行时 `APPDIR` 读取内嵌图标。当前补丁未增加 SVG 窗口图标解码，也不是完整的图标主题继承实现。应用自身使用 SVG 作为 AppImage 图标，不代表窗口图标读取支持 SVG。
 
 ## 修复记录
 
@@ -61,3 +63,19 @@
 - 修改文件：`build_alttab.sh`、`apply-icon-patch.sh`、`patches/desktop-icons.patch`、`README.md`。
 - 调整内容：原补丁逐字迁出，由独立脚本应用；构建脚本通过自身目录定位辅助文件。补齐技术栈、打包流程、兼容范围和修复记录。
 - 已知结果：补丁内容与拆分前一致；本次只调整组织方式和文档，不改变图标算法，不新增测试代码或 workflow，不触发 Actions。
+
+### 2026-09-10：补充 AltTab 自身 StartupWMClass
+
+- 现象：quick-sharun 构建日志提示生成的 `alttab.desktop` 缺少 `StartupWMClass`。
+- 根因：构建脚本生成 desktop 文件时只写入了 `StartupNotify=false`，没有写入上游实际使用的 X11 class。
+- 修改文件：`build_alttab.sh`，对应提交 [5dfbc4c](https://github.com/newyorkthink/linux-packaging/commit/5dfbc4c7b7e2c5dca3c3185d7630ea4247e80ab0)。
+- 修复内容：新增 `StartupWMClass=AltTab`，与上游 `XCLASS` 保持一致。
+- 已知结果：desktop 字段已补齐；该修改只处理 AltTab 自身 desktop 关联，不负责其他被切换窗口的图标来源。
+
+### 2026-09-10：补充运行中 AppImage 内嵌图标回退
+
+- 现象：宿主应用图标能够显示，但部分直接运行的 AppImage 在 AltTab 中仍显示空白图标。
+- 根因：现有补丁只扫描宿主 XDG desktop 和图标目录；直接运行的 AppImage 可以只把 desktop 与图标保存在运行时挂载的 `APPDIR` 中，因此宿主索引没有可匹配资源。
+- 修改文件：`apply-icon-patch.sh`、`patches/appimage-icons.patch`、`README.md`。
+- 修复内容：保留原 `desktop-icons.patch` 不变，新增独立 `src/win.c` 补丁；宿主图标查找失败时，通过 `_NET_WM_PID` 读取目标进程环境中的 `APPDIR`，优先解析 `.DirIcon`，再读取 AppImage 根目录 desktop 的 `Icon`，仅加载现有 PNG / XPM，不写死具体应用名称。
+- 已知结果：新补丁的格式、目标函数和当前上游稳定版相关源码上下文已完成静态核对；未新增测试代码或 workflow。新产物的实际窗口图标效果需重新构建后确认。

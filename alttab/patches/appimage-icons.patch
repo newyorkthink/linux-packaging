@@ -1,0 +1,235 @@
+--- a/src/win.c
++++ b/src/win.c
+@@ -31,6 +31,7 @@
+ #include <unistd.h>
+ #include <string.h>
+ #include <utlist.h>
++#include <glib.h>
+ //#include <sys/time.h>
+ #include "alttab.h"
+ #include "util.h"
+@@ -38,6 +39,215 @@
+ extern Display *dpy;
+ extern int scr;
+ extern Window root;
++
++/*
++ * AppImage fallback: if the host icon index has no match, locate the
++ * running AppImage mount from the target window's process environment
++ * and use its embedded PNG/XPM desktop icon.
++ */
++static char *getWindowAppDir(Window win)
++{
++    unsigned long pid_size = 0;
++    unsigned long *pid = (unsigned long *)get_x_property(
++        win, XA_CARDINAL, "_NET_WM_PID", &pid_size);
++    if (!pid || pid_size < sizeof(unsigned long)) {
++        free(pid);
++        return NULL;
++    }
++
++    char proc_path[64];
++    snprintf(proc_path, sizeof(proc_path), "/proc/%lu/environ", *pid);
++    free(pid);
++
++    gchar *environment = NULL;
++    gsize environment_size = 0;
++    if (!g_file_get_contents(proc_path, &environment, &environment_size, NULL))
++        return NULL;
++
++    char *appdir = NULL;
++    for (gsize offset = 0; offset < environment_size;) {
++        char *entry = environment + offset;
++        gsize remaining = environment_size - offset;
++        char *end = memchr(entry, '\0', remaining);
++        if (!end)
++            break;
++
++        gsize entry_len = (gsize)(end - entry);
++        if (entry_len > 7 && !memcmp(entry, "APPDIR=", 7)) {
++            const char *value = entry + 7;
++            if (g_path_is_absolute(value) &&
++                g_file_test(value, G_FILE_TEST_IS_DIR))
++                appdir = g_strdup(value);
++            break;
++        }
++        offset += entry_len + 1;
++    }
++
++    g_free(environment);
++    return appdir;
++}
++
++static int appDirIconExt(const char *path)
++{
++    if (!path || !g_file_test(path, G_FILE_TEST_IS_REGULAR))
++        return ICON_EXT_UNKNOWN;
++
++    const char *suffix = strrchr(path, '.');
++    if (!suffix)
++        return ICON_EXT_UNKNOWN;
++    if (!g_ascii_strcasecmp(suffix, ".png"))
++        return ICON_EXT_PNG;
++    if (!g_ascii_strcasecmp(suffix, ".xpm"))
++        return ICON_EXT_XPM;
++    return ICON_EXT_UNKNOWN;
++}
++
++static char *resolveAppDirPath(const char *appdir, const char *path)
++{
++    if (g_path_is_absolute(path)) {
++        if (g_str_has_prefix(path, appdir))
++            return g_strdup(path);
++        return g_strconcat(appdir, path, NULL);
++    }
++    return g_build_filename(appdir, path, NULL);
++}
++
++static char *findAppDirIcon(const char *appdir)
++{
++    char *diricon = g_build_filename(appdir, ".DirIcon", NULL);
++    char *target = g_file_read_link(diricon, NULL);
++    g_free(diricon);
++
++    if (target) {
++        char *resolved = resolveAppDirPath(appdir, target);
++        g_free(target);
++        if (appDirIconExt(resolved) != ICON_EXT_UNKNOWN)
++            return resolved;
++        g_free(resolved);
++    }
++
++    GDir *directory = g_dir_open(appdir, 0, NULL);
++    if (!directory)
++        return NULL;
++
++    const char *entry;
++    char *result = NULL;
++    while ((entry = g_dir_read_name(directory)) != NULL) {
++        if (!g_str_has_suffix(entry, ".desktop"))
++            continue;
++
++        char *desktop_path = g_build_filename(appdir, entry, NULL);
++        GKeyFile *desktop = g_key_file_new();
++        if (g_key_file_load_from_file(
++                desktop, desktop_path, G_KEY_FILE_NONE, NULL)) {
++            char *icon = g_key_file_get_string(
++                desktop, "Desktop Entry", "Icon", NULL);
++            if (icon && *icon) {
++                char *candidate = resolveAppDirPath(appdir, icon);
++                if (appDirIconExt(candidate) == ICON_EXT_UNKNOWN) {
++                    char *with_ext = g_strconcat(candidate, ".png", NULL);
++                    if (appDirIconExt(with_ext) != ICON_EXT_UNKNOWN) {
++                        g_free(candidate);
++                        candidate = with_ext;
++                    } else {
++                        g_free(with_ext);
++                        with_ext = g_strconcat(candidate, ".xpm", NULL);
++                        if (appDirIconExt(with_ext) != ICON_EXT_UNKNOWN) {
++                            g_free(candidate);
++                            candidate = with_ext;
++                        } else {
++                            g_free(with_ext);
++                        }
++                    }
++                }
++                if (appDirIconExt(candidate) != ICON_EXT_UNKNOWN)
++                    result = candidate;
++                else
++                    g_free(candidate);
++            }
++            g_free(icon);
++        }
++        g_key_file_free(desktop);
++        g_free(desktop_path);
++        if (result)
++            break;
++    }
++
++    g_dir_close(directory);
++    return result;
++}
++
++static int addIconFromAppDir(WindowInfo *wi)
++{
++    char *appdir = getWindowAppDir(wi->id);
++    if (!appdir)
++        return 0;
++
++    char *path = findAppDirIcon(appdir);
++    g_free(appdir);
++    if (!path)
++        return 0;
++
++    int ext = appDirIconExt(path);
++    if (ext == ICON_EXT_UNKNOWN || strlen(path) >= MAXICONPATHLEN) {
++        g_free(path);
++        return 0;
++    }
++
++    icon_t *ic = initIcon();
++    if (!ic) {
++        g_free(path);
++        return 0;
++    }
++
++    strcpy(ic->src_path, path);
++    ic->ext = ext;
++    if (!loadIconContent(ic)) {
++        deleteIcon(ic);
++        g_free(path);
++        return 0;
++    }
++
++    Window root_return;
++    int x_return, y_return;
++    unsigned int icon_w, icon_h, border_width, depth;
++    if (!XGetGeometry(dpy, ic->drawable, &root_return, &x_return, &y_return,
++                      &icon_w, &icon_h, &border_width, &depth)) {
++        deleteIcon(ic);
++        g_free(path);
++        return 0;
++    }
++
++    bool use_icon =
++        !wi->icon_drawable ||
++        (g.option_iconSrc == ISRC_SIZE &&
++         iconMatchBetter(icon_w, icon_h, wi->icon_w, wi->icon_h, false)) ||
++        (g.option_iconSrc == ISRC_SIZE2 &&
++         iconMatchBetter(icon_w, icon_h, wi->icon_w, wi->icon_h, true));
++
++    if (!use_icon) {
++        deleteIcon(ic);
++        g_free(path);
++        return 0;
++    }
++
++    if (wi->icon_allocated && wi->icon_drawable)
++        XFreePixmap(dpy, wi->icon_drawable);
++
++    wi->icon_drawable = ic->drawable;
++    wi->icon_mask = ic->mask;
++    wi->icon_w = icon_w;
++    wi->icon_h = icon_h;
++    wi->icon_allocated = ic->drawable_allocated;
++#ifdef ICON_DEBUG
++    g_strlcpy(wi->icon_src, path, MAXNAMESZ);
++#endif
++
++    ic->drawable_allocated = false;
++    deleteIcon(ic);
++    g_free(path);
++    return 1;
++}
+ 
+ // PRIVATE
+ 
+@@ -476,6 +686,8 @@
+     } else {
+         msg(0, "can't find WM_CLASS for \"%s\"\n", wi->name);
+     }
++    if (!ret)
++        ret = addIconFromAppDir(wi);
+ out:
+     free(appclass);
+     return ret;
