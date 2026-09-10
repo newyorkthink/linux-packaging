@@ -49,6 +49,7 @@ runimage/jriver-media-center/setup_jriver.sh
 - `gvfs`：提供 GTK/GIO 的 Recent、Trash 等虚拟文件系统后端。
 - GTK3 `org.gtk.Settings.FileChooser` 的 `startup-mode='cwd'` override：让文件选择器默认从当前工作目录启动。
 - `GIO_USE_VOLUME_MONITOR=unix`：避免共享宿主会话 D-Bus 时请求容器内的 UDisks2 GVFS 卷监视器。
+- `RIM_AUTORUN=("dbus-run-session" "--" "mediacenter36")`：让 JRiver 主进程及其子进程运行在同一个容器内独立 session D-Bus 生命周期中，使 GVFS Recent 后端可以按容器内 service 文件正常激活。
 
 真实运行检查已经确认：
 
@@ -71,7 +72,9 @@ gio list recent:///
 dbus-run-session -- gio list recent:///
 ```
 
-可以成功激活 `org.gtk.vfs.Daemon` 并列出 Recent 条目；独立 D-Bus 会话结束时仍会出现总线断开提示。该结果说明后续修复应继续围绕 JRiver 进程生命周期内的独立 session D-Bus 集成处理，当前尚未把这一启动方式写入正式构建脚本，也不应把该问题描述为已经完全修复。
+可以成功激活 `org.gtk.vfs.Daemon` 并列出 Recent 条目；独立 D-Bus 会话结束时仍会出现总线断开提示。该结果证明 GVFS Recent 后端文件本身可用，关键问题位于 session D-Bus 激活边界。
+
+正式构建脚本现通过 `RIM_AUTORUN` 使用 `dbus-run-session -- mediacenter36` 启动 JRiver。该修改只作用于 JRiver autorun 进程，不启用 RunImage 全局 `RIM_UNSHARE_DBUS`，也不改动其他 RunImage 环境。重新构建后的 JRiver 文件选择器行为仍需真实运行确认。
 
 ## 修复记录
 
@@ -101,6 +104,15 @@ dbus-run-session -- gio list recent:///
 - 修改文件：本次只整理目录和文档，不修改已生成并实测的 JRiver 运行逻辑；`setup_jriver.sh` 原样迁移到 `runimage/jriver-media-center/`。
 - 后续处理：若继续修复，应只在 JRiver 专用目录内处理其进程生命周期内的 D-Bus 启动方式，不修改其他 RunImage 环境。
 - 已知结果：根因范围已经进一步缩小，但正式 JRiver 启动方式尚未调整，当前问题仍未标记为解决。
+
+### 2026-09-10：使用独立 session D-Bus 启动 JRiver
+
+- 现象：RunImage 默认启动 JRiver 时，GTK 文件选择器仍无法访问 `recent:///`；但同一镜像内 `dbus-run-session -- gio list recent:///` 已能成功激活 `org.gtk.vfs.Daemon` 并列出 Recent 条目。
+- 根因：JRiver 默认继承的宿主 session D-Bus 无法根据 RunImage 内的 GVFS service 文件完成容器内后端激活；GVFS 后端文件和命令本身并未缺失。
+- 修改文件：`runimage/jriver-media-center/setup_jriver.sh`、`runimage/jriver-media-center/README.md`。
+- 修复：在 `Run.rcfg` 中加入 `RIM_AUTORUN=("dbus-run-session" "--" "mediacenter36")`，由 RunImage autorun 在容器内先建立独立 session D-Bus，再启动 JRiver，使 JRiver 及其子进程在同一总线生命周期内使用容器内 GVFS 服务。
+- 保留内容：保留已经实际生效的 `startup-mode='cwd'`、`GIO_USE_VOLUME_MONITOR=unix`、既有宿主集成和打包流程；不启用全局 `RIM_UNSHARE_DBUS`，不修改其他 RunImage 项目或 workflow。
+- 已知结果：`dbus-run-session` 对 `recent:///` 的直接验证已经成功；正式重新构建后的 JRiver 文件选择器行为仍需真实运行确认。
 
 ## 目录维护规则
 
