@@ -1,0 +1,357 @@
+--- a/src/icon.c
++++ b/src/icon.c
+@@ -29,6 +29,131 @@
+ extern int scr;
+ extern Window root;
+ 
++#include <glib.h>
++
++/* Desktop metadata is read once; no launcher commands are executed. */
++static GHashTable *desktop_icons;
++
++static void rememberDesktopIcon(const char *name, const char *icon)
++{
++    if (!name || !*name || !icon || !*icon)
++        return;
++    char *key = g_ascii_strdown(name, -1);
++    if (!g_hash_table_contains(desktop_icons, key))
++        g_hash_table_insert(desktop_icons, key, g_strdup(icon));
++    else
++        g_free(key);
++}
++
++static void scanDesktopIcons(const char *base)
++{
++    char *directory = g_build_filename(base, "applications", NULL);
++    char *paths[] = {directory, NULL};
++    FTS *tree = fts_open(paths, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
++    FTSENT *entry;
++    if (tree) {
++        while ((entry = fts_read(tree)) != NULL) {
++            if ((entry->fts_info != FTS_F && entry->fts_info != FTS_SL) ||
++                !g_str_has_suffix(entry->fts_name, ".desktop"))
++                continue;
++            GKeyFile *file = g_key_file_new();
++            if (g_key_file_load_from_file(file, entry->fts_path,
++                                         G_KEY_FILE_NONE, NULL)) {
++                const char *group = "Desktop Entry";
++                char *icon = g_key_file_get_string(file, group, "Icon", NULL);
++                char *wmclass = g_key_file_get_string(file, group, "StartupWMClass", NULL);
++                char *id = g_strdup(entry->fts_path + strlen(directory) + 1);
++                id[strlen(id) - strlen(".desktop")] = '\0';
++                for (char *p = id; *p; p++)
++                    if (*p == '/') *p = '-';
++                if (!g_key_file_get_boolean(file, group, "Hidden", NULL)) {
++                    rememberDesktopIcon(wmclass, icon);
++                    rememberDesktopIcon(id, icon);
++                }
++                g_free(id);
++                g_free(wmclass);
++                g_free(icon);
++            }
++            g_key_file_free(file);
++        }
++        fts_close(tree);
++    }
++    g_free(directory);
++}
++
++/* Read dimensions before allocating a PNG pixmap, including legacy pixmaps. */
++static int readIconPNGSize(icon_t *ic)
++{
++    FILE *file = fopen(ic->src_path, "rb");
++    TImage image = {0};
++    if (!file)
++        return 0;
++    int ok = pngInit(file, &image);
++    fclose(file);
++    if (!ok)
++        return 0;
++    ic->src_w = image.width;
++    ic->src_h = image.height;
++    png_destroy_read_struct(&image.png_ptr, &image.info_ptr, NULL);
++    return ic->src_w > 0 && ic->src_h > 0 &&
++           ic->src_w <= 16384 && ic->src_h <= 16384;
++}
++
++static icon_t *lookupDesktopIcon(const char *app)
++{
++    if (!desktop_icons) {
++        desktop_icons = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
++        scanDesktopIcons(g_get_user_data_dir());
++        const char * const *dirs = g_get_system_data_dirs();
++        for (int i = 0; dirs[i]; i++)
++            scanDesktopIcons(dirs[i]);
++    }
++    const char *name = g_hash_table_lookup(desktop_icons, app);
++    if (!name)
++        return NULL;
++    icon_t *ic = NULL;
++    if (!g_path_is_absolute(name)) {
++        char *key = g_ascii_strdown(name, -1);
++        char *suffix = strrchr(key, '.');
++        if (suffix && (!strcmp(suffix, ".png") || !strcmp(suffix, ".xpm")))
++            *suffix = '\0';
++        HASH_FIND_STR(g.ic, key, ic);
++        g_free(key);
++        return ic;
++    }
++    const char *suffix = strrchr(name, '.');
++    if (!suffix || strlen(name) >= MAXICONPATHLEN || strlen(app) >= MAXAPPLEN)
++        return NULL;
++    int ext = !g_ascii_strcasecmp(suffix, ".png") ? ICON_EXT_PNG :
++              !g_ascii_strcasecmp(suffix, ".xpm") ? ICON_EXT_XPM : ICON_EXT_UNKNOWN;
++    if (ext == ICON_EXT_UNKNOWN)
++        return NULL;
++    ic = initIcon();
++    if (!ic)
++        return NULL;
++    strcpy(ic->app, app);
++    strcpy(ic->src_path, name);
++    ic->ext = ext;
++    if (ext == ICON_EXT_PNG) {
++        if (!readIconPNGSize(ic)) {
++            deleteIcon(ic);
++            return NULL;
++        }
++    } else {
++        XpmImage image = {0};
++        if (XpmReadFileToXpmImage(ic->src_path, &image, NULL) != XpmSuccess) {
++            XpmFreeXpmImage(&image);
++            deleteIcon(ic);
++            return NULL;
++        }
++        ic->src_w = image.width;
++        ic->src_h = image.height;
++        XpmFreeXpmImage(&image);
++    }
++    HASH_ADD_STR(g.ic, app, ic);
++    return ic;
++}
++
+ // PUBLIC:
+ 
+ //
+@@ -84,95 +209,39 @@
+ // build array of icon directories
+ // return the number of elements or 0
+ //
+-int allocIconDirs(char ** icon_dirs)
+-{
+-    int hd;
+-    char *id2;
+-    int id2len;
+-    const char *icondir[] = {
+-        "/usr/share/icons",
+-        "/usr/local/share/icons",
+-        "~/.icons",
+-        "~/.local/share/icons",
+-        "/usr/share/pixmaps",
+-        "~/.local/share/pixmaps",
+-        NULL
+-    };
+-    int idndx = 0;
+-    int theme_len = strlen(g.option_theme);
+-    char *home = getenv("HOME");
+-    char *xdgdd = getenv("XDG_DATA_DIRS");
+-    bool legacy;
+-    char *str1;
+-    char *xdg;
+-    char *saveptr1;
+-    int j;
+-    char *k;
+-    int idsd;
+-
+-    for (hd = 0; icondir[hd] != NULL; hd++) {
+-        legacy = (strstr (icondir[hd], "pixmap") != NULL);
+-        id2len = strlen(icondir[hd]) + 1;
+-        if (!legacy)
+-            id2len += theme_len + 1;
+-        if (icondir[hd][0] == '~') {
+-            if (home == NULL)
+-                continue;
+-            id2len += strlen(home);
+-        }
+-        id2 = malloc(id2len);
+-        if (!id2)
+-            return 0;
+-        if (icondir[hd][0] == '~')
+-            snprintf(id2, id2len, "%s%s", home, icondir[hd] + 1);
+-        else
+-            snprintf(id2, id2len, "%s", icondir[hd]);
+-        if (!legacy) {
+-            strcat(id2, "/");
+-            strncat(id2, g.option_theme, theme_len);
+-        }
+-        id2[id2len - 1] = '\0';
+-        icon_dirs[idndx] = id2;
+-        idndx++;
+-    }
+-
+-    if (xdgdd != NULL) {
+-        for (j = 1, str1 = xdgdd; ; j++, str1 = NULL) {
+-            xdg = strtok_r(str1, ":", &saveptr1);
+-            if (xdg == NULL)
+-                break;
+-            msg(1, "xdg dir %d: %s\n", j, xdg);
+-            // strip trailing "/"'s
+-            for (k = xdg + strlen(xdg) - 1; *k == '/'; k--) {
+-                *k = '\0';
+-            }
+-            id2len = strlen(xdg) + strlen("/icons/") + theme_len + 1;
+-            id2 = malloc(id2len);
+-            if (!id2)
+-                return 0;
+-            snprintf(id2, id2len, "%s/icons/%s", xdg, g.option_theme);
+-            id2[id2len - 1] = '\0';
+-            // search for duplicates
+-            for (idsd = 0; idsd < idndx; idsd++) {
+-                if (strncmp (icon_dirs[idsd], id2, id2len) == 0) {
+-                    msg(1, "skip duplicate icon dir: %s\n", id2);
+-                    free(id2); id2 = NULL;
+-                    break;
+-                }
+-            }
+-            if (id2 != NULL) {
+-                icon_dirs[idndx] = id2;
+-                idndx++;
+-            }
+-        }
+-    }
+-
+-    icon_dirs[idndx] = NULL;
+-    if (g.debug > 1) {
+-        for (idndx = 0; icon_dirs[idndx] != NULL; idndx++)
+-            msg(1, "icon dir: %s\n", icon_dirs[idndx]);
+-    }
+-    return idndx;
++static void appendIconDir(char **dirs, int *count, const char *base,
++                          const char *subdir, const char *theme)
++{
++    if (!base || !g_path_is_absolute(base) || *count >= MAXICONDIRS - 1)
++        return;
++    char *path = g_build_filename(base, subdir, theme, NULL);
++    for (int i = 0; i < *count; i++) {
++        if (!strcmp(dirs[i], path)) {
++            g_free(path);
++            return;
++        }
++    }
++    dirs[(*count)++] = path;
++    dirs[*count] = NULL;
++}
++
++int allocIconDirs(char **icon_dirs)
++{
++    int count = 0;
++    icon_dirs[0] = NULL;
++    const char *user = g_get_user_data_dir();
++    const char * const *system = g_get_system_data_dirs();
++    const char *themes[] = {g.option_theme, "hicolor", NULL};
++    for (int t = 0; themes[t]; t++) {
++        appendIconDir(icon_dirs, &count, g_get_home_dir(), ".icons", themes[t]);
++        appendIconDir(icon_dirs, &count, user, "icons", themes[t]);
++        for (int i = 0; system[i]; i++)
++            appendIconDir(icon_dirs, &count, system[i], "icons", themes[t]);
++    }
++    appendIconDir(icon_dirs, &count, user, "pixmaps", NULL);
++    for (int i = 0; system[i]; i++)
++        appendIconDir(icon_dirs, &count, system[i], "pixmaps", NULL);
++    return count;
+ }
+ 
+ //
+@@ -182,7 +251,7 @@
+ {
+     int idndx;
+     for (idndx = 0; icon_dirs[idndx] != NULL; idndx++)
+-        free(icon_dirs[idndx]);
++        g_free(icon_dirs[idndx]);
+ }
+ 
+ //
+@@ -191,7 +260,7 @@
+ //
+ int updateIconsFromFile(icon_t ** ihash)
+ {
+-    char *icon_dirs[MAXICONDIRS];
++    char *icon_dirs[MAXICONDIRS] = {0};
+     int d_c, f_c;
+     FTS *ftsp;
+     FTSENT *p, *chp;
+@@ -209,6 +278,7 @@
+     /* Initialize ftsp with as many icon_dirs as possible. */
+     chp = fts_children(ftsp, 0);
+     if (chp == NULL) {
++        fts_close(ftsp);
+         goto out;               /* no files to traverse */
+     }
+     d_c = f_c = 0;
+@@ -404,6 +474,7 @@
+             return 0;
+         strncpy(ic->app, app, MAXAPPLEN);
+         strncpy(ic->src_path, pe->fts_path, MAXICONPATHLEN-1);
++        ic->src_path[MAXICONPATHLEN - 1] = '\0';
+         ic->src_w = ix;
+         ic->src_h = iy;
+         ic->ext = ext;
+@@ -416,6 +487,7 @@
+         // should we replace the icon?
+         if (iconMatchBetter(ix, iy, ic->src_w, ic->src_h, false)) {
+             strncpy(ic->src_path, pe->fts_path, MAXICONPATHLEN-1);
++            ic->src_path[MAXICONPATHLEN - 1] = '\0';
+             ic->src_w = ix;
+             ic->src_h = iy;
+             ic->ext = ext;
+@@ -431,6 +503,8 @@
+ //
+ int loadIconContentPNG(icon_t * ic)
+ {
++    if (!readIconPNGSize(ic))
++        return 0;
+ 
+     if (!ic->drawable_allocated) {
+         ic->drawable = XCreatePixmap(dpy, root, ic->src_w, ic->src_h, XDEPTH);
+@@ -442,8 +516,11 @@
+     }
+ 
+     if (pngReadToDrawable
+-        (ic->src_path, ic->drawable, g.color[COLBG].xcolor.red,
+-         g.color[COLBG].xcolor.green, g.color[COLBG].xcolor.blue) == 0) {
++        (ic->src_path, ic->drawable, g.color[COLBG].xcolor.red >> 8,
++         g.color[COLBG].xcolor.green >> 8, g.color[COLBG].xcolor.blue >> 8) == 0) {
++        XFreePixmap(dpy, ic->drawable);
++        ic->drawable = None;
++        ic->drawable_allocated = false;
+         msg(-1, "can't read png to drawable: %s\n", ic->src_path);
+         return 0;
+     }
+@@ -497,11 +574,15 @@
+     char appl[MAXAPPLEN];
+     int l;
+ 
+-    for (l = 0; (*(app + l)) != '\0' && l < MAXAPPLEN; l++)
+-        appl[l] = tolower(*(app + l));
++    for (l = 0; (*(app + l)) != '\0' && l < MAXAPPLEN - 1; l++)
++        appl[l] = tolower((unsigned char)*(app + l));
+     appl[l] = '\0';
+ 
+     HASH_FIND_STR(g.ic, appl, ic);
++    if (!ic)
++        ic = lookupDesktopIcon(appl);
++    if (ic && ic->ext == ICON_EXT_PNG && ic->drawable == None && !readIconPNGSize(ic))
++        return NULL;
+     return ic;
+ }
+ 
+@@ -527,6 +608,10 @@
+ 
+ void deleteIconHash(icon_t **ihash)
+ {
++    if (desktop_icons) {
++        g_hash_table_destroy(desktop_icons);
++        desktop_icons = NULL;
++    }
+     icon_t *iiter, *tmp;
+ 
+     HASH_ITER(hh, *ihash, iiter, tmp) {
