@@ -1,10 +1,6 @@
 --- a/src/alttab.h
 +++ b/src/alttab.h
-@@ -186,12 +186,12 @@
- #define ISRC_RAM        0
- #define ISRC_FALLBACK   1
- #define ISRC_SIZE       2
- #define ISRC_FILES      3
+@@ -191,7 +191,7 @@
  #define ISRC_NONE       4
  #define ISRC_SIZE2      5
  #define ISRC_MAX        5
@@ -13,4 +9,3 @@
      int option_iconSrc;
      char *option_theme;
      unsigned int option_modMask, option_backMask;
-     KeyCode option_modCode, option_keyCode;
