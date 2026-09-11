@@ -9,28 +9,23 @@ set -euo pipefail
 # 不再要求 Actions checkout 必须包含旧 commit，而是从本仓库公开的固定迁移提交读取
 # 已校验音频 wrapper 与核心基线，构建时临时展开，不把辅助层留在 jriver 目录中。
 #
-# 2026-09-10 quick-sharun 上游将 helper preload 从 AppDir/.preload + AppDir/lib
-# 改为 AppDir/lib/sharun-preload；JRiver 固定基线仍依赖旧 preload 顺序。
-# 因此仅本构建入口固定到该变更前最后一个 quick-sharun 提交，不影响其它 AppImage。
-# 源仓库 2026-08-20 成功发布时 appimagetool latest 为 0.3.3；这里只固定该版本，
-# 避免 2026-08-31 发布的 0.3.4 改变 AppImage/uruntime 结构。
+# quick-sharun 继续由 AnyLinux setup action 提供当前版本，不固定上游版本。
+# 本入口只兼容 quick-sharun 的旧 .preload 布局与新版 lib/sharun-preload 布局，
+# 保持 JRiver 既有 anylinux -> CEF 环境层 -> shutdown guard 的加载顺序。
+# 源仓库 2026-08-20 成功发布时 appimagetool latest 为 0.3.3；这里只保留既有固定版本，
+# 避免改变已验证的 JRiver AppImage/uruntime 基线。
 
 cd "$(dirname "$0")"
 
 BASE_COMMIT='4a08912cd31a5659bb43395dfeda0c5257abdeab'
 AUDIO_BLOB='3a247e16dab1f444982e4e9ec66bd0eabe1183bc'
 CORE_BLOB='a589c8f8e11480b1805226d8d8c247bc7d689d4e'
-QUICK_SHARUN_COMMIT='5e76c43e12c20ccb2f705c6098ca141b2fd368f8'
-QUICK_SHARUN_BLOB='667ff6679c807aaabd59216ba737e262cb56a359'
 BASE_RAW="https://raw.githubusercontent.com/newyorkthink/linux-packaging/${BASE_COMMIT}/jriver"
 WRAPPED="$(mktemp "$PWD/.build_jriver_verified.XXXXXX.sh")"
 BASE_FILE="$PWD/build_jriver_base.sh"
-QUICK_SHARUN_DIR="$(mktemp -d "$PWD/.quick-sharun.XXXXXX")"
-QUICK_SHARUN_BIN="$QUICK_SHARUN_DIR/quick-sharun"
 
 cleanup() {
   rm -f "$WRAPPED" "$BASE_FILE"
-  rm -rf "$QUICK_SHARUN_DIR"
 }
 trap cleanup EXIT
 
@@ -49,20 +44,7 @@ if [[ "$(git hash-object "$BASE_FILE")" != "$CORE_BLOB" ]]; then
   exit 1
 fi
 
-# 固定到 helper preload 重构前的 quick-sharun，保留基线所需的 AppDir/.preload 语义。
-curl -fL --retry 3 --retry-delay 2 \
-  "https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/${QUICK_SHARUN_COMMIT}/useful-tools/quick-sharun.sh" \
-  -o "$QUICK_SHARUN_BIN"
-
-if [[ "$(git hash-object "$QUICK_SHARUN_BIN")" != "$QUICK_SHARUN_BLOB" ]]; then
-  echo '错误：JRiver 固定 quick-sharun 与预期 blob SHA 不一致。' >&2
-  exit 1
-fi
-
-chmod +x "$QUICK_SHARUN_BIN"
-export PATH="$QUICK_SHARUN_DIR:$PATH"
-
-# 仅 JRiver 使用上面的固定 quick-sharun；其它 Job 仍由 AnyLinux setup action 使用当前版本。
+# quick-sharun 使用 AnyLinux setup action 当前提供的版本；不在 JRiver 中覆盖。
 export APPIMAGETOOL_LINK='https://github.com/pkgforge-dev/appimagetool/releases/download/0.3.3/appimagetool-x86_64-linux'
 
 # 在音频 wrapper 生成最终脚本后追加 CEF shutdown 保护和启动路径映射。
@@ -117,20 +99,115 @@ void cef_shutdown(void)
 }
 EOF_CEF_SHUTDOWN_GUARD
 
+JRIVER_SHUTDOWN_GUARD_LIB="$JRIVER_PRELOAD_DIR/jriver-cef-shutdown-guard.so"
 cc -shared -fPIC -O2 -Wall -Wextra -Werror \
   AppDir/.jriver-cef-shutdown-guard.c \
-  -o AppDir/lib/jriver-cef-shutdown-guard.so -ldl
+  -o "$JRIVER_SHUTDOWN_GUARD_LIB" -ldl
 rm -f AppDir/.jriver-cef-shutdown-guard.c
 
-# 由 Sharun 加载该极小 guard；只有 JRWeb wrapper 设置跳过变量，其他进程继续转发真实 cef_shutdown。
-sed -i '/^jriver-cef-shutdown-guard\\.so$/d' AppDir/.preload
-echo 'jriver-cef-shutdown-guard.so' >> AppDir/.preload
+# 旧布局由 .preload 显式加载；新版 sharun-preload 目录由 Sharun 自动按文件名排序加载。
+sed -i '/^jriver-cef-shutdown-guard\\.so$/d' AppDir/.preload 2>/dev/null || true
+if [[ "$JRIVER_PRELOAD_MODE" == 'legacy' ]]; then
+  echo 'jriver-cef-shutdown-guard.so' >> AppDir/.preload
+fi
 
-if ! nm -D --defined-only AppDir/lib/jriver-cef-shutdown-guard.so \
+if ! nm -D --defined-only "$JRIVER_SHUTDOWN_GUARD_LIB" \
      | awk '{print $3}' | grep -qxF 'cef_shutdown'; then
   echo '错误：JRWeb CEF shutdown guard 未导出 cef_shutdown。' >&2
   exit 1
 fi
+'''
+
+
+preload_layout_anchor = r'''cc -shared -fPIC -O2 -Wall -Wextra -Werror AppDir/.jriver-cef-env.c \
+  -o AppDir/lib/jriver-cef-env.so -ldl
+rm -f AppDir/.jriver-cef-env.c
+
+if ! grep -qxF 'anylinux.so' AppDir/.preload; then
+  echo '错误：quick-sharun 未启用 anylinux.so，无法保证 JRWebChromium 环境清理顺序。' >&2
+  exit 1
+fi
+sed -i '/^jriver-cef-env\.so$/d' AppDir/.preload
+echo 'jriver-cef-env.so' >> AppDir/.preload
+'''
+
+preload_layout_patch = r'''cc -shared -fPIC -O2 -Wall -Wextra -Werror AppDir/.jriver-cef-env.c \
+  -o AppDir/lib/jriver-cef-env.so -ldl
+rm -f AppDir/.jriver-cef-env.c
+
+# quick-sharun 旧版把 anylinux.so 写入 AppDir/.preload；
+# 新版将 helper preload 放入 lib/sharun-preload 并按文件名排序自动加载。
+if [[ -f AppDir/lib/sharun-preload/anylinux.so ]]; then
+  JRIVER_PRELOAD_MODE='directory'
+  JRIVER_PRELOAD_DIR='AppDir/lib/sharun-preload'
+  JRIVER_CEF_ENV_LIB="$JRIVER_PRELOAD_DIR/jriver-cef-env.so"
+  mv -f AppDir/lib/jriver-cef-env.so "$JRIVER_CEF_ENV_LIB"
+  sed -i '/^anylinux\.so$/d; /^jriver-cef-env\.so$/d; /^jriver-cef-shutdown-guard\.so$/d' \
+    AppDir/.preload 2>/dev/null || true
+elif [[ -f AppDir/lib/anylinux.so ]] && grep -qxF 'anylinux.so' AppDir/.preload; then
+  JRIVER_PRELOAD_MODE='legacy'
+  JRIVER_PRELOAD_DIR='AppDir/lib'
+  JRIVER_CEF_ENV_LIB='AppDir/lib/jriver-cef-env.so'
+  sed -i '/^jriver-cef-env\.so$/d' AppDir/.preload
+  echo 'jriver-cef-env.so' >> AppDir/.preload
+else
+  echo '错误：无法识别 quick-sharun 的 anylinux.so preload 布局。' >&2
+  exit 1
+fi
+'''
+
+preload_validator_anchor = r'''# anylinux.so 必须先清理环境，jriver-cef-env.so 再精确补入 CEF 路径。
+python3 - AppDir/.preload <<'PY_CEF_PRELOAD_ORDER'
+from pathlib import Path
+import sys
+
+lines = [line.strip() for line in Path(sys.argv[1]).read_text().splitlines() if line.strip()]
+if lines.count("anylinux.so") != 1:
+    raise SystemExit("anylinux.so preload entry must appear exactly once")
+if lines.count("jriver-cef-env.so") != 1:
+    raise SystemExit("jriver-cef-env.so preload entry must appear exactly once")
+if lines.index("anylinux.so") > lines.index("jriver-cef-env.so"):
+    raise SystemExit("jriver-cef-env.so must load after anylinux.so")
+PY_CEF_PRELOAD_ORDER
+'''
+
+preload_validator_patch = r'''# 按 Sharun 实际加载规则重建 preload 顺序：先 .preload，再新版 sharun-preload 排序目录。
+python3 - AppDir/.preload "$JRIVER_PRELOAD_MODE" "$JRIVER_PRELOAD_DIR" <<'PY_CEF_PRELOAD_ORDER'
+from pathlib import Path
+import sys
+
+preload_file = Path(sys.argv[1])
+mode = sys.argv[2]
+preload_dir = Path(sys.argv[3])
+
+lines = []
+if preload_file.exists():
+    lines.extend(line.strip() for line in preload_file.read_text().splitlines() if line.strip())
+
+if mode == "directory":
+    libs = sorted(
+        path.name
+        for path in preload_dir.iterdir()
+        if path.is_file() and (path.name.endswith(".so") or ".so." in path.name)
+    )
+    lines.extend(libs)
+elif mode != "legacy":
+    raise SystemExit(f"unknown JRiver preload mode: {mode}")
+
+for required in ("anylinux.so", "jriver-cef-env.so", "jriver-cef-shutdown-guard.so"):
+    if lines.count(required) != 1:
+        raise SystemExit(f"{required} preload entry must appear exactly once")
+
+if lines.index("anylinux.so") > lines.index("jriver-cef-env.so"):
+    raise SystemExit("jriver-cef-env.so must load after anylinux.so")
+if lines.index("jriver-cef-env.so") > lines.index("jriver-cef-shutdown-guard.so"):
+    raise SystemExit("CEF shutdown guard must load after jriver-cef-env.so")
+PY_CEF_PRELOAD_ORDER
+'''
+
+cef_symbols_anchor = '''CEF_ENV_SYMBOLS="$(nm -D --defined-only AppDir/lib/jriver-cef-env.so | awk '{print $3}')"
+'''
+cef_symbols_patch = '''CEF_ENV_SYMBOLS="$(nm -D --defined-only "$JRIVER_CEF_ENV_LIB" | awk '{print $3}')"
 '''
 
 wrapper_anchor = '''if [ "$CHILD_NAME" = "JRWeb" ] && [ -d "$HERE/cef-runtime" ]; then
@@ -153,27 +230,23 @@ fi
 exec "$SHARUN_CHILD" "$@"
 '''
 
-preload_check_anchor = '''if lines.index("anylinux.so") > lines.index("jriver-cef-env.so"):
-    raise SystemExit("jriver-cef-env.so must load after anylinux.so")
-'''
-preload_check_patch = preload_check_anchor + '''if lines.count("jriver-cef-shutdown-guard.so") != 1:
-    raise SystemExit("jriver-cef-shutdown-guard.so preload entry must appear exactly once")
-if lines.index("jriver-cef-env.so") > lines.index("jriver-cef-shutdown-guard.so"):
-    raise SystemExit("CEF shutdown guard must load after jriver-cef-env.so")
-'''
 
 for name, anchor in (
     ("CEF private runtime", runtime_anchor),
+    ("quick-sharun preload layout", preload_layout_anchor),
     ("JRWeb wrapper exec", wrapper_anchor),
-    ("preload order validator", preload_check_anchor),
+    ("preload order validator", preload_validator_anchor),
+    ("CEF env symbol path", cef_symbols_anchor),
 ):
     count = text.count(anchor)
     if count != 1:
         raise SystemExit(f"JRiver verified baseline changed: {name} anchor count={count}")
 
 text = text.replace(runtime_anchor, runtime_patch, 1)
+text = text.replace(preload_layout_anchor, preload_layout_patch, 1)
 text = text.replace(wrapper_anchor, wrapper_patch, 1)
-text = text.replace(preload_check_anchor, preload_check_patch, 1)
+text = text.replace(preload_validator_anchor, preload_validator_patch, 1)
+text = text.replace(cef_symbols_anchor, cef_symbols_patch, 1)
 
 # 自定义 AppRun 绕过了 AppRun.sh，必须显式执行 JRiver 硬编码路径对应的 hook。
 # 不恢复旧包的全局 LD_LIBRARY_PATH，也不改变 pathmap / run-mc.sh 的执行顺序。
