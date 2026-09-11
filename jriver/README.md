@@ -2,7 +2,7 @@
 
 本目录用于构建 **JRiver Media Center Linux AppImage**。
 
-> **当前维护状态（2026-09-09）：** 补回自定义启动器遗漏的硬编码路径映射 hook，详见第 11 节。下方 2026-08-14 的记录保留为历史基线，不代表后续滚动构建的产物已经完成实机验证。
+> **当前维护状态（2026-09-11）：** GitHub Actions 已恢复成功构建并产出 `jriver.AppImage`，但 Kali Linux 实机执行 `./jriver.AppImage` 后当前仍没有出现可见 GUI。2026-09-11 的修改只解决 quick-sharun / preload / appimagetool 构建兼容性，不代表 GUI 启动问题已经解决；详见第 12 节。下方 2026-08-14 的记录保留为历史基线。
 
 > **2026-08-14：当前版本正式冻结为“最终可用稳定基线”。**
 >
@@ -301,11 +301,11 @@ Arch runner 的 ABI 可能高于目标 Kali；网页音频使用当前已经验�
 
 ---
 
-## 10. 当前结论
+## 10. 2026-08-14 历史结论
 
-**JRiver AppImage 当前作为最终可用版本收尾。**
+2026-08-14 时该版本曾按“最终可用稳定基线”收尾。
 
-可正常使用的主功能保留；“打开媒体文件/文件夹”闪退作为已知问题记录，不再继续盲修。
+该结论只描述当时经过实机验证的产物；后续 quick-sharun 滚动更新已经改变打包链。以 2026-09-11 的最新实机结果为准：当前新产物能够构建，但启动后没有可见 GUI。
 
 ---
 
@@ -315,7 +315,7 @@ Arch runner 的 ABI 可能高于目标 Kali；网页音频使用当前已经验�
 
 - 上游来源：AUR `jriver-media-center` 配方获取的 JRiver 官方 Linux 包；应用版本继续随当前配方更新，不固定到旧版。
 - 技术栈：x86_64 原生 C/C++ 主程序、GTK3 运行依赖、JRWeb/CEF 和音频插件；沿用已有私有 CEF、Pulse/ALSA、Fcitx5 与 glibc 隔离处理。
-- 打包方式：Arch Linux 容器内由 quick-sharun 收集依赖，保留 JRiver 原始资源目录；自定义 `AppRun` 经 pathmap、`run-mc.sh` 和 Sharun 启动主程序，最终由 quick-sharun 调用固定的 appimagetool 0.3.3 封装。
+- 打包方式：Arch Linux 容器内由 quick-sharun 收集依赖，保留 JRiver 原始资源目录；自定义 `AppRun` 经 pathmap、`run-mc.sh` 和 Sharun 启动主程序。2026-09-11 起 quick-sharun 与 appimagetool 均继续使用 AnyLinux setup action 当前提供的版本，不在 JRiver 中单独固定。
 - 正式入口：`.github/workflows/build.yml` 的独立 `Build JRiver` Job；目录变更仅选择 JRiver 构建，发布资产名为 `jriver.AppImage`。
 - `jriver_cef_runtime.sh` 是历史辅助脚本，当前构建入口没有调用它；当前 CEF 运行时由固定核心基线处理。
 
@@ -345,3 +345,157 @@ chmod +x ./jriver.AppImage
 # 启动 JRiver Media Center
 ./jriver.AppImage
 ```
+
+---
+
+## 12. 2026-09-11：适配 quick-sharun 新 preload 布局；构建成功但 GUI 仍未出现
+
+### 本次构建故障根因
+
+2026-09-11 上游 quick-sharun 更新后，helper preload 的部署方式发生变化：
+
+```text
+旧布局：
+AppDir/lib/anylinux.so
+AppDir/.preload
+
+新布局：
+AppDir/lib/sharun-preload/anylinux.so
+```
+
+JRiver 固定核心基线仍按旧布局检查 `AppDir/.preload`，因此即使日志已经显示：
+
+```text
+* anylinux.so successfully added!
+```
+
+构建仍会误报：
+
+```text
+错误：quick-sharun 未启用 anylinux.so，无法保证 JRWebChromium 环境清理顺序。
+```
+
+### 已完成修改
+
+最终保留的修复提交：
+
+```text
+390a7a376e2b8f4870e161dcdb01ca8dafb69c4d
+Fix JRiver for current quick-sharun preload layout
+```
+
+该提交没有固定 quick-sharun 版本，而是让 `jriver/build_jriver.sh` 同时兼容：
+
+```text
+AppDir/.preload
+AppDir/lib/sharun-preload
+```
+
+并继续检查实际 Sharun preload 顺序：
+
+```text
+anylinux.so
+    ↓
+jriver-cef-env.so
+    ↓
+jriver-cef-shutdown-guard.so
+```
+
+新版目录模式下，JRiver 自己的两个 preload 库也放入 `AppDir/lib/sharun-preload`，由 Sharun 按其当前规则加载；旧布局仍保留兼容分支。
+
+随后构建又暴露出第二个独立问题：JRiver 脚本仍覆盖到旧的：
+
+```text
+appimagetool 0.3.3
+```
+
+而当前 quick-sharun 已带有新版 appimagetool 的固定 SHA256，因此出现：
+
+```text
+ERROR: sha256 check failed for /tmp/appimagetool!
+```
+
+对应修复提交：
+
+```text
+dc24c2c718d29415f9fa5ce2007056c33a14a3ba
+Use current appimagetool with quick-sharun
+```
+
+最终处理为：
+
+- quick-sharun 不固定版本；
+- appimagetool 不固定版本；
+- 两者均使用 AnyLinux setup action 当前提供的版本及对应校验值；
+- 不设置 `SKIP_INTEGRITY_CHECKS=1` 绕过完整性校验；
+- 不修改其它 AppImage 的打包逻辑。
+
+中间提交：
+
+```text
+801544e9437ef2018883c828225439c1145da974
+```
+
+曾临时固定旧版 quick-sharun，该方向已经废弃，**后续不要恢复这种写法**。
+
+### 当前 Actions 结果
+
+```text
+Run: 34573228817
+Job: Build JRiver
+Result: success
+```
+
+这证明当前代码已经能够完成依赖收集、AppImage 封装和发布流程，但只证明“构建成功”。
+
+### 2026-09-11 Kali Linux 最新实机结果
+
+下载最新 `jriver.AppImage` 后执行：
+
+```bash
+./jriver.AppImage
+```
+
+当前现象：
+
+- 命令能够启动；
+- 截图中没有立即打印新的报错；
+- 终端保持在该进程上；
+- **没有出现 JRiver GUI 主界面**。
+
+因此当前状态应明确区分为：
+
+```text
+构建：已修复
+AppImage 生成：成功
+GUI 启动：未修复
+```
+
+### 后续继续修复时的边界
+
+下一轮应直接针对“进程启动但无 GUI”定位，不要再次回退已经解决的构建兼容层。
+
+保持以下内容不动，除非出现新的直接证据：
+
+- 不固定旧版 quick-sharun；
+- 不固定旧版 appimagetool；
+- 不使用 `SKIP_INTEGRITY_CHECKS=1`；
+- 不恢复全局 `LD_LIBRARY_PATH`；
+- 不破坏已经保留的 CEF、网页音频、蓝牙音频、Fcitx5 和 glibc 隔离链；
+- 不再把 `anylinux.so` 仅从 `AppDir/.preload` 判断是否存在。
+
+后续重点应检查实际运行时启动链：
+
+```text
+AppRun
+  ↓
+01-path-mapping-hardcoded.hook
+  ↓
+pathmap / run-mc.sh
+  ↓
+Sharun
+  ↓
+mediacenter36
+```
+
+优先采集完整启动日志或 `strace -f`，确认 `mediacenter36` 是否真正进入 GUI 主循环、是否有子进程立即退出，以及 X11/GTK/显示环境是否在自定义 AppRun → Sharun 链中丢失。没有运行时证据前，不应再通过反复修改 Actions 猜测 GUI 根因。
