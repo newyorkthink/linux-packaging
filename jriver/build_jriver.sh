@@ -12,8 +12,7 @@ set -euo pipefail
 # quick-sharun 继续由 AnyLinux setup action 提供当前版本，不固定上游版本。
 # 本入口只兼容 quick-sharun 的旧 .preload 布局与新版 lib/sharun-preload 布局，
 # 保持 JRiver 既有 anylinux -> CEF 环境层 -> shutdown guard 的加载顺序。
-# 源仓库 2026-08-20 成功发布时 appimagetool latest 为 0.3.3；这里只保留既有固定版本，
-# 避免改变已验证的 JRiver AppImage/uruntime 基线。
+# appimagetool 也使用当前 quick-sharun 自带的版本与校验值，不再单独固定。
 
 cd "$(dirname "$0")"
 
@@ -44,8 +43,7 @@ if [[ "$(git hash-object "$BASE_FILE")" != "$CORE_BLOB" ]]; then
   exit 1
 fi
 
-# quick-sharun 使用 AnyLinux setup action 当前提供的版本；不在 JRiver 中覆盖。
-export APPIMAGETOOL_LINK='https://github.com/pkgforge-dev/appimagetool/releases/download/0.3.3/appimagetool-x86_64-linux'
+# quick-sharun 与 appimagetool 均使用 AnyLinux setup action 当前提供的版本。
 
 # 在音频 wrapper 生成最终脚本后追加 CEF shutdown 保护和启动路径映射。
 python3 - "$WRAPPED" <<'PY_OUTER_PATCH'
