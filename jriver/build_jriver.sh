@@ -9,7 +9,9 @@ set -euo pipefail
 # 不再要求 Actions checkout 必须包含旧 commit，而是从本仓库公开的固定迁移提交读取
 # 已校验音频 wrapper 与核心基线，构建时临时展开，不把辅助层留在 jriver 目录中。
 #
-# quick-sharun 由与源仓库一致的 AnyLinux setup action 提供，不在本脚本另行覆盖。
+# 2026-09-10 quick-sharun 上游将 helper preload 从 AppDir/.preload + AppDir/lib
+# 改为 AppDir/lib/sharun-preload；JRiver 固定基线仍依赖旧 preload 顺序。
+# 因此仅本构建入口固定到该变更前最后一个 quick-sharun 提交，不影响其它 AppImage。
 # 源仓库 2026-08-20 成功发布时 appimagetool latest 为 0.3.3；这里只固定该版本，
 # 避免 2026-08-31 发布的 0.3.4 改变 AppImage/uruntime 结构。
 
@@ -18,12 +20,17 @@ cd "$(dirname "$0")"
 BASE_COMMIT='4a08912cd31a5659bb43395dfeda0c5257abdeab'
 AUDIO_BLOB='3a247e16dab1f444982e4e9ec66bd0eabe1183bc'
 CORE_BLOB='a589c8f8e11480b1805226d8d8c247bc7d689d4e'
+QUICK_SHARUN_COMMIT='5e76c43e12c20ccb2f705c6098ca141b2fd368f8'
+QUICK_SHARUN_BLOB='667ff6679c807aaabd59216ba737e262cb56a359'
 BASE_RAW="https://raw.githubusercontent.com/newyorkthink/linux-packaging/${BASE_COMMIT}/jriver"
 WRAPPED="$(mktemp "$PWD/.build_jriver_verified.XXXXXX.sh")"
 BASE_FILE="$PWD/build_jriver_base.sh"
+QUICK_SHARUN_DIR="$(mktemp -d "$PWD/.quick-sharun.XXXXXX")"
+QUICK_SHARUN_BIN="$QUICK_SHARUN_DIR/quick-sharun"
 
 cleanup() {
   rm -f "$WRAPPED" "$BASE_FILE"
+  rm -rf "$QUICK_SHARUN_DIR"
 }
 trap cleanup EXIT
 
@@ -42,8 +49,20 @@ if [[ "$(git hash-object "$BASE_FILE")" != "$CORE_BLOB" ]]; then
   exit 1
 fi
 
-# 源仓库与目标仓库都由相同 AnyLinux setup action 提供 quick-sharun；不要在这里
-# 再覆盖 quick-sharun，否则 01-path-mapping-hardcoded.hook 的格式可能偏离稳定基线。
+# 固定到 helper preload 重构前的 quick-sharun，保留基线所需的 AppDir/.preload 语义。
+curl -fL --retry 3 --retry-delay 2 \
+  "https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/${QUICK_SHARUN_COMMIT}/useful-tools/quick-sharun.sh" \
+  -o "$QUICK_SHARUN_BIN"
+
+if [[ "$(git hash-object "$QUICK_SHARUN_BIN")" != "$QUICK_SHARUN_BLOB" ]]; then
+  echo '错误：JRiver 固定 quick-sharun 与预期 blob SHA 不一致。' >&2
+  exit 1
+fi
+
+chmod +x "$QUICK_SHARUN_BIN"
+export PATH="$QUICK_SHARUN_DIR:$PATH"
+
+# 仅 JRiver 使用上面的固定 quick-sharun；其它 Job 仍由 AnyLinux setup action 使用当前版本。
 export APPIMAGETOOL_LINK='https://github.com/pkgforge-dev/appimagetool/releases/download/0.3.3/appimagetool-x86_64-linux'
 
 # 在音频 wrapper 生成最终脚本后追加 CEF shutdown 保护和启动路径映射。
