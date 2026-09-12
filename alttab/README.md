@@ -166,3 +166,11 @@ sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_altt
 - 修改文件：`apply-icon-patch.sh`、`patches/glyph-layout.patch`、`README.md`。
 - 修复内容：保留既有 MonoLisa 与固定备用字体顺序；仅在这些字体都缺少目标字符时，按 `charset=<Unicode>` 让 Fontconfig 自动匹配宿主已安装且实际包含该字形的字体，并缓存本次界面使用的动态备用字体；同时将多行标题行距系数从 `0.3` 调整为 `0.5`。图标逻辑、`-font` 参数和已有构建流程不变。
 - 核查：Fontconfig 官方定义 `charset` 为字体 Unicode 覆盖属性，现有匹配语法支持按 `charset` 限定候选字体；本次未新增测试代码或 workflow。最终界面效果由新构建产物实机确认。
+
+### 2026-09-12：修复 glyph-layout 补丁格式错误
+
+- 现象：正式 `Build AltTab` 在现有字体补丁成功应用后，应用 `glyph-layout.patch` 时 `src/gui.c` hunk 失败，随后报 `malformed patch at line 68` 并退出。
+- 根因：`glyph-layout.patch` 中部分 unified diff hunk 的旧/新行数声明与实际内容不一致，导致 `patch` 解析错位；失败日志已明确定位到该补丁，而前置 `font-fallback.patch` 已全部成功应用。
+- 修改文件：`patches/glyph-layout.patch`、`README.md`。
+- 修复内容：仅校正 hunk header 的旧/新行数，不改变动态字形回退、`0.5` 行距、图标逻辑、补丁应用顺序或 workflow。
+- 核查：已重新逐个统计所有 hunk 的旧/新行数，并用 `patch --fuzz=0 --dry-run` 对修正后的补丁格式完成静态检查；正式构建由本次 push 继续确认。
