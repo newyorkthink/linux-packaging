@@ -375,12 +375,13 @@ from pathlib import Path
 root = Path(sys.argv[1])
 
 workspace_pattern = re.compile(r'setVisibleOnAllWorkspaces\(\s*(?:true|!0)(?=\s*[,\)])')
-main_window_pattern = re.compile(
-    r'width\s*:\s*1200\s*,\s*height\s*:\s*900'
+browser_window_pattern = re.compile(
+    r'new\s+(?:[A-Za-z_$][A-Za-z0-9_$]*\.)?BrowserWindow\s*\(\s*\{'
 )
+primary_window_marker = 'Creating primary application window'
 
 workspace_patched = []
-window_patched = []
+window_candidates = []
 
 for path in root.rglob('*'):
     if not path.is_file() or path.suffix not in {'.js', '.cjs', '.mjs'}:
@@ -395,26 +396,48 @@ for path in root.rglob('*'):
         text,
     )
 
-    # Gemini 日志明确把主窗口创建尺寸记录为 1200x900。只在这个唯一主窗口
-    # options 片段中补 Linux 背景色和窗口图标，避免改动 Settings 等其他窗口。
-    new_text, window_count = main_window_pattern.subn(
-        'width:1200,height:900,backgroundColor:"#0B0F19",icon:process.resourcesPath+"/gemini.png"',
-        new_text,
-    )
+    markers = [m.start() for m in re.finditer(re.escape(primary_window_marker), new_text)]
+    constructors = list(browser_window_pattern.finditer(new_text))
+    for marker in markers:
+        nearby = [
+            match for match in constructors
+            if abs(match.start() - marker) <= 12000
+        ]
+        if nearby:
+            nearest = min(nearby, key=lambda match: abs(match.start() - marker))
+            window_candidates.append((path, nearest.start(), nearest.end()))
 
-    if workspace_count or window_count:
-        path.write_text(new_text, encoding='utf-8')
     if workspace_count:
+        path.write_text(new_text, encoding='utf-8')
         workspace_patched.append((path.relative_to(root), workspace_count))
-    if window_count:
-        window_patched.append((path.relative_to(root), window_count))
 
 if not workspace_patched:
     raise SystemExit('Gemini product layer no longer contains a recognized setVisibleOnAllWorkspaces(true/!0) call')
-if sum(count for _, count in window_patched) != 1:
+
+# 同一个 marker 只允许解析到一个主 BrowserWindow；否则停止，避免修改辅助窗口。
+unique_candidates = []
+seen = set()
+for path, start, end in window_candidates:
+    key = (path, start, end)
+    if key not in seen:
+        seen.add(key)
+        unique_candidates.append((path, start, end))
+
+if len(unique_candidates) != 1:
     raise SystemExit(
-        'Gemini product layer must contain exactly one recognized 1200x900 primary window options fragment'
+        f'Gemini product layer must resolve exactly one primary BrowserWindow near '
+        f'{primary_window_marker!r}, got {len(unique_candidates)}'
     )
+
+window_path, window_start, window_end = unique_candidates[0]
+window_text = window_path.read_text(encoding='utf-8')
+injected = (
+    window_text[:window_end]
+    + 'backgroundColor:"#0B0F19",icon:process.resourcesPath+"/gemini.png",'
+    + window_text[window_end:]
+)
+window_path.write_text(injected, encoding='utf-8')
+window_patched = [(window_path.relative_to(root), 1)]
 
 workspace_total = sum(count for _, count in workspace_patched)
 print(f'Patched Gemini visible-on-all-workspaces calls: {workspace_total}')
