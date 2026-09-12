@@ -361,7 +361,10 @@ cat > "$APP_ROOT/gemini" <<'EOF_WRAPPER'
 #!/usr/bin/env bash
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
-exec "$HERE/electron" "$@"
+
+# 固定 Gemini 桌面壳层为简体中文；不覆盖宿主机完整 locale，只指定语言优先级和 Chromium UI 语言。
+export LANGUAGE=zh_CN:zh
+exec "$HERE/electron" --lang=zh-CN "$@"
 EOF_WRAPPER
 chmod +x "$APP_ROOT/gemini" "$APP_ROOT/electron"
 
