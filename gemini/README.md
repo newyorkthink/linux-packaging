@@ -146,3 +146,9 @@ dist/gemini.AppImage
 - 根因：构建环境只有 GTK3，本次 AppImage 未包含 `fcitx5-gtk` 提供的 `im-fcitx5.so` 与对应 Fcitx5 GTK 客户端运行库，因此 Electron/GTK 输入上下文无法接入宿主 Fcitx5。
 - 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
 - 修复：仅在正式构建环境补装 `fcitx5-gtk`，继续使用现有 quick-sharun GTK3 部署逻辑自动收集输入法模块、客户端库及 GTK 输入模块缓存；不修改已验证有效的 Gemini 产品层、Omaha、Electron 版本识别、登录、图标和启动逻辑。
+
+### 2026-09-12：固定 Linux 桌面界面为简体中文
+
+- 现象：Gemini Web 主界面可以显示中文，但桌面壳层 Settings 等本地 Electron 界面仍可能显示英文。
+- 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
+- 修复：启动 wrapper 固定 `LANGUAGE=zh_CN:zh`，并向 Electron/Chromium 传递 `--lang=zh-CN`；不覆盖宿主机完整 locale，也不修改 Gemini 账号、Web 请求或产品层逻辑。
