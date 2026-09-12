@@ -35,6 +35,19 @@ AppImage 主入口为 `xfreerdp3`，实际 RDP 参数沿用 FreeRDP 3 的命令�
 
 本项目的打包阶段在 GitHub Actions 的 Arch Linux 容器中执行；最终 AppImage 不要求用户在本机安装构建依赖。
 
+### 2026-09-12 实际运行验证
+
+已使用 latest Release 中生成的 `xfreerdp3.AppImage` 实际连接 Windows 10，并成功进入远程桌面。测试使用了动态分辨率、键盘抓取、PulseAudio 音频、剪贴板、自动网络配置、GDI 硬件模式以及目录共享等参数；日志中可见 RDP 图形会话初始化完成、动态虚拟通道加载、共享盘注册以及登录成功。
+
+本次运行日志中的以下信息属于非阻断警告，实际连接已成功：
+
+- VAAPI 初始化失败后自动回退到软件解码。
+- `/cert:ignore` 会产生证书未校验警告；仅适合明确可信的本地或受控连接环境。
+- 未配置默认 Kerberos realm 时会出现 Kerberos 解析警告；本次本地账户登录不受影响。
+- 目录共享可能出现 `FAT_IOCTL_GET_ATTRIBUTES` / `Inappropriate ioctl for device` 警告，不影响本次 RDP 会话建立。
+- 个别扩展按键可能出现 `no RDP scancode found` 映射警告，未影响本次桌面连接。
+- 直接通过 `/p:` 传递密码时 FreeRDP 会提示命令行凭据暴露风险，这是 FreeRDP 自身的安全提示，不是 AppImage 打包错误。
+
 ## 修复记录
 
 ### 2026-09-12：修复 quick-sharun 完成后 Build FreeRDP 仍退出 1
@@ -42,5 +55,5 @@ AppImage 主入口为 `xfreerdp3`，实际 RDP 参数沿用 FreeRDP 3 的命令�
 - **故障现象：** 正式 `Build FreeRDP` Job 中 quick-sharun 已输出 `All done!`，但随后 Job 立即以 exit code 1 结束，没有生成并发布 AppImage。
 - **根因：** 构建脚本仍检查旧位置 `AppDir/lib/path-mapping.so`；当前 quick-sharun 将 `path-mapping.so` 放在 `AppDir/lib/sharun-preload/path-mapping.so`。
 - **修改文件：** `freerdp/build_freerdp.sh`。
-- **修复内容：** 仅把 path-mapping helper 的存在性检查改为当前 quick-sharun 的实际目录，同时补齐构建脚本中文分区注释；FreeRDP 的程序列表、依赖、PATH_MAPPING 内容和打包流程保持不变。
-- **已知结果：** 本次失败日志已经确认 quick-sharun 成功部署 helper 与 FreeRDP 文件，失败发生在 quick-sharun 返回后的旧路径检查；修复提交后由正式 `Build FreeRDP` Job继续确认最终构建结果。
+- **修复内容：** 仅把 path-mapping helper 的存在性检查改为当前 quick-sharun 的实际目录，同时补齐构建脚本中文分区注释；FreeRDP 的程序列表、依赖、`PATH_MAPPING` 内容和打包流程保持不变。
+- **最终结果：** 修复后的正式 `Build FreeRDP` Job 已成功完成，`xfreerdp3.AppImage` 已发布到 latest Release，并完成 Windows 10 实际连接验证。
