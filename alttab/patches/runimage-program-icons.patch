@@ -1,0 +1,168 @@
+--- a/src/win.c
++++ b/src/win.c
+@@ -9,6 +9,156 @@
+     return 1;
+ }
+ 
++/*
++ * RunImage 兼容：共享容器中的 GUI 程序可能继承启动器 AppImage 的 APPDIR，
++ * 因此不能把 APPDIR 当作当前窗口程序自身目录。仅当目标进程明确带有
++ * RUNIMAGE 环境变量时，从它自己的 /proc/<pid>/root 与可执行文件位置
++ * 查找程序目录中 browser/chrome/icons/default 下的标准 PNG 图标；不匹配具体应用名称。
++ */
++static bool getRunImageWindowPid(Window win, unsigned long *target_pid)
++{
++    unsigned long pid_size = 0;
++    unsigned long *pid = (unsigned long *)get_x_property(
++        win, XA_CARDINAL, "_NET_WM_PID", &pid_size);
++    if (!pid || pid_size < sizeof(unsigned long)) {
++        free(pid);
++        return false;
++    }
++
++    *target_pid = *pid;
++    free(pid);
++
++    char environ_path[64];
++    snprintf(environ_path, sizeof(environ_path),
++             "/proc/%lu/environ", *target_pid);
++
++    gchar *environment = NULL;
++    gsize environment_size = 0;
++    if (!g_file_get_contents(
++            environ_path, &environment, &environment_size, NULL))
++        return false;
++
++    bool found = false;
++    for (gsize offset = 0; offset < environment_size;) {
++        char *entry = environment + offset;
++        gsize remaining = environment_size - offset;
++        char *end = memchr(entry, '\0', remaining);
++        if (!end)
++            break;
++
++        gsize entry_len = (gsize)(end - entry);
++        if (entry_len > 9 && !memcmp(entry, "RUNIMAGE=", 9)) {
++            found = true;
++            break;
++        }
++        offset += entry_len + 1;
++    }
++
++    g_free(environment);
++    return found;
++}
++
++static char *findRunImageProgramIcon(unsigned long target_pid)
++{
++    char exe_link[64];
++    snprintf(exe_link, sizeof(exe_link), "/proc/%lu/exe", target_pid);
++
++    char *exe_path = g_file_read_link(exe_link, NULL);
++    if (!exe_path || !g_path_is_absolute(exe_path)) {
++        g_free(exe_path);
++        return NULL;
++    }
++
++    char *exe_dir = g_path_get_dirname(exe_path);
++    g_free(exe_path);
++    static const char *relative_icons[] = {
++        "browser/chrome/icons/default/default128.png",
++        "browser/chrome/icons/default/default64.png",
++        "browser/chrome/icons/default/default48.png",
++        "browser/chrome/icons/default/default32.png",
++        "browser/chrome/icons/default/default16.png"
++    };
++
++    for (gsize i = 0; i < G_N_ELEMENTS(relative_icons); i++) {
++        char *candidate = g_strdup_printf(
++            "/proc/%lu/root%s/%s", target_pid, exe_dir, relative_icons[i]);
++        if (appDirIconExt(candidate) != ICON_EXT_UNKNOWN) {
++            g_free(exe_dir);
++            return candidate;
++        }
++        g_free(candidate);
++    }
++
++    g_free(exe_dir);
++    return NULL;
++}
++
++static int addIconFromRunImageProgram(WindowInfo *wi)
++{
++    unsigned long target_pid = 0;
++    if (!getRunImageWindowPid(wi->id, &target_pid))
++        return 0;
++
++    char *path = findRunImageProgramIcon(target_pid);
++    if (!path || strlen(path) >= MAXICONPATHLEN) {
++        g_free(path);
++        return 0;
++    }
++
++    icon_t *ic = initIcon();
++    if (!ic) {
++        g_free(path);
++        return 0;
++    }
++
++    strcpy(ic->src_path, path);
++    ic->ext = appDirIconExt(path);
++    if (ic->ext == ICON_EXT_UNKNOWN || !loadIconContent(ic)) {
++        deleteIcon(ic);
++        g_free(path);
++        return 0;
++    }
++
++    Window root_return;
++    int x_return, y_return;
++    unsigned int icon_w, icon_h, border_width, depth;
++    if (!XGetGeometry(dpy, ic->drawable, &root_return, &x_return, &y_return,
++                      &icon_w, &icon_h, &border_width, &depth)) {
++        deleteIcon(ic);
++        g_free(path);
++        return 0;
++    }
++
++    bool use_icon =
++        !wi->icon_drawable ||
++        (g.option_iconSrc == ISRC_SIZE &&
++         iconMatchBetter(icon_w, icon_h, wi->icon_w, wi->icon_h, false)) ||
++        (g.option_iconSrc == ISRC_SIZE2 &&
++         iconMatchBetter(icon_w, icon_h, wi->icon_w, wi->icon_h, true));
++    if (!use_icon) {
++        deleteIcon(ic);
++        g_free(path);
++        return 0;
++    }
++
++    if (wi->icon_allocated && wi->icon_drawable)
++        XFreePixmap(dpy, wi->icon_drawable);
++    wi->icon_drawable = ic->drawable;
++    wi->icon_mask = ic->mask;
++    wi->icon_w = icon_w;
++    wi->icon_h = icon_h;
++    wi->icon_allocated = ic->drawable_allocated;
++#ifdef ICON_DEBUG
++    g_strlcpy(wi->icon_src, path, MAXNAMESZ);
++#endif
++
++    ic->drawable_allocated = false;
++    deleteIcon(ic);
++    g_free(path);
++    return 1;
++}
++
++
+ // PRIVATE
+ 
+ bool is_minimized(Window win) {
+@@ -41,6 +191,8 @@
+         msg(0, "can't find WM_CLASS for \"%s\"\n", wi->name);
+     }
+     if (!ret)
++        ret = addIconFromRunImageProgram(wi);
++    if (!ret)
+         ret = addIconFromAppDir(wi);
+ out:
+     free(appclass);
