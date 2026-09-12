@@ -1,0 +1,11 @@
+--- a/src/alttab.h
++++ b/src/alttab.h
+@@ -59,7 +59,7 @@
+ #define DEFPREVKEYKS    XK_VoidSymbol
+ #define DEFNEXTKEYKS    XK_VoidSymbol
+ #define DEFCANCELKS XK_Escape
+-#define DEFKILLKS   XK_k
++#define DEFKILLKS   XK_VoidSymbol
+ 
+ #include "icon.h"
+ 

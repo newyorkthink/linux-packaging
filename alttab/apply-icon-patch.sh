@@ -38,3 +38,6 @@ patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/tit
 
 # 横向导航：保留上游自定义辅助键，并补充 Left/h 上一个、Right/l 下一个。
 patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/navigation-keys.patch"
+
+# 安全键位：禁用上游默认的 k 关闭窗口行为；显式 -dk 仍可重新指定 kill key。
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/disable-default-kill-key.patch"
