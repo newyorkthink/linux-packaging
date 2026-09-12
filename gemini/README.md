@@ -139,3 +139,10 @@ dist/gemini.AppImage
 - 根因：Gemini 打包命令明确把 `/usr/bin/hostname` 作为运行项交给 quick-sharun，但 Arch Linux 构建容器中的该命令由 `inetutils` 提供，初始依赖列表漏装了这个包。
 - 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
 - 修复：在既有基础依赖中补充 `inetutils`，并把 `hostname` 加入构建前命令存在性检查；不修改 Omaha、Electron、产品层、图标、输入法、sandbox 或 workflow。
+
+### 2026-09-12：补齐 Fcitx5 中文输入
+
+- 现象：Gemini AppImage 已可正常启动、登录并显示中文界面，但在文本输入框中无法使用宿主机 Fcitx5 输入中文。
+- 根因：构建环境只有 GTK3，本次 AppImage 未包含 `fcitx5-gtk` 提供的 `im-fcitx5.so` 与对应 Fcitx5 GTK 客户端运行库，因此 Electron/GTK 输入上下文无法接入宿主 Fcitx5。
+- 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
+- 修复：仅在正式构建环境补装 `fcitx5-gtk`，继续使用现有 quick-sharun GTK3 部署逻辑自动收集输入法模块、客户端库及 GTK 输入模块缓存；不修改已验证有效的 Gemini 产品层、Omaha、Electron 版本识别、登录、图标和启动逻辑。

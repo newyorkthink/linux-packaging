@@ -52,6 +52,9 @@ yay -S --noconfirm p7zip asar icoutils python \
   nss alsa-lib gtk3 at-spi2-core cups libdrm libxss libxtst \
   libnotify libsecret libpulse mesa xdg-utils
 
+# 补齐 Fcitx5 GTK3 中文输入模块；沿用 quick-sharun 的 GTK3 部署逻辑自动收集输入法模块与客户端库。
+yay -S --noconfirm fcitx5-gtk
+
 for command_name in \
   7z asar awk curl file find grep hostname jq python3 quick-sharun sha256sum sort strings unzip wrestool; do
   command -v "$command_name" >/dev/null 2>&1 || die "构建环境缺少命令：$command_name"
