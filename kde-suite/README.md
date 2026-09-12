@@ -146,7 +146,7 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 
 向 `main` 推送 `kde-suite/**` 下的变更时，`.github/workflows/build.yml` 会自动选择 KDE Suite，并由独立 `build_kde_suite` job 执行 `kde-suite/build_kde_suite.sh`，构建并上传 `kde-suite.AppImage`。
 
-需要自动构建的提交信息不得包含 `[skip ci]`、`[ci skip]` 等跳过 CI 的标记。仅更新稳定基线说明等纯文档时应使用 `[skip ci]`，避免重复消耗 Actions 时间。
+本仓库为 Public；正常代码提交和纯文档提交都不需要为了节省 Actions 分钟添加 `[skip ci]`、`[ci skip]`。只要变更命中现有 `push` 条件，就让正式 workflow 正常运行；只有当前任务明确要求跳过 CI 时才使用 skip 标记。
 
 迁移前旧仓库的历史完整构建记录：2026-08-08 的 Run `31241444761` 已成功完成旧 `build_kde` job。该次完整构建约耗时 48 分钟；`quick-sharun` 在整理大量 `AppDir/lib` 依赖和最终处理阶段可能连续十几分钟没有新增网页日志，GitHub 页面会停留在最后一条库软链接输出。只要 job 仍处于运行状态，这种“日志静默”本身不能判断为死锁或失败。
 

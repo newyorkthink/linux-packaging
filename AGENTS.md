@@ -381,7 +381,7 @@ linuxdeploy 额外规则：
 - Termux 原生工具使用 `.github/workflows/termux.yml`，脚本放在 `termux/<工具名>/`；不得套用桌面 AppImage / RunImage 打包步骤。
 - 三类流程都保留每个项目独立 Job、独立构建环境和手动选择入口；push 限定 main，并按实际变更选择项目。
 - 用户已确认有效的应用实现，以对应 README 记录的提交和实测范围作为稳定基线；整理文档或 workflow 不得顺带改动该实现，也不得把确认范围扩大到其他工具或未验证的用法。
-- 用户明确要求自己运行 Actions 时，提交使用 `[skip ci]` 跳过本次 push 构建，不主动 dispatch 或轮询；保留已有手动、定时及后续正常 push 触发设置。
+- 本仓库当前为 **Public**。正常提交（包括仅文档修改）不得为了节省 Actions 分钟而添加 `[skip ci]`、`[ci skip]` 等跳过标记；只要变更命中正式 workflow 的 `push` 条件，就允许正常触发并运行 Actions，AI 也应按任务需要继续检查结果。只有用户在当前任务中明确要求跳过 CI 时，才允许使用 skip 标记；若仓库未来改为 Private，再按下方 Public / Private 规则重新判断。
 
 ### 永久禁止临时 test workflow 和测试 Job
 
@@ -402,7 +402,7 @@ linuxdeploy 额外规则：
 ### Public / Private 仓库与 Actions 额度
 
 - 在因为 Actions 额度、运行次数或 CI 成本而改变执行策略之前，AI 必须先读取仓库元数据，明确当前仓库是 **Public** 还是 **Private**，不得凭用户账户类型、仓库名称或经验猜测。
-- **Public 仓库：** 不得为了“节省 GitHub Actions 额度”而跳过、关闭、延迟或要求用户手动执行本来正常且必要的构建、打包和 Release 流程；正常 CI/CD 需要自动运行就应正常自动运行。
+- **Public 仓库：** 不得为了“节省 GitHub Actions 额度”而跳过、关闭、延迟或要求用户手动执行本来正常且必要的构建、打包和 Release 流程；正常 CI/CD 需要自动运行就应正常自动运行，普通代码提交和纯文档提交也无需仅为节省分钟而添加 `[skip ci]` / `[ci skip]`。
 - **Public 仓库：** 不得因为用户使用 GitHub 免费账户，就擅自把 Private 仓库的 Actions 分钟限制逻辑套用到 Public 仓库，也不得因此取消 `push` 自动触发或减少必要构建 Job。
 - **Private 仓库：** 应同时考虑 Actions 分钟和无效运行成本。提交前要尽量完成仓库外静态检查，精确限制 `paths` / 触发条件，避免明显无意义的重复构建和用 Actions 反复试错；但正常必要的构建和发布流程仍应执行。
 - 仓库可见性可能改变，因此每次涉及“是否要省 Actions”“是否自动触发”的判断，都应以当前实际 repository visibility 为准，而不是沿用旧结论。
