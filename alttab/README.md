@@ -33,6 +33,7 @@
 | `patches/glyph-layout.patch` | 固定备用字体仍缺字时由 Fontconfig 动态匹配，并将多行标题行距调整为 `0.5` |
 | `patches/title-wrap.patch` | 按实际参与绘制的字体像素宽度计算标题断行 |
 | `patches/navigation-keys.patch` | 增加横向辅助导航：`Left` / `h` 上一个，`Right` / `l` 下一个 |
+| `patches/disable-default-kill-key.patch` | 禁用上游默认 `k` kill key；显式 `-dk` 仍可重新指定关闭窗口按键 |
 
 ## 打包方式
 
@@ -65,7 +66,7 @@
 ./alttab -d 2 -mk Control_L -b 1 -i 256x64 -t 256x256 -p center -bg "#07001D" -fg "#ec47ff" -frame "#52EFFF" -font "xft:MonoLisa-12"
 ```
 
-横向窗口切换额外支持 `Left` / `h` 选择上一个窗口、`Right` / `l` 选择下一个窗口；仍需按住主修饰键。原有 `Tab` / `Shift+Tab` 以及 `-pk` / `-nk` 自定义键保持不变，`j` / `k` 不额外占用。
+横向窗口切换额外支持 `Left` / `h` 选择上一个窗口、`Right` / `l` 选择下一个窗口；仍需按住主修饰键。原有 `Tab` / `Shift+Tab` 以及 `-pk` / `-nk` 自定义键保持不变。`j` 不额外占用；上游原本默认把 `k` 作为 kill key，本项目现已取消该默认绑定，因此按住主修饰键时 `k` 不再关闭当前选中窗口。如确实需要 kill key，可继续显式使用 `-dk <keysym>` 指定。
 
 ## 图标兼容
 
@@ -142,3 +143,11 @@
 - 修改文件：新增 `patches/navigation-keys.patch`，并修改 `apply-icon-patch.sh`、`README.md`；既有图标、字体、字形和标题换行 patch 均保持不变。
 - 修复内容：保留原 `-pk` / `-nk` 行为，额外将 `Left` / `h` 映射为上一个窗口、`Right` / `l` 映射为下一个窗口；抓键时跳过重复 KeyCode，避免与用户自定义辅助键重复。
 - 已知结果：补丁格式和上游当前稳定版相关源码上下文已完成静态核对；正式构建由现有 `Build AltTab` Job 确认，实际按键行为以新产物实机使用为准。
+
+### 2026-09-12：禁用默认 `k` 关闭窗口
+
+- 现象：按住主修饰键时按 `k` 会导致当前选中窗口被关闭，随后可出现 `BadValue` / `BadWindow` 等 X11 错误；这与预期的“`j` / `k` 不参与导航”不一致。
+- 根因：上游默认定义 `DEFKILLKS` 为 `XK_k`，主事件循环在按住主修饰键时会把该键交给 `uiKillWindow()`，因此 `k` 并非未占用，而是默认 kill key。
+- 修改文件：新增 `patches/disable-default-kill-key.patch`，并修改 `apply-icon-patch.sh`、`README.md`；既有图标、字体、字形、标题换行与横向导航 patch 均保持不变。
+- 修复内容：仅将默认 kill keysym 从 `XK_k` 改为 `XK_VoidSymbol`，使默认 `k` 不再关闭选中窗口；原有 `-dk <keysym>` 参数保留，需要 kill key 时仍可显式指定。
+- 已知结果：根因已由上游源码和真实运行反馈确认；新补丁只改变默认 kill key，不改变图标、字体、换行或 `h` / `l`、Left / Right 导航逻辑。正式构建和新产物实际按键行为仍由现有 `Build AltTab` Job 与后续实机使用确认。
