@@ -43,7 +43,7 @@ mkdir -p "$WORK_DIR" "$EXTRACT_DIR" "$ELECTRON_DIR" "$APP_ROOT" "$DIST_DIR"
 
 # 安装仓库规定的 quick-sharun 最小基础工具。
 yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
-  grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
+  grep sed gawk tar gzip xz unzip rsync inetutils util-linux appstream-glib \
   desktop-file-utils zsync ca-certificates
 
 # Gemini 当前上游只提供 Windows/macOS 桌面包；这里额外安装 NSIS 解包、ASAR 元数据读取、
@@ -53,7 +53,7 @@ yay -S --noconfirm p7zip asar icoutils python \
   libnotify libsecret libpulse mesa xdg-utils
 
 for command_name in \
-  7z asar awk curl file find grep jq python3 quick-sharun sha256sum sort strings unzip wrestool; do
+  7z asar awk curl file find grep hostname jq python3 quick-sharun sha256sum sort strings unzip wrestool; do
   command -v "$command_name" >/dev/null 2>&1 || die "构建环境缺少命令：$command_name"
 done
 

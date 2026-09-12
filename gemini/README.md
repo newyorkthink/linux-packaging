@@ -132,3 +132,10 @@ dist/gemini.AppImage
 - 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
 - 修复：继续使用 `wrestool` 从官方 `Gemini.exe` 提取 ICO，但不再让 `icotool` 解码全部 bitmap；改为使用 Python 标准库读取 ICO 目录并直接选择官方内嵌的最大 PNG 帧，原始 PNG 字节不做重编码。
 - 已知结果：首次 Actions 已确认上游完整包与 Electron 44.2.0 runtime 解析链正确；本次修复只替换失败的图标解码步骤，不改 Omaha、产品层、Electron 或 quick-sharun 路径。
+
+### 2026-09-12：补齐 quick-sharun 的 hostname 构建依赖
+
+- 现象：ICO 修复后的正式 Actions 已成功选择并写出官方 256×256 PNG 图标，随后进入 quick-sharun 时报告 `/usr/bin/hostname is NOT present`。
+- 根因：Gemini 打包命令明确把 `/usr/bin/hostname` 作为运行项交给 quick-sharun，但 Arch Linux 构建容器中的该命令由 `inetutils` 提供，初始依赖列表漏装了这个包。
+- 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
+- 修复：在既有基础依赖中补充 `inetutils`，并把 `hostname` 加入构建前命令存在性检查；不修改 Omaha、Electron、产品层、图标、输入法、sandbox 或 workflow。
