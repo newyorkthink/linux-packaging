@@ -24,6 +24,9 @@ patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/app
 # AppImage 挂载兼容：保留原 APPDIR 回退逻辑，只补充通过目标进程 /proc/<pid>/root 访问其挂载命名空间。
 patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/appimage-mount-namespace.patch"
 
+# RunImage 程序图标兼容：目标进程存在 RUNIMAGE 时，优先从它自己的根目录和可执行文件相对路径读取内置 PNG 图标。
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/runimage-program-icons.patch"
+
 # 字体回退：保留 MonoLisa 主字体，主字体缺字时依次尝试中文、通用符号和 Nerd Font 备用字体。
 patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/font-fallback.patch"
 
