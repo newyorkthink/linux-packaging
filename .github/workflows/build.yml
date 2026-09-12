@@ -284,15 +284,15 @@ jobs:
           set -euo pipefail
           if gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" -f sha="$GITHUB_SHA" -F force=true >/dev/null; gh release edit latest --repo "$GITHUB_REPOSITORY" --title latest --notes latest --latest; else gh release create latest --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title latest --notes latest --latest; fi
 
-  build_antigravity_ide:
-    name: Build Antigravity IDE
+  build_adspower_global:
+    name: Build AdsPower Global
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).antigravity_ide == 'true'
+    if: fromJSON(needs.plan.outputs.builds).adspower_global == 'true'
     runs-on: &arch_runner ubuntu-latest
     timeout-minutes: &arch_timeout 60
     container: &arch_container ghcr.io/pkgforge-dev/archlinux:latest
     permissions: &arch_permissions {contents: write, packages: read}
-    env: {BUILD_SCRIPT: 'antigravity-ide/build_antigravity-ide.sh', ARTIFACT_DIR: 'antigravity-ide/dist', RELEASE_NAME: 'antigravity-ide.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'adspower-global/build_adspower-global.sh', ARTIFACT_DIR: 'adspower-global/dist', RELEASE_NAME: 'adspower-global.AppImage', RUN_FROM_ROOT: 'false'}
     steps: &arch_steps
       - {name: Pre-install Git, run: 'pacman -Sy --noconfirm git'}
       - {name: Checkout Code, uses: 'actions/checkout@v4', with: {fetch-depth: 0}}
@@ -300,6 +300,61 @@ jobs:
       - name: Build and publish AppImage
         uses: ./.github/actions/build-anylinux
         with: {build_script: '${{ env.BUILD_SCRIPT }}', artifact_dir: '${{ env.ARTIFACT_DIR }}', release_name: '${{ env.RELEASE_NAME }}', run_from_root: '${{ env.RUN_FROM_ROOT }}', github_token: '${{ github.token }}'}
+
+  build_aionui:
+    name: Build AionUi
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).aionui == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: 90
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'aionui/build_aionui.sh', ARTIFACT_DIR: 'aionui/dist', RELEASE_NAME: 'aionui.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_alacritty:
+    name: Build Alacritty
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).alacritty == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build and validate Alacritty AppImage
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x alacritty/build_alacritty_linuxdeploy.sh
+          env -u GITHUB_ACTIONS ./alacritty/build_alacritty_linuxdeploy.sh
+          test -s alacritty/dist/alacritty.AppImage
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload latest alacritty/dist/alacritty.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_alttab:
+    name: Build AltTab
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).alttab == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'alttab/build_alttab.sh', ARTIFACT_DIR: 'alttab/dist', RELEASE_NAME: 'alttab.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
 
   build_antigravity:
     name: Build Antigravity
@@ -312,6 +367,44 @@ jobs:
     env: {BUILD_SCRIPT: 'antigravity/build_antigravity.sh', ARTIFACT_DIR: 'antigravity/dist', RELEASE_NAME: 'antigravity.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
+  build_antigravity_ide:
+    name: Build Antigravity IDE
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).antigravity_ide == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'antigravity-ide/build_antigravity-ide.sh', ARTIFACT_DIR: 'antigravity-ide/dist', RELEASE_NAME: 'antigravity-ide.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_baidunetdisk:
+    name: Build Baidu Netdisk
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).baidunetdisk == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Build and validate Baidu Netdisk AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n baidunetdisk/build_baidunetdisk.sh
+          chmod +x baidunetdisk/build_baidunetdisk.sh
+          ./baidunetdisk/build_baidunetdisk.sh
+          test -s baidunetdisk/dist/baidunetdisk.AppImage
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest baidunetdisk/dist/baidunetdisk.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+
   build_cc_switch:
     name: Build CC Switch
     needs: plan
@@ -323,17 +416,19 @@ jobs:
     env: {BUILD_SCRIPT: 'cc-switch/build_cc-switch.sh', ARTIFACT_DIR: 'cc-switch/dist', RELEASE_NAME: 'cc-switch.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_zen:
-    name: Build Zen
+  build_chatgpt:
+    name: Build ChatGPT
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).zen == 'true'
+    if: fromJSON(needs.plan.outputs.builds).chatgpt == 'true'
     runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
+    timeout-minutes: 90
+    container:
+      image: ghcr.io/pkgforge-dev/archlinux:latest
+      options: --privileged
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'zen/build_zen.sh', ARTIFACT_DIR: 'zen/dist', RELEASE_NAME: 'zen.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'chatgpt/build_chatgpt.sh', ARTIFACT_DIR: 'chatgpt/dist', RELEASE_NAME: 'chatgpt.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
-  
+
   build_chromium:
     name: Build Chromium
     needs: plan
@@ -343,6 +438,17 @@ jobs:
     container: *arch_container
     permissions: *arch_permissions
     env: {BUILD_SCRIPT: 'chromium/build_chromium.sh', ARTIFACT_DIR: 'chromium/dist', RELEASE_NAME: 'chromium.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_claude_desktop:
+    name: Build Claude Desktop
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).claude_desktop == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'claude-desktop/build_claude-desktop.sh', ARTIFACT_DIR: 'claude-desktop/dist', RELEASE_NAME: 'claude-desktop.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
   build_copyq:
@@ -356,6 +462,112 @@ jobs:
     env: {BUILD_SCRIPT: 'copyq/build_copyq.sh', ARTIFACT_DIR: 'copyq/dist', RELEASE_NAME: 'copyq.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
+  build_cursor:
+    name: Build Cursor
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).cursor == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'cursor/build_cursor.sh', ARTIFACT_DIR: 'cursor/dist', RELEASE_NAME: 'cursor.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_dconf_editor:
+    name: Build dconf Editor
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).dconf_editor == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: build-dconf-editor
+      cancel-in-progress: true
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build dconf-editor AppImage
+        working-directory: dconf-editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x build_dconf-editor.sh
+          ./build_dconf-editor.sh
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dconf-editor/dist/dconf-editor.AppImage
+          gh release upload latest dconf-editor/dist/dconf-editor.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_deepseek_harness:
+    name: Build DeepSeek Harness
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).deepseek_harness == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'deepseek-harness/build_deepseek-harness.sh', ARTIFACT_DIR: 'deepseek-harness/dist', RELEASE_NAME: 'deepseek-harness.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_deskflow:
+    name: Build Deskflow
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).deskflow == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'deskflow/build_deskflow.sh', ARTIFACT_DIR: 'deskflow/dist', RELEASE_NAME: 'deskflow.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_dingtalk:
+    name: Build DingTalk
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).dingtalk == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Build and Validate DingTalk AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x .github/scripts/ci_build_dingtalk.sh
+          ./.github/scripts/ci_build_dingtalk.sh
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -s dingtalk/dist/dingtalk.AppImage
+          gh release delete-asset latest DingTalk.AppImage --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
+          gh release upload latest dingtalk/dist/dingtalk.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+
+  build_feishu:
+    name: Build Feishu
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).feishu == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: 90
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'feishu/build_feishu.sh', ARTIFACT_DIR: 'feishu/dist', RELEASE_NAME: 'feishu.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
   build_flameshot:
     name: Build Flameshot
     needs: plan
@@ -365,6 +577,85 @@ jobs:
     container: *arch_container
     permissions: *arch_permissions
     env: {BUILD_SCRIPT: 'flameshot/build_flameshot.sh', ARTIFACT_DIR: 'flameshot/dist', RELEASE_NAME: 'flameshot.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_folo:
+    name: Build Folo
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).folo == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: 90
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'folo/build_folo.sh', ARTIFACT_DIR: 'folo/dist', RELEASE_NAME: 'folo.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_freedownloadmanager:
+    name: Build Free Download Manager
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).freedownloadmanager == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'freedownloadmanager/build_freedownloadmanager.sh', ARTIFACT_DIR: 'freedownloadmanager/dist', RELEASE_NAME: 'freedownloadmanager.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_freerdp:
+    name: Build FreeRDP
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).freerdp == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'freerdp/build_freerdp.sh', ARTIFACT_DIR: 'freerdp/dist', RELEASE_NAME: 'xfreerdp3.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_github_desktop:
+    name: Build GitHub Desktop
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).github_desktop == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build official-source AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          cd github-desktop
+          chmod +x build_github-desktop.sh
+          ./build_github-desktop.sh
+          test -s dist/github-desktop.AppImage
+          sha256sum dist/github-desktop.AppImage
+
+      - name: Publish latest AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest github-desktop/dist/github-desktop.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_gitkraken:
+    name: Build GitKraken
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).gitkraken == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: 90
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'gitkraken/build_gitkraken.sh', ARTIFACT_DIR: 'gitkraken/dist', RELEASE_NAME: 'gitkraken.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
   build_goldendict_ng:
@@ -377,6 +668,52 @@ jobs:
     permissions: *arch_permissions
     env: {BUILD_SCRIPT: 'goldendict-ng/build_goldendict-ng.sh', ARTIFACT_DIR: 'goldendict-ng/dist', RELEASE_NAME: 'goldendict-ng.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
+
+  build_hermes_desktop:
+    name: Build Hermes Desktop
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).hermes_desktop == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 26
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+
+      - name: Static check Hermes Desktop migration
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n hermes-desktop/build_hermes-desktop.sh
+          python3 -m py_compile hermes-desktop/patch_hermes_desktop.py
+
+      - name: Build and verify Hermes Desktop AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x hermes-desktop/build_hermes-desktop.sh hermes-desktop/patch_hermes_desktop.py
+          ./hermes-desktop/build_hermes-desktop.sh
+          test -s hermes-desktop/dist/hermes-desktop.AppImage
+          sha256sum hermes-desktop/dist/hermes-desktop.AppImage
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest hermes-desktop/dist/hermes-desktop.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
 
   build_htop:
     name: Build htop
@@ -400,26 +737,42 @@ jobs:
     env: {BUILD_SCRIPT: 'i3wm/build_i3wm.sh', ARTIFACT_DIR: 'i3wm/dist', RELEASE_NAME: 'i3.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_keepassxc:
-    name: Build KeePassXC
+  build_joplin:
+    name: Build Joplin
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).keepassxc == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'keepassxc/build_keepassxc.sh', ARTIFACT_DIR: 'keepassxc/dist', RELEASE_NAME: 'keepassxc.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
+    if: fromJSON(needs.plan.outputs.builds).joplin == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Build and validate Joplin AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n joplin/build_joplin.sh
+          chmod +x joplin/build_joplin.sh
+          ./joplin/build_joplin.sh
+          test -s joplin/dist/joplin.AppImage
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest joplin/dist/joplin.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
-  build_keepass:
-    name: Build KeePass
+  build_jriver:
+    name: Build JRiver
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).keepass == 'true'
+    if: fromJSON(needs.plan.outputs.builds).jriver == 'true'
     runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
+    timeout-minutes: 90
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'keepass/build_keepass.sh', ARTIFACT_DIR: 'dist', RELEASE_NAME: 'keepass.AppImage', RUN_FROM_ROOT: 'true'}
+    env: {BUILD_SCRIPT: 'jriver/build_jriver.sh', ARTIFACT_DIR: 'jriver/dist', RELEASE_NAME: 'jriver.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
   build_kde_suite:
@@ -433,6 +786,86 @@ jobs:
     env: {BUILD_SCRIPT: 'kde-suite/build_kde_suite.sh', ARTIFACT_DIR: 'kde-suite/dist', RELEASE_NAME: 'kde-suite.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
+  build_keepass:
+    name: Build KeePass
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).keepass == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'keepass/build_keepass.sh', ARTIFACT_DIR: 'dist', RELEASE_NAME: 'keepass.AppImage', RUN_FROM_ROOT: 'true'}
+    steps: *arch_steps
+
+  build_keepassxc:
+    name: Build KeePassXC
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).keepassxc == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'keepassxc/build_keepassxc.sh', ARTIFACT_DIR: 'keepassxc/dist', RELEASE_NAME: 'keepassxc.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_keyviz:
+    name: Build Keyviz
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).keyviz == 'true'
+    runs-on: ubuntu-latest
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparing anylinux Container
+        uses: pkgforge-dev/anylinux-setup-action@0964f2258d6c93d1391359978dde081fd8b3c6af # v2
+
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin" && break
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
+
+      - name: 静态检查并构建 Keyviz AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n Keyviz/build_keyviz.sh
+          bash Keyviz/build_keyviz.sh
+          test -s dist/keyviz.AppImage
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pacman -S --noconfirm --needed github-cli
+          gh release upload latest dist/keyviz.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
   build_kitty:
     name: Build kitty
     needs: plan
@@ -442,6 +875,39 @@ jobs:
     container: *arch_container
     permissions: *arch_permissions
     env: {BUILD_SCRIPT: 'kitty/build_kitty.sh', ARTIFACT_DIR: 'kitty/dist', RELEASE_NAME: 'kitty.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_mailmaster:
+    name: Build MailMaster
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).mailmaster == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'mailmaster/build_mailmaster.sh', ARTIFACT_DIR: 'mailmaster/dist', RELEASE_NAME: 'mailmaster.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_mission_center:
+    name: Build Mission Center
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).mission_center == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'mission-center/build_mission-center.sh', ARTIFACT_DIR: 'mission-center/dist', RELEASE_NAME: 'mission-center.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_moderncsv:
+    name: Build Modern CSV
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).moderncsv == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'moderncsv/build_moderncsv.sh', ARTIFACT_DIR: 'moderncsv/dist', RELEASE_NAME: 'moderncsv.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
   build_mpv:
@@ -455,61 +921,6 @@ jobs:
     env: {BUILD_SCRIPT: 'mpv/build_mpv.sh', ARTIFACT_DIR: 'mpv/dist', RELEASE_NAME: 'mpv.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_nvtop:
-    name: Build nvtop
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).nvtop == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'nvtop/build_nvtop.sh', ARTIFACT_DIR: 'nvtop/dist', RELEASE_NAME: 'nvtop.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_ripdrag:
-    name: Build ripdrag
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).ripdrag == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'ripdrag/build_ripdrag.sh', ARTIFACT_DIR: 'ripdrag/dist', RELEASE_NAME: 'ripdrag.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_smplayer:
-    name: Build SMPlayer
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).smplayer == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'smplayer/build_smplayer.sh', ARTIFACT_DIR: 'smplayer/dist', RELEASE_NAME: 'smplayer.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_sunshine:
-    name: Build Sunshine
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).sunshine == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'sunshine/build_sunshine.sh', ARTIFACT_DIR: 'sunshine/dist', RELEASE_NAME: 'sunshine.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_freerdp:
-    name: Build FreeRDP
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).freerdp == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'freerdp/build_freerdp.sh', ARTIFACT_DIR: 'freerdp/dist', RELEASE_NAME: 'xfreerdp3.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
   build_newsboat:
     name: Build Newsboat
     needs: plan
@@ -521,48 +932,65 @@ jobs:
     env: {BUILD_SCRIPT: 'newsboat/build_newsboat.sh', ARTIFACT_DIR: 'dist', RELEASE_NAME: 'newsboat.AppImage', RUN_FROM_ROOT: 'true'}
     steps: *arch_steps
 
-  build_zotero:
-    name: Build Zotero
+  build_nvtop:
+    name: Build nvtop
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).zotero == 'true'
+    if: fromJSON(needs.plan.outputs.builds).nvtop == 'true'
     runs-on: *arch_runner
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'zotero/build_zotero.sh', ARTIFACT_DIR: 'zotero/dist', RELEASE_NAME: 'zotero.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'nvtop/build_nvtop.sh', ARTIFACT_DIR: 'nvtop/dist', RELEASE_NAME: 'nvtop.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_vscode:
-    name: Build VS Code
+  build_obs_studio:
+    name: Build OBS Studio
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).vscode == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'vscode/build_vscode.sh', ARTIFACT_DIR: 'vscode/dist', RELEASE_NAME: 'vscode.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
+    if: fromJSON(needs.plan.outputs.builds).obs_studio == 'true'
+    runs-on: ubuntu-latest
+    container: ghcr.io/pkgforge-dev/archlinux:latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - name: Pre-install Git
+        run: pacman -Sy --noconfirm git
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Preparing AnyLinux Container
+        uses: pkgforge-dev/anylinux-setup-action@0964f2258d6c93d1391359978dde081fd8b3c6af
+      - name: Build and Verify OBS Studio AppImage
+        working-directory: obs-studio
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x build_obs-studio.sh
+          ./build_obs-studio.sh 2>&1 | tee build_obs-studio.log
+          test -x dist/obs-studio.AppImage
+          test -s dist/obs-studio.AppImage.sha256
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config --global --add safe.directory '*'
+          pacman -S --noconfirm --needed github-cli
+          gh release delete-asset latest OBS-Studio.AppImage --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
+          gh release upload latest obs-studio/dist/obs-studio.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
-  build_simplescreenrecorder:
-    name: Build SimpleScreenRecorder
+  build_obsidian:
+    name: Build Obsidian
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).simplescreenrecorder == 'true'
+    if: fromJSON(needs.plan.outputs.builds).obsidian == 'true'
     runs-on: *arch_runner
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'simplescreenrecorder/build_simplescreenrecorder.sh', ARTIFACT_DIR: 'simplescreenrecorder/dist', RELEASE_NAME: 'simplescreenrecorder.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_rofi:
-    name: Build Rofi
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).rofi == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'rofi/build_rofi.sh', ARTIFACT_DIR: 'rofi/dist', RELEASE_NAME: 'rofi.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'obsidian/build_obsidian.sh', ARTIFACT_DIR: 'obsidian/dist', RELEASE_NAME: 'obsidian.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
   build_picom:
@@ -576,48 +1004,194 @@ jobs:
     env: {BUILD_SCRIPT: 'picom/build_picom.sh', ARTIFACT_DIR: 'picom/dist', RELEASE_NAME: 'picom.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_obsidian:
-    name: Build Obsidian
+  build_postman:
+    name: Build Postman
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).obsidian == 'true'
+    if: fromJSON(needs.plan.outputs.builds).postman == 'true'
     runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
+    timeout-minutes: 90
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'obsidian/build_obsidian.sh', ARTIFACT_DIR: 'obsidian/dist', RELEASE_NAME: 'obsidian.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'postman/build_postman.sh', ARTIFACT_DIR: 'postman/dist', RELEASE_NAME: 'postman.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_freedownloadmanager:
-    name: Build Free Download Manager
+  build_rainlendar2:
+    name: Build Rainlendar2
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).freedownloadmanager == 'true'
+    if: fromJSON(needs.plan.outputs.builds).rainlendar2 == 'true'
     runs-on: *arch_runner
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'freedownloadmanager/build_freedownloadmanager.sh', ARTIFACT_DIR: 'freedownloadmanager/dist', RELEASE_NAME: 'freedownloadmanager.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'rainlendar2/build_rainlendar2.sh', ARTIFACT_DIR: 'rainlendar2/dist', RELEASE_NAME: 'rainlendar2.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_deskflow:
-    name: Build Deskflow
+  build_realvnc_connect:
+    name: Build RealVNC Connect
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).deskflow == 'true'
+    if: fromJSON(needs.plan.outputs.builds).realvnc_connect == 'true'
     runs-on: *arch_runner
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'deskflow/build_deskflow.sh', ARTIFACT_DIR: 'deskflow/dist', RELEASE_NAME: 'deskflow.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh', ARTIFACT_DIR: 'realvnc-rvnc-connect/dist', RELEASE_NAME: 'rvncconnect.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_cursor:
-    name: Build Cursor
+  build_remmina:
+    name: Build Remmina
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).cursor == 'true'
+    if: fromJSON(needs.plan.outputs.builds).remmina == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build and validate Remmina AppImage
+        shell: bash
+        run: |
+          chmod +x remmina/build_remmina.sh
+          set +e
+          env -u GITHUB_ACTIONS ./remmina/build_remmina.sh > build-remmina.log 2>&1
+          status=$?
+          if [[ "$status" -ne 0 ]]; then
+            echo "===== build-remmina.log 最后 300 行 ====="
+            tail -n 300 build-remmina.log
+            exit "$status"
+          fi
+          tail -n 120 build-remmina.log
+
+      - name: Fix WebKitGTK and desktop runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            fcitx5-frontend-gtk3 \
+            ibus-gtk3 \
+            libgtk-3-bin
+
+          chmod +x remmina/fix_remmina_webkit.sh
+          ./remmina/fix_remmina_webkit.sh dist/remmina.AppImage 2>&1 | tee fix-remmina-webkit.log
+
+      - name: Prepare release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s remmina/dist/remmina.AppImage
+          chmod +x remmina/dist/remmina.AppImage
+          file remmina/dist/remmina.AppImage
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release delete-asset latest remmina-x86_64.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --yes >/dev/null 2>&1 || true
+          gh release delete-asset latest remmina-x86_64.AppImage.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
+            --yes >/dev/null 2>&1 || true
+          gh release upload latest remmina/dist/remmina.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+  build_remotedesktopmanager:
+    name: Build Remote Desktop Manager
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).remotedesktopmanager == 'true'
     runs-on: *arch_runner
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'cursor/build_cursor.sh', ARTIFACT_DIR: 'cursor/dist', RELEASE_NAME: 'cursor.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'remotedesktopmanager/build_remotedesktopmanager.sh', ARTIFACT_DIR: 'remotedesktopmanager/dist', RELEASE_NAME: 'remotedesktopmanager.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_ripdrag:
+    name: Build ripdrag
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).ripdrag == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'ripdrag/build_ripdrag.sh', ARTIFACT_DIR: 'ripdrag/dist', RELEASE_NAME: 'ripdrag.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_rofi:
+    name: Build Rofi
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).rofi == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'rofi/build_rofi.sh', ARTIFACT_DIR: 'rofi/dist', RELEASE_NAME: 'rofi.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_simplescreenrecorder:
+    name: Build SimpleScreenRecorder
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).simplescreenrecorder == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'simplescreenrecorder/build_simplescreenrecorder.sh', ARTIFACT_DIR: 'simplescreenrecorder/dist', RELEASE_NAME: 'simplescreenrecorder.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_smplayer:
+    name: Build SMPlayer
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).smplayer == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'smplayer/build_smplayer.sh', ARTIFACT_DIR: 'smplayer/dist', RELEASE_NAME: 'smplayer.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_stacher:
+    name: Build Stacher
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).stacher == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: 90
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'stacher/build_stacher.sh', ARTIFACT_DIR: 'stacher/dist', RELEASE_NAME: 'stacher.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_sunshine:
+    name: Build Sunshine
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).sunshine == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'sunshine/build_sunshine.sh', ARTIFACT_DIR: 'sunshine/dist', RELEASE_NAME: 'sunshine.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_tencent_docs:
+    name: Build Tencent Docs
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).tencent_docs == 'true'
+    runs-on: *arch_runner
+    container: *arch_container
+    permissions: *arch_permissions
+    env:
+      BUILD_SCRIPT: tencent-docs/build_tencent-docs.sh
+      ARTIFACT_DIR: tencent-docs/dist
+      RELEASE_NAME: tencent-docs.AppImage
+      RUN_FROM_ROOT: "0"
     steps: *arch_steps
 
   build_trae:
@@ -740,82 +1314,60 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
-  build_deepseek_harness:
-    name: Build DeepSeek Harness
+  build_v2rayn:
+    name: Build v2rayN
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).deepseek_harness == 'true'
+    if: fromJSON(needs.plan.outputs.builds).v2rayn == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: 90
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'v2rayn/build_v2rayn.sh', ARTIFACT_DIR: 'v2rayn/dist', RELEASE_NAME: 'v2rayn.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_ventoy:
+    name: Build Ventoy
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).ventoy == 'true'
     runs-on: *arch_runner
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'deepseek-harness/build_deepseek-harness.sh', ARTIFACT_DIR: 'deepseek-harness/dist', RELEASE_NAME: 'deepseek-harness.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'ventoy/build_ventoy.sh', ARTIFACT_DIR: 'ventoy/dist', RELEASE_NAME: 'ventoy.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_obs_studio:
-    name: Build OBS Studio
+  build_vscode:
+    name: Build VS Code
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).obs_studio == 'true'
-    runs-on: ubuntu-latest
-    container: ghcr.io/pkgforge-dev/archlinux:latest
-    timeout-minutes: 120
-    permissions:
-      contents: write
-      packages: read
-    steps:
-      - name: Pre-install Git
-        run: pacman -Sy --noconfirm git
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Preparing AnyLinux Container
-        uses: pkgforge-dev/anylinux-setup-action@0964f2258d6c93d1391359978dde081fd8b3c6af
-      - name: Build and Verify OBS Studio AppImage
-        working-directory: obs-studio
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          chmod +x build_obs-studio.sh
-          ./build_obs-studio.sh 2>&1 | tee build_obs-studio.log
-          test -x dist/obs-studio.AppImage
-          test -s dist/obs-studio.AppImage.sha256
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git config --global --add safe.directory '*'
-          pacman -S --noconfirm --needed github-cli
-          gh release delete-asset latest OBS-Studio.AppImage --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
-          gh release upload latest obs-studio/dist/obs-studio.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+    if: fromJSON(needs.plan.outputs.builds).vscode == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: *arch_timeout
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'vscode/build_vscode.sh', ARTIFACT_DIR: 'vscode/dist', RELEASE_NAME: 'vscode.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
 
-  build_dingtalk:
-    name: Build DingTalk
+  build_webcamoid:
+    name: Build Webcamoid
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).dingtalk == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Build and Validate DingTalk AppImage
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          chmod +x .github/scripts/ci_build_dingtalk.sh
-          ./.github/scripts/ci_build_dingtalk.sh
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test -s dingtalk/dist/dingtalk.AppImage
-          gh release delete-asset latest DingTalk.AppImage --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
-          gh release upload latest dingtalk/dist/dingtalk.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+    if: fromJSON(needs.plan.outputs.builds).webcamoid == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: 90
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'webcamoid/build_webcamoid.sh', ARTIFACT_DIR: 'webcamoid/dist', RELEASE_NAME: 'webcamoid.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
+
+  build_wechat:
+    name: Build WeChat
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).wechat == 'true'
+    runs-on: *arch_runner
+    timeout-minutes: 90
+    container: *arch_container
+    permissions: *arch_permissions
+    env: {BUILD_SCRIPT: 'wechat/build_wechat.sh', ARTIFACT_DIR: 'wechat/dist', RELEASE_NAME: 'wechat.AppImage', RUN_FROM_ROOT: 'false'}
+    steps: *arch_steps
 
   build_winpodx:
     name: Build WinPodX
@@ -844,409 +1396,6 @@ jobs:
           set -Eeuo pipefail
           test -s winpodx/dist/winpodx.AppImage
           gh release upload latest winpodx/dist/winpodx.AppImage --repo "$GITHUB_REPOSITORY" --clobber
-
-  build_alacritty:
-    name: Build Alacritty
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).alacritty == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Build and validate Alacritty AppImage
-        shell: bash
-        run: |
-          set -euo pipefail
-          chmod +x alacritty/build_alacritty_linuxdeploy.sh
-          env -u GITHUB_ACTIONS ./alacritty/build_alacritty_linuxdeploy.sh
-          test -s alacritty/dist/alacritty.AppImage
-
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh release upload latest alacritty/dist/alacritty.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
-
-  build_keyviz:
-    name: Build Keyviz
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).keyviz == 'true'
-    runs-on: ubuntu-latest
-    container: ghcr.io/pkgforge-dev/archlinux:latest
-    timeout-minutes: 60
-    permissions:
-      contents: write
-      packages: read
-
-    steps:
-      - name: Pre-install Git
-        run: pacman -Sy --noconfirm git
-
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Preparing anylinux Container
-        uses: pkgforge-dev/anylinux-setup-action@0964f2258d6c93d1391359978dde081fd8b3c6af # v2
-
-      - name: Setup Yay for Root execution
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          useradd -m -G wheel builduser || true
-          echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-          for attempt in 1 2 3; do
-            rm -rf /tmp/yay-bin
-            su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin" && break
-            sleep 5
-          done
-          test -f /tmp/yay-bin/PKGBUILD
-          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
-          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
-          chmod +x /usr/local/bin/yay
-
-      - name: 静态检查并构建 Keyviz AppImage
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          bash -n Keyviz/build_keyviz.sh
-          bash Keyviz/build_keyviz.sh
-          test -s dist/keyviz.AppImage
-
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          pacman -S --noconfirm --needed github-cli
-          gh release upload latest dist/keyviz.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
-
-  build_remmina:
-    name: Build Remmina
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).remmina == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Build and validate Remmina AppImage
-        shell: bash
-        run: |
-          chmod +x remmina/build_remmina.sh
-          set +e
-          env -u GITHUB_ACTIONS ./remmina/build_remmina.sh > build-remmina.log 2>&1
-          status=$?
-          if [[ "$status" -ne 0 ]]; then
-            echo "===== build-remmina.log 最后 300 行 ====="
-            tail -n 300 build-remmina.log
-            exit "$status"
-          fi
-          tail -n 120 build-remmina.log
-
-      - name: Fix WebKitGTK and desktop runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            fcitx5-frontend-gtk3 \
-            ibus-gtk3 \
-            libgtk-3-bin
-
-          chmod +x remmina/fix_remmina_webkit.sh
-          ./remmina/fix_remmina_webkit.sh dist/remmina.AppImage 2>&1 | tee fix-remmina-webkit.log
-
-      - name: Prepare release files
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s remmina/dist/remmina.AppImage
-          chmod +x remmina/dist/remmina.AppImage
-          file remmina/dist/remmina.AppImage
-
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh release delete-asset latest remmina-x86_64.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --yes >/dev/null 2>&1 || true
-          gh release delete-asset latest remmina-x86_64.AppImage.sha256 \
-            --repo "$GITHUB_REPOSITORY" \
-            --yes >/dev/null 2>&1 || true
-          gh release upload latest remmina/dist/remmina.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
-
-  build_dconf_editor:
-    name: Build dconf Editor
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).dconf_editor == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    concurrency:
-      group: build-dconf-editor
-      cancel-in-progress: true
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Build dconf-editor AppImage
-        working-directory: dconf-editor
-        shell: bash
-        run: |
-          set -euo pipefail
-          chmod +x build_dconf-editor.sh
-          ./build_dconf-editor.sh
-
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s dconf-editor/dist/dconf-editor.AppImage
-          gh release upload latest dconf-editor/dist/dconf-editor.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
-
-  build_rainlendar2:
-    name: Build Rainlendar2
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).rainlendar2 == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'rainlendar2/build_rainlendar2.sh', ARTIFACT_DIR: 'rainlendar2/dist', RELEASE_NAME: 'rainlendar2.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_realvnc_connect:
-    name: Build RealVNC Connect
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).realvnc_connect == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh', ARTIFACT_DIR: 'realvnc-rvnc-connect/dist', RELEASE_NAME: 'rvncconnect.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_remotedesktopmanager:
-    name: Build Remote Desktop Manager
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).remotedesktopmanager == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'remotedesktopmanager/build_remotedesktopmanager.sh', ARTIFACT_DIR: 'remotedesktopmanager/dist', RELEASE_NAME: 'remotedesktopmanager.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_github_desktop:
-    name: Build GitHub Desktop
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).github_desktop == 'true'
-    runs-on: ubuntu-22.04
-    timeout-minutes: 60
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Build official-source AppImage
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -Eeuo pipefail
-          cd github-desktop
-          chmod +x build_github-desktop.sh
-          ./build_github-desktop.sh
-          test -s dist/github-desktop.AppImage
-          sha256sum dist/github-desktop.AppImage
-
-      - name: Publish latest AppImage
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -Eeuo pipefail
-          gh release upload latest github-desktop/dist/github-desktop.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
-
-  verify_direct_appimage:
-    name: Verify direct AppImage GUI launch
-    needs: build_github_desktop
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
-
-    steps:
-      - name: Install direct-launch smoke dependencies
-        run: |
-          set -Eeuo pipefail
-          sudo apt-get update
-          sudo apt-get install -y xvfb xdotool x11-utils fuse3 libfuse2
-
-      - name: Download the just-published AppImage
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -Eeuo pipefail
-          gh release download latest \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern 'github-desktop.AppImage' \
-            --clobber
-          chmod +x github-desktop.AppImage
-          sha256sum github-desktop.AppImage
-
-      - name: Launch AppImage directly and require a visible GUI
-        run: |
-          set -Eeuo pipefail
-          PROFILE="$RUNNER_TEMP/github-desktop-direct-profile"
-          LOG="$RUNNER_TEMP/github-desktop-direct.log"
-          WINDOWS="$RUNNER_TEMP/github-desktop-direct-windows.log"
-          rm -rf "$PROFILE"
-          mkdir -p "$PROFILE"
-
-          set +e
-          xvfb-run -a bash -c '
-            set -u
-            app="$1"
-            profile="$2"
-            log="$3"
-            windows="$4"
-
-            start_epoch="$(date +%s)"
-            ELECTRON_ENABLE_LOGGING=1 "$app" \
-              --user-data-dir="$profile" \
-              >"$log" 2>&1 &
-            app_pid=$!
-            window_found=0
-
-            for _ in $(seq 1 45); do
-              window_id="$(xdotool search --onlyvisible --name "^GitHub Desktop$" 2>/dev/null | head -n 1 || true)"
-              if [[ -n "$window_id" ]] && xwininfo -id "$window_id" 2>/dev/null | grep -q "Map State: IsViewable"; then
-                window_found=1
-                break
-              fi
-
-              if ! kill -0 "$app_pid" 2>/dev/null; then
-                wait "$app_pid"
-                exit $?
-              fi
-
-              sleep 1
-            done
-
-            elapsed="$(( $(date +%s) - start_epoch ))"
-            echo "Direct AppImage GUI startup: ${elapsed}s"
-            xwininfo -root -tree >"$windows" 2>&1 || true
-
-            if kill -0 "$app_pid" 2>/dev/null; then
-              kill "$app_pid" 2>/dev/null || true
-              wait "$app_pid" 2>/dev/null || true
-            fi
-
-            if [[ "$window_found" -ne 1 ]]; then
-              exit 125
-            fi
-          ' bash "$PWD/github-desktop.AppImage" "$PROFILE" "$LOG" "$WINDOWS"
-          rc=$?
-          set -e
-
-          if [[ "$rc" -ne 0 ]]; then
-            echo "Direct AppImage GUI smoke failed: $rc" >&2
-            echo '--- AppImage log ---' >&2
-            tail -n 250 "$LOG" >&2 || true
-            echo '--- X11 window tree ---' >&2
-            tail -n 250 "$WINDOWS" >&2 || true
-            exit "$rc"
-          fi
-
-          if grep -Fq 'Fontconfig warning: We will not regenerate the cache because some cache files were generated by a newer version' "$LOG"; then
-            echo 'Fontconfig incompatible-cache warning detected in direct AppImage launch.' >&2
-            tail -n 250 "$LOG" >&2 || true
-            exit 126
-          fi
-
-  build_hermes_desktop:
-    name: Build Hermes Desktop
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).hermes_desktop == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js 26
-        uses: actions/setup-node@v4
-        with:
-          node-version: 26
-
-      - name: Static check Hermes Desktop migration
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          bash -n hermes-desktop/build_hermes-desktop.sh
-          python3 -m py_compile hermes-desktop/patch_hermes_desktop.py
-
-      - name: Build and verify Hermes Desktop AppImage
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          chmod +x hermes-desktop/build_hermes-desktop.sh hermes-desktop/patch_hermes_desktop.py
-          ./hermes-desktop/build_hermes-desktop.sh
-          test -s hermes-desktop/dist/hermes-desktop.AppImage
-          sha256sum hermes-desktop/dist/hermes-desktop.AppImage
-
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          gh release upload latest hermes-desktop/dist/hermes-desktop.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
 
   build_workbuddy:
     name: Build WorkBuddy AppImage
@@ -1350,161 +1499,6 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
-  build_mailmaster:
-    name: Build MailMaster
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).mailmaster == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'mailmaster/build_mailmaster.sh', ARTIFACT_DIR: 'mailmaster/dist', RELEASE_NAME: 'mailmaster.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_alttab:
-    name: Build AltTab
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).alttab == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'alttab/build_alttab.sh', ARTIFACT_DIR: 'alttab/dist', RELEASE_NAME: 'alttab.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_baidunetdisk:
-    name: Build Baidu Netdisk
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).baidunetdisk == 'true'
-    runs-on: ubuntu-22.04
-    timeout-minutes: 90
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Build and validate Baidu Netdisk AppImage
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          bash -n baidunetdisk/build_baidunetdisk.sh
-          chmod +x baidunetdisk/build_baidunetdisk.sh
-          ./baidunetdisk/build_baidunetdisk.sh
-          test -s baidunetdisk/dist/baidunetdisk.AppImage
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          gh release upload latest baidunetdisk/dist/baidunetdisk.AppImage --repo "$GITHUB_REPOSITORY" --clobber
-
-  build_aionui:
-    name: Build AionUi
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).aionui == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'aionui/build_aionui.sh', ARTIFACT_DIR: 'aionui/dist', RELEASE_NAME: 'aionui.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_wechat:
-    name: Build WeChat
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).wechat == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'wechat/build_wechat.sh', ARTIFACT_DIR: 'wechat/dist', RELEASE_NAME: 'wechat.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_folo:
-    name: Build Folo
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).folo == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'folo/build_folo.sh', ARTIFACT_DIR: 'folo/dist', RELEASE_NAME: 'folo.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_feishu:
-    name: Build Feishu
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).feishu == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'feishu/build_feishu.sh', ARTIFACT_DIR: 'feishu/dist', RELEASE_NAME: 'feishu.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_joplin:
-    name: Build Joplin
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).joplin == 'true'
-    runs-on: ubuntu-22.04
-    timeout-minutes: 90
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Build and validate Joplin AppImage
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          bash -n joplin/build_joplin.sh
-          chmod +x joplin/build_joplin.sh
-          ./joplin/build_joplin.sh
-          test -s joplin/dist/joplin.AppImage
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          gh release upload latest joplin/dist/joplin.AppImage --repo "$GITHUB_REPOSITORY" --clobber
-
-  build_jriver:
-    name: Build JRiver
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).jriver == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'jriver/build_jriver.sh', ARTIFACT_DIR: 'jriver/dist', RELEASE_NAME: 'jriver.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_chatgpt:
-    name: Build ChatGPT
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).chatgpt == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container:
-      image: ghcr.io/pkgforge-dev/archlinux:latest
-      options: --privileged
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'chatgpt/build_chatgpt.sh', ARTIFACT_DIR: 'chatgpt/dist', RELEASE_NAME: 'chatgpt.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_claude_desktop:
-    name: Build Claude Desktop
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).claude_desktop == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'claude-desktop/build_claude-desktop.sh', ARTIFACT_DIR: 'claude-desktop/dist', RELEASE_NAME: 'claude-desktop.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
   build_xmind:
     name: Build Xmind
     needs: plan
@@ -1515,74 +1509,6 @@ jobs:
     permissions: *arch_permissions
     env: {BUILD_SCRIPT: 'xmind/build_xmind.sh', ARTIFACT_DIR: 'xmind/dist', RELEASE_NAME: 'xmind.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
-
-  build_postman:
-    name: Build Postman
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).postman == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'postman/build_postman.sh', ARTIFACT_DIR: 'postman/dist', RELEASE_NAME: 'postman.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_v2rayn:
-    name: Build v2rayN
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).v2rayn == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'v2rayn/build_v2rayn.sh', ARTIFACT_DIR: 'v2rayn/dist', RELEASE_NAME: 'v2rayn.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_xnviewmp:
-    name: Build XnView MP
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).xnviewmp == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Install Qt packaging dependencies
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends qt5-qmake qtbase5-dev libqt5svg5 xvfb
-      - name: Build XnView MP AppImage
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          chmod +x xnviewmp/build_xnviewmp.sh
-          ./xnviewmp/build_xnviewmp.sh
-          test -s xnviewmp/dist/xnviewmp.AppImage
-      - name: Smoke test XnView MP
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          LOG="$RUNNER_TEMP/xnviewmp-smoke.log"
-          set +e
-          APPIMAGE_EXTRACT_AND_RUN=1 timeout 20s xvfb-run -a ./xnviewmp/dist/xnviewmp.AppImage >"$LOG" 2>&1
-          rc=$?
-          set -e
-          cat "$LOG"
-          if grep -Eqi 'Could not load the Qt platform plugin|no Qt platform plugin could be initialized|error while loading shared libraries|Segmentation fault|Aborted' "$LOG"; then
-            exit 1
-          fi
-          [[ "$rc" -eq 0 || "$rc" -eq 124 ]]
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          gh release upload latest xnviewmp/dist/xnviewmp.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
   build_xnconvert:
     name: Build XnConvert
@@ -1630,94 +1556,167 @@ jobs:
           set -Eeuo pipefail
           gh release upload latest xnconvert/dist/xnconvert.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
-  build_stacher:
-    name: Build Stacher
+  build_xnviewmp:
+    name: Build XnView MP
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).stacher == 'true'
-    runs-on: *arch_runner
+    if: fromJSON(needs.plan.outputs.builds).xnviewmp == 'true'
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'stacher/build_stacher.sh', ARTIFACT_DIR: 'stacher/dist', RELEASE_NAME: 'stacher.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Install Qt packaging dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qt5-qmake qtbase5-dev libqt5svg5 xvfb
+      - name: Build XnView MP AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x xnviewmp/build_xnviewmp.sh
+          ./xnviewmp/build_xnviewmp.sh
+          test -s xnviewmp/dist/xnviewmp.AppImage
+      - name: Smoke test XnView MP
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          LOG="$RUNNER_TEMP/xnviewmp-smoke.log"
+          set +e
+          APPIMAGE_EXTRACT_AND_RUN=1 timeout 20s xvfb-run -a ./xnviewmp/dist/xnviewmp.AppImage >"$LOG" 2>&1
+          rc=$?
+          set -e
+          cat "$LOG"
+          if grep -Eqi 'Could not load the Qt platform plugin|no Qt platform plugin could be initialized|error while loading shared libraries|Segmentation fault|Aborted' "$LOG"; then
+            exit 1
+          fi
+          [[ "$rc" -eq 0 || "$rc" -eq 124 ]]
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest xnviewmp/dist/xnviewmp.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
-
-  build_tencent_docs:
-    name: Build Tencent Docs
+  build_zen:
+    name: Build Zen
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).tencent_docs == 'true'
-    runs-on: *arch_runner
-    container: *arch_container
-    permissions: *arch_permissions
-    env:
-      BUILD_SCRIPT: tencent-docs/build_tencent-docs.sh
-      ARTIFACT_DIR: tencent-docs/dist
-      RELEASE_NAME: tencent-docs.AppImage
-      RUN_FROM_ROOT: "0"
-    steps: *arch_steps
-
-  build_webcamoid:
-    name: Build Webcamoid
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).webcamoid == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'webcamoid/build_webcamoid.sh', ARTIFACT_DIR: 'webcamoid/dist', RELEASE_NAME: 'webcamoid.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_ventoy:
-    name: Build Ventoy
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).ventoy == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'ventoy/build_ventoy.sh', ARTIFACT_DIR: 'ventoy/dist', RELEASE_NAME: 'ventoy.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_moderncsv:
-    name: Build Modern CSV
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).moderncsv == 'true'
+    if: fromJSON(needs.plan.outputs.builds).zen == 'true'
     runs-on: *arch_runner
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'moderncsv/build_moderncsv.sh', ARTIFACT_DIR: 'moderncsv/dist', RELEASE_NAME: 'moderncsv.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'zen/build_zen.sh', ARTIFACT_DIR: 'zen/dist', RELEASE_NAME: 'zen.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_gitkraken:
-    name: Build GitKraken
+  build_zotero:
+    name: Build Zotero
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).gitkraken == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'gitkraken/build_gitkraken.sh', ARTIFACT_DIR: 'gitkraken/dist', RELEASE_NAME: 'gitkraken.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_mission_center:
-    name: Build Mission Center
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).mission_center == 'true'
+    if: fromJSON(needs.plan.outputs.builds).zotero == 'true'
     runs-on: *arch_runner
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'mission-center/build_mission-center.sh', ARTIFACT_DIR: 'mission-center/dist', RELEASE_NAME: 'mission-center.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'zotero/build_zotero.sh', ARTIFACT_DIR: 'zotero/dist', RELEASE_NAME: 'zotero.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_adspower_global:
-    name: Build AdsPower Global
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).adspower_global == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'adspower-global/build_adspower-global.sh', ARTIFACT_DIR: 'adspower-global/dist', RELEASE_NAME: 'adspower-global.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
+  verify_direct_appimage:
+    name: Verify direct AppImage GUI launch
+    needs: build_github_desktop
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Install direct-launch smoke dependencies
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update
+          sudo apt-get install -y xvfb xdotool x11-utils fuse3 libfuse2
+
+      - name: Download the just-published AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh release download latest \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'github-desktop.AppImage' \
+            --clobber
+          chmod +x github-desktop.AppImage
+          sha256sum github-desktop.AppImage
+
+      - name: Launch AppImage directly and require a visible GUI
+        run: |
+          set -Eeuo pipefail
+          PROFILE="$RUNNER_TEMP/github-desktop-direct-profile"
+          LOG="$RUNNER_TEMP/github-desktop-direct.log"
+          WINDOWS="$RUNNER_TEMP/github-desktop-direct-windows.log"
+          rm -rf "$PROFILE"
+          mkdir -p "$PROFILE"
+
+          set +e
+          xvfb-run -a bash -c '
+            set -u
+            app="$1"
+            profile="$2"
+            log="$3"
+            windows="$4"
+
+            start_epoch="$(date +%s)"
+            ELECTRON_ENABLE_LOGGING=1 "$app" \
+              --user-data-dir="$profile" \
+              >"$log" 2>&1 &
+            app_pid=$!
+            window_found=0
+
+            for _ in $(seq 1 45); do
+              window_id="$(xdotool search --onlyvisible --name "^GitHub Desktop$" 2>/dev/null | head -n 1 || true)"
+              if [[ -n "$window_id" ]] && xwininfo -id "$window_id" 2>/dev/null | grep -q "Map State: IsViewable"; then
+                window_found=1
+                break
+              fi
+
+              if ! kill -0 "$app_pid" 2>/dev/null; then
+                wait "$app_pid"
+                exit $?
+              fi
+
+              sleep 1
+            done
+
+            elapsed="$(( $(date +%s) - start_epoch ))"
+            echo "Direct AppImage GUI startup: ${elapsed}s"
+            xwininfo -root -tree >"$windows" 2>&1 || true
+
+            if kill -0 "$app_pid" 2>/dev/null; then
+              kill "$app_pid" 2>/dev/null || true
+              wait "$app_pid" 2>/dev/null || true
+            fi
+
+            if [[ "$window_found" -ne 1 ]]; then
+              exit 125
+            fi
+          ' bash "$PWD/github-desktop.AppImage" "$PROFILE" "$LOG" "$WINDOWS"
+          rc=$?
+          set -e
+
+          if [[ "$rc" -ne 0 ]]; then
+            echo "Direct AppImage GUI smoke failed: $rc" >&2
+            echo '--- AppImage log ---' >&2
+            tail -n 250 "$LOG" >&2 || true
+            echo '--- X11 window tree ---' >&2
+            tail -n 250 "$WINDOWS" >&2 || true
+            exit "$rc"
+          fi
+
+          if grep -Fq 'Fontconfig warning: We will not regenerate the cache because some cache files were generated by a newer version' "$LOG"; then
+            echo 'Fontconfig incompatible-cache warning detected in direct AppImage launch.' >&2
+            tail -n 250 "$LOG" >&2 || true
+            exit 126
+          fi
