@@ -372,6 +372,7 @@ linuxdeploy 额外规则：
 - 不使用 Matrix；
 - 通过 plan 阶段决定需要构建的项目；
 - 能复用 `.github/actions/build-anylinux` 时优先复用。
+- `.github/workflows/build.yml` 中所有正式 `Build ...` Job 必须按 Job 的显示名称（去掉固定的 `Build ` 前缀后）进行不区分大小写的 A→Z 排列；`Plan` 固定在最前，非 `Build ...` 的附属 Job 固定放在全部 Build Job 之后。新增或迁移应用时，必须把新 Build Job 插入正确的字母位置，不得直接追加到现有 Build Job 队列末尾。
 
 ### 按产物类型使用现有入口
 
