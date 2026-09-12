@@ -35,3 +35,6 @@ patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/gly
 
 # 标题换行：按实际主字体/备用字体的像素宽度计算断行，避免中英混排标题被右侧裁掉。
 patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/title-wrap.patch"
+
+# 横向导航：保留上游自定义辅助键，并补充 Left/h 上一个、Right/l 下一个。
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/navigation-keys.patch"
