@@ -79,21 +79,11 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 
 ### i3wm
 
-Gemini 仍可能触发 Electron 的 all-workspaces / sticky 行为。i3wm 下使用窗口管理器规则最稳定：
+实测 Gemini 上游产品层会在窗口创建后主动设置 visible-on-all-workspaces；在 Linux/i3wm 中表现为窗口出现在所有工作区。单纯使用 `for_window [class="gemini"] sticky disable` 只在窗口创建阶段执行一次，随后会被应用自己的再次设置覆盖，因此不作为最终方案。
 
-```ini
-# Gemini window layout
-for_window [class="gemini"] sticky disable
-```
+当前构建会在打包阶段对官方 `app.asar` 做最小 Linux 兼容修补：仅将显式的 `setVisibleOnAllWorkspaces(true)` / `setVisibleOnAllWorkspaces(!0)` 改为 `false`。如果上游代码结构变化、无法识别该调用，构建会直接停止，不会猜测性修改其他逻辑。
 
-该规则只影响 sticky 状态，不会把 Gemini 改成 floating；默认仍按 i3 的正常平铺规则处理。
-
-如果 Gemini 窗口已经打开，可对当前窗口执行一次：
-
-```bash
-# 立即取消当前 Gemini 窗口的 sticky
-i3-msg '[class="^gemini$"] sticky disable'
-```
+修补只影响跨工作区可见性；Gemini 窗口仍保持 `_NET_WM_WINDOW_TYPE_NORMAL`，i3 下默认继续使用正常平铺行为，不会被改成 floating。
 
 ## Windows 专用能力边界
 
@@ -198,5 +188,12 @@ dist/gemini.AppImage
 
 - 正式 Actions #389 已确认补入 Fcitx5 GTK 输入模块后的 Gemini 构建成功。
 - 真实 Linux 使用已确认 AppImage 启动、Google 登录、Gemini 主界面、简体中文桌面壳层正常。
-- i3wm 实测 `WM_CLASS="gemini", "gemini"`、窗口类型为 `_NET_WM_WINDOW_TYPE_NORMAL`；跨工作区显示使用 `for_window [class="gemini"] sticky disable` 由 i3 管理，不修改 Google 产品层。
+- i3wm 实测 `WM_CLASS="gemini", "gemini"`、窗口类型为 `_NET_WM_WINDOW_TYPE_NORMAL`；后续确认上游会在窗口创建后再次设置 all-workspaces，单次 i3 `sticky disable` 会被覆盖，因此最终改为构建期最小修补该 Electron 调用。
 - `helper_ipc`、Crashpad、Fontconfig、Glycin 等现有日志按“已知非致命边界”记录，不为清理日志主动修改已验证可用的产品层。
+
+### 2026-09-12：修复 i3wm 下 Gemini 跨所有工作区显示
+
+- 现象：`WM_CLASS="gemini", "gemini"` 且窗口类型为 `_NET_WM_WINDOW_TYPE_NORMAL`，但 Gemini 仍会出现在所有 i3 工作区；`for_window [class="gemini"] sticky disable` 和对当前窗口执行 `sticky disable` 均会被应用随后重新设置覆盖。
+- 根因：Gemini 产品层会在窗口创建后调用 Electron `setVisibleOnAllWorkspaces(true)`（压缩代码也可能写为 `!0`），Linux/i3 将其映射为 sticky/all-workspaces。
+- 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
+- 修复：构建时解包当前官方 `app.asar`，只把显式的 `setVisibleOnAllWorkspaces(true/!0)` 改为 `false` 后重新打包；若当前上游找不到该模式则停止构建，避免误改其他产品逻辑。窗口仍保持普通 i3 平铺窗口。
