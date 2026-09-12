@@ -15,17 +15,19 @@
 | `patches/desktop-icons.patch` | 对上游 `src/icon.c` 的宿主 desktop / 图标查找与 PNG 处理修复 |
 | `patches/appimage-icons.patch` | 对上游 `src/win.c` 的运行中 AppImage 内嵌图标回退 |
 | `patches/appimage-mount-namespace.patch` | 在保留现有 AppImage 图标逻辑的基础上，通过目标进程 `/proc/<pid>/root` 兼容跨挂载命名空间读取 `APPDIR` |
+| `patches/runimage-program-icons.patch` | 对共享 RunImage 中的子程序按目标进程实际可执行文件路径补充内置 PNG 图标回退 |
 | `patches/font-fallback.patch` | 对上游 Xft 文本绘制增加逐字符缺字回退，中文与常用符号分别使用可用备用字体 |
 | `patches/glyph-layout.patch` | 固定备用字体仍缺字时交给 Fontconfig 按字符自动匹配宿主字体，并增大多行标题行距 |
+| `patches/title-wrap.patch` | 按主字体与备用字体实际像素宽度计算多行标题断行，避免中英混排标题被右侧裁掉 |
 
-以后修改对应逻辑时维护各自 `.patch` 文件；补丁路径和应用顺序由 `apply-icon-patch.sh` 管理，不再把大段补丁放进构建脚本。
+以后修改对应逻辑时维护各自 `.patch` 文件；已解决的问题保持独立补丁，不回写、合并或重写既有稳定补丁。补丁路径和应用顺序由 `apply-icon-patch.sh` 管理，不再把大段补丁放进构建脚本。
 
 ## 打包流程
 
 正式构建使用 `.github/workflows/build.yml` 的 AltTab Job，并复用 `.github/actions/build-anylinux`，在 Arch Linux / AnyLinux 构建环境中执行。手动构建入口选择 `alttab/build_alttab.sh`。
 
 1. 从官方 `releases/latest` 获取非草稿、非预发布版本，将 tag 解析为具体 commit SHA，下载该 commit 的源码归档并记录 SHA-256。
-2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch`、`patches/appimage-icons.patch`、`patches/appimage-mount-namespace.patch`、`patches/font-fallback.patch` 和 `patches/glyph-layout.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
+2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch`、`patches/appimage-icons.patch`、`patches/appimage-mount-namespace.patch`、`patches/runimage-program-icons.patch`、`patches/font-fallback.patch`、`patches/glyph-layout.patch` 和 `patches/title-wrap.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
 3. 使用现有 `configure --prefix=/usr` 和 `make` 编译，传入 GLib 的头文件及链接参数。
 4. 生成 desktop 文件，使用上游 `doc/alttab.svg` 作为应用自身图标，将主程序与动态依赖交给 quick-sharun，并保留上游 GPL-3.0 许可证。
 5. 生成 `dist/alttab.AppImage`；公共构建 Action 将其上传至仓库 `latest` Release，资产名固定为 `alttab.AppImage`。
@@ -43,7 +45,7 @@ sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_altt
 ./alttab.AppImage
 ```
 
-字体兼容：`-font` 仍只指定主字体。主字体存在字形时保持使用主字体；缺字时先按 `WenQuanYi Zen Hei Mono` → `DejaVu Sans` → `Symbols Nerd Font Mono` → `Symbols Nerd Font` 的顺序逐字符查找备用字体；这些固定备用字体仍缺字时，再让 Fontconfig 根据该 Unicode 字符从宿主已安装字体中自动匹配实际包含字形的字体。备用字号跟随主字体。这样可继续使用 `xft:MonoLisa-12` 显示英文和数字，同时覆盖中文、常用 Unicode 符号和宿主已安装字体提供的私有区图标，不需要改变启动参数格式。多行窗口标题的行距由上游原值 `0.3` 调整为 `0.5`，避免第二行与第一行过于贴近。
+字体兼容：`-font` 仍只指定主字体。主字体存在字形时保持使用主字体；缺字时先按 `WenQuanYi Zen Hei Mono` → `DejaVu Sans` → `Symbols Nerd Font Mono` → `Symbols Nerd Font` 的顺序逐字符查找备用字体；这些固定备用字体仍缺字时，再让 Fontconfig 根据该 Unicode 字符从宿主已安装字体中自动匹配实际包含字形的字体。备用字号跟随主字体。这样可继续使用 `xft:MonoLisa-12` 显示英文和数字，同时覆盖中文、常用 Unicode 符号和宿主已安装字体提供的私有区图标，不需要改变启动参数格式。多行窗口标题的行距由上游原值 `0.3` 调整为 `0.5`，避免第二行与第一行过于贴近；标题换行宽度按实际参与绘制的主字体/备用字体逐段测量，不再只用主字体估算中英混排文本宽度。
 
 保留上游 `icon.source` 的 0～5 全部模式及默认策略，不额外修改窗口自身图标与文件图标之间的上游优先级。文件图标兼容逻辑补充以下处理：
 
@@ -51,18 +53,20 @@ sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_altt
 - 查找用户及系统图标目录，并补充 `hicolor` 回退；避免直接修改进程的 `XDG_DATA_DIRS` 环境字符串。
 - 支持映射到已有 PNG / XPM 图标，以及 PNG / XPM 绝对路径。PNG 使用文件头中的真实尺寸创建画布，并修正透明背景颜色转换。
 - 宿主图标查找没有命中时，根据目标窗口的 `_NET_WM_PID` 读取该进程的 `APPDIR`；优先通过 `/proc/<pid>/root` 在目标进程自己的挂载命名空间中访问该 `APPDIR`，如果该路径不可用再回退到原来的直接路径。随后优先读取运行中 AppImage 根目录的 `.DirIcon`，支持普通文件、符号链接和无扩展名 PNG / XPM，再回退读取根目录 desktop 的 `Icon` 对应 PNG / XPM 文件，不按应用名称写死路径。
+- 对共享 RunImage 中存在 `RUNIMAGE` 的目标进程，在上述宿主/AppImage 图标逻辑未命中时，可按目标进程 `/proc/<pid>/root` 与实际可执行文件目录查找程序自带的标准 PNG 图标；不匹配具体应用名称。
 
-普通程序仍依赖宿主可读取的 desktop 文件和图标资源；直接运行的 AppImage 可额外从其运行时 `APPDIR` 读取内嵌图标。当前补丁未增加 SVG 窗口图标解码，也不是完整的图标主题继承实现。应用自身使用 SVG 作为 AppImage 图标，不代表窗口图标读取支持 SVG。
+普通程序仍依赖宿主可读取的 desktop 文件和图标资源；直接运行的 AppImage 可额外从其运行时 `APPDIR` 读取内嵌图标；共享 RunImage 中的子程序可额外按目标进程实际可执行文件位置读取程序内置 PNG。当前补丁未增加 SVG 窗口图标解码，也不是完整的图标主题继承实现。应用自身使用 SVG 作为 AppImage 图标，不代表窗口图标读取支持 SVG。
 
 不同窗口切换器可能因为图标来源、主题匹配和尺寸选择策略不同而显示同一应用的不同图标样式；只要图标能够正常显示，这类样式差异不作为本项目的缺陷处理。
 
 ## 稳定基线
 
-2026-09-10 已实机确认有效的宿主 XDG 图标映射、AppImage `APPDIR` 回退和无扩展名 `.DirIcon` 识别继续作为稳定基线；后续兼容修复不得重写这两份已验证图标补丁，只允许在其后补充必要且独立的兼容层，同时保持上游 `icon.source` 默认策略不变。
+2026-09-10 已实机确认有效的宿主 XDG 图标映射、AppImage `APPDIR` 回退和无扩展名 `.DirIcon` 识别继续作为稳定基线；2026-09-12 已实机确认共享 RunImage 中浏览器子程序的图标恢复逻辑有效。后续兼容修复不得重写这些已验证补丁，只允许为新问题追加必要且独立的兼容层，同时保持上游 `icon.source` 默认策略不变。
 
 - 文件图标继续按 XDG desktop、`StartupWMClass`、`Icon`、主题目录和 `pixmaps` 规则查找。
 - AppImage 仅在宿主文件图标查找未命中时，通过目标窗口 `_NET_WM_PID` 获取所属进程的 `APPDIR`；当前兼容层优先使用 `/proc/<pid>/root${APPDIR}` 访问目标进程可见的挂载路径，失败时仍保留原来的 `${APPDIR}` 直接访问。
 - `.DirIcon` 同时兼容普通文件和符号链接；没有扩展名时按文件内容识别 PNG / XPM，不依赖固定文件名。
+- 共享 RunImage 子程序仅在目标进程明确存在 `RUNIMAGE` 时按目标进程实际可执行文件位置补充 PNG 图标，不改写原有宿主 XDG / AppImage 图标补丁。
 - 运行时不匹配具体被切换应用名称，不写死用户路径、临时挂载目录、固定 AppImage 文件名或 sharun 版本号。
 - AltTab 自身名称、`StartupWMClass=AltTab`、上游仓库地址、标准 `/usr` 安装前缀、Release 资产名等属于项目固有元数据或构建接口，不属于环境相关硬编码。
 
@@ -191,3 +195,19 @@ sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_altt
 - 修改文件：新增 `patches/appimage-mount-namespace.patch`，并修改 `apply-icon-patch.sh`、`README.md`；`patches/desktop-icons.patch`、`patches/appimage-icons.patch`、字体补丁、`build_alttab.sh` 和 workflow 均保持不变。
 - 修复内容：继续先读取目标窗口 `_NET_WM_PID` 与目标进程 `APPDIR`，但访问图标时优先使用 `/proc/<pid>/root${APPDIR}`，让路径解析发生在目标进程自己的根与挂载视图中；如果该路径不可用，再回退到原来的 `${APPDIR}`。不匹配具体应用名，不固定 quick-sharun、sharun 或 appimagetool 版本。
 - 核查：新增补丁仅改 `getWindowAppDir()` 的路径解析层，未改变 `.DirIcon` / desktop `Icon` / PNG / XPM 的已验证读取顺序；unified diff 已在仓库外按相同上下文以 `patch --fuzz=0 --dry-run` 检查通过，未新增测试代码或 workflow。最终实机图标显示仍以本次新构建产物为准。
+
+### 2026-09-12：恢复共享 RunImage 子程序图标
+
+- 现象：宿主应用和普通 AppImage 图标正常，但共享 RunImage 内的浏览器子程序曾显示为空白图标。
+- 根因：共享 RunImage 中子程序可能继承启动器的 `APPDIR` / `APPIMAGE`，不能把该环境变量当作当前窗口程序自身目录；前一层 AppImage 回退因此无法定位子程序自己的内置图标。
+- 修改文件：新增 `patches/runimage-program-icons.patch`，并修改 `apply-icon-patch.sh`；既有 `desktop-icons.patch`、`appimage-icons.patch`、`appimage-mount-namespace.patch` 和字体补丁均未改动。
+- 修复内容：仅当目标窗口进程明确存在 `RUNIMAGE` 时，通过 `/proc/<pid>/root` 与目标进程实际可执行文件目录寻找其程序目录中的标准 PNG 图标；不匹配具体应用名称，不改变既有图标来源优先级。
+- 已知结果：新构建产物已由 Linux 实机确认，共享 RunImage 中此前缺失的浏览器窗口图标恢复，其他已正常图标保持正常；该补丁作为独立稳定层保留。
+
+### 2026-09-12：按实际字体宽度修复多行标题换行
+
+- 现象：中文与图标均已正常后，部分中英混排窗口标题在卡片右侧仍会被裁掉，例如末尾英文只显示一部分，而不是继续换到下一行。
+- 根因：现有 `drawMultiLine()` 虽然绘制阶段会逐字符选择 MonoLisa 与备用字体，但换行宽度仍全部用主字体 `XftTextExtentsUtf8()` 估算；中文字形实际由备用字体绘制时，测量宽度与真实绘制宽度不一致，导致断行过晚。
+- 修改文件：新增 `patches/title-wrap.patch`，并修改 `apply-icon-patch.sh`、`README.md`；既有 `font-fallback.patch`、`glyph-layout.patch`、全部图标补丁和 workflow 均保持不变。
+- 修复内容：复用现有逐字体段选择逻辑计算每段真实 `xOff`，将 `drawMultiLine()` 的整段估算、最终行、首次切分和超宽修正四处宽度判断统一改为实际主字体/备用字体组合宽度；保留现有 `0.5` 行距和绘制顺序。
+- 核查：新补丁单独维护，未回写任何已确认补丁；unified diff 格式及 5 个 hunk 已在仓库外以 `patch --fuzz=0 --dry-run` 对等上下文检查通过。正式构建和最终界面效果由本次提交后的现有 GitHub Actions 与新产物确认。

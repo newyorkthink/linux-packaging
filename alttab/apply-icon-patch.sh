@@ -32,3 +32,6 @@ patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/fon
 
 # 字形与排版补充：固定备用字体仍缺字时交给 Fontconfig 按字符匹配宿主字体，并增大多行标题行距。
 patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/glyph-layout.patch"
+
+# 标题换行：按实际主字体/备用字体的像素宽度计算断行，避免中英混排标题被右侧裁掉。
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/title-wrap.patch"
