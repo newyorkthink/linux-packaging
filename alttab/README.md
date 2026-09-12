@@ -32,6 +32,7 @@
 | `patches/font-fallback.patch` | MonoLisa 主字体缺字时按固定备用字体链逐字符回退 |
 | `patches/glyph-layout.patch` | 固定备用字体仍缺字时由 Fontconfig 动态匹配，并将多行标题行距调整为 `0.5` |
 | `patches/title-wrap.patch` | 按实际参与绘制的字体像素宽度计算标题断行 |
+| `patches/navigation-keys.patch` | 增加横向辅助导航：`Left` / `h` 上一个，`Right` / `l` 下一个 |
 
 ## 打包方式
 
@@ -63,6 +64,8 @@
 # 使用 MonoLisa 12 作为主字体启动 AltTab。
 ./alttab -d 2 -mk Control_L -b 1 -i 256x64 -t 256x256 -p center -bg "#07001D" -fg "#ec47ff" -frame "#52EFFF" -font "xft:MonoLisa-12"
 ```
+
+横向窗口切换额外支持 `Left` / `h` 选择上一个窗口、`Right` / `l` 选择下一个窗口；仍需按住主修饰键。原有 `Tab` / `Shift+Tab` 以及 `-pk` / `-nk` 自定义键保持不变，`j` / `k` 不额外占用。
 
 ## 图标兼容
 
@@ -131,3 +134,11 @@
 - 修改文件：`README.md`。
 - 修复内容：整理最终技术说明、独立 patch 对应关系、稳定基线和已确认结果，不改任何已验证源码补丁、构建脚本或 workflow。
 - 已知结果：正式 `Build AltTab` 构建成功；Linux 实机最终截图确认宿主 / AppImage / 共享 RunImage 图标正常，MonoLisa + 中文字体回退正常，中英混排长标题换行正常。本轮图标与字体兼容工作结束。
+
+### 2026-09-12：补充横向键盘导航
+
+- 现象：横向 AltTab 需要同时支持方向键和 Vim 风格 `h` / `l` 左右移动；上游 `-pk` / `-nk` 每个方向只能配置一个 keysym，无法仅靠启动参数同时绑定两组键。
+- 根因：辅助上一个 / 下一个窗口逻辑只识别各一个可配置 KeyCode，UI 显示期间也只抓取这两个辅助键。
+- 修改文件：新增 `patches/navigation-keys.patch`，并修改 `apply-icon-patch.sh`、`README.md`；既有图标、字体、字形和标题换行 patch 均保持不变。
+- 修复内容：保留原 `-pk` / `-nk` 行为，额外将 `Left` / `h` 映射为上一个窗口、`Right` / `l` 映射为下一个窗口；抓键时跳过重复 KeyCode，避免与用户自定义辅助键重复。
+- 已知结果：补丁格式和上游当前稳定版相关源码上下文已完成静态核对；正式构建由现有 `Build AltTab` Job 确认，实际按键行为以新产物实机使用为准。

@@ -1,0 +1,67 @@
+--- a/src/alttab.c
++++ b/src/alttab.c
+@@ -21,6 +21,7 @@
+ #include <X11/Xlib.h>
+ #include <X11/Xutil.h>
+ #include <X11/Xresource.h>
++#include <X11/keysym.h>
+ #include <X11/Xft/Xft.h>
+ #include <stdbool.h>
+ #include <stdio.h>
+@@ -42,10 +43,14 @@
+ //
+ static int isPrevNextKey(unsigned int keycode)
+ {
+-    if (keycode == g.option_prevCode) {
++    if (keycode == g.option_prevCode
++        || keycode == XKeysymToKeycode(dpy, XK_Left)
++        || keycode == XKeysymToKeycode(dpy, XK_h)) {
+         return 1;
+     }
+-    if (keycode == g.option_nextCode) {
++    if (keycode == g.option_nextCode
++        || keycode == XKeysymToKeycode(dpy, XK_Right)
++        || keycode == XKeysymToKeycode(dpy, XK_l)) {
+         return 2;
+     }
+     // if here then is neither
+--- a/src/gui.c
++++ b/src/gui.c
+@@ -21,6 +21,7 @@
+ #include <X11/Xlib.h>
+ #include <X11/Xutil.h>
+ #include <X11/Xft/Xft.h>
++#include <X11/keysym.h>
+ #include <stdbool.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -35,10 +36,14 @@
+ {
+     char *grabhint =
+         "Error while (un)grabbing key 0x%x with mask 0x%x/0x%x.\n";
+-#define nkeys 4
++#define nkeys 8
+     KeyCode key[nkeys] = {
+         g.option_prevCode,
+         g.option_nextCode,
++        XKeysymToKeycode(dpy, XK_Left),
++        XKeysymToKeycode(dpy, XK_h),
++        XKeysymToKeycode(dpy, XK_Right),
++        XKeysymToKeycode(dpy, XK_l),
+         g.option_cancelCode,
+         g.option_killCode
+     };
+@@ -46,6 +51,13 @@
+ 
+     for (k = 0; k < nkeys; k++) {
+         if (key[k] != 0) {
++            int j;
++            for (j = 0; j < k; j++) {
++                if (key[j] == key[k])
++                    break;
++            }
++            if (j < k)
++                continue;
+             if (!changeKeygrab
+                 (root, grabUngrab, key[k], g.option_modMask,
+                  g.ignored_modmask)) {
