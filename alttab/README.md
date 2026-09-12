@@ -174,3 +174,11 @@ sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_altt
 - 修改文件：`patches/glyph-layout.patch`、`README.md`。
 - 修复内容：仅校正 hunk header 的旧/新行数，不改变动态字形回退、`0.5` 行距、图标逻辑、补丁应用顺序或 workflow。
 - 核查：已重新逐个统计所有 hunk 的旧/新行数，并用 `patch --fuzz=0 --dry-run` 对修正后的补丁格式完成静态检查；正式构建由本次 push 继续确认。
+
+### 2026-09-12：移除重复的 gui.c 二次补丁
+
+- 现象：修正 `glyph-layout.patch` 的格式后，正式构建中 `util.c` 的 3 个 hunk 和 `util.h` hunk 均成功应用，但 `src/gui.c` 的唯一 hunk 仍因上下文不匹配失败。
+- 根因：`font-fallback.patch` 已先修改 `uiShow()` 的字体释放区域，`glyph-layout.patch` 随后再次对同一段 `gui.c` 做严格 `fuzz=0` 二次补丁，没有必要且容易产生上下文冲突。
+- 修改文件：`patches/glyph-layout.patch`、`README.md`。
+- 修复内容：移除 `glyph-layout.patch` 对 `gui.c` 和 `util.h` 的清理函数改动，只保留已在真实 Actions 中成功应用的 `util.c` 动态字形回退和 `0.5` 行距；动态备用字体改为进程生命周期内最多缓存 256 个字形对应字体，避免每次窗口切换重复打开字体。MonoLisa、固定备用字体顺序、图标逻辑、补丁应用顺序和 workflow 均不变。
+- 核查：最新失败日志已确认剩余失败点只在 `gui.c`，而 `util.c` / `util.h` 相关 hunk 已成功；本次同时重新核对 `glyph-layout.patch` 各 hunk 的旧/新行数一致性，未新增测试代码或 workflow。

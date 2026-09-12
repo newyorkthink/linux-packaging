@@ -1,19 +1,7 @@
-diff --git a/src/gui.c b/src/gui.c
---- a/src/gui.c
-+++ b/src/gui.c
-@@ -661,7 +661,8 @@ int uiShow(bool direction)
-     for (int i = 0; i < LABEL_FALLBACK_COUNT; i++) {
-         if (fontLabelFallbacks[i])
-             XftFontClose(dpy, fontLabelFallbacks[i]);
-     }
-+    closeDynamicFallbackFonts();
- 
- // prepare our window
-     unsigned long valuemask = CWBackPixel | CWBorderPixel | CWOverrideRedirect;
 diff --git a/src/util.c b/src/util.c
 --- a/src/util.c
 +++ b/src/util.c
-@@ -431,6 +431,53 @@ static int decodeUtf8Char(const unsigned char *text, int len, FcChar32 *codepoi
+@@ -431,6 +431,44 @@ static int decodeUtf8Char(const unsigned char *text, int len, FcChar32 *codepoi
      return 1;
  }
  
@@ -55,19 +43,10 @@ diff --git a/src/util.c b/src/util.c
 +    return matched;
 +}
 +
-+void closeDynamicFallbackFonts(void)
-+{
-+    for (int i = 0; i < dynamicFallbackCacheCount; i++) {
-+        if (dynamicFallbackCache[i].font)
-+            XftFontClose(dpy, dynamicFallbackCache[i].font);
-+    }
-+    dynamicFallbackCacheCount = 0;
-+}
-+
  // 主字体缺少某个 UTF-8 字符时，才为该字符选择备用字体。
  static XftFont *fontForUtf8Char(XftFont *font, XftFont **fallback_fonts,
                                  int fallback_count,
-@@ -452,6 +497,10 @@ static XftFont *fontForUtf8Char(XftFont *font, XftFont **fallback_fonts,
+@@ -452,6 +488,10 @@ static XftFont *fontForUtf8Char(XftFont *font, XftFont **fallback_fonts,
              && XftCharExists(dpy, fallback_fonts[i], codepoint))
              return fallback_fonts[i];
      }
@@ -78,7 +57,7 @@ diff --git a/src/util.c b/src/util.c
      return font;
  }
  
-@@ -522,6 +571,6 @@ int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
+@@ -522,6 +562,6 @@ int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
      int line_new_ulen;
      unsigned int x, y;          // current upper left corner at which XftDrawStringUtf8 will draw
 -    float line_interval = 0.3;
@@ -86,14 +65,3 @@ diff --git a/src/util.c b/src/util.c
      int line_spacing_px;
      bool finish_after_draw = false;
  
-diff --git a/src/util.h b/src/util.h
---- a/src/util.h
-+++ b/src/util.h
-@@ -85,6 +85,7 @@ int pixmapFit(Drawable src, Pixmap src_mask, Drawable dst, unsigned int srcW,
- 
- size_t utf8len(char *s);
- char *utf8index(char *s, size_t pos);
-+void closeDynamicFallbackFonts(void);
- 
- int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
-                   int fallback_count, XftColor * xftcolor, char *str,
