@@ -8,23 +8,24 @@
 
 ## 最终状态
 
-截至 2026-09-12，图标、字体和标题排版相关问题均已完成处理并作为稳定基线保留：
+截至 2026-09-12，图标、字体、标题排版和横向导航相关修改已完成收口：
 
 - 宿主 XDG desktop / 图标主题映射正常，PNG / XPM 图标能够正确读取。
 - 直接运行的 AppImage 可以从目标进程 `APPDIR`、`.DirIcon` 和 desktop `Icon` 回退读取内嵌图标，并兼容目标进程挂载命名空间。
 - 共享 RunImage 中的子程序可以按目标进程实际可执行文件位置读取自身 PNG 图标；Firefox、Zen Browser 等此前缺失的窗口图标已由 Linux 实机确认恢复。
 - `-font "xft:MonoLisa-12"` 继续使用 MonoLisa 作为主字体；中文、常用 Unicode 符号和可用私有区字形按备用字体链自动回退。
 - 多行标题行距已调整，标题换行按主字体和备用字体实际像素宽度计算；Typora、Zen Browser 等中英混排长标题已由 Linux 实机确认能够正常换行，不再从卡片右侧被裁掉。
-- 提交 `9b5742174ceec23cf096f3c53a2034b1096d4354` 对应的正式 `Build AltTab` 已成功完成，随后实际界面同时确认图标、中文字体回退和标题换行均正常。
+- 横向导航增加 `Left` / `h` 上一个、`Right` / `l` 下一个；上游默认 `k` kill key 已取消，显式 `-dk <keysym>` 仍可重新指定。
+- 图标、字体和标题排版已完成 Linux 实机确认；包含横向导航与禁用默认 `k` 的最终源码树已由正式 `Build AltTab`（run `34674835800`，attempt 2）成功构建。
 
-以后新增兼容修复必须继续遵循“一类问题一个独立 patch”的结构；已经实机确认有效的 patch 不回写、不合并、不重写。
+以后新增兼容修复必须继续遵循“一类问题一个独立 patch”的结构；已经确认有效的 patch 不回写、不合并、不重写。若后续出现新的键盘行为问题，只新增对应独立 patch，不触碰现有图标、字体和标题排版基线。
 
 ## 文件结构
 
 | 文件 | 用途 |
 | --- | --- |
 | `build_alttab.sh` | 获取上游最新稳定 Release、安装依赖、应用补丁、编译并调用 quick-sharun 打包 |
-| `apply-icon-patch.sh` | 按固定顺序向本次上游源码应用各独立兼容补丁 |
+| `apply-icon-patch.sh` | 历史文件名；当前实际按固定顺序应用全部独立兼容 patch |
 | `patches/desktop-icons.patch` | 宿主 XDG desktop / 图标主题映射、PNG 尺寸及透明背景处理 |
 | `patches/appimage-icons.patch` | 直接运行 AppImage 的 `APPDIR`、`.DirIcon`、desktop `Icon` 回退 |
 | `patches/appimage-mount-namespace.patch` | 通过 `/proc/<pid>/root` 访问目标 AppImage 自身挂载视图 |
@@ -99,8 +100,10 @@
 - `font-fallback.patch`：MonoLisa 主字体与固定备用字体链。
 - `glyph-layout.patch`：Fontconfig 动态字形回退与 `0.5` 行距。
 - `title-wrap.patch`：按实际字体像素宽度计算标题换行。
+- `navigation-keys.patch`：横向 `Left` / `h`、`Right` / `l` 导航。
+- `disable-default-kill-key.patch`：取消默认 `k` kill key，保留显式 `-dk` 自定义能力。
 
-维护时只允许为新的独立问题新增对应 patch，禁止为了“整理”或“优化”重新改写已验证 patch。补丁路径和应用顺序统一由 `apply-icon-patch.sh` 管理；不得把兼容逻辑重新塞回 `build_alttab.sh`，也不得为验证加入 test workflow、smoke Job 或运行时测试代码。
+其中图标、字体和标题排版相关 patch 已完成 Linux 实机确认；键盘导航与默认 kill key 调整已完成正式构建。维护时只允许为新的独立问题新增对应 patch，禁止为了“整理”或“优化”重新改写已验证 patch。补丁路径和应用顺序统一由 `apply-icon-patch.sh` 管理；不得把兼容逻辑重新塞回 `build_alttab.sh`，也不得为验证加入 test workflow、smoke Job 或运行时测试代码。
 
 ## 修复记录
 
@@ -142,7 +145,7 @@
 - 根因：辅助上一个 / 下一个窗口逻辑只识别各一个可配置 KeyCode，UI 显示期间也只抓取这两个辅助键。
 - 修改文件：新增 `patches/navigation-keys.patch`，并修改 `apply-icon-patch.sh`、`README.md`；既有图标、字体、字形和标题换行 patch 均保持不变。
 - 修复内容：保留原 `-pk` / `-nk` 行为，额外将 `Left` / `h` 映射为上一个窗口、`Right` / `l` 映射为下一个窗口；抓键时跳过重复 KeyCode，避免与用户自定义辅助键重复。
-- 已知结果：补丁格式和上游当前稳定版相关源码上下文已完成静态核对；正式构建由现有 `Build AltTab` Job 确认，实际按键行为以新产物实机使用为准。
+- 已知结果：最终源码树已由正式 `Build AltTab`（run `34674835800`，attempt 2）成功构建；运行时键位行为继续以实际使用反馈为准。
 
 ### 2026-09-12：禁用默认 `k` 关闭窗口
 
@@ -150,4 +153,4 @@
 - 根因：上游默认定义 `DEFKILLKS` 为 `XK_k`，主事件循环在按住主修饰键时会把该键交给 `uiKillWindow()`，因此 `k` 并非未占用，而是默认 kill key。
 - 修改文件：新增 `patches/disable-default-kill-key.patch`，并修改 `apply-icon-patch.sh`、`README.md`；既有图标、字体、字形、标题换行与横向导航 patch 均保持不变。
 - 修复内容：仅将默认 kill keysym 从 `XK_k` 改为 `XK_VoidSymbol`，使默认 `k` 不再关闭选中窗口；原有 `-dk <keysym>` 参数保留，需要 kill key 时仍可显式指定。
-- 已知结果：根因已由上游源码和真实运行反馈确认；新补丁只改变默认 kill key，不改变图标、字体、换行或 `h` / `l`、Left / Right 导航逻辑。正式构建和新产物实际按键行为仍由现有 `Build AltTab` Job 与后续实机使用确认。
+- 已知结果：根因已由上游源码和真实运行反馈确认；包含该补丁的最终源码树已由正式 `Build AltTab`（run `34674835800`，attempt 2）成功构建。新补丁只改变默认 kill key，不改变图标、字体、换行或 `h` / `l`、Left / Right 导航逻辑。
