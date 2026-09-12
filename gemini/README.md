@@ -124,3 +124,11 @@ dist/gemini.AppImage
 - 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`、`.github/workflows/build.yml`。
 - 处理：改为直接查询 Google Omaha `prod` channel，动态取得并校验完整 x64 NSIS 包；提取官方 Electron 产品层，动态确定 Electron 精确版本，搭配同版本官方 Linux x64 runtime 后由 quick-sharun 封装。
 - 边界：Windows launcher / DLL / Windows 原生 Node 模块不作为 Linux runtime 使用；发现 Windows PE `.node` 时构建主动停止。首次正式构建及真实 Linux 功能兼容结果以对应 Actions 与实际产物为准。
+
+### 2026-09-12：修复官方 ICO 中异常 DIB 导致的构建失败
+
+- 现象：首次正式 Actions 已成功完成 Google Omaha 查询、108.8 MB 官方 NSIS 下载与 SHA-256 校验、产品层解包、Electron 44.2.0 识别以及对应 Linux x64 runtime 下载校验，但在应用图标阶段由 `icotool` 报 `incorrect total size of bitmap` 并退出。
+- 根因：`Gemini.exe` 的官方 ICO 资源中存在一个 DIB bitmap 条目，其声明大小与实际数据不一致；`icotool -x` 会因为该单个异常条目终止整个 ICO 解包。该错误与 Gemini NSIS、`app.asar` 或 Electron runtime 无关。
+- 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
+- 修复：继续使用 `wrestool` 从官方 `Gemini.exe` 提取 ICO，但不再让 `icotool` 解码全部 bitmap；改为使用 Python 标准库读取 ICO 目录并直接选择官方内嵌的最大 PNG 帧，原始 PNG 字节不做重编码。
+- 已知结果：首次 Actions 已确认上游完整包与 Electron 44.2.0 runtime 解析链正确；本次修复只替换失败的图标解码步骤，不改 Omaha、产品层、Electron 或 quick-sharun 路径。
