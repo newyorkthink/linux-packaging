@@ -27,6 +27,15 @@
 - 最终 AppImage 在 Xvfb + D-Bus + GNOME Keyring 环境中实际执行，检查 `gnome_libsecret`、`safeStorage` 加密/解密往返以及中文 locale。
 - GitHub Actions smoke test 会临时隐藏 Runner 的系统 `libsecret-1.so.0`，确保最终 AppImage 确实能够使用自身内置副本；trap 会在退出时恢复 Runner 文件。本机手动构建不会执行这一步系统库移动。
 
+## 当前稳定基线（2026-09-12）
+
+- 稳定修复提交：`f13c6ffe2b75e21b572fa33a3fbcbbfa125fe0b7`（`fix(hermes-desktop): adapt patches to upstream desktop changes`）。
+- 对应 GitHub Actions Run：`34662458787`，其中 `Build Hermes Desktop` 已成功完成并把 `hermes-desktop.AppImage` 上传到 `latest` Release。
+- CI 对最终 AppImage 的实际运行结果为：检测到 `gnome-libsecret`，`safeStorage encryptionAvailable=true`，加密/解密往返 `roundTrip=true`，中文 locale 为 `zh-CN`；该次产物 SHA-256 为 `bc73db99007f769cd7b13263c3cd22329c30c98b52078047214955c45fffacce`。
+- Linux 实机验证已确认最终 AppImage 能直接启动图形界面，中文界面正常，会话与对话功能可用。
+- 上游 `v2026.9.11` 已在 Desktop i18n 中原生使用机器 locale 作为未保存语言时的回退；当前补丁不再覆盖这段上游逻辑，只校验其仍存在。Desktop update preload bridge 同时兼容当前带 `opts` 的签名和旧版无参数签名。
+- 当前启动日志中的 Fontconfig cache 版本提示、systemd `UnitExists`、IBus surrounding-text 警告以及 Electron deprecated 提示，在上述成功启动和功能验证中均未造成实际故障；不得仅为消除这些非致命日志改动当前稳定打包链。
+
 ## 构建文件
 
 ```text
