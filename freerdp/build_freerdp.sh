@@ -3,8 +3,10 @@ set -e
 
 cd "$(dirname "$0")"
 
+###### 清理旧构建目录 ######
 rm -rf AppDir || true
 
+###### 准备构建环境 ######
 yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux glycin libheif zsync xorg-server xorg-server-common xorg-server-xvfb
 yay -S --noconfirm wl-clipboard xclip fcitx5-qt egl-wayland libxcb xcb-util xcb-util-keysyms libxss extra-cmake-modules xcb-util-renderutil xcb-util-wm xcb-util-image \
   xcb-util-cursor libxkbcommon libxkbcommon-x11 mesa libglvnd \
@@ -12,6 +14,7 @@ yay -S --noconfirm wl-clipboard xclip fcitx5-qt egl-wayland libxcb xcb-util xcb-
   libxcomposite libxdamage libxfixes libxext libxinerama freetype2 libjpeg-turbo
 yay -S --noconfirm freerdp libdecor alsa-plugins
 
+###### 配置 AppImage 元数据与路径映射 ######
 ARCH="$(uname -m)"
 export ARCH
 
@@ -32,6 +35,7 @@ if (( ${#PROXY_PLUGINS[@]} == 0 )); then
   exit 1
 fi
 
+###### 核心打包 ######
 quick-sharun /usr/bin/freerdp-proxy3 \
                /usr/bin/freerdp-shadow-cli3 \
                /usr/bin/sdl-freerdp3 \
@@ -43,11 +47,12 @@ quick-sharun /usr/bin/freerdp-proxy3 \
                /usr/bin/xfreerdp3 \
                "${PROXY_PLUGINS[@]}"
 
+###### 核对打包所需文件并生成产物 ######
 for plugin in "${PROXY_PLUGINS[@]}"; do
   test -f "AppDir/lib/freerdp/server/proxy/plugins/${plugin##*/}"
 done
 
-test -f AppDir/lib/path-mapping.so
+test -f AppDir/lib/sharun-preload/path-mapping.so
 grep -Fq '/usr/lib/freerdp/server/proxy/plugins:${SHARUN_DIR}/lib/freerdp/server/proxy/plugins' AppDir/.env
 
 quick-sharun --make-appimage
