@@ -77,13 +77,39 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 
 上述确认范围只代表当前 Linux 移植层已经实际运行通过，不代表 Google 官方支持 Linux，也不代表所有 Windows 桌面原生功能已经移植。
 
+
+### 当前基准版与已知非致命问题
+
+当前版本作为 Linux/i3wm 的**稳定基准版**维护，优先保证启动、登录、聊天、中文、Fcitx5 输入和单工作区使用正常，不再为了纯视觉问题继续修改 Google 的主窗口产品逻辑。
+
+已知但当前不处理的问题：
+
+- 首次启动或窗口初始化阶段可能短暂出现白边 / 白色空白区域；
+- i3 平铺模式下可能出现窗口内容区域未立即完全铺满；当前建议使用 floating 规避；
+- 任务切换器 / 窗口级 Gemini 图标可能不完全正确；
+- `helper_ipc`、Crashpad、Fontconfig、Glycin 等已记录日志目前均未影响核心使用。
+
+这些问题当前均视为**非致命、可接受边界**。后续 Google Gemini Desktop 发布新 stable 版本后，再重新观察上游 Electron / BrowserWindow 行为；如果新版本自身已修复或窗口结构发生变化，再基于新版本重新评估，不在当前稳定基线上继续强行补丁。
+
 ### i3wm
 
-实测 Gemini 上游产品层会在窗口创建后主动设置 visible-on-all-workspaces；在 Linux/i3wm 中表现为窗口出现在所有工作区。单纯使用 `for_window [class="gemini"] sticky disable` 只在窗口创建阶段执行一次，随后会被应用自己的再次设置覆盖，因此不作为最终方案。
+当前稳定基线建议在 i3wm 中把 Gemini 设为 **floating + 非 sticky**：
 
-当前构建会在打包阶段对官方 `app.asar` 做最小 Linux 兼容修补：仅将显式的 `setVisibleOnAllWorkspaces(true)` / `setVisibleOnAllWorkspaces(!0)` 改为 `false`。如果上游代码结构变化、无法识别该调用，构建会直接停止，不会猜测性修改其他逻辑。
+```ini
+# Gemini window layout
+for_window [class="^gemini$"] floating enable, sticky disable
+```
 
-修补只影响跨工作区可见性；Gemini 窗口仍保持 `_NET_WM_WINDOW_TYPE_NORMAL`，i3 下默认继续使用正常平铺行为，不会被改成 floating。
+原因：
+
+- Gemini 在 i3 平铺模式下可能出现首次启动白边 / 空白区域、内容区域未立即铺满等窗口适配现象；
+- 改为 floating 后当前实测使用正常，不影响 Gemini 主界面、登录和聊天；
+- `sticky disable` 明确限制窗口只出现在当前工作区，不在多个工作区重复显示；
+- 该 i3 规则按 `WM_CLASS="gemini"` 匹配，与具体 Gemini 应用版本无关，后续更新 AppImage 通常无需修改。
+
+构建侧仍保留 all-workspaces 的最小 Linux 兼容修补：仅将上游显式的 `setVisibleOnAllWorkspaces(true)` / `setVisibleOnAllWorkspaces(!0)` 改为 `false`。如果 Google 后续版本修改了这段产品层结构、脚本无法可靠识别，构建会停止，不会猜测性修改。
+
+当前不再对主 `BrowserWindow` 强行注入背景色、尺寸、窗口图标或其他窗口属性，避免再次破坏上游 resize / 内容自适应行为。
 
 ## Windows 专用能力边界
 
@@ -198,8 +224,10 @@ dist/gemini.AppImage
 - 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
 - 修复：构建时解包当前官方 `app.asar`，只把显式的 `setVisibleOnAllWorkspaces(true/!0)` 改为 `false` 后重新打包；若当前上游找不到该模式则停止构建，避免误改其他产品逻辑。窗口仍保持普通 i3 平铺窗口。
 
-### 2026-09-12：撤回 BrowserWindow 背景 / 窗口图标补丁
+### 2026-09-12：确定最终 Linux / i3wm 基准版
 
-- 现象：显式给 Linux 主 `BrowserWindow` 注入背景色和窗口图标后，窗口虽然能启动，但真实 i3wm 使用中出现主内容区域不能随平铺窗口自动放大的回归，同时任务切换器图标仍未按预期显示。
-- 处理：撤回该组 `BrowserWindow` 注入和额外窗口图标资源，只保留已经确认有效的中文环境、Fcitx5 与 all-workspaces 修复，恢复 Google 上游原本的窗口 resize / 内容自适应逻辑。
-- 当前边界：首次启动的短暂白底和任务切换器窗口图标暂不继续强行修补；它们不影响 Gemini 主界面、登录、聊天和 i3 正常平铺。
+- 正式 Actions #401 已成功构建撤回 BrowserWindow 注入后的版本，恢复 Google 上游窗口 resize / 内容自适应逻辑。
+- 当前保留：动态上游版本解析、官方 Electron runtime、Fcitx5、简体中文环境、all-workspaces 最小修补。
+- 当前不再处理：首次启动白边 / 白色空白、任务切换器窗口图标、仅影响视觉或终端日志但不影响核心使用的问题。
+- i3wm 最终推荐规则为 `for_window [class="^gemini$"] floating enable, sticky disable`；floating 用于规避当前平铺窗口适配问题，`sticky disable` 确保 Gemini 只存在于当前工作区。
+- 后续策略：每次 Google Gemini Desktop stable 更新仍由构建脚本动态获取；新版本发布后重新观察这些已知问题是否由上游修复，再决定是否调整兼容层。当前版本作为后续排查和升级对比的稳定基线。
