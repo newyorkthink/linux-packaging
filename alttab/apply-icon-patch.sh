@@ -21,5 +21,8 @@ patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/des
 # 泛化回退：宿主图标查找失败时，从目标窗口所属 AppImage 的运行时 APPDIR 读取内嵌图标，不匹配具体应用名称。
 patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/appimage-icons.patch"
 
-# 字体回退：主字体缺少中文字形时使用 WenQuanYi Zen Hei Mono，不改动已有图标补丁及其应用顺序。
+# 字体回退：保留 MonoLisa 主字体，主字体缺字时依次尝试中文、通用符号和 Nerd Font 备用字体。
 patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/font-fallback.patch"
+
+# 字形与排版补充：固定备用字体仍缺字时交给 Fontconfig 按字符匹配宿主字体，并增大多行标题行距。
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/glyph-layout.patch"

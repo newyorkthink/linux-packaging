@@ -1,0 +1,99 @@
+diff --git a/src/gui.c b/src/gui.c
+--- a/src/gui.c
++++ b/src/gui.c
+@@ -661,6 +661,7 @@ int uiShow(bool direction)
+     for (int i = 0; i < LABEL_FALLBACK_COUNT; i++) {
+         if (fontLabelFallbacks[i])
+             XftFontClose(dpy, fontLabelFallbacks[i]);
+     }
++    closeDynamicFallbackFonts();
+ 
+ // prepare our window
+     unsigned long valuemask = CWBackPixel | CWBorderPixel | CWOverrideRedirect;
+diff --git a/src/util.c b/src/util.c
+--- a/src/util.c
++++ b/src/util.c
+@@ -431,6 +431,51 @@ static int decodeUtf8Char(const unsigned char *text, int len, FcChar32 *codepoi
+     return 1;
+ }
+ 
++#define DYNAMIC_FALLBACK_CACHE_MAX 256
++
++typedef struct {
++    FcChar32 codepoint;
++    XftFont *font;
++} DynamicFallbackEntry;
++
++static DynamicFallbackEntry dynamicFallbackCache[DYNAMIC_FALLBACK_CACHE_MAX];
++static int dynamicFallbackCacheCount;
++
++// 固定备用字体仍缺字时，让 Fontconfig 按目标 Unicode 字符自动挑选宿主已安装字体。
++static XftFont *dynamicFallbackForCodepoint(XftFont *font, FcChar32 codepoint)
++{
++    for (int i = 0; i < dynamicFallbackCacheCount; i++) {
++        if (dynamicFallbackCache[i].codepoint == codepoint)
++            return dynamicFallbackCache[i].font;
++    }
++
++    if (dynamicFallbackCacheCount >= DYNAMIC_FALLBACK_CACHE_MAX)
++        return NULL;
++
++    char pattern[128];
++    int pixelsize = font && font->height > 0 ? font->height : 12;
++    snprintf(pattern, sizeof(pattern), ":pixelsize=%d:charset=%x",
++             pixelsize, codepoint);
++
++    XftFont *matched = XftFontOpenName(dpy, scr, pattern);
++    if (matched && !XftCharExists(dpy, matched, codepoint)) {
++        XftFontClose(dpy, matched);
++        matched = NULL;
++    }
++
++    dynamicFallbackCache[dynamicFallbackCacheCount].codepoint = codepoint;
++    dynamicFallbackCache[dynamicFallbackCacheCount].font = matched;
++    dynamicFallbackCacheCount++;
++    return matched;
++}
++
++void closeDynamicFallbackFonts(void)
++{
++    for (int i = 0; i < dynamicFallbackCacheCount; i++) {
++        if (dynamicFallbackCache[i].font)
++            XftFontClose(dpy, dynamicFallbackCache[i].font);
++    }
++    dynamicFallbackCacheCount = 0;
++}
++
+ // 主字体缺少某个 UTF-8 字符时，才为该字符选择备用字体。
+ static XftFont *fontForUtf8Char(XftFont *font, XftFont **fallback_fonts,
+                                 int fallback_count,
+@@ -452,6 +497,10 @@ static XftFont *fontForUtf8Char(XftFont *font, XftFont **fallback_fonts,
+             && XftCharExists(dpy, fallback_fonts[i], codepoint))
+             return fallback_fonts[i];
+     }
++    XftFont *dynamic_font = dynamicFallbackForCodepoint(font, codepoint);
++    if (dynamic_font)
++        return dynamic_font;
++
+     return font;
+ }
+ 
+@@ -522,7 +571,7 @@ int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
+     int line_new_ulen;
+     unsigned int x, y;          // current upper left corner at which XftDrawStringUtf8 will draw
+-    float line_interval = 0.3;
++    float line_interval = 0.5;
+     int line_spacing_px;
+     bool finish_after_draw = false;
+ 
+diff --git a/src/util.h b/src/util.h
+--- a/src/util.h
++++ b/src/util.h
+@@ -85,6 +85,7 @@ int pixmapFit(Drawable src, Pixmap src_mask, Drawable dst, unsigned int srcW,
+ 
+ size_t utf8len(char *s);
+ char *utf8index(char *s, size_t pos);
++void closeDynamicFallbackFonts(void);
+ 
+ int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
+                   int fallback_count, XftColor * xftcolor, char *str,

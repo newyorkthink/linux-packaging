@@ -15,6 +15,7 @@
 | `patches/desktop-icons.patch` | 对上游 `src/icon.c` 的宿主 desktop / 图标查找与 PNG 处理修复 |
 | `patches/appimage-icons.patch` | 对上游 `src/win.c` 的运行中 AppImage 内嵌图标回退 |
 | `patches/font-fallback.patch` | 对上游 Xft 文本绘制增加逐字符缺字回退，中文与常用符号分别使用可用备用字体 |
+| `patches/glyph-layout.patch` | 固定备用字体仍缺字时交给 Fontconfig 按字符自动匹配宿主字体，并增大多行标题行距 |
 
 以后修改对应逻辑时维护各自 `.patch` 文件；补丁路径和应用顺序由 `apply-icon-patch.sh` 管理，不再把大段补丁放进构建脚本。
 
@@ -23,7 +24,7 @@
 正式构建使用 `.github/workflows/build.yml` 的 AltTab Job，并复用 `.github/actions/build-anylinux`，在 Arch Linux / AnyLinux 构建环境中执行。手动构建入口选择 `alttab/build_alttab.sh`。
 
 1. 从官方 `releases/latest` 获取非草稿、非预发布版本，将 tag 解析为具体 commit SHA，下载该 commit 的源码归档并记录 SHA-256。
-2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch`、`patches/appimage-icons.patch` 和 `patches/font-fallback.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
+2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch`、`patches/appimage-icons.patch`、`patches/font-fallback.patch` 和 `patches/glyph-layout.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
 3. 使用现有 `configure --prefix=/usr` 和 `make` 编译，传入 GLib 的头文件及链接参数。
 4. 生成 desktop 文件，使用上游 `doc/alttab.svg` 作为应用自身图标，将主程序与动态依赖交给 quick-sharun，并保留上游 GPL-3.0 许可证。
 5. 生成 `dist/alttab.AppImage`；公共构建 Action 将其上传至仓库 `latest` Release，资产名固定为 `alttab.AppImage`。
@@ -41,7 +42,7 @@ sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_altt
 ./alttab.AppImage
 ```
 
-字体兼容：`-font` 仍只指定主字体。主字体存在字形时保持使用主字体；缺字时按 `WenQuanYi Zen Hei Mono` → `DejaVu Sans` → `Symbols Nerd Font Mono` → `Symbols Nerd Font` 的顺序逐字符查找实际包含该字形的备用字体，备用字号跟随主字体。这样可继续使用 `xft:MonoLisa-12` 显示英文和数字，同时覆盖中文、常用 Unicode 符号以及系统已安装 Nerd Font 时的私有区图标，不需要改变启动参数格式。
+字体兼容：`-font` 仍只指定主字体。主字体存在字形时保持使用主字体；缺字时先按 `WenQuanYi Zen Hei Mono` → `DejaVu Sans` → `Symbols Nerd Font Mono` → `Symbols Nerd Font` 的顺序逐字符查找备用字体；这些固定备用字体仍缺字时，再让 Fontconfig 根据该 Unicode 字符从宿主已安装字体中自动匹配实际包含字形的字体。备用字号跟随主字体。这样可继续使用 `xft:MonoLisa-12` 显示英文和数字，同时覆盖中文、常用 Unicode 符号和宿主已安装字体提供的私有区图标，不需要改变启动参数格式。多行窗口标题的行距由上游原值 `0.3` 调整为 `0.5`，避免第二行与第一行过于贴近。
 
 保留上游 `icon.source` 的 0～5 全部模式及默认策略，不额外修改窗口自身图标与文件图标之间的上游优先级。文件图标兼容逻辑补充以下处理：
 
@@ -157,3 +158,11 @@ sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_altt
 - 修改文件：`patches/font-fallback.patch`、`README.md`。
 - 修复内容：保留现有 MonoLisa 主字体和中文回退逻辑，在其后增加 `DejaVu Sans`、`Symbols Nerd Font Mono`、`Symbols Nerd Font` 三层备用字体；每个 UTF-8 字符按顺序选择第一个实际包含该字形的字体，不改 `-font` 参数、图标补丁、构建脚本或 workflow。
 - 核查：已按上游 v1.8.0 的相关源码上下文完成 `patch --fuzz=0 --dry-run` 静态核对；最终符号显示效果由新构建产物实机确认。
+
+### 2026-09-12：动态补齐剩余字形并调整多行标题行距
+
+- 现象：中文已经恢复，但终端窗口标题仍有少量方框；较长窗口标题换行后，第二行与第一行过于贴近。
+- 根因：固定备用字体名称无法覆盖宿主实际安装的全部私有区或符号字体；上游多行标题默认行距系数 `0.3` 在当前字号下偏紧。
+- 修改文件：`apply-icon-patch.sh`、`patches/glyph-layout.patch`、`README.md`。
+- 修复内容：保留既有 MonoLisa 与固定备用字体顺序；仅在这些字体都缺少目标字符时，按 `charset=<Unicode>` 让 Fontconfig 自动匹配宿主已安装且实际包含该字形的字体，并缓存本次界面使用的动态备用字体；同时将多行标题行距系数从 `0.3` 调整为 `0.5`。图标逻辑、`-font` 参数和已有构建流程不变。
+- 核查：Fontconfig 官方定义 `charset` 为字体 Unicode 覆盖属性，现有匹配语法支持按 `charset` 限定候选字体；本次未新增测试代码或 workflow。最终界面效果由新构建产物实机确认。
