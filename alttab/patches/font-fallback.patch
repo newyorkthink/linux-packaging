@@ -1,26 +1,31 @@
 diff --git a/src/gui.c b/src/gui.c
 --- a/src/gui.c
 +++ b/src/gui.c
-@@ -42,7 +42,26 @@ static Colormap colormap;
+@@ -42,7 +42,31 @@ static Colormap colormap;
  static Visual *visual;
  //Font fontLabel;  // Xft instead
  static XftFont *fontLabel;
-+static XftFont *fontLabelFallback;
++#define LABEL_FALLBACK_COUNT 4
++static XftFont *fontLabelFallbacks[LABEL_FALLBACK_COUNT];
  static int selNdx;                 // current (selected) item
 +
-+#define LABEL_FALLBACK_FAMILY "WenQuanYi Zen Hei Mono"
++static const char *labelFallbackFamilies[LABEL_FALLBACK_COUNT] = {
++    "WenQuanYi Zen Hei Mono",
++    "DejaVu Sans",
++    "Symbols Nerd Font Mono",
++    "Symbols Nerd Font"
++};
 +
-+// 备用字体沿用常见 Xft 名称中的字号后缀，避免额外引入 Fontconfig 链接依赖。
-+static XftFont *openLabelFallback(void)
++// 按主字体字号依次打开中文、通用符号和 Nerd Font 备用字体。
++static XftFont *openLabelFallback(const char *family)
 +{
 +    char pattern[MAXNAMESZ];
 +    const char *size_suffix = strrchr(g.option_font, '-');
 +
 +    if (size_suffix && size_suffix[1] >= '0' && size_suffix[1] <= '9') {
-+        snprintf(pattern, sizeof(pattern), "%s%s",
-+                 LABEL_FALLBACK_FAMILY, size_suffix);
++        snprintf(pattern, sizeof(pattern), "%s%s", family, size_suffix);
 +    } else {
-+        snprintf(pattern, sizeof(pattern), "%s", LABEL_FALLBACK_FAMILY);
++        snprintf(pattern, sizeof(pattern), "%s", family);
 +    }
 +
 +    return XftFontOpenName(dpy, scr, pattern);
@@ -28,52 +33,57 @@ diff --git a/src/gui.c b/src/gui.c
  
  //
  // allocates GC
-@@ -233,8 +252,8 @@ static void prepareTile(WindowInfo * wi)
+@@ -233,8 +257,9 @@ static void prepareTile(WindowInfo * wi)
          bottH = ext.height;
          bottX = tileW - bottW - 5; // 5 to avoid overlap with frame
          bottY = tileH - bottH - 1;
 -        int dr = drawSingleLine(wi->tile, fontLabel,
 -                 &(g.color[COLFG].xftcolor),
-+        int dr = drawSingleLine(wi->tile, fontLabel, fontLabelFallback,
++        int dr = drawSingleLine(wi->tile, fontLabel,
++                 fontLabelFallbacks, LABEL_FALLBACK_COUNT,
 +                 &(g.color[COLFG].xftcolor),
                   wi->bottom_line,
                   bottX, bottY, bottW, bottH);
          if (dr != 1) {
-@@ -264,7 +283,7 @@ endBottomLine:
+@@ -264,7 +289,8 @@ endBottomLine:
              w = tileW;
              h = tileH - iconH - 5 - bottH;
          }
 -        int dr = drawMultiLine(wi->tile, fontLabel,
-+        int dr = drawMultiLine(wi->tile, fontLabel, fontLabelFallback,
++        int dr = drawMultiLine(wi->tile, fontLabel,
++                               fontLabelFallbacks, LABEL_FALLBACK_COUNT,
                                 &(g.color[COLFG].xftcolor),
                                 wi->name,
                                 x, y, w, h);
-@@ -409,6 +428,12 @@ int startupGUItasks(void)
+@@ -409,6 +435,13 @@ int startupGUItasks(void)
              "can't allocate font: %s\ncheck installed fontconfig fonts: fc-list\n",
              g.option_font);
      }
-+    fontLabelFallback = openLabelFallback();
-+    if (!fontLabelFallback) {
-+        msg(-1,
-+            "can't allocate fallback font: %s\ncheck installed fontconfig fonts: fc-list\n",
-+            LABEL_FALLBACK_FAMILY);
++    for (int i = 0; i < LABEL_FALLBACK_COUNT; i++) {
++        fontLabelFallbacks[i] = openLabelFallback(labelFallbackFamilies[i]);
++        if (!fontLabelFallbacks[i]) {
++            msg(1, "fallback font unavailable: %s\n",
++                labelFallbackFamilies[i]);
++        }
 +    }
  // having colors, GC may be built
  // they are required early for addWindow when transforming icon depth
      msg(0, "early building GCs\n");
-@@ -628,6 +653,8 @@ int uiShow(bool direction)
+@@ -628,6 +661,10 @@ int uiShow(bool direction)
      msg(0, "prepared %d tiles\n", m);
      if (fontLabel)
          XftFontClose(dpy, fontLabel);
-+    if (fontLabelFallback)
-+        XftFontClose(dpy, fontLabelFallback);
++    for (int i = 0; i < LABEL_FALLBACK_COUNT; i++) {
++        if (fontLabelFallbacks[i])
++            XftFontClose(dpy, fontLabelFallbacks[i]);
++    }
  
  // prepare our window
      unsigned long valuemask = CWBackPixel | CWBorderPixel | CWOverrideRedirect;
 diff --git a/src/util.c b/src/util.c
 --- a/src/util.c
 +++ b/src/util.c
-@@ -381,6 +381,117 @@ char *utf8index(char *s, size_t pos)
+@@ -381,6 +381,125 @@ char *utf8index(char *s, size_t pos)
      return NULL;
  }
  
@@ -116,7 +126,8 @@ diff --git a/src/util.c b/src/util.c
 +}
 +
 +// 主字体缺少某个 UTF-8 字符时，才为该字符选择备用字体。
-+static XftFont *fontForUtf8Char(XftFont *font, XftFont *fallback_font,
++static XftFont *fontForUtf8Char(XftFont *font, XftFont **fallback_fonts,
++                                int fallback_count,
 +                                const unsigned char *text, int len,
 +                                int *char_len)
 +{
@@ -131,13 +142,17 @@ diff --git a/src/util.c b/src/util.c
 +    *char_len = consumed;
 +    if (font && XftCharExists(dpy, font, codepoint))
 +        return font;
-+    if (fallback_font && XftCharExists(dpy, fallback_font, codepoint))
-+        return fallback_font;
++    for (int i = 0; i < fallback_count; i++) {
++        if (fallback_fonts && fallback_fonts[i]
++            && XftCharExists(dpy, fallback_fonts[i], codepoint))
++            return fallback_fonts[i];
++    }
 +    return font;
 +}
 +
 +// 计算连续使用同一字体的一段 UTF-8 字节长度，避免逐字绘制英文。
-+static int fontRunLength(XftFont *font, XftFont *fallback_font,
++static int fontRunLength(XftFont *font, XftFont **fallback_fonts,
++                         int fallback_count,
 +                         const unsigned char *text, int len,
 +                         XftFont **run_font)
 +{
@@ -148,12 +163,14 @@ diff --git a/src/util.c b/src/util.c
 +    if (len <= 0)
 +        return 0;
 +
-+    selected = fontForUtf8Char(font, fallback_font, text, len, &char_len);
++    selected = fontForUtf8Char(font, fallback_fonts, fallback_count,
++                               text, len, &char_len);
 +    *run_font = selected;
 +    run_len = char_len;
 +    while (run_len < len) {
 +        int next_len;
-+        XftFont *next = fontForUtf8Char(font, fallback_font,
++        XftFont *next = fontForUtf8Char(font, fallback_fonts,
++                                        fallback_count,
 +                                        text + run_len, len - run_len,
 +                                        &next_len);
 +        if (next != selected)
@@ -165,7 +182,8 @@ diff --git a/src/util.c b/src/util.c
 +
 +// 按连续字体段绘制文本；已有字形继续使用主字体，缺失字形才回退。
 +static void drawStringUtf8Fallback(XftDraw *draw, XftColor *color,
-+                                   XftFont *font, XftFont *fallback_font,
++                                   XftFont *font, XftFont **fallback_fonts,
++                                   int fallback_count,
 +                                   const unsigned char *text, int len,
 +                                   int x, int y)
 +{
@@ -174,7 +192,7 @@ diff --git a/src/util.c b/src/util.c
 +
 +    while (offset < len) {
 +        XftFont *run_font;
-+        int run_len = fontRunLength(font, fallback_font,
++        int run_len = fontRunLength(font, fallback_fonts, fallback_count,
 +                                    text + offset, len - offset, &run_font);
 +        if (run_len <= 0 || !run_font)
 +            break;
@@ -191,51 +209,56 @@ diff --git a/src/util.c b/src/util.c
  //
  // Draw utf-8 string str on window/pixmap d,
  // using *font and *xrcolor,
-@@ -388,6 +499,6 @@ char *utf8index(char *s, size_t pos)
+@@ -388,6 +507,7 @@ char *utf8index(char *s, size_t pos)
  // Return 1 if ok.
  //
 -int drawMultiLine(Drawable d, XftFont * font,
-+int drawMultiLine(Drawable d, XftFont * font, XftFont * fallback_font,
-                   XftColor * xftcolor, char *str, unsigned int x1,
+-                  XftColor * xftcolor, char *str, unsigned int x1,
++int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
++                  int fallback_count, XftColor * xftcolor, char *str,
++                  unsigned int x1,
                    unsigned int y1, unsigned int width, unsigned int height)
  {
-@@ -469,8 +580,9 @@ int drawMultiLine(Drawable d, XftFont * font,
+@@ -469,8 +589,10 @@ int drawMultiLine(Drawable d, XftFont * font,
              break;
          }
          x += (width - ext.width) / 2;   // center
 -        XftDrawStringUtf8(xftdraw, xftcolor, font, x + ext.x, y + ext.y,
 -                          (unsigned char *)line, line_clen);
-+        drawStringUtf8Fallback(xftdraw, xftcolor, font, fallback_font,
++        drawStringUtf8Fallback(xftdraw, xftcolor, font, fallback_fonts,
++                               fallback_count,
 +                               (unsigned char *)line, line_clen,
 +                               x + ext.x, y + ext.y);
          if (debug > 0) {
              GC gc = DefaultGC(dpy, scr);
              XSetForeground(dpy, gc, WhitePixel(dpy, scr));
-@@ -527,7 +639,8 @@ int drawMultiLine_test(void)
+@@ -527,7 +649,8 @@ int drawMultiLine_test(void)
      GC gc = DefaultGC(dpy, 0);
      XSetForeground(dpy, gc, WhitePixel(dpy, 0));
      XDrawRectangle(dpy, win, gc, 100, 100, 500, 400);
 -    int r = drawMultiLine(win, font, &xftcolor, line, 100, 100, 500, 400);
-+    int r = drawMultiLine(win, font, NULL, &xftcolor,
-+                          line, 100, 100, 500, 400);
++    int r = drawMultiLine(win, font, NULL, 0, &xftcolor, line,
++                          100, 100, 500, 400);
  
      XFlush(dpy);
      sleep(2);
-@@ -543,6 +656,6 @@ int drawMultiLine_test(void)
+@@ -543,6 +666,7 @@ int drawMultiLine_test(void)
  // Return 1 if ok.
  //
 -int drawSingleLine(Drawable d, XftFont * font,
-+int drawSingleLine(Drawable d, XftFont * font, XftFont * fallback_font,
-             XftColor * xftcolor, char *str, unsigned int x1,
+-            XftColor * xftcolor, char *str, unsigned int x1,
++int drawSingleLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
++            int fallback_count, XftColor * xftcolor, char *str,
++            unsigned int x1,
              unsigned int y1, unsigned int width, unsigned int height)
  {
-@@ -556,7 +669,8 @@ int drawSingleLine(Drawable d, XftFont * font,
+@@ -556,7 +680,8 @@ int drawSingleLine(Drawable d, XftFont * font,
              DefaultColormap(dpy, scr));
      line_clen = strlen(str);
 -    XftDrawStringUtf8(xftdraw, xftcolor, font, x1, y1+height,
 -            (unsigned char *)str, line_clen);
-+    drawStringUtf8Fallback(xftdraw, xftcolor, font, fallback_font,
-+                           (unsigned char *)str, line_clen,
++    drawStringUtf8Fallback(xftdraw, xftcolor, font, fallback_fonts,
++                           fallback_count, (unsigned char *)str, line_clen,
 +                           x1, y1 + height);
      if (debug > 0) {
          GC gc = DefaultGC(dpy, scr);
@@ -243,17 +266,17 @@ diff --git a/src/util.c b/src/util.c
 diff --git a/src/util.h b/src/util.h
 --- a/src/util.h
 +++ b/src/util.h
-@@ -85,10 +85,12 @@ size_t utf8len(char *s);
+@@ -85,9 +85,11 @@ size_t utf8len(char *s);
  char *utf8index(char *s, size_t pos);
  
 -int drawMultiLine(Drawable d, XftFont * font, XftColor * xftcolor, char *str,
-+int drawMultiLine(Drawable d, XftFont * font, XftFont * fallback_font,
-+                  XftColor * xftcolor, char *str,
++int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
++                  int fallback_count, XftColor * xftcolor, char *str,
                    unsigned int x1, unsigned int y1, unsigned int width,
                    unsigned int height);
  int drawMultiLine_test(void);
 -int drawSingleLine(Drawable d, XftFont * font, XftColor * xftcolor, char *str,
-+int drawSingleLine(Drawable d, XftFont * font, XftFont * fallback_font,
-+                  XftColor * xftcolor, char *str,
++int drawSingleLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
++                  int fallback_count, XftColor * xftcolor, char *str,
                    unsigned int x1, unsigned int y1, unsigned int width,
                    unsigned int height);
