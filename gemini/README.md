@@ -64,6 +64,37 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 
 构建脚本不固定 `quick-sharun`、sharun 或其他 AppImage 打包工具版本，继续使用统一 AnyLinux 构建环境当前提供的工具链。
 
+## 已验证的 Linux 使用结果
+
+2026-09-12 的正式构建与真实 Linux 使用已经确认：
+
+- AppImage 可以正常启动并创建 Gemini 主窗口；
+- Google 账号可以正常登录，Gemini Web 主界面可以正常加载与使用；
+- Electron 本地 Settings 界面可固定为简体中文；
+- Fcitx5 GTK 输入支持已补齐，相关正式构建成功；
+- 摄像头、定位等权限请求可进入 Electron 权限处理流程；
+- 当前实测 `WM_CLASS` 为 `"gemini", "gemini"`，窗口类型为 `_NET_WM_WINDOW_TYPE_NORMAL`。
+
+上述确认范围只代表当前 Linux 移植层已经实际运行通过，不代表 Google 官方支持 Linux，也不代表所有 Windows 桌面原生功能已经移植。
+
+### i3wm
+
+Gemini 仍可能触发 Electron 的 all-workspaces / sticky 行为。i3wm 下使用窗口管理器规则最稳定：
+
+```ini
+# Gemini window layout
+for_window [class="gemini"] sticky disable
+```
+
+该规则只影响 sticky 状态，不会把 Gemini 改成 floating；默认仍按 i3 的正常平铺规则处理。
+
+如果 Gemini 窗口已经打开，可对当前窗口执行一次：
+
+```bash
+# 立即取消当前 Gemini 窗口的 sticky
+i3-msg '[class="^gemini$"] sticky disable'
+```
+
 ## Windows 专用能力边界
 
 本项目不是 Google 官方 Linux 客户端。以下 Windows 原生部分不会直接复制到 Linux：
@@ -73,7 +104,16 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 - Windows 原生 Node `.node` 模块；
 - 仅由 Windows API 实现的托盘、全局快捷键、自动启动或其他系统集成功能。
 
-主 Gemini Electron 界面、登录、聊天及纯 Web/Electron 功能是否完整兼容 Linux，仍以正式构建产物的真实 Linux 使用结果为准。README 不把“成功生成 AppImage”等同于全部桌面原生功能已经得到上游支持。
+当前产品层仍会尝试连接 Windows named pipe `\\\\.\\pipe\\Google.Gemini.AppLauncher`。Linux 中不存在该 helper，因此终端可能持续出现 `helper_ipc` 重连日志；目前已确认这不会阻止主界面启动、登录和聊天。
+
+实际运行中还可能看到以下非致命日志：
+
+- `Failed to initialize Electron Crashpad reporting: Path must be absolute`：当前 AppImage 环境中的 Crashpad 初始化不兼容，不影响主界面；
+- `MaxListenersExceededWarning`：曾在 helper 重连过程中观察到，当前未确认其根因，不能视为主程序崩溃；
+- `Fontconfig warning`：宿主字体缓存版本提示，不属于 Gemini 产品层故障；
+- `Glycin running without sandbox`：当前 quick-sharun 运行环境提示，已验证不阻止 Gemini 主界面运行。
+
+除非这些日志后续造成实际功能故障，否则不为了“消除日志”去修改 Google 的 `app.asar` 产品逻辑。
 
 ## GitHub Actions
 
@@ -152,3 +192,11 @@ dist/gemini.AppImage
 - 现象：Gemini Web 主界面可以显示中文，但桌面壳层 Settings 等本地 Electron 界面仍可能显示英文。
 - 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
 - 修复：启动 wrapper 固定 `LANGUAGE=zh_CN:zh`，并向 Electron/Chromium 传递 `--lang=zh-CN`；不覆盖宿主机完整 locale，也不修改 Gemini 账号、Web 请求或产品层逻辑。
+- 已验证：正式 Actions #394 构建成功，真实 Linux 运行中 Settings 已显示为简体中文。
+
+### 2026-09-12：整理真实 Linux 基线
+
+- 正式 Actions #389 已确认补入 Fcitx5 GTK 输入模块后的 Gemini 构建成功。
+- 真实 Linux 使用已确认 AppImage 启动、Google 登录、Gemini 主界面、简体中文桌面壳层正常。
+- i3wm 实测 `WM_CLASS="gemini", "gemini"`、窗口类型为 `_NET_WM_WINDOW_TYPE_NORMAL`；跨工作区显示使用 `for_window [class="gemini"] sticky disable` 由 i3 管理，不修改 Google 产品层。
+- `helper_ipc`、Crashpad、Fontconfig、Glycin 等现有日志按“已知非致命边界”记录，不为清理日志主动修改已验证可用的产品层。
