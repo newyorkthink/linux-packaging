@@ -357,6 +357,50 @@ cp -a "$WINDOWS_RESOURCES"/. "$APP_ROOT/resources/"
 # Windows 更新器和 launcher 不是 Linux Electron 产品层的一部分，不随 AppImage 分发。
 find "$APP_ROOT/resources" -type f \( -iname '*.exe' -o -iname '*.dll' \) -delete
 
+# Windows 原版会把 Gemini 主窗口设为 visible-on-all-workspaces；Linux/i3 中会映射为 sticky，
+# 且应用会在窗口创建后再次设置，导致 i3 的一次性 for_window 规则被覆盖。
+# 这里只对当前官方产品层中的显式 true / !0 调用做最小改写；如果上游结构变化则停止构建，
+# 不猜测新的产品层逻辑。
+LINUX_ASAR="$APP_ROOT/resources/app.asar"
+LINUX_ASAR_DIR="$WORK_DIR/app-asar-linux"
+rm -rf "$LINUX_ASAR_DIR"
+mkdir -p "$LINUX_ASAR_DIR"
+asar extract "$LINUX_ASAR" "$LINUX_ASAR_DIR"
+
+python3 - "$LINUX_ASAR_DIR" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+pattern = re.compile(r'setVisibleOnAllWorkspaces\(\s*(?:true|!0)(?=\s*[,\)])')
+patched = []
+
+for path in root.rglob('*'):
+    if not path.is_file() or path.suffix not in {'.js', '.cjs', '.mjs'}:
+        continue
+    try:
+        text = path.read_text(encoding='utf-8')
+    except UnicodeDecodeError:
+        continue
+
+    new_text, count = pattern.subn('setVisibleOnAllWorkspaces(false', text)
+    if count:
+        path.write_text(new_text, encoding='utf-8')
+        patched.append((path.relative_to(root), count))
+
+if not patched:
+    raise SystemExit('Gemini product layer no longer contains a recognized setVisibleOnAllWorkspaces(true/!0) call')
+
+total = sum(count for _, count in patched)
+print(f'Patched Gemini visible-on-all-workspaces calls: {total}')
+for path, count in patched:
+    print(f'  {path}: {count}')
+PY
+
+rm -f "$LINUX_ASAR"
+asar pack "$LINUX_ASAR_DIR" "$LINUX_ASAR"
+
 cat > "$APP_ROOT/gemini" <<'EOF_WRAPPER'
 #!/usr/bin/env bash
 set -e
