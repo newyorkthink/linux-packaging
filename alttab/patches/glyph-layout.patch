@@ -1,7 +1,7 @@
 diff --git a/src/gui.c b/src/gui.c
 --- a/src/gui.c
 +++ b/src/gui.c
-@@ -661,6 +661,7 @@ int uiShow(bool direction)
+@@ -661,7 +661,8 @@ int uiShow(bool direction)
      for (int i = 0; i < LABEL_FALLBACK_COUNT; i++) {
          if (fontLabelFallbacks[i])
              XftFontClose(dpy, fontLabelFallbacks[i]);
@@ -13,7 +13,7 @@ diff --git a/src/gui.c b/src/gui.c
 diff --git a/src/util.c b/src/util.c
 --- a/src/util.c
 +++ b/src/util.c
-@@ -431,6 +431,51 @@ static int decodeUtf8Char(const unsigned char *text, int len, FcChar32 *codepoi
+@@ -431,6 +431,53 @@ static int decodeUtf8Char(const unsigned char *text, int len, FcChar32 *codepoi
      return 1;
  }
  
@@ -78,7 +78,7 @@ diff --git a/src/util.c b/src/util.c
      return font;
  }
  
-@@ -522,7 +571,7 @@ int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
+@@ -522,6 +571,6 @@ int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
      int line_new_ulen;
      unsigned int x, y;          // current upper left corner at which XftDrawStringUtf8 will draw
 -    float line_interval = 0.3;
