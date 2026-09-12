@@ -198,9 +198,8 @@ dist/gemini.AppImage
 - 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
 - 修复：构建时解包当前官方 `app.asar`，只把显式的 `setVisibleOnAllWorkspaces(true/!0)` 改为 `false` 后重新打包；若当前上游找不到该模式则停止构建，避免误改其他产品逻辑。窗口仍保持普通 i3 平铺窗口。
 
-### 2026-09-12：修复启动白底与 Linux 窗口图标
+### 2026-09-12：撤回 BrowserWindow 背景 / 窗口图标补丁
 
-- 现象：Gemini 首次创建主窗口时，在 WebContents/Loading 页面完成绘制前会短暂显示 Electron 默认白色背景；同时 Linux stock Electron 不会继承 Windows `Gemini.exe` 的 PE 图标，窗口级图标可能缺失或显示不正确。
-- 根因：Windows 产品层依赖可执行文件资源和 Windows 窗口行为；迁移到官方 Linux Electron runtime 后，主 `BrowserWindow` 没有显式 Linux `backgroundColor` / `icon`。
-- 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
-- 修复：仅定位日志已确认的唯一 `1200x900` 主窗口 options，补 `backgroundColor="#0B0F19"` 和 `icon=process.resourcesPath+"/gemini.png"`；官方 ICO 中提取的 PNG 同步放入 Electron resources。若上游不再存在唯一主窗口尺寸片段，构建直接停止，避免误改其他窗口。
+- 现象：显式给 Linux 主 `BrowserWindow` 注入背景色和窗口图标后，窗口虽然能启动，但真实 i3wm 使用中出现主内容区域不能随平铺窗口自动放大的回归，同时任务切换器图标仍未按预期显示。
+- 处理：撤回该组 `BrowserWindow` 注入和额外窗口图标资源，只保留已经确认有效的中文环境、Fcitx5 与 all-workspaces 修复，恢复 Google 上游原本的窗口 resize / 内容自适应逻辑。
+- 当前边界：首次启动的短暂白底和任务切换器窗口图标暂不继续强行修补；它们不影响 Gemini 主界面、登录、聊天和 i3 正常平铺。
