@@ -28,7 +28,7 @@
 4. 生成 desktop 文件，使用上游 `doc/alttab.svg` 作为应用自身图标，将主程序与动态依赖交给 quick-sharun，并保留上游 GPL-3.0 许可证。
 5. 生成 `dist/alttab.AppImage`；公共构建 Action 将其上传至仓库 `latest` Release，资产名固定为 `alttab.AppImage`。
 
-构建脚本显式覆盖 quick-sharun 的 `SHARUN_LINK`，使用 `pkgforge-dev/Anylinux-sharun` 的 `latest` 对应架构资产；只修正 quick-sharun 当前默认的已迁移旧地址，不锁死 sharun 版本，也不修改仓库公共 AnyLinux Action。
+sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_alttab.sh` 不再覆盖 `SHARUN_LINK`，避免自定义下载地址与 quick-sharun 内置校验和不匹配。
 
 构建脚本、补丁脚本和补丁文件需要一起保留。构建流程由现有 Action 在应用目录内执行；无需在真实主机上运行依赖安装或打包命令。
 
@@ -141,3 +141,11 @@
 - 修改文件：`apply-icon-patch.sh`、`patches/font-fallback.patch`、`README.md`。
 - 修复内容：保留 `-font` 指定的主字体；逐个 UTF-8 字符判断主字体是否存在字形，仅在缺字时使用 `WenQuanYi Zen Hei Mono`，并按连续字体段绘制，备用字号跟随主字体。
 - 核查：未改动现有图标补丁及其应用顺序；已按上游当前稳定版 v1.8.0 的 `gui.c`、`util.c`、`util.h` 上下文核对补丁，并以 `patch --fuzz=0 --dry-run` 和 C99 `-Wall -Wextra -Werror` 语法检查确认新增逻辑可通过静态检查。实际界面效果由新构建产物实机确认。
+
+### 2026-09-12：适配 quick-sharun 当前 sharun 校验机制
+
+- 现象：中文字体回退补丁已经成功应用并完成 AltTab 编译，但 AppImage 部署阶段报 `sha256 check failed for /tmp/sharun+helper-libs-x86_64.tar`。
+- 根因：当前 quick-sharun 使用配套版本的 `sharun+helper-libs` tar 包并校验固定 SHA-256，而旧的 `SHARUN_LINK` 覆盖仍指向 `latest/download/sharun-${ARCH}`，下载内容与 quick-sharun 内置校验和不对应。
+- 修改文件：`build_alttab.sh`、`README.md`。
+- 修复内容：移除已过时的 `SHARUN_LINK` 覆盖，恢复使用当前 quick-sharun 自带的 sharun 下载地址与匹配校验和；字体补丁、图标补丁、编译命令和 workflow 均保持不变。
+- 核查：失败日志已确认字体补丁可正常应用并编译；本次仅修复随后发生的 quick-sharun 打包兼容问题，由提交后的现有 GitHub Actions 完成正式构建验证。
