@@ -14,7 +14,7 @@
 | `apply-icon-patch.sh` | 接收源码目录，依次应用本目录维护的源码补丁 |
 | `patches/desktop-icons.patch` | 对上游 `src/icon.c` 的宿主 desktop / 图标查找与 PNG 处理修复 |
 | `patches/appimage-icons.patch` | 对上游 `src/win.c` 的运行中 AppImage 内嵌图标回退 |
-| `patches/font-fallback.patch` | 对上游 Xft 文本绘制增加缺字回退，主字体缺字时使用 WenQuanYi Zen Hei Mono |
+| `patches/font-fallback.patch` | 对上游 Xft 文本绘制增加逐字符缺字回退，中文与常用符号分别使用可用备用字体 |
 
 以后修改对应逻辑时维护各自 `.patch` 文件；补丁路径和应用顺序由 `apply-icon-patch.sh` 管理，不再把大段补丁放进构建脚本。
 
@@ -41,7 +41,7 @@ sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_altt
 ./alttab.AppImage
 ```
 
-字体兼容：`-font` 仍只指定主字体。主字体存在字形时保持使用主字体；缺少字形时回退到 `WenQuanYi Zen Hei Mono`，备用字体字号跟随主字体。这样可使用 `xft:MonoLisa-12` 显示英文和数字，同时让中文自动回退，不需要改变启动参数格式。
+字体兼容：`-font` 仍只指定主字体。主字体存在字形时保持使用主字体；缺字时按 `WenQuanYi Zen Hei Mono` → `DejaVu Sans` → `Symbols Nerd Font Mono` → `Symbols Nerd Font` 的顺序逐字符查找实际包含该字形的备用字体，备用字号跟随主字体。这样可继续使用 `xft:MonoLisa-12` 显示英文和数字，同时覆盖中文、常用 Unicode 符号以及系统已安装 Nerd Font 时的私有区图标，不需要改变启动参数格式。
 
 保留上游 `icon.source` 的 0～5 全部模式及默认策略，不额外修改窗口自身图标与文件图标之间的上游优先级。文件图标兼容逻辑补充以下处理：
 
@@ -149,3 +149,11 @@ sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_altt
 - 修改文件：`build_alttab.sh`、`README.md`。
 - 修复内容：移除已过时的 `SHARUN_LINK` 覆盖，恢复使用当前 quick-sharun 自带的 sharun 下载地址与匹配校验和；字体补丁、图标补丁、编译命令和 workflow 均保持不变。
 - 核查：失败日志已确认字体补丁可正常应用并编译；本次仅修复随后发生的 quick-sharun 打包兼容问题，由提交后的现有 GitHub Actions 完成正式构建验证。
+
+### 2026-09-12：补充符号字体回退，修复方框叉号
+
+- 现象：中文标题已经能够显示，但部分终端窗口标题中的符号仍显示为方框叉号。
+- 根因：上一版字体补丁只有 MonoLisa 主字体和 `WenQuanYi Zen Hei Mono` 中文备用字体；后者并不覆盖全部通用符号和 Nerd Font 私有区字形。
+- 修改文件：`patches/font-fallback.patch`、`README.md`。
+- 修复内容：保留现有 MonoLisa 主字体和中文回退逻辑，在其后增加 `DejaVu Sans`、`Symbols Nerd Font Mono`、`Symbols Nerd Font` 三层备用字体；每个 UTF-8 字符按顺序选择第一个实际包含该字形的字体，不改 `-font` 参数、图标补丁、构建脚本或 workflow。
+- 核查：已按上游 v1.8.0 的相关源码上下文完成 `patch --fuzz=0 --dry-run` 静态核对；最终符号显示效果由新构建产物实机确认。
