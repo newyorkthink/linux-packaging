@@ -11,18 +11,19 @@
 | 文件 | 用途 |
 | --- | --- |
 | `build_alttab.sh` | 获取稳定版源码、安装构建依赖、调用补丁脚本、编译和打包 |
-| `apply-icon-patch.sh` | 接收源码目录，依次应用同目录下的图标补丁 |
+| `apply-icon-patch.sh` | 接收源码目录，依次应用本目录维护的源码补丁 |
 | `patches/desktop-icons.patch` | 对上游 `src/icon.c` 的宿主 desktop / 图标查找与 PNG 处理修复 |
 | `patches/appimage-icons.patch` | 对上游 `src/win.c` 的运行中 AppImage 内嵌图标回退 |
+| `patches/font-fallback.patch` | 对上游 Xft 文本绘制增加缺字回退，主字体缺字时使用 WenQuanYi Zen Hei Mono |
 
-以后修改图标逻辑时维护对应 `.patch` 文件；补丁路径和应用顺序由 `apply-icon-patch.sh` 管理，不再把大段补丁放进构建脚本。
+以后修改对应逻辑时维护各自 `.patch` 文件；补丁路径和应用顺序由 `apply-icon-patch.sh` 管理，不再把大段补丁放进构建脚本。
 
 ## 打包流程
 
 正式构建使用 `.github/workflows/build.yml` 的 AltTab Job，并复用 `.github/actions/build-anylinux`，在 Arch Linux / AnyLinux 构建环境中执行。手动构建入口选择 `alttab/build_alttab.sh`。
 
 1. 从官方 `releases/latest` 获取非草稿、非预发布版本，将 tag 解析为具体 commit SHA，下载该 commit 的源码归档并记录 SHA-256。
-2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch` 和 `patches/appimage-icons.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
+2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch`、`patches/appimage-icons.patch` 和 `patches/font-fallback.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
 3. 使用现有 `configure --prefix=/usr` 和 `make` 编译，传入 GLib 的头文件及链接参数。
 4. 生成 desktop 文件，使用上游 `doc/alttab.svg` 作为应用自身图标，将主程序与动态依赖交给 quick-sharun，并保留上游 GPL-3.0 许可证。
 5. 生成 `dist/alttab.AppImage`；公共构建 Action 将其上传至仓库 `latest` Release，资产名固定为 `alttab.AppImage`。
@@ -31,7 +32,7 @@
 
 构建脚本、补丁脚本和补丁文件需要一起保留。构建流程由现有 Action 在应用目录内执行；无需在真实主机上运行依赖安装或打包命令。
 
-## 运行与图标兼容
+## 运行、字体与图标兼容
 
 需要可访问的 X11 会话。下载产物后，在文件所在目录的 Linux 终端执行；文件需已有执行权限：
 
@@ -39,6 +40,8 @@
 # 启动 AltTab 窗口切换器。
 ./alttab.AppImage
 ```
+
+字体兼容：`-font` 仍只指定主字体。主字体存在字形时保持使用主字体；缺少字形时回退到 `WenQuanYi Zen Hei Mono`，备用字体字号跟随主字体。这样可使用 `xft:MonoLisa-12` 显示英文和数字，同时让中文自动回退，不需要改变启动参数格式。
 
 保留上游 `icon.source` 的 0～5 全部模式及默认策略，不额外修改窗口自身图标与文件图标之间的上游优先级。文件图标兼容逻辑补充以下处理：
 
@@ -130,3 +133,11 @@
 - 修改文件：`apply-icon-patch.sh`、`README.md`，并移除未带来已确认收益的 `patches/icon-source-priority.patch`。
 - 基线：保留宿主 XDG 图标映射、AppImage `APPDIR` 回退、无扩展名 `.DirIcon` 内容识别和动态 sharun 下载来源；恢复并保持上游 `icon.source` 默认策略。
 - 核查：最终运行逻辑不按具体被切换应用名称匹配，不写死用户环境路径、临时挂载目录、固定 AppImage 文件名或 sharun 版本号；未新增测试代码、workflow 或分支。
+
+### 2026-09-12：补充 Xft 中文字体回退
+
+- 现象：使用 `-font "xft:MonoLisa-12"` 时英文正常，但 MonoLisa 本身缺少中文字形，中文窗口标题显示为方框。
+- 根因：上游只打开一个 `XftFont`，绘制 UTF-8 文本时不会自动进行逐字字体回退。
+- 修改文件：`apply-icon-patch.sh`、`patches/font-fallback.patch`、`README.md`。
+- 修复内容：保留 `-font` 指定的主字体；逐个 UTF-8 字符判断主字体是否存在字形，仅在缺字时使用 `WenQuanYi Zen Hei Mono`，并按连续字体段绘制，备用字号跟随主字体。
+- 核查：未改动现有图标补丁及其应用顺序；已按上游当前稳定版 v1.8.0 的 `gui.c`、`util.c`、`util.h` 上下文核对补丁，并以 `patch --fuzz=0 --dry-run` 和 C99 `-Wall -Wextra -Werror` 语法检查确认新增逻辑可通过静态检查。实际界面效果由新构建产物实机确认。
