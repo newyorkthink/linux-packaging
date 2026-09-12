@@ -125,6 +125,17 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - KDE Connect 图形程序在当前 Qt/KDE 组合下使用 QML 磁盘缓存会在部分设备操作中崩溃；只对 `kdeconnect-app` 禁用缓存，避免影响其他 QML 应用。
 - SquashFS 与 DwarFS AppImage 不能由同一个现有缩略图插件完整覆盖。最终保留普通 SquashFS AppImage 的图标/元数据能力，并把其他格式的解析日志记录为已知限制。
 
+## 检查记录
+
+### 2026-09-12：Dolphin 部分 AppImage 图标预览
+
+- **检查对象与范围：** 基于仓库提交 `9daecb62f06487341911024f9063722d85a15bb8`，完整阅读 `kde-suite/` 的 12 个文件，核对相关 workflow 的项目选择、独立 Arch 构建容器、公共 action、脚本调用顺序和产物路径。目录内 7 个 Shell 文件的仓库外 `bash -n` 语法检查通过；未发现明显的入口、脚本引用或产物路径错误。
+- **问题现象：** 真实运行截图中，Dolphin 的工具栏、文件夹等界面图标正常，部分 AppImage 显示应用图标，另一些显示通用文件图标。此次检查针对 AppImage 内置图标预览，不是整个图标主题失效。
+- **证据与已确认结论：** `deploy_suite_apps.sh` 已恢复 `appimagethumbnail.so` 和 AppImage 元数据插件，不能只因 `build_core.sh` 基础阶段移除插件就认定最终漏打包。[KDE 缩略图插件源码](https://github.com/KDE/kio-extras/blob/master/thumbnail/appimagecreator.cpp) 通过 libappimage 读取 `.DirIcon`；[libappimage 的 Type 2 读取实现](https://github.com/AppImageCommunity/libappimage/blob/master/src/libappimage/type2.c) 使用 SquashFS。[检查时的 quick-sharun](https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/useful-tools/quick-sharun.sh) 调用的 [pkgforge appimagetool](https://github.com/pkgforge-dev/appimagetool) 使用 DwarFS。该格式兼容缺口与现有“已知限制”及截图现象吻合；上游链接跟随分支变化，后续应重新核对。
+- **未确认事项：** 未逐个取得并检查截图中的实际 AppImage，未确认各文件的封装格式、`.DirIcon` 内容及链接目标，也未核对当前使用的 KDE Suite 成品。因此不能断言所有通用图标均由 DwarFS 导致，不能认定包内图标丢失，也不能把脚本语法通过视为构建或实机功能通过。本次未触发或监控 Actions，未重新构建或完成实机验证。
+- **当前处理建议：** 保留已验证的打包、主题和启动逻辑，不凭截图改动插件或更换封装工具。后续需要修复时，先对实际缺图标文件核实格式和 `.DirIcon`，再结合 Dolphin 的实际解析结果判断修改范围；证据不足时继续保持待确认。
+- **记录状态：** 本条是检查记录，本次仅补充 README，没有实施程序修复。后续有对应修复时，用修复记录替换已处理条目，保留尚未确认部分，并如实注明验证状态。
+
 ## 发布前检查
 
 构建脚本会在压缩前自动检查启动器、`apps.ini` 中全部命令、Qt6ct/KFind/KDF、Qt6ct 配色路径迁移 Hook、KIO 服务与插件、SSHFS/FUSE 边界、Qt/Kirigami/Breeze、中文翻译、Fcitx5、MIME、图标、Activities、yt-dlp/Python/EJS/Deno，并在 Xvfb 中启动 Haruna 做 QML 运行时检查。
