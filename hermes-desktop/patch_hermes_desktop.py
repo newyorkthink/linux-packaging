@@ -147,35 +147,41 @@ if locale_fixed not in renderer_text:
 
 context_path = root / "apps/desktop/src/i18n/context.tsx"
 context_text = context_path.read_text(encoding="utf-8")
-old_locale_line = "          setLocaleState(normalizeLocale(getConfigDisplayLanguage(config)))"
-new_locale_line = (
-    "          const configuredLocale = getConfigDisplayLanguage(config)\n"
-    "          setLocaleState(\n"
-    "            configuredLocale == null ? normalizeLocale(initialLocale) : normalizeLocale(configuredLocale)\n"
-    "          )"
-)
-if "configuredLocale == null ? normalizeLocale(initialLocale)" not in context_text:
-    if context_text.count(old_locale_line) != 1:
-        die("无法唯一定位 Desktop 语言初始化逻辑，停止构建，避免错误修改上游源码。")
-    context_text = context_text.replace(old_locale_line, new_locale_line, 1)
-    context_path.write_text(context_text, encoding="utf-8")
+native_locale_fallback = "setLocaleState(resolveInitialLocale(undefined, machineProfile?.locale))"
+if context_text.count(native_locale_fallback) != 1:
+    die("无法确认上游 Desktop 系统语言回退逻辑，停止构建，避免覆盖新的 i18n 实现。")
 
 preload_path = root / "apps/desktop/electron/preload.ts"
 preload_text = preload_path.read_text(encoding="utf-8")
 update_bridge_marker = "Hermes standalone Linux AppImage: disable source-checkout desktop self-update"
 if update_bridge_marker not in preload_text:
-    old_update_bridge = (
-        "  updates: {\n"
-        "    check: () => ipcRenderer.invoke('hermes:updates:check'),\n"
-        "    apply: opts => ipcRenderer.invoke('hermes:updates:apply', opts),\n"
-        "    getBranch: () => ipcRenderer.invoke('hermes:updates:branch:get'),\n"
-        "    setBranch: name => ipcRenderer.invoke('hermes:updates:branch:set', name),\n"
+    update_bridge_candidates = (
+        (
+            "  updates: {\n"
+            "    check: opts => ipcRenderer.invoke('hermes:updates:check', opts),\n"
+            "    apply: opts => ipcRenderer.invoke('hermes:updates:apply', opts),\n"
+            "    getBranch: () => ipcRenderer.invoke('hermes:updates:branch:get'),\n"
+            "    setBranch: name => ipcRenderer.invoke('hermes:updates:branch:set', name),\n"
+        ),
+        (
+            "  updates: {\n"
+            "    check: () => ipcRenderer.invoke('hermes:updates:check'),\n"
+            "    apply: opts => ipcRenderer.invoke('hermes:updates:apply', opts),\n"
+            "    getBranch: () => ipcRenderer.invoke('hermes:updates:branch:get'),\n"
+            "    setBranch: name => ipcRenderer.invoke('hermes:updates:branch:set', name),\n"
+        ),
     )
+    matching_update_bridges = [
+        candidate for candidate in update_bridge_candidates if preload_text.count(candidate) == 1
+    ]
+    if len(matching_update_bridges) != 1:
+        die("无法唯一定位 Desktop update preload bridge，停止构建，避免错误修改上游源码。")
+    old_update_bridge = matching_update_bridges[0]
     new_update_bridge = (
         "  updates: {\n"
         "    // Hermes standalone Linux AppImage: disable source-checkout desktop self-update.\n"
         "    // AppImage updates are distributed through the packaging repository release.\n"
-        "    check: () => Promise.resolve(null),\n"
+        "    check: _opts => Promise.resolve(null),\n"
         "    apply: _opts =>\n"
         "      Promise.resolve({\n"
         "        ok: false,\n"
@@ -185,8 +191,6 @@ if update_bridge_marker not in preload_text:
         "    getBranch: () => Promise.resolve(null),\n"
         "    setBranch: _name => Promise.resolve(null),\n"
     )
-    if preload_text.count(old_update_bridge) != 1:
-        die("无法唯一定位 Desktop update preload bridge，停止构建，避免错误修改上游源码。")
     preload_text = preload_text.replace(old_update_bridge, new_update_bridge, 1)
     preload_path.write_text(preload_text, encoding="utf-8")
 
@@ -300,7 +304,7 @@ checks = [
     (main_path, "Hermes standalone Linux AppImage: map a Chinese system locale to Chromium zh-CN"),
     (main_path, "HERMES_DESKTOP_SAFE_STORAGE_SMOKE_TEST"),
     (renderer_path, "<I18nProvider initialLocale={navigator.language}>"),
-    (context_path, "configuredLocale == null ? normalizeLocale(initialLocale)"),
+    (context_path, native_locale_fallback),
     (preload_path, "Hermes standalone Linux AppImage: disable source-checkout desktop self-update"),
     (about_path, "Hermes standalone Linux AppImage: hide source-checkout desktop update controls"),
     (package_path, '"publish": null'),
