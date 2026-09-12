@@ -373,8 +373,14 @@ import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
-pattern = re.compile(r'setVisibleOnAllWorkspaces\(\s*(?:true|!0)(?=\s*[,\)])')
-patched = []
+
+workspace_pattern = re.compile(r'setVisibleOnAllWorkspaces\(\s*(?:true|!0)(?=\s*[,\)])')
+main_window_pattern = re.compile(
+    r'width\s*:\s*1200\s*,\s*height\s*:\s*900'
+)
+
+workspace_patched = []
+window_patched = []
 
 for path in root.rglob('*'):
     if not path.is_file() or path.suffix not in {'.js', '.cjs', '.mjs'}:
@@ -384,17 +390,39 @@ for path in root.rglob('*'):
     except UnicodeDecodeError:
         continue
 
-    new_text, count = pattern.subn('setVisibleOnAllWorkspaces(false', text)
-    if count:
+    new_text, workspace_count = workspace_pattern.subn(
+        'setVisibleOnAllWorkspaces(false',
+        text,
+    )
+
+    # Gemini 日志明确把主窗口创建尺寸记录为 1200x900。只在这个唯一主窗口
+    # options 片段中补 Linux 背景色和窗口图标，避免改动 Settings 等其他窗口。
+    new_text, window_count = main_window_pattern.subn(
+        'width:1200,height:900,backgroundColor:"#0B0F19",icon:process.resourcesPath+"/gemini.png"',
+        new_text,
+    )
+
+    if workspace_count or window_count:
         path.write_text(new_text, encoding='utf-8')
-        patched.append((path.relative_to(root), count))
+    if workspace_count:
+        workspace_patched.append((path.relative_to(root), workspace_count))
+    if window_count:
+        window_patched.append((path.relative_to(root), window_count))
 
-if not patched:
+if not workspace_patched:
     raise SystemExit('Gemini product layer no longer contains a recognized setVisibleOnAllWorkspaces(true/!0) call')
+if sum(count for _, count in window_patched) != 1:
+    raise SystemExit(
+        'Gemini product layer must contain exactly one recognized 1200x900 primary window options fragment'
+    )
 
-total = sum(count for _, count in patched)
-print(f'Patched Gemini visible-on-all-workspaces calls: {total}')
-for path, count in patched:
+workspace_total = sum(count for _, count in workspace_patched)
+print(f'Patched Gemini visible-on-all-workspaces calls: {workspace_total}')
+for path, count in workspace_patched:
+    print(f'  {path}: {count}')
+
+print('Patched Gemini primary BrowserWindow background/icon: 1')
+for path, count in window_patched:
     print(f'  {path}: {count}')
 PY
 
@@ -471,6 +499,10 @@ print(f"Selected official Gemini ICO PNG frame #{index}: {width}x{height}")
 PY
 
 [[ -s "$BUILD_ICON" ]] || die "Gemini 官方 ICO 中没有可用 PNG 图标。"
+
+# Linux Electron 不会继承 Gemini.exe 的 PE 图标；主窗口代码使用 process.resourcesPath
+# 读取同一张官方 PNG，确保 _NET_WM_ICON / 任务切换器能够得到正确 Gemini 图标。
+install -Dm644 "$BUILD_ICON" "$APP_ROOT/resources/gemini.png"
 
 cat > "$BUILD_DESKTOP" <<EOF_DESKTOP
 [Desktop Entry]

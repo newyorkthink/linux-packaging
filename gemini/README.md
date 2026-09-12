@@ -197,3 +197,10 @@ dist/gemini.AppImage
 - 根因：Gemini 产品层会在窗口创建后调用 Electron `setVisibleOnAllWorkspaces(true)`（压缩代码也可能写为 `!0`），Linux/i3 将其映射为 sticky/all-workspaces。
 - 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
 - 修复：构建时解包当前官方 `app.asar`，只把显式的 `setVisibleOnAllWorkspaces(true/!0)` 改为 `false` 后重新打包；若当前上游找不到该模式则停止构建，避免误改其他产品逻辑。窗口仍保持普通 i3 平铺窗口。
+
+### 2026-09-12：修复启动白底与 Linux 窗口图标
+
+- 现象：Gemini 首次创建主窗口时，在 WebContents/Loading 页面完成绘制前会短暂显示 Electron 默认白色背景；同时 Linux stock Electron 不会继承 Windows `Gemini.exe` 的 PE 图标，窗口级图标可能缺失或显示不正确。
+- 根因：Windows 产品层依赖可执行文件资源和 Windows 窗口行为；迁移到官方 Linux Electron runtime 后，主 `BrowserWindow` 没有显式 Linux `backgroundColor` / `icon`。
+- 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
+- 修复：仅定位日志已确认的唯一 `1200x900` 主窗口 options，补 `backgroundColor="#0B0F19"` 和 `icon=process.resourcesPath+"/gemini.png"`；官方 ICO 中提取的 PNG 同步放入 Electron resources。若上游不再存在唯一主窗口尺寸片段，构建直接停止，避免误改其他窗口。
