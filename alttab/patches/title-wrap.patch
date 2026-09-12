@@ -1,0 +1,66 @@
+diff --git a/src/util.c b/src/util.c
+--- a/src/util.c
++++ b/src/util.c
+@@ -548,6 +548,31 @@ static void drawStringUtf8Fallback(XftDraw *draw, XftColor *color,
+         offset += run_len;
+     }
+ }
++
++// 按实际选中的主字体/备用字体计算 UTF-8 文本宽度，供多行标题按真实像素宽度换行。
++static unsigned int textWidthUtf8Fallback(XftFont *font,
++                                          XftFont **fallback_fonts,
++                                          int fallback_count,
++                                          const unsigned char *text, int len)
++{
++    int offset = 0;
++    unsigned int width = 0;
++
++    while (offset < len) {
++        XftFont *run_font;
++        int run_len = fontRunLength(font, fallback_fonts, fallback_count,
++                                    text + offset, len - offset, &run_font);
++        if (run_len <= 0 || !run_font)
++            break;
++
++        XGlyphInfo run_ext;
++        XftTextExtentsUtf8(dpy, run_font, text + offset, run_len, &run_ext);
++        width += run_ext.xOff;
++        offset += run_len;
++    }
++
++    return width;
++}
+ 
+ //
+ // Draw utf-8 string str on window/pixmap d,
+@@ -579,5 +604,6 @@ int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
+ // once: calculate approx_px_per_sym and line_spacing_px
+     XftTextExtentsUtf8(dpy, font, (unsigned char *)str, strlen(str), &ext);
++    ext.width = textWidthUtf8Fallback(font, fallback_fonts, fallback_count, (unsigned char *)str, strlen(str));
+     approx_px_per_sym = (float)ext.width / (float)utf8len(str);
+     line_spacing_px = (float)ext.height * line_interval;
+ 
+@@ -614,6 +640,7 @@ int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
+         if (line_new_ulen >= line_ulen) {   // just draw the end of str and finish
+             XftTextExtentsUtf8(dpy, font, (unsigned char *)line,
+                                line_clen, &ext);
++            ext.width = textWidthUtf8Fallback(font, fallback_fonts, fallback_count, (unsigned char *)line, line_clen);
+             finish_after_draw = true;
+             goto Draw;
+         }
+@@ -625,6 +652,7 @@ int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
+         line[line_to_char - line_from_char] = '\0';
+         line_clen = strlen(line);
+         XftTextExtentsUtf8(dpy, font, (unsigned char *)line, line_clen, &ext);
++        ext.width = textWidthUtf8Fallback(font, fallback_fonts, fallback_count, (unsigned char *)line, line_clen);
+         if (debug > 0) {
+             fprintf(stderr,
+                     "first cut approximation: \"%s\" ulen=%zu clen=%zu width=%d px, x2-x1=%d px\n",
+@@ -641,6 +669,7 @@ int drawMultiLine(Drawable d, XftFont * font, XftFont ** fallback_fonts,
+             line_clen = strlen(line);
+             XftTextExtentsUtf8(dpy, font, (unsigned char *)line,
+                                line_clen, &ext);
++            ext.width = textWidthUtf8Fallback(font, fallback_fonts, fallback_count, (unsigned char *)line, line_clen);
+             if (debug > 0) {
+                 fprintf(stderr,
+                         "cut correction: \"%s\" ulen=%zu clen=%zu width=%d px, x2-x1=%d px\n",
