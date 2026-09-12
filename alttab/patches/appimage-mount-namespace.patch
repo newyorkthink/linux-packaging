@@ -1,0 +1,34 @@
+--- a/src/win.c
++++ b/src/win.c
+@@ -7,8 +7,9 @@ static char *getWindowAppDir(Window win)
+         return NULL;
+     }
+ 
++    unsigned long target_pid = *pid;
+     char proc_path[64];
+-    snprintf(proc_path, sizeof(proc_path), "/proc/%lu/environ", *pid);
++    snprintf(proc_path, sizeof(proc_path), "/proc/%lu/environ", target_pid);
+     free(pid);
+ 
+     gchar *environment = NULL;
+@@ -28,9 +29,17 @@ static char *getWindowAppDir(Window win)
+         gsize entry_len = (gsize)(end - entry);
+         if (entry_len > 7 && !memcmp(entry, "APPDIR=", 7)) {
+             const char *value = entry + 7;
+-            if (g_path_is_absolute(value) &&
+-                g_file_test(value, G_FILE_TEST_IS_DIR))
+-                appdir = g_strdup(value);
++            if (g_path_is_absolute(value)) {
++                char *target_root = g_strdup_printf(
++                    "/proc/%lu/root%s", target_pid, value);
++                if (g_file_test(target_root, G_FILE_TEST_IS_DIR)) {
++                    appdir = target_root;
++                } else {
++                    g_free(target_root);
++                    if (g_file_test(value, G_FILE_TEST_IS_DIR))
++                        appdir = g_strdup(value);
++                }
++            }
+             break;
+         }
+         offset += entry_len + 1;

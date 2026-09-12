@@ -14,6 +14,7 @@
 | `apply-icon-patch.sh` | 接收源码目录，依次应用本目录维护的源码补丁 |
 | `patches/desktop-icons.patch` | 对上游 `src/icon.c` 的宿主 desktop / 图标查找与 PNG 处理修复 |
 | `patches/appimage-icons.patch` | 对上游 `src/win.c` 的运行中 AppImage 内嵌图标回退 |
+| `patches/appimage-mount-namespace.patch` | 在保留现有 AppImage 图标逻辑的基础上，通过目标进程 `/proc/<pid>/root` 兼容跨挂载命名空间读取 `APPDIR` |
 | `patches/font-fallback.patch` | 对上游 Xft 文本绘制增加逐字符缺字回退，中文与常用符号分别使用可用备用字体 |
 | `patches/glyph-layout.patch` | 固定备用字体仍缺字时交给 Fontconfig 按字符自动匹配宿主字体，并增大多行标题行距 |
 
@@ -24,7 +25,7 @@
 正式构建使用 `.github/workflows/build.yml` 的 AltTab Job，并复用 `.github/actions/build-anylinux`，在 Arch Linux / AnyLinux 构建环境中执行。手动构建入口选择 `alttab/build_alttab.sh`。
 
 1. 从官方 `releases/latest` 获取非草稿、非预发布版本，将 tag 解析为具体 commit SHA，下载该 commit 的源码归档并记录 SHA-256。
-2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch`、`patches/appimage-icons.patch`、`patches/font-fallback.patch` 和 `patches/glyph-layout.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
+2. 调用 `apply-icon-patch.sh`，依次向本次解压的源码应用 `patches/desktop-icons.patch`、`patches/appimage-icons.patch`、`patches/appimage-mount-namespace.patch`、`patches/font-fallback.patch` 和 `patches/glyph-layout.patch`。任一补丁不匹配时停止构建，不静默跳过，也不回退到旧版。
 3. 使用现有 `configure --prefix=/usr` 和 `make` 编译，传入 GLib 的头文件及链接参数。
 4. 生成 desktop 文件，使用上游 `doc/alttab.svg` 作为应用自身图标，将主程序与动态依赖交给 quick-sharun，并保留上游 GPL-3.0 许可证。
 5. 生成 `dist/alttab.AppImage`；公共构建 Action 将其上传至仓库 `latest` Release，资产名固定为 `alttab.AppImage`。
@@ -49,7 +50,7 @@ sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_altt
 - 按 XDG 数据目录查找 desktop 文件，通过文件 ID、`StartupWMClass` 与 `Icon` 映射宿主图标；只读取元数据，不执行 `Exec`。
 - 查找用户及系统图标目录，并补充 `hicolor` 回退；避免直接修改进程的 `XDG_DATA_DIRS` 环境字符串。
 - 支持映射到已有 PNG / XPM 图标，以及 PNG / XPM 绝对路径。PNG 使用文件头中的真实尺寸创建画布，并修正透明背景颜色转换。
-- 宿主图标查找没有命中时，根据目标窗口的 `_NET_WM_PID` 读取该进程的 `APPDIR`，优先使用运行中 AppImage 根目录的 `.DirIcon`；支持 `.DirIcon` 为普通文件或符号链接，并通过文件内容识别无扩展名 PNG / XPM；再回退读取根目录 desktop 的 `Icon` 对应 PNG / XPM 文件，不按应用名称写死路径。
+- 宿主图标查找没有命中时，根据目标窗口的 `_NET_WM_PID` 读取该进程的 `APPDIR`；优先通过 `/proc/<pid>/root` 在目标进程自己的挂载命名空间中访问该 `APPDIR`，如果该路径不可用再回退到原来的直接路径。随后优先读取运行中 AppImage 根目录的 `.DirIcon`，支持普通文件、符号链接和无扩展名 PNG / XPM，再回退读取根目录 desktop 的 `Icon` 对应 PNG / XPM 文件，不按应用名称写死路径。
 
 普通程序仍依赖宿主可读取的 desktop 文件和图标资源；直接运行的 AppImage 可额外从其运行时 `APPDIR` 读取内嵌图标。当前补丁未增加 SVG 窗口图标解码，也不是完整的图标主题继承实现。应用自身使用 SVG 作为 AppImage 图标，不代表窗口图标读取支持 SVG。
 
@@ -57,10 +58,10 @@ sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_altt
 
 ## 稳定基线
 
-当前版本作为最终稳定基线：保留已经实机确认有效的宿主 XDG 图标映射、AppImage `APPDIR` 回退和无扩展名 `.DirIcon` 识别，同时保持上游 `icon.source` 默认策略不变。
+2026-09-10 已实机确认有效的宿主 XDG 图标映射、AppImage `APPDIR` 回退和无扩展名 `.DirIcon` 识别继续作为稳定基线；后续兼容修复不得重写这两份已验证图标补丁，只允许在其后补充必要且独立的兼容层，同时保持上游 `icon.source` 默认策略不变。
 
 - 文件图标继续按 XDG desktop、`StartupWMClass`、`Icon`、主题目录和 `pixmaps` 规则查找。
-- AppImage 仅在宿主文件图标查找未命中时，通过目标窗口 `_NET_WM_PID` 获取所属进程的 `APPDIR`，再读取 `.DirIcon` 或根目录 desktop 的 `Icon`。
+- AppImage 仅在宿主文件图标查找未命中时，通过目标窗口 `_NET_WM_PID` 获取所属进程的 `APPDIR`；当前兼容层优先使用 `/proc/<pid>/root${APPDIR}` 访问目标进程可见的挂载路径，失败时仍保留原来的 `${APPDIR}` 直接访问。
 - `.DirIcon` 同时兼容普通文件和符号链接；没有扩展名时按文件内容识别 PNG / XPM，不依赖固定文件名。
 - 运行时不匹配具体被切换应用名称，不写死用户路径、临时挂载目录、固定 AppImage 文件名或 sharun 版本号。
 - AltTab 自身名称、`StartupWMClass=AltTab`、上游仓库地址、标准 `/usr` 安装前缀、Release 资产名等属于项目固有元数据或构建接口，不属于环境相关硬编码。
@@ -182,3 +183,11 @@ sharun 下载来源与 SHA-256 由当前 quick-sharun 配套管理；`build_altt
 - 修改文件：`patches/glyph-layout.patch`、`README.md`。
 - 修复内容：移除 `glyph-layout.patch` 对 `gui.c` 和 `util.h` 的清理函数改动，只保留已在真实 Actions 中成功应用的 `util.c` 动态字形回退和 `0.5` 行距；动态备用字体改为进程生命周期内最多缓存 256 个字形对应字体，避免每次窗口切换重复打开字体。MonoLisa、固定备用字体顺序、图标逻辑、补丁应用顺序和 workflow 均不变。
 - 核查：最新失败日志已确认剩余失败点只在 `gui.c`，而 `util.c` / `util.h` 相关 hunk 已成功；本次同时重新核对 `glyph-layout.patch` 各 hunk 的旧/新行数一致性，未新增测试代码或 workflow。
+
+### 2026-09-12：兼容目标 AppImage 挂载命名空间
+
+- 现象：最新 AltTab 构建中，宿主已安装应用的图标仍能显示，但部分直接运行的 AppImage 窗口重新出现空白图标；这与 2026-09-10 已实机确认的稳定基线不一致。
+- 定位：`patches/appimage-icons.patch` 本身与已验证基线保持一致；兼容缺口在于它读取目标进程 `APPDIR` 后只按 AltTab 自身可见的绝对路径访问挂载目录。当两个 AppImage 的挂载视图不完全一致时，目标进程的 `APPDIR` 字符串有效，但该绝对路径在 AltTab 当前挂载视图中可能不可达。
+- 修改文件：新增 `patches/appimage-mount-namespace.patch`，并修改 `apply-icon-patch.sh`、`README.md`；`patches/desktop-icons.patch`、`patches/appimage-icons.patch`、字体补丁、`build_alttab.sh` 和 workflow 均保持不变。
+- 修复内容：继续先读取目标窗口 `_NET_WM_PID` 与目标进程 `APPDIR`，但访问图标时优先使用 `/proc/<pid>/root${APPDIR}`，让路径解析发生在目标进程自己的根与挂载视图中；如果该路径不可用，再回退到原来的 `${APPDIR}`。不匹配具体应用名，不固定 quick-sharun、sharun 或 appimagetool 版本。
+- 核查：新增补丁仅改 `getWindowAppDir()` 的路径解析层，未改变 `.DirIcon` / desktop `Icon` / PNG / XPM 的已验证读取顺序；unified diff 已在仓库外按相同上下文以 `patch --fuzz=0 --dry-run` 检查通过，未新增测试代码或 workflow。最终实机图标显示仍以本次新构建产物为准。

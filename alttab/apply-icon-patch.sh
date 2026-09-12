@@ -21,6 +21,9 @@ patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/des
 # 泛化回退：宿主图标查找失败时，从目标窗口所属 AppImage 的运行时 APPDIR 读取内嵌图标，不匹配具体应用名称。
 patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/appimage-icons.patch"
 
+# AppImage 挂载兼容：保留原 APPDIR 回退逻辑，只补充通过目标进程 /proc/<pid>/root 访问其挂载命名空间。
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/appimage-mount-namespace.patch"
+
 # 字体回退：保留 MonoLisa 主字体，主字体缺字时依次尝试中文、通用符号和 Nerd Font 备用字体。
 patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/font-fallback.patch"
 
