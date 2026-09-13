@@ -10,17 +10,13 @@
 
 该参数只关闭 RunImage 自己的 NVIDIA 驱动处理机制，不等于禁用 NVIDIA 显卡，也不等于关闭浏览器 GPU 硬件加速；浏览器最终使用哪块 GPU 仍由宿主机图形环境、驱动和浏览器自身设置决定。
 
-### `RIM_RUN_IN_ONE=1`
+### `RIM_RUN_IN_ONE=1` 和 `RIM_WAIT_RPIDS_EXIT=1`（已注释停用）
 
-同一个 browser RunImage 后续启动的浏览器共用同一个 RunImage 容器，避免同时运行多个浏览器时重复创建独立容器和挂载环境。
+`setup_browser.sh` 已注释这两个参数，与 `setup_general_env.sh`、`setup_trading_env.sh` 保持一致，不再主动启用共享容器模式。
 
-### `RIM_WAIT_RPIDS_EXIT=1`
+实际使用反馈显示，同时启用共享容器及等待相关程序退出的参数后，浏览器仍偶发闪退，因此暂时停用。共享容器下首个终端被中断或关闭也可能影响后续程序；本次闪退的具体根因尚未确认，不能保证停用后所有闪退都消失。
 
-等待共享容器内的相关程序全部退出后再结束 RunImage 容器。
-
-browser 使用 `RIM_RUN_IN_ONE=1` 时应同时启用该参数，否则最先启动的浏览器退出后，可能连带结束后续进入同一容器的其他浏览器。启用后，例如先启动 Vivaldi、再启动 Firefox，关闭 Vivaldi 不会同时关闭 Firefox；等共享容器内的浏览器全部退出后，RunImage 才结束并清理容器。
-
-browser 保留这两个参数，适合通过桌面入口、i3 快捷键等方式启动。若从终端启动共享容器中的第一个浏览器，之后对该终端执行 `Ctrl-C` 或直接关闭终端，可能影响同一共享容器内后续启动程序的终端输出通道；因此不要把会被手动中断或关闭的终端作为共享容器的长期启动入口。
+脚本以追加方式写入 `Run.rcfg`，注释这两行不会移除旧镜像或已有配置中的对应设置；已有产物不会因仓库脚本修改而自动改变。
 
 ## Browser RunImage 软件包说明规则
 
@@ -50,3 +46,13 @@ browser 保留这两个参数，适合通过桌面入口、i3 快捷键等方式
 - `qt6-svg`：补充 Qt6 程序的 SVG 图片、SVG 图标和相关渲染支持。
 - `libsecret`：提供 Secret Service 客户端库，供程序访问 KeePassXC、GNOME Keyring 等密码与凭据存储后端。
 - `gsettings-desktop-schemas`：补充 GTK/GNOME 程序常用的 GSettings 桌面配置 schema，并自动依赖安装 `dconf`。
+
+## 修复记录
+
+### 2026-09-13：停用 Browser 共享容器参数
+
+- 故障现象：同时启用 `RIM_RUN_IN_ONE=1` 和 `RIM_WAIT_RPIDS_EXIT=1` 后，实际使用仍有浏览器偶发闪退反馈。
+- 根因状态：尚未确认具体崩溃原因，本次按反馈暂时停用共享容器模式。
+- 修改文件：`setup_browser.sh`、`README.md`。
+- 处理内容：注释两条参数写入命令，补充停用原因，与 general_env、trading_env 的不启用策略保持一致；其他配置与打包命令不变。
+- 验证状态：完成脚本语法和完整差异静态检查；未监控 Actions，构建及运行结果未验证。
