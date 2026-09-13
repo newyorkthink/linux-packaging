@@ -2,7 +2,7 @@
 
 本目录用于构建 **JRiver Media Center Linux AppImage**。
 
-> **当前打包方式（2026-09-13）：** `build_jriver.sh` 已改为标准 **RunImage + quick-sharun** 流程，最终产物仍为 `jriver.AppImage`。旧入口原样改名为 `build_jriver_legacy_20260913.sh`，不由正式 workflow 调用。新路线尚未完成构建和 Linux 实机验证，不能沿用旧版的功能验证结论；详见第 14 节。
+> **当前打包方式（2026-09-13）：** `build_jriver.sh` 已改为标准 **RunImage + quick-sharun** 流程，最终产物仍为 `jriver.AppImage`。旧入口原样改名为 `build_jriver_legacy_20260913.sh`，不由正式 workflow 调用。新路线首次 Actions 构建在进入 JRiver 安装前因 CI 容器禁用非特权 user namespace 而失败；构建入口已按上游提示在临时 CI 容器内准备 SUID Bubblewrap，修复后的构建和 Linux 实机功能仍待验证。不能沿用旧版的功能验证结论；详见第 14～15 节。
 
 以下第 1～13 节及 2026-09-12 状态均为**旧版打包路线的历史记录**，其中的补丁、已知问题和稳定基线继续保留，不代表新入口已经验证。
 
@@ -581,3 +581,40 @@ chmod +x ./jriver.AppImage
 # 启动 JRiver Media Center
 ./jriver.AppImage
 ```
+
+---
+
+## 15. 2026-09-13：修复 CI 中 builduser 无法进入 RunImage
+
+### 已有失败证据
+
+首次正式构建对应：
+
+```text
+Run: 34756394307
+Job: Build JRiver
+Result: failure
+```
+
+日志显示上游 RunImage 已下载并完成 SHA-256 输出，但在执行安装脚本前依次出现：
+
+```text
+Failed to create user and mount namespaces: Operation not permitted
+runimage: failed to utilize FUSE during startup
+The kernel does not support user namespaces!
+```
+
+因此本次失败发生在 `builduser` 进入 RunImage 的阶段，尚未执行 `rim-update`、JRiver 安装或最终 quick-sharun 封装；与 JRiver 本体、CEF、音频、中文输入及影院模式无关。
+
+### 根因与修复
+
+- 根因：统一 workflow 的 JRiver Job 虽使用 privileged 容器和 `/dev/fuse`，但容器内的普通用户仍不能创建 RunImage 所需的 user namespace；直接以 `builduser` 启动会被上游运行时拒绝。
+- 修改文件：`jriver/build_jriver.sh`、`jriver/README.md`、根 `README.md`。
+- 修复方式：下载 RunImage 后先用其 `--runtime-extract` 入口取出上游自带的 `static/bwrap`，以 root 所有者和 `4755` 权限安装到临时 CI 容器的 `/usr/bin/bwrap`，再继续执行原有的 `sudo -H -u builduser ... ./runimage`。
+- 作用边界：SUID Bubblewrap 只存在于一次性构建容器，不复制进 `AppDir`，不改变最终 AppImage 的运行权限，也不修改用户系统；旧入口、workflow、CEF、音频和路径兼容代码均保持不变。
+- 该处理采用上游 RunImage 在 user namespace 不可用时给出的正式恢复路径，同时继续满足 AUR `makepkg` 不以 root 构建的要求。
+
+### 当前验证状态
+
+已根据运行日志、上游 RunImage 的 `RUNDIR/static/bwrap` 布局及现有脚本完成静态核对；未新增测试代码或测试 workflow。修复提交后的 Actions 构建、GUI、文件选择器、影院模式、网页音频和中文输入均尚未验证。
+
