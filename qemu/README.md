@@ -18,9 +18,11 @@
 
 1. 安装仓库规定的最小打包工具。
 2. 从 Arch Linux 官方仓库动态安装当前稳定版 QEMU 桌面组件，并显式安装 `qemu-ui-gtk`。
-3. 一次收集现有 `/usr/bin/qemu-*`、`remote-viewer`、`/usr/lib/qemu/*.so` 模块和固件数据目录。
+3. 按 pkgforge-dev/QEMU-AppImage 的官方形式，把 `/usr/bin/qemu-*`、`/usr/lib/qemu/*.so` 和 `/usr/share/qemu` 直接交给 quick-sharun；另收集本目录需要的 `remote-viewer`。
 4. 完全使用 quick-sharun 自动生成的 sharun 入口，在执行路径映射 Hook 后按 AppImage 链接名或第一个参数分派 `qemu-system-x86_64`、`qemu-img` 等工具。
 5. 由 quick-sharun 生成 `dist/qemu.AppImage`。
+
+`qemu.desktop` 与 `qemu.svg` 是 AppImage 元数据输入，分别由 `DESKTOP` 和 `ICON` 引用。两者需要保留在本目录，但不参与 QEMU 运行依赖收集，也不需要单独构建或额外补一份。
 
 正式入口为 `.github/workflows/build.yml` 中独立的 `Build QEMU` Job，只更新 `latest` Release 的 `qemu.AppImage`。
 
@@ -48,12 +50,36 @@ ln -sf ./qemu.AppImage qemu-system-x86_64
 ./qemu.AppImage qemu-system-x86_64 -enable-kvm -cpu host -m 4G -drive file=disk.qcow2,format=qcow2
 ```
 
+### GTK 主客机剪贴板
+
+QEMU 官方 GTK 后端的 `clipboard` 默认值是 `off`。只设置 `-chardev qemu-vdagent,...,clipboard=on` 不够，`-display gtk` 也必须显式开启：
+
+```bash
+./qemu.AppImage qemu-system-x86_64 \
+  ... \
+  -device virtio-serial-pci \
+  -chardev qemu-vdagent,id=vdagent0,name=vdagent,clipboard=on \
+  -device virtserialport,chardev=vdagent0,name=com.redhat.spice.0 \
+  -display gtk,clipboard=on,show-menubar=off,full-screen=off
+```
+
+Linux 客户机还必须安装并运行 SPICE VDAgent。Ubuntu 客户机可安装：
+
+```bash
+sudo apt update
+sudo apt install -y spice-vdagent
+```
+
+如果安装时图形会话已登录，请确认该会话中的 `spice-vdagent` 进程已启动；打包脚本不会替客户机安装代理。
+
 ## 运行与兼容说明
 
 - KVM 加速依赖宿主提供 `/dev/kvm`，并允许当前用户访问。
 - TAP、桥接网络和系统级 SPICE / libvirt 配置仍由宿主负责；AppImage 不修改 `/etc`、不加载内核模块、不调整用户组。
 - 默认启动 `qemu-system-x86_64`；把受支持的 `qemu-*` 工具名作为第一个参数即可调用对应工具。
-- 2026-09-13 第三次实机反馈确认：把 Bash 自定义入口改放为 `AppRun.sh` 后，quick-sharun 使用 POSIX `sh` 解释该文件，在 Bash 数组语法处报错；当前已移除自定义入口并回归 quick-sharun 官方生成入口，新产物待 Actions 构建和 Linux 实机确认。
+- `ln -sf` 只用于按链接名选择 QEMU 子程序，与 GTK 模块加载和剪贴板开关无关。
+- `WARNING: Glycin running without sandbox.` 是图像加载组件警告，不表示 GTK backend 或剪贴板通道缺失。
+- 2026-09-13 第四次实机反馈确认：回归 quick-sharun 官方入口后的 AppImage 已能通过软链接启动 GTK 虚拟机；当前剪贴板问题定位为启动命令未给 GTK display 增加 `clipboard=on`。
 
 ## 变更记录
 
@@ -87,4 +113,13 @@ ln -sf ./qemu.AppImage qemu-system-x86_64
 - 根因：quick-sharun 由可用的 POSIX shell 执行 `AppRun.sh`，原自定义入口却使用 Bash 数组，二者不兼容；该自定义入口同时重复实现了 quick-sharun 已原生提供的链接名和首参数分派。
 - 修改文件：`qemu/build_qemu.sh`、`qemu/README.md`，删除 `qemu/AppRun`。
 - 修复：不再覆盖或提供 `AppRun.sh`，完全保留 quick-sharun 自动生成的 sharun 入口、路径映射 Hook 和多工具分派；继续部署 `/usr/lib/qemu/*.so`，用户可以继续用 `ln -sf ./qemu.AppImage qemu-system-x86_64`。
-- 已知结果：当前实现已对齐 pkgforge-dev/QEMU-AppImage 的 quick-sharun 入口方式；新产物待正式 Actions 构建和 Linux 实机确认。
+- 已知结果：当前实现已对齐 pkgforge-dev/QEMU-AppImage 的 quick-sharun 入口方式；随后实机反馈确认 GTK 虚拟机已能正常启动。
+
+### 2026-09-13：校正 GTK 剪贴板用法并统一构建风格
+
+- 故障现象：GTK 虚拟机已能启动，但宿主与客户机不能共享剪贴板。
+- 根因：启动命令启用了 `qemu-vdagent` chardev，却仍使用 `-display gtk,show-menubar=off,full-screen=off`；QEMU 官方文档明确 GTK `clipboard` 默认关闭。
+- 检查范围：完整复核根目录 `AGENTS.md`、当前 QEMU 实现、`copyq`、`simplescreenrecorder`、`smplayer` 三个 quick-sharun 构建，以及 pkgforge-dev/QEMU-AppImage 的当前脚本。
+- 修改文件：`qemu/build_qemu.sh`、`qemu/README.md`。
+- 修复：文档中的 GTK 启动方式明确改为 `-display gtk,clipboard=on,...`，说明客户机 SPICE VDAgent 条件；构建脚本按仓库规范增加中文阶段标题，并把 QEMU 程序、模块和数据目录收敛为 pkgforge 官方的直接 quick-sharun 输入形式。
+- 已知结果：入口、GTK 模块和软链接分派已由实机确认；本次不再添加自定义 AppRun，也不在打包层擅自改写用户参数，剪贴板命令待实机复核。
