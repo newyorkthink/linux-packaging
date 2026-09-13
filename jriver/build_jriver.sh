@@ -43,6 +43,15 @@ chmod +x runimage
 
 ###### 准备非特权构建运行时 ######
 
+# RunImage 的 FUSE 和 UnionFS 挂载需要系统提供 SUID fusermount。
+pacman -S --needed --noconfirm fuse2
+if [[ ! -x /usr/bin/fusermount ]]; then
+  echo '错误：fuse2 未提供预期的 fusermount。' >&2
+  exit 1
+fi
+# 仅在临时 CI 容器内确保 fusermount 保留 SUID 位。
+chmod u+s /usr/bin/fusermount
+
 # 当前 CI 容器禁止非特权 user namespace；提取上游自带的 Bubblewrap。
 ./runimage --runtime-extract
 if [[ ! -x ./RunDir/static/bwrap ]]; then
