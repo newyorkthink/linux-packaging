@@ -82,12 +82,12 @@ mkdir -p /var/RunDir/config/
   # 关闭 RunImage 的普通信息输出，仅保留错误等必要信息，减少启动时终端输出
   echo 'RIM_QUIET_MODE=1'
 
-  # 同一个 browser RunImage 后续启动的程序共用同一个容器，避免同时启动多个浏览器时重复创建独立容器和挂载环境
-  echo 'RIM_RUN_IN_ONE=1'
+  # 共享容器模式在实际使用中仍偶发浏览器闪退，因此暂不启用，与 general_env、trading_env 保持一致
+  # 不再让后续启动的浏览器共用同一个容器，避免不同浏览器之间相互影响
+  # echo 'RIM_RUN_IN_ONE=1'
 
-  # 等待共享容器内所有浏览器全部退出后再关闭 RunImage 容器
-  # 避免关闭最先启动的浏览器时，同时结束后续启动的其他浏览器
-  echo 'RIM_WAIT_RPIDS_EXIT=1'
+  # 共享容器的等待退出参数一并停用；此前同时启用这两个参数仍有闪退反馈
+  # echo 'RIM_WAIT_RPIDS_EXIT=1'
 
   # 设置 RunImage 内部默认语言为简体中文 UTF-8
   echo 'LANG=zh_CN.utf8'
