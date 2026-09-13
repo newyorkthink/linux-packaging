@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HERE="$(dirname "$(readlink -f "$0")")"
+ROOT="${HERE}/root"
+PRELOAD="${HERE}/libunionpreload.so"
+
+if [[ ! -d "${ROOT}/usr" || ! -f "${PRELOAD}" ]]; then
+  echo "QEMU AppImage: incomplete runtime" >&2
+  exit 127
+fi
+
+INTERPRETER="${ROOT}/usr/lib/ld-linux-x86-64.so.2"
+if [[ ! -x "${INTERPRETER}" ]]; then
+  INTERPRETER="${ROOT}/lib64/ld-linux-x86-64.so.2"
+fi
+
+if [[ ! -x "${INTERPRETER}" ]]; then
+  echo "QEMU AppImage: dynamic loader not found" >&2
+  exit 127
+fi
+
+export UNION_PRELOAD="${ROOT}"
+export LD_PRELOAD="${PRELOAD}${LD_PRELOAD:+:${LD_PRELOAD}}"
+export PATH="${ROOT}/usr/bin:${ROOT}/usr/sbin:${PATH:-/usr/bin:/bin}"
+export LD_LIBRARY_PATH="${ROOT}/usr/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+export XDG_DATA_DIRS="${ROOT}/usr/share${XDG_DATA_DIRS:+:${XDG_DATA_DIRS}}"
+export GSETTINGS_SCHEMA_DIR="${ROOT}/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:${GSETTINGS_SCHEMA_DIR}}"
+export GIO_EXTRA_MODULES="${ROOT}/usr/lib/gio/modules${GIO_EXTRA_MODULES:+:${GIO_EXTRA_MODULES}}"
+export LIBGL_DRIVERS_PATH="${ROOT}/usr/lib/dri${LIBGL_DRIVERS_PATH:+:${LIBGL_DRIVERS_PATH}}"
+export XKB_CONFIG_ROOT="${ROOT}/usr/share/X11/xkb"
+export QEMU_MODULE_DIR="${ROOT}/usr/lib/qemu"
+export QEMU_DATA_DIR="${ROOT}/usr/share/qemu"
+export QEMU_AUDIO_DRV="${QEMU_AUDIO_DRV:-pa}"
+
+if [[ -n "${APPIMAGE:-}" ]]; then
+  BINARY_NAME="$(basename "${ARGV0:-$APPIMAGE}")"
+else
+  BINARY_NAME="$(basename "$0")"
+fi
+
+args=("$@")
+binary=""
+
+if (( ${#args[@]} > 0 )) && [[ "${args[0]##*/}" == qemu-* ]] && \
+   [[ -x "${ROOT}/usr/bin/${args[0]##*/}" ]]; then
+  binary="${args[0]##*/}"
+  args=("${args[@]:1}")
+elif [[ "${BINARY_NAME}" == qemu-* ]] && [[ -x "${ROOT}/usr/bin/${BINARY_NAME}" ]]; then
+  binary="${BINARY_NAME}"
+else
+  binary="qemu-system-x86_64"
+fi
+
+MAIN="${ROOT}/usr/bin/${binary}"
+if [[ ! -x "${MAIN}" ]]; then
+  echo "QEMU AppImage: ${binary} not found" >&2
+  exit 127
+fi
+
+exec "${INTERPRETER}" \
+  --inhibit-cache \
+  --library-path "${ROOT}/usr/lib" \
+  "${MAIN}" "${args[@]}"
