@@ -169,3 +169,32 @@ You need to disable apparmor_restrict_unprivileged_userns
 ### 当前验证状态
 
 已按 Run 34757282264 完整日志和上游 RunImage 的启动检查顺序完成静态核对；Shell 语法检查通过，未新增测试代码或测试 workflow。修复提交后的 Actions 构建与全部实机功能仍待验证。
+
+---
+
+## 5. 2026-09-13：禁用成品 NVIDIA 驱动处理并补齐中文环境
+
+### 最新运行证据
+
+最新 `jriver.AppImage` 已能够进入 RunImage 自动启动流程并识别 `mediacenter36`，但在启动 JRiver 前扫描到宿主 NVIDIA 550.163.01 缺少 32 位库，随后尝试从多个源下载同版本驱动镜像：
+
+```text
+Nvidia 32-bit libraries are not found in your system!
+Downloading Nvidia 550.163.01 driver, please wait...
+550.163.01.nv.drv not found
+```
+
+这不是 JRiver 自身的驱动下载要求。新入口此前在成品 `Run.rcfg` 中启用了 `RIM_SYS_NVLIBS=1`；构建命令使用的 `RIM_NO_NVIDIA_CHECK=1` 只作用于构建阶段，没有写入最终运行配置。
+
+### 根因与修改
+
+- 删除成品配置中的 `RIM_SYS_NVLIBS=1`，改为持久化 `RIM_NO_NVIDIA_CHECK=1`，与仓库 `runimage/setup_general_env.sh` 的既有通用策略一致。
+- 该设置禁用 RunImage 的 NVIDIA 版本检测、匹配、驱动镜像生成和下载流程；不添加 32 位 NVIDIA 依赖，也不修改宿主驱动。
+- 保留现有 `fcitx5-gtk`、`zh_CN.UTF-8` locale 生成及宿主字体、图标和主题共享，并按通用基线写入包内 `/etc/locale.conf`。
+- 包内 `/etc/locale.conf` 设置 `LANG`、`LC_ALL` 与 `LANGUAGE`；成品 `Run.rcfg` 导出 `LANG`、`LANGUAGE`、`GTK_IM_MODULE`、`QT_IM_MODULE`、`XMODIFIERS` 与 `SDL_IM_MODULE`，使默认中文环境和 Fcitx5 输入法设置随 JRiver 启动。
+- 上游 RunImage 使用 `set -a` 加载内部 `Run.rcfg`，这些变量会导出给自动启动的 JRiver。
+- 旧版构建入口、workflow、CEF、音频、glibc 与路径兼容链均不修改。
+
+### 当前验证状态
+
+已核对 `setup_general_env.sh`、当前 JRiver 构建脚本和上游 RunImage 配置加载顺序；Shell 语法检查通过，未新增测试代码或测试 workflow。新配置生成后的 AppImage 启动、GUI、中文输入、网页音频、文件选择器和影院模式仍需实机验证。

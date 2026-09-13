@@ -103,20 +103,42 @@ run_install() {
   pacman -Q jriver-media-center | awk '{print $2}' > version
   printf '%s\n' "$desktop" > desktop-path
 
-  # 在包内生成中文 locale，不覆盖运行时的宿主语言选择。
+  # 在包内生成中文 locale。
   if ! grep -qxF 'zh_CN.UTF-8 UTF-8' /etc/locale.gen; then
     printf '%s\n' 'zh_CN.UTF-8 UTF-8' >> /etc/locale.gen
   fi
   # 更新包内 locale 数据。
   locale-gen
+  # 沿用通用 RunImage 基线，在包内设置默认简体中文环境。
+  cat > /etc/locale.conf <<'EOF_LOCALE'
+LANG=zh_CN.utf8
+LC_ALL=zh_CN.utf8
+LANGUAGE=zh_CN:zh
+EOF_LOCALE
 
   # 写入标准 RunImage 配置，直接启动包管理器安装的 JRiver 入口。
   cat > "$RUNDIR/config/Run.rcfg" <<'EOF_CONFIG'
-RIM_SYS_NVLIBS="${RIM_SYS_NVLIBS:=1}"
+# 禁用 RunImage 的 NVIDIA 驱动检查，避免自动检测、匹配、生成或下载驱动镜像。
+RIM_NO_NVIDIA_CHECK=1
+# 共享宿主图标。
 RIM_SHARE_ICONS="${RIM_SHARE_ICONS:=1}"
+# 共享宿主字体。
 RIM_SHARE_FONTS="${RIM_SHARE_FONTS:=1}"
+# 共享宿主主题。
 RIM_SHARE_THEMES="${RIM_SHARE_THEMES:=1}"
+# 使用宿主 xdg-open。
 RIM_HOST_XDG_OPEN="${RIM_HOST_XDG_OPEN:=1}"
+# 默认使用简体中文 UTF-8 环境。
+LANG=zh_CN.utf8
+LANGUAGE=zh_CN:zh
+# GTK 程序使用宿主 Fcitx5。
+GTK_IM_MODULE=fcitx
+# Qt 程序使用宿主 Fcitx5。
+QT_IM_MODULE=fcitx
+# X11 程序使用宿主 Fcitx5。
+XMODIFIERS=@im=fcitx
+# SDL 程序使用宿主 Fcitx5。
+SDL_IM_MODULE=fcitx
 EOF_CONFIG
   # 把动态识别的主程序名称写入自动启动配置。
   printf 'RIM_AUTORUN=%q\n' "$launcher" >> "$RUNDIR/config/Run.rcfg"
