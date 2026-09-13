@@ -52,25 +52,15 @@ ln -sf ./qemu.AppImage qemu-system-x86_64
 
 ### GTK 主客机剪贴板
 
-QEMU 官方 GTK 后端的 `clipboard` 默认值是 `off`。只设置 `-chardev qemu-vdagent,...,clipboard=on` 不够，`-display gtk` 也必须显式开启：
+旧仓库发布的 AppImage 带有 `AppRun.wrapper`，会在用户没有显式设置 `clipboard=` 时自动给 GTK display 补充 `clipboard=on`，所以原命令即使只写 `-display gtk,...` 也能共享剪贴板。
+
+当前构建按 pkgforge-dev/QEMU-AppImage 的官方 quick-sharun 方式生成入口，不保留旧包装器，也不在 AppImage 内改写用户参数。这不是 QEMU、GTK 或 SPICE 依赖缺失；使用当前 AppImage 时，应在原启动命令中把 display 参数明确写为：
 
 ```bash
-./qemu.AppImage qemu-system-x86_64 \
-  ... \
-  -device virtio-serial-pci \
-  -chardev qemu-vdagent,id=vdagent0,name=vdagent,clipboard=on \
-  -device virtserialport,chardev=vdagent0,name=com.redhat.spice.0 \
-  -display gtk,clipboard=on,show-menubar=off,full-screen=off
+-display gtk,clipboard=on,show-menubar=off,full-screen=off
 ```
 
-Linux 客户机还必须安装并运行 SPICE VDAgent。Ubuntu 客户机可安装：
-
-```bash
-sudo apt update
-sudo apt install -y spice-vdagent
-```
-
-如果安装时图形会话已登录，请确认该会话中的 `spice-vdagent` 进程已启动；打包脚本不会替客户机安装代理。
+原命令中已经存在的 `-chardev qemu-vdagent,...,clipboard=on`、`com.redhat.spice.0` virtserialport 和其他参数保持不变。相同客户机使用旧 AppImage 已能共享剪贴板时，无需另外修改客户机。
 
 ## 运行与兼容说明
 
@@ -79,7 +69,7 @@ sudo apt install -y spice-vdagent
 - 默认启动 `qemu-system-x86_64`；把受支持的 `qemu-*` 工具名作为第一个参数即可调用对应工具。
 - `ln -sf` 只用于按链接名选择 QEMU 子程序，与 GTK 模块加载和剪贴板开关无关。
 - `WARNING: Glycin running without sandbox.` 是图像加载组件警告，不表示 GTK backend 或剪贴板通道缺失。
-- 2026-09-13 第四次实机反馈确认：回归 quick-sharun 官方入口后的 AppImage 已能通过软链接启动 GTK 虚拟机；当前剪贴板问题定位为启动命令未给 GTK display 增加 `clipboard=on`。
+- 2026-09-13 第四次实机反馈确认：回归 quick-sharun 官方入口后的 AppImage 已能通过软链接启动 GTK 虚拟机；旧包使用相同命令能共享剪贴板，是因为旧 `AppRun.wrapper` 自动补充了 GTK `clipboard=on`，并非当前包缺少 SPICE。
 
 ## 变更记录
 
@@ -123,3 +113,11 @@ sudo apt install -y spice-vdagent
 - 修改文件：`qemu/build_qemu.sh`、`qemu/README.md`。
 - 修复：文档中的 GTK 启动方式明确改为 `-display gtk,clipboard=on,...`，说明客户机 SPICE VDAgent 条件；构建脚本按仓库规范增加中文阶段标题，并把 QEMU 程序、模块和数据目录收敛为 pkgforge 官方的直接 quick-sharun 输入形式。
 - 已知结果：入口、GTK 模块和软链接分派已由实机确认；本次不再添加自定义 AppRun，也不在打包层擅自改写用户参数，剪贴板命令待实机复核。
+
+### 2026-09-13：移除非必要构建检查并澄清剪贴板差异
+
+- 故障现象：构建脚本在 quick-sharun 前后加入了程序、`ui-gtk.so` 和 `AppDir/AppRun` 的额外存在性检查；剪贴板说明没有解释旧 AppImage 使用相同命令仍能工作的原因。
+- 根因：这些防御性检查不是 pkgforge-dev/QEMU-AppImage 官方最短打包链路的一部分；旧包的剪贴板行为来自 `AppRun.wrapper` 自动补充 GTK `clipboard=on`，而不是额外的 SPICE 依赖。
+- 修改文件：`qemu/build_qemu.sh`、`qemu/README.md`。
+- 修复：删除 `required_binaries` 循环、`ui-gtk.so` 单文件检查和 `AppDir/AppRun` 检查；保留已确认需要的 `qemu-ui-gtk` 与 `/usr/lib/qemu/*.so` 收集；将剪贴板说明改为当前官方入口所需的显式 GTK 参数。
+- 已知结果：脚本保持 quick-sharun 官方直接收集与生成入口方式，未新增 AppRun、wrapper 或测试代码；已完成脚本语法和完整差异静态核对，构建及运行结果待正式流程和实机反馈确认。
