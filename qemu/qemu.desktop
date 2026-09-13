@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=QEMU
+Comment=Machine emulator and virtualizer
+Exec=qemu-system-x86_64
+Terminal=true
+Type=Application
+Icon=qemu
+Categories=System;Emulator;
+StartupNotify=false

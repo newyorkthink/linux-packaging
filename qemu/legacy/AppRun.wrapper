@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HERE="$(dirname "$(readlink -f "$0")")"
+REAL_APPRUN="${HERE}/AppRun.real"
+
+if [[ ! -x "${REAL_APPRUN}" ]]; then
+    echo "QEMU AppImage: missing AppRun.real" >&2
+    exit 127
+fi
+
+args=("$@")
+
+for ((i = 0; i < ${#args[@]}; i++)); do
+    case "${args[i]}" in
+        -display)
+            if (( i + 1 < ${#args[@]} )); then
+                display="${args[i + 1]}"
+                if [[ "${display}" == gtk ]]; then
+                    args[i + 1]="gtk,clipboard=on"
+                elif [[ "${display}" == gtk,* && "${display}" != *clipboard=* ]]; then
+                    args[i + 1]="${display},clipboard=on"
+                fi
+                ((i += 1))
+            fi
+            ;;
+        -display=*)
+            display="${args[i]#-display=}"
+            if [[ "${display}" == gtk ]]; then
+                args[i]="-display=gtk,clipboard=on"
+            elif [[ "${display}" == gtk,* && "${display}" != *clipboard=* ]]; then
+                args[i]="-display=${display},clipboard=on"
+            fi
+            ;;
+    esac
+done
+
+exec "${REAL_APPRUN}" "${args[@]}"
