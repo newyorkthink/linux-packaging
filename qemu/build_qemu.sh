@@ -17,7 +17,7 @@ yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils 
   desktop-file-utils zsync ca-certificates
 
 # 安装当前稳定版 QEMU 桌面组件、常用磁盘工具和 SPICE 客户端。
-yay -S --noconfirm qemu-desktop qemu-tools virt-viewer
+yay -S --noconfirm qemu-desktop qemu-tools qemu-ui-gtk virt-viewer
 
 required_binaries=(
   /usr/bin/qemu-system-x86_64
@@ -41,11 +41,21 @@ done < <(find /usr/bin -maxdepth 1 \( -type f -o -type l \) -name 'qemu-*' -prin
 
 qemu_inputs+=(/usr/bin/remote-viewer)
 
-for resource_dir in /usr/lib/qemu /usr/share/qemu; do
-  if [[ -d "$resource_dir" ]]; then
-    qemu_inputs+=("$resource_dir")
-  fi
-done
+# QEMU 的 GTK 等显示后端是独立模块；必须逐个交给 quick-sharun 收集。
+shopt -s nullglob
+qemu_modules=(/usr/lib/qemu/*.so)
+shopt -u nullglob
+
+if [[ ! -f /usr/lib/qemu/ui-gtk.so ]]; then
+  echo "缺少 QEMU GTK 显示模块：/usr/lib/qemu/ui-gtk.so" >&2
+  exit 1
+fi
+
+qemu_inputs+=("${qemu_modules[@]}")
+
+if [[ -d /usr/share/qemu ]]; then
+  qemu_inputs+=(/usr/share/qemu)
+fi
 
 # 一次收集 QEMU 程序、工具、模块、固件数据和 remote-viewer 的真实运行依赖。
 quick-sharun "${qemu_inputs[@]}"
