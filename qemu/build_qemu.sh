@@ -31,6 +31,14 @@ quick-sharun \
   /usr/bin/remote-viewer \
   /usr/share/qemu
 
+###### 补充简体中文翻译 ######
+
+# 翻译域为 virt-viewer，与 remote-viewer 程序名不同，需在 quick-sharun 裁剪后补回。
+install -Dm644 /usr/share/locale/zh_CN/LC_MESSAGES/virt-viewer.mo AppDir/share/locale/zh_CN/LC_MESSAGES/virt-viewer.mo
+
+# 设置 AppImage 内的简体中文界面偏好，不改宿主 LANG、LC_ALL 或输入法配置。
+printf '%s\n' 'LANGUAGE=zh_CN' >> AppDir/.env
+
 ###### 生成固定名称产物 ######
 
 quick-sharun --make-appimage

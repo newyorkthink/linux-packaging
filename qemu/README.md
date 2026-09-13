@@ -20,7 +20,7 @@
 2. 从 Arch Linux 官方仓库动态安装当前稳定版 QEMU 桌面组件，并显式安装 `qemu-ui-gtk`。
 3. 按 pkgforge-dev/QEMU-AppImage 的官方形式，把 `/usr/bin/qemu-*`、`/usr/lib/qemu/*.so` 和 `/usr/share/qemu` 直接交给 quick-sharun；另收集本目录需要的 `remote-viewer`。
 4. 完全使用 quick-sharun 自动生成的 sharun 入口，在执行路径映射 Hook 后按 AppImage 链接名或第一个参数分派 `qemu-system-x86_64`、`qemu-img` 等工具。
-5. 由 quick-sharun 生成 `dist/qemu.AppImage`。
+5. 在 quick-sharun 的翻译裁剪完成后补回 `zh_CN/LC_MESSAGES/virt-viewer.mo`，并在 `AppDir/.env` 设置 `LANGUAGE=zh_CN`，随后生成 `dist/qemu.AppImage`。
 
 `qemu.desktop` 与 `qemu.svg` 是 AppImage 元数据输入，分别由 `DESKTOP` 和 `ICON` 引用。两者需要保留在本目录，但不参与 QEMU 运行依赖收集，也不需要单独构建或额外补一份。
 
@@ -75,6 +75,10 @@ ln -sf ./qemu.AppImage remote-viewer
 ```
 
 原命令中已经存在的 `-chardev qemu-vdagent,...,clipboard=on`、`com.redhat.spice.0` virtserialport 和其他参数保持不变。相同客户机使用旧 AppImage 已能共享剪贴板时，无需另外修改客户机。
+
+### remote-viewer 简体中文界面
+
+使用 Arch 官方 `virt-viewer` 包自带的简体中文翻译；quick-sharun 仍负责原有翻译路径映射和 GTK 公共翻译部署。只补回程序名与翻译域不一致而被裁剪的 `virt-viewer.mo`，不增加软件包、不安装输入法、不改变客户机配置，也不修改宿主的 `LANG` 或 `LC_ALL`。上游尚未翻译的文字仍可能显示英文。
 
 ## 运行与兼容说明
 
@@ -142,3 +146,11 @@ ln -sf ./qemu.AppImage remote-viewer
 - 实机结果：使用 `-enable-kvm -cpu host` 成功启动虚拟机，KVM 加速有效；GTK 窗口、显式启用的主客机剪贴板、virtio-9p 共享目录和 `qemu-system-x86_64` 软链接入口均正常。
 - 最终结论：当前正式构建不需要增加其他软件包，不需要自定义 AppRun 或 wrapper；继续保留 `qemu-desktop`、`qemu-tools`、`qemu-ui-gtk`、`virt-viewer` 及现有 quick-sharun 输入。
 - 稳定基线：后续没有新的构建日志或真实运行错误时，不得修改当前构建脚本、依赖列表、入口方式和已确认命令。
+
+### 2026-09-13：补回 remote-viewer 简体中文翻译
+
+- 故障现象：Linux 实机反馈 remote-viewer 可以连接远程桌面，但客户端菜单和快捷键界面显示英文。
+- 根因：Arch 官方包包含 `zh_CN/LC_MESSAGES/virt-viewer.mo`；当前 quick-sharun 的 `_deploy_locale` 按已部署程序和 desktop 名称裁剪翻译，`remote-viewer` 与 `virt-viewer` 翻译域不匹配。原构建未在裁剪后补回该文件；此次未提取旧 AppImage，不能仅凭截图排除运行时语言环境的影响。
+- 修改文件：`qemu/build_qemu.sh`、`qemu/README.md`。
+- 修复：依赖收集后、最终封装前补回这一份官方简体中文翻译，并向 `AppDir/.env` 写入 `LANGUAGE=zh_CN`；保留原有 quick-sharun 路径映射、GTK 公共翻译、依赖列表、启动参数及 workflow，不增加 Fcitx5、IBus 或自定义入口。
+- 已知结果：已核对 Arch 官方文件清单、quick-sharun 翻译裁剪与路径映射实现，并完成仓库外 Bash 语法和完整差异检查；提交后不监控 Actions，新产物中文界面仍待正式构建和 Linux 实机验证。
