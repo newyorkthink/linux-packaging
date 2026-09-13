@@ -18,7 +18,7 @@
 截至 2026-09-13，以下问题暂时保留，后续有空或 AI coding 额度充足时再继续处理。继续前必须先完整阅读对应目录现有 README / 问题记录；已经解决的构建兼容层和已确认基线不得回退。
 
 - `runimage/jriver-media-center`：JRiver RunImage 当前仍未解决。Rofi 启动 `mediacenter36` 时存在后台进程但 GUI 不显示；回退到文件选择器实验前的旧构建逻辑后仍然复现，因此不能把根因简单归到 GVFS、`dbus-run-session`、`LD_PRELOAD` 或 launcher 中的单一改动。当前 RunImage 不作为日常使用基线。后续应从此前实际可用产物与当前产物、RunImage 版本、挂载环境、父进程环境、残留进程 / 会话状态等方向做对照；详见 [runimage/jriver-media-center/README.md](./runimage/jriver-media-center/README.md) 与 [TEST_ISSUE.md](./runimage/jriver-media-center/TEST_ISSUE.md)。
-- `jriver`：2026-09-13 新 RunImage + quick-sharun 入口的第三次 Actions（Run 34757282264）已越过 SUID Bubblewrap 与 `fusermount` 阶段，当前失败点是 GitHub-hosted runner 启用 `apparmor_restrict_unprivileged_userns`，导致上游 RunImage 在 `rim-update` 前主动退出。`build_jriver.sh` 现仅在一次性 privileged CI runner 内将对应 proc sysctl 临时设为 `0`，不写持久化配置；旧入口、workflow、CEF、音频和路径兼容代码未改。修复后的构建和新产物全部实机功能仍待验证。详见 [RunImage + quick-sharun 路线记录](./jriver/README_runimage_quick.md)；[旧版稳定路线记录](./jriver/README.md) 继续独立保留。
+- `jriver`：2026-09-13 新 RunImage + quick-sharun 入口已生成可执行产物；最新实机启动日志显示成品曾因 `RIM_SYS_NVLIBS=1` 检查宿主 NVIDIA 32 位库并尝试下载驱动镜像。新入口现改为与通用 RunImage 基线一致的 `RIM_NO_NVIDIA_CHECK=1`，并在成品配置中补齐简体中文 locale 与 Fcitx5 环境；旧入口、workflow、CEF、音频和路径兼容代码未改。修改后的 GUI、中文输入、网页音频、文件选择器和影院模式仍待实机验证。详见 [RunImage + quick-sharun 路线记录](./jriver/README_runimage_quick.md)；[旧版稳定路线记录](./jriver/README.md) 继续独立保留。
 - `remotedesktopmanager`：AppImage 当前可以正常打包，ICU 与多语言界面可用。现存问题是内置终端使用 Fcitx5 中文输入时，会把候选操作的原始按键同时发送到终端，出现 `^[[A`、`^[[D` 等转义字符；当前 AppImage 构建脚本无法直接修复。后续应继续从 Remote Desktop Manager 内置终端的输入事件处理或上游实现方向定位；详见 [remotedesktopmanager/README.md](./remotedesktopmanager/README.md)。
 
 ## Releases
