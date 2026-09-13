@@ -41,6 +41,19 @@ sha256sum runimage
 # 允许执行构建运行时。
 chmod +x runimage
 
+###### 准备非特权构建运行时 ######
+
+# 当前 CI 容器禁止非特权 user namespace；提取上游自带的 Bubblewrap。
+./runimage --runtime-extract
+if [[ ! -x ./RunDir/static/bwrap ]]; then
+  echo '错误：RunImage 未包含预期的 Bubblewrap。' >&2
+  exit 1
+fi
+# 仅在临时 CI 容器内安装 SUID Bubblewrap，让 builduser 能进入 RunImage。
+install -o root -g root -m 4755 ./RunDir/static/bwrap /usr/bin/bwrap
+# 清理临时提取目录，避免与后续成品 RunImage 解包目录冲突。
+rm -rf ./RunDir
+
 ###### 在 RunImage 内安装 JRiver ######
 
 run_install() {
