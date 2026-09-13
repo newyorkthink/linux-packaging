@@ -65,8 +65,8 @@ if [[ ! -x AppDir/AppRun ]]; then
   exit 1
 fi
 
-# 使用 QEMU 专用入口支持多工具分派，并保留 GTK 剪贴板参数兼容处理。
-install -m 0755 "$SCRIPT_DIR/AppRun" AppDir/AppRun
+# 保留 sharun 作为 AppRun，由它执行路径映射 Hook 后再调用 QEMU 专用入口。
+install -m 0755 "$SCRIPT_DIR/AppRun" AppDir/AppRun.sh
 
 # 生成固定名称的最终 AppImage。
 quick-sharun --make-appimage
