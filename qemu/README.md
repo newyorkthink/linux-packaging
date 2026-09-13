@@ -19,9 +19,8 @@
 1. 安装仓库规定的最小打包工具。
 2. 从 Arch Linux 官方仓库动态安装当前稳定版 QEMU 桌面组件，并显式安装 `qemu-ui-gtk`。
 3. 一次收集现有 `/usr/bin/qemu-*`、`remote-viewer`、`/usr/lib/qemu/*.so` 模块和固件数据目录。
-4. 保留 quick-sharun 生成的 sharun `AppRun`，把本目录入口安装为 `AppRun.sh`，在路径映射 Hook 执行后支持 `qemu-system-x86_64`、`qemu-img` 等多工具分派。
-5. 对 GTK 显示参数保留 `clipboard=on` 自动补充逻辑。
-6. 由 quick-sharun 生成 `dist/qemu.AppImage`。
+4. 完全使用 quick-sharun 自动生成的 sharun 入口，在执行路径映射 Hook 后按 AppImage 链接名或第一个参数分派 `qemu-system-x86_64`、`qemu-img` 等工具。
+5. 由 quick-sharun 生成 `dist/qemu.AppImage`。
 
 正式入口为 `.github/workflows/build.yml` 中独立的 `Build QEMU` Job，只更新 `latest` Release 的 `qemu.AppImage`。
 
@@ -36,6 +35,12 @@ chmod +x qemu.AppImage
 # 查看 QEMU 版本。
 ./qemu.AppImage qemu-system-x86_64 --version
 
+# 创建按程序名分派的本地软链接。
+ln -sf ./qemu.AppImage qemu-system-x86_64
+
+# 通过软链接查看 QEMU 版本。
+./qemu-system-x86_64 --version
+
 # 创建 QCOW2 磁盘。
 ./qemu.AppImage qemu-img create -f qcow2 disk.qcow2 30G
 
@@ -48,7 +53,7 @@ chmod +x qemu.AppImage
 - KVM 加速依赖宿主提供 `/dev/kvm`，并允许当前用户访问。
 - TAP、桥接网络和系统级 SPICE / libvirt 配置仍由宿主负责；AppImage 不修改 `/etc`、不加载内核模块、不调整用户组。
 - 默认启动 `qemu-system-x86_64`；把受支持的 `qemu-*` 工具名作为第一个参数即可调用对应工具。
-- 2026-09-13 第二次实机反馈确认：`ui-gtk.so` 已打入成品，但自定义入口覆盖 sharun 后未执行路径映射 Hook，仍会报 GTK display backend 不可用；当前入口修复后的新产物待 Actions 构建和 Linux 实机确认。
+- 2026-09-13 第三次实机反馈确认：把 Bash 自定义入口改放为 `AppRun.sh` 后，quick-sharun 使用 POSIX `sh` 解释该文件，在 Bash 数组语法处报错；当前已移除自定义入口并回归 quick-sharun 官方生成入口，新产物待 Actions 构建和 Linux 实机确认。
 
 ## 变更记录
 
@@ -75,3 +80,11 @@ chmod +x qemu.AppImage
 - 修改文件：`qemu/build_qemu.sh`、`qemu/README.md`。
 - 修复：保留 quick-sharun 生成的 sharun `AppDir/AppRun`，仅把现有 QEMU 多工具入口安装为 `AppDir/AppRun.sh`；原启动参数、GTK 剪贴板逻辑和已部署模块保持不变，不要求在宿主系统创建 `/usr/lib/qemu` 链接。
 - 已知结果：修复方式与 quick-sharun 当前入口规范一致；新产物待正式 Actions 构建和 Linux 实机确认。
+
+### 2026-09-13：移除自定义入口并回归 quick-sharun 官方分派
+
+- 故障现象：通过指向 AppImage 的 `qemu-system-x86_64` 软链接启动时，`AppRun.sh` 第 6 行报 `Syntax error: "(" unexpected`。
+- 根因：quick-sharun 由可用的 POSIX shell 执行 `AppRun.sh`，原自定义入口却使用 Bash 数组，二者不兼容；该自定义入口同时重复实现了 quick-sharun 已原生提供的链接名和首参数分派。
+- 修改文件：`qemu/build_qemu.sh`、`qemu/README.md`，删除 `qemu/AppRun`。
+- 修复：不再覆盖或提供 `AppRun.sh`，完全保留 quick-sharun 自动生成的 sharun 入口、路径映射 Hook 和多工具分派；继续部署 `/usr/lib/qemu/*.so`，用户可以继续用 `ln -sf ./qemu.AppImage qemu-system-x86_64`。
+- 已知结果：当前实现已对齐 pkgforge-dev/QEMU-AppImage 的 quick-sharun 入口方式；新产物待正式 Actions 构建和 Linux 实机确认。
