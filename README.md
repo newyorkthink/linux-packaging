@@ -18,7 +18,7 @@
 截至 2026-09-12，以下问题暂时保留，后续有空或 AI coding 额度充足时再继续处理。继续前必须先完整阅读对应目录现有 README / 问题记录；已经解决的构建兼容层和已确认基线不得回退。
 
 - `runimage/jriver-media-center`：JRiver RunImage 当前仍未解决。Rofi 启动 `mediacenter36` 时存在后台进程但 GUI 不显示；回退到文件选择器实验前的旧构建逻辑后仍然复现，因此不能把根因简单归到 GVFS、`dbus-run-session`、`LD_PRELOAD` 或 launcher 中的单一改动。当前 RunImage 不作为日常使用基线。后续应从此前实际可用产物与当前产物、RunImage 版本、挂载环境、父进程环境、残留进程 / 会话状态等方向做对照；详见 [runimage/jriver-media-center/README.md](./runimage/jriver-media-center/README.md) 与 [TEST_ISSUE.md](./runimage/jriver-media-center/TEST_ISSUE.md)。
-- `jriver`：2026-09-13 新 RunImage + quick-sharun 入口的首次 Actions 构建在 `builduser` 进入 RunImage 前失败，Run 34756394307 已确认 CI 容器禁止非特权 user namespace。`build_jriver.sh` 已按上游恢复路径在临时 CI 容器内准备 SUID Bubblewrap，再继续以普通用户构建 AUR 包；旧入口、workflow、CEF、音频和路径兼容代码未改。修复后的构建和新产物 GUI、文件选择器、影院模式、网页音频及中文输入仍待验证，不能沿用旧版功能结论。详见 [jriver/README.md](./jriver/README.md) 第 14～15 节。
+- `jriver`：2026-09-13 新 RunImage + quick-sharun 入口的前两次 Actions 已依次确认非特权 user namespace 与 SUID `fusermount` 缺失。Run 34756871436 证明 SUID Bubblewrap 已生效，但 FUSE / UnionFS 仍因缺少 `fusermount` 失败；`build_jriver.sh` 现同时在临时 CI 容器准备 Arch `fuse2` 的 SUID `fusermount` 与上游 SUID Bubblewrap，再继续由普通用户构建。旧入口、workflow、CEF、音频和路径兼容代码未改；修复后的构建和新产物全部实机功能仍待验证。详见 [jriver/README.md](./jriver/README.md) 第 14～16 节。
 - `remotedesktopmanager`：AppImage 当前可以正常打包，ICU 与多语言界面可用。现存问题是内置终端使用 Fcitx5 中文输入时，会把候选操作的原始按键同时发送到终端，出现 `^[[A`、`^[[D` 等转义字符；当前 AppImage 构建脚本无法直接修复。后续应继续从 Remote Desktop Manager 内置终端的输入事件处理或上游实现方向定位；详见 [remotedesktopmanager/README.md](./remotedesktopmanager/README.md)。
 
 ## Releases

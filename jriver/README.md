@@ -2,7 +2,7 @@
 
 本目录用于构建 **JRiver Media Center Linux AppImage**。
 
-> **当前打包方式（2026-09-13）：** `build_jriver.sh` 已改为标准 **RunImage + quick-sharun** 流程，最终产物仍为 `jriver.AppImage`。旧入口原样改名为 `build_jriver_legacy_20260913.sh`，不由正式 workflow 调用。新路线首次 Actions 构建在进入 JRiver 安装前因 CI 容器禁用非特权 user namespace 而失败；构建入口已按上游提示在临时 CI 容器内准备 SUID Bubblewrap，修复后的构建和 Linux 实机功能仍待验证。不能沿用旧版的功能验证结论；详见第 14～15 节。
+> **当前打包方式（2026-09-13）：** `build_jriver.sh` 已改为标准 **RunImage + quick-sharun** 流程，最终产物仍为 `jriver.AppImage`。旧入口原样改名为 `build_jriver_legacy_20260913.sh`，不由正式 workflow 调用。前两次 Actions 已依次确认 CI 缺少非特权 user namespace 与 SUID `fusermount`；构建入口现同时准备 `fuse2` 的 SUID `fusermount` 和上游 SUID Bubblewrap。修复后的构建及 Linux 实机功能仍待验证，不能沿用旧版的功能验证结论；详见第 14～16 节。
 
 以下第 1～13 节及 2026-09-12 状态均为**旧版打包路线的历史记录**，其中的补丁、已知问题和稳定基线继续保留，不代表新入口已经验证。
 
@@ -617,4 +617,47 @@ The kernel does not support user namespaces!
 ### 当前验证状态
 
 已根据运行日志、上游 RunImage 的 `RUNDIR/static/bwrap` 布局及现有脚本完成静态核对；未新增测试代码或测试 workflow。修复提交后的 Actions 构建、GUI、文件选择器、影院模式、网页音频和中文输入均尚未验证。
+
+---
+
+## 16. 2026-09-13：补齐非 root FUSE / UnionFS 挂载条件
+
+### 第二次失败证据
+
+SUID Bubblewrap 修复后的正式构建对应：
+
+```text
+Run: 34756871436
+Job: Build JRiver
+Result: failure
+```
+
+日志先确认：
+
+```text
+The system Bubblewrap is used!
+Bubblewrap has SUID sticky bit!
+```
+
+随后仍出现：
+
+```text
+SUID fusermount not found in PATH, trying to unshare...
+fuse: mount failed: Permission denied
+Failed to mount RunImage in UnionFS overlay mode!
+```
+
+这证明第 15 节的 SUID Bubblewrap 已按预期生效，但只能解决 Bubblewrap 进入容器的问题；RunImage 外层 FUSE 和内部 UnionFS 仍缺少普通用户挂载所需的 SUID `fusermount`。本次仍未进入 `rim-update` 或 JRiver 安装阶段。
+
+### 根因与修复
+
+- 根因：JRiver Job 的 Arch 临时容器已透传 `/dev/fuse`，但没有安装提供 `/usr/bin/fusermount` 的 `fuse2`；上游 uruntime 在找不到 SUID `fusermount` 后尝试 user namespace，而该容器又禁止非特权 user namespace，最终导致两层 FUSE 挂载均失败。
+- 修改文件：`jriver/build_jriver.sh`、`jriver/README.md`、根 `README.md`。
+- 修复方式：在启动 RunImage 前通过 Arch 官方仓库安装 `fuse2`，检查 `/usr/bin/fusermount` 存在并确保其 SUID 位；随后继续沿用第 15 节已生效的 SUID Bubblewrap 和原有 `builduser` 构建命令。
+- 作用边界：`fuse2`、SUID `fusermount` 与 SUID Bubblewrap 只存在于一次性 CI 容器，均不会复制进最终 `AppDir`，不会改变用户系统或最终 AppImage 的权限。
+- 不改 workflow、不使用 root 运行 AUR `makepkg`，旧入口以及 CEF、音频、Fcitx5、glibc 和路径兼容链保持不变。
+
+### 当前验证状态
+
+已根据 Run 34756871436 完整日志、上游 uruntime 的 SUID `fusermount` 检查逻辑和 RunImage 的 UnionFS 挂载实现完成静态核对；Shell 语法检查通过，未新增测试代码或测试 workflow。修复提交后的 Actions 构建与全部实机功能仍待验证。
 
