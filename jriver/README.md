@@ -2,6 +2,10 @@
 
 本目录用于构建 **JRiver Media Center Linux AppImage**。
 
+> **当前打包方式（2026-09-13）：** `build_jriver.sh` 已改为标准 **RunImage + quick-sharun** 流程，最终产物仍为 `jriver.AppImage`。旧入口原样改名为 `build_jriver_legacy_20260913.sh`，不由正式 workflow 调用。新路线尚未完成构建和 Linux 实机验证，不能沿用旧版的功能验证结论；详见第 14 节。
+
+以下第 1～13 节及 2026-09-12 状态均为**旧版打包路线的历史记录**，其中的补丁、已知问题和稳定基线继续保留，不代表新入口已经验证。
+
 > **当前维护状态（2026-09-12）：** Kali Linux 实机已确认最新 `jriver.AppImage` 可以正常启动并显示 JRiver Media Center GUI，2026-09-11 的“进程启动但无可见 GUI”状态已被新的实机结果覆盖。当前新增已知问题：进入 **影院模式** 后，使用鼠标点击界面会卡住。构建兼容层、现有 CEF、网页音频、Fcitx5 和 glibc 隔离链本轮不再改动；详见第 13 节。下方历史记录继续保留。
 
 > **2026-08-14：当前版本正式冻结为“最终可用稳定基线”。**
@@ -525,3 +529,55 @@ GUI 启动：正常
 2026-09-11 第 12 节中“GUI 未出现”的内容只保留为当时的历史记录，不再代表当前状态。
 
 本次仅更新实机状态说明，不修改构建脚本、workflow、quick-sharun / appimagetool 兼容层，也不改动现有 CEF、网页音频、Fcitx5 和 glibc 隔离链。影院模式卡住问题先作为新的 Known Issue 记录；没有新的运行时证据前，不根据现有 GTK/Glycin warning 猜测根因。
+
+---
+
+## 14. 2026-09-13：保留旧入口，改用标准 RunImage + quick-sharun
+
+### 用途、来源与技术栈
+
+- 用途：打包 JRiver Media Center 音视频播放器与媒体管理器，发布资产仍为 `jriver.AppImage`。
+- 来源：RunImage 使用上游 continuous 运行时；JRiver 由当前 AUR `jriver-media-center` 配方下载官方 Linux DEB，并按配方校验。
+- 技术栈：x86_64 原生 C/C++、GTK3、JRWeb/CEF、WebKitGTK 和音频插件，运行于包内 Arch Linux 根文件系统。
+- 版本：从安装后的包信息读取版本，从包文件清单识别主程序，不写死 JRiver 主版本。
+
+### 当前打包流程
+
+1. 在 GitHub Actions 的 Arch 容器中下载 RunImage，在本次专用构建目录工作。
+2. 使用公共 Action 已创建的普通用户 `builduser` 运行 RunImage；在内部更新系统、安装 AUR 工具和 JRiver。这样满足 `makepkg` 不以 root 构建的要求，不改变最终应用的启动方式。
+3. 以应用级安装命令补齐官方 DEB 声明的运行依赖，并保留 Pulse/ALSA 与 GTK 中文输入支持；不强制设置输入法环境变量。
+4. 在包内生成中文 locale；只运行 `rim-shrink --pkgcache`，保留翻译、原始二进制与资源。上游 `rim-shrink --all` 会裁剪中文翻译，因此不用于新入口。
+5. 写入标准 `Run.rcfg`，`RIM_AUTORUN` 直接指向已安装的 JRiver 主程序；沿用 RunImage 的字体、图标、主题共享和宿主 `xdg-open` 支持。
+6. 使用 `rim-build -s` 生成临时 RunImage，解出完整 `RunDir`，改为 `AppDir`，将原生 `Run` 入口改名为 `AppRun`。
+7. 从官方包提取 desktop 和 Logo，只调整外层 desktop 的入口与图标名称；quick-sharun 仅执行最终 `--make-appimage` 封装，不再逐库重组 JRiver。
+
+### 文件与工作流
+
+- 新入口：`jriver/build_jriver.sh`。
+- 旧入口：`jriver/build_jriver_legacy_20260913.sh`，与改名前逐字节一致；旧版 CEF、音频和路径补丁原样保留其中。
+- `jriver_cef_runtime.sh` 保持原样，新入口不调用它，也不调用旧版构建脚本。
+- `.github/workflows/build.yml` 继续使用独立 `Build JRiver` Job、原脚本选择项、`jriver/dist` 和固定 Release 资产名；仅为该 Job 配置与 virt-manager 相同的 privileged 容器和 `/dev/fuse`。
+- `runimage/jriver-media-center/`、其独立 workflow 和其他应用保持原样。此次 push 按现有目录选择逻辑只选择 JRiver AppImage 构建。
+
+### 变更原因与已知结果
+
+- 原因：按明确要求重新建立标准 RunImage 打包入口，避免继续把旧版路径映射、CEF preload 和音频兼容补丁叠加到新路线。
+- 原因边界：历史无 GUI、文件选择器和影院模式问题的根因没有因此确定；不认定为 Rofi 问题，不添加针对启动菜单、独立 D-Bus 会话或文件选择器的特殊处理。
+- 核对依据：仓库现有 virt-manager 流程、RunImage 的 `rim-build` / `rim-shrink` / 自动启动实现、当前 quick-sharun 的封装入口、AUR 配方和与其 SHA-256 一致的官方 DEB 文件布局。
+- 已完成：Shell 与 YAML 静态核对、入口与资源路径检查、旧脚本字节一致性检查；无新增测试代码或测试 workflow。
+- 尚未确认：新 AppImage 的构建、GUI、文件选择器、影院模式、网页音频和中文输入。官方 DEB 本身未包含 `libcef.so`，新入口不注入旧版私有 CEF；JRWeb/CEF 功能需以新产物实际运行结果为准。
+- 提交后按仓库规则不监控 Actions，不把提交完成描述为功能修复完成。
+
+### 运行要求
+
+最终仍通过包内 RunImage 运行，需要宿主支持 RunImage 所需的用户命名空间及设备访问；AppImage 封装不会消除内部容器的运行要求。构建期的 privileged 权限仅用于 CI，不要求用户以 root 启动播放器。应用按上游行为使用当前用户的媒体库、配置和缓存。
+
+在 Linux 终端进入下载文件所在目录后执行：
+
+```bash
+# 为下载的 JRiver AppImage 添加执行权限
+chmod +x ./jriver.AppImage
+
+# 启动 JRiver Media Center
+./jriver.AppImage
+```
