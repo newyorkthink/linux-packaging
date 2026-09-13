@@ -120,6 +120,8 @@ EOF_LOCALE
   cat > "$RUNDIR/config/Run.rcfg" <<'EOF_CONFIG'
 # 禁用 RunImage 的 NVIDIA 驱动检查，避免自动检测、匹配、生成或下载驱动镜像。
 RIM_NO_NVIDIA_CHECK=1
+# 隐藏 RunImage 的普通信息和警告，错误仍正常输出。
+RIM_QUIET_MODE=1
 # 共享宿主图标。
 RIM_SHARE_ICONS="${RIM_SHARE_ICONS:=1}"
 # 共享宿主字体。

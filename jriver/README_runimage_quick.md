@@ -4,6 +4,8 @@
 
 > 旧版稳定路线、实机验证历史、CEF、网页音频、Fcitx5、glibc 和路径兼容链记录继续保留在 [README.md](./README.md)，不在本文件重复展开。
 
+> **当前最终状态：** 2026-09-13 本轮已确认 GUI、简体中文界面和文件选择器正常，NVIDIA 自动处理已禁用；成品启用安静模式，详细状态与未验证项见第 6 节。
+
 ---
 
 ## 1. 2026-09-13：保留旧入口，改用标准 RunImage + quick-sharun
@@ -197,4 +199,38 @@ Downloading Nvidia 550.163.01 driver, please wait...
 
 ### 当前验证状态
 
-已核对 `setup_general_env.sh`、当前 JRiver 构建脚本和上游 RunImage 配置加载顺序；Shell 语法检查通过，未新增测试代码或测试 workflow。新配置生成后的 AppImage 启动、GUI、中文输入、网页音频、文件选择器和影院模式仍需实机验证。
+用户提供的最新 Kali Linux 实机结果确认：
+
+- 成品已停止检测、生成和下载 NVIDIA 驱动镜像；
+- JRiver Media Center 36 GUI 可以正常启动；
+- 简体中文界面正常显示；
+- 文件选择器可以打开，并能浏览宿主主目录及常用目录。
+
+截图没有展示 Fcitx5 实际中文输入、网页音频和影院模式鼠标操作，因此这三项不写成已验证。
+
+---
+
+## 6. 2026-09-13：启用安静模式并确定本轮最终版本
+
+### 修改内容
+
+- 在成品 `Run.rcfg` 中加入 `RIM_QUIET_MODE=1`，与仓库 `runimage/setup_general_env.sh` 的通用配置一致。
+- 上游 RunImage 明确将该变量定义为“禁用全部非错误消息”；启动时的内部配置、自动入口、宿主共享、HOSTEXEC 和 NVIDIA 已禁用等 `INFO/WARNING` 不再输出。
+- RunImage 的 `ERROR` 不受影响，发生真实启动错误时仍会显示。
+- 不修改 JRiver、workflow、旧版构建入口、CEF、音频、Fcitx5、glibc 或路径兼容链。
+
+### 本轮最终状态
+
+```text
+构建与发布：正常
+NVIDIA 自动处理：已禁用
+RunImage 普通启动信息：已隐藏
+JRiver GUI：正常
+简体中文界面：正常
+文件选择器：正常打开
+Fcitx5 实际中文输入：尚未取得截图验证
+网页音频：尚未验证
+影院模式鼠标操作：尚未验证
+```
+
+本节作为 2026-09-13 RunImage + quick-sharun 路线的本轮最终记录；后续只有出现新的实机证据或用户可见问题时再继续修改。
