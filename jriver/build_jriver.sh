@@ -43,6 +43,12 @@ chmod +x runimage
 
 ###### 准备非特权构建运行时 ######
 
+# 上游 RunImage 会拒绝 AppArmor 限制的非特权 user namespace；仅调整临时 CI runner。
+if [[ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]] &&
+   [[ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns)" == 1 ]]; then
+  printf '0\n' > /proc/sys/kernel/apparmor_restrict_unprivileged_userns
+fi
+
 # RunImage 的 FUSE 和 UnionFS 挂载需要系统提供 SUID fusermount。
 pacman -S --needed --noconfirm fuse2
 if [[ ! -x /usr/bin/fusermount ]]; then
