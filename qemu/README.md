@@ -37,8 +37,20 @@ chmod +x qemu.AppImage
 # 查看 QEMU 版本。
 ./qemu.AppImage qemu-system-x86_64 --version
 
-# 创建按程序名分派的本地软链接。
+# 创建 x86_64 虚拟机主程序入口。
 ln -sf ./qemu.AppImage qemu-system-x86_64
+
+# 创建磁盘镜像管理工具入口。
+ln -sf ./qemu.AppImage qemu-img
+
+# 创建磁盘镜像 I/O 工具入口。
+ln -sf ./qemu.AppImage qemu-io
+
+# 创建 NBD 磁盘导出工具入口。
+ln -sf ./qemu.AppImage qemu-nbd
+
+# 创建 SPICE 图形客户端入口。
+ln -sf ./qemu.AppImage remote-viewer
 
 # 通过软链接查看 QEMU 版本。
 ./qemu-system-x86_64 --version
@@ -49,6 +61,8 @@ ln -sf ./qemu.AppImage qemu-system-x86_64
 # 启动 x86_64 虚拟机。
 ./qemu.AppImage qemu-system-x86_64 -enable-kvm -cpu host -m 4G -drive file=disk.qcow2,format=qcow2
 ```
+
+以上软链接必须与 `qemu.AppImage` 位于同一目录。quick-sharun 会根据软链接名称分派对应程序，不需要复制 AppImage：`qemu-system-x86_64` 用于启动虚拟机，`qemu-img`、`qemu-io`、`qemu-nbd` 用于磁盘镜像处理，`remote-viewer` 用于 SPICE 连接。`qemu-ga` 是安装并运行在客户机中的代理，不作为宿主日常入口创建软链接。
 
 ### GTK 主客机剪贴板
 
@@ -79,7 +93,7 @@ ln -sf ./qemu.AppImage qemu-system-x86_64
 - 根因：构建持续跟随开发分支源码和构建依赖变化，故障发生在 QEMU 编译阶段，并非 AppImage 最终封装阶段。
 - 修改文件：`qemu/build_qemu.sh`、`qemu/AppRun`、`qemu/qemu.desktop`、`qemu/qemu.svg`、`qemu/README.md`、`.github/workflows/build.yml`。
 - 修复：停止现场编译上游 `master`，改用 Arch 官方当前稳定包并由 quick-sharun 收集依赖；保留多工具入口和 GTK 剪贴板处理。
-- 已知结果：旧方案 2026-09-07 构建曾成功，2026-09-13 定时构建失败；本次新链路仅完成静态核对，构建及实机结果待正式 Actions 和真实运行反馈确认。
+- 已知结果：旧方案 2026-09-07 构建曾成功，2026-09-13 定时构建失败；新链路随后完成 Actions 构建，后续 GTK、入口和剪贴板问题按下列记录逐项修复，最终实机结果见文末。
 
 ### 2026-09-13：补齐 GTK 显示模块
 
@@ -87,7 +101,7 @@ ln -sf ./qemu.AppImage qemu-system-x86_64
 - 根因：Arch 将 GTK backend 放在 `qemu-ui-gtk` 的 `/usr/lib/qemu/ui-gtk.so` 中；原脚本只把 `/usr/lib/qemu` 目录作为 quick-sharun 输入，没有逐个部署动态模块，成品未获得可加载的 GTK backend。
 - 修改文件：`qemu/build_qemu.sh`、`qemu/README.md`。
 - 修复：显式安装 `qemu-ui-gtk`，要求 `ui-gtk.so` 必须存在，并将 `/usr/lib/qemu/*.so` 全部作为 quick-sharun 输入；原有 AppRun 和 GTK 剪贴板参数处理保持不变。
-- 已知结果：Arch 官方包清单确认 `qemu-ui-gtk` 提供 `ui-gtk.so`，pkgforge-dev 的 QEMU quick-sharun 构建同样逐个传入 `/usr/lib/qemu/*.so`；修复后产物待正式 Actions 构建和 Linux 实机确认。
+- 已知结果：Arch 官方包清单确认 `qemu-ui-gtk` 提供 `ui-gtk.so`，pkgforge-dev 的 QEMU quick-sharun 构建同样逐个传入 `/usr/lib/qemu/*.so`；随后 Actions 产物确认模块已进入 AppImage，但入口路径映射仍需按下一条记录修复。
 
 ### 2026-09-13：恢复 sharun 入口与 QEMU 模块路径映射
 
@@ -95,7 +109,7 @@ ln -sf ./qemu.AppImage qemu-system-x86_64
 - 根因：构建日志确认 `ui-gtk.so` 已部署到 `AppDir/lib/qemu/ui-gtk.so`，同时检测到 QEMU 二进制硬编码 `/usr/lib/qemu`。原脚本随后用自定义脚本覆盖了 quick-sharun 生成的 `AppDir/AppRun`，导致 sharun 及 `01-path-mapping-hardcoded.hook` 未执行，模块存在但 QEMU 无法按映射路径加载。
 - 修改文件：`qemu/build_qemu.sh`、`qemu/README.md`。
 - 修复：保留 quick-sharun 生成的 sharun `AppDir/AppRun`，仅把现有 QEMU 多工具入口安装为 `AppDir/AppRun.sh`；原启动参数、GTK 剪贴板逻辑和已部署模块保持不变，不要求在宿主系统创建 `/usr/lib/qemu` 链接。
-- 已知结果：修复方式与 quick-sharun 当前入口规范一致；新产物待正式 Actions 构建和 Linux 实机确认。
+- 已知结果：路径映射方向与 quick-sharun 入口规范一致；随后实机发现自定义 `AppRun.sh` 的 POSIX shell 兼容问题，并按下一条记录移除。
 
 ### 2026-09-13：移除自定义入口并回归 quick-sharun 官方分派
 
@@ -112,7 +126,7 @@ ln -sf ./qemu.AppImage qemu-system-x86_64
 - 检查范围：完整复核根目录 `AGENTS.md`、当前 QEMU 实现、`copyq`、`simplescreenrecorder`、`smplayer` 三个 quick-sharun 构建，以及 pkgforge-dev/QEMU-AppImage 的当前脚本。
 - 修改文件：`qemu/build_qemu.sh`、`qemu/README.md`。
 - 修复：文档中的 GTK 启动方式明确改为 `-display gtk,clipboard=on,...`，说明客户机 SPICE VDAgent 条件；构建脚本按仓库规范增加中文阶段标题，并把 QEMU 程序、模块和数据目录收敛为 pkgforge 官方的直接 quick-sharun 输入形式。
-- 已知结果：入口、GTK 模块和软链接分派已由实机确认；本次不再添加自定义 AppRun，也不在打包层擅自改写用户参数，剪贴板命令待实机复核。
+- 已知结果：入口、GTK 模块和软链接分派已由实机确认；显式加入 GTK `clipboard=on` 后，剪贴板也已完成实机确认。
 
 ### 2026-09-13：移除非必要构建检查并澄清剪贴板差异
 
@@ -120,4 +134,11 @@ ln -sf ./qemu.AppImage qemu-system-x86_64
 - 根因：这些防御性检查不是 pkgforge-dev/QEMU-AppImage 官方最短打包链路的一部分；旧包的剪贴板行为来自 `AppRun.wrapper` 自动补充 GTK `clipboard=on`，而不是额外的 SPICE 依赖。
 - 修改文件：`qemu/build_qemu.sh`、`qemu/README.md`。
 - 修复：删除 `required_binaries` 循环、`ui-gtk.so` 单文件检查和 `AppDir/AppRun` 检查；保留已确认需要的 `qemu-ui-gtk` 与 `/usr/lib/qemu/*.so` 收集；将剪贴板说明改为当前官方入口所需的显式 GTK 参数。
-- 已知结果：脚本保持 quick-sharun 官方直接收集与生成入口方式，未新增 AppRun、wrapper 或测试代码；已完成脚本语法和完整差异静态核对，构建及运行结果待正式流程和实机反馈确认。
+- 已知结果：脚本保持 quick-sharun 官方直接收集与生成入口方式，未新增 AppRun、wrapper 或测试代码；实机确认 KVM、GTK、剪贴板、9P 共享目录和 `qemu-system-x86_64` 软链接入口均正常。
+
+### 2026-09-13：最终稳定版实机确认
+
+- 验证对象：当前 Arch 稳定包与 quick-sharun 构建路线生成的 `qemu.AppImage`。
+- 实机结果：使用 `-enable-kvm -cpu host` 成功启动虚拟机，KVM 加速有效；GTK 窗口、显式启用的主客机剪贴板、virtio-9p 共享目录和 `qemu-system-x86_64` 软链接入口均正常。
+- 最终结论：当前正式构建不需要增加其他软件包，不需要自定义 AppRun 或 wrapper；继续保留 `qemu-desktop`、`qemu-tools`、`qemu-ui-gtk`、`virt-viewer` 及现有 quick-sharun 输入。
+- 稳定基线：后续没有新的构建日志或真实运行错误时，不得修改当前构建脚本、依赖列表、入口方式和已确认命令。
