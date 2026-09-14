@@ -108,3 +108,12 @@ Parsec 官方 Linux 依赖列表没有要求 Qt / GTK 输入上下文插件，�
 - **处理内容：** 新增正式 quick-sharun 构建；显式收集官方 `parsecd-*.so`、FFmpeg 4.4 解码库、VA-API 通用 loader 和官方 skel 资源；加入 OpenGL / PipeWire 运行部署；保留上游二进制不 strip；补充简体中文 locale，并保持宿主 XIM/Fcitx5/IBus 环境。
 - **中文界面结论：** 当前 Parsec Linux 官方文档未确认官方中文 UI 或 Language 选择项，因此没有加入非官方汉化。
 - **已知状态：** 已完成上游文档、AUR/Flathub 打包元数据与仓库结构的静态核对；新 AppImage 的正式 Actions 构建结果以及 Decoder、实际连接、硬件解码、中文输入效果仍待真实产物验证，不提前标记为已修复验收。
+
+
+### 2026-09-14：修正 AUR 官方包 desktop / icon 文件名探测
+
+- **故障现象：** 正式 `Build Parsec` Run `#438` 在安装 `parsec-bin 150_104a-1` 完成后报 `错误：未找到 Parsec desktop 文件。`，构建尚未进入 quick-sharun 核心打包阶段。
+- **根因：** 构建脚本把 desktop 文件名写死为 `parsec.desktop`；Parsec Linux 包历史上存在 `parsec.desktop` / `parsecd.desktop` 命名差异，因此不能依赖单一固定文件名。图标名称同样可能采用 `parsec*`。
+- **修改文件：** `parsec/build_parsec.sh`、`parsec/README.md`。
+- **修复内容：** 改为从 `pacman -Ql parsec-bin` 的实际已安装文件清单动态选择 `/usr/share/applications/parsec*.desktop`，并动态选择 hicolor 下的 `parsec*.png` / `parsec*.svg`；保留现有 FFmpeg 4.4、VA-API、中文 locale、输入法策略和 workflow 不变。
+- **已知结果：** 已根据 Run `#438` 日志修正此次构建阻断；新提交后的正式 Actions 构建及最终 AppImage 运行结果仍待验证。

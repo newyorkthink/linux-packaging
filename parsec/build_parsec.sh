@@ -65,10 +65,11 @@ done
 VERSION="$(pacman -Q parsec-bin | awk '{print $2; exit}')"
 [[ -n "$VERSION" ]] || die "无法读取 parsec-bin 版本。"
 
-DESKTOP="$(pacman -Ql parsec-bin | awk '$2 ~ /\/usr\/share\/applications\/parsec\.desktop$/ {print $2; exit}')"
+# 官方包历史上出现过 parsec.desktop / parsecd.desktop 命名；按当前已安装包文件清单动态选择，避免绑定文件名。
+DESKTOP="$(pacman -Ql parsec-bin | awk '$2 ~ /^\/usr\/share\/applications\/parsec.*\.desktop$/ {print $2; exit}')"
 [[ -f "$DESKTOP" ]] || die "未找到 Parsec desktop 文件。"
 
-ICON="$(pacman -Ql parsec-bin | awk '$2 ~ /\/usr\/share\/icons\/hicolor\/.*\/apps\/parsec\.png$/ {print $2}' | sort -V | tail -n 1)"
+ICON="$(pacman -Ql parsec-bin | awk '$2 ~ /^\/usr\/share\/icons\/hicolor\/.*\/apps\/parsec.*\.(png|svg)$/ {print $2}' | sort -V | tail -n 1)"
 [[ -f "$ICON" ]] || die "未找到 Parsec 图标。"
 
 export ARCH VERSION DESKTOP ICON
