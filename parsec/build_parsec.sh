@@ -40,8 +40,12 @@ yay -S --noconfirm \
 ###### 安装 Parsec 与应用级运行依赖 ######
 
 # parsec-bin 当前从 Parsec 官方 Linux .deb 取程序本体，并按 AUR 元数据拉取 ffmpeg4.4 等依赖。
-# libjpeg-turbo 提供 Parsec 需要的 libjpeg v8 ABI；libva 用于硬件解码能力发现。
-yay -S --noconfirm parsec-bin ffmpeg4.4 libjpeg-turbo libva
+# libjpeg-turbo 提供 Parsec 需要的 libjpeg v8 ABI。
+# intel-media-driver / libva-nvidia-driver 补齐 Intel / NVIDIA VA-API backend，
+# libvdpau-va-gl 补齐 Parsec 运行日志中实际探测到的 VDPAU→VA-API backend。
+yay -S --noconfirm \
+    parsec-bin ffmpeg4.4 libjpeg-turbo libva \
+    intel-media-driver libva-nvidia-driver libvdpau-va-gl
 
 command -v parsecd >/dev/null 2>&1 || die "未找到 /usr/bin/parsecd。"
 [[ -d "$PARSEC_SKEL" ]] || die "未找到 Parsec 官方 skel 目录：$PARSEC_SKEL"
@@ -56,9 +60,13 @@ for required_library in \
     /usr/lib/libavcodec.so.58 \
     /usr/lib/libavutil.so.56 \
     /usr/lib/libswresample.so.3 \
+    /usr/lib/libjpeg.so.8 \
     /usr/lib/libva.so.2 \
     /usr/lib/libva-drm.so.2 \
-    /usr/lib/libva-x11.so.2; do
+    /usr/lib/libva-x11.so.2 \
+    /usr/lib/dri/iHD_drv_video.so \
+    /usr/lib/dri/nvidia_drv_video.so \
+    /usr/lib/vdpau/libvdpau_va_gl.so; do
     [[ -e "$required_library" ]] || die "缺少 Parsec 解码所需运行库：$required_library"
 done
 
@@ -90,18 +98,22 @@ export PATH_MAPPING='/usr/share/parsec:${SHARUN_DIR}/share/parsec'
 
 ###### 核心打包 ######
 
-# 显式把官方动态模块、FFmpeg 4.4 解码 ABI 和 VA-API loader 交给 quick-sharun。
-# libva 是 AUR 标注的硬件解码可选依赖，属于运行时按需加载组件，不能只依赖 ELF 直接依赖扫描。
-# 这里只封装通用 libva loader；GPU 厂商驱动继续使用宿主系统，避免把构建机驱动写进 AppImage。
+# 显式把官方动态模块、FFmpeg 4.4 解码 ABI、libjpeg v8 ABI 与视频解码 backend 交给 quick-sharun。
+# 这些组件包含 dlopen 运行时依赖，不能只依赖 parsecd 主 ELF 的直接依赖扫描。
+# GPU 内核模块和 NVIDIA 专有用户态核心驱动仍由宿主系统提供，不把构建机驱动写进 AppImage。
 quick-sharun \
     /usr/bin/parsecd \
     "${PARSEC_MODULES[@]}" \
     /usr/lib/libavcodec.so.58 \
     /usr/lib/libavutil.so.56 \
     /usr/lib/libswresample.so.3 \
+    /usr/lib/libjpeg.so.8 \
     /usr/lib/libva.so.2 \
     /usr/lib/libva-drm.so.2 \
-    /usr/lib/libva-x11.so.2
+    /usr/lib/libva-x11.so.2 \
+    /usr/lib/dri/iHD_drv_video.so \
+    /usr/lib/dri/nvidia_drv_video.so \
+    /usr/lib/vdpau/libvdpau_va_gl.so
 
 ###### 保留官方启动资源与中文环境 ######
 
@@ -136,8 +148,16 @@ find AppDir -type f -name 'libavcodec.so.58*' -print -quit | grep -q . \
     || die "AppDir 中缺少 libavcodec.so.58。"
 find AppDir -type f -name 'libavutil.so.56*' -print -quit | grep -q . \
     || die "AppDir 中缺少 libavutil.so.56。"
+find AppDir -type f -name 'libjpeg.so.8*' -print -quit | grep -q . \
+    || die "AppDir 中缺少 libjpeg.so.8。"
 find AppDir -type f -name 'libva.so.2*' -print -quit | grep -q . \
     || die "AppDir 中缺少 libva.so.2。"
+find AppDir -type f -name 'iHD_drv_video.so' -print -quit | grep -q . \
+    || die "AppDir 中缺少 Intel VA-API backend。"
+find AppDir -type f -name 'nvidia_drv_video.so' -print -quit | grep -q . \
+    || die "AppDir 中缺少 NVIDIA VA-API backend。"
+find AppDir -type f -name 'libvdpau_va_gl.so*' -print -quit | grep -q . \
+    || die "AppDir 中缺少 VDPAU VA-API backend。"
 
 quick-sharun --make-appimage
 
