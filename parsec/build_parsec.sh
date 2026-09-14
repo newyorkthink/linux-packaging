@@ -55,7 +55,10 @@ mapfile -t PARSEC_MODULES < <(
 for required_library in \
     /usr/lib/libavcodec.so.58 \
     /usr/lib/libavutil.so.56 \
-    /usr/lib/libswresample.so.3; do
+    /usr/lib/libswresample.so.3 \
+    /usr/lib/libva.so.2 \
+    /usr/lib/libva-drm.so.2 \
+    /usr/lib/libva-x11.so.2; do
     [[ -e "$required_library" ]] || die "缺少 Parsec 解码所需运行库：$required_library"
 done
 
@@ -86,14 +89,18 @@ export PATH_MAPPING='/usr/share/parsec:${SHARUN_DIR}/share/parsec'
 
 ###### 核心打包 ######
 
-# 显式把官方动态模块与 FFmpeg 4.4 解码 ABI 交给 quick-sharun，
-# 避免只收集启动器依赖而遗漏 libavcodec.so.58 / libavutil.so.56。
+# 显式把官方动态模块、FFmpeg 4.4 解码 ABI 和 VA-API loader 交给 quick-sharun。
+# libva 是 AUR 标注的硬件解码可选依赖，属于运行时按需加载组件，不能只依赖 ELF 直接依赖扫描。
+# 这里只封装通用 libva loader；GPU 厂商驱动继续使用宿主系统，避免把构建机驱动写进 AppImage。
 quick-sharun \
     /usr/bin/parsecd \
     "${PARSEC_MODULES[@]}" \
     /usr/lib/libavcodec.so.58 \
     /usr/lib/libavutil.so.56 \
-    /usr/lib/libswresample.so.3
+    /usr/lib/libswresample.so.3 \
+    /usr/lib/libva.so.2 \
+    /usr/lib/libva-drm.so.2 \
+    /usr/lib/libva-x11.so.2
 
 ###### 保留官方启动资源与中文环境 ######
 
@@ -115,8 +122,8 @@ LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
 EOF_LOCALE
 
-# Parsec Linux 是 X11 客户端，不属于 Qt / GTK 应用。
-# 不强制 QT_IM_MODULE / GTK_IM_MODULE / XMODIFIERS，保留宿主会话的 XIM/Fcitx5/IBus 选择。
+# Parsec 官方依赖列表未要求 Qt / GTK 输入上下文插件。
+# 不覆盖 XMODIFIERS、GTK_IM_MODULE 或 QT_IM_MODULE，继续继承宿主会话中的 Fcitx5 / IBus / XIM 配置。
 
 ###### 生成 AppImage ######
 
@@ -128,6 +135,8 @@ find AppDir -type f -name 'libavcodec.so.58*' -print -quit | grep -q . \
     || die "AppDir 中缺少 libavcodec.so.58。"
 find AppDir -type f -name 'libavutil.so.56*' -print -quit | grep -q . \
     || die "AppDir 中缺少 libavutil.so.56。"
+find AppDir -type f -name 'libva.so.2*' -print -quit | grep -q . \
+    || die "AppDir 中缺少 libva.so.2。"
 
 quick-sharun --make-appimage
 

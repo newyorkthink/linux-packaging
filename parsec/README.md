@@ -1,6 +1,6 @@
 # Parsec AppImage
 
-用于将 Parsec 官方 Linux x86_64 客户端重新封装为 AppImage，重点保留官方启动资源、FFmpeg 4.4 解码 ABI、图形 / 音频运行时以及简体中文 UTF-8 locale。
+用于将 Parsec 官方 Linux x86_64 客户端重新封装为 AppImage，重点保留官方启动资源、FFmpeg 4.4 解码 ABI、VA-API 通用加载器、图形 / 音频运行时以及简体中文 UTF-8 locale。
 
 ## 用途与产物
 
@@ -26,7 +26,7 @@ Parsec Linux 客户端是闭源原生 Linux 程序，官方入口为 `/usr/bin/p
 - Linux 运行依赖明确包括 `libavcodec.so.58` 与 `libavutil.so.56`。
 - Parsec 官方当前明确支持 Ubuntu 22.04 LTS Desktop；其他发行版可能可用，但不属于其正式支持范围。
 
-AUR `parsec-bin` 当前依赖 `ffmpeg4.4`，与官方要求的 FFmpeg 4.4 ABI 一致；同时把 `libva` 标记为硬件加速解码的可选依赖。构建脚本因此显式安装并收集 Parsec 官方动态模块、`libavcodec.so.58`、`libavutil.so.56` 与 `libswresample.so.3`，避免只打包 `/usr/bin/parsecd` 启动器而漏掉实际解码运行时。
+AUR `parsec-bin` 当前依赖 `ffmpeg4.4`，与官方要求的 FFmpeg 4.4 ABI 一致；同时把 `libva` 标记为硬件加速解码的可选依赖。构建脚本因此显式安装并收集 Parsec 官方动态模块、`libavcodec.so.58`、`libavutil.so.56`、`libswresample.so.3` 以及 `libva.so.2` / X11 / DRM 通用 loader，避免只打包 `/usr/bin/parsecd` 启动器而漏掉实际解码运行时。GPU 厂商驱动不封装进 AppImage，继续由宿主系统提供。
 
 ## 打包方式
 
@@ -38,7 +38,7 @@ AUR `parsec-bin` 当前依赖 `ffmpeg4.4`，与官方要求的 FFmpeg 4.4 ABI �
    - `ffmpeg4.4` 提供 Parsec 官方要求的 FFmpeg 4.4 解码 ABI。
    - `libjpeg-turbo` 提供 Parsec 当前 Linux 包需要的 libjpeg v8 ABI。
    - `libva` 对应 AUR 标注的硬件加速解码支持。
-4. quick-sharun 同时收集 `/usr/bin/parsecd`、官方 `parsecd-*.so` 模块，以及 FFmpeg 4.4 的关键解码库。
+4. quick-sharun 同时收集 `/usr/bin/parsecd`、官方 `parsecd-*.so` 模块、FFmpeg 4.4 的关键解码库，以及 VA-API 的通用 `libva` / X11 / DRM loader；不复制构建机 GPU 厂商驱动。
 5. 使用 `PATH_MAPPING` 将运行时固定的 `/usr/share/parsec` 映射到 AppImage 内的官方资源目录，并完整保留 `appdata.json` 与官方动态模块。
 6. 启用 quick-sharun 的 OpenGL、PipeWire 和 locale 部署；保持 AUR 的 `!strip` 语义，不 strip Parsec 官方闭源 ELF。
 7. 生成 `zh_CN.UTF-8` locale 后由 `quick-sharun --make-appimage` 生成 `dist/parsec.AppImage`。
@@ -61,9 +61,9 @@ AppImage 内生成独立的 `zh_CN.UTF-8` locale，并设置：
 
 ### Fcitx5 / IBus
 
-Parsec Linux 客户端是 X11 程序，并非 Qt 或 GTK 应用，因此本项目不错误地塞入 `fcitx5-qt`、`fcitx5-gtk` 或对应 Qt / GTK input context plugin。
+Parsec 官方 Linux 依赖列表没有要求 Qt / GTK 输入上下文插件，因此本项目不无依据地塞入 `fcitx5-qt`、`fcitx5-gtk` 或对应 Qt / GTK input context plugin。
 
-构建产物不会覆盖 `XMODIFIERS`，继续使用宿主图形会话已经配置的 XIM / Fcitx5 / IBus 环境。这样既兼容使用 Fcitx5 的桌面，也不会把公共 AppImage 强制绑定到某一种输入法。
+构建产物不覆盖 `XMODIFIERS`、`GTK_IM_MODULE` 或 `QT_IM_MODULE`，继续继承宿主图形会话已经配置的 XIM / Fcitx5 / IBus 环境。这样既兼容已配置 Fcitx5 的桌面，也不会把公共 AppImage 强制绑定到某一种输入法框架。
 
 远程 Windows / macOS 主机中的中文输入法仍属于远端系统自身；本节处理的是 Linux Parsec 客户端本地文本输入环境。
 
@@ -84,7 +84,7 @@ Parsec Linux 客户端是 X11 程序，并非 Qt 或 GTK 应用，因此本项�
 
 - Linux AppImage 只能作为 Client 连接受支持的 Host；不能把 Linux 机器变成 Parsec Host。
 - 官方 Linux 支持基线是 Ubuntu 22.04 LTS Desktop；AppImage 的跨发行版兼容属于本仓库重打包目标，不代表 Parsec 官方扩大了支持范围。
-- 图形硬件解码最终仍依赖宿主 GPU、内核 / 用户态显卡驱动及对应硬件能力；AppImage 不封装某一台机器的 NVIDIA / AMD / Intel 专有驱动。
+- 图形硬件解码最终仍依赖宿主 GPU、内核 / 用户态显卡驱动及对应硬件能力；AppImage 只封装通用 VA-API loader，不封装某一台机器的 NVIDIA / AMD / Intel 专有驱动。
 - OpenGL 运行时由 quick-sharun 按 AnyLinux 路线部署；硬件相关 ICD / 驱动仍按 quick-sharun 与宿主驱动机制处理。
 - ALSA / PipeWire 音频按 AUR 依赖和 quick-sharun PipeWire 部署处理。
 - Parsec 用户数据仍按上游正常行为写入用户目录中的 `.parsec` 数据目录；本项目不额外创建系统服务、开机启动项或提权逻辑。
@@ -103,8 +103,8 @@ Parsec Linux 客户端是 X11 程序，并非 Qt 或 GTK 应用，因此本项�
 ### 2026-09-14：新增 Parsec AppImage，并针对 Decoder 空白 / `-17` 补齐解码运行时
 
 - **问题现象：** 旧 AppImage 能登录、发现远端 Windows 主机并完成网络建链，但 Linux Client 的 `Decoder` 下拉框为空；收到视频关键帧后出现 `decode-frame[341] = -17` 并断开。
-- **核对结果：** Parsec 当前官方 Linux 文档明确要求 `libavcodec.so.58` 与 `libavutil.so.56`，正常 Decoder 设置应提供 Hardware / Software 等选项；当前 AUR `parsec-bin` 依赖 `ffmpeg4.4`，并将 `libva` 标为硬件加速解码可选依赖。Flathub 当前 Parsec manifest 也确认官方包使用 `/usr/bin/parsecd` 与 `/usr/share/parsec/skel/` 启动资源，并额外提供 libjpeg v8 ABI。
+- **核对结果：** Parsec 当前官方 Linux 文档明确要求 `libavcodec.so.58` 与 `libavutil.so.56`，正常 Decoder 设置应提供 Hardware / Software 等选项；当前 AUR `parsec-bin` 依赖 `ffmpeg4.4`，并将 `libva` 标为硬件加速解码可选依赖。Flathub 当前 Parsec manifest 还确认官方包使用 `/usr/bin/parsecd` 与 `/usr/share/parsec/skel/` 启动资源，并单独构建兼容 libjpeg v8 ABI 的 `libjpeg-turbo`。
 - **修改文件：** `parsec/build_parsec.sh`、`parsec/README.md`、`.github/workflows/build.yml`。
-- **处理内容：** 新增正式 quick-sharun 构建；显式收集官方 `parsecd-*.so`、FFmpeg 4.4 解码库和官方 skel 资源；加入 OpenGL / PipeWire 运行部署；保留上游二进制不 strip；补充简体中文 locale，并保持宿主 XIM/Fcitx5/IBus 环境。
+- **处理内容：** 新增正式 quick-sharun 构建；显式收集官方 `parsecd-*.so`、FFmpeg 4.4 解码库、VA-API 通用 loader 和官方 skel 资源；加入 OpenGL / PipeWire 运行部署；保留上游二进制不 strip；补充简体中文 locale，并保持宿主 XIM/Fcitx5/IBus 环境。
 - **中文界面结论：** 当前 Parsec Linux 官方文档未确认官方中文 UI 或 Language 选择项，因此没有加入非官方汉化。
 - **已知状态：** 已完成上游文档、AUR/Flathub 打包元数据与仓库结构的静态核对；新 AppImage 的正式 Actions 构建结果以及 Decoder、实际连接、硬件解码、中文输入效果仍待真实产物验证，不提前标记为已修复验收。
