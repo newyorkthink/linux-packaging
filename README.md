@@ -20,6 +20,8 @@
 - `runimage/jriver-media-center`：JRiver RunImage 当前仍未解决。Rofi 启动 `mediacenter36` 时存在后台进程但 GUI 不显示；回退到文件选择器实验前的旧构建逻辑后仍然复现，因此不能把根因简单归到 GVFS、`dbus-run-session`、`LD_PRELOAD` 或 launcher 中的单一改动。当前 RunImage 不作为日常使用基线。后续应从此前实际可用产物与当前产物、RunImage 版本、挂载环境、父进程环境、残留进程 / 会话状态等方向做对照；详见 [runimage/jriver-media-center/README.md](./runimage/jriver-media-center/README.md) 与 [TEST_ISSUE.md](./runimage/jriver-media-center/TEST_ISSUE.md)。
 - `jriver`：2026-09-13 RunImage + quick-sharun 入口已实机确认从终端启动时 GUI、简体中文界面和文件选择器正常，NVIDIA 自动处理已禁用，成品已启用安静模式。2026-09-14 已确认通过 Rofi AppImage 启动时外层程序、DwarFS、SSRV 和包内 `mediacenter36` 完整进程链均存在，但始终没有 GUI，窗口切换列表中也没有 JRiver；其他 AppImage 通过同一 Rofi 启动正常。外层入口包装曾造成自递归回归，随后改用 `Run.rcfg` 清理父级 Sharun 环境也未解决，因此两种改动均已移除，构建脚本恢复到最后实机确认正常的版本。当前根因不确定，问题保持搁置；没有新证据前不得继续重复环境清理或猜测 GVFS、D-Bus、`LD_PRELOAD`、TTY / 后台等待等方向。Fcitx5 实际中文输入、网页音频和影院模式鼠标操作仍未验证。详见 [RunImage + quick-sharun 路线记录](./jriver/README_runimage_quick.md)；[旧版稳定路线记录](./jriver/README.md) 继续独立保留。
 - `remotedesktopmanager`：AppImage 当前可以正常打包，ICU 与多语言界面可用。现存问题是内置终端使用 Fcitx5 中文输入时，会把候选操作的原始按键同时发送到终端，出现 `^[[A`、`^[[D` 等转义字符；当前 AppImage 构建脚本无法直接修复。后续应继续从 Remote Desktop Manager 内置终端的输入事件处理或上游实现方向定位；详见 [remotedesktopmanager/README.md](./remotedesktopmanager/README.md)。
+- `parsec`：Run `#440` 已成功构建，真实 Linux 运行确认 Decoder 已从空白恢复为 `Software`，但仍出现缺少 `libjpeg8`、VA-API 初始化失败与 `libvdpau_va_gl.so` 缺失。当前构建已进一步显式加入真实 `libjpeg.so.8`、Intel / NVIDIA VA-API backend 与 VDPAU→VA-API backend，等待下一份真实产物确认黄色依赖提示和 Hardware / NVIDIA / Intel Decoder 是否恢复；详见 [parsec/README.md](./parsec/README.md)。
+
 
 ## Releases
 

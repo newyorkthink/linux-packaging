@@ -1,6 +1,6 @@
 # Parsec AppImage
 
-用于将 Parsec 官方 Linux x86_64 客户端重新封装为 AppImage，重点保留官方启动资源、FFmpeg 4.4 解码 ABI、VA-API 通用加载器、图形 / 音频运行时以及简体中文 UTF-8 locale。
+用于将 Parsec 官方 Linux x86_64 客户端重新封装为 AppImage，重点保留官方启动资源、FFmpeg 4.4 解码 ABI、libjpeg v8 ABI、VA-API / VDPAU 解码 backend、图形 / 音频运行时以及简体中文 UTF-8 locale。
 
 ## 用途与产物
 
@@ -26,7 +26,7 @@ Parsec Linux 客户端是闭源原生 Linux 程序，官方入口为 `/usr/bin/p
 - Linux 运行依赖明确包括 `libavcodec.so.58` 与 `libavutil.so.56`。
 - Parsec 官方当前明确支持 Ubuntu 22.04 LTS Desktop；其他发行版可能可用，但不属于其正式支持范围。
 
-AUR `parsec-bin` 当前依赖 `ffmpeg4.4`，与官方要求的 FFmpeg 4.4 ABI 一致；同时把 `libva` 标记为硬件加速解码的可选依赖。构建脚本因此显式安装并收集 Parsec 官方动态模块、`libavcodec.so.58`、`libavutil.so.56`、`libswresample.so.3` 以及 `libva.so.2` / X11 / DRM 通用 loader，避免只打包 `/usr/bin/parsecd` 启动器而漏掉实际解码运行时。GPU 厂商驱动不封装进 AppImage，继续由宿主系统提供。
+AUR `parsec-bin` 当前依赖 `ffmpeg4.4`，与官方要求的 FFmpeg 4.4 ABI 一致；同时把 `libva` 标记为硬件加速解码的可选依赖。Arch Linux 当前 `libjpeg-turbo` 提供真实的 `libjpeg.so.8`，不能用 `libjpeg.so.62` 的软链接冒充该 ABI。构建脚本因此显式收集 Parsec 官方动态模块、`libavcodec.so.58`、`libavutil.so.56`、`libswresample.so.3`、`libjpeg.so.8`、libva loader，以及 Intel `iHD_drv_video.so`、NVIDIA `nvidia_drv_video.so` 和 `libvdpau_va_gl.so` backend。GPU 内核模块与 NVIDIA 专有用户态核心驱动仍由宿主系统提供。
 
 ## 打包方式
 
@@ -34,11 +34,14 @@ AUR `parsec-bin` 当前依赖 `ffmpeg4.4`，与官方要求的 FFmpeg 4.4 ABI �
 
 1. 使用仓库规定的最小 Arch Linux AppImage 构建依赖。
 2. 通过 `yay` 安装当前 AUR `parsec-bin`，让 AUR 元数据动态跟随 Parsec 官方 Linux 包；脚本不固定 Parsec 应用版本。
-3. 额外安装 `ffmpeg4.4`、`libjpeg-turbo` 与 `libva`：
+3. 额外安装 `ffmpeg4.4`、`libjpeg-turbo`、`libva`、`intel-media-driver`、`libva-nvidia-driver` 与 `libvdpau-va-gl`：
    - `ffmpeg4.4` 提供 Parsec 官方要求的 FFmpeg 4.4 解码 ABI。
-   - `libjpeg-turbo` 提供 Parsec 当前 Linux 包需要的 libjpeg v8 ABI。
-   - `libva` 对应 AUR 标注的硬件加速解码支持。
-4. quick-sharun 同时收集 `/usr/bin/parsecd`、官方 `parsecd-*.so` 模块、FFmpeg 4.4 的关键解码库，以及 VA-API 的通用 `libva` / X11 / DRM loader；不复制构建机 GPU 厂商驱动。
+   - `libjpeg-turbo` 提供真实的 `libjpeg.so.8` / libjpeg v8 ABI。
+   - `libva` 提供 VA-API loader。
+   - `intel-media-driver` 提供 Broadwell+ Intel GPU 的 `iHD_drv_video.so`。
+   - `libva-nvidia-driver` 提供基于 NVDEC 的 `nvidia_drv_video.so`；宿主仍必须有可用的 NVIDIA 驱动。
+   - `libvdpau-va-gl` 提供 Parsec 实际探测到的 `libvdpau_va_gl.so` VDPAU→VA-API backend。
+4. quick-sharun 同时收集 `/usr/bin/parsecd`、官方 `parsecd-*.so` 模块、FFmpeg 4.4 的关键解码库、`libjpeg.so.8`、VA-API loader 与上述视频 backend；不复制构建机 GPU 的内核模块或专有核心驱动。
 5. 使用 `PATH_MAPPING` 将运行时固定的 `/usr/share/parsec` 映射到 AppImage 内的官方资源目录，并完整保留 `appdata.json` 与官方动态模块。
 6. 启用 quick-sharun 的 OpenGL、PipeWire 和 locale 部署；保持 AUR 的 `!strip` 语义，不 strip Parsec 官方闭源 ELF。
 7. 生成 `zh_CN.UTF-8` locale 后由 `quick-sharun --make-appimage` 生成 `dist/parsec.AppImage`。
@@ -117,3 +120,13 @@ Parsec 官方 Linux 依赖列表没有要求 Qt / GTK 输入上下文插件，�
 - **修改文件：** `parsec/build_parsec.sh`、`parsec/README.md`。
 - **修复内容：** 改为从 `pacman -Ql parsec-bin` 的实际已安装文件清单动态选择 `/usr/share/applications/parsec*.desktop`，并动态选择 hicolor 下的 `parsec*.png` / `parsec*.svg`；保留现有 FFmpeg 4.4、VA-API、中文 locale、输入法策略和 workflow 不变。
 - **已知结果：** 已根据 Run `#438` 日志修正此次构建阻断；新提交后的正式 Actions 构建及最终 AppImage 运行结果仍待验证。
+
+
+### 2026-09-14：实机确认 Decoder 枚举恢复，并补齐 libjpeg8 与硬件解码 backend
+
+- **故障现象：** Run `#440` 重跑成功并生成新 AppImage。真实 Linux 运行确认 `Decoder` 下拉框不再为空，但目前只出现 `Software`；主界面同时提示缺少 `libjpeg8, for image handling`。终端明确出现 `libjpeg.so.8` 无法打开、`Wrong JPEG library version: library is 62, caller expects 80`、VA-API 初始化失败，以及缺少 `libvdpau_va_gl.so`。
+- **根因：** `libjpeg-turbo` 虽已安装在构建环境，但旧脚本没有把其真实 `libjpeg.so.8` 作为 dlopen 依赖显式交给 quick-sharun，因此成品运行时回落到了不兼容的 libjpeg ABI。成功构建日志同时显示 AppImage 已带 Mesa VA-API 驱动，但没有 Intel `iHD_drv_video.so`、NVIDIA `nvidia_drv_video.so` 或 `libvdpau_va_gl.so`，因此硬件解码 backend 仍不完整。
+- **修改文件：** `parsec/build_parsec.sh`、`parsec/README.md`、根 `README.md`。
+- **修复内容：** 显式验证并打包 `libjpeg.so.8`，不使用 ABI 错误的软链接替代；新增 `intel-media-driver`、`libva-nvidia-driver`、`libvdpau-va-gl`，并显式把 `iHD_drv_video.so`、`nvidia_drv_video.so`、`libvdpau_va_gl.so` 交给 quick-sharun。GPU 内核模块与 NVIDIA 专有用户态核心驱动仍由宿主系统提供。
+- **已确认结果：** Decoder 从空白恢复为 `Software` 已有真实运行证据，说明 FFmpeg 解码运行时补齐方向有效。
+- **待确认事项：** 本次新增的 libjpeg8 与硬件 backend 尚未经过新产物真实运行验证；不能提前宣称黄色 libjpeg8 提示已消失，也不能提前宣称 Hardware / NVIDIA / Intel Decoder 已恢复。
