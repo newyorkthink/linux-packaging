@@ -1,6 +1,6 @@
 # Parsec AppImage
 
-用于将 Parsec 官方 Linux x86_64 客户端重新封装为 AppImage，重点保留官方启动资源、FFmpeg 4.4 解码 ABI、libjpeg v8 ABI、VA-API / VDPAU 解码 backend、图形 / 音频运行时以及简体中文 UTF-8 locale。
+用于将 Parsec 官方 Linux x86_64 客户端重新封装为 AppImage，重点保留官方启动资源、FFmpeg 4.4 解码 ABI、libjpeg v8 ABI、通用 VA-API loader、图形 / 音频运行时以及简体中文 UTF-8 locale。
 
 ## 用途与产物
 
@@ -26,7 +26,7 @@ Parsec Linux 客户端是闭源原生 Linux 程序，官方入口为 `/usr/bin/p
 - Linux 运行依赖明确包括 `libavcodec.so.58` 与 `libavutil.so.56`。
 - Parsec 官方当前明确支持 Ubuntu 22.04 LTS Desktop；其他发行版可能可用，但不属于其正式支持范围。
 
-AUR `parsec-bin` 当前依赖 `ffmpeg4.4`，与官方要求的 FFmpeg 4.4 ABI 一致；同时把 `libva` 标记为硬件加速解码的可选依赖。Arch Linux 当前 `libjpeg-turbo` 提供真实的 `libjpeg.so.8`，不能用 `libjpeg.so.62` 的软链接冒充该 ABI。构建脚本因此显式收集 Parsec 官方动态模块、`libavcodec.so.58`、`libavutil.so.56`、`libswresample.so.3`、`libjpeg.so.8`、libva loader，以及 Intel `iHD_drv_video.so`、NVIDIA `nvidia_drv_video.so` 和 `libvdpau_va_gl.so` backend。GPU 内核模块与 NVIDIA 专有用户态核心驱动仍由宿主系统提供。
+AUR `parsec-bin` 当前依赖 `ffmpeg4.4`，与官方要求的 FFmpeg 4.4 ABI 一致；同时把 `libva` 标记为硬件加速解码的可选依赖。Arch Linux 当前 `libjpeg-turbo` 提供真实的 `libjpeg.so.8`，不能用 `libjpeg.so.62` 的软链接冒充该 ABI。构建脚本因此显式收集 Parsec 官方动态模块、`libavcodec.so.58`、`libavutil.so.56`、`libswresample.so.3`、`libjpeg.so.8` 与通用 libva loader。Intel / NVIDIA / VDPAU 厂商 backend 不固定封装进 AppImage，继续由宿主实际 GPU 驱动栈决定。
 
 ## 打包方式
 
@@ -34,14 +34,11 @@ AUR `parsec-bin` 当前依赖 `ffmpeg4.4`，与官方要求的 FFmpeg 4.4 ABI �
 
 1. 使用仓库规定的最小 Arch Linux AppImage 构建依赖。
 2. 通过 `yay` 安装当前 AUR `parsec-bin`，让 AUR 元数据动态跟随 Parsec 官方 Linux 包；脚本不固定 Parsec 应用版本。
-3. 额外安装 `ffmpeg4.4`、`libjpeg-turbo`、`libva`、`intel-media-driver`、`libva-nvidia-driver` 与 `libvdpau-va-gl`：
+3. 额外安装 `ffmpeg4.4`、`libjpeg-turbo` 与 `libva`：
    - `ffmpeg4.4` 提供 Parsec 官方要求的 FFmpeg 4.4 解码 ABI。
    - `libjpeg-turbo` 提供真实的 `libjpeg.so.8` / libjpeg v8 ABI。
-   - `libva` 提供 VA-API loader。
-   - `intel-media-driver` 提供 Broadwell+ Intel GPU 的 `iHD_drv_video.so`。
-   - `libva-nvidia-driver` 提供基于 NVDEC 的 `nvidia_drv_video.so`；宿主仍必须有可用的 NVIDIA 驱动。
-   - `libvdpau-va-gl` 提供 Parsec 实际探测到的 `libvdpau_va_gl.so` VDPAU→VA-API backend。
-4. quick-sharun 同时收集 `/usr/bin/parsecd`、官方 `parsecd-*.so` 模块、FFmpeg 4.4 的关键解码库、`libjpeg.so.8`、VA-API loader 与上述视频 backend；不复制构建机 GPU 的内核模块或专有核心驱动。
+   - `libva` 提供通用 VA-API loader。
+4. quick-sharun 同时收集 `/usr/bin/parsecd`、官方 `parsecd-*.so` 模块、FFmpeg 4.4 的关键解码库、`libjpeg.so.8` 与通用 VA-API loader；不固定封装 Intel / NVIDIA / VDPAU 厂商 backend。
 5. 使用 `PATH_MAPPING` 将运行时固定的 `/usr/share/parsec` 映射到 AppImage 内的官方资源目录，并完整保留 `appdata.json` 与官方动态模块。
 6. 启用 quick-sharun 的 OpenGL、PipeWire 和 locale 部署；保持 AUR 的 `!strip` 语义，不 strip Parsec 官方闭源 ELF。
 7. 生成 `zh_CN.UTF-8` locale 后由 `quick-sharun --make-appimage` 生成 `dist/parsec.AppImage`。
@@ -130,3 +127,13 @@ Parsec 官方 Linux 依赖列表没有要求 Qt / GTK 输入上下文插件，�
 - **修复内容：** 显式验证并打包 `libjpeg.so.8`，不使用 ABI 错误的软链接替代；新增 `intel-media-driver`、`libva-nvidia-driver`、`libvdpau-va-gl`，并显式把 `iHD_drv_video.so`、`nvidia_drv_video.so`、`libvdpau_va_gl.so` 交给 quick-sharun。GPU 内核模块与 NVIDIA 专有用户态核心驱动仍由宿主系统提供。
 - **已确认结果：** Decoder 从空白恢复为 `Software` 已有真实运行证据，说明 FFmpeg 解码运行时补齐方向有效。
 - **待确认事项：** 本次新增的 libjpeg8 与硬件 backend 尚未经过新产物真实运行验证；不能提前宣称黄色 libjpeg8 提示已消失，也不能提前宣称 Hardware / NVIDIA / Intel Decoder 已恢复。
+
+
+### 2026-09-14：撤下厂商 VA-API / VDPAU backend，修复启动黑屏回归
+
+- **故障现象：** 在显式加入 Intel `iHD_drv_video.so`、NVIDIA `nvidia_drv_video.so` 与 `libvdpau_va_gl.so` 后，新 AppImage 启动时终端显示 libva 成功从 AppImage 内加载 `iHD_drv_video.so`，随后 Parsec 窗口变为纯黑，无法正常使用。
+- **根因：** 真实运行证明把构建环境中的厂商视频 backend 固定封装进通用 AppImage 会改变运行时 GPU backend 选择，并覆盖宿主实际图形栈；这与公共 AppImage 需要适配不同 Intel / NVIDIA / AMD 驱动环境的目标冲突。
+- **修改文件：** `parsec/build_parsec.sh`、`parsec/README.md`、根 `README.md`。
+- **修复内容：** 移除 `intel-media-driver`、`libva-nvidia-driver`、`libvdpau-va-gl` 的打包依赖及 `iHD_drv_video.so`、`nvidia_drv_video.so`、`libvdpau_va_gl.so` 的显式收集与成品检查；保留已经使 Decoder 从空白恢复为 `Software` 的 FFmpeg 4.4 / 通用 libva 基线，以及真实 `libjpeg.so.8` 修复。
+- **已确认结果：** 厂商 backend 版本存在真实启动黑屏回归，因此不再作为当前基线。
+- **待确认事项：** 新产物需重新确认正常 GUI、黄色 libjpeg8 提示是否消失，以及硬件 Decoder 是否可由宿主驱动栈正常发现；硬件解码仍未标记为已解决。
