@@ -40,12 +40,9 @@ yay -S --noconfirm \
 ###### 安装 Parsec 与应用级运行依赖 ######
 
 # parsec-bin 当前从 Parsec 官方 Linux .deb 取程序本体，并按 AUR 元数据拉取 ffmpeg4.4 等依赖。
-# libjpeg-turbo 提供 Parsec 需要的 libjpeg v8 ABI。
-# intel-media-driver / libva-nvidia-driver 补齐 Intel / NVIDIA VA-API backend，
-# libvdpau-va-gl 补齐 Parsec 运行日志中实际探测到的 VDPAU→VA-API backend。
-yay -S --noconfirm \
-    parsec-bin ffmpeg4.4 libjpeg-turbo libva \
-    intel-media-driver libva-nvidia-driver libvdpau-va-gl
+# libjpeg-turbo 提供 Parsec 需要的 libjpeg v8 ABI；libva 提供通用 VA-API loader。
+# 不把 Intel / NVIDIA / VDPAU 厂商 backend 固定打进 AppImage，避免覆盖宿主实际 GPU 栈。
+yay -S --noconfirm parsec-bin ffmpeg4.4 libjpeg-turbo libva
 
 command -v parsecd >/dev/null 2>&1 || die "未找到 /usr/bin/parsecd。"
 [[ -d "$PARSEC_SKEL" ]] || die "未找到 Parsec 官方 skel 目录：$PARSEC_SKEL"
@@ -63,10 +60,7 @@ for required_library in \
     /usr/lib/libjpeg.so.8 \
     /usr/lib/libva.so.2 \
     /usr/lib/libva-drm.so.2 \
-    /usr/lib/libva-x11.so.2 \
-    /usr/lib/dri/iHD_drv_video.so \
-    /usr/lib/dri/nvidia_drv_video.so \
-    /usr/lib/vdpau/libvdpau_va_gl.so; do
+    /usr/lib/libva-x11.so.2; do
     [[ -e "$required_library" ]] || die "缺少 Parsec 解码所需运行库：$required_library"
 done
 
@@ -98,9 +92,9 @@ export PATH_MAPPING='/usr/share/parsec:${SHARUN_DIR}/share/parsec'
 
 ###### 核心打包 ######
 
-# 显式把官方动态模块、FFmpeg 4.4 解码 ABI、libjpeg v8 ABI 与视频解码 backend 交给 quick-sharun。
+# 显式把官方动态模块、FFmpeg 4.4 解码 ABI、libjpeg v8 ABI 与通用 VA-API loader 交给 quick-sharun。
 # 这些组件包含 dlopen 运行时依赖，不能只依赖 parsecd 主 ELF 的直接依赖扫描。
-# GPU 内核模块和 NVIDIA 专有用户态核心驱动仍由宿主系统提供，不把构建机驱动写进 AppImage。
+# 厂商 VA-API / VDPAU backend 不封装进 AppImage，继续由宿主 GPU 驱动栈决定。
 quick-sharun \
     /usr/bin/parsecd \
     "${PARSEC_MODULES[@]}" \
@@ -110,10 +104,7 @@ quick-sharun \
     /usr/lib/libjpeg.so.8 \
     /usr/lib/libva.so.2 \
     /usr/lib/libva-drm.so.2 \
-    /usr/lib/libva-x11.so.2 \
-    /usr/lib/dri/iHD_drv_video.so \
-    /usr/lib/dri/nvidia_drv_video.so \
-    /usr/lib/vdpau/libvdpau_va_gl.so
+    /usr/lib/libva-x11.so.2
 
 ###### 保留官方启动资源与中文环境 ######
 
@@ -152,12 +143,6 @@ find AppDir -type f -name 'libjpeg.so.8*' -print -quit | grep -q . \
     || die "AppDir 中缺少 libjpeg.so.8。"
 find AppDir -type f -name 'libva.so.2*' -print -quit | grep -q . \
     || die "AppDir 中缺少 libva.so.2。"
-find AppDir -type f -name 'iHD_drv_video.so' -print -quit | grep -q . \
-    || die "AppDir 中缺少 Intel VA-API backend。"
-find AppDir -type f -name 'nvidia_drv_video.so' -print -quit | grep -q . \
-    || die "AppDir 中缺少 NVIDIA VA-API backend。"
-find AppDir -type f -name 'libvdpau_va_gl.so*' -print -quit | grep -q . \
-    || die "AppDir 中缺少 VDPAU VA-API backend。"
 
 quick-sharun --make-appimage
 
