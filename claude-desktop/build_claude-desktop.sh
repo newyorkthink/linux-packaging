@@ -41,10 +41,12 @@ if [[ -z "$VERSION" || ${#desktop_files[@]} -ne 1 ]]; then
   exit 1
 fi
 
-# 保留标准入口与官方资源的实际对应关系。
-APP_ROOT="$(dirname -- "$(readlink -f /usr/bin/claude-desktop)")"
+# 直接使用官方包内 Electron ELF；不依赖 AUR 可变的 /usr/bin 启动包装。
+APP_ROOT=/usr/lib/claude-desktop
 readonly APP_ROOT
-if [[ "$APP_ROOT" != /usr/lib/claude-desktop || ! -x /usr/bin/claude-desktop \
+APP_EXEC="$APP_ROOT/claude-desktop"
+readonly APP_EXEC
+if [[ ! -x "$APP_EXEC" || ! -x /usr/bin/claude-desktop \
    || ! -s "$APP_ROOT/resources/app.asar" ]]; then
   printf '错误：Claude Desktop 的上游安装布局已改变。\n' >&2
   exit 1
@@ -65,11 +67,11 @@ export OUTNAME=claude-desktop.AppImage
 export NO_STRIP=1
 export STRACE_MODE=0
 
-# 先从标准 /usr/bin 入口收集依赖并生成 sharun 启动入口。
+# 直接从官方 Electron ELF 收集依赖并生成 sharun 启动入口。
 # GTK3 部署会自动收集已安装的 im-fcitx5.so、所需运行库及输入法模块缓存。
-quick-sharun /usr/bin/claude-desktop
+quick-sharun "$APP_EXEC"
 
-# 标准入口是 ELF 软链接；单独收集 ELF 不会复制其旁边的 Electron 资源。
+# 单独收集 ELF 不会复制其旁边的 Electron 资源。
 # 在依赖部署后补齐官方资源，保留生成的主入口，不把 setuid helper 带入便携包。
 rsync -a --exclude=/claude-desktop --exclude=/chrome-sandbox \
   "$APP_ROOT/" "$SCRIPT_DIR/AppDir/bin/"
