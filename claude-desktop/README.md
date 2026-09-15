@@ -16,14 +16,14 @@
 脚本：`build_claude-desktop.sh`。
 
 1. 使用仓库规定的最小基础工具列表，单独安装 `claude-desktop`，让包管理器根据 AUR 的真实依赖关系准备运行库。
-2. 从安装结果读取版本、desktop 文件和 `/usr/bin/claude-desktop` 的实际目标；使用官方图标及桌面菜单，不生成替代图标。
-3. 直接执行 `quick-sharun /usr/bin/claude-desktop`，由 quick-sharun / sharun 收集依赖并生成 `AppRun`、`AppRun.sh` 和主程序启动入口。
-4. 标准入口是指向 `/usr/lib/claude-desktop/claude-desktop` 的 ELF 软链接。依赖收集完成后，补入与主程序相邻的官方 `resources`、`locales`、PAK、ICU、V8、共享库及其他应用资源，保持内部相对布局；不覆盖已经生成的主程序入口。
+2. 从安装结果读取版本和 desktop 文件，并核对官方 Electron ELF `/usr/lib/claude-desktop/claude-desktop` 与 `resources/app.asar`；使用官方图标及桌面菜单，不生成替代图标。
+3. 直接执行 `quick-sharun /usr/lib/claude-desktop/claude-desktop`，由 quick-sharun / sharun 收集依赖并生成 `AppRun`、`AppRun.sh` 和主程序启动入口；不依赖 AUR 可变的 `/usr/bin/claude-desktop` 启动包装。
+4. 依赖收集完成后，补入与主程序相邻的官方 `resources`、`locales`、PAK、ICU、V8、共享库及其他应用资源，保持内部相对布局；不覆盖已经生成的主程序入口。
 5. 在真实 ELF 所在的 `shared/bin` 中为尚不存在的资源入口建立相对链接，兼容应用从启动入口和实际可执行文件目录定位资源的方式。
 6. 保留上游 copyright；使用 `NO_STRIP=1` 保留 Electron 二进制，使用 `STRACE_MODE=0` 禁止依赖收集阶段启动应用。
 7. 执行 `quick-sharun --make-appimage`，生成 `dist/claude-desktop.AppImage`；公共 action 将该文件发布到 `latest` Release。
 
-针对已经反馈的 Fcitx 中文输入失效，安装应用后单独补装 `fcitx5-gtk`。保留原有 quick-sharun 命令，由其 GTK3 部署逻辑自动收集 `im-fcitx5.so`、`libFcitx5GClient.so` 的实际依赖及 `immodules.cache`，并处理模块缓存中的路径。
+针对已经反馈的 Fcitx 中文输入失效，安装应用后单独补装 `fcitx5-gtk`。保留现有 quick-sharun 依赖部署流程，由其 GTK3 部署逻辑自动收集 `im-fcitx5.so`、`libFcitx5GClient.so` 的实际依赖及 `immodules.cache`，并处理模块缓存中的路径。
 
 资源复制发生在依赖部署之后，官方 `app.asar` 保持原样。本目录没有自行添加授权补丁、后台服务或启动时安装依赖的逻辑。
 
@@ -71,3 +71,11 @@ chmod +x ./claude-desktop.AppImage
 - 文件：`claude-desktop/build_claude-desktop.sh`、本 README。
 - 修复：在应用安装后增加独立的 `fcitx5-gtk` 安装命令，由既有 GTK3 部署流程收集输入法模块、客户端运行库和模块缓存；原有打包命令、资源布局、沙箱和启动逻辑保持不变。
 - 已确认依据：[首次正式构建成功记录](https://github.com/newyorkthink/linux-packaging/actions/runs/33958367807)、[Arch 官方包文件列表](https://archlinux.org/packages/extra/x86_64/fcitx5-gtk/files/)及 [quick-sharun 的 GTK 部署实现](https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/useful-tools/quick-sharun.sh)。新增依赖用于补齐已定位的打包缺项，中文输入的实机效果仍需新产物运行反馈确认。
+
+### 2026-09-15：适配 AUR 启动入口改为 launcher
+
+- 现象：正式 Actions 构建在安装 `claude-desktop 1.52386.6-2` 和 `fcitx5-gtk` 后立即报“Claude Desktop 的上游安装布局已改变”，未进入 quick-sharun 打包阶段。
+- 根因：AUR `claude-desktop` 的 `pkgrel=2` 将 `/usr/bin/claude-desktop` 从指向官方 Electron ELF 的软链接替换为 shell launcher；原脚本继续对该路径执行 `readlink -f`，因此误把 `/usr/bin` 判断为应用根目录。官方 ELF 与 `resources/app.asar` 仍位于 `/usr/lib/claude-desktop/`。
+- 文件：`claude-desktop/build_claude-desktop.sh`、本 README。
+- 修复：应用根目录直接按官方包实际 payload 使用 `/usr/lib/claude-desktop`，新增 `APP_EXEC` 指向真实 Electron ELF，并将既有 quick-sharun 输入从 AUR launcher 改为该 ELF；资源复制、Fcitx5 GTK3、沙箱和 workflow 保持不变。
+- 已确认依据：[失败构建记录](https://github.com/newyorkthink/linux-packaging/actions/runs/34930833025/job/104268847458) 与 AUR 同步仓库提交 `01a8c397953735dd6543effd0bb002b60c30d6cf`；该上游提交明确新增 launcher，同时官方包 payload 继续位于 `/usr/lib/claude-desktop`。本次修改已完成静态核对，新的正式构建结果以后续 Actions 为准。
