@@ -41,7 +41,7 @@ wget --retry-connrefused --tries=30 "$TARBALL_LINK" -O /tmp/zotero.tar
 
 tar -xf /tmp/zotero.tar
 
-VERSION="$(awk -F= '$1 == "Version" {gsub(/\r/, "", $2); print $2; exit}' ./Zotero_linux-x86_64/application.ini)"
+VERSION="$(awk -F= '$1 == "Version" {gsub(/\r/, "", $2); print $2; exit}' ./Zotero_linux-x86_64/app/application.ini)"
 if [ -z "$VERSION" ]; then
   echo "Error: failed to determine Zotero version from application.ini." >&2
   exit 1
