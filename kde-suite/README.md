@@ -170,3 +170,33 @@ KDE Suite 会安装大量 Qt6、KF6、Mesa 和 LXQt 相关依赖，必须继续�
 原因是这些依赖会保留在容器的 `/usr/lib` 等系统目录中；后续项目使用 `quick-sharun`、动态依赖扫描或通配符收集库文件时，可能把 KDE Suite 的依赖误打包进去。旧仓库曾出现 KDE Suite 依赖被后续 KeePass 构建误收集，导致 KeePass AppImage 从约 120 MB 增长到约 225 MB。
 
 因此 KDE Suite 的维护规则是：独立 job、独立构建容器；`plan` job 只负责选择构建项目和准备 Release，不安装 KDE Suite 的具体构建依赖。
+
+## 更新器版本元数据
+
+KDE Suite 是一个聚合 AppImage，不把 Dolphin、KDE Connect 或其他单一程序的版本冒充为整个套件版本。
+
+构建成功后，`build_kde_suite.sh` 会生成：
+
+```text
+kde-suite+linuxpackaging.<12位指纹>
+```
+
+并写入 `kde-suite/dist/version.txt`。
+
+该指纹同时包含两类输入：
+
+- **主要组件实际包版本**：Ark、Deno、Dolphin、Filelight、Gwenview、Haruna、KActivityManagerD、KDE Connect、KDF、KFind、Kompare、Konsole、Okular、Qt6ct、yt-dlp。
+- **套件自身功能文件内容**：`apps.ini`、`build_core.sh`、`build_kde_suite.sh`、各 deploy 脚本、启动器源码、desktop、图标和 `okular_ark.sh`。
+
+因此：
+
+- 任一主要组件版本变化，更新器版本变化。
+- KDE Suite 的打包、部署、启动器或应用清单发生变化，更新器版本变化。
+- 组件版本和构建逻辑均未变化时，即使重新运行 Actions、重新生成 AppImage，更新器版本仍保持不变。
+- README 等纯说明文件不参与指纹，不会因为文档修改触发软件更新。
+
+workflow 使用 `SOFTWARE_KEY=kde-suite` 上传 `version.txt`，成功构建后把版本与 Release 资产 `kde-suite.AppImage` 的 SHA-256 写入统一 `software_versions.json`。
+
+### 2026-09-16：接入聚合套件版本指纹
+
+仅增加更新器版本元数据与统一清单接入；不修改 KDE Suite 已验证的应用集合、依赖、Qt/KF6、输入法、主题、KIO、Activities、Haruna、yt-dlp、Deno、启动器或运行时逻辑。

@@ -904,7 +904,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'kde-suite/build_kde_suite.sh', ARTIFACT_DIR: 'kde-suite/dist', RELEASE_NAME: 'kde-suite.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'kde-suite/build_kde_suite.sh', ARTIFACT_DIR: 'kde-suite/dist', RELEASE_NAME: 'kde-suite.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'kde-suite'}
     steps: *arch_steps
 
   build_keepass:
@@ -1975,7 +1975,7 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          KEYS=(adspower-global aionui alttab antigravity-ide antigravity baidunetdisk cc-switch chatgpt chromium claude-desktop deepseek-harness dingtalk feishu folo freedownloadmanager gemini github-desktop gitkraken hermes-desktop htop joplin keepass keepassxc mailmaster mpv newsboat nvtop obs-studio obsidian parsec picom rainlendar2 realvnc_connect remmina rofi smplayer stacher sunshine tencent-docs trae-work trae v2rayn webcamoid wechat winpodx workbuddy xnconvert xnview zotero)
+          KEYS=(adspower-global aionui alttab antigravity-ide antigravity baidunetdisk cc-switch chatgpt chromium claude-desktop deepseek-harness dingtalk feishu folo freedownloadmanager gemini github-desktop gitkraken hermes-desktop htop joplin kde-suite keepass keepassxc mailmaster mpv newsboat nvtop obs-studio obsidian parsec picom rainlendar2 realvnc_connect remmina rofi smplayer stacher sunshine tencent-docs trae-work trae v2rayn webcamoid wechat winpodx workbuddy xnconvert xnview zotero)
 
           declare -A PLAN_KEY JOB_NAME ASSET_NAME
 
@@ -2000,6 +2000,7 @@ jobs:
           PLAN_KEY[hermes-desktop]=hermes_desktop
           PLAN_KEY[htop]=htop
           PLAN_KEY[joplin]=joplin
+          PLAN_KEY[kde-suite]=kde_suite
           PLAN_KEY[keepass]=keepass
           PLAN_KEY[keepassxc]=keepassxc
           PLAN_KEY[mailmaster]=mailmaster
@@ -2050,6 +2051,7 @@ jobs:
           JOB_NAME[hermes-desktop]='Build Hermes Desktop'
           JOB_NAME[htop]='Build htop'
           JOB_NAME[joplin]='Build Joplin'
+          JOB_NAME[kde-suite]='Build KDE Suite'
           JOB_NAME[keepass]='Build KeePass'
           JOB_NAME[keepassxc]='Build KeePassXC'
           JOB_NAME[mailmaster]='Build MailMaster'
@@ -2100,6 +2102,7 @@ jobs:
           ASSET_NAME[hermes-desktop]='hermes-desktop.AppImage'
           ASSET_NAME[htop]='htop.AppImage'
           ASSET_NAME[joplin]='joplin.AppImage'
+          ASSET_NAME[kde-suite]='kde-suite.AppImage'
           ASSET_NAME[keepass]='keepass.AppImage'
           ASSET_NAME[keepassxc]='keepassxc.AppImage'
           ASSET_NAME[mailmaster]='mailmaster.AppImage'
