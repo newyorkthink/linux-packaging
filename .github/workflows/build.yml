@@ -1234,7 +1234,7 @@ jobs:
             echo "无法从 Remmina 构建日志解析版本。" >&2
             exit 1
           }
-          printf '%s\n' "${version}" > remmina/dist/version.txt
+          printf '%s\n' "${version}" | sudo tee remmina/dist/version.txt >/dev/null
 
       - name: Upload software version metadata
         uses: actions/upload-artifact@v4

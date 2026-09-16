@@ -48,3 +48,9 @@ remmina/fix_remmina_webkit.sh
 - 修改文件：`.github/workflows/build.yml`、本 README。
 - 版本信息只从当前构建已经输出的 Remmina 软件包版本提取，不改变应用构建、WebKitGTK 修复或 Release 资产名。
 - 提交后不主动监控 Actions，实际新清单记录以下一次成功构建为准。
+
+### 2026-09-16：修复版本元数据写入权限
+
+- 故障现象：Remmina AppImage 已完成构建和 WebKitGTK 修复，但 `Prepare software version metadata` 在写入 `remmina/dist/version.txt` 时返回 `Permission denied`。
+- 根因：`build_remmina.sh` 通过 Docker 在挂载的工作区中创建 `dist/`，目录归属为 root；后续 GitHub Actions runner 用户不能直接在该目录创建新文件。
+- 修复内容：仅将版本文件写入改为通过 `sudo tee` 写入 root 所有的 `dist/`；不修改 Remmina 构建、WebKitGTK 修复、AppImage 内容或 Release 资产名。
