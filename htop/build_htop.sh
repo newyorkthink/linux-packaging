@@ -38,6 +38,15 @@ yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-gli
 # 安装 htop、运行依赖以及 Arch 官方列出的可选功能依赖。
 yay -S --noconfirm htop ncurses libcap libnl lm_sensors lsof strace
 
+# 读取本次实际安装的 Arch 包版本，并去掉仅用于 Arch 打包排序的 epoch / pkgrel。
+HTOP_PACKAGE_VERSION="$(pacman -Q htop | awk '{print $2}')"
+HTOP_VERSION="${HTOP_PACKAGE_VERSION#*:}"
+HTOP_VERSION="${HTOP_VERSION%-*}"
+[[ -n "$HTOP_VERSION" ]] || {
+  echo "错误：无法解析 htop 版本。" >&2
+  exit 1
+}
+
 # 一次性封装 htop 主程序、Open Files/Trace 外部程序，以及运行时动态加载的 libsensors、libnl。
 quick-sharun /usr/bin/htop /usr/bin/lsof /usr/bin/strace /usr/lib/libsensors.so* /usr/lib/libnl-3.so* /usr/lib/libnl-genl-3.so*
 
@@ -47,5 +56,5 @@ quick-sharun --make-appimage
 # 确认最终 AppImage 文件已经生成且不为空。
 test -s ./dist/htop.AppImage
 
-# 验证 AppImage 内的 htop 可以正常运行并读取版本。
-./dist/htop.AppImage --version
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$HTOP_VERSION" > ./dist/version.txt

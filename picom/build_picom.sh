@@ -19,6 +19,15 @@ yay -S --noconfirm \
   xcb-util-image xcb-util-renderutil \
   xorg-xprop xorg-xwininfo
 
+# 读取本次实际安装的 Arch 包版本，并去掉仅用于 Arch 打包排序的 epoch / pkgrel。
+PICOM_PACKAGE_VERSION="$(pacman -Q picom | awk '{print $2}')"
+PICOM_VERSION="${PICOM_PACKAGE_VERSION#*:}"
+PICOM_VERSION="${PICOM_VERSION%-*}"
+[[ -n "$PICOM_VERSION" ]] || {
+  echo "错误：无法解析 Picom 版本。" >&2
+  exit 1
+}
+
 ARCH="$(uname -m)"
 export ARCH
 
@@ -45,3 +54,9 @@ quick-sharun \
 
 # 构建 AppImage
 quick-sharun --make-appimage
+
+# 确认最终 AppImage 文件已经生成且不为空。
+test -s ./dist/picom.AppImage
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$PICOM_VERSION" > ./dist/version.txt

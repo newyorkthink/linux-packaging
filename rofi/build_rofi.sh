@@ -13,6 +13,15 @@ yay -S --noconfirm rofi rofi-emoji \
   wayland xcb-imdkit xcb-util xcb-util-cursor xcb-util-keysyms xcb-util-wm \
   libva libvdpau
 
+# 读取本次实际安装的 Arch 包版本，并去掉仅用于 Arch 打包排序的 epoch / pkgrel。
+ROFI_PACKAGE_VERSION="$(pacman -Q rofi | awk '{print $2}')"
+ROFI_VERSION="${ROFI_PACKAGE_VERSION#*:}"
+ROFI_VERSION="${ROFI_VERSION%-*}"
+[[ -n "$ROFI_VERSION" ]] || {
+  echo "错误：无法解析 Rofi 版本。" >&2
+  exit 1
+}
+
 ARCH="$(uname -m)"
 export ARCH
 
@@ -33,3 +42,9 @@ quick-sharun \
 
 # 构建 AppImage
 quick-sharun --make-appimage
+
+# 确认最终 AppImage 文件已经生成且不为空。
+test -s ./dist/rofi.AppImage
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$ROFI_VERSION" > ./dist/version.txt

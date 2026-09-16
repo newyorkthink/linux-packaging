@@ -828,7 +828,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'htop/build_htop.sh', ARTIFACT_DIR: 'htop/dist', RELEASE_NAME: 'htop.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'htop/build_htop.sh', ARTIFACT_DIR: 'htop/dist', RELEASE_NAME: 'htop.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'htop'}
     steps: *arch_steps
 
   build_i3wm:
@@ -1036,7 +1036,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'newsboat/build_newsboat.sh', ARTIFACT_DIR: 'dist', RELEASE_NAME: 'newsboat.AppImage', RUN_FROM_ROOT: 'true'}
+    env: {BUILD_SCRIPT: 'newsboat/build_newsboat.sh', ARTIFACT_DIR: 'dist', RELEASE_NAME: 'newsboat.AppImage', RUN_FROM_ROOT: 'true', SOFTWARE_KEY: 'newsboat'}
     steps: *arch_steps
 
   build_nvtop:
@@ -1047,7 +1047,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'nvtop/build_nvtop.sh', ARTIFACT_DIR: 'nvtop/dist', RELEASE_NAME: 'nvtop.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'nvtop/build_nvtop.sh', ARTIFACT_DIR: 'nvtop/dist', RELEASE_NAME: 'nvtop.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'nvtop'}
     steps: *arch_steps
 
   build_obs_studio:
@@ -1126,7 +1126,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'picom/build_picom.sh', ARTIFACT_DIR: 'picom/dist', RELEASE_NAME: 'picom.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'picom/build_picom.sh', ARTIFACT_DIR: 'picom/dist', RELEASE_NAME: 'picom.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'picom'}
     steps: *arch_steps
 
   build_postman:
@@ -1290,7 +1290,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'rofi/build_rofi.sh', ARTIFACT_DIR: 'rofi/dist', RELEASE_NAME: 'rofi.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'rofi/build_rofi.sh', ARTIFACT_DIR: 'rofi/dist', RELEASE_NAME: 'rofi.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'rofi'}
     steps: *arch_steps
 
   build_simplescreenrecorder:
@@ -1947,7 +1947,7 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          KEYS=(aionui alttab antigravity-ide antigravity cc-switch chatgpt claude-desktop deepseek-harness dingtalk gemini github-desktop gitkraken hermes-desktop obs-studio remmina tencent-docs trae-work trae webcamoid winpodx workbuddy)
+          KEYS=(aionui alttab antigravity-ide antigravity cc-switch chatgpt claude-desktop deepseek-harness dingtalk gemini github-desktop gitkraken hermes-desktop htop newsboat nvtop obs-studio picom remmina rofi tencent-docs trae-work trae webcamoid winpodx workbuddy)
 
           declare -A PLAN_KEY JOB_NAME ASSET_NAME
 
@@ -1964,8 +1964,13 @@ jobs:
           PLAN_KEY[github-desktop]=github_desktop
           PLAN_KEY[gitkraken]=gitkraken
           PLAN_KEY[hermes-desktop]=hermes_desktop
+          PLAN_KEY[htop]=htop
+          PLAN_KEY[newsboat]=newsboat
+          PLAN_KEY[nvtop]=nvtop
           PLAN_KEY[obs-studio]=obs_studio
+          PLAN_KEY[picom]=picom
           PLAN_KEY[remmina]=remmina
+          PLAN_KEY[rofi]=rofi
           PLAN_KEY[tencent-docs]=tencent_docs
           PLAN_KEY[trae-work]=trae_work
           PLAN_KEY[trae]=trae
@@ -1986,8 +1991,13 @@ jobs:
           JOB_NAME[github-desktop]='Build GitHub Desktop'
           JOB_NAME[gitkraken]='Build GitKraken'
           JOB_NAME[hermes-desktop]='Build Hermes Desktop'
+          JOB_NAME[htop]='Build htop'
+          JOB_NAME[newsboat]='Build Newsboat'
+          JOB_NAME[nvtop]='Build nvtop'
           JOB_NAME[obs-studio]='Build OBS Studio'
+          JOB_NAME[picom]='Build Picom'
           JOB_NAME[remmina]='Build Remmina'
+          JOB_NAME[rofi]='Build Rofi'
           JOB_NAME[tencent-docs]='Build Tencent Docs'
           JOB_NAME[trae-work]='Build TraeWork'
           JOB_NAME[trae]='Build Trae'
@@ -2008,8 +2018,13 @@ jobs:
           ASSET_NAME[github-desktop]='github-desktop.AppImage'
           ASSET_NAME[gitkraken]='gitkraken.AppImage'
           ASSET_NAME[hermes-desktop]='hermes-desktop.AppImage'
+          ASSET_NAME[htop]='htop.AppImage'
+          ASSET_NAME[newsboat]='newsboat.AppImage'
+          ASSET_NAME[nvtop]='nvtop.AppImage'
           ASSET_NAME[obs-studio]='obs-studio.AppImage'
+          ASSET_NAME[picom]='picom.AppImage'
           ASSET_NAME[remmina]='remmina.AppImage'
+          ASSET_NAME[rofi]='rofi.AppImage'
           ASSET_NAME[tencent-docs]='tencent-docs.AppImage'
           ASSET_NAME[trae-work]='trae-work.AppImage'
           ASSET_NAME[trae]='trae.AppImage'
