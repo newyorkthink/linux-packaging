@@ -27,4 +27,24 @@
 
 构建产物通常发布到仓库的 [Releases](https://github.com/newyorkthink/linux-packaging/releases)，持续更新版本使用 `latest` Release。
 
+### 软件版本清单
+
+`latest` Release 中的 `software_versions.json` 用于记录已接入更新器的软件版本、稳定资产名和 SHA-256。
+
+发布逻辑固定为：
+
+1. `Publish successful software versions` Job 开始时只读取一次当前 `software_versions.json`，并把它作为本次 Job 唯一的本地工作清单。
+2. 某个软件的独立构建 Job 成功后，发布器读取该软件的 `version.txt` 与当前 Release 资产 SHA-256，更新本地工作清单中的对应条目。
+3. 每成功处理一个软件，就立即把当前这份本地工作清单上传并覆盖 `latest/software_versions.json`，因此成功的软件不需要等待其他软件全部完成。
+4. 后续软件继续基于同一个已经更新过的本地工作清单追加或覆盖自己的条目；**禁止在每个软件成功后重新从 Release 下载清单，也禁止重新从空 `{}` 开始。**
+5. 发布器使用独立 concurrency group 串行执行，避免多个新的 workflow run 同时写入同一个 `software_versions.json`。
+
+某个软件构建失败时，不更新该软件条目；已经写入本地工作清单的其他软件记录继续保留。
+
+### 2026-09-17：修复全量构建时版本清单丢失
+
+此前发布器在每个软件成功后都会重新从 Release 下载 `software_versions.json`。Release 资产刚被覆盖时存在短暂可见性 / 传播时序，下一轮可能重新读到旧清单，甚至按缺失分支从空对象开始，导致已经写入的条目丢失或 SHA-256 与最新 AppImage 不一致。
+
+现改为“Job 开始时读取一次、同一份本地清单持续更新、成功一个立即上传一次”，并串行化发布器；应用各自的构建 Job、AppImage 打包逻辑和稳定资产名不因此改变。
+
 > 本 README 仅作为仓库入口说明；AI 操作本仓库时请以 [AGENTS.md](./AGENTS.md) 为完整规范。

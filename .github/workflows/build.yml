@@ -1997,6 +1997,9 @@ jobs:
     if: ${{ always() && needs.plan.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    concurrency:
+      group: software-versions-publisher
+      cancel-in-progress: false
     permissions:
       actions: read
       contents: write
@@ -2231,6 +2234,22 @@ jobs:
           declare -A finished
           remaining="${#selected[@]}"
           manifest="$RUNNER_TEMP/software_versions.json"
+          current_dir="$RUNNER_TEMP/current-software-versions"
+
+          rm -rf "$current_dir"
+          mkdir -p "$current_dir"
+
+          if gh release view latest --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq 'software_versions.json'; then
+            gh release download latest --repo "$GITHUB_REPOSITORY" --pattern 'software_versions.json' --dir "$current_dir" --clobber
+            cp "$current_dir/software_versions.json" "$manifest"
+          else
+            printf '{}\n' > "$manifest"
+          fi
+
+          jq -e 'type == "object"' "$manifest" >/dev/null || {
+            echo "software_versions.json 不是有效 JSON 对象，停止发布。" >&2
+            exit 1
+          }
 
           while (( remaining > 0 )); do
             jobs_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100")"
@@ -2282,17 +2301,6 @@ jobs:
                 exit 1
               }
 
-              current_dir="$RUNNER_TEMP/current-software-versions"
-              rm -rf "$current_dir"
-              mkdir -p "$current_dir"
-
-              if gh release view latest --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq 'software_versions.json'; then
-                gh release download latest --repo "$GITHUB_REPOSITORY" --pattern 'software_versions.json' --dir "$current_dir" --clobber
-                cp "$current_dir/software_versions.json" "$manifest"
-              else
-                printf '{}\n' > "$manifest"
-              fi
-
               asset_name="${ASSET_NAME[$key]}"
               release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest")"
               digest="$(jq -r --arg asset "$asset_name" '[.assets[] | select(.name == $asset)] | if length == 1 then (.[0].digest // "") else "" end' <<< "$release_json")"
@@ -2305,6 +2313,8 @@ jobs:
               sha256="${digest#sha256:}"
               tmp_manifest="$RUNNER_TEMP/software_versions.tmp.json"
 
+              # 始终基于 publisher 启动时取得并持续保留的同一份本地清单更新。
+              # 某个软件成功后立即写入并上传；后续软件继续在这份已更新的本地清单上追加/覆盖。
               jq --arg key "$key" --arg version "$version" --arg asset "$asset_name" --arg sha256 "${sha256,,}" '.[$key] = {version: $version, asset: $asset, sha256: $sha256}' "$manifest" > "$tmp_manifest"
               mv "$tmp_manifest" "$manifest"
 
