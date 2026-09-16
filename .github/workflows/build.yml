@@ -1855,19 +1855,7 @@ jobs:
         fromJSON(needs.plan.outputs.builds).trae_work == 'true' ||
         fromJSON(needs.plan.outputs.builds).trae == 'true' ||
         fromJSON(needs.plan.outputs.builds).workbuddy == 'true'
-      ) &&
-      (fromJSON(needs.plan.outputs.builds).aionui != 'true' || needs.build_aionui.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).antigravity_ide != 'true' || needs.build_antigravity_ide.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).antigravity != 'true' || needs.build_antigravity.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).cc_switch != 'true' || needs.build_cc_switch.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).chatgpt != 'true' || needs.build_chatgpt.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).claude_desktop != 'true' || needs.build_claude_desktop.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).deepseek_harness != 'true' || needs.build_deepseek_harness.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).gemini != 'true' || needs.build_gemini.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).hermes_desktop != 'true' || needs.build_hermes_desktop.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).trae_work != 'true' || needs.build_trae_work.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).trae != 'true' || needs.build_trae.result == 'success') &&
-      (fromJSON(needs.plan.outputs.builds).workbuddy != 'true' || needs.build_workbuddy.result == 'success')
+      )
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -1946,7 +1934,8 @@ jobs:
 
           version_files = sorted(metadata_root.glob("software-version-*/version.txt"))
           if not version_files:
-              raise SystemExit("no software version metadata artifacts were downloaded")
+              print("no successful software version metadata artifacts were downloaded; keeping existing manifest")
+              raise SystemExit(0)
 
           for version_file in version_files:
               artifact_name = version_file.parent.name
