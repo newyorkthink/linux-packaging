@@ -51,6 +51,37 @@
 
 `build_alttab.sh` 不自行锁定 AltTab、quick-sharun 或 sharun 的旧版本；当前供应链下载与校验继续使用现有动态稳定入口和配套校验机制。
 
+## 版本元数据与更新判断
+
+AltTab 与普通“仅重新封装上游成品”的项目不同：本目录会在上游源码上应用多组仓库维护的兼容 patch。仅使用上游版本号会漏掉“上游版本不变，但本仓库补丁或打包逻辑已经变化”的更新。
+
+因此构建成功后会生成：
+
+```text
+dist/version.txt
+```
+
+其中版本格式为：
+
+```text
+<上游版本>+linuxpackaging.<12 位构建指纹>
+```
+
+构建指纹由以下输入确定：
+
+- `build_alttab.sh`：去除空行和纯注释行后参与计算；
+- `apply-icon-patch.sh`：去除空行和纯注释行后参与计算，因此补丁应用顺序变化也会改变指纹；
+- `patches/*.patch`：按文件名 A-Z 排序后，以文件名和 patch 原始内容参与计算。
+
+这样可以同时满足：
+
+- 上游发布新版本时，版本号变化；
+- 上游版本不变但构建逻辑或 patch 变化时，构建指纹变化；
+- 同一份代码每天重复构建时，版本值保持不变，不会仅因 Release 资产 SHA-256 变化而触发客户端重复更新；
+- AppImage 内部的 `VERSION` 继续保持纯上游版本，构建指纹只作为本仓库更新清单的版本身份。
+
+`.github/workflows/build.yml` 会把该 `dist/version.txt` 作为 `software-version-alttab` artifact 上传，并在 AltTab 构建成功后增量写入 `latest/software_versions.json`。最终资产 SHA-256 继续只用于文件完整性和本地状态，不作为版本身份。
+
 ## 运行
 
 需要可访问的 X11 会话。下载 Release 产物后，在文件所在目录的 Linux 终端执行：
@@ -154,3 +185,11 @@
 - 修改文件：新增 `patches/disable-default-kill-key.patch`，并修改 `apply-icon-patch.sh`、`README.md`；既有图标、字体、字形、标题换行与横向导航 patch 均保持不变。
 - 修复内容：仅将默认 kill keysym 从 `XK_k` 改为 `XK_VoidSymbol`，使默认 `k` 不再关闭选中窗口；原有 `-dk <keysym>` 参数保留，需要 kill key 时仍可显式指定。
 - 已知结果：根因已由上游源码和真实运行反馈确认；包含该补丁的最终源码树已由正式 `Build AltTab`（run `34674835800`，attempt 2）成功构建。新补丁只改变默认 kill key，不改变图标、字体、换行或 `h` / `l`、Left / Right 导航逻辑。
+
+### 2026-09-16：接入统一软件版本元数据
+
+- 修改文件：`build_alttab.sh`、`.github/workflows/build.yml`、本 README。
+- 更新版本采用“上游版本 + 构建指纹”；指纹只覆盖 AltTab 当前项目的构建脚本、补丁应用脚本和全部 patch，不使用构建时间、Release SHA-256 或仓库整体 commit。
+- 相同上游版本下修改构建逻辑、补丁内容或补丁应用顺序会产生新版本；完全相同的代码重复构建时版本保持不变。
+- AppImage 内部 `VERSION` 仍保持纯上游版本，不修改既有图标、字体、标题排版、导航或 kill key 补丁内容。
+- 提交后按仓库规则不主动监控 Actions；实际 `software_versions.json` 新记录以下一次成功构建结果为准。

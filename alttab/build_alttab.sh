@@ -69,6 +69,32 @@ fi
 # 去掉常见的 v 前缀，作为 AppImage 版本信息；没有 v 前缀时保持原值。
 ALTTAB_VERSION="${ALTTAB_TAG#v}"
 
+###### 生成构建指纹 ######
+# AltTab 带有仓库维护的源码补丁，同一上游版本下补丁或打包逻辑变化也必须触发更新。
+# 构建脚本先忽略空行和纯注释行，避免只改说明文字就产生新的更新版本；patch 内容按原字节参与指纹。
+normalize_fingerprint_script() {
+  sed -E '/^[[:space:]]*(#|$)/d' "$1"
+}
+
+ALTTAB_BUILD_FINGERPRINT="$(
+  {
+    normalize_fingerprint_script "$SCRIPT_DIR/build_alttab.sh"
+    normalize_fingerprint_script "$SCRIPT_DIR/apply-icon-patch.sh"
+
+    while IFS= read -r patch_file; do
+      printf '%s\0' "${patch_file#"$SCRIPT_DIR"/}"
+      cat "$patch_file"
+    done < <(
+      find "$SCRIPT_DIR/patches" -maxdepth 1 -type f -name '*.patch' -print |
+        LC_ALL=C sort
+    )
+  } | sha256sum | awk '{print substr($1, 1, 12)}'
+)"
+
+# software_versions.json 使用“上游版本 + 构建指纹”识别本仓库实际发布版本。
+ALTTAB_UPDATE_VERSION="${ALTTAB_VERSION}+linuxpackaging.${ALTTAB_BUILD_FINGERPRINT}"
+printf 'AltTab update version: %s\n' "$ALTTAB_UPDATE_VERSION"
+
 # 将 Release tag 解析到具体 commit；annotated tag 优先使用 peeled commit SHA。
 REMOTE_REFS="$(git ls-remote https://github.com/sagb/alttab.git \
   "refs/tags/${ALTTAB_TAG}" \
@@ -180,5 +206,9 @@ quick-sharun --make-appimage
 
 # 确认最终 AppImage 文件已经生成且不为空。
 test -s ./dist/alttab.AppImage
+
+###### 输出版本元数据 ######
+# AppImage 内部 VERSION 保持纯上游版本；更新清单额外携带构建指纹，区分同上游版本下的补丁变化。
+printf '%s\n' "$ALTTAB_UPDATE_VERSION" > ./dist/version.txt
 
 

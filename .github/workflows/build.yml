@@ -388,7 +388,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'alttab/build_alttab.sh', ARTIFACT_DIR: 'alttab/dist', RELEASE_NAME: 'alttab.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'alttab/build_alttab.sh', ARTIFACT_DIR: 'alttab/dist', RELEASE_NAME: 'alttab.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'alttab'}
     steps: *arch_steps
 
   build_antigravity:
@@ -1947,11 +1947,12 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          KEYS=(aionui antigravity-ide antigravity cc-switch chatgpt claude-desktop deepseek-harness dingtalk gemini github-desktop gitkraken hermes-desktop obs-studio remmina tencent-docs trae-work trae webcamoid winpodx workbuddy)
+          KEYS=(aionui alttab antigravity-ide antigravity cc-switch chatgpt claude-desktop deepseek-harness dingtalk gemini github-desktop gitkraken hermes-desktop obs-studio remmina tencent-docs trae-work trae webcamoid winpodx workbuddy)
 
           declare -A PLAN_KEY JOB_NAME ASSET_NAME
 
           PLAN_KEY[aionui]=aionui
+          PLAN_KEY[alttab]=alttab
           PLAN_KEY[antigravity-ide]=antigravity_ide
           PLAN_KEY[antigravity]=antigravity
           PLAN_KEY[cc-switch]=cc_switch
@@ -1973,6 +1974,7 @@ jobs:
           PLAN_KEY[workbuddy]=workbuddy
 
           JOB_NAME[aionui]='Build AionUi'
+          JOB_NAME[alttab]='Build AltTab'
           JOB_NAME[antigravity-ide]='Build Antigravity IDE'
           JOB_NAME[antigravity]='Build Antigravity'
           JOB_NAME[cc-switch]='Build CC Switch'
@@ -1994,6 +1996,7 @@ jobs:
           JOB_NAME[workbuddy]='Build WorkBuddy AppImage'
 
           ASSET_NAME[aionui]='aionui.AppImage'
+          ASSET_NAME[alttab]='alttab.AppImage'
           ASSET_NAME[antigravity-ide]='antigravity-ide.AppImage'
           ASSET_NAME[antigravity]='antigravity.AppImage'
           ASSET_NAME[cc-switch]='cc-switch.AppImage'
