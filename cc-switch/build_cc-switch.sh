@@ -34,6 +34,14 @@ yay -S --noconfirm \
   at-spi2-core cairo pango fribidi fontconfig freetype2 harfbuzz \
   gdk-pixbuf2 librsvg hicolor-icon-theme adwaita-icon-theme
 
+PACKAGE_VERSION="$(pacman -Q cc-switch-bin | awk '{print $2; exit}')"
+VERSION="${PACKAGE_VERSION%-*}"
+VERSION="${VERSION#*:}"
+if [[ -z "$VERSION" ]]; then
+  echo "Error: failed to resolve CC Switch version." >&2
+  exit 1
+fi
+
 # desktop / icon 由 DESKTOP / ICON 环境变量处理，不放进 quick-sharun 参数里。
 # /usr/bin/hostname 先不加；如果实际运行报 hostname 相关错误，再补。
 quick-sharun \
@@ -41,3 +49,6 @@ quick-sharun \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
 
 quick-sharun --make-appimage
+
+# 记录当前上游版本，供统一生成软件版本清单。
+printf '%s\n' "$VERSION" > ./dist/version.txt

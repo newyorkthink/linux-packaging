@@ -508,4 +508,8 @@ quick-sharun \
 
 quick-sharun --make-appimage
 [[ -s "$OUTFILE" ]] || die "未生成预期文件：$OUTFILE"
+
+# 记录当前上游版本，供统一生成软件版本清单。
+printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
+
 log "构建完成：$OUTFILE"

@@ -185,3 +185,6 @@ quick-sharun \
 
 quick-sharun --make-appimage
 test -s ./dist/workbuddy.AppImage
+
+# 记录当前上游版本，供统一生成软件版本清单。
+printf '%s\n' "$EXPECTED_PKGVER" > ./dist/version.txt

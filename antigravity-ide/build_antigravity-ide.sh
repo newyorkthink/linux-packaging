@@ -22,6 +22,12 @@ if [[ -z "$link" ]]; then
   exit 1
 fi
 
+VERSION="$(sed -nE 's#.*?/stable/([0-9]+(\.[0-9]+)+)-[^/]+/linux-x64/Antigravity%20IDE\.tar\.gz#\1#p' <<< "$link")"
+if [[ -z "$VERSION" ]]; then
+  echo "Error: failed to resolve the Antigravity IDE version from the official download URL." >&2
+  exit 1
+fi
+
 if ! curl -sSfL --retry 30 --retry-connrefused "$link" -o /tmp/temp.tar.gz 2>/tmp/download.log; then
 	cat /tmp/download.log
 	exit 1
@@ -49,3 +55,6 @@ quick-sharun ./AppDir/bin/* /usr/lib/libnss_nis.so* /usr/lib/libnsl.so* /usr/lib
 printf 'LANG=zh_CN.UTF-8\nLANGUAGE=zh_CN:zh\n' >> ./AppDir/.env
 patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 ./AppDir/shared/bin/language_server_linux_x64
 quick-sharun --make-appimage
+
+# 记录当前上游版本，供统一生成软件版本清单。
+printf '%s\n' "$VERSION" > ./dist/version.txt

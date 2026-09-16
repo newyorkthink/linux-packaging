@@ -312,4 +312,8 @@ LD_LIBRARY_PATH="$BUILD_LD_LIBRARY_PATH" quick-sharun \
 quick-sharun --make-appimage
 
 test -s ./dist/trae-work.AppImage
+
+# 记录当前上游版本，供统一生成软件版本清单。
+printf '%s\n' "$TRAEWORK_VERSION" > ./dist/version.txt
+
 printf '\nAppImage: %s\nReport: %s\n' "$(realpath ./dist/trae-work.AppImage)" "$(realpath "$REPORT")"

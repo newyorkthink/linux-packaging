@@ -157,6 +157,9 @@ APPIMAGE_EXTRACT_AND_RUN=1 timeout 30s \
   > ./dist/smoke-help.txt 2>&1
 
 grep -Eqi 'dsh|deepseek|web' ./dist/smoke-help.txt
+# 记录当前上游版本，供统一生成软件版本清单。
+printf '%s\n' "$DSH_VERSION" > ./dist/version.txt
+
 sha256sum ./dist/deepseek-harness.AppImage > ./dist/deepseek-harness.AppImage.sha256
 
 echo "Built: $PWD/dist/deepseek-harness.AppImage"

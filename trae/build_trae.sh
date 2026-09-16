@@ -180,3 +180,6 @@ LD_LIBRARY_PATH="$BUILD_LD_LIBRARY_PATH" quick-sharun \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
 
 quick-sharun --make-appimage
+
+# 记录当前上游版本，供统一生成软件版本清单。
+printf '%s\n' "$VERSION" > ./dist/version.txt

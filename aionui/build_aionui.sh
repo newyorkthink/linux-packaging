@@ -452,5 +452,8 @@ if [[ "$smoke_rc" -ne 0 && "$smoke_rc" -ne 124 ]]; then
   die "AionUi 在 Xvfb 冒烟测试中异常退出：$smoke_rc"
 fi
 
+# 记录当前上游版本，供统一生成软件版本清单。
+printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
+
 sha256sum "$OUTFILE"
 log "构建完成：$OUTFILE"
