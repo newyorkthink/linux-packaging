@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -e
 
-rm -rf AppDir dist || true
+rm -rf AppDir dist cc-switch.desktop || true
 
 export ARCH=x86_64
 
 export APPNAME="cc-switch"
 export STARTUPWMCLASS="cc-switch"
 export ICON="/usr/share/icons/hicolor/128x128/apps/cc-switch.png"
-export DESKTOP="/usr/share/applications/CC Switch.desktop"
+export DESKTOP="./cc-switch.desktop"
 export OUTPATH=./dist
 export OUTNAME="cc-switch.AppImage"
 
@@ -33,6 +33,19 @@ yay -S --noconfirm \
   libxcomposite libxdamage libxfixes libxkbcommon libxkbcommon-x11 libxkbfile \
   at-spi2-core cairo pango fribidi fontconfig freetype2 harfbuzz \
   gdk-pixbuf2 librsvg hicolor-icon-theme adwaita-icon-theme
+
+VERSION="$(pacman -Q cc-switch-bin | awk '{print $2; exit}')"
+if [[ -z "$VERSION" ]]; then
+  echo "Error: failed to read cc-switch-bin version." >&2
+  exit 1
+fi
+cp -f "/usr/share/applications/CC Switch.desktop" "$DESKTOP"
+if grep -q '^X-AppImage-Version=' "$DESKTOP"; then
+  sed -i "s|^X-AppImage-Version=.*|X-AppImage-Version=$VERSION|" "$DESKTOP"
+else
+  printf 'X-AppImage-Version=%s\n' "$VERSION" >> "$DESKTOP"
+fi
+printf '%s\n' "$VERSION" > ~/version
 
 # desktop / icon 由 DESKTOP / ICON 环境变量处理，不放进 quick-sharun 参数里。
 # /usr/bin/hostname 先不加；如果实际运行报 hostname 相关错误，再补。

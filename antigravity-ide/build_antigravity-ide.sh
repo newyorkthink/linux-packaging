@@ -22,6 +22,12 @@ if [[ -z "$link" ]]; then
   exit 1
 fi
 
+VERSION="$(grep -oP '/stable/\K[0-9]+(?:\.[0-9]+)+' <<<"$link" | head -1)"
+if [[ -z "$VERSION" ]]; then
+  echo "Error: failed to resolve Antigravity IDE version from official download URL." >&2
+  exit 1
+fi
+
 if ! curl -sSfL --retry 30 --retry-connrefused "$link" -o /tmp/temp.tar.gz 2>/tmp/download.log; then
 	cat /tmp/download.log
 	exit 1
@@ -32,6 +38,15 @@ tar -xvzf /tmp/temp.tar.gz --strip-components=1 -C ./AppDir/bin
 rm -f /tmp/temp.tar.gz
 curl -sL "https://aur.archlinux.org/cgit/aur.git/plain/antigravity-ide.desktop?h=antigravity-ide" | sed 's|^Exec=/usr/bin/|Exec=|g' > ./AppDir/antigravity-ide.desktop
 curl -sL "https://aur.archlinux.org/cgit/aur.git/plain/antigravity-ide-url-handler.desktop?h=antigravity-ide" | sed 's|^Exec=/usr/bin/|Exec=|g' > ./AppDir/share/applications/antigravity-ide-url-handler.desktop
+
+for desktop_file in ./AppDir/antigravity-ide.desktop ./AppDir/share/applications/antigravity-ide-url-handler.desktop; do
+  if grep -q '^X-AppImage-Version=' "$desktop_file"; then
+    sed -i "s|^X-AppImage-Version=.*|X-AppImage-Version=$VERSION|" "$desktop_file"
+  else
+    printf 'X-AppImage-Version=%s\n' "$VERSION" >> "$desktop_file"
+  fi
+done
+printf '%s\n' "$VERSION" > ~/version
 
 export STARTUPWMCLASS=antigravity-ide
 export ICON=./AppDir/bin/resources/app/resources/linux/code.png

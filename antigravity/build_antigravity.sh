@@ -22,12 +22,25 @@ if [[ -z "$link" ]]; then
   exit 1
 fi
 
+VERSION="$(grep -oP '/antigravity-hub/\K[0-9]+(?:\.[0-9]+)+' <<<"$link" | head -1)"
+if [[ -z "$VERSION" ]]; then
+  echo "Error: failed to resolve Antigravity version from official download URL." >&2
+  exit 1
+fi
+
 curl -sSfL --retry 30 --retry-connrefused "$link" -o /tmp/temp.tar.gz
 
 mkdir -p ./AppDir/bin
 curl -sL "https://aur.archlinux.org/cgit/aur.git/plain/antigravity.desktop?h=antigravity" | sed 's|^Exec=/usr/bin/|Exec=|g' > ./AppDir/antigravity.desktop
 tar -xvzf /tmp/temp.tar.gz --strip-components=1 -C ./AppDir/bin
 rm -f /tmp/temp.tar.gz
+
+if grep -q '^X-AppImage-Version=' ./AppDir/antigravity.desktop; then
+  sed -i "s|^X-AppImage-Version=.*|X-AppImage-Version=$VERSION|" ./AppDir/antigravity.desktop
+else
+  printf 'X-AppImage-Version=%s\n' "$VERSION" >> ./AppDir/antigravity.desktop
+fi
+printf '%s\n' "$VERSION" > ~/version
 
 curl -sL "https://aur.archlinux.org/cgit/aur.git/plain/antigravity.png?h=antigravity" -o ./antigravity.png
 
