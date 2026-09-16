@@ -449,14 +449,14 @@ jobs:
           client_json="$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 'https://pan.baidu.com/disk/cmsdata?do=client')"
           version="$(
             printf '%s' "$client_json" | python3 -c '
-import json, re, sys
-payload = json.load(sys.stdin)
-raw = str((payload.get("linux") or {}).get("version") or "")
-match = re.fullmatch(r"(?:百度网盘Linux电脑客户端)?V?([0-9]+(?:\.[0-9]+)+)", raw)
-if match is None:
-    raise SystemExit("无法解析百度网盘官方版本")
-print(match.group(1))
-'
+          import json, re, sys
+          payload = json.load(sys.stdin)
+          raw = str((payload.get("linux") or {}).get("version") or "")
+          match = re.fullmatch(r"(?:百度网盘Linux电脑客户端)?V?([0-9]+(?:\.[0-9]+)+)", raw)
+          if match is None:
+              raise SystemExit("无法解析百度网盘官方版本")
+          print(match.group(1))
+          '
           )"
           [[ -n "$version" ]] || {
             echo "无法解析百度网盘官方版本。" >&2
