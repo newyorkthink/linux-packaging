@@ -314,15 +314,25 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          [[ -s "${SOFTWARE_VERSION_SOURCE}" ]] || {
-            echo "版本元数据源文件不存在或为空：${SOFTWARE_VERSION_SOURCE}" >&2
+          source_file="${SOFTWARE_VERSION_SOURCE/#\~/$HOME}"
+          [[ -s "${source_file}" ]] || {
+            echo "版本元数据源文件不存在或为空：${source_file}" >&2
             exit 1
           }
           version="$(
-            awk -F= '$1 == "version" {sub(/^[^=]*=/, ""); print; exit}' "${SOFTWARE_VERSION_SOURCE}"
+            awk -F= '
+              $1 == "version" || $1 == "X-AppImage-Version" {
+                sub(/^[^=]*=/, "")
+                print
+                exit
+              }
+            ' "${source_file}"
           )"
+          if [[ -z "${version}" && "$(awk 'NF {count++} END {print count+0}' "${source_file}")" -eq 1 ]]; then
+            version="$(awk 'NF {print; exit}' "${source_file}")"
+          fi
           [[ -n "${version}" ]] || {
-            echo "无法从 ${SOFTWARE_VERSION_SOURCE} 解析 version=。" >&2
+            echo "无法从 ${source_file} 解析软件版本。" >&2
             exit 1
           }
           printf '%s\n' "${version}" > "${ARTIFACT_DIR}/version.txt"
@@ -432,6 +442,34 @@ jobs:
           chmod +x baidunetdisk/build_baidunetdisk.sh
           ./baidunetdisk/build_baidunetdisk.sh
           test -s baidunetdisk/dist/baidunetdisk.AppImage
+      - name: Prepare software version metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          client_json="$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 'https://pan.baidu.com/disk/cmsdata?do=client')"
+          version="$(
+            printf '%s' "$client_json" | python3 -c '
+import json, re, sys
+payload = json.load(sys.stdin)
+raw = str((payload.get("linux") or {}).get("version") or "")
+match = re.fullmatch(r"(?:百度网盘Linux电脑客户端)?V?([0-9]+(?:\.[0-9]+)+)", raw)
+if match is None:
+    raise SystemExit("无法解析百度网盘官方版本")
+print(match.group(1))
+'
+          )"
+          [[ -n "$version" ]] || {
+            echo "无法解析百度网盘官方版本。" >&2
+            exit 1
+          }
+          printf '%s\n' "$version" > baidunetdisk/dist/version.txt
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-baidunetdisk
+          path: baidunetdisk/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
       - name: Publish to Latest Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -630,7 +668,7 @@ jobs:
     timeout-minutes: 90
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'feishu/build_feishu.sh', ARTIFACT_DIR: 'feishu/dist', RELEASE_NAME: 'feishu.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'feishu/build_feishu.sh', ARTIFACT_DIR: 'feishu/dist', RELEASE_NAME: 'feishu.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'feishu', SOFTWARE_VERSION_SOURCE: 'feishu/feishu.desktop'}
     steps: *arch_steps
 
   build_flameshot:
@@ -992,7 +1030,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'mailmaster/build_mailmaster.sh', ARTIFACT_DIR: 'mailmaster/dist', RELEASE_NAME: 'mailmaster.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'mailmaster/build_mailmaster.sh', ARTIFACT_DIR: 'mailmaster/dist', RELEASE_NAME: 'mailmaster.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'mailmaster'}
     steps: *arch_steps
 
   build_mission_center:
@@ -1115,7 +1153,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'parsec/build_parsec.sh', ARTIFACT_DIR: 'parsec/dist', RELEASE_NAME: 'parsec.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'parsec/build_parsec.sh', ARTIFACT_DIR: 'parsec/dist', RELEASE_NAME: 'parsec.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'parsec'}
     steps: *arch_steps
 
   build_picom:
@@ -1546,7 +1584,7 @@ jobs:
     timeout-minutes: 90
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'wechat/build_wechat.sh', ARTIFACT_DIR: 'wechat/dist', RELEASE_NAME: 'wechat.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'wechat/build_wechat.sh', ARTIFACT_DIR: 'wechat/dist', RELEASE_NAME: 'wechat.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'wechat', SOFTWARE_VERSION_SOURCE: '~/version'}
     steps: *arch_steps
 
   build_winpodx:
@@ -1947,7 +1985,7 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          KEYS=(aionui alttab antigravity-ide antigravity cc-switch chatgpt claude-desktop deepseek-harness dingtalk gemini github-desktop gitkraken hermes-desktop htop newsboat nvtop obs-studio picom remmina rofi tencent-docs trae-work trae webcamoid winpodx workbuddy)
+          KEYS=(aionui alttab antigravity-ide antigravity baidunetdisk cc-switch chatgpt claude-desktop deepseek-harness dingtalk feishu gemini github-desktop gitkraken hermes-desktop htop mailmaster newsboat nvtop obs-studio parsec picom remmina rofi tencent-docs trae-work trae webcamoid wechat winpodx workbuddy)
 
           declare -A PLAN_KEY JOB_NAME ASSET_NAME
 
@@ -1955,19 +1993,23 @@ jobs:
           PLAN_KEY[alttab]=alttab
           PLAN_KEY[antigravity-ide]=antigravity_ide
           PLAN_KEY[antigravity]=antigravity
+          PLAN_KEY[baidunetdisk]=baidunetdisk
           PLAN_KEY[cc-switch]=cc_switch
           PLAN_KEY[chatgpt]=chatgpt
           PLAN_KEY[claude-desktop]=claude_desktop
           PLAN_KEY[deepseek-harness]=deepseek_harness
           PLAN_KEY[dingtalk]=dingtalk
+          PLAN_KEY[feishu]=feishu
           PLAN_KEY[gemini]=gemini
           PLAN_KEY[github-desktop]=github_desktop
           PLAN_KEY[gitkraken]=gitkraken
           PLAN_KEY[hermes-desktop]=hermes_desktop
           PLAN_KEY[htop]=htop
+          PLAN_KEY[mailmaster]=mailmaster
           PLAN_KEY[newsboat]=newsboat
           PLAN_KEY[nvtop]=nvtop
           PLAN_KEY[obs-studio]=obs_studio
+          PLAN_KEY[parsec]=parsec
           PLAN_KEY[picom]=picom
           PLAN_KEY[remmina]=remmina
           PLAN_KEY[rofi]=rofi
@@ -1975,6 +2017,7 @@ jobs:
           PLAN_KEY[trae-work]=trae_work
           PLAN_KEY[trae]=trae
           PLAN_KEY[webcamoid]=webcamoid
+          PLAN_KEY[wechat]=wechat
           PLAN_KEY[winpodx]=winpodx
           PLAN_KEY[workbuddy]=workbuddy
 
@@ -1982,19 +2025,23 @@ jobs:
           JOB_NAME[alttab]='Build AltTab'
           JOB_NAME[antigravity-ide]='Build Antigravity IDE'
           JOB_NAME[antigravity]='Build Antigravity'
+          JOB_NAME[baidunetdisk]='Build Baidu Netdisk'
           JOB_NAME[cc-switch]='Build CC Switch'
           JOB_NAME[chatgpt]='Build ChatGPT'
           JOB_NAME[claude-desktop]='Build Claude Desktop'
           JOB_NAME[deepseek-harness]='Build DeepSeek Harness'
           JOB_NAME[dingtalk]='Build DingTalk'
+          JOB_NAME[feishu]='Build Feishu'
           JOB_NAME[gemini]='Build Gemini'
           JOB_NAME[github-desktop]='Build GitHub Desktop'
           JOB_NAME[gitkraken]='Build GitKraken'
           JOB_NAME[hermes-desktop]='Build Hermes Desktop'
           JOB_NAME[htop]='Build htop'
+          JOB_NAME[mailmaster]='Build MailMaster'
           JOB_NAME[newsboat]='Build Newsboat'
           JOB_NAME[nvtop]='Build nvtop'
           JOB_NAME[obs-studio]='Build OBS Studio'
+          JOB_NAME[parsec]='Build Parsec'
           JOB_NAME[picom]='Build Picom'
           JOB_NAME[remmina]='Build Remmina'
           JOB_NAME[rofi]='Build Rofi'
@@ -2002,6 +2049,7 @@ jobs:
           JOB_NAME[trae-work]='Build TraeWork'
           JOB_NAME[trae]='Build Trae'
           JOB_NAME[webcamoid]='Build Webcamoid'
+          JOB_NAME[wechat]='Build WeChat'
           JOB_NAME[winpodx]='Build WinPodX'
           JOB_NAME[workbuddy]='Build WorkBuddy AppImage'
 
@@ -2009,19 +2057,23 @@ jobs:
           ASSET_NAME[alttab]='alttab.AppImage'
           ASSET_NAME[antigravity-ide]='antigravity-ide.AppImage'
           ASSET_NAME[antigravity]='antigravity.AppImage'
+          ASSET_NAME[baidunetdisk]='baidunetdisk.AppImage'
           ASSET_NAME[cc-switch]='cc-switch.AppImage'
           ASSET_NAME[chatgpt]='chatgpt.AppImage'
           ASSET_NAME[claude-desktop]='claude-desktop.AppImage'
           ASSET_NAME[deepseek-harness]='deepseek-harness.AppImage'
           ASSET_NAME[dingtalk]='dingtalk.AppImage'
+          ASSET_NAME[feishu]='feishu.AppImage'
           ASSET_NAME[gemini]='gemini.AppImage'
           ASSET_NAME[github-desktop]='github-desktop.AppImage'
           ASSET_NAME[gitkraken]='gitkraken.AppImage'
           ASSET_NAME[hermes-desktop]='hermes-desktop.AppImage'
           ASSET_NAME[htop]='htop.AppImage'
+          ASSET_NAME[mailmaster]='mailmaster.AppImage'
           ASSET_NAME[newsboat]='newsboat.AppImage'
           ASSET_NAME[nvtop]='nvtop.AppImage'
           ASSET_NAME[obs-studio]='obs-studio.AppImage'
+          ASSET_NAME[parsec]='parsec.AppImage'
           ASSET_NAME[picom]='picom.AppImage'
           ASSET_NAME[remmina]='remmina.AppImage'
           ASSET_NAME[rofi]='rofi.AppImage'
@@ -2029,6 +2081,7 @@ jobs:
           ASSET_NAME[trae-work]='trae-work.AppImage'
           ASSET_NAME[trae]='trae.AppImage'
           ASSET_NAME[webcamoid]='webcamoid.AppImage'
+          ASSET_NAME[wechat]='wechat.AppImage'
           ASSET_NAME[winpodx]='winpodx.AppImage'
           ASSET_NAME[workbuddy]='workbuddy.AppImage'
 

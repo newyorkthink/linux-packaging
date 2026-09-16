@@ -29,6 +29,12 @@ readonly SYSTEM_ICON=/usr/share/icons/hicolor/256x256/apps/mailmaster.png
 
 VERSION="$(pacman -Q "$PACKAGE_NAME" | awk '{print $2}')"
 echo "MailMaster AUR 版本：$VERSION"
+SOFTWARE_VERSION="${VERSION#*:}"
+SOFTWARE_VERSION="${SOFTWARE_VERSION%-*}"
+[[ -n "$SOFTWARE_VERSION" ]] || {
+  echo "错误：无法解析 MailMaster 软件版本。" >&2
+  exit 1
+}
 
 readonly APP_ROOT="$SCRIPT_DIR/AppDir/bin"
 mkdir -p "$APP_ROOT" "$SCRIPT_DIR/AppDir/share/licenses" "$SCRIPT_DIR/dist"
@@ -96,3 +102,7 @@ LD_LIBRARY_PATH="$BUILD_LD_LIBRARY_PATH" quick-sharun \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
 
 quick-sharun --make-appimage
+
+# 最终 AppImage 成功生成后输出统一的软件版本元数据。
+test -s "$SCRIPT_DIR/dist/mailmaster.AppImage"
+printf '%s\n' "$SOFTWARE_VERSION" > "$SCRIPT_DIR/dist/version.txt"

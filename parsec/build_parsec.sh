@@ -66,6 +66,9 @@ done
 
 VERSION="$(pacman -Q parsec-bin | awk '{print $2; exit}')"
 [[ -n "$VERSION" ]] || die "无法读取 parsec-bin 版本。"
+SOFTWARE_VERSION="${VERSION#*:}"
+SOFTWARE_VERSION="${SOFTWARE_VERSION%-*}"
+[[ -n "$SOFTWARE_VERSION" ]] || die "无法解析 Parsec 软件版本。"
 
 # 官方包历史上出现过 parsec.desktop / parsecd.desktop 命名；按当前已安装包文件清单动态选择，避免绑定文件名。
 DESKTOP="$(pacman -Ql parsec-bin | awk '$2 ~ /^\/usr\/share\/applications\/parsec.*\.desktop$/ {print $2; exit}')"
@@ -150,3 +153,6 @@ quick-sharun --make-appimage
 
 log "构建完成：$OUTFILE"
 sha256sum "$OUTFILE"
+
+# 最终 AppImage 成功生成后输出统一的软件版本元数据。
+printf '%s\n' "$SOFTWARE_VERSION" > "$OUTDIR/version.txt"

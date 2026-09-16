@@ -13,3 +13,21 @@
 - 构建时检查全部 ELF 的动态依赖，并验证最终 AppImage 可提取且包含主程序和启动器。
 - 使用隔离的 HOME、XDG、D-Bus 和 Xvfb 执行图形启动测试，不写入真实用户目录。
 - 正式构建由 `.github/workflows/build.yml` 中独立的 `Build Feishu` Job 完成，发布文件名固定为 `feishu.AppImage`。
+
+## 运行
+
+下载 Release 中的 `feishu.AppImage` 后赋予执行权限并直接运行：
+
+```bash
+./feishu.AppImage
+```
+
+## 版本元数据
+
+构建脚本已经把本次官方 API 解析出的版本写入生成的 `feishu.desktop` 的 `X-AppImage-Version`。workflow 在构建成功后复用该字段生成 `feishu/dist/version.txt`，上传为 `software-version-feishu`，并增量写入 `latest/software_versions.json`。
+
+### 2026-09-16：接入统一软件版本元数据
+
+- 复用本次构建生成的 `X-AppImage-Version`，不重复维护另一套固定版本。
+- workflow 接入 `SOFTWARE_KEY=feishu` 与统一版本清单。
+- 不修改现有飞书打包脚本和已验证兼容逻辑。

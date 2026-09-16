@@ -45,6 +45,10 @@ AUR `parsec-bin` 当前依赖 `ffmpeg4.4`，与官方要求的 FFmpeg 4.4 ABI �
 
 不加入测试 / smoke test 代码，也不通过强制软件解码绕过缺失依赖问题。
 
+## 版本元数据
+
+构建时从本次实际安装的 AUR `parsec-bin` 包读取版本，去掉 Arch epoch 与 pkgrel 后，在最终 AppImage 成功生成后写入 `parsec/dist/version.txt`。workflow 以 `SOFTWARE_KEY=parsec` 上传该元数据，并在成功构建后增量写入 `latest/software_versions.json`。
+
 ## 中文环境与输入法
 
 ### 简体中文 locale
@@ -137,3 +141,10 @@ Parsec 官方 Linux 依赖列表没有要求 Qt / GTK 输入上下文插件，�
 - **修复内容：** 移除 `intel-media-driver`、`libva-nvidia-driver`、`libvdpau-va-gl` 的打包依赖及 `iHD_drv_video.so`、`nvidia_drv_video.so`、`libvdpau_va_gl.so` 的显式收集与成品检查；保留已经使 Decoder 从空白恢复为 `Software` 的 FFmpeg 4.4 / 通用 libva 基线，以及真实 `libjpeg.so.8` 修复。
 - **已确认结果：** 厂商 backend 版本存在真实启动黑屏回归，因此不再作为当前基线。
 - **待确认事项：** 新产物需重新确认正常 GUI、黄色 libjpeg8 提示是否消失，以及硬件 Decoder 是否可由宿主驱动栈正常发现；硬件解码仍未标记为已解决。
+
+### 2026-09-16：接入统一软件版本元数据
+
+- 最终 AppImage 成功生成后输出 `dist/version.txt`。
+- 版本来自本次实际安装的 `parsec-bin`，去掉仅属于 Arch 打包的 epoch / pkgrel。
+- workflow 接入 `SOFTWARE_KEY=parsec` 与统一 `software_versions.json`。
+- 不改变现有 FFmpeg 4.4、libjpeg v8、VA-API、locale 和 quick-sharun 兼容基线。
