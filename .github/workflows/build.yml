@@ -309,6 +309,14 @@ jobs:
       - name: Build and publish AppImage
         uses: ./.github/actions/build-anylinux
         with: {build_script: '${{ env.BUILD_SCRIPT }}', artifact_dir: '${{ env.ARTIFACT_DIR }}', release_name: '${{ env.RELEASE_NAME }}', run_from_root: '${{ env.RUN_FROM_ROOT }}', github_token: '${{ github.token }}'}
+      - name: Upload software version metadata
+        if: env.SOFTWARE_KEY != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-${{ env.SOFTWARE_KEY }}
+          path: ${{ env.ARTIFACT_DIR }}/version.txt
+          if-no-files-found: error
+          retention-days: 1
 
   build_aionui:
     name: Build AionUi
@@ -318,7 +326,7 @@ jobs:
     timeout-minutes: 90
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'aionui/build_aionui.sh', ARTIFACT_DIR: 'aionui/dist', RELEASE_NAME: 'aionui.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'aionui/build_aionui.sh', ARTIFACT_DIR: 'aionui/dist', RELEASE_NAME: 'aionui.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'aionui'}
     steps: *arch_steps
 
   build_alacritty:
@@ -373,7 +381,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'antigravity/build_antigravity.sh', ARTIFACT_DIR: 'antigravity/dist', RELEASE_NAME: 'antigravity.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'antigravity/build_antigravity.sh', ARTIFACT_DIR: 'antigravity/dist', RELEASE_NAME: 'antigravity.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'antigravity'}
     steps: *arch_steps
 
   build_antigravity_ide:
@@ -384,7 +392,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'antigravity-ide/build_antigravity-ide.sh', ARTIFACT_DIR: 'antigravity-ide/dist', RELEASE_NAME: 'antigravity-ide.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'antigravity-ide/build_antigravity-ide.sh', ARTIFACT_DIR: 'antigravity-ide/dist', RELEASE_NAME: 'antigravity-ide.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'antigravity-ide'}
     steps: *arch_steps
 
   build_baidunetdisk:
@@ -422,7 +430,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'cc-switch/build_cc-switch.sh', ARTIFACT_DIR: 'cc-switch/dist', RELEASE_NAME: 'cc-switch.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'cc-switch/build_cc-switch.sh', ARTIFACT_DIR: 'cc-switch/dist', RELEASE_NAME: 'cc-switch.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'cc-switch'}
     steps: *arch_steps
 
   build_chatgpt:
@@ -435,7 +443,7 @@ jobs:
       image: ghcr.io/pkgforge-dev/archlinux:latest
       options: --privileged
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'chatgpt/build_chatgpt.sh', ARTIFACT_DIR: 'chatgpt/dist', RELEASE_NAME: 'chatgpt.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'chatgpt/build_chatgpt.sh', ARTIFACT_DIR: 'chatgpt/dist', RELEASE_NAME: 'chatgpt.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'chatgpt'}
     steps: *arch_steps
 
   build_chromium:
@@ -457,7 +465,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'claude-desktop/build_claude-desktop.sh', ARTIFACT_DIR: 'claude-desktop/dist', RELEASE_NAME: 'claude-desktop.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'claude-desktop/build_claude-desktop.sh', ARTIFACT_DIR: 'claude-desktop/dist', RELEASE_NAME: 'claude-desktop.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'claude-desktop'}
     steps: *arch_steps
 
   build_copyq:
@@ -525,7 +533,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'deepseek-harness/build_deepseek-harness.sh', ARTIFACT_DIR: 'deepseek-harness/dist', RELEASE_NAME: 'deepseek-harness.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'deepseek-harness/build_deepseek-harness.sh', ARTIFACT_DIR: 'deepseek-harness/dist', RELEASE_NAME: 'deepseek-harness.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'deepseek-harness'}
     steps: *arch_steps
 
   build_deskflow:
@@ -640,7 +648,7 @@ jobs:
     timeout-minutes: 90
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'gemini/build_gemini.sh', ARTIFACT_DIR: 'gemini/dist', RELEASE_NAME: 'gemini.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'gemini/build_gemini.sh', ARTIFACT_DIR: 'gemini/dist', RELEASE_NAME: 'gemini.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'gemini'}
     steps: *arch_steps
 
   build_github_desktop:
@@ -735,6 +743,14 @@ jobs:
           ./hermes-desktop/build_hermes-desktop.sh
           test -s hermes-desktop/dist/hermes-desktop.AppImage
           sha256sum hermes-desktop/dist/hermes-desktop.AppImage
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-hermes-desktop
+          path: hermes-desktop/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Publish to Latest Release
         env:
@@ -1257,7 +1273,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'trae/build_trae.sh', ARTIFACT_DIR: 'trae/dist', RELEASE_NAME: 'trae.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'trae/build_trae.sh', ARTIFACT_DIR: 'trae/dist', RELEASE_NAME: 'trae.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'trae'}
     steps: *arch_steps
 
   build_trae_work:
@@ -1356,6 +1372,14 @@ jobs:
             echo "TraeWork exited unexpectedly during smoke test: $rc" >&2
             exit "$rc"
           fi
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-trae-work
+          path: trae-work/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Publish AppImage to latest Release
         shell: bash
@@ -1554,6 +1578,14 @@ jobs:
             echo "WorkBuddy exited unexpectedly during smoke test: $rc" >&2
             exit "$rc"
           fi
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-workbuddy
+          path: workbuddy/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Publish AppImage to latest Release
         shell: bash
@@ -1788,3 +1820,165 @@ jobs:
             tail -n 250 "$LOG" >&2 || true
             exit 126
           fi
+
+  publish_software_versions:
+    name: Publish software version manifest
+    needs:
+      - plan
+      - build_aionui
+      - build_antigravity_ide
+      - build_antigravity
+      - build_cc_switch
+      - build_chatgpt
+      - build_claude_desktop
+      - build_deepseek_harness
+      - build_gemini
+      - build_hermes_desktop
+      - build_trae_work
+      - build_trae
+      - build_workbuddy
+    if: >-
+      always() &&
+      needs.plan.result == 'success' &&
+      (
+        fromJSON(needs.plan.outputs.builds).aionui == 'true' ||
+        fromJSON(needs.plan.outputs.builds).antigravity_ide == 'true' ||
+        fromJSON(needs.plan.outputs.builds).antigravity == 'true' ||
+        fromJSON(needs.plan.outputs.builds).cc_switch == 'true' ||
+        fromJSON(needs.plan.outputs.builds).chatgpt == 'true' ||
+        fromJSON(needs.plan.outputs.builds).claude_desktop == 'true' ||
+        fromJSON(needs.plan.outputs.builds).deepseek_harness == 'true' ||
+        fromJSON(needs.plan.outputs.builds).gemini == 'true' ||
+        fromJSON(needs.plan.outputs.builds).hermes_desktop == 'true' ||
+        fromJSON(needs.plan.outputs.builds).trae_work == 'true' ||
+        fromJSON(needs.plan.outputs.builds).trae == 'true' ||
+        fromJSON(needs.plan.outputs.builds).workbuddy == 'true'
+      ) &&
+      (fromJSON(needs.plan.outputs.builds).aionui != 'true' || needs.build_aionui.result == 'success') &&
+      (fromJSON(needs.plan.outputs.builds).antigravity_ide != 'true' || needs.build_antigravity_ide.result == 'success') &&
+      (fromJSON(needs.plan.outputs.builds).antigravity != 'true' || needs.build_antigravity.result == 'success') &&
+      (fromJSON(needs.plan.outputs.builds).cc_switch != 'true' || needs.build_cc_switch.result == 'success') &&
+      (fromJSON(needs.plan.outputs.builds).chatgpt != 'true' || needs.build_chatgpt.result == 'success') &&
+      (fromJSON(needs.plan.outputs.builds).claude_desktop != 'true' || needs.build_claude_desktop.result == 'success') &&
+      (fromJSON(needs.plan.outputs.builds).deepseek_harness != 'true' || needs.build_deepseek_harness.result == 'success') &&
+      (fromJSON(needs.plan.outputs.builds).gemini != 'true' || needs.build_gemini.result == 'success') &&
+      (fromJSON(needs.plan.outputs.builds).hermes_desktop != 'true' || needs.build_hermes_desktop.result == 'success') &&
+      (fromJSON(needs.plan.outputs.builds).trae_work != 'true' || needs.build_trae_work.result == 'success') &&
+      (fromJSON(needs.plan.outputs.builds).trae != 'true' || needs.build_trae.result == 'success') &&
+      (fromJSON(needs.plan.outputs.builds).workbuddy != 'true' || needs.build_workbuddy.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Download software version metadata
+        uses: actions/download-artifact@v4
+        with:
+          pattern: software-version-*
+          path: version-metadata
+
+      - name: Generate and publish software_versions.json
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+
+          MANIFEST="$RUNNER_TEMP/software_versions.json"
+          CURRENT_DIR="$RUNNER_TEMP/current-software-versions"
+          RELEASE_JSON="$RUNNER_TEMP/latest-release.json"
+          mkdir -p "$CURRENT_DIR"
+
+          if gh release view latest --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq 'software_versions.json'; then
+            gh release download latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern 'software_versions.json' \
+              --dir "$CURRENT_DIR" \
+              --clobber
+            cp "$CURRENT_DIR/software_versions.json" "$MANIFEST"
+          else
+            printf '{}\n' > "$MANIFEST"
+          fi
+
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" > "$RELEASE_JSON"
+
+          python3 - "$MANIFEST" "$RELEASE_JSON" version-metadata <<'PY'
+          import json
+          import re
+          import sys
+          from pathlib import Path
+
+          manifest_path = Path(sys.argv[1])
+          release_path = Path(sys.argv[2])
+          metadata_root = Path(sys.argv[3])
+
+          with manifest_path.open("r", encoding="utf-8") as fh:
+              manifest = json.load(fh)
+          if not isinstance(manifest, dict):
+              raise SystemExit("software_versions.json root must be an object")
+
+          with release_path.open("r", encoding="utf-8") as fh:
+              release = json.load(fh)
+
+          expected_assets = {
+              "aionui": "aionui.AppImage",
+              "antigravity-ide": "antigravity-ide.AppImage",
+              "antigravity": "antigravity.AppImage",
+              "cc-switch": "cc-switch.AppImage",
+              "chatgpt": "chatgpt.AppImage",
+              "claude-desktop": "claude-desktop.AppImage",
+              "deepseek-harness": "deepseek-harness.AppImage",
+              "gemini": "gemini.AppImage",
+              "hermes-desktop": "hermes-desktop.AppImage",
+              "trae-work": "trae-work.AppImage",
+              "trae": "trae.AppImage",
+              "workbuddy": "workbuddy.AppImage",
+          }
+
+          release_assets = {}
+          for asset in release.get("assets", []):
+              name = asset.get("name")
+              if name:
+                  release_assets.setdefault(name, []).append(asset)
+
+          version_files = sorted(metadata_root.glob("software-version-*/version.txt"))
+          if not version_files:
+              raise SystemExit("no software version metadata artifacts were downloaded")
+
+          for version_file in version_files:
+              artifact_name = version_file.parent.name
+              key = artifact_name.removeprefix("software-version-")
+              if key not in expected_assets:
+                  raise SystemExit(f"unexpected software version artifact: {artifact_name}")
+
+              version = version_file.read_text(encoding="utf-8").strip()
+              if not version or "\n" in version or "\r" in version:
+                  raise SystemExit(f"invalid version metadata for {key}")
+
+              asset_name = expected_assets[key]
+              matches = release_assets.get(asset_name, [])
+              if len(matches) != 1:
+                  raise SystemExit(
+                      f"expected exactly one Release asset named {asset_name}, got {len(matches)}"
+                  )
+
+              digest = str(matches[0].get("digest") or "").lower()
+              if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+                  raise SystemExit(f"invalid or missing GitHub digest for {asset_name}")
+
+              manifest[key] = {
+                  "version": version,
+                  "asset": asset_name,
+                  "sha256": digest.removeprefix("sha256:"),
+              }
+
+          with manifest_path.open("w", encoding="utf-8") as fh:
+              json.dump(manifest, fh, ensure_ascii=False, indent=2, sort_keys=True)
+              fh.write("\n")
+          PY
+
+          gh release upload latest "$MANIFEST" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
