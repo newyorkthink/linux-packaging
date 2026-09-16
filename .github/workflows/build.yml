@@ -737,6 +737,8 @@ jobs:
 
       - name: Build and verify Hermes Desktop AppImage
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           chmod +x hermes-desktop/build_hermes-desktop.sh hermes-desktop/patch_hermes_desktop.py

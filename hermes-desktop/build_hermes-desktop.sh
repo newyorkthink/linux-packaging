@@ -55,13 +55,22 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   binutils
 
 log "读取 NousResearch/hermes-agent 最新稳定 Release"
+github_api_headers=(
+  -H 'Accept: application/vnd.github+json'
+  -H 'X-GitHub-Api-Version: 2022-11-28'
+)
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+  github_api_headers+=( -H "Authorization: Bearer $GITHUB_TOKEN" )
+elif [[ -n "${GH_TOKEN:-}" ]]; then
+  github_api_headers+=( -H "Authorization: Bearer $GH_TOKEN" )
+fi
+
 release_json="$(curl -fsSL \
   --retry 5 \
   --retry-all-errors \
   --retry-delay 2 \
   --connect-timeout 20 \
-  -H 'Accept: application/vnd.github+json' \
-  -H 'X-GitHub-Api-Version: 2022-11-28' \
+  "${github_api_headers[@]}" \
   https://api.github.com/repos/NousResearch/hermes-agent/releases/latest)"
 
 readonly UPSTREAM_TAG="$(jq -r '.tag_name // empty' <<<"$release_json")"

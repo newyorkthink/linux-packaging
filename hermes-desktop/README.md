@@ -6,7 +6,7 @@
 
 ## 当前构建来源
 
-- 上游源码：`NousResearch/hermes-agent` 最新稳定 Release tag，构建时动态读取，不写死版本。
+- 上游源码：`NousResearch/hermes-agent` 最新稳定 Release tag，构建时动态读取，不写死版本；GitHub Actions 通过 `GITHUB_TOKEN` 认证 GitHub API，避免匿名 API 限额导致 403，本地手动构建未提供 token 时仍使用公开 API。
 - Desktop 构建链：上游 `apps/desktop` 自带的 npm / electron-builder 流程。
 - Node.js：26。
 - npm：12。
