@@ -51,6 +51,7 @@ TAG="$(jq -er 'select(.draft == false and .prerelease == false) | .tag_name' "$R
 VERSION="${TAG#v}"
 ASSET_NAME="v2rayN-linux-64.zip"
 ASSET_URL="$(jq -er --arg name "$ASSET_NAME" '.assets[] | select(.name == $name) | .browser_download_url' "$RELEASE_JSON")"
+ASSET_ID="$(jq -er --arg name "$ASSET_NAME" '.assets[] | select(.name == $name) | .id' "$RELEASE_JSON")"
 ASSET_DIGEST="$(jq -er --arg name "$ASSET_NAME" '.assets[] | select(.name == $name) | .digest' "$RELEASE_JSON")"
 
 case "$ASSET_URL" in
@@ -59,9 +60,19 @@ case "$ASSET_URL" in
 esac
 [[ "$ASSET_DIGEST" =~ ^sha256:[0-9a-fA-F]{64}$ ]] || fail "missing or invalid GitHub release SHA-256 digest"
 
-curl --fail --show-error --location \
+if ! curl --fail --show-error --location \
   --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 900 \
-  "$ASSET_URL" -o "$ARCHIVE"
+  "$ASSET_URL" -o "$ARCHIVE"; then
+  rm -f "$ARCHIVE"
+  [[ -n "${GH_TOKEN:-}" ]] || fail "official release asset download failed and GH_TOKEN is unavailable"
+  curl --fail --show-error --location \
+    --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 900 \
+    -H 'Accept: application/octet-stream' \
+    -H "Authorization: Bearer $GH_TOKEN" \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    "https://api.github.com/repos/2dust/v2rayN/releases/assets/$ASSET_ID" \
+    -o "$ARCHIVE"
+fi
 
 EXPECTED_SHA256="${ASSET_DIGEST#sha256:}"
 ACTUAL_SHA256="$(sha256sum "$ARCHIVE" | cut -d' ' -f1)"
