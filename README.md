@@ -27,6 +27,16 @@
 
 构建产物通常发布到仓库的 [Releases](https://github.com/newyorkthink/linux-packaging/releases)，持续更新版本使用 `latest` Release。
 
+### AppImage 版本说明
+
+当前统一版本元数据机制不会向 AppImage 文件内部额外写入版本信息，也不会为了版本管理修改 AppImage 内部内容。
+
+版本信息单独通过构建目录中的 `version.txt` 和 Release 中的 `software_versions.json` 维护。
+
+AppImage 在本机运行时也不会自动生成版本信息。
+
+少数项目如果原本就存在 `X-AppImage-Version` 等内部版本字段，属于其原有打包逻辑，不是本次统一版本元数据机制新增的。
+
 ### 软件版本清单
 
 `latest` Release 中的 `software_versions.json` 用于记录已接入更新器的软件版本、稳定资产名和 SHA-256。
