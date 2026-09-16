@@ -1823,57 +1823,29 @@ jobs:
             exit 126
           fi
 
-publish_software_versions:
+  publish_software_versions:
     name: Publish successful software versions
     needs: plan
-    if: >-
-      always() &&
-      needs.plan.result == 'success' &&
-      (
-        fromJSON(needs.plan.outputs.builds).aionui == 'true' ||
-        fromJSON(needs.plan.outputs.builds).antigravity_ide == 'true' ||
-        fromJSON(needs.plan.outputs.builds).antigravity == 'true' ||
-        fromJSON(needs.plan.outputs.builds).cc_switch == 'true' ||
-        fromJSON(needs.plan.outputs.builds).chatgpt == 'true' ||
-        fromJSON(needs.plan.outputs.builds).claude_desktop == 'true' ||
-        fromJSON(needs.plan.outputs.builds).deepseek_harness == 'true' ||
-        fromJSON(needs.plan.outputs.builds).gemini == 'true' ||
-        fromJSON(needs.plan.outputs.builds).hermes_desktop == 'true' ||
-        fromJSON(needs.plan.outputs.builds).trae_work == 'true' ||
-        fromJSON(needs.plan.outputs.builds).trae == 'true' ||
-        fromJSON(needs.plan.outputs.builds).workbuddy == 'true'
-      )
+    if: ${{ always() && needs.plan.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
       actions: read
       contents: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      SELECTED_BUILDS: ${{ needs.plan.outputs.builds }}
 
     steps:
       - name: Incrementally publish successful software versions
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SELECTED_BUILDS: ${{ needs.plan.outputs.builds }}
         run: |
           set -Eeuo pipefail
 
-          KEYS=(
-            aionui
-            antigravity-ide
-            antigravity
-            cc-switch
-            chatgpt
-            claude-desktop
-            deepseek-harness
-            gemini
-            hermes-desktop
-            trae-work
-            trae
-            workbuddy
-          )
+          KEYS=(aionui antigravity-ide antigravity cc-switch chatgpt claude-desktop deepseek-harness gemini hermes-desktop trae-work trae workbuddy)
 
           declare -A PLAN_KEY JOB_NAME ASSET_NAME
+
           PLAN_KEY[aionui]=aionui
           PLAN_KEY[antigravity-ide]=antigravity_ide
           PLAN_KEY[antigravity]=antigravity
@@ -1921,9 +1893,7 @@ publish_software_versions:
             fi
           done
 
-          if (( ${#selected[@]} == 0 )); then
-            exit 0
-          fi
+          (( ${#selected[@]} > 0 )) || exit 0
 
           declare -A finished
           remaining="${#selected[@]}"
@@ -1937,14 +1907,14 @@ publish_software_versions:
 
               job_name="${JOB_NAME[$key]}"
               job_row="$(jq -c --arg name "$job_name" '.jobs[] | select(.name == $name) | {status, conclusion}' <<< "$jobs_json" | head -n 1)"
-              [[ -z "$job_row" ]] && continue
+              [[ -n "$job_row" ]] || continue
 
               status="$(jq -r '.status // ""' <<< "$job_row")"
               [[ "$status" == "completed" ]] || continue
 
               conclusion="$(jq -r '.conclusion // ""' <<< "$job_row")"
               if [[ "$conclusion" != "success" ]]; then
-                echo "$key 构建未成功（$conclusion），保留 software_versions.json 中已有记录。"
+                echo "$key 构建未成功（$conclusion），保留旧记录。"
                 finished[$key]=failed
                 remaining=$((remaining - 1))
                 continue
@@ -1956,7 +1926,7 @@ publish_software_versions:
 
               downloaded=false
               for attempt in {1..12}; do
-                if gh run download "$GITHUB_RUN_ID"                   --repo "$GITHUB_REPOSITORY"                   --name "software-version-$key"                   --dir "$metadata_dir"; then
+                if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "software-version-$key" --dir "$metadata_dir"; then
                   downloaded=true
                   break
                 fi
@@ -1972,6 +1942,7 @@ publish_software_versions:
                 echo "$key 缺少有效 version.txt。" >&2
                 exit 1
               }
+
               version="$(tr -d '\r\n' < "$version_file")"
               [[ -n "$version" ]] || {
                 echo "$key 版本为空。" >&2
@@ -1982,8 +1953,8 @@ publish_software_versions:
               rm -rf "$current_dir"
               mkdir -p "$current_dir"
 
-              if gh release view latest                 --repo "$GITHUB_REPOSITORY"                 --json assets                 --jq '.assets[].name' | grep -Fxq 'software_versions.json'; then
-                gh release download latest                   --repo "$GITHUB_REPOSITORY"                   --pattern 'software_versions.json'                   --dir "$current_dir"                   --clobber
+              if gh release view latest --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq 'software_versions.json'; then
+                gh release download latest --repo "$GITHUB_REPOSITORY" --pattern 'software_versions.json' --dir "$current_dir" --clobber
                 cp "$current_dir/software_versions.json" "$manifest"
               else
                 printf '{}\n' > "$manifest"
@@ -1991,46 +1962,20 @@ publish_software_versions:
 
               asset_name="${ASSET_NAME[$key]}"
               release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest")"
-              digest="$(jq -r --arg asset "$asset_name" '
-                [.assets[] | select(.name == $asset)] |
-                if length == 1 then (.[0].digest // "") else "" end
-              ' <<< "$release_json")"
+              digest="$(jq -r --arg asset "$asset_name" '[.assets[] | select(.name == $asset)] | if length == 1 then (.[0].digest // "") else "" end' <<< "$release_json")"
 
               [[ "$digest" =~ ^sha256:[0-9a-fA-F]{64}$ ]] || {
                 echo "$asset_name 缺少有效 GitHub SHA-256 digest。" >&2
                 exit 1
               }
+
               sha256="${digest#sha256:}"
+              tmp_manifest="$RUNNER_TEMP/software_versions.tmp.json"
 
-              python3 - "$manifest" "$key" "$version" "$asset_name" "$sha256" <<'PY'
-          import json
-          import sys
-          from pathlib import Path
+              jq --arg key "$key" --arg version "$version" --arg asset "$asset_name" --arg sha256 "${sha256,,}" '.[$key] = {version: $version, asset: $asset, sha256: $sha256}' "$manifest" > "$tmp_manifest"
+              mv "$tmp_manifest" "$manifest"
 
-          manifest_path = Path(sys.argv[1])
-          key = sys.argv[2]
-          version = sys.argv[3]
-          asset = sys.argv[4]
-          sha256 = sys.argv[5].lower()
-
-          with manifest_path.open("r", encoding="utf-8") as fh:
-              manifest = json.load(fh)
-
-          if not isinstance(manifest, dict):
-              raise SystemExit("software_versions.json root must be an object")
-
-          manifest[key] = {
-              "version": version,
-              "asset": asset,
-              "sha256": sha256,
-          }
-
-          with manifest_path.open("w", encoding="utf-8") as fh:
-              json.dump(manifest, fh, ensure_ascii=False, indent=2, sort_keys=True)
-              fh.write("\n")
-          PY
-
-              gh release upload latest "$manifest"                 --repo "$GITHUB_REPOSITORY"                 --clobber
+              gh release upload latest "$manifest" --repo "$GITHUB_REPOSITORY" --clobber
 
               echo "$key 已补入 software_versions.json。"
               finished[$key]=success
