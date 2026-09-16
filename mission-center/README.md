@@ -129,3 +129,9 @@ Mission Center 的部分硬件指标仍取决于宿主内核、驱动、硬件�
 - 修改文件：`mission-center/build_mission-center.sh`、`mission-center/README.md`。
 - 处理：继续保留模块存在性和 `ldd` 未解析依赖强校验；随后直接为最终 AppDir `immodules` 目录写入 Fcitx5 GTK4 的标准 GIO 注册项，并用精确匹配再次校验缓存内容。删除脚本自身对 `gio-querymodules` 的构建命令依赖，不修改中文 locale、`patchelf`、GPU 或 workflow 基线。
 - 验证：已核对失败 Job `100183618023` 的完整日志，确认 `quick-sharun` 实际部署路径为 `AppDir/lib/gtk-4.0/4.0.0/immodules/libim-fcitx5.so`，且 Fcitx5 的 GTK4 诊断输出使用的缓存条目为 `libim-fcitx5.so: gtk-im-module`。完整构建和 Linux 实机中文输入仍以本次修改后的产物结果为准。
+
+## 2026-09-16：接入统一软件版本元数据
+
+- 构建时继续从本次实际安装的 Arch `mission-center` 软件包读取版本。
+- 更新器版本去掉 Arch epoch 与 pkgrel 后写入 `dist/version.txt`，不改变 GTK4、Libadwaita、Fcitx5 或中文 locale 逻辑。
+- workflow 使用 `SOFTWARE_KEY=mission-center` 接入统一 `software_versions.json`。

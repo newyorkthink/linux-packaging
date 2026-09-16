@@ -50,6 +50,12 @@ FCITX_GTK4_MODULE="$(find /usr/lib/gtk-4.0 -type f -path '*/immodules/libim-fcit
 msgunfmt /usr/share/locale/zh/LC_MESSAGES/missioncenter.mo >/dev/null
 
 PACKAGE_VERSION="$(pacman -Q mission-center | awk '{print $2}')"
+SOFTWARE_VERSION="${PACKAGE_VERSION#*:}"
+SOFTWARE_VERSION="${SOFTWARE_VERSION%-*}"
+[[ -n "$SOFTWARE_VERSION" ]] || {
+  echo "错误：无法解析 Mission Center 版本。" >&2
+  exit 1
+}
 printf 'Mission Center package version: %s\n' "$PACKAGE_VERSION"
 
 export ARCH="$(uname -m)"
@@ -135,5 +141,7 @@ quick-sharun --make-appimage
   echo "错误：未生成 $OUTFILE" >&2
   exit 1
 }
+
+printf '%s\n' "$SOFTWARE_VERSION" > "$DIST_DIR/version.txt"
 
 printf 'Built: %s\n' "$OUTFILE"

@@ -313,3 +313,4 @@ fi
 
 # 输出最终 AppImage 的 SHA-256，供 Release 产物审计。
 sha256sum "$OUTPUT"
+printf '%s\n' "$VENTOY_VERSION" > "$DIST_DIR/version.txt"

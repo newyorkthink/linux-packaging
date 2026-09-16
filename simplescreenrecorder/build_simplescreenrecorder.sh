@@ -19,6 +19,16 @@ yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-gli
 # 安装 simplescreenrecorder 及其音视频、图形界面相关依赖
 yay -S --noconfirm simplescreenrecorder qt5-base qt5-x11extras ffmpeg alsa-lib jack2 libpulse libx11 libxext libxfixes libxi libxinerama glu gtk-update-icon-cache libglvnd mesa fcitx5-qt egl-wayland libxcb xcb-util xcb-util-keysyms libxss extra-cmake-modules xcb-util-renderutil xcb-util-wm xcb-util-image xcb-util-cursor libxkbcommon libxkbcommon-x11 adwaita-qt5 qt5-svg qt5-tools qt5ct lxqt-qtplugin kvantum wl-clipboard xclip
 
+SSR_PACKAGE_VERSION="$(pacman -Q simplescreenrecorder | awk '{print $2}')"
+SSR_VERSION="${SSR_PACKAGE_VERSION#*:}"
+SSR_VERSION="${SSR_VERSION%-*}"
+if [ -z "$SSR_VERSION" ]; then
+  echo "错误：无法解析 SimpleScreenRecorder 版本。" >&2
+  exit 1
+fi
+
 # 使用 quick-sharun 构建 AppDir 并打包成 AppImage
 quick-sharun /usr/bin/simplescreenrecorder
 quick-sharun --make-appimage
+
+printf '%s\n' "$SSR_VERSION" > ./dist/version.txt

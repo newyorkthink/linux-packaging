@@ -57,3 +57,9 @@ AppImage 主入口为 `xfreerdp3`，实际 RDP 参数沿用 FreeRDP 3 的命令�
 - **修改文件：** `freerdp/build_freerdp.sh`。
 - **修复内容：** 仅把 path-mapping helper 的存在性检查改为当前 quick-sharun 的实际目录，同时补齐构建脚本中文分区注释；FreeRDP 的程序列表、依赖、`PATH_MAPPING` 内容和打包流程保持不变。
 - **最终结果：** 修复后的正式 `Build FreeRDP` Job 已成功完成，`xfreerdp3.AppImage` 已发布到 latest Release，并完成 Windows 10 实际连接验证。
+
+## 2026-09-16：接入统一软件版本元数据
+
+- 构建时从本次实际安装的 Arch `freerdp` 包读取版本，去掉 Arch epoch 与 pkgrel 后写入 `dist/version.txt`。
+- 统一版本清单键使用 `xfreerdp3`，对应本机及 Release 的稳定资产名 `xfreerdp3.AppImage`。
+- 本次不修改 FreeRDP 程序集合、proxy plugins、PATH_MAPPING 或 quick-sharun 打包基线。

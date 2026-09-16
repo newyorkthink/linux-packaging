@@ -21,6 +21,14 @@ yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils 
 
 yay -S --noconfirm qemu-desktop qemu-tools qemu-ui-gtk virt-viewer
 
+QEMU_PACKAGE_VERSION="$(pacman -Q qemu-desktop | awk '{print $2}')"
+QEMU_VERSION="${QEMU_PACKAGE_VERSION#*:}"
+QEMU_VERSION="${QEMU_VERSION%-*}"
+if [ -z "$QEMU_VERSION" ]; then
+  echo "错误：无法解析 QEMU 版本。" >&2
+  exit 1
+fi
+
 ###### 核心打包 ######
 
 # 按 pkgforge-dev/QEMU-AppImage 的官方形式直接收集 QEMU 程序、GTK 等模块和数据文件。
@@ -42,3 +50,5 @@ printf '%s\n' 'LANGUAGE=zh_CN' >> AppDir/.env
 ###### 生成固定名称产物 ######
 
 quick-sharun --make-appimage
+
+printf '%s\n' "$QEMU_VERSION" > "$OUTPATH/version.txt"

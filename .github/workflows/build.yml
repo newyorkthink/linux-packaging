@@ -370,6 +370,14 @@ jobs:
           env -u GITHUB_ACTIONS ./alacritty/build_alacritty_linuxdeploy.sh
           test -s alacritty/dist/alacritty.AppImage
 
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-alacritty
+          path: alacritty/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Publish to Latest Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -501,7 +509,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'copyq/build_copyq.sh', ARTIFACT_DIR: 'copyq/dist', RELEASE_NAME: 'copyq.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'copyq/build_copyq.sh', ARTIFACT_DIR: 'copyq/dist', RELEASE_NAME: 'copyq.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'copyq'}
     steps: *arch_steps
 
   build_cursor:
@@ -512,7 +520,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'cursor/build_cursor.sh', ARTIFACT_DIR: 'cursor/dist', RELEASE_NAME: 'cursor.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'cursor/build_cursor.sh', ARTIFACT_DIR: 'cursor/dist', RELEASE_NAME: 'cursor.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'cursor'}
     steps: *arch_steps
 
   build_dconf_editor:
@@ -538,6 +546,25 @@ jobs:
           set -euo pipefail
           chmod +x build_dconf-editor.sh
           ./build_dconf-editor.sh
+
+      - name: Prepare software version metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          version="$(sed -nE 's/^readonly EXPECTED_DCONF_EDITOR_VERSION="([^"]+)"/\1/p' dconf-editor/build_dconf-editor.sh | head -n 1)"
+          [[ -n "$version" ]] || {
+            echo "无法从 dconf-editor/build_dconf-editor.sh 解析版本。" >&2
+            exit 1
+          }
+          printf '%s\n' "$version" > dconf-editor/dist/version.txt
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-dconf-editor
+          path: dconf-editor/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Publish to Latest Release
         env:
@@ -569,7 +596,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'deskflow/build_deskflow.sh', ARTIFACT_DIR: 'deskflow/dist', RELEASE_NAME: 'deskflow.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'deskflow/build_deskflow.sh', ARTIFACT_DIR: 'deskflow/dist', RELEASE_NAME: 'deskflow.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'deskflow'}
     steps: *arch_steps
 
   build_dingtalk:
@@ -626,7 +653,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'escrcpy/build_escrcpy.sh', ARTIFACT_DIR: 'escrcpy/dist', RELEASE_NAME: 'escrcpy.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'escrcpy/build_escrcpy.sh', ARTIFACT_DIR: 'escrcpy/dist', RELEASE_NAME: 'escrcpy.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'escrcpy'}
     steps: *arch_steps
 
   build_feishu:
@@ -681,7 +708,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'freerdp/build_freerdp.sh', ARTIFACT_DIR: 'freerdp/dist', RELEASE_NAME: 'xfreerdp3.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'freerdp/build_freerdp.sh', ARTIFACT_DIR: 'freerdp/dist', RELEASE_NAME: 'xfreerdp3.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'xfreerdp3'}
     steps: *arch_steps
 
   build_gemini:
@@ -846,7 +873,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'i3wm/build_i3wm.sh', ARTIFACT_DIR: 'i3wm/dist', RELEASE_NAME: 'i3.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'i3wm/build_i3wm.sh', ARTIFACT_DIR: 'i3wm/dist', RELEASE_NAME: 'i3.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'i3'}
     steps: *arch_steps
 
   build_joplin:
@@ -976,6 +1003,14 @@ jobs:
           bash Keyviz/build_keyviz.sh
           test -s dist/keyviz.AppImage
 
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-keyviz
+          path: dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Publish to Latest Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -995,7 +1030,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'kitty/build_kitty.sh', ARTIFACT_DIR: 'kitty/dist', RELEASE_NAME: 'kitty.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'kitty/build_kitty.sh', ARTIFACT_DIR: 'kitty/dist', RELEASE_NAME: 'kitty.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'kitty'}
     steps: *arch_steps
 
   build_mailmaster:
@@ -1017,7 +1052,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'mission-center/build_mission-center.sh', ARTIFACT_DIR: 'mission-center/dist', RELEASE_NAME: 'mission-center.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'mission-center/build_mission-center.sh', ARTIFACT_DIR: 'mission-center/dist', RELEASE_NAME: 'mission-center.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'mission-center'}
     steps: *arch_steps
 
   build_moderncsv:
@@ -1028,7 +1063,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'moderncsv/build_moderncsv.sh', ARTIFACT_DIR: 'moderncsv/dist', RELEASE_NAME: 'moderncsv.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'moderncsv/build_moderncsv.sh', ARTIFACT_DIR: 'moderncsv/dist', RELEASE_NAME: 'moderncsv.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'moderncsv'}
     steps: *arch_steps
 
   build_mpv:
@@ -1162,7 +1197,7 @@ jobs:
     timeout-minutes: 90
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'qemu/build_qemu.sh', ARTIFACT_DIR: 'qemu/dist', RELEASE_NAME: 'qemu.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'qemu/build_qemu.sh', ARTIFACT_DIR: 'qemu/dist', RELEASE_NAME: 'qemu.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'qemu'}
     steps: *arch_steps
 
   build_rainlendar2:
@@ -1293,7 +1328,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'ripdrag/build_ripdrag.sh', ARTIFACT_DIR: 'ripdrag/dist', RELEASE_NAME: 'ripdrag.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'ripdrag/build_ripdrag.sh', ARTIFACT_DIR: 'ripdrag/dist', RELEASE_NAME: 'ripdrag.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'ripdrag'}
     steps: *arch_steps
 
   build_rofi:
@@ -1315,7 +1350,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'simplescreenrecorder/build_simplescreenrecorder.sh', ARTIFACT_DIR: 'simplescreenrecorder/dist', RELEASE_NAME: 'simplescreenrecorder.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'simplescreenrecorder/build_simplescreenrecorder.sh', ARTIFACT_DIR: 'simplescreenrecorder/dist', RELEASE_NAME: 'simplescreenrecorder.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'simplescreenrecorder'}
     steps: *arch_steps
 
   build_smplayer:
@@ -1514,7 +1549,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'ventoy/build_ventoy.sh', ARTIFACT_DIR: 'ventoy/dist', RELEASE_NAME: 'ventoy.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'ventoy/build_ventoy.sh', ARTIFACT_DIR: 'ventoy/dist', RELEASE_NAME: 'ventoy.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'ventoy'}
     steps: *arch_steps
 
   build_virt_manager:
@@ -1538,7 +1573,7 @@ jobs:
     timeout-minutes: *arch_timeout
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'vscode/build_vscode.sh', ARTIFACT_DIR: 'vscode/dist', RELEASE_NAME: 'vscode.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'vscode/build_vscode.sh', ARTIFACT_DIR: 'vscode/dist', RELEASE_NAME: 'vscode.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'vscode'}
     steps: *arch_steps
 
   build_webcamoid:
@@ -1975,11 +2010,12 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          KEYS=(adspower-global aionui alttab antigravity-ide antigravity baidunetdisk cc-switch chatgpt chromium claude-desktop deepseek-harness dingtalk feishu folo freedownloadmanager gemini github-desktop gitkraken hermes-desktop htop joplin kde-suite keepass keepassxc mailmaster mpv newsboat nvtop obs-studio obsidian parsec picom rainlendar2 realvnc_connect remmina rofi smplayer stacher sunshine tencent-docs trae-work trae v2rayn webcamoid wechat winpodx workbuddy xnconvert xnview zotero)
+          KEYS=(adspower-global aionui alacritty alttab antigravity-ide antigravity baidunetdisk cc-switch chatgpt chromium claude-desktop copyq cursor dconf-editor deepseek-harness deskflow dingtalk escrcpy feishu folo freedownloadmanager gemini github-desktop gitkraken hermes-desktop htop i3 joplin kde-suite keepass keepassxc keyviz kitty mailmaster mission-center moderncsv mpv newsboat nvtop obs-studio obsidian parsec picom qemu rainlendar2 realvnc_connect remmina ripdrag rofi simplescreenrecorder smplayer stacher sunshine tencent-docs trae-work trae v2rayn ventoy vscode webcamoid wechat winpodx workbuddy xfreerdp3 xnconvert xnview zotero)
 
           declare -A PLAN_KEY JOB_NAME ASSET_NAME
 
           PLAN_KEY[aionui]=aionui
+          PLAN_KEY[alacritty]=alacritty
           PLAN_KEY[adspower-global]=adspower_global
           PLAN_KEY[alttab]=alttab
           PLAN_KEY[antigravity-ide]=antigravity_ide
@@ -1989,8 +2025,13 @@ jobs:
           PLAN_KEY[chatgpt]=chatgpt
           PLAN_KEY[chromium]=chromium
           PLAN_KEY[claude-desktop]=claude_desktop
+          PLAN_KEY[copyq]=copyq
+          PLAN_KEY[cursor]=cursor
+          PLAN_KEY[dconf-editor]=dconf_editor
           PLAN_KEY[deepseek-harness]=deepseek_harness
+          PLAN_KEY[deskflow]=deskflow
           PLAN_KEY[dingtalk]=dingtalk
+          PLAN_KEY[escrcpy]=escrcpy
           PLAN_KEY[feishu]=feishu
           PLAN_KEY[folo]=folo
           PLAN_KEY[freedownloadmanager]=freedownloadmanager
@@ -1999,11 +2040,16 @@ jobs:
           PLAN_KEY[gitkraken]=gitkraken
           PLAN_KEY[hermes-desktop]=hermes_desktop
           PLAN_KEY[htop]=htop
+          PLAN_KEY[i3]=i3wm
           PLAN_KEY[joplin]=joplin
           PLAN_KEY[kde-suite]=kde_suite
           PLAN_KEY[keepass]=keepass
           PLAN_KEY[keepassxc]=keepassxc
+          PLAN_KEY[keyviz]=keyviz
+          PLAN_KEY[kitty]=kitty
           PLAN_KEY[mailmaster]=mailmaster
+          PLAN_KEY[mission-center]=mission_center
+          PLAN_KEY[moderncsv]=moderncsv
           PLAN_KEY[mpv]=mpv
           PLAN_KEY[newsboat]=newsboat
           PLAN_KEY[nvtop]=nvtop
@@ -2011,10 +2057,13 @@ jobs:
           PLAN_KEY[obsidian]=obsidian
           PLAN_KEY[parsec]=parsec
           PLAN_KEY[picom]=picom
+          PLAN_KEY[qemu]=qemu
           PLAN_KEY[rainlendar2]=rainlendar2
           PLAN_KEY[realvnc_connect]=realvnc_connect
           PLAN_KEY[remmina]=remmina
+          PLAN_KEY[ripdrag]=ripdrag
           PLAN_KEY[rofi]=rofi
+          PLAN_KEY[simplescreenrecorder]=simplescreenrecorder
           PLAN_KEY[smplayer]=smplayer
           PLAN_KEY[stacher]=stacher
           PLAN_KEY[sunshine]=sunshine
@@ -2022,15 +2071,19 @@ jobs:
           PLAN_KEY[trae-work]=trae_work
           PLAN_KEY[trae]=trae
           PLAN_KEY[v2rayn]=v2rayn
+          PLAN_KEY[ventoy]=ventoy
+          PLAN_KEY[vscode]=vscode
           PLAN_KEY[webcamoid]=webcamoid
           PLAN_KEY[wechat]=wechat
           PLAN_KEY[winpodx]=winpodx
           PLAN_KEY[workbuddy]=workbuddy
+          PLAN_KEY[xfreerdp3]=freerdp
           PLAN_KEY[xnconvert]=xnconvert
           PLAN_KEY[xnview]=xnviewmp
           PLAN_KEY[zotero]=zotero
 
           JOB_NAME[aionui]='Build AionUi'
+          JOB_NAME[alacritty]='Build Alacritty'
           JOB_NAME[adspower-global]='Build AdsPower Global'
           JOB_NAME[alttab]='Build AltTab'
           JOB_NAME[antigravity-ide]='Build Antigravity IDE'
@@ -2040,8 +2093,13 @@ jobs:
           JOB_NAME[chatgpt]='Build ChatGPT'
           JOB_NAME[chromium]='Build Chromium'
           JOB_NAME[claude-desktop]='Build Claude Desktop'
+          JOB_NAME[copyq]='Build CopyQ'
+          JOB_NAME[cursor]='Build Cursor'
+          JOB_NAME[dconf-editor]='Build dconf Editor'
           JOB_NAME[deepseek-harness]='Build DeepSeek Harness'
+          JOB_NAME[deskflow]='Build Deskflow'
           JOB_NAME[dingtalk]='Build DingTalk'
+          JOB_NAME[escrcpy]='Build Escrcpy'
           JOB_NAME[feishu]='Build Feishu'
           JOB_NAME[folo]='Build Folo'
           JOB_NAME[freedownloadmanager]='Build Free Download Manager'
@@ -2050,11 +2108,16 @@ jobs:
           JOB_NAME[gitkraken]='Build GitKraken'
           JOB_NAME[hermes-desktop]='Build Hermes Desktop'
           JOB_NAME[htop]='Build htop'
+          JOB_NAME[i3]='Build i3wm'
           JOB_NAME[joplin]='Build Joplin'
           JOB_NAME[kde-suite]='Build KDE Suite'
           JOB_NAME[keepass]='Build KeePass'
           JOB_NAME[keepassxc]='Build KeePassXC'
+          JOB_NAME[keyviz]='Build Keyviz'
+          JOB_NAME[kitty]='Build kitty'
           JOB_NAME[mailmaster]='Build MailMaster'
+          JOB_NAME[mission-center]='Build Mission Center'
+          JOB_NAME[moderncsv]='Build Modern CSV'
           JOB_NAME[mpv]='Build mpv'
           JOB_NAME[newsboat]='Build Newsboat'
           JOB_NAME[nvtop]='Build nvtop'
@@ -2062,10 +2125,13 @@ jobs:
           JOB_NAME[obsidian]='Build Obsidian'
           JOB_NAME[parsec]='Build Parsec'
           JOB_NAME[picom]='Build Picom'
+          JOB_NAME[qemu]='Build QEMU'
           JOB_NAME[rainlendar2]='Build Rainlendar2'
           JOB_NAME[realvnc_connect]='Build RealVNC Connect'
           JOB_NAME[remmina]='Build Remmina'
+          JOB_NAME[ripdrag]='Build ripdrag'
           JOB_NAME[rofi]='Build Rofi'
+          JOB_NAME[simplescreenrecorder]='Build SimpleScreenRecorder'
           JOB_NAME[smplayer]='Build SMPlayer'
           JOB_NAME[stacher]='Build Stacher'
           JOB_NAME[sunshine]='Build Sunshine'
@@ -2073,15 +2139,19 @@ jobs:
           JOB_NAME[trae-work]='Build TraeWork'
           JOB_NAME[trae]='Build Trae'
           JOB_NAME[v2rayn]='Build v2rayN'
+          JOB_NAME[ventoy]='Build Ventoy'
+          JOB_NAME[vscode]='Build VS Code'
           JOB_NAME[webcamoid]='Build Webcamoid'
           JOB_NAME[wechat]='Build WeChat'
           JOB_NAME[winpodx]='Build WinPodX'
           JOB_NAME[workbuddy]='Build WorkBuddy AppImage'
+          JOB_NAME[xfreerdp3]='Build FreeRDP'
           JOB_NAME[xnconvert]='Build XnConvert'
           JOB_NAME[xnview]='Build XnView MP'
           JOB_NAME[zotero]='Build Zotero'
 
           ASSET_NAME[aionui]='aionui.AppImage'
+          ASSET_NAME[alacritty]='alacritty.AppImage'
           ASSET_NAME[adspower-global]='adspower-global.AppImage'
           ASSET_NAME[alttab]='alttab.AppImage'
           ASSET_NAME[antigravity-ide]='antigravity-ide.AppImage'
@@ -2091,8 +2161,13 @@ jobs:
           ASSET_NAME[chatgpt]='chatgpt.AppImage'
           ASSET_NAME[chromium]='chromium.AppImage'
           ASSET_NAME[claude-desktop]='claude-desktop.AppImage'
+          ASSET_NAME[copyq]='copyq.AppImage'
+          ASSET_NAME[cursor]='cursor.AppImage'
+          ASSET_NAME[dconf-editor]='dconf-editor.AppImage'
           ASSET_NAME[deepseek-harness]='deepseek-harness.AppImage'
+          ASSET_NAME[deskflow]='deskflow.AppImage'
           ASSET_NAME[dingtalk]='dingtalk.AppImage'
+          ASSET_NAME[escrcpy]='escrcpy.AppImage'
           ASSET_NAME[feishu]='feishu.AppImage'
           ASSET_NAME[folo]='folo.AppImage'
           ASSET_NAME[freedownloadmanager]='freedownloadmanager.AppImage'
@@ -2101,11 +2176,16 @@ jobs:
           ASSET_NAME[gitkraken]='gitkraken.AppImage'
           ASSET_NAME[hermes-desktop]='hermes-desktop.AppImage'
           ASSET_NAME[htop]='htop.AppImage'
+          ASSET_NAME[i3]='i3.AppImage'
           ASSET_NAME[joplin]='joplin.AppImage'
           ASSET_NAME[kde-suite]='kde-suite.AppImage'
           ASSET_NAME[keepass]='keepass.AppImage'
           ASSET_NAME[keepassxc]='keepassxc.AppImage'
+          ASSET_NAME[keyviz]='keyviz.AppImage'
+          ASSET_NAME[kitty]='kitty.AppImage'
           ASSET_NAME[mailmaster]='mailmaster.AppImage'
+          ASSET_NAME[mission-center]='mission-center.AppImage'
+          ASSET_NAME[moderncsv]='moderncsv.AppImage'
           ASSET_NAME[mpv]='mpv.AppImage'
           ASSET_NAME[newsboat]='newsboat.AppImage'
           ASSET_NAME[nvtop]='nvtop.AppImage'
@@ -2113,10 +2193,13 @@ jobs:
           ASSET_NAME[obsidian]='obsidian.AppImage'
           ASSET_NAME[parsec]='parsec.AppImage'
           ASSET_NAME[picom]='picom.AppImage'
+          ASSET_NAME[qemu]='qemu.AppImage'
           ASSET_NAME[rainlendar2]='rainlendar2.AppImage'
           ASSET_NAME[realvnc_connect]='rvncconnect.AppImage'
           ASSET_NAME[remmina]='remmina.AppImage'
+          ASSET_NAME[ripdrag]='ripdrag.AppImage'
           ASSET_NAME[rofi]='rofi.AppImage'
+          ASSET_NAME[simplescreenrecorder]='simplescreenrecorder.AppImage'
           ASSET_NAME[smplayer]='smplayer.AppImage'
           ASSET_NAME[stacher]='stacher.AppImage'
           ASSET_NAME[sunshine]='sunshine.AppImage'
@@ -2124,10 +2207,13 @@ jobs:
           ASSET_NAME[trae-work]='trae-work.AppImage'
           ASSET_NAME[trae]='trae.AppImage'
           ASSET_NAME[v2rayn]='v2rayn.AppImage'
+          ASSET_NAME[ventoy]='ventoy.AppImage'
+          ASSET_NAME[vscode]='vscode.AppImage'
           ASSET_NAME[webcamoid]='webcamoid.AppImage'
           ASSET_NAME[wechat]='wechat.AppImage'
           ASSET_NAME[winpodx]='winpodx.AppImage'
           ASSET_NAME[workbuddy]='workbuddy.AppImage'
+          ASSET_NAME[xfreerdp3]='xfreerdp3.AppImage'
           ASSET_NAME[xnconvert]='xnconvert.AppImage'
           ASSET_NAME[xnview]='xnviewmp.AppImage'
           ASSET_NAME[zotero]='zotero.AppImage'

@@ -87,3 +87,9 @@ Android 设备的 USB / ADB 授权、无线连接及其他设备侧要求仍以 
 - 实现：动态选择上游最新稳定 x86_64 AppImage，严格使用 Release API 返回的 SHA-256 digest 校验后原样发布；不固定应用版本，不进行无证据的二次重打包，也不加入测试或冒烟代码。
 - 静态确认：上游正式 Linux 配置包含 x64 AppImage target，并把 Linux / x64 的 Escrcpy 附加资源纳入正式包；当前 GitHub Release 也实际提供 x86_64 AppImage 及 SHA-256 digest。
 - 验证状态：本次只完成仓库外静态核对和提交前 diff 检查；提交后的 GitHub Actions 与真实 Linux 运行结果按仓库规则不在本次任务中主动监控，构建及实机运行状态待正式流水线和后续真实使用结果确认。
+
+## 2026-09-16：接入统一软件版本元数据
+
+- 继续原样同步并校验 Escrcpy 官方 AppImage，不进行二次封装。
+- 构建脚本复用本次官方稳定 Release 解析得到的 `VERSION`，额外写入 `dist/version.txt`。
+- workflow 使用 `SOFTWARE_KEY=escrcpy` 接入统一 `software_versions.json`；Release 资产名仍为 `escrcpy.AppImage`。

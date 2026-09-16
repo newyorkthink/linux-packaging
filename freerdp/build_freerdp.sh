@@ -14,6 +14,14 @@ yay -S --noconfirm wl-clipboard xclip fcitx5-qt egl-wayland libxcb xcb-util xcb-
   libxcomposite libxdamage libxfixes libxext libxinerama freetype2 libjpeg-turbo
 yay -S --noconfirm freerdp libdecor alsa-plugins
 
+FREERDP_PACKAGE_VERSION="$(pacman -Q freerdp | awk '{print $2}')"
+FREERDP_VERSION="${FREERDP_PACKAGE_VERSION#*:}"
+FREERDP_VERSION="${FREERDP_VERSION%-*}"
+if [ -z "$FREERDP_VERSION" ]; then
+  echo "错误：无法解析 FreeRDP 版本。" >&2
+  exit 1
+fi
+
 ###### 配置 AppImage 元数据与路径映射 ######
 ARCH="$(uname -m)"
 export ARCH
@@ -56,3 +64,5 @@ test -f AppDir/lib/sharun-preload/path-mapping.so
 grep -Fq '/usr/lib/freerdp/server/proxy/plugins:${SHARUN_DIR}/lib/freerdp/server/proxy/plugins' AppDir/.env
 
 quick-sharun --make-appimage
+
+printf '%s\n' "$FREERDP_VERSION" > ./dist/version.txt

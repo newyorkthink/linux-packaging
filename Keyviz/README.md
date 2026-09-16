@@ -33,3 +33,9 @@ GitHub Actions 直接调用 `Keyviz/build_keyviz.sh`；真正构建逻辑均位�
 - 固定提交：`abff97c6687e96736c63d4dad1c4bba06a1f8205`
 - tao：`0.34.8`
 - AppImage：anylinux + quick-sharun
+
+## 2026-09-16：接入统一软件版本元数据
+
+- 版本继续以 `version.conf` 中经过源码与补丁基线核对的 `KEYVIZ_VERSION` 为准。
+- `build_keyviz.sh` 在现有 AppImage 构建完成后写入 `dist/version.txt`，不改变源码固定提交、补丁、tao 或 quick-sharun 基线。
+- 自定义 Keyviz Job 上传 `software-version-keyviz` artifact，成功后将 `keyviz.AppImage` 写入统一 `software_versions.json`。

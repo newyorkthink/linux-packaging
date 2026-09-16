@@ -33,6 +33,14 @@ yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-gli
 # i3wm、默认状态栏、启动器及常用 X11 工具
 yay -S --noconfirm i3-wm i3status dmenu xss-lock perl perl-anyevent-i3 perl-json-xs dbus xorg-xrandr xorg-xset xorg-xprop xorg-xmodmap xorg-xsetroot xorg-xmessage
 
+I3_PACKAGE_VERSION="$(pacman -Q i3-wm | awk '{print $2}')"
+I3_VERSION="${I3_PACKAGE_VERSION#*:}"
+I3_VERSION="${I3_VERSION%-*}"
+if [ -z "$I3_VERSION" ]; then
+  echo "错误：无法解析 i3-wm 版本。" >&2
+  exit 1
+fi
+
 # 打包 i3wm 及其全部常用工具
 quick-sharun \
   /usr/bin/i3 \
@@ -62,3 +70,5 @@ cp -a /etc/i3/. AppDir/etc/i3/
 cp -a /etc/i3status.conf AppDir/etc/i3status.conf
 
 quick-sharun --make-appimage
+
+printf '%s\n' "$I3_VERSION" > ./dist/version.txt

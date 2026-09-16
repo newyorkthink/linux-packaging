@@ -17,6 +17,11 @@ curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --profi
 # 获取 Alacritty 最新正式版标签。
 TAG="$(curl -fsSL -o /dev/null -w '%{url_effective}' https://github.com/alacritty/alacritty/releases/latest)"
 TAG="${TAG##*/}"
+VERSION="${TAG#v}"
+if [ -z "$VERSION" ]; then
+  echo "Error: failed to determine Alacritty version." >&2
+  exit 1
+fi
 
 # 下载 Alacritty 最新正式版源码。
 git clone --depth 1 --branch "$TAG" https://github.com/alacritty/alacritty.git alacritty-src
@@ -51,3 +56,5 @@ cp -a /usr/share/X11/locale AppDir/usr/share/X11/
 
 # 使用预写的 AppRun，并补入 Alacritty 运行时动态加载的 xkbcommon-x11 后生成 AppImage。
 APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 LDAI_OUTPUT="$PWD/dist/alacritty.AppImage" ./linuxdeploy-x86_64.AppImage --appdir AppDir --executable "$PWD/alacritty-src/target/release/alacritty" --library /usr/lib/x86_64-linux-gnu/libxkbcommon-x11.so.0 --desktop-file "$PWD/alacritty-src/extra/linux/Alacritty.desktop" --icon-file "$PWD/Alacritty.svg" --custom-apprun "$PWD/AppRun" --output appimage
+
+printf '%s\n' "$VERSION" > "$PWD/dist/version.txt"

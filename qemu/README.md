@@ -154,3 +154,9 @@ ln -sf ./qemu.AppImage remote-viewer
 - 修改文件：`qemu/build_qemu.sh`、`qemu/README.md`。
 - 修复：依赖收集后、最终封装前补回这一份官方简体中文翻译，并向 `AppDir/.env` 写入 `LANGUAGE=zh_CN`；保留原有 quick-sharun 路径映射、GTK 公共翻译、依赖列表、启动参数及 workflow，不增加 Fcitx5、IBus 或自定义入口。
 - 已知结果：已核对 Arch 官方文件清单、quick-sharun 翻译裁剪与路径映射实现，并完成仓库外 Bash 语法和完整差异检查；提交后不监控 Actions，新产物中文界面仍待正式构建和 Linux 实机验证。
+
+## 2026-09-16：接入统一软件版本元数据
+
+- 构建时从本次实际安装的 Arch `qemu-desktop` 包读取 QEMU 软件版本，去掉 Arch epoch 与 pkgrel 后写入 `dist/version.txt`。
+- workflow 使用 `SOFTWARE_KEY=qemu` 接入统一 `software_versions.json`。
+- 本次不改变当前已验证的 Arch 稳定包、quick-sharun、多工具入口、GTK 模块、SPICE 或 remote-viewer 中文基线。

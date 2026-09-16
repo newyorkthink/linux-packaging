@@ -96,4 +96,6 @@ test -s "$APPIMAGE"
 chmod +x "$APPIMAGE"
 APPIMAGE_EXTRACT_AND_RUN=1 "$APPIMAGE" --version
 
+printf '%s\n' "$VERSION" > "$OUTPATH/version.txt"
+
 echo "已生成：$APPIMAGE"

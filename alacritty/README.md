@@ -1274,3 +1274,9 @@ Message: fix(alacritty): add quick-sharun compiler dependency
 6. **如果上述全部正常但 Kali 实机仍复现，再转向 Alacritty / winit / i3 / fcitx5 的焦点事件链调查，而不是继续无证据地来回换库或换打包框架。**
 
 这段记录必须保留，目的就是避免以后再次重复 2026-08-13 已经踩过的同一组错误，尤其是**不要再把 Alacritty 从 LinuxDeploy 路线换回 quick-sharun**。
+
+## 2026-09-16：接入统一软件版本元数据
+
+- 构建脚本继续沿用现有 LinuxDeploy 路线，不改变 Alacritty 的打包框架、输入修复补丁或运行时基线。
+- 版本直接复用官方 latest Release 的标签，去掉可选前导 `v` 后写入 `dist/version.txt`。
+- workflow 将该文件作为 `software-version-alacritty` artifact 上传，成功构建后增量写入统一 `software_versions.json`。

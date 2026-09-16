@@ -100,6 +100,7 @@ fi
 # 不改写官方 AppImage 内容，只统一本仓库 latest Release 中的稳定资产名。
 install -Dm0755 "$OFFICIAL_APPIMAGE" "$OUTPUT"
 printf '%s\n' "$VERSION" > "$HOME/version"
+printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
 
 printf 'Escrcpy version: %s\n' "$VERSION"
 printf 'Source asset: %s\n' "$EXPECTED_ASSET"

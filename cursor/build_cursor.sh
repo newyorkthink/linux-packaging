@@ -134,3 +134,9 @@ quick-sharun \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
 
 quick-sharun --make-appimage
+
+if [ -z "$VERSION" ]; then
+  echo "Error: failed to determine Cursor version." >&2
+  exit 1
+fi
+printf '%s\n' "$VERSION" > ./dist/version.txt

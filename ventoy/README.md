@@ -87,3 +87,9 @@ Ventoy 的核心功能是向用户选择的 USB / 磁盘设备安装或更新 Ve
 - 修改文件：`ventoy/README.md`。
 - 修复：明确统一使用当前目录下的 `sudo ./ventoy.AppImage` 启动，不再在示例中写死 `Downloads` 等目录；同时说明中文 locale 环境无需额外执行 `export LANG` / `LC_ALL`。
 - 验证：Linux 实机中 `sudo ./ventoy.AppImage` 可进入 Ventoy GUI，并可在 `Language` 菜单中看到 `Chinese Simplified (简体中文)` 语言选项。
+
+## 2026-09-16：接入统一软件版本元数据
+
+- 版本继续来自 Ventoy 官方最新稳定 Release 的 tag，并与官方 Linux 包内 `ventoy/version` 保持现有一致性校验。
+- 构建成功后将已经确认的 `VENTOY_VERSION` 写入 `dist/version.txt`。
+- workflow 使用 `SOFTWARE_KEY=ventoy` 接入统一 `software_versions.json`；官方 Linux 包、AppRun、权限模型与封装方式保持不变。

@@ -199,4 +199,6 @@ test -x "$ROOT/squashfs-root/AppRun"
 test -x "$ROOT/squashfs-root/bin/keyviz"
 rm -rf "$ROOT/squashfs-root"
 
+printf '%s\n' "$KEYVIZ_VERSION" > "$OUTDIR/version.txt"
+
 echo "Keyviz 汉化版 AppImage 构建完成：$OUTFILE"

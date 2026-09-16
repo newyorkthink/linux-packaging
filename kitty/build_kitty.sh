@@ -46,6 +46,13 @@ sh /tmp/kitty-installer.sh \
 
 test -x "$KITTY_DIR/bin/kitty"
 test -x "$KITTY_DIR/bin/kitten"
+
+KITTY_VERSION_OUTPUT="$("$KITTY_DIR/bin/kitty" --version)"
+KITTY_VERSION="$(awk '{print $2; exit}' <<< "$KITTY_VERSION_OUTPUT")"
+if [[ ! "$KITTY_VERSION" =~ ^[0-9]+([.][0-9]+)+([.+-][0-9A-Za-z.-]+)?$ ]]; then
+  echo "错误：无法从 kitty --version 解析版本：$KITTY_VERSION_OUTPUT" >&2
+  exit 1
+fi
 test -f "$KITTY_DIR/share/applications/kitty.desktop"
 test -f "$KITTY_DIR/lib/kitty-extensions/kitty.glfw-x11.so"
 
@@ -357,5 +364,7 @@ if [[ "$KITTEN_HELP" != *"Usage: kitten"* ]]; then
   echo "错误：kitten 软链接未分流到内部 kitten。" >&2
   exit 1
 fi
+
+printf '%s\n' "$KITTY_VERSION" > "$OUTDIR/version.txt"
 
 echo "已生成：$OUTFILE"

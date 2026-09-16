@@ -18,6 +18,14 @@ yay -S --noconfirm copyq wl-clipboard xclip fcitx5-qt egl-wayland libxcb xcb-uti
   xcb-util-renderutil xcb-util-wm xcb-util-image xcb-util-cursor libxkbcommon libxkbcommon-x11 mesa libglvnd adwaita-qt6 qt6-base qt6-svg qt6-tools qt6ct lxqt-qtplugin kvantum qca-qt6 libxtst miniaudio \
   qtkeychain-qt6 libx11 libxext libxfixes libxi libxinerama libxcb xcb-util
 
+COPYQ_PACKAGE_VERSION="$(pacman -Q copyq | awk '{print $2}')"
+COPYQ_VERSION="${COPYQ_PACKAGE_VERSION#*:}"
+COPYQ_VERSION="${COPYQ_VERSION%-*}"
+if [ -z "$COPYQ_VERSION" ]; then
+  echo "错误：无法解析 CopyQ 版本。" >&2
+  exit 1
+fi
+
 
 quick-sharun /usr/bin/copyq
 
@@ -38,3 +46,5 @@ COPYQ_TRANSLATION_PREFIX=$APPDIR/share/copyq/translations
 EOF_ENV
 
 quick-sharun --make-appimage
+
+printf '%s\n' "$COPYQ_VERSION" > ./dist/version.txt

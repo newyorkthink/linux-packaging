@@ -3,6 +3,7 @@ set -e
 
 SOURCE_DIR="$PWD/moderncsv-source"
 COMPAT_DIR="/tmp/moderncsv-qt6-compat"
+MODERNCSV_VERSION="2.4.3"
 
 rm -rf AppDir dist "$SOURCE_DIR" "$COMPAT_DIR" || true
 
@@ -33,7 +34,7 @@ mkdir -p "$SOURCE_DIR" "$COMPAT_DIR" ./dist
 
 # 下载并完整提取官方 Linux tar 包，保留官方 Qt 6.4.3 runtime。
 wget --retry-connrefused --tries=30 \
-  https://www.moderncsv.com/release/ModernCSV-Linux-v2.4.3.tar.gz \
+  "https://www.moderncsv.com/release/ModernCSV-Linux-v${MODERNCSV_VERSION}.tar.gz" \
   -O /tmp/ModernCSV-Linux.tar.gz
 
 tar -xzf /tmp/ModernCSV-Linux.tar.gz -C "$SOURCE_DIR" --strip-components=1
@@ -107,3 +108,5 @@ quick-sharun \
   "$SOURCE_DIR/lib/libFcitx5Utils.so.2"
 
 quick-sharun --make-appimage
+
+printf '%s\n' "$MODERNCSV_VERSION" > ./dist/version.txt

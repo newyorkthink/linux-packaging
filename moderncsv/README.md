@@ -188,3 +188,9 @@ Modern CSV 的特殊点是“官方 Qt6 runtime + 官方混入 Qt5 plugin”。�
 - `build_moderncsv.sh` 的通用 quick-sharun 基础包统一为 23 个：`base-devel git wget curl jq binutils patchelf file coreutils findutils grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib desktop-file-utils zsync ca-certificates`，按 10 + 10 + 3 使用 `\` 分行。
 - Modern CSV 已确认需要的 `openssl`、`mesa`、XCB 相关组件、`xdg-utils`、`fontconfig` 继续使用独立应用级 `yay` 命令，不回填到通用基础包；`patchelf` 已由通用基础包提供，因此从应用级依赖中移除重复项。
 - 官方 Qt 6.4.3 runtime、Debian Qt 6.4.2 plugin、Fcitx5 运行库和现有 quick-sharun 打包逻辑均保持不变，本次只同步构建期基础包分层。
+
+## 2026-09-16：接入统一软件版本元数据
+
+- 当前稳定基线仍固定为官方 Modern CSV 2.4.3 与既有 Qt 6.4.3 / Debian Bookworm Qt 6.4.2 兼容组合。
+- 构建脚本将原本散落在官方下载 URL 中的 `2.4.3` 收敛为 `MODERNCSV_VERSION`，下载来源与版本本身不变，并在构建完成后写入 `dist/version.txt`。
+- workflow 使用 `SOFTWARE_KEY=moderncsv` 接入统一 `software_versions.json`；本次不调整任何 Qt、Fcitx5、TLS 或 quick-sharun 兼容逻辑。
