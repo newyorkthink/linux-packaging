@@ -1823,22 +1823,9 @@ jobs:
             exit 126
           fi
 
-  publish_software_versions:
-    name: Publish software version manifest
-    needs:
-      - plan
-      - build_aionui
-      - build_antigravity_ide
-      - build_antigravity
-      - build_cc_switch
-      - build_chatgpt
-      - build_claude_desktop
-      - build_deepseek_harness
-      - build_gemini
-      - build_hermes_desktop
-      - build_trae_work
-      - build_trae
-      - build_workbuddy
+publish_software_versions:
+    name: Publish successful software versions
+    needs: plan
     if: >-
       always() &&
       needs.plan.result == 'success' &&
@@ -1857,119 +1844,200 @@ jobs:
         fromJSON(needs.plan.outputs.builds).workbuddy == 'true'
       )
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     permissions:
       actions: read
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SELECTED_BUILDS: ${{ needs.plan.outputs.builds }}
 
     steps:
-      - name: Download software version metadata
-        uses: actions/download-artifact@v4
-        with:
-          pattern: software-version-*
-          path: version-metadata
-
-      - name: Generate and publish software_versions.json
+      - name: Incrementally publish successful software versions
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
 
-          MANIFEST="$RUNNER_TEMP/software_versions.json"
-          CURRENT_DIR="$RUNNER_TEMP/current-software-versions"
-          RELEASE_JSON="$RUNNER_TEMP/latest-release.json"
-          mkdir -p "$CURRENT_DIR"
+          KEYS=(
+            aionui
+            antigravity-ide
+            antigravity
+            cc-switch
+            chatgpt
+            claude-desktop
+            deepseek-harness
+            gemini
+            hermes-desktop
+            trae-work
+            trae
+            workbuddy
+          )
 
-          if gh release view latest --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq 'software_versions.json'; then
-            gh release download latest \
-              --repo "$GITHUB_REPOSITORY" \
-              --pattern 'software_versions.json' \
-              --dir "$CURRENT_DIR" \
-              --clobber
-            cp "$CURRENT_DIR/software_versions.json" "$MANIFEST"
-          else
-            printf '{}\n' > "$MANIFEST"
+          declare -A PLAN_KEY JOB_NAME ASSET_NAME
+          PLAN_KEY[aionui]=aionui
+          PLAN_KEY[antigravity-ide]=antigravity_ide
+          PLAN_KEY[antigravity]=antigravity
+          PLAN_KEY[cc-switch]=cc_switch
+          PLAN_KEY[chatgpt]=chatgpt
+          PLAN_KEY[claude-desktop]=claude_desktop
+          PLAN_KEY[deepseek-harness]=deepseek_harness
+          PLAN_KEY[gemini]=gemini
+          PLAN_KEY[hermes-desktop]=hermes_desktop
+          PLAN_KEY[trae-work]=trae_work
+          PLAN_KEY[trae]=trae
+          PLAN_KEY[workbuddy]=workbuddy
+
+          JOB_NAME[aionui]='Build AionUi'
+          JOB_NAME[antigravity-ide]='Build Antigravity IDE'
+          JOB_NAME[antigravity]='Build Antigravity'
+          JOB_NAME[cc-switch]='Build CC Switch'
+          JOB_NAME[chatgpt]='Build ChatGPT'
+          JOB_NAME[claude-desktop]='Build Claude Desktop'
+          JOB_NAME[deepseek-harness]='Build DeepSeek Harness'
+          JOB_NAME[gemini]='Build Gemini'
+          JOB_NAME[hermes-desktop]='Build Hermes Desktop'
+          JOB_NAME[trae-work]='Build TraeWork'
+          JOB_NAME[trae]='Build Trae'
+          JOB_NAME[workbuddy]='Build WorkBuddy AppImage'
+
+          ASSET_NAME[aionui]='aionui.AppImage'
+          ASSET_NAME[antigravity-ide]='antigravity-ide.AppImage'
+          ASSET_NAME[antigravity]='antigravity.AppImage'
+          ASSET_NAME[cc-switch]='cc-switch.AppImage'
+          ASSET_NAME[chatgpt]='chatgpt.AppImage'
+          ASSET_NAME[claude-desktop]='claude-desktop.AppImage'
+          ASSET_NAME[deepseek-harness]='deepseek-harness.AppImage'
+          ASSET_NAME[gemini]='gemini.AppImage'
+          ASSET_NAME[hermes-desktop]='hermes-desktop.AppImage'
+          ASSET_NAME[trae-work]='trae-work.AppImage'
+          ASSET_NAME[trae]='trae.AppImage'
+          ASSET_NAME[workbuddy]='workbuddy.AppImage'
+
+          selected=()
+          for key in "${KEYS[@]}"; do
+            plan_key="${PLAN_KEY[$key]}"
+            if [[ "$(jq -r --arg key "$plan_key" '.[$key] // "false"' <<< "$SELECTED_BUILDS")" == "true" ]]; then
+              selected+=("$key")
+            fi
+          done
+
+          if (( ${#selected[@]} == 0 )); then
+            exit 0
           fi
 
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" > "$RELEASE_JSON"
+          declare -A finished
+          remaining="${#selected[@]}"
+          manifest="$RUNNER_TEMP/software_versions.json"
 
-          python3 - "$MANIFEST" "$RELEASE_JSON" version-metadata <<'PY'
+          while (( remaining > 0 )); do
+            jobs_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100")"
+
+            for key in "${selected[@]}"; do
+              [[ -n "${finished[$key]:-}" ]] && continue
+
+              job_name="${JOB_NAME[$key]}"
+              job_row="$(jq -c --arg name "$job_name" '.jobs[] | select(.name == $name) | {status, conclusion}' <<< "$jobs_json" | head -n 1)"
+              [[ -z "$job_row" ]] && continue
+
+              status="$(jq -r '.status // ""' <<< "$job_row")"
+              [[ "$status" == "completed" ]] || continue
+
+              conclusion="$(jq -r '.conclusion // ""' <<< "$job_row")"
+              if [[ "$conclusion" != "success" ]]; then
+                echo "$key 构建未成功（$conclusion），保留 software_versions.json 中已有记录。"
+                finished[$key]=failed
+                remaining=$((remaining - 1))
+                continue
+              fi
+
+              metadata_dir="$RUNNER_TEMP/software-version-$key"
+              rm -rf "$metadata_dir"
+              mkdir -p "$metadata_dir"
+
+              downloaded=false
+              for attempt in {1..12}; do
+                if gh run download "$GITHUB_RUN_ID"                   --repo "$GITHUB_REPOSITORY"                   --name "software-version-$key"                   --dir "$metadata_dir"; then
+                  downloaded=true
+                  break
+                fi
+                sleep 5
+              done
+              [[ "$downloaded" == true ]] || {
+                echo "无法下载 software-version-$key artifact。" >&2
+                exit 1
+              }
+
+              version_file="$metadata_dir/version.txt"
+              [[ -s "$version_file" ]] || {
+                echo "$key 缺少有效 version.txt。" >&2
+                exit 1
+              }
+              version="$(tr -d '\r\n' < "$version_file")"
+              [[ -n "$version" ]] || {
+                echo "$key 版本为空。" >&2
+                exit 1
+              }
+
+              current_dir="$RUNNER_TEMP/current-software-versions"
+              rm -rf "$current_dir"
+              mkdir -p "$current_dir"
+
+              if gh release view latest                 --repo "$GITHUB_REPOSITORY"                 --json assets                 --jq '.assets[].name' | grep -Fxq 'software_versions.json'; then
+                gh release download latest                   --repo "$GITHUB_REPOSITORY"                   --pattern 'software_versions.json'                   --dir "$current_dir"                   --clobber
+                cp "$current_dir/software_versions.json" "$manifest"
+              else
+                printf '{}\n' > "$manifest"
+              fi
+
+              asset_name="${ASSET_NAME[$key]}"
+              release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest")"
+              digest="$(jq -r --arg asset "$asset_name" '
+                [.assets[] | select(.name == $asset)] |
+                if length == 1 then (.[0].digest // "") else "" end
+              ' <<< "$release_json")"
+
+              [[ "$digest" =~ ^sha256:[0-9a-fA-F]{64}$ ]] || {
+                echo "$asset_name 缺少有效 GitHub SHA-256 digest。" >&2
+                exit 1
+              }
+              sha256="${digest#sha256:}"
+
+              python3 - "$manifest" "$key" "$version" "$asset_name" "$sha256" <<'PY'
           import json
-          import re
           import sys
           from pathlib import Path
 
           manifest_path = Path(sys.argv[1])
-          release_path = Path(sys.argv[2])
-          metadata_root = Path(sys.argv[3])
+          key = sys.argv[2]
+          version = sys.argv[3]
+          asset = sys.argv[4]
+          sha256 = sys.argv[5].lower()
 
           with manifest_path.open("r", encoding="utf-8") as fh:
               manifest = json.load(fh)
+
           if not isinstance(manifest, dict):
               raise SystemExit("software_versions.json root must be an object")
 
-          with release_path.open("r", encoding="utf-8") as fh:
-              release = json.load(fh)
-
-          expected_assets = {
-              "aionui": "aionui.AppImage",
-              "antigravity-ide": "antigravity-ide.AppImage",
-              "antigravity": "antigravity.AppImage",
-              "cc-switch": "cc-switch.AppImage",
-              "chatgpt": "chatgpt.AppImage",
-              "claude-desktop": "claude-desktop.AppImage",
-              "deepseek-harness": "deepseek-harness.AppImage",
-              "gemini": "gemini.AppImage",
-              "hermes-desktop": "hermes-desktop.AppImage",
-              "trae-work": "trae-work.AppImage",
-              "trae": "trae.AppImage",
-              "workbuddy": "workbuddy.AppImage",
+          manifest[key] = {
+              "version": version,
+              "asset": asset,
+              "sha256": sha256,
           }
-
-          release_assets = {}
-          for asset in release.get("assets", []):
-              name = asset.get("name")
-              if name:
-                  release_assets.setdefault(name, []).append(asset)
-
-          version_files = sorted(metadata_root.glob("software-version-*/version.txt"))
-          if not version_files:
-              print("no successful software version metadata artifacts were downloaded; keeping existing manifest")
-              raise SystemExit(0)
-
-          for version_file in version_files:
-              artifact_name = version_file.parent.name
-              key = artifact_name.removeprefix("software-version-")
-              if key not in expected_assets:
-                  raise SystemExit(f"unexpected software version artifact: {artifact_name}")
-
-              version = version_file.read_text(encoding="utf-8").strip()
-              if not version or "\n" in version or "\r" in version:
-                  raise SystemExit(f"invalid version metadata for {key}")
-
-              asset_name = expected_assets[key]
-              matches = release_assets.get(asset_name, [])
-              if len(matches) != 1:
-                  raise SystemExit(
-                      f"expected exactly one Release asset named {asset_name}, got {len(matches)}"
-                  )
-
-              digest = str(matches[0].get("digest") or "").lower()
-              if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
-                  raise SystemExit(f"invalid or missing GitHub digest for {asset_name}")
-
-              manifest[key] = {
-                  "version": version,
-                  "asset": asset_name,
-                  "sha256": digest.removeprefix("sha256:"),
-              }
 
           with manifest_path.open("w", encoding="utf-8") as fh:
               json.dump(manifest, fh, ensure_ascii=False, indent=2, sort_keys=True)
               fh.write("\n")
           PY
 
-          gh release upload latest "$MANIFEST" \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
+              gh release upload latest "$manifest"                 --repo "$GITHUB_REPOSITORY"                 --clobber
+
+              echo "$key 已补入 software_versions.json。"
+              finished[$key]=success
+              remaining=$((remaining - 1))
+            done
+
+            (( remaining == 0 )) && break
+            sleep 10
+          done
 
