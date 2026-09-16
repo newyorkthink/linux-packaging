@@ -187,4 +187,7 @@ if grep -Eqi \
 fi
 [[ "$SMOKE_RC" -eq 124 ]] || fail "GUI did not remain running for the 20-second smoke test (exit=$SMOKE_RC)"
 
+# 最终 AppImage 完成现有检查后输出统一的软件版本元数据。
+printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
+
 echo "v2rayN AppImage build and smoke test passed."

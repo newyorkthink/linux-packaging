@@ -16,6 +16,14 @@ export OUTNAME="mpv.AppImage"
 yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux glycin libheif zsync xorg-server xorg-server-common xorg-server-xvfb
 yay -S --noconfirm mpv mpv-mpris
 
+MPV_PACKAGE_VERSION="$(pacman -Q mpv | awk '{print $2}')"
+MPV_VERSION="${MPV_PACKAGE_VERSION#*:}"
+MPV_VERSION="${MPV_VERSION%-*}"
+if [ -z "$MPV_VERSION" ]; then
+  echo "Error: failed to determine mpv version." >&2
+  exit 1
+fi
+
 quick-sharun /usr/bin/mpv
 
 # Download standalone yt-dlp directly to AppDir to avoid patchelf corruption
@@ -39,3 +47,6 @@ fi
 EOF
 
 quick-sharun --make-appimage
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$MPV_VERSION" > ./dist/version.txt

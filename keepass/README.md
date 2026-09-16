@@ -68,3 +68,9 @@ KeePass 必须保持独立 Job / 独立 Arch Linux 容器构建，避免其他�
 - 各 Mono 兼容修复保持独立，只修改明确对应的问题。
 - 修改前完整检查相关源码、构建脚本和工作流；提交前完成静态检查及最终 diff 核对。
 - 不把 GitHub Actions 当作基础错误的试运行环境。
+
+## 版本元数据接入（2026-09-16）
+
+- 构建时从本次实际安装的 Arch `keepass` 包读取版本，去掉 Arch epoch 与 pkgrel 后写入根构建目录的 `dist/version.txt`。
+- workflow 使用 `SOFTWARE_KEY=keepass` 接入统一 `software_versions.json`。
+- 现有 KeePass 稳定依赖、插件、主题、字体、Fontconfig、Mono 兼容修复和 wrapper 均保持不变。

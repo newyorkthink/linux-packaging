@@ -41,6 +41,13 @@ wget --retry-connrefused --tries=30 "$TARBALL_LINK" -O /tmp/zotero.tar
 
 tar -xf /tmp/zotero.tar
 
+VERSION="$(awk -F= '$1 == "Version" {gsub(/\r/, "", $2); print $2; exit}' ./Zotero_linux-x86_64/application.ini)"
+if [ -z "$VERSION" ]; then
+  echo "Error: failed to determine Zotero version from application.ini." >&2
+  exit 1
+fi
+echo "Zotero version: $VERSION"
+
 cp -v ./Zotero_linux-x86_64/zotero.desktop ./zotero.desktop
 cp -v ./Zotero_linux-x86_64/icons/icon128.png ./zotero.ico
 
@@ -62,3 +69,6 @@ quick-sharun \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
 
 quick-sharun --make-appimage
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$VERSION" > ./dist/version.txt

@@ -50,6 +50,9 @@ pacman -Q "$PACKAGE_NAME" >/dev/null 2>&1 || die "未安装 $PACKAGE_NAME。"
 [[ -f "$SYSTEM_DESKTOP" ]] || die "未找到 RealVNC desktop 文件。"
 
 PACKAGE_VERSION="$(pacman -Q "$PACKAGE_NAME" | awk '{print $2}')"
+SOFTWARE_VERSION="${PACKAGE_VERSION#*:}"
+SOFTWARE_VERSION="${SOFTWARE_VERSION%-*}"
+[[ -n "$SOFTWARE_VERSION" ]] || die "无法解析 RealVNC Connect 软件版本。"
 log "检测到 RealVNC Connect：$PACKAGE_VERSION"
 
 log "准备官方 Flutter bundle"
@@ -447,3 +450,6 @@ docker cp "$CONTAINER_ID:/work/dist/rvncconnect.AppImage" "$OUTFILE"
 
 log "构建完成：$OUTFILE"
 sha256sum "$OUTFILE"
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$SOFTWARE_VERSION" > "$OUTDIR/version.txt"

@@ -469,4 +469,8 @@ if [[ "$smoke_rc" -ne 0 && "$smoke_rc" -ne 124 ]]; then
 fi
 
 sha256sum "$OUTFILE"
+
+# 最终 AppImage 完成现有检查后输出统一的软件版本元数据。
+printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
+
 log "构建完成：$OUTFILE"

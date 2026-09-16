@@ -78,3 +78,9 @@ usr/bin/xnconvert       # desktop/命令入口
 - 修改 Qt/XCB 运行时路径时，不要破坏已经验证正常的输入法插件搜索路径。
 - 不要让最终 `AppRun.wrapped` 退化成指向 `usr/bin/xnconvert` 的 symlink。
 - 构建后必须检查 Fcitx5 Qt5 input context plugin 是否真实存在于最终 AppImage。
+
+## 版本元数据接入（2026-09-16）
+
+- 构建脚本从官方 `XnConvert-<version>-linux-x64.deb` 文件名解析版本，并在 AppImage 成功生成后写入 `dist/version.txt`。
+- 自定义 XnConvert Job 上传 `software-version-xnconvert` artifact，并在成功构建后增量写入 `latest/software_versions.json`。
+- 本次不改动既有 Qt5、Fcitx5、AppRun 或 XCB 稳定基线。

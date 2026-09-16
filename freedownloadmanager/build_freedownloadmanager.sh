@@ -34,6 +34,14 @@ yay -S --noconfirm \
 # FDM AUR 当前可能 sha256 校验失效，临时跳过完整性校验
 yay -S --noconfirm --mflags "--skipinteg" freedownloadmanager
 
+FDM_PACKAGE_VERSION="$(pacman -Q freedownloadmanager | awk '{print $2}')"
+FDM_VERSION="${FDM_PACKAGE_VERSION#*:}"
+FDM_VERSION="${FDM_VERSION%-*}"
+if [ -z "$FDM_VERSION" ]; then
+  echo "Error: failed to determine Free Download Manager version." >&2
+  exit 1
+fi
+
 # FDM 运行依赖
 yay -S --noconfirm \
   ffmpeg gst-plugins-base libtorrent openssl qt6-wayland xdg-utils \
@@ -129,3 +137,6 @@ LOCPATH=${SHARUN_DIR}/lib/locale
 EOF_LOCALE
 
 quick-sharun --make-appimage
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$FDM_VERSION" > ./dist/version.txt

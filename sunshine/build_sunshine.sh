@@ -17,6 +17,14 @@ yay -S --noconfirm sunshine-bin \
   intel-media-driver libva-intel-driver xdg-desktop-portal xdg-desktop-portal-wlr \
   ibus alsa-lib alsa-plugins alsa-utils libpipewire cuda xcb-util-wm gvfs librsvg
 
+SUNSHINE_PACKAGE_VERSION="$(pacman -Q sunshine-bin | awk '{print $2}')"
+SUNSHINE_VERSION="${SUNSHINE_PACKAGE_VERSION#*:}"
+SUNSHINE_VERSION="${SUNSHINE_VERSION%-*}"
+if [ -z "$SUNSHINE_VERSION" ]; then
+  echo "Error: failed to determine Sunshine version." >&2
+  exit 1
+fi
+
 ARCH="$(uname -m)"
 export ARCH
 
@@ -33,3 +41,6 @@ quick-sharun \
 # 例如修复可能导致冲突的库，或设置某些环境变量
 
 quick-sharun --make-appimage
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$SUNSHINE_VERSION" > ./dist/version.txt

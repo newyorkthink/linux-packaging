@@ -100,3 +100,6 @@ quick-sharun \
 printf '%s\n' 'LANGUAGE=zh-CN' >> ./AppDir/.env
 
 quick-sharun --make-appimage
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$VERSION" > ./dist/version.txt

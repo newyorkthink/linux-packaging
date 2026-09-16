@@ -13,6 +13,14 @@ yay -S --noconfirm xclip fcitx5-qt libxcb xcb-util xcb-util-keysyms libxss extra
 yay -S --noconfirm mpv mpv-mpris smplayer smplayer-skins smplayer-themes mplayer qt5-base openssl lxqt-qtplugin kvantum zlib qt5-declarative libstdc++ \
   libgcc hicolor-icon-theme glibc libdecor librsvg libjxl qt5-svg adwaita-qt5 pipewire pipewire-alsa
 
+SMPLAYER_PACKAGE_VERSION="$(pacman -Q smplayer | awk '{print $2}')"
+SMPLAYER_VERSION="${SMPLAYER_PACKAGE_VERSION#*:}"
+SMPLAYER_VERSION="${SMPLAYER_VERSION%-*}"
+if [ -z "$SMPLAYER_VERSION" ]; then
+  echo "Error: failed to determine SMPlayer version." >&2
+  exit 1
+fi
+
 export STARTUPWMCLASS=smplayer
 export ICON=/usr/share/icons/hicolor/scalable/apps/smplayer.svg
 export DESKTOP=/usr/share/applications/smplayer.desktop
@@ -36,3 +44,6 @@ echo "LC_NUMERIC=C" >> AppDir/.env
 echo "QT_STYLE_OVERRIDE=Adwaita-Dark" >> AppDir/.env
 
 quick-sharun --make-appimage
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$SMPLAYER_VERSION" > ./dist/version.txt

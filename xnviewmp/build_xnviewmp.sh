@@ -318,3 +318,6 @@ run_media_smoke h264 "$H264_SMOKE"
 run_media_smoke hevc "$HEVC_SMOKE"
 
 sha256sum "$OUTFILE"
+
+# 当前稳定基线固定为 STABLE_VERSION；构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$STABLE_VERSION" > "$DIST_DIR/version.txt"

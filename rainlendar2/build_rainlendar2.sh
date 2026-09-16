@@ -118,7 +118,8 @@ fi
 
 IFS=$'\t' read -r DEB DEB_URL DEB_DIGEST <<<"${DEB_ASSETS[0]}"
 VERSION="$(jq -r '.tag_name // empty' "$RELEASE_JSON")"
-if [[ -z "$VERSION" || -z "$DEB" || -z "$DEB_URL" ]]; then
+SOFTWARE_VERSION="${VERSION#v}"
+if [[ -z "$VERSION" || -z "$SOFTWARE_VERSION" || -z "$DEB" || -z "$DEB_URL" ]]; then
   echo "错误：无法从 Rainlendar 最新 Release 解析版本或 deb 下载地址。" >&2
   exit 1
 fi
@@ -676,6 +677,8 @@ if ldd "$VERIFY_APPDIR/usr/lib/rainlendar2/rainlendar2" | grep -Fq 'not found'; 
   exit 1
 fi
 
-chown "$HOST_UID:$HOST_GID" "$OUTFILE" 2>/dev/null || true
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$SOFTWARE_VERSION" > "$OUTDIR/version.txt"
+chown "$HOST_UID:$HOST_GID" "$OUTFILE" "$OUTDIR/version.txt" 2>/dev/null || true
 echo "已生成并验证：$OUTFILE"
 INNER_EOF

@@ -177,3 +177,9 @@ FDM 的 `libdownloads*.so*` 下载模块属于按需加载运行库，不保证�
 - 文档整理：新增“稳定基准”章节，明确当前已验证功能、上游翻译 warning 的处理边界，以及 AppImage / FDM 正常数据写入与本仓库额外宿主机写入逻辑之间的区别。
 - 宿主机边界：当前方案不加入自定义 `AppRun`、Native Messaging、wrapper、浏览器注册、`~/.local/bin` helper、系统配置修改或其他额外持久化路径。
 - 后续策略：无新的真实运行故障时保持此结构不变；上游升级时以本基准逐项复核，不主动重构已验证逻辑。
+
+## 版本元数据接入（2026-09-16）
+
+- 构建时从本次实际安装的 AUR `freedownloadmanager` 包读取版本，去掉 Arch epoch 与 pkgrel 后写入 `dist/version.txt`。
+- workflow 使用 `SOFTWARE_KEY=freedownloadmanager` 接入统一 `software_versions.json`。
+- 本次不改动当前稳定的下载模块、Qt6、翻译资源、网络状态、输入法或运行目录结构。

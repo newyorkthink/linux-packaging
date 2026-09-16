@@ -37,6 +37,11 @@ read -r EXPECTED_SHA DEB_NAME < <(
 )
 test -n "${EXPECTED_SHA:-}"
 test -n "${DEB_NAME:-}"
+VERSION="$(printf '%s\n' "$DEB_NAME" | sed -nE 's/^XnConvert-([0-9]+(\.[0-9]+)+)-linux-x64\.deb$/\1/p')"
+if [[ -z "$VERSION" ]]; then
+  echo "ERROR: failed to determine XnConvert version from $DEB_NAME" >&2
+  exit 1
+fi
 
 curl -fL --retry 3 \
   "https://download.xnview.com/versions/XnConvert/$DEB_NAME" \
@@ -157,3 +162,6 @@ if grep -Fq 'not found' <<<"$LDD_OUTPUT"; then
 fi
 
 sha256sum "$OUTFILE"
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"

@@ -160,3 +160,6 @@ printf '%s\n' 'LANGUAGE=zh-CN' >> ./AppDir/.env
 
 # 将完成依赖部署的 AppDir 封装为最终 AppImage。
 quick-sharun --make-appimage
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$VERSION" > ./dist/version.txt

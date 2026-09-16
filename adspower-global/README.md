@@ -81,3 +81,9 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 修改文件：`adspower-global/build_adspower-global.sh`、`adspower-global/README.md`。
 - 修复内容：在既有运行依赖命令之外单独安装 `fcitx5-gtk`，由当前已经工作的 quick-sharun GTK3 部署逻辑自动收集 Fcitx5 输入模块及其依赖；依赖部署后向 `AppDir/.env` 写入 `LANGUAGE=zh-CN`。现有 ICU、`locales/`、`resources/`、`URUNTIME_PRELOAD=1`、sandbox 和启动入口均保持不变。
 - 已知结果：本次只补当前已定位的 Fcitx5 与中文 locale 缺项，没有额外加入 IBus、强制 `GTK_IM_MODULE` 或新的 GTK 部署开关；最终中文界面和中文输入效果以后续正式构建与 Linux 实机反馈为准。
+
+## 版本元数据接入（2026-09-16）
+
+- 构建脚本复用本次从官方 Linux x64 DEB 文件名解析出的 `VERSION`，在 AppImage 成功生成后写入 `dist/version.txt`。
+- workflow 使用 `SOFTWARE_KEY=adspower-global` 上传该文件，并在对应构建成功后增量写入 `latest/software_versions.json`。
+- 本次仅增加版本元数据，不改动现有 AdsPower 稳定打包、ICU、输入法、locale、runtime 或 sandbox 处理。

@@ -411,4 +411,8 @@ fi
 
 rm -rf "$VERIFY_DIR" "$SMOKE_HOME" "$SMOKE_RUNTIME"
 rm -f "$SMOKE_LOG"
+
+# 最终 AppImage 完成现有检查后输出统一的软件版本元数据。
+printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
+
 log "已生成：$OUTFILE"

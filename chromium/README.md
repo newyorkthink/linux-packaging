@@ -102,3 +102,9 @@ Chromium / Blink，GTK3 原生界面组件。依赖由 `pacman`/`yay` 按 `chrom
 - 基准实现：commit `97f0c45cda7054644a4322115ddcb7eabb8a52ef`。
 - 修改文件：本次仅整理 `chromium/README.md`，不改动已经实机验证正常的 `chromium/build_chromium.sh`。
 - 基准原则：以后处理 Chromium 打包问题时，应以本节记录的程序目录、Qt6、runtime、中文界面和输入法逻辑为稳定基线，不因单纯非致命日志而擅自改写已验证内容。
+
+## 版本元数据接入（2026-09-16）
+
+- 构建脚本复用现有 `chromium --version` 取得的动态版本，在 AppImage 成功生成后写入 `dist/version.txt`。
+- workflow 使用 `SOFTWARE_KEY=chromium` 接入统一 `software_versions.json`。
+- 本次不改动已确认稳定的 Chromium 程序目录、Qt6、中文界面、输入法和 runtime 基线。

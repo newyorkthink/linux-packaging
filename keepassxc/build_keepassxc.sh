@@ -10,6 +10,14 @@ yay -S --noconfirm keepassxc xclip fcitx5-qt libxcb xcb-util xcb-util-keysyms li
   libx11 libxext libxfixes libxi libxinerama libxcb xcb-util adwaita-qt5 \
   libsm libice libxrandr libxrender libxcursor libxcomposite libxdamage
 
+KEEPASSXC_PACKAGE_VERSION="$(pacman -Q keepassxc | awk '{print $2}')"
+KEEPASSXC_VERSION="${KEEPASSXC_PACKAGE_VERSION#*:}"
+KEEPASSXC_VERSION="${KEEPASSXC_VERSION%-*}"
+if [ -z "$KEEPASSXC_VERSION" ]; then
+  echo "Error: failed to determine KeePassXC version." >&2
+  exit 1
+fi
+
 ARCH="$(uname -m)"
 export ARCH
 
@@ -31,3 +39,6 @@ quick-sharun \
   /usr/lib/libxcb-xtest.so.0
 
 quick-sharun --make-appimage
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$KEEPASSXC_VERSION" > ./dist/version.txt

@@ -30,6 +30,14 @@ yay -S --noconfirm keepass gtk2 gtk-sharp-2 dbus-glib \
   libappindicator libdbusmenu-glib libdbusmenu-gtk3 libnotify \
   gdk-pixbuf2 librsvg materia-gtk-theme gnome-themes-extra-gtk2 gtk-engine-murrine
 
+KEEPASS_PACKAGE_VERSION="$(pacman -Q keepass | awk '{print $2}')"
+KEEPASS_VERSION="${KEEPASS_PACKAGE_VERSION#*:}"
+KEEPASS_VERSION="${KEEPASS_VERSION%-*}"
+if [ -z "$KEEPASS_VERSION" ]; then
+  echo "Error: failed to determine KeePass version." >&2
+  exit 1
+fi
+
 # 为 Mono WinForms 加入覆盖中英文的统一字体，避免查找框中文被裁切及备注区域文字基线不一致。
 yay -S --noconfirm fontconfig adobe-source-han-sans-cn-fonts
 
@@ -339,3 +347,6 @@ chmod +x AppDir/bin/kpscript
 
 # 构建 AppImage
 quick-sharun --make-appimage
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$KEEPASS_VERSION" > ./dist/version.txt

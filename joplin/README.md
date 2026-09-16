@@ -76,3 +76,9 @@ libnssutil3.so: version `NSSUTIL_...' not found
 - 不把 `linuxdeploy --output appimage` 作为最终封装方式。
 - 已确认正常的 AppRun、GTK/IBus、主题、GIO 和 NSS 处理方式视为稳定基线，后续仅在出现新的实际故障并确认根因后再修改。
 - 正式构建由 `.github/workflows/build.yml` 中独立的 `Build Joplin` Job 完成，发布文件名固定为 `joplin.AppImage`。
+
+## 版本元数据接入（2026-09-16）
+
+- 构建脚本复用当前 Joplin Releases 解析得到的正式版 `VERSION`，在 AppImage 成功生成后写入 `dist/version.txt`。
+- 自定义 Joplin Job 上传 `software-version-joplin` artifact，并在成功构建后增量写入 `latest/software_versions.json`。
+- 本次不改动现有 Ubuntu 22.04、GTK/IBus、NSS、AppRun 或 appimagetool 稳定基线。

@@ -201,3 +201,6 @@ export ARCH=x86_64; appimagetool -n ./AppDir "$OUTFILE" --runtime-file "$RUNTIME
 
 test -s "$OUTFILE"
 sha256sum "$OUTFILE"
+
+# 构建成功后输出统一的软件版本元数据。
+printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
