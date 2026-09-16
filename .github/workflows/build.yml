@@ -309,6 +309,24 @@ jobs:
       - name: Build and publish AppImage
         uses: ./.github/actions/build-anylinux
         with: {build_script: '${{ env.BUILD_SCRIPT }}', artifact_dir: '${{ env.ARTIFACT_DIR }}', release_name: '${{ env.RELEASE_NAME }}', run_from_root: '${{ env.RUN_FROM_ROOT }}', github_token: '${{ github.token }}'}
+      - name: Prepare software version metadata
+        if: env.SOFTWARE_KEY != '' && env.SOFTWARE_VERSION_SOURCE != ''
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ -s "${SOFTWARE_VERSION_SOURCE}" ]] || {
+            echo "版本元数据源文件不存在或为空：${SOFTWARE_VERSION_SOURCE}" >&2
+            exit 1
+          }
+          version="$(
+            awk -F= '$1 == "version" {sub(/^[^=]*=/, ""); print; exit}' "${SOFTWARE_VERSION_SOURCE}"
+          )"
+          [[ -n "${version}" ]] || {
+            echo "无法从 ${SOFTWARE_VERSION_SOURCE} 解析 version=。" >&2
+            exit 1
+          }
+          printf '%s\n' "${version}" > "${ARTIFACT_DIR}/version.txt"
+
       - name: Upload software version metadata
         if: env.SOFTWARE_KEY != ''
         uses: actions/upload-artifact@v4
@@ -564,6 +582,25 @@ jobs:
           set -Eeuo pipefail
           chmod +x .github/scripts/ci_build_dingtalk.sh
           ./.github/scripts/ci_build_dingtalk.sh
+      - name: Prepare software version metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          version="$(
+            awk -F= '$1 == "version" {sub(/^[^=]*=/, ""); print; exit}' dingtalk/dist/dingtalk-version.txt
+          )"
+          [[ -n "${version}" ]] || {
+            echo "无法从 dingtalk-version.txt 解析版本。" >&2
+            exit 1
+          }
+          printf '%s\n' "${version}" > dingtalk/dist/version.txt
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-dingtalk
+          path: dingtalk/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
       - name: Publish to Latest Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -677,6 +714,25 @@ jobs:
           test -s dist/github-desktop.AppImage
           sha256sum dist/github-desktop.AppImage
 
+      - name: Prepare software version metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          version="$(python3 -c 'import json; print(json.load(open("github-desktop/source/app/package.json", encoding="utf-8"))["version"])')"
+          [[ -n "${version}" ]] || {
+            echo "无法从 GitHub Desktop package.json 解析版本。" >&2
+            exit 1
+          }
+          printf '%s\n' "${version}" > github-desktop/dist/version.txt
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-github-desktop
+          path: github-desktop/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Publish latest AppImage
         env:
           GH_TOKEN: ${{ github.token }}
@@ -694,7 +750,7 @@ jobs:
     timeout-minutes: 90
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'gitkraken/build_gitkraken.sh', ARTIFACT_DIR: 'gitkraken/dist', RELEASE_NAME: 'gitkraken.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'gitkraken/build_gitkraken.sh', ARTIFACT_DIR: 'gitkraken/dist', RELEASE_NAME: 'gitkraken.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'gitkraken'}
     steps: *arch_steps
 
   build_goldendict_ng:
@@ -1022,6 +1078,13 @@ jobs:
           ./build_obs-studio.sh 2>&1 | tee build_obs-studio.log
           test -x dist/obs-studio.AppImage
           test -s dist/obs-studio.AppImage.sha256
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-obs-studio
+          path: obs-studio/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
       - name: Publish to Latest Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -1160,6 +1223,27 @@ jobs:
           chmod +x remmina/dist/remmina.AppImage
           file remmina/dist/remmina.AppImage
 
+      - name: Prepare software version metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          version="$(
+            awk '/^Remmina 版本：/ {sub(/^Remmina 版本：/, ""); value=$0} END {print value}' build-remmina.log
+          )"
+          [[ -n "${version}" ]] || {
+            echo "无法从 Remmina 构建日志解析版本。" >&2
+            exit 1
+          }
+          printf '%s\n' "${version}" > remmina/dist/version.txt
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-remmina
+          path: remmina/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Publish to Latest Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -1265,6 +1349,8 @@ jobs:
       ARTIFACT_DIR: tencent-docs/dist
       RELEASE_NAME: tencent-docs.AppImage
       RUN_FROM_ROOT: "0"
+      SOFTWARE_KEY: tencent-docs
+      SOFTWARE_VERSION_SOURCE: tencent-docs/dist/tencent-docs-version.txt
     steps: *arch_steps
 
   build_trae:
@@ -1449,7 +1535,7 @@ jobs:
     timeout-minutes: 90
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'webcamoid/build_webcamoid.sh', ARTIFACT_DIR: 'webcamoid/dist', RELEASE_NAME: 'webcamoid.AppImage', RUN_FROM_ROOT: 'false'}
+    env: {BUILD_SCRIPT: 'webcamoid/build_webcamoid.sh', ARTIFACT_DIR: 'webcamoid/dist', RELEASE_NAME: 'webcamoid.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'webcamoid'}
     steps: *arch_steps
 
   build_wechat:
@@ -1482,6 +1568,25 @@ jobs:
           set -Eeuo pipefail
           chmod +x .github/scripts/ci_build_winpodx.sh
           ./.github/scripts/ci_build_winpodx.sh
+      - name: Prepare software version metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          version="$(
+            awk -F= '$1 == "version" {sub(/^[^=]*=/, ""); print; exit}' winpodx/dist/winpodx-release-version.txt
+          )"
+          [[ -n "${version}" ]] || {
+            echo "无法从 winpodx-release-version.txt 解析版本。" >&2
+            exit 1
+          }
+          printf '%s\n' "${version}" > winpodx/dist/version.txt
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-winpodx
+          path: winpodx/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
       - name: Publish to Latest Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -1842,7 +1947,7 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          KEYS=(aionui antigravity-ide antigravity cc-switch chatgpt claude-desktop deepseek-harness gemini hermes-desktop trae-work trae workbuddy)
+          KEYS=(aionui antigravity-ide antigravity cc-switch chatgpt claude-desktop deepseek-harness dingtalk gemini github-desktop gitkraken hermes-desktop obs-studio remmina tencent-docs trae-work trae webcamoid winpodx workbuddy)
 
           declare -A PLAN_KEY JOB_NAME ASSET_NAME
 
@@ -1853,10 +1958,18 @@ jobs:
           PLAN_KEY[chatgpt]=chatgpt
           PLAN_KEY[claude-desktop]=claude_desktop
           PLAN_KEY[deepseek-harness]=deepseek_harness
+          PLAN_KEY[dingtalk]=dingtalk
           PLAN_KEY[gemini]=gemini
+          PLAN_KEY[github-desktop]=github_desktop
+          PLAN_KEY[gitkraken]=gitkraken
           PLAN_KEY[hermes-desktop]=hermes_desktop
+          PLAN_KEY[obs-studio]=obs_studio
+          PLAN_KEY[remmina]=remmina
+          PLAN_KEY[tencent-docs]=tencent_docs
           PLAN_KEY[trae-work]=trae_work
           PLAN_KEY[trae]=trae
+          PLAN_KEY[webcamoid]=webcamoid
+          PLAN_KEY[winpodx]=winpodx
           PLAN_KEY[workbuddy]=workbuddy
 
           JOB_NAME[aionui]='Build AionUi'
@@ -1866,10 +1979,18 @@ jobs:
           JOB_NAME[chatgpt]='Build ChatGPT'
           JOB_NAME[claude-desktop]='Build Claude Desktop'
           JOB_NAME[deepseek-harness]='Build DeepSeek Harness'
+          JOB_NAME[dingtalk]='Build DingTalk'
           JOB_NAME[gemini]='Build Gemini'
+          JOB_NAME[github-desktop]='Build GitHub Desktop'
+          JOB_NAME[gitkraken]='Build GitKraken'
           JOB_NAME[hermes-desktop]='Build Hermes Desktop'
+          JOB_NAME[obs-studio]='Build OBS Studio'
+          JOB_NAME[remmina]='Build Remmina'
+          JOB_NAME[tencent-docs]='Build Tencent Docs'
           JOB_NAME[trae-work]='Build TraeWork'
           JOB_NAME[trae]='Build Trae'
+          JOB_NAME[webcamoid]='Build Webcamoid'
+          JOB_NAME[winpodx]='Build WinPodX'
           JOB_NAME[workbuddy]='Build WorkBuddy AppImage'
 
           ASSET_NAME[aionui]='aionui.AppImage'
@@ -1879,10 +2000,18 @@ jobs:
           ASSET_NAME[chatgpt]='chatgpt.AppImage'
           ASSET_NAME[claude-desktop]='claude-desktop.AppImage'
           ASSET_NAME[deepseek-harness]='deepseek-harness.AppImage'
+          ASSET_NAME[dingtalk]='dingtalk.AppImage'
           ASSET_NAME[gemini]='gemini.AppImage'
+          ASSET_NAME[github-desktop]='github-desktop.AppImage'
+          ASSET_NAME[gitkraken]='gitkraken.AppImage'
           ASSET_NAME[hermes-desktop]='hermes-desktop.AppImage'
+          ASSET_NAME[obs-studio]='obs-studio.AppImage'
+          ASSET_NAME[remmina]='remmina.AppImage'
+          ASSET_NAME[tencent-docs]='tencent-docs.AppImage'
           ASSET_NAME[trae-work]='trae-work.AppImage'
           ASSET_NAME[trae]='trae.AppImage'
+          ASSET_NAME[webcamoid]='webcamoid.AppImage'
+          ASSET_NAME[winpodx]='winpodx.AppImage'
           ASSET_NAME[workbuddy]='workbuddy.AppImage'
 
           selected=()

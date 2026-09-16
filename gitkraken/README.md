@@ -151,3 +151,13 @@ dist/source.sha256
 - 修复内容：`*.node` 不再作为 quick-sharun executable 输入；仍对其执行 `ldd`，并把解析到的 AppDir 外部动态库依赖交给 quick-sharun；quick-sharun 前后和最终 AppImage 提取后均逐个比对官方 `*.node` 的 SHA-256 与文件模式。
 - GUI 验证增强：新增 `xorg-xwininfo`，Xvfb 测试必须实际检测到 GitKraken X11 顶层窗口；同时显式拦截 `UnhandledPromiseRejectionWarning` 的 `.node` 错误和中英文 `cannot dynamically load position-independent executable` 报错。
 - `libva` / VA-API 初始化警告不是此次无界面的根因，因此没有用 `--no-sandbox`、禁用 VA-API 或其他无关参数去掩盖该问题。
+
+## 统一软件版本元数据
+
+### 2026-09-16：接入 `software_versions.json`
+
+- 修改文件：`.github/workflows/build.yml`、本 README。
+- 版本来源：构建脚本已有的 `dist/version.txt`，内容来自 GitKraken 官方 production `RELEASES` 元数据。
+- 成功构建后上传 `software-version-gitkraken` 元数据 artifact；汇总 Job 仅在对应构建成功后更新 `latest` Release 中的 `software_versions.json`。
+- `software_versions.json` 使用版本号判断是否需要更新，Release SHA-256 仅用于文件完整性与本地状态；相同版本的重复构建不会仅因 SHA-256 改变而触发客户端更新。
+- 本次不改应用打包、运行时、补丁和 Release 资产名；提交后按仓库规则不主动监控 Actions，实际新清单记录以下一次成功构建结果为准。
