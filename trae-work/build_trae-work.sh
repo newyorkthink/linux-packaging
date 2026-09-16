@@ -313,7 +313,7 @@ quick-sharun --make-appimage
 
 test -s ./dist/trae-work.AppImage
 
-# 记录当前上游版本，供构建成功后增量更新软件版本清单。
+# 记录当前上游版本，供构建成功后自动增量更新软件版本清单。
 printf '%s\n' "$TRAEWORK_VERSION" > ./dist/version.txt
 
 printf '\nAppImage: %s\nReport: %s\n' "$(realpath ./dist/trae-work.AppImage)" "$(realpath "$REPORT")"

@@ -50,5 +50,5 @@ quick-sharun \
 
 quick-sharun --make-appimage
 
-# 记录当前上游版本，供构建成功后增量更新软件版本清单。
+# 记录当前上游版本，供构建成功后自动增量更新软件版本清单。
 printf '%s\n' "$VERSION" > ./dist/version.txt
