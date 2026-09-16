@@ -200,6 +200,14 @@ sed -i \
     -e 's|^Exec=.*|Exec=dingtalk|' \
     -e 's|^Icon=.*|Icon=com.alibabainc.dingtalk|' \
     "$APPDIR/com.alibabainc.dingtalk.desktop"
+if grep -q '^X-AppImage-Version=' "$APPDIR/com.alibabainc.dingtalk.desktop"; then
+    sed -i "s|^X-AppImage-Version=.*|X-AppImage-Version=$PACKAGE_VERSION|" \
+        "$APPDIR/com.alibabainc.dingtalk.desktop"
+else
+    printf 'X-AppImage-Version=%s\n' "$PACKAGE_VERSION" >> \
+        "$APPDIR/com.alibabainc.dingtalk.desktop"
+fi
+printf '%s\n' "$PACKAGE_VERSION" > ~/version
 grep -Fx 'Exec=dingtalk' "$APPDIR/com.alibabainc.dingtalk.desktop" >/dev/null || \
     die "desktop Exec 修改失败。"
 grep -Fx 'Icon=com.alibabainc.dingtalk' "$APPDIR/com.alibabainc.dingtalk.desktop" >/dev/null || \
