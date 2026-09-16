@@ -584,7 +584,7 @@ else
   die "ChatGPT 在 Xvfb 冒烟测试中提前退出：$smoke_rc"
 fi
 
-# 记录当前上游版本，供统一生成软件版本清单。
+# 记录当前上游版本，供构建成功后增量更新软件版本清单。
 printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
 
 sha256sum "$OUTFILE" > "$OUTFILE.sha256"

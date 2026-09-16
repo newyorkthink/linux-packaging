@@ -212,7 +212,7 @@ grep -Eiq '\[hermes-smoke\] appLocale=zh([_-]|$)' \
 cleanup_smoke
 trap - EXIT
 
-# 记录当前上游版本，供统一生成软件版本清单。
+# 记录当前上游版本，供构建成功后增量更新软件版本清单。
 printf '%s\n' "${UPSTREAM_TAG#v}" > "$DIST_DIR/version.txt"
 
 sha256sum "$OUTFILE"

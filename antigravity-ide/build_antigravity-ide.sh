@@ -56,5 +56,5 @@ printf 'LANG=zh_CN.UTF-8\nLANGUAGE=zh_CN:zh\n' >> ./AppDir/.env
 patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 ./AppDir/shared/bin/language_server_linux_x64
 quick-sharun --make-appimage
 
-# 记录当前上游版本，供统一生成软件版本清单。
+# 记录当前上游版本，供构建成功后增量更新软件版本清单。
 printf '%s\n' "$VERSION" > ./dist/version.txt

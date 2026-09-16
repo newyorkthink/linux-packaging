@@ -94,5 +94,5 @@ install -Dm644 /usr/share/doc/claude-desktop/copyright \
 # 由 quick-sharun 生成唯一正式 AppImage，公共 action 负责上传 latest Release。
 quick-sharun --make-appimage
 
-# 记录当前上游版本，供统一生成软件版本清单。
+# 记录当前上游版本，供构建成功后增量更新软件版本清单。
 printf '%s\n' "${VERSION%-*}" > "$SCRIPT_DIR/dist/version.txt"
