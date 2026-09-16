@@ -374,4 +374,8 @@ if grep -Eqi \
 fi
 
 sha256sum "$OUTFILE" > "$OUTFILE.sha256"
+
+# 最终 AppImage 与图形启动检查成功后输出统一的软件版本元数据。
+printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
+
 log "构建完成：$OUTFILE"

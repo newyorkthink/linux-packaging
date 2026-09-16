@@ -10,7 +10,7 @@
 
 ## 版本元数据
 
-workflow 在 AppImage 构建成功后从同一百度官方客户端 API 读取当前 Linux 版本，并写入 `baidunetdisk/dist/version.txt`。该文件上传为 `software-version-baidunetdisk`，成功构建后增量写入 `latest/software_versions.json`。
+构建脚本复用本次下载官方 DEB 时已经解析出的 `VERSION`，在最终 AppImage 与启动检查成功后写入 `baidunetdisk/dist/version.txt`。workflow 只负责上传该文件为 `software-version-baidunetdisk`，成功构建后增量写入 `latest/software_versions.json`。
 
 ## 运行
 

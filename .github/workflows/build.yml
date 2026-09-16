@@ -314,25 +314,15 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          source_file="${SOFTWARE_VERSION_SOURCE/#\~/$HOME}"
-          [[ -s "${source_file}" ]] || {
-            echo "版本元数据源文件不存在或为空：${source_file}" >&2
+          [[ -s "${SOFTWARE_VERSION_SOURCE}" ]] || {
+            echo "版本元数据源文件不存在或为空：${SOFTWARE_VERSION_SOURCE}" >&2
             exit 1
           }
           version="$(
-            awk -F= '
-              $1 == "version" || $1 == "X-AppImage-Version" {
-                sub(/^[^=]*=/, "")
-                print
-                exit
-              }
-            ' "${source_file}"
+            awk -F= '$1 == "version" {sub(/^[^=]*=/, ""); print; exit}' "${SOFTWARE_VERSION_SOURCE}"
           )"
-          if [[ -z "${version}" && "$(awk 'NF {count++} END {print count+0}' "${source_file}")" -eq 1 ]]; then
-            version="$(awk 'NF {print; exit}' "${source_file}")"
-          fi
           [[ -n "${version}" ]] || {
-            echo "无法从 ${source_file} 解析软件版本。" >&2
+            echo "无法从 ${SOFTWARE_VERSION_SOURCE} 解析 version=。" >&2
             exit 1
           }
           printf '%s\n' "${version}" > "${ARTIFACT_DIR}/version.txt"
@@ -442,27 +432,6 @@ jobs:
           chmod +x baidunetdisk/build_baidunetdisk.sh
           ./baidunetdisk/build_baidunetdisk.sh
           test -s baidunetdisk/dist/baidunetdisk.AppImage
-      - name: Prepare software version metadata
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          client_json="$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 'https://pan.baidu.com/disk/cmsdata?do=client')"
-          version="$(
-            printf '%s' "$client_json" | python3 -c '
-          import json, re, sys
-          payload = json.load(sys.stdin)
-          raw = str((payload.get("linux") or {}).get("version") or "")
-          match = re.fullmatch(r"(?:百度网盘Linux电脑客户端)?V?([0-9]+(?:\.[0-9]+)+)", raw)
-          if match is None:
-              raise SystemExit("无法解析百度网盘官方版本")
-          print(match.group(1))
-          '
-          )"
-          [[ -n "$version" ]] || {
-            echo "无法解析百度网盘官方版本。" >&2
-            exit 1
-          }
-          printf '%s\n' "$version" > baidunetdisk/dist/version.txt
       - name: Upload software version metadata
         uses: actions/upload-artifact@v4
         with:
@@ -668,7 +637,7 @@ jobs:
     timeout-minutes: 90
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'feishu/build_feishu.sh', ARTIFACT_DIR: 'feishu/dist', RELEASE_NAME: 'feishu.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'feishu', SOFTWARE_VERSION_SOURCE: 'feishu/feishu.desktop'}
+    env: {BUILD_SCRIPT: 'feishu/build_feishu.sh', ARTIFACT_DIR: 'feishu/dist', RELEASE_NAME: 'feishu.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'feishu'}
     steps: *arch_steps
 
   build_flameshot:
@@ -1584,7 +1553,7 @@ jobs:
     timeout-minutes: 90
     container: *arch_container
     permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'wechat/build_wechat.sh', ARTIFACT_DIR: 'wechat/dist', RELEASE_NAME: 'wechat.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'wechat', SOFTWARE_VERSION_SOURCE: '~/version'}
+    env: {BUILD_SCRIPT: 'wechat/build_wechat.sh', ARTIFACT_DIR: 'wechat/dist', RELEASE_NAME: 'wechat.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'wechat'}
     steps: *arch_steps
 
   build_winpodx:

@@ -18,7 +18,7 @@
 
 ## 版本元数据
 
-现有构建脚本已把从官方 DEB 解析出的版本写入 `~/version`。workflow 在构建成功后复用该单行版本文件生成 `wechat/dist/version.txt`，上传为 `software-version-wechat`，并增量写入 `latest/software_versions.json`。
+构建脚本复用从官方 DEB control 元数据已经解析出的 `VERSION`，在最终 AppImage 与图形启动检查成功后直接写入 `wechat/dist/version.txt`。workflow 上传该文件为 `software-version-wechat`，并增量写入 `latest/software_versions.json`。
 
 ## 维护说明
 
@@ -31,4 +31,4 @@
 ### 2026-09-16：接入统一软件版本元数据
 
 - 不修改现有微信打包脚本。
-- workflow 复用现有 `~/version` 输出，接入标准 `dist/version.txt` 与统一版本清单。
+- 构建脚本直接输出标准 `dist/version.txt`，workflow 只负责上传并接入统一版本清单。

@@ -260,4 +260,8 @@ run_smoke 1 "$SMOKE_LOG_1"
 run_smoke 2 "$SMOKE_LOG_2"
 
 sha256sum "$OUTFILE"
+
+# 最终 AppImage 与启动检查成功后输出统一的软件版本元数据。
+printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
+
 log "done: $OUTFILE"

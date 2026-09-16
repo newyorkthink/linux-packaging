@@ -418,4 +418,7 @@ fi
 rm -rf "$SMOKE_HOME" "$SMOKE_RUNTIME"
 rm -f "$SMOKE_LOG"
 
+# 最终 AppImage 与图形启动检查成功后输出统一的软件版本元数据。
+printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
+
 log "已生成：$OUTFILE"
