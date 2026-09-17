@@ -16,7 +16,7 @@ Sunshine 为原生串流主机程序。构建脚本安装 Sunshine 及音视频�
 
 Sunshine 新版 Linux 构建会随上游 CUDA / NVENC 依赖提高 NVIDIA 驱动最低要求。若本地主机的 NVIDIA 驱动低于上游当前要求，可能出现 NVENC 编码器初始化失败，导致 Sunshine 无法正常串流。
 
-因此，仓库构建与 Release 可以继续跟随上游最新版本；NVIDIA 本地主机不要仅因检测到新版本就自动更新 Sunshine。更新前必须先核对当前 NVIDIA 驱动是否满足该版本的 CUDA / NVENC 要求；不满足时继续保留已验证可用的 Sunshine 版本，避免 `software_update update all` 将 Sunshine 更新到不兼容版本。
+因此，仓库构建与 Release 可以继续跟随上游最新版本；NVIDIA 本地主机不要仅因检测到新版本就自动更新 Sunshine。更新前必须先核对当前 NVIDIA 驱动是否满足该版本的 CUDA / NVENC 要求；不满足时继续保留已验证可用的 Sunshine 版本，避免更新到不兼容版本。
 
 此说明只约束本地实际使用版本，不改变本目录继续构建和发布上游最新 Sunshine 的逻辑。
 
