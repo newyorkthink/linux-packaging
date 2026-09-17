@@ -117,3 +117,11 @@ dingtalk/README.md
 - 成功构建后上传 `software-version-dingtalk` 元数据 artifact；当前 Build 仅在对应构建成功后更新 `latest` Release 中的 `software_versions.json`。
 - `software_versions.json` 使用版本号判断是否需要更新，Release SHA-256 仅用于文件完整性与本地状态；相同版本的重复构建不会仅因 SHA-256 改变而触发客户端更新。
 - 本次不改应用打包、运行时、补丁和 Release 资产名；提交后按仓库规则不主动监控 Actions，实际新清单记录以下一次成功构建结果为准。
+
+## 修复记录
+
+### 2026-09-17：跳过会变动的服务条款 HTML 校验
+
+- AUR `dingtalk-bin` 的 `service-terms-zh_*.html` 页面内容会变，导致 `makepkg` 的 `sha512sums` 失败；该文件只进 license 目录，不进入 AppImage。
+- 在 `makepkg` 前把这一项改成 `SKIP`，DEB 和其余源文件校验保持不变。
+- 不改 `makepkg --nodeps --noconfirm`、运行时收集和打包步骤。

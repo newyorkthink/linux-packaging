@@ -80,6 +80,18 @@ docker run --rm \
       https://aur.archlinux.org/dingtalk-bin.git /tmp/dingtalk-bin
     chown -R builduser:builduser /tmp/dingtalk-bin
 
+    # AUR PKGBUILD 已注明服务条款 HTML 每次下载 checksum 都会变。
+    # 该文件只安装到 license 目录，不进入 AppImage；只跳过这一项，DEB 校验保留。
+    grep -Eq "^sha512sums=.([0-9a-fA-F]{128})" /tmp/dingtalk-bin/PKGBUILD || {
+      echo "未能定位服务条款 HTML 的 sha512sums 条目" >&2
+      exit 1
+    }
+    sed -i "s/^sha512sums=(\x27[0-9a-fA-F]\{128\}\x27/sha512sums=(\x27SKIP\x27/" /tmp/dingtalk-bin/PKGBUILD
+    grep -Eq "^sha512sums=.SKIP" /tmp/dingtalk-bin/PKGBUILD || {
+      echo "未能将服务条款 HTML 的 sha512sums 改为 SKIP" >&2
+      exit 1
+    }
+
     # 这里只需要生成并提取 AUR 包，不在 Arch 容器中运行钉钉。
     # gtk2、glu、libxcrypt-compat 等运行库由后续 Ubuntu 阶段统一收集进 AppImage。
     su - builduser -c "cd /tmp/dingtalk-bin && makepkg --nodeps --noconfirm"
