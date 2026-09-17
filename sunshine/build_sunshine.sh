@@ -43,7 +43,7 @@ fi
 ARCH="$(uname -m)"
 export ARCH
 
-export ICON=/usr/share/icons/hicolor/scalable/apps/dev.lizardbyte.app.Sunshine.svg
+export ICON=/usr/share/icons/hicolor/scalable/apps/sunshine.svg
 export DESKTOP=/usr/share/applications/dev.lizardbyte.app.Sunshine.desktop
 export OUTPATH=./dist
 export OUTNAME="sunshine.AppImage"
