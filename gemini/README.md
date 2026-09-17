@@ -15,8 +15,11 @@
 | 打包方式 | 仓库现有 `quick-sharun` AppImage 流程 |
 | 支持架构 | `x86_64` |
 | Release 产物 | `gemini.AppImage` |
+| 不兼容 stable | 若当前正式版包含 Windows PE 原生 `.node`，不把该版本伪装成 Linux 可用版本；保留 `latest` Release 中最后一次成功构建并通过版本清单与 SHA-256 校验的 Linux 兼容产物 |
 
 Gemini 应用版本、Google CDN 安装包地址、安装包校验值以及 Electron runtime 版本均不写死在仓库中。上游发布新 stable 版本后，下一次正式构建会重新读取当前元数据。
+
+动态读取最新 stable 不等于强制发布每一个 Windows stable。若上游新增无法在 Linux Electron 中加载的 Windows 原生模块，构建会拒绝发布该上游版本，并继续保留最后一个已经成功构建的 Linux 兼容 AppImage；版本清单也继续记录实际保留的兼容版本，不会把未移植成功的上游版本写成已发布。
 
 ## 下载与运行
 
@@ -55,8 +58,8 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 2. 验证返回的版本格式、`dl.google.com` 下载域名、Google DeepMind release 路径、完整安装包大小与 SHA-256。
 3. 下载官方完整 NSIS 安装包并使用 `7z` 解包。
 4. 定位唯一的 `resources/app.asar` 与对应 `Gemini.exe`。
-5. 检查 `resources` 中是否存在 Windows PE 格式的原生 `.node` 模块；发现此类模块时停止构建，避免把无法在 Linux 加载的原生模块直接发布。
-6. 动态确定当前 Gemini 实际使用的 Electron 精确版本。
+5. 检查 `resources` 中是否存在 Windows PE 格式的原生 `.node` 模块；若存在，不继续把当前 Windows 产品层装入 Linux Electron，而是通过 GitHub Release 的资产 ID 读取并校验 `software_versions.json` 与现有 `gemini.AppImage` 的 SHA-256，保留最后一个成功构建的 Linux 兼容版本。
+6. 当前产品层不存在 Windows PE 原生 `.node` 时，动态确定 Gemini 实际使用的 Electron 精确版本。
 7. 从 Electron 官方 Release 下载对应 `electron-v<版本>-linux-x64.zip`，并按官方 `SHASUMS256.txt` 校验。
 8. 以 Linux Electron runtime 为外壳，替换为 Gemini 官方 Electron 产品资源；Windows `.exe` / `.dll` 资源不进入最终 Linux 产品层。
 9. 从官方 `Gemini.exe` 提取应用图标，生成 Linux desktop entry。
@@ -77,6 +80,13 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 
 上述确认范围只代表当前 Linux 移植层已经实际运行通过，不代表 Google 官方支持 Linux，也不代表所有 Windows 桌面原生功能已经移植。
 
+### 当前上游兼容状态
+
+2026-09-17，Google Omaha `prod` channel 已返回 Gemini `1.11.4`。该正式包的 `resources/app.asar.unpacked/src/gemini_native.node` 是 Windows PE 原生 Node 模块，不能直接由 Linux Electron 加载。
+
+当前没有可靠证据表明可以删除该模块、用空文件替代或直接复制到 Linux 后仍保持 Gemini 1.11.4 功能正确，因此构建不会绕过检测，也不会把 1.11.4 标记为 Linux 已发布版本。遇到该结构时，只复用 `latest` Release 中最后一个成功构建的 Linux 兼容 `gemini.AppImage`；复用前必须通过 Release 资产 ID 获取同一快照，并同时核对 Release digest、`software_versions.json` 中的 Gemini 条目和实际下载文件 SHA-256。
+
+后续只有在 Google 再次发布不依赖 Windows 专用 `.node` 的产品层，或能够取得与该模块匹配且来源可靠的 Linux 实现时，才恢复对新 stable 的直接移植。
 
 ### 当前基准版与已知非致命问题
 
@@ -122,6 +132,8 @@ for_window [class="^gemini$"] floating enable, sticky disable
 
 当前产品层仍会尝试连接 Windows named pipe `\\\\.\\pipe\\Google.Gemini.AppLauncher`。Linux 中不存在该 helper，因此终端可能持续出现 `helper_ipc` 重连日志；目前已确认这不会阻止主界面启动、登录和聊天。
 
+从 Gemini 1.11.4 开始，官方 Windows 产品层已经实际包含 `gemini_native.node`。这与此前仅存在 launcher / named pipe 的非致命边界不同：原生 `.node` 会由 Electron/Node 直接加载，因此在没有对应 Linux 二进制或可验证替代实现前，不能继续沿用“复制产品层 + Linux Electron runtime”的旧路径强行发布新版本。
+
 实际运行中还可能看到以下非致命日志：
 
 - `Failed to initialize Electron Crashpad reporting: Path must be absolute`：当前 AppImage 环境中的 Crashpad 初始化不兼容，不影响主界面；
@@ -144,7 +156,8 @@ Gemini 接入仓库统一正式 workflow：
 - `gemini/**` 推送到 `main` 时选择 Gemini 构建任务；
 - `workflow_dispatch` 可以选择 `gemini/build_gemini.sh`；
 - `workflow_dispatch` 选择 `all` 或每日计划构建时包含 Gemini；
-- 构建成功后仅覆盖 `latest` Release 中的 `gemini.AppImage`。
+- 当前 stable 可直接移植时，构建成功后覆盖 `latest` Release 中的 `gemini.AppImage` 并写入实际上游版本；
+- 当前 stable 因 Windows 原生 `.node` 不可移植时，构建只重新发布已经按资产 ID、Release digest、版本清单和实际文件 SHA-256 校验一致的最后兼容 AppImage，并继续写回该兼容版本，不会把当前不兼容 stable 写入版本清单。
 
 本项目不新增独立 test workflow、smoke Job 或运行时测试 Step。
 
@@ -231,3 +244,12 @@ dist/gemini.AppImage
 - 当前不再处理：首次启动白边 / 白色空白、任务切换器窗口图标、仅影响视觉或终端日志但不影响核心使用的问题。
 - i3wm 最终推荐规则为 `for_window [class="^gemini$"] floating enable, sticky disable`；floating 用于规避当前平铺窗口适配问题，`sticky disable` 确保 Gemini 只存在于当前工作区。
 - 后续策略：每次 Google Gemini Desktop stable 更新仍由构建脚本动态获取；新版本发布后重新观察这些已知问题是否由上游修复，再决定是否调整兼容层。当前版本作为后续排查和升级对比的稳定基线。
+
+### 2026-09-17：处理 Gemini 1.11.4 的 Windows 原生 Node 模块
+
+- 现象：正式构建已成功解析并下载 Google Omaha `prod` channel 的 Gemini 1.11.4，但 NSIS 解包后发现 `resources/app.asar.unpacked/src/gemini_native.node`，该文件为 Windows PE 原生 Node 模块。
+- 根因：现有 Linux 移植路径只能够复用跨平台 Electron 产品资源并替换 Linux Electron runtime；Windows 原生 `.node` 不能由 Linux Electron 直接加载，而当前没有来源可靠、ABI 匹配的 Linux 对应模块。
+- 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`、仓库根 `README.md`。
+- 处理：保留 Windows PE `.node` 检测，不删除模块、不伪造替代文件，也不发布已知不可加载的 1.11.4 产品层；检测到该结构时，通过 GitHub Release API 取得 `latest` Release 当前资产 ID，下载并校验 `software_versions.json` 与既有 `gemini.AppImage`，要求 Release digest、版本清单 SHA-256 和实际文件 SHA-256 完全一致后才复用最后兼容产物。
+- 版本语义：回退路径写入的是最后兼容 AppImage 的真实版本，不写入当前不可移植的 1.11.4，因此 `software_versions.json` 不会产生“资产仍是旧版、版本号却显示 1.11.4”的错误状态。
+- 并发处理：每次读取都基于 Release 资产 ID；如果全量构建期间 `software_versions.json` 正在被其他 Build 替换，当前快照失效时会重新读取 Release 元数据后重试，不依赖可能短暂缓存旧内容的固定下载地址。

@@ -214,7 +214,170 @@ readonly WINDOWS_APP_ROOT="$(dirname "$WINDOWS_RESOURCES")"
 readonly WINDOWS_EXE="$WINDOWS_APP_ROOT/Gemini.exe"
 [[ -f "$WINDOWS_EXE" ]] || die "未找到与 app.asar 对应的 Gemini.exe。"
 
-# 原生 Node 模块无法从 Windows PE 直接搬到 Linux；发现 Windows .node 时立即停止，避免发布已知无效产物。
+reuse_last_compatible_release() {
+  local release_repository="${GITHUB_REPOSITORY:-newyorkthink/linux-packaging}"
+  local release_json="$WORK_DIR/latest-release.json"
+  local manifest="$WORK_DIR/software_versions.json"
+  local candidate="$WORK_DIR/gemini-last-compatible.AppImage"
+  local manifest_id manifest_sha app_id app_sha actual_sha fallback_version attempt
+  local restored=false
+  local -a auth_header=() release_meta=() fallback_meta=()
+
+  if [[ -n "${GH_TOKEN:-}" ]]; then
+    auth_header=(-H "Authorization: Bearer $GH_TOKEN")
+  fi
+
+  log "当前 Gemini $VERSION 含 Windows 原生 Node 模块，保留 latest Release 中最后一个已成功构建的 Linux 兼容版本"
+
+  for attempt in $(seq 1 12); do
+    rm -f -- "$release_json" "$manifest" "$candidate"
+
+    if ! curl -fL \
+      --retry 3 \
+      --retry-all-errors \
+      --retry-delay 2 \
+      -H 'Accept: application/vnd.github+json' \
+      "${auth_header[@]}" \
+      "https://api.github.com/repos/$release_repository/releases/tags/latest" \
+      -o "$release_json"; then
+      sleep 5
+      continue
+    fi
+
+    mapfile -t release_meta < <(
+      python3 - "$release_json" <<'PY'
+import json
+import re
+import sys
+
+with open(sys.argv[1], encoding='utf-8') as fh:
+    data = json.load(fh)
+assets = data.get('assets')
+if not isinstance(assets, list):
+    raise SystemExit('latest release assets is not a list')
+
+
+def read_asset(name: str):
+    rows = [item for item in assets if item.get('name') == name]
+    if len(rows) != 1:
+        raise SystemExit(f'expected exactly one {name!r} asset, got {len(rows)}')
+    item = rows[0]
+    asset_id = item.get('id')
+    digest = item.get('digest') or ''
+    if not isinstance(asset_id, int) or asset_id <= 0:
+        raise SystemExit(f'invalid asset id for {name!r}')
+    if not re.fullmatch(r'sha256:[0-9A-Fa-f]{64}', digest):
+        raise SystemExit(f'invalid asset digest for {name!r}: {digest!r}')
+    return str(asset_id), digest.split(':', 1)[1].lower()
+
+
+manifest_id, manifest_sha = read_asset('software_versions.json')
+app_id, app_sha = read_asset('gemini.AppImage')
+print(manifest_id)
+print(manifest_sha)
+print(app_id)
+print(app_sha)
+PY
+    )
+    if (( ${#release_meta[@]} != 4 )); then
+      sleep 5
+      continue
+    fi
+
+    manifest_id="${release_meta[0]}"
+    manifest_sha="${release_meta[1]}"
+    app_id="${release_meta[2]}"
+    app_sha="${release_meta[3]}"
+
+    if ! curl -fL \
+      --retry 3 \
+      --retry-all-errors \
+      --retry-delay 2 \
+      -H 'Accept: application/octet-stream' \
+      "${auth_header[@]}" \
+      "https://api.github.com/repos/$release_repository/releases/assets/$manifest_id" \
+      -o "$manifest"; then
+      sleep 5
+      continue
+    fi
+
+    actual_sha="$(sha256sum "$manifest" | awk '{print tolower($1)}')"
+    if [[ "$actual_sha" != "$manifest_sha" ]]; then
+      sleep 5
+      continue
+    fi
+
+    mapfile -t fallback_meta < <(
+      python3 - "$manifest" "$app_sha" <<'PY'
+import json
+import re
+import sys
+
+with open(sys.argv[1], encoding='utf-8') as fh:
+    data = json.load(fh)
+entry = data.get('gemini') if isinstance(data, dict) else None
+if not isinstance(entry, dict):
+    raise SystemExit('software_versions.json does not contain a gemini object')
+
+version = entry.get('version', '')
+asset = entry.get('asset', '')
+sha256 = str(entry.get('sha256', '')).lower()
+expected_sha256 = sys.argv[2].lower()
+
+if not re.fullmatch(r'[0-9]+(?:\.[0-9]+){2,3}', version):
+    raise SystemExit(f'invalid fallback Gemini version: {version!r}')
+if asset != 'gemini.AppImage':
+    raise SystemExit(f'unexpected fallback Gemini asset: {asset!r}')
+if not re.fullmatch(r'[0-9a-f]{64}', sha256):
+    raise SystemExit(f'invalid fallback Gemini SHA-256: {sha256!r}')
+if sha256 != expected_sha256:
+    raise SystemExit('software_versions.json Gemini SHA-256 does not match the Release asset digest')
+
+print(version)
+print(sha256)
+PY
+    )
+    if (( ${#fallback_meta[@]} != 2 )); then
+      sleep 5
+      continue
+    fi
+
+    fallback_version="${fallback_meta[0]}"
+
+    if ! curl -fL \
+      --retry 3 \
+      --retry-all-errors \
+      --retry-delay 2 \
+      -H 'Accept: application/octet-stream' \
+      "${auth_header[@]}" \
+      "https://api.github.com/repos/$release_repository/releases/assets/$app_id" \
+      -o "$candidate"; then
+      sleep 5
+      continue
+    fi
+
+    actual_sha="$(sha256sum "$candidate" | awk '{print tolower($1)}')"
+    if [[ "$actual_sha" != "$app_sha" ]]; then
+      sleep 5
+      continue
+    fi
+
+    mv -f -- "$candidate" "$OUTFILE"
+    chmod +x "$OUTFILE"
+    restored=true
+    break
+  done
+
+  [[ "$restored" == true ]] || \
+    die "当前 Gemini $VERSION 含 Windows 原生 Node 模块，且无法取得并校验最后一个已发布的 Linux 兼容版本。"
+
+  printf '%s\n' "$fallback_version" > ~/version
+  printf '%s\n' "$fallback_version" > "$DIST_DIR/version.txt"
+  log "已保留 Linux 兼容版本：$fallback_version；未将当前不兼容的 Gemini $VERSION 标记为已发布。"
+}
+
+# 原生 Node 模块无法从 Windows PE 直接搬到 Linux；发现 Windows .node 时不发布当前上游版本，
+# 而是复用并严格校验 latest Release 中最后一次成功构建的 Linux 兼容产物。
 mapfile -t windows_node_modules < <(
   find "$WINDOWS_RESOURCES" -type f -name '*.node' -print0 \
     | while IFS= read -r -d '' node_file; do
@@ -224,9 +387,10 @@ mapfile -t windows_node_modules < <(
       done
 )
 if (( ${#windows_node_modules[@]} > 0 )); then
-  printf '发现 Windows 原生 Node 模块，当前不能直接移植到 Linux：\n' >&2
+  printf '发现 Windows 原生 Node 模块，当前版本不能直接移植到 Linux：\n' >&2
   printf '  %s\n' "${windows_node_modules[@]}" >&2
-  exit 1
+  reuse_last_compatible_release
+  exit 0
 fi
 
 # 优先从 Gemini.exe 内嵌的 Electron 标识读取精确版本；若上游隐藏该字符串，再从 app.asar 的 package.json 元数据读取。
