@@ -253,3 +253,8 @@ dist/gemini.AppImage
 - 处理：保留 Windows PE `.node` 检测，不删除模块、不伪造替代文件，也不发布已知不可加载的 1.11.4 产品层；检测到该结构时，通过 GitHub Release API 取得 `latest` Release 当前资产 ID，下载并校验 `software_versions.json` 与既有 `gemini.AppImage`，要求 Release digest、版本清单 SHA-256 和实际文件 SHA-256 完全一致后才复用最后兼容产物。
 - 版本语义：回退路径写入的是最后兼容 AppImage 的真实版本，不写入当前不可移植的 1.11.4，因此 `software_versions.json` 不会产生“资产仍是旧版、版本号却显示 1.11.4”的错误状态。
 - 并发处理：每次读取都基于 Release 资产 ID；如果全量构建期间 `software_versions.json` 正在被其他 Build 替换，当前快照失效时会重新读取 Release 元数据后重试，不依赖可能短暂缓存旧内容的固定下载地址。
+
+### 2026-09-17：清单丢失 gemini 条目时仍保留已发布 AppImage
+
+- 故障现象：全量构建时 `software_versions.json` 没有 `gemini` 对象，回退路径 12 次重试后失败；`latest` 上的 `gemini.AppImage` 仍在。
+- 处理：清单缺条目时改为校验并复用已发布 AppImage，从其中的 `X-AppImage-Version` 读取真实兼容版本，再写回清单。仍不发布当前含 Windows PE `.node` 的 1.11.4。

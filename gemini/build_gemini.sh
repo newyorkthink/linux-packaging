@@ -317,7 +317,9 @@ with open(sys.argv[1], encoding='utf-8') as fh:
     data = json.load(fh)
 entry = data.get('gemini') if isinstance(data, dict) else None
 if not isinstance(entry, dict):
-    raise SystemExit('software_versions.json does not contain a gemini object')
+    print('')
+    print('')
+    raise SystemExit(0)
 
 version = entry.get('version', '')
 asset = entry.get('asset', '')
@@ -342,7 +344,8 @@ PY
       continue
     fi
 
-    fallback_version="${fallback_meta[0]}"
+    json_version="${fallback_meta[0]}"
+    json_sha="${fallback_meta[1]}"
 
     if ! curl -fL \
       --retry 3 \
@@ -360,6 +363,28 @@ PY
     if [[ "$actual_sha" != "$app_sha" ]]; then
       sleep 5
       continue
+    fi
+
+    if [[ -n "$json_version" ]]; then
+      [[ "$json_sha" == "$app_sha" ]] || {
+        sleep 5
+        continue
+      }
+      fallback_version="$json_version"
+    else
+      log "software_versions.json 没有 gemini 条目，改为从已发布 AppImage 读取兼容版本"
+      fallback_version="$(
+        strings -a "$candidate" \
+          | awk -F= '/^X-AppImage-Version=/{print $2; exit}'
+      )"
+      if [[ ! "$fallback_version" =~ ^[0-9]+(\.[0-9]+){2,3}$ ]]; then
+        sleep 5
+        continue
+      fi
+      if [[ "$fallback_version" == "$VERSION" ]]; then
+        sleep 5
+        continue
+      fi
     fi
 
     mv -f -- "$candidate" "$OUTFILE"
