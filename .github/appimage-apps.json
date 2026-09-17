@@ -800,6 +800,18 @@
       "run_from_root": "false"
     },
     {
+      "key": "qq",
+      "kind": "standard",
+      "name": "QQ",
+      "script": "qq/build_qq.sh",
+      "dir": "qq",
+      "artifact_dir": "qq/dist",
+      "release_name": "qq.AppImage",
+      "software_key": "qq",
+      "timeout_minutes": 90,
+      "run_from_root": "false"
+    },
+    {
       "key": "virt_manager",
       "kind": "special",
       "name": "Virt Manager",
