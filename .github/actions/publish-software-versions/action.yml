@@ -198,7 +198,18 @@ runs:
         PY
 
         manifest_sha256="$(sha256sum "$manifest" | awk '{print tolower($1)}')"
-        gh release upload latest "$manifest" --repo "$GITHUB_REPOSITORY" --clobber
+        uploaded=false
+        for attempt in $(seq 1 8); do
+          if timeout 120 gh release upload latest "$manifest" --repo "$GITHUB_REPOSITORY" --clobber; then
+            uploaded=true
+            break
+          fi
+          sleep $((attempt * 2))
+        done
+        [[ "$uploaded" == true ]] || {
+          echo "上传 $manifest_name 失败。" >&2
+          exit 1
+        }
 
         # 重新取得刚写入的唯一 Release 资产 ID，并校验 digest、内容和当前软件条目。
         verified=false

@@ -33,11 +33,29 @@ mkdir -p "$SOURCE_DIR" "$COMPAT_DIR" ./dist
 ###### 下载上游文件 ######
 
 # 下载并完整提取官方 Linux tar 包，保留官方 Qt 6.4.3 runtime。
-wget --retry-connrefused --tries=30 \
-  "https://www.moderncsv.com/release/ModernCSV-Linux-v${MODERNCSV_VERSION}.tar.gz" \
-  -O /tmp/ModernCSV-Linux.tar.gz
+# Cloudflare 偶发对 CI 返回 HTML 挑战页（HTTP 200、text/html），需校验 gzip 后再解压。
+tarball=/tmp/ModernCSV-Linux.tar.gz
+downloaded=0
+for attempt in 1 2 3 4 5; do
+  rm -f "$tarball"
+  wget --user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36' \
+    --retry-connrefused --tries=10 \
+    "https://www.moderncsv.com/release/ModernCSV-Linux-v${MODERNCSV_VERSION}.tar.gz" \
+    -O "$tarball"
+  if gzip -t "$tarball" 2>/dev/null; then
+    downloaded=1
+    break
+  fi
+  echo "官方 tar.gz 不是 gzip（第 ${attempt}/5 次），可能是 Cloudflare HTML。" >&2
+  sleep $((attempt * 3))
+done
+[[ "$downloaded" -eq 1 ]] || {
+  echo "无法下载有效的 ModernCSV-Linux-v${MODERNCSV_VERSION}.tar.gz。" >&2
+  file "$tarball" >&2 || true
+  exit 1
+}
 
-tar -xzf /tmp/ModernCSV-Linux.tar.gz -C "$SOURCE_DIR" --strip-components=1
+tar -xzf "$tarball" -C "$SOURCE_DIR" --strip-components=1
 
 ###### 准备兼容的 Qt6 插件 ######
 

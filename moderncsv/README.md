@@ -194,3 +194,10 @@ Modern CSV 的特殊点是“官方 Qt6 runtime + 官方混入 Qt5 plugin”。�
 - 当前稳定基线仍固定为官方 Modern CSV 2.4.3 与既有 Qt 6.4.3 / Debian Bookworm Qt 6.4.2 兼容组合。
 - 构建脚本将原本散落在官方下载 URL 中的 `2.4.3` 收敛为 `MODERNCSV_VERSION`，下载来源与版本本身不变，并在构建完成后写入 `dist/version.txt`。
 - workflow 使用 `SOFTWARE_KEY=moderncsv` 接入统一 `software_versions.json`；本次不调整任何 Qt、Fcitx5、TLS 或 quick-sharun 兼容逻辑。
+
+### 2026-09-17：官方 tar.gz 下载到 Cloudflare HTML
+
+- 故障现象：wget 得到 HTTP 200、`text/html` 约 12KB，随后 `gzip: stdin: not in gzip format`。
+- 根因核实：下载 URL 本身有效（约 28MB gzip），GitHub Actions 出口偶发被 Cloudflare 返回挑战页。
+- 修改：补浏览器 User-Agent，下载后 `gzip -t` 校验，失败则重试；不解压 HTML。
+- 不改版本、Qt runtime 和打包步骤。
