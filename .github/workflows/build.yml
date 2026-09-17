@@ -1,4 +1,5 @@
-# 统一 AppImage 构建入口；每个项目都是独立 Job、独立运行环境，不使用 Matrix。
+# 统一 AppImage 构建入口。标准 Arch 应用由清单 + matrix 调度；特例保持独立 Job。
+# 每个选中的应用仍是独立 runner（matrix fail-fast: false），完成后立即写入 software_versions.json。
 name: Build AppImages
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch' && (inputs.script_search != '' && format('Build {0}', inputs.script_search) || inputs.script_to_build == 'all' && 'Build all AppImages' || format('Build {0}', inputs.script_to_build)) || github.event_name == 'schedule' && 'Daily build all AppImages' || github.event.head_commit.message }}
@@ -7,174 +8,23 @@ on:
   push:
     branches: [main]
     paths:
-      - 'antigravity-ide/**'
-      - 'antigravity/**'
-      - 'cc-switch/**'
-      - 'zen/**'
-      - 'copyq/**'
-      - 'flameshot/**'
-      - 'goldendict-ng/**'
-      - 'htop/**'
-      - 'i3wm/**'
-      - 'keepassxc/**'
-      - 'keepass/**'
-      - 'kde-suite/**'
-      - 'kitty/**'
-      - 'mpv/**'
-      - 'nvtop/**'
-      - 'ripdrag/**'
-      - 'smplayer/**'
-      - 'sunshine/**'
-      - 'freerdp/**'
-      - 'gemini/**'
-      - 'newsboat/**'
-      - 'zotero/**'
-      - 'vscode/**'
-      - 'simplescreenrecorder/**'
-      - 'webcamoid/**'
-      - 'rofi/**'
-      - 'picom/**'
-      - 'obsidian/**'
-      - 'parsec/**'
-      - 'freedownloadmanager/**'
-      - 'deskflow/**'
-      - 'cursor/**'
-      - 'trae/**'
-      - 'trae-work/**'
-      - 'deepseek-harness/**'
-      - 'obs-studio/**'
-      - 'dingtalk/**'
-      - 'escrcpy/**'
-      - 'winpodx/**'
-      - 'alacritty/**'
-      - 'android-tools/**'
-      - 'Keyviz/**'
-      - 'remmina/**'
-      - 'dconf-editor/**'
-      - 'rainlendar2/**'
-      - 'realvnc-rvnc-connect/**'
-      - 'remotedesktopmanager/**'
-      - 'github-desktop/**'
-      - 'hermes-desktop/**'
-      - 'workbuddy/**'
-      - 'mailmaster/**'
-      - 'alttab/**'
-      - 'baidunetdisk/**'
-      - 'aionui/**'
-      - 'wechat/**'
-      - 'folo/**'
-      - 'feishu/**'
-      - 'joplin/**'
-      - 'jriver/**'
-      - 'chatgpt/**'
-      - 'claude-desktop/**'
-      - 'xmind/**'
-      - 'postman/**'
-      - 'qemu/**'
-      - 'v2rayn/**'
-      - 'xnviewmp/**'
-      - 'xnconvert/**'
-      - 'stacher/**'
-      - 'tencent-docs/**'
-      - 'chromium/**'
-      - 'adspower-global/**'
-      - 'ventoy/**'
-      - 'virt-manager/**'
-      - 'moderncsv/**'
-      - 'gitkraken/**'
-      - 'mission-center/**'
       - '.github/workflows/build.yml'
       - '.github/actions/build-anylinux/**'
+      - '.github/actions/publish-software-versions/**'
+      - '.github/appimage-apps.json'
       - '.github/scripts/**'
+      - '*/**'
   schedule:
     - cron: '17 0 * * *'
   workflow_dispatch:
     inputs:
       script_to_build:
-        description: '选择要构建的脚本（选择 all 构建全部）'
+        description: 'all 或脚本路径 / 应用名'
         required: true
         default: 'all'
-        type: choice
-        options:
-          - all
-          - adspower-global/build_adspower-global.sh
-          - aionui/build_aionui.sh
-          - alacritty/build_alacritty_linuxdeploy.sh
-          - alttab/build_alttab.sh
-          - android-tools/build_android-tools.sh
-          - antigravity/build_antigravity.sh
-          - antigravity-ide/build_antigravity-ide.sh
-          - baidunetdisk/build_baidunetdisk.sh
-          - cc-switch/build_cc-switch.sh
-          - chatgpt/build_chatgpt.sh
-          - chromium/build_chromium.sh
-          - claude-desktop/build_claude-desktop.sh
-          - copyq/build_copyq.sh
-          - cursor/build_cursor.sh
-          - dconf-editor/build_dconf-editor.sh
-          - deepseek-harness/build_deepseek-harness.sh
-          - deskflow/build_deskflow.sh
-          - dingtalk/build_dingtalk.sh
-          - escrcpy/build_escrcpy.sh
-          - feishu/build_feishu.sh
-          - flameshot/build_flameshot.sh
-          - folo/build_folo.sh
-          - freedownloadmanager/build_freedownloadmanager.sh
-          - freerdp/build_freerdp.sh
-          - gemini/build_gemini.sh
-          - github-desktop/build_github-desktop.sh
-          - gitkraken/build_gitkraken.sh
-          - goldendict-ng/build_goldendict-ng.sh
-          - hermes-desktop/build_hermes-desktop.sh
-          - htop/build_htop.sh
-          - i3wm/build_i3wm.sh
-          - joplin/build_joplin.sh
-          - jriver/build_jriver.sh
-          - kde-suite/build_kde_suite.sh
-          - keepass/build_keepass.sh
-          - keepassxc/build_keepassxc.sh
-          - Keyviz/build_keyviz.sh
-          - kitty/build_kitty.sh
-          - mailmaster/build_mailmaster.sh
-          - mission-center/build_mission-center.sh
-          - moderncsv/build_moderncsv.sh
-          - mpv/build_mpv.sh
-          - newsboat/build_newsboat.sh
-          - nvtop/build_nvtop.sh
-          - obs-studio/build_obs-studio.sh
-          - obsidian/build_obsidian.sh
-          - parsec/build_parsec.sh
-          - picom/build_picom.sh
-          - postman/build_postman.sh
-          - qemu/build_qemu.sh
-          - rainlendar2/build_rainlendar2.sh
-          - realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh
-          - remmina/build_remmina.sh
-          - remotedesktopmanager/build_remotedesktopmanager.sh
-          - ripdrag/build_ripdrag.sh
-          - rofi/build_rofi.sh
-          - simplescreenrecorder/build_simplescreenrecorder.sh
-          - smplayer/build_smplayer.sh
-          - stacher/build_stacher.sh
-          - sunshine/build_sunshine.sh
-          - tencent-docs/build_tencent-docs.sh
-          - trae/build_trae.sh
-          - trae-work/build_trae-work.sh
-          - v2rayn/build_v2rayn.sh
-          - ventoy/build_ventoy.sh
-          - virt-manager/build_virt-manager.sh
-          - vscode/build_vscode.sh
-          - webcamoid/build_webcamoid.sh
-          - wechat/build_wechat.sh
-          - winpodx/build_winpodx_release.sh
-          - workbuddy/build_workbuddy.sh
-          - xmind/build_xmind.sh
-          - xnconvert/build_xnconvert.sh
-          - xnviewmp/build_xnviewmp.sh
-          - zen/build_zen.sh
-          - zotero/build_zotero.sh
+        type: string
       script_search:
-        description: '模糊输入脚本名称（可留空；填写时优先于上方下拉）'
+        description: '模糊输入脚本名称（可留空；填写时优先于上方）'
         required: false
         default: ''
         type: string
@@ -186,9 +36,12 @@ jobs:
   plan:
     name: Plan
     runs-on: ubuntu-latest
+    timeout-minutes: &arch_timeout 60
     outputs:
       should_build: ${{ steps.plan.outputs.should_build }}
       builds: ${{ steps.plan.outputs.builds }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+      standard_count: ${{ steps.plan.outputs.standard_count }}
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
@@ -203,83 +56,7 @@ jobs:
           AFTER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          KEYS=(antigravity_ide antigravity cc_switch zen copyq flameshot goldendict_ng htop i3wm keepassxc keepass kde_suite kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian parsec freedownloadmanager deskflow cursor trae trae_work deepseek_harness obs_studio dingtalk escrcpy winpodx alacritty keyviz remmina dconf_editor rainlendar2 realvnc_connect remotedesktopmanager gemini github_desktop hermes_desktop workbuddy mailmaster alttab baidunetdisk aionui wechat folo feishu joplin jriver chatgpt claude_desktop xmind postman v2rayn xnviewmp xnconvert stacher tencent_docs webcamoid ventoy moderncsv gitkraken mission_center chromium adspower_global qemu virt_manager android_tools)
-          SCRIPTS=('antigravity-ide/build_antigravity-ide.sh' 'antigravity/build_antigravity.sh' 'cc-switch/build_cc-switch.sh' 'zen/build_zen.sh' 'copyq/build_copyq.sh' 'flameshot/build_flameshot.sh' 'goldendict-ng/build_goldendict-ng.sh' 'htop/build_htop.sh' 'i3wm/build_i3wm.sh' 'keepassxc/build_keepassxc.sh' 'keepass/build_keepass.sh' 'kde-suite/build_kde_suite.sh' 'kitty/build_kitty.sh' 'mpv/build_mpv.sh' 'nvtop/build_nvtop.sh' 'ripdrag/build_ripdrag.sh' 'smplayer/build_smplayer.sh' 'sunshine/build_sunshine.sh' 'freerdp/build_freerdp.sh' 'newsboat/build_newsboat.sh' 'zotero/build_zotero.sh' 'vscode/build_vscode.sh' 'simplescreenrecorder/build_simplescreenrecorder.sh' 'rofi/build_rofi.sh' 'picom/build_picom.sh' 'obsidian/build_obsidian.sh' 'parsec/build_parsec.sh' 'freedownloadmanager/build_freedownloadmanager.sh' 'deskflow/build_deskflow.sh' 'cursor/build_cursor.sh' 'trae/build_trae.sh' 'trae-work/build_trae-work.sh' 'deepseek-harness/build_deepseek-harness.sh' 'obs-studio/build_obs-studio.sh' 'dingtalk/build_dingtalk.sh' 'escrcpy/build_escrcpy.sh' 'winpodx/build_winpodx_release.sh' 'alacritty/build_alacritty_linuxdeploy.sh' 'Keyviz/build_keyviz.sh' 'remmina/build_remmina.sh' 'dconf-editor/build_dconf-editor.sh' 'rainlendar2/build_rainlendar2.sh' 'realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh' 'remotedesktopmanager/build_remotedesktopmanager.sh' 'gemini/build_gemini.sh' 'github-desktop/build_github-desktop.sh' 'hermes-desktop/build_hermes-desktop.sh' 'workbuddy/build_workbuddy.sh' 'mailmaster/build_mailmaster.sh' 'alttab/build_alttab.sh' 'baidunetdisk/build_baidunetdisk.sh' 'aionui/build_aionui.sh' 'wechat/build_wechat.sh' 'folo/build_folo.sh' 'feishu/build_feishu.sh' 'joplin/build_joplin.sh' 'jriver/build_jriver.sh' 'chatgpt/build_chatgpt.sh' 'claude-desktop/build_claude-desktop.sh' 'xmind/build_xmind.sh' 'postman/build_postman.sh' 'v2rayn/build_v2rayn.sh' 'xnviewmp/build_xnviewmp.sh' 'xnconvert/build_xnconvert.sh' 'stacher/build_stacher.sh' 'tencent-docs/build_tencent-docs.sh' 'webcamoid/build_webcamoid.sh' 'ventoy/build_ventoy.sh' 'moderncsv/build_moderncsv.sh' 'gitkraken/build_gitkraken.sh' 'mission-center/build_mission-center.sh' 'chromium/build_chromium.sh' 'adspower-global/build_adspower-global.sh' 'qemu/build_qemu.sh' 'virt-manager/build_virt-manager.sh' 'android-tools/build_android-tools.sh')
-          DIRS=(antigravity-ide antigravity cc-switch zen copyq flameshot goldendict-ng htop i3wm keepassxc keepass kde-suite kitty mpv nvtop ripdrag smplayer sunshine freerdp newsboat zotero vscode simplescreenrecorder rofi picom obsidian parsec freedownloadmanager deskflow cursor trae trae-work deepseek-harness obs-studio dingtalk escrcpy winpodx alacritty Keyviz remmina dconf-editor rainlendar2 realvnc-rvnc-connect remotedesktopmanager gemini github-desktop hermes-desktop workbuddy mailmaster alttab baidunetdisk aionui wechat folo feishu joplin jriver chatgpt claude-desktop xmind postman v2rayn xnviewmp xnconvert stacher tencent-docs webcamoid ventoy moderncsv gitkraken mission-center chromium adspower-global qemu virt-manager android-tools)
-          declare -A BUILD SCRIPT_KEY DIR_KEY
-          for i in "${!KEYS[@]}"; do key=${KEYS[$i]}; BUILD[$key]=false; SCRIPT_KEY[${SCRIPTS[$i]}]=$key; DIR_KEY[${DIRS[$i]}]=$key; done
-          select_all() { for key in "${KEYS[@]}"; do BUILD[$key]=true; done; }
-          normalize_search() {
-            local value="${1,,}"
-            value="${value//[![:alnum:]]/}"
-            printf '%s' "$value"
-          }
-          resolve_search() {
-            local query
-            query="$(normalize_search "$1")"
-            if [[ -z "$query" ]]; then
-              echo "模糊输入没有有效字符：$1" >&2
-              exit 1
-            fi
-            if [[ "$query" == all ]]; then
-              SELECTED_SCRIPT=all
-              return
-            fi
-            local -a exact_matches=() fuzzy_matches=() matches=()
-            local i key_norm script_norm dir_norm
-            for i in "${!KEYS[@]}"; do
-              key_norm="$(normalize_search "${KEYS[$i]}")"
-              script_norm="$(normalize_search "${SCRIPTS[$i]}")"
-              dir_norm="$(normalize_search "${DIRS[$i]}")"
-              if [[ "$query" == "$key_norm" || "$query" == "$script_norm" || "$query" == "$dir_norm" ]]; then
-                exact_matches+=("$i")
-              elif [[ "$key_norm" == *"$query"* || "$script_norm" == *"$query"* || "$dir_norm" == *"$query"* ]]; then
-                fuzzy_matches+=("$i")
-              fi
-            done
-            if (( ${#exact_matches[@]} > 0 )); then
-              matches=("${exact_matches[@]}")
-            else
-              matches=("${fuzzy_matches[@]}")
-            fi
-            if (( ${#matches[@]} == 1 )); then
-              SELECTED_SCRIPT="${SCRIPTS[${matches[0]}]}"
-              echo "模糊输入已匹配：$1 -> $SELECTED_SCRIPT"
-            elif (( ${#matches[@]} == 0 )); then
-              echo "未找到匹配脚本：$1" >&2
-              exit 1
-            else
-              echo "模糊输入匹配到多个脚本：$1" >&2
-              for i in "${matches[@]}"; do
-                echo "  - ${SCRIPTS[$i]}" >&2
-              done
-              exit 1
-            fi
-          }
-          if [[ "$EVENT_NAME" == workflow_dispatch && -n "${SCRIPT_SEARCH:-}" ]]; then
-            resolve_search "$SCRIPT_SEARCH"
-          fi
-          case "$EVENT_NAME" in
-            workflow_dispatch) if [[ "${SELECTED_SCRIPT:-all}" == all ]]; then select_all; elif [[ -n "${SCRIPT_KEY[${SELECTED_SCRIPT:-}]:-}" ]]; then BUILD[${SCRIPT_KEY[$SELECTED_SCRIPT]}]=true; else echo "指定的脚本不存在：${SELECTED_SCRIPT:-}" >&2; exit 1; fi ;;
-            push)
-              if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then CHANGED_FILES="$(git show --pretty='' --name-only "$AFTER_SHA")"; else CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"; fi
-              if grep -Eq '^\.github/actions/build-anylinux/' <<< "$CHANGED_FILES"; then
-                select_all
-              else
-                while IFS= read -r file; do
-                  case "$file" in
-                    .github/scripts/ci_build_dingtalk.sh) BUILD[dingtalk]=true ;;
-                    .github/scripts/ci_build_winpodx.sh) BUILD[winpodx]=true ;;
-                    *) dir=${file%%/*}; [[ -n "${DIR_KEY[$dir]:-}" ]] && BUILD[${DIR_KEY[$dir]}]=true ;;
-                  esac
-                done <<< "$CHANGED_FILES"
-              fi ;;
-            schedule) select_all ;;
-            *) exit 1 ;;
-          esac
-          BUILDS_JSON="$(for key in "${KEYS[@]}"; do printf '%s=%s\n' "$key" "${BUILD[$key]}"; done | python3 -c 'import json,sys; print(json.dumps(dict(line.rstrip().split("=",1) for line in sys.stdin), separators=(",",":")))')"
-          SHOULD_BUILD=false; [[ "$BUILDS_JSON" == *':"true"'* ]] && SHOULD_BUILD=true
-          echo "builds=$BUILDS_JSON" >> "$GITHUB_OUTPUT"; echo "should_build=$SHOULD_BUILD" >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/plan_appimage_jobs.py
       - name: Create or Update Latest Release
         if: steps.plan.outputs.should_build == 'true'
         env: {GH_TOKEN: '${{ github.token }}'}
@@ -288,16 +65,23 @@ jobs:
           set -euo pipefail
           if gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" -f sha="$GITHUB_SHA" -F force=true >/dev/null; gh release edit latest --repo "$GITHUB_REPOSITORY" --title latest --notes latest --latest; else gh release create latest --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title latest --notes latest --latest; fi
 
-
-  build_adspower_global:
-    name: Build AdsPower Global
+  build_standard:
+    name: Build ${{ matrix.name }}
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).adspower_global == 'true'
+    if: needs.plan.outputs.standard_count != '0'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
     runs-on: &arch_runner ubuntu-latest
-    timeout-minutes: &arch_timeout 60
+    timeout-minutes: ${{ matrix.timeout_minutes }}
     container: &arch_container ghcr.io/pkgforge-dev/archlinux:latest
     permissions: &arch_permissions {contents: write, packages: read}
-    env: {BUILD_SCRIPT: 'adspower-global/build_adspower-global.sh', ARTIFACT_DIR: 'adspower-global/dist', RELEASE_NAME: 'adspower-global.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'adspower-global'}
+    env:
+      BUILD_SCRIPT: ${{ matrix.script }}
+      ARTIFACT_DIR: ${{ matrix.artifact_dir }}
+      RELEASE_NAME: ${{ matrix.release_name }}
+      RUN_FROM_ROOT: ${{ matrix.run_from_root }}
+      SOFTWARE_KEY: ${{ matrix.software_key }}
     steps: &arch_steps
       - {name: Pre-install Git, run: 'pacman -Sy --noconfirm git'}
       - {name: Checkout Code, uses: 'actions/checkout@v4', with: {fetch-depth: 0}}
@@ -341,17 +125,6 @@ jobs:
           asset_name: ${{ env.RELEASE_NAME }}
           artifact_dir: ${{ env.ARTIFACT_DIR }}
           github_token: ${{ github.token }}
-
-  build_aionui:
-    name: Build AionUi
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).aionui == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'aionui/build_aionui.sh', ARTIFACT_DIR: 'aionui/dist', RELEASE_NAME: 'aionui.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'aionui'}
-    steps: *arch_steps
 
   build_alacritty:
     name: Build Alacritty
@@ -403,49 +176,6 @@ jobs:
           artifact_dir: 'alacritty/dist'
           github_token: ${{ github.token }}
 
-  build_alttab:
-    name: Build AltTab
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).alttab == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'alttab/build_alttab.sh', ARTIFACT_DIR: 'alttab/dist', RELEASE_NAME: 'alttab.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'alttab'}
-    steps: *arch_steps
-
-  build_android_tools:
-    name: Build android-tools
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).android_tools == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'android-tools/build_android-tools.sh', ARTIFACT_DIR: 'android-tools/dist', RELEASE_NAME: 'android-tools.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'android-tools'}
-    steps: *arch_steps
-
-  build_antigravity:
-    name: Build Antigravity
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).antigravity == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'antigravity/build_antigravity.sh', ARTIFACT_DIR: 'antigravity/dist', RELEASE_NAME: 'antigravity.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'antigravity'}
-    steps: *arch_steps
-
-  build_antigravity_ide:
-    name: Build Antigravity IDE
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).antigravity_ide == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'antigravity-ide/build_antigravity-ide.sh', ARTIFACT_DIR: 'antigravity-ide/dist', RELEASE_NAME: 'antigravity-ide.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'antigravity-ide'}
-    steps: *arch_steps
 
   build_baidunetdisk:
     name: Build Baidu Netdisk
@@ -490,16 +220,6 @@ jobs:
           artifact_dir: 'baidunetdisk/dist'
           github_token: ${{ github.token }}
 
-  build_cc_switch:
-    name: Build CC Switch
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).cc_switch == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'cc-switch/build_cc-switch.sh', ARTIFACT_DIR: 'cc-switch/dist', RELEASE_NAME: 'cc-switch.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'cc-switch'}
-    steps: *arch_steps
 
   build_chatgpt:
     name: Build ChatGPT
@@ -514,49 +234,6 @@ jobs:
     env: {BUILD_SCRIPT: 'chatgpt/build_chatgpt.sh', ARTIFACT_DIR: 'chatgpt/dist', RELEASE_NAME: 'chatgpt.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'chatgpt'}
     steps: *arch_steps
 
-  build_chromium:
-    name: Build Chromium
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).chromium == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'chromium/build_chromium.sh', ARTIFACT_DIR: 'chromium/dist', RELEASE_NAME: 'chromium.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'chromium'}
-    steps: *arch_steps
-
-  build_claude_desktop:
-    name: Build Claude Desktop
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).claude_desktop == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'claude-desktop/build_claude-desktop.sh', ARTIFACT_DIR: 'claude-desktop/dist', RELEASE_NAME: 'claude-desktop.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'claude-desktop'}
-    steps: *arch_steps
-
-  build_copyq:
-    name: Build CopyQ
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).copyq == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'copyq/build_copyq.sh', ARTIFACT_DIR: 'copyq/dist', RELEASE_NAME: 'copyq.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'copyq'}
-    steps: *arch_steps
-
-  build_cursor:
-    name: Build Cursor
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).cursor == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'cursor/build_cursor.sh', ARTIFACT_DIR: 'cursor/dist', RELEASE_NAME: 'cursor.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'cursor'}
-    steps: *arch_steps
 
   build_dconf_editor:
     name: Build dconf Editor
@@ -621,27 +298,6 @@ jobs:
           artifact_dir: 'dconf-editor/dist'
           github_token: ${{ github.token }}
 
-  build_deepseek_harness:
-    name: Build DeepSeek Harness
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).deepseek_harness == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'deepseek-harness/build_deepseek-harness.sh', ARTIFACT_DIR: 'deepseek-harness/dist', RELEASE_NAME: 'deepseek-harness.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'deepseek-harness'}
-    steps: *arch_steps
-
-  build_deskflow:
-    name: Build Deskflow
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).deskflow == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'deskflow/build_deskflow.sh', ARTIFACT_DIR: 'deskflow/dist', RELEASE_NAME: 'deskflow.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'deskflow'}
-    steps: *arch_steps
 
   build_dingtalk:
     name: Build DingTalk
@@ -698,82 +354,6 @@ jobs:
           artifact_dir: 'dingtalk/dist'
           github_token: ${{ github.token }}
 
-  build_escrcpy:
-    name: Build Escrcpy
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).escrcpy == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'escrcpy/build_escrcpy.sh', ARTIFACT_DIR: 'escrcpy/dist', RELEASE_NAME: 'escrcpy.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'escrcpy'}
-    steps: *arch_steps
-
-  build_feishu:
-    name: Build Feishu
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).feishu == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'feishu/build_feishu.sh', ARTIFACT_DIR: 'feishu/dist', RELEASE_NAME: 'feishu.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'feishu'}
-    steps: *arch_steps
-
-  build_flameshot:
-    name: Build Flameshot
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).flameshot == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'flameshot/build_flameshot.sh', ARTIFACT_DIR: 'flameshot/dist', RELEASE_NAME: 'flameshot.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_folo:
-    name: Build Folo
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).folo == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'folo/build_folo.sh', ARTIFACT_DIR: 'folo/dist', RELEASE_NAME: 'folo.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'folo'}
-    steps: *arch_steps
-
-  build_freedownloadmanager:
-    name: Build Free Download Manager
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).freedownloadmanager == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'freedownloadmanager/build_freedownloadmanager.sh', ARTIFACT_DIR: 'freedownloadmanager/dist', RELEASE_NAME: 'freedownloadmanager.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'freedownloadmanager'}
-    steps: *arch_steps
-
-  build_freerdp:
-    name: Build FreeRDP
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).freerdp == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'freerdp/build_freerdp.sh', ARTIFACT_DIR: 'freerdp/dist', RELEASE_NAME: 'xfreerdp3.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'xfreerdp3'}
-    steps: *arch_steps
-
-  build_gemini:
-    name: Build Gemini
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).gemini == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'gemini/build_gemini.sh', ARTIFACT_DIR: 'gemini/dist', RELEASE_NAME: 'gemini.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'gemini'}
-    steps: *arch_steps
 
   build_github_desktop:
     name: Build GitHub Desktop
@@ -838,27 +418,6 @@ jobs:
           artifact_dir: 'github-desktop/dist'
           github_token: ${{ github.token }}
 
-  build_gitkraken:
-    name: Build GitKraken
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).gitkraken == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'gitkraken/build_gitkraken.sh', ARTIFACT_DIR: 'gitkraken/dist', RELEASE_NAME: 'gitkraken.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'gitkraken'}
-    steps: *arch_steps
-
-  build_goldendict_ng:
-    name: Build GoldenDict-ng
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).goldendict_ng == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'goldendict-ng/build_goldendict-ng.sh', ARTIFACT_DIR: 'goldendict-ng/dist', RELEASE_NAME: 'goldendict-ng.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
 
   build_hermes_desktop:
     name: Build Hermes Desktop
@@ -925,27 +484,6 @@ jobs:
           artifact_dir: 'hermes-desktop/dist'
           github_token: ${{ github.token }}
 
-  build_htop:
-    name: Build htop
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).htop == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'htop/build_htop.sh', ARTIFACT_DIR: 'htop/dist', RELEASE_NAME: 'htop.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'htop'}
-    steps: *arch_steps
-
-  build_i3wm:
-    name: Build i3wm
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).i3wm == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'i3wm/build_i3wm.sh', ARTIFACT_DIR: 'i3wm/dist', RELEASE_NAME: 'i3.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'i3'}
-    steps: *arch_steps
 
   build_joplin:
     name: Build Joplin
@@ -990,6 +528,7 @@ jobs:
           artifact_dir: 'joplin/dist'
           github_token: ${{ github.token }}
 
+
   build_jriver:
     name: Build JRiver
     needs: plan
@@ -1003,38 +542,6 @@ jobs:
     env: {BUILD_SCRIPT: 'jriver/build_jriver.sh', ARTIFACT_DIR: 'jriver/dist', RELEASE_NAME: 'jriver.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_kde_suite:
-    name: Build KDE Suite
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).kde_suite == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'kde-suite/build_kde_suite.sh', ARTIFACT_DIR: 'kde-suite/dist', RELEASE_NAME: 'kde-suite.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'kde-suite'}
-    steps: *arch_steps
-
-  build_keepass:
-    name: Build KeePass
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).keepass == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'keepass/build_keepass.sh', ARTIFACT_DIR: 'dist', RELEASE_NAME: 'keepass.AppImage', RUN_FROM_ROOT: 'true', SOFTWARE_KEY: 'keepass'}
-    steps: *arch_steps
-
-  build_keepassxc:
-    name: Build KeePassXC
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).keepassxc == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'keepassxc/build_keepassxc.sh', ARTIFACT_DIR: 'keepassxc/dist', RELEASE_NAME: 'keepassxc.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'keepassxc'}
-    steps: *arch_steps
 
   build_keyviz:
     name: Build Keyviz
@@ -1111,82 +618,6 @@ jobs:
           artifact_dir: 'dist'
           github_token: ${{ github.token }}
 
-  build_kitty:
-    name: Build kitty
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).kitty == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'kitty/build_kitty.sh', ARTIFACT_DIR: 'kitty/dist', RELEASE_NAME: 'kitty.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'kitty'}
-    steps: *arch_steps
-
-  build_mailmaster:
-    name: Build MailMaster
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).mailmaster == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'mailmaster/build_mailmaster.sh', ARTIFACT_DIR: 'mailmaster/dist', RELEASE_NAME: 'mailmaster.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'mailmaster'}
-    steps: *arch_steps
-
-  build_mission_center:
-    name: Build Mission Center
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).mission_center == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'mission-center/build_mission-center.sh', ARTIFACT_DIR: 'mission-center/dist', RELEASE_NAME: 'mission-center.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'mission-center'}
-    steps: *arch_steps
-
-  build_moderncsv:
-    name: Build Modern CSV
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).moderncsv == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'moderncsv/build_moderncsv.sh', ARTIFACT_DIR: 'moderncsv/dist', RELEASE_NAME: 'moderncsv.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'moderncsv'}
-    steps: *arch_steps
-
-  build_mpv:
-    name: Build mpv
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).mpv == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'mpv/build_mpv.sh', ARTIFACT_DIR: 'mpv/dist', RELEASE_NAME: 'mpv.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'mpv'}
-    steps: *arch_steps
-
-  build_newsboat:
-    name: Build Newsboat
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).newsboat == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'newsboat/build_newsboat.sh', ARTIFACT_DIR: 'dist', RELEASE_NAME: 'newsboat.AppImage', RUN_FROM_ROOT: 'true', SOFTWARE_KEY: 'newsboat'}
-    steps: *arch_steps
-
-  build_nvtop:
-    name: Build nvtop
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).nvtop == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'nvtop/build_nvtop.sh', ARTIFACT_DIR: 'nvtop/dist', RELEASE_NAME: 'nvtop.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'nvtop'}
-    steps: *arch_steps
 
   build_obs_studio:
     name: Build OBS Studio
@@ -1243,82 +674,6 @@ jobs:
           artifact_dir: 'obs-studio/dist'
           github_token: ${{ github.token }}
 
-  build_obsidian:
-    name: Build Obsidian
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).obsidian == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'obsidian/build_obsidian.sh', ARTIFACT_DIR: 'obsidian/dist', RELEASE_NAME: 'obsidian.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'obsidian'}
-    steps: *arch_steps
-
-  build_parsec:
-    name: Build Parsec
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).parsec == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'parsec/build_parsec.sh', ARTIFACT_DIR: 'parsec/dist', RELEASE_NAME: 'parsec.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'parsec'}
-    steps: *arch_steps
-
-  build_picom:
-    name: Build Picom
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).picom == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'picom/build_picom.sh', ARTIFACT_DIR: 'picom/dist', RELEASE_NAME: 'picom.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'picom'}
-    steps: *arch_steps
-
-  build_postman:
-    name: Build Postman
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).postman == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'postman/build_postman.sh', ARTIFACT_DIR: 'postman/dist', RELEASE_NAME: 'postman.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_qemu:
-    name: Build QEMU
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).qemu == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'qemu/build_qemu.sh', ARTIFACT_DIR: 'qemu/dist', RELEASE_NAME: 'qemu.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'qemu'}
-    steps: *arch_steps
-
-  build_rainlendar2:
-    name: Build Rainlendar2
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).rainlendar2 == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'rainlendar2/build_rainlendar2.sh', ARTIFACT_DIR: 'rainlendar2/dist', RELEASE_NAME: 'rainlendar2.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'rainlendar2'}
-    steps: *arch_steps
-
-  build_realvnc_connect:
-    name: Build RealVNC Connect
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).realvnc_connect == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh', ARTIFACT_DIR: 'realvnc-rvnc-connect/dist', RELEASE_NAME: 'rvncconnect.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'realvnc_connect'}
-    steps: *arch_steps
 
   build_remmina:
     name: Build Remmina
@@ -1416,82 +771,6 @@ jobs:
           artifact_dir: 'remmina/dist'
           github_token: ${{ github.token }}
 
-  build_remotedesktopmanager:
-    name: Build Remote Desktop Manager
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).remotedesktopmanager == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'remotedesktopmanager/build_remotedesktopmanager.sh', ARTIFACT_DIR: 'remotedesktopmanager/dist', RELEASE_NAME: 'remotedesktopmanager.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_ripdrag:
-    name: Build ripdrag
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).ripdrag == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'ripdrag/build_ripdrag.sh', ARTIFACT_DIR: 'ripdrag/dist', RELEASE_NAME: 'ripdrag.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'ripdrag'}
-    steps: *arch_steps
-
-  build_rofi:
-    name: Build Rofi
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).rofi == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'rofi/build_rofi.sh', ARTIFACT_DIR: 'rofi/dist', RELEASE_NAME: 'rofi.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'rofi'}
-    steps: *arch_steps
-
-  build_simplescreenrecorder:
-    name: Build SimpleScreenRecorder
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).simplescreenrecorder == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'simplescreenrecorder/build_simplescreenrecorder.sh', ARTIFACT_DIR: 'simplescreenrecorder/dist', RELEASE_NAME: 'simplescreenrecorder.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'simplescreenrecorder'}
-    steps: *arch_steps
-
-  build_smplayer:
-    name: Build SMPlayer
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).smplayer == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'smplayer/build_smplayer.sh', ARTIFACT_DIR: 'smplayer/dist', RELEASE_NAME: 'smplayer.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'smplayer'}
-    steps: *arch_steps
-
-  build_stacher:
-    name: Build Stacher
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).stacher == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'stacher/build_stacher.sh', ARTIFACT_DIR: 'stacher/dist', RELEASE_NAME: 'stacher.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'stacher'}
-    steps: *arch_steps
-
-  build_sunshine:
-    name: Build Sunshine
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).sunshine == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'sunshine/build_sunshine.sh', ARTIFACT_DIR: 'sunshine/dist', RELEASE_NAME: 'sunshine.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'sunshine'}
-    steps: *arch_steps
 
   build_tencent_docs:
     name: Build Tencent Docs
@@ -1509,16 +788,6 @@ jobs:
       SOFTWARE_VERSION_SOURCE: tencent-docs/dist/tencent-docs-version.txt
     steps: *arch_steps
 
-  build_trae:
-    name: Build Trae
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).trae == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'trae/build_trae.sh', ARTIFACT_DIR: 'trae/dist', RELEASE_NAME: 'trae.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'trae'}
-    steps: *arch_steps
 
   build_trae_work:
     name: Build TraeWork
@@ -1646,27 +915,6 @@ jobs:
           artifact_dir: 'trae-work/dist'
           github_token: ${{ github.token }}
 
-  build_v2rayn:
-    name: Build v2rayN
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).v2rayn == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'v2rayn/build_v2rayn.sh', ARTIFACT_DIR: 'v2rayn/dist', RELEASE_NAME: 'v2rayn.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'v2rayn'}
-    steps: *arch_steps
-
-  build_ventoy:
-    name: Build Ventoy
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).ventoy == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'ventoy/build_ventoy.sh', ARTIFACT_DIR: 'ventoy/dist', RELEASE_NAME: 'ventoy.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'ventoy'}
-    steps: *arch_steps
 
   build_virt_manager:
     name: Build Virt Manager
@@ -1681,38 +929,6 @@ jobs:
     env: {BUILD_SCRIPT: 'virt-manager/build_virt-manager.sh', ARTIFACT_DIR: 'virt-manager/dist', RELEASE_NAME: 'virt-manager.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
 
-  build_vscode:
-    name: Build VS Code
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).vscode == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'vscode/build_vscode.sh', ARTIFACT_DIR: 'vscode/dist', RELEASE_NAME: 'vscode.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'vscode'}
-    steps: *arch_steps
-
-  build_webcamoid:
-    name: Build Webcamoid
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).webcamoid == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'webcamoid/build_webcamoid.sh', ARTIFACT_DIR: 'webcamoid/dist', RELEASE_NAME: 'webcamoid.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'webcamoid'}
-    steps: *arch_steps
-
-  build_wechat:
-    name: Build WeChat
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).wechat == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'wechat/build_wechat.sh', ARTIFACT_DIR: 'wechat/dist', RELEASE_NAME: 'wechat.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'wechat'}
-    steps: *arch_steps
 
   build_winpodx:
     name: Build WinPodX
@@ -1769,6 +985,7 @@ jobs:
           asset_name: 'winpodx.AppImage'
           artifact_dir: 'winpodx/dist'
           github_token: ${{ github.token }}
+
 
   build_workbuddy:
     name: Build WorkBuddy AppImage
@@ -1889,16 +1106,6 @@ jobs:
           artifact_dir: 'workbuddy/dist'
           github_token: ${{ github.token }}
 
-  build_xmind:
-    name: Build Xmind
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).xmind == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'xmind/build_xmind.sh', ARTIFACT_DIR: 'xmind/dist', RELEASE_NAME: 'xmind.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
 
   build_xnconvert:
     name: Build XnConvert
@@ -1962,6 +1169,7 @@ jobs:
           artifact_dir: 'xnconvert/dist'
           github_token: ${{ github.token }}
 
+
   build_xnviewmp:
     name: Build XnView MP
     needs: plan
@@ -2023,28 +1231,6 @@ jobs:
           asset_name: 'xnviewmp.AppImage'
           artifact_dir: 'xnviewmp/dist'
           github_token: ${{ github.token }}
-
-  build_zen:
-    name: Build Zen
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).zen == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'zen/build_zen.sh', ARTIFACT_DIR: 'zen/dist', RELEASE_NAME: 'zen.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
-
-  build_zotero:
-    name: Build Zotero
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).zotero == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: *arch_timeout
-    container: *arch_container
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'zotero/build_zotero.sh', ARTIFACT_DIR: 'zotero/dist', RELEASE_NAME: 'zotero.AppImage', RUN_FROM_ROOT: 'false', SOFTWARE_KEY: 'zotero'}
-    steps: *arch_steps
 
   verify_direct_appimage:
     name: Verify direct AppImage GUI launch

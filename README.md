@@ -9,7 +9,7 @@
 ## 仓库说明
 
 - 每个应用原则上使用独立目录维护构建脚本和相关文件。
-- 正式 AppImage 构建统一由 `.github/workflows/build.yml` 管理。
+- 正式 AppImage 构建统一由 `.github/workflows/build.yml` 管理；标准应用清单在 `.github/appimage-apps.json`。
 - 已验证正常的现有构建方案视为稳定基线，修改时应遵循最小变更原则。
 - 优先使用上游官方程序、资源和发布包，只处理 Linux 打包、依赖、启动及兼容性问题。
 

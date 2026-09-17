@@ -196,7 +196,7 @@ README 必须基于当前目录的真实脚本、workflow、上游来源和已�
 ### workflow 迁移方式
 
 - 源仓库的 workflow 主要用于确认原始构建环境、系统依赖、环境变量、命令顺序、构建入口、artifact / Release 产物名和已经验证过的特殊处理。
-- **禁止为了迁移创建任何临时 test workflow。** 新项目需要在本仓库构建时，直接按第 7 节接入正式统一 workflow 的正常 build Job；不得增加 test / smoke Job 或 Step。
+- **禁止为了迁移创建任何临时 test workflow。** 新项目需要在本仓库构建时，直接按第 7 节接入正式统一 workflow（标准应用写入 `.github/appimage-apps.json`，特例才在 `build.yml` 加独立 Job）；不得增加 test / smoke Job 或 Step。
 - 原仓库 workflow 成功不代表可以把它作为本仓库新的长期独立 workflow 原样复制。普通 AppImage 项目仍必须按照第 7 节规则接入本仓库统一 `.github/workflows/build.yml`。
 - 正式接入 `build.yml` 时，应保留原方案中真正影响成功构建的依赖和步骤，同时适配本仓库的 Job 隔离、plan、paths、`workflow_dispatch` 和公共 Action 结构；不得为了“完全照抄”破坏本仓库统一工作流设计，也不得复制源仓库的测试步骤。
 - 迁移完成后核对远程文件、SHA、diff 和仓库外静态检查结果；本仓库提交后的 Actions 按第 7 节默认不监控。已有 build / artifact 证据可用于说明已知结果，未验证的构建和运行状态必须明确记录；不得新增 build 之外的测试代码。
@@ -431,24 +431,27 @@ linuxdeploy 额外规则：
 
 `/.github/workflows/build.yml`
 
+应用清单统一放在：
+
+`/.github/appimage-apps.json`
+
 该 workflow 的既有设计是：
 
 - 一个统一入口；
-- 每个应用独立 Job；
-- 每个 Job 独立运行环境；
-- 不使用 Matrix；
-- 通过 plan 阶段决定需要构建的项目；
+- Plan 读取清单决定构建哪些应用；
+- `kind: standard` 的 Arch / `build-anylinux` 应用由 **matrix** 调度（`fail-fast: false`），每个应用仍是独立 runner、独立运行环境；
+- 容器、runner、步骤或额外环境与标准模板不同的应用标记为 `kind: special`，在 `build.yml` 中保持独立 Job，**不得**塞进同一个 matrix；
+- 每个 Job / matrix 组合完成自身构建与发布后，立即由当前 Job 写入 `software_versions.json`；
 - 能复用 `.github/actions/build-anylinux` 时优先复用。
 
-### 新增应用时保持排序与映射一致
+### 新增应用时保持清单与特例 Job 一致
 
-- 手动运行表单中的脚本下拉列表必须把 `all` 固定放在第一项，其余选项按应用目录名进行不区分大小写的 A→Z 排序；同一目录有多个脚本时，再按脚本名排序。保留原有路径、大小写和选项值，不得为了排序重命名。
-- 新增或迁移应用时，把新选项插入正确位置，不得追加到列表末尾；删除应用时，仅移除对应选项。已有同类脚本下拉列表在维护时遵循同一规则。
-- `.github/workflows/build.yml` 中所有正式 `Build ...` Job 必须按 Job 的显示名称（去掉固定的 `Build ` 前缀后）进行不区分大小写的 A→Z 排列；`Plan` 固定在最前，非 `Build ...` 的附属 Job 固定放在全部 Build Job 之后。新增或迁移应用时，必须把新 Build Job 插入正确的字母位置，不得直接追加到现有 Build Job 队列末尾。
-- 下拉选项顺序与 Job 顺序分别维护；排列位置不代表执行先后，不得为了字母顺序修改 `needs` 或构建步骤。
-- `Plan` 中的 `KEYS`、`SCRIPTS`、`DIRS` 等按下标关联的数组必须逐项对应，禁止单独排序其中一个数组。新增条目时同步补齐同一应用的键、脚本和目录；没有整体整理要求时，不为显示排序改动这些数组。
-- 提交前核对选项无重复、无遗漏，选项路径与选择映射一致，并确认对应 Job、触发路径、构建脚本和 Release 资产名衔接正确。只调整排序时，完整 diff 应限于条目位置，不改搜索框位置、默认值、匹配逻辑或构建行为。
-- 本规则不授权顺手重排其他 workflow 或文件，也不得为了排序新增测试代码、测试 Job 或测试 Step。
+- 标准 Arch 应用：只在 `.github/appimage-apps.json` 增加一条 `kind: standard` 记录（按应用目录名不区分大小写 A→Z 插入）。不要再手写 `KEYS` / `SCRIPTS` / `DIRS`，也不要再复制一份标准 Job YAML。
+- 清单字段至少包含：`key`、`kind`、`name`、`script`、`dir`；标准应用还要有 `artifact_dir`、`release_name`、`software_key`、`timeout_minutes`、`run_from_root`。
+- 特例应用：清单里加 `kind: special`，并在 `build.yml` 新增独立 Job。特例 Job 按显示名称（去掉 `Build ` 前缀）不区分大小写 A→Z 排列；`Plan` 固定最前，matrix 标准 Job 紧随其后，非 `Build ...` 的附属 Job 仍放在全部 Build Job 之后。
+- 手动运行入口为字符串：`all` 或脚本路径 / 应用名；`script_search` 填写时优先模糊匹配。不再维护按应用罗列的 choice 下拉。
+- 提交前核对清单无重复、无遗漏，`script` / `dir` 与仓库路径一致；特例的独立 Job、`if: fromJSON(needs.plan.outputs.builds).<key>` 与清单 `key` 一致。
+- 本规则不授权顺手重排其他 workflow，也不得为了排序新增测试代码、测试 Job 或测试 Step。
 
 ### 按产物类型使用现有入口
 
@@ -487,9 +490,9 @@ linuxdeploy 额外规则：
 
 ### 正式 workflow 规则
 
-- 不得把已经验证并正式接入的普通 AppImage 项目再长期拆成独立 workflow。
-- 不要把已有独立 Job 改成 Matrix，除非用户明确要求整体架构重构。
-- 不要为了节省 public repository 的 Actions 使用量而合并本来应该隔离的构建任务；构建正确性和隔离性优先。
+- 不得把已经验证并正式接入的普通 AppImage 项目再长期拆成独立 workflow 文件。
+- 标准 Arch 应用使用清单 + matrix；不要把 runner / 容器 / 步骤不同的特例 Job 改进同一个 matrix。
+- 不要为了节省 public repository 的 Actions 使用量而合并本来应该隔离的构建任务；构建正确性和隔离性优先。 matrix 必须 `fail-fast: false`。
 - `.github/workflows/build_runimage.yml` 是另一类构建入口；普通 AppImage 任务不要擅自迁移过去。
 - 只有当现有统一 workflow 明确无法满足正式构建需求，或者用户明确要求时，才考虑长期新增独立 workflow；新增的长期 workflow 也不得包含测试代码。
 
@@ -570,7 +573,7 @@ linuxdeploy 额外规则：
 - 擅自扩大任务范围；
 - 擅自删除兼容代码；
 - 只改 workflow 不核对实际脚本；
-- 只改脚本却忘记把新项目接入统一 workflow；
+- 只改脚本却忘记把新项目写入 `.github/appimage-apps.json` 或特例独立 Job；
 - 把临时 workaround 当永久方案而不注明原因；
 - 新增任何测试、冒烟测试、test workflow 或测试专用代码。
 
