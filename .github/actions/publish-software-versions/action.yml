@@ -82,17 +82,66 @@ runs:
         current_json="$workdir/current.json"
         manifest="$workdir/software_versions.json"
         payload="$workdir/payload.json"
+        update_json="$workdir/update.json"
+        updated_blob_json="$workdir/updated-blob.json"
+        lock_name='software_versions.json.lock'
+        lock_file="$workdir/$lock_name"
         rm -rf "$workdir"
         mkdir -p "$workdir"
+        printf '%s\n' "run=$GITHUB_RUN_ID job=$GITHUB_JOB attempt=$GITHUB_RUN_ATTEMPT" > "$lock_file"
 
-        # 每个 Build 自己立即写清单。并发冲突只重新读取最新清单、合并当前条目并重试；
-        # 不等待其他 Build 完成，也不等待 all 结束。
-        updated=false
-        for attempt in $(seq 1 60); do
-          rm -f "$current_json" "$manifest" "$payload"
+        # 所有构建、Release 上传和当前资产校验都已完成；只在清单读改写临界区等待锁。
+        lock_asset_id=''
+        lock_owned=false
+        cleanup_lock() {
+          if [[ "$lock_owned" == true && -n "$lock_asset_id" ]]; then
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$lock_asset_id" >/dev/null 2>&1 || true
+          fi
+        }
+        trap cleanup_lock EXIT
 
-          if gh api "repos/$GITHUB_REPOSITORY/contents/$manifest_path?ref=$default_branch" > "$current_json" 2>/dev/null; then
-            manifest_sha="$(python3 - "$current_json" "$manifest" <<'PY'
+        acquired=false
+        for attempt in $(seq 1 180); do
+          if gh release upload latest "$lock_file" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            lock_asset_id="$(
+              gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" \
+                --jq ".assets[] | select(.name == \"$lock_name\") | .id" | head -n 1
+            )"
+            [[ -n "$lock_asset_id" ]] || {
+              echo '已取得 software_versions.json 写锁，但无法读取锁资产 ID。' >&2
+              exit 1
+            }
+            lock_owned=true
+            acquired=true
+            break
+          fi
+
+          lock_row="$(
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" \
+              --jq ".assets[] | select(.name == \"$lock_name\") | [.id,.created_at] | @tsv" \
+              | head -n 1 || true
+          )"
+          [[ -n "$lock_row" ]] || {
+            echo '获取 software_versions.json 写锁失败，且未发现其他 Job / Action 持有锁。' >&2
+            exit 1
+          }
+          lock_id="${lock_row%%$'\t'*}"
+          created_at="${lock_row#*$'\t'}"
+          created_epoch="$(date -u -d "$created_at" +%s 2>/dev/null || echo 0)"
+          now_epoch="$(date -u +%s)"
+          if (( created_epoch > 0 && now_epoch - created_epoch > 300 )); then
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$lock_id" >/dev/null 2>&1 || true
+          fi
+          sleep 2
+        done
+        [[ "$acquired" == true ]] || {
+          echo '短暂等待 software_versions.json 写锁超时。' >&2
+          exit 1
+        }
+
+        # 取得锁后立即读取最新清单，只合并当前软件条目并写回；不等待任何 Job / Action 或 all。
+        gh api "repos/$GITHUB_REPOSITORY/contents/$manifest_path?ref=$default_branch" > "$current_json"
+        manifest_sha="$(python3 - "$current_json" "$manifest" <<'PY'
         import base64, json, sys
         src, dst = sys.argv[1:]
         data = json.load(open(src, encoding='utf-8'))
@@ -104,21 +153,9 @@ runs:
         open(dst, 'wb').write(raw)
         print(sha)
         PY
-        )" || { sleep 1; continue; }
-          else
-            # 仅首次迁移允许从现有 latest Release 清单初始化；以后都直接更新仓库根清单。
-            if gh release view latest --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq "$manifest_path"; then
-              if ! gh release download latest --repo "$GITHUB_REPOSITORY" --pattern "$manifest_path" --dir "$workdir" --clobber; then
-                sleep 1
-                continue
-              fi
-            else
-              printf '{}\n' > "$manifest"
-            fi
-            manifest_sha=''
-          fi
+        )"
 
-          python3 - "$manifest" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
+        python3 - "$manifest" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
         import json, sys
         path, key, version, asset, sha256 = sys.argv[1:]
         with open(path, encoding='utf-8') as f:
@@ -131,58 +168,46 @@ runs:
             f.write('\n')
         PY
 
-          python3 - "$manifest" "$payload" "$manifest_sha" "$default_branch" "$SOFTWARE_KEY" <<'PY'
+        python3 - "$manifest" "$payload" "$manifest_sha" "$default_branch" "$SOFTWARE_KEY" <<'PY'
         import base64, json, sys
         manifest, payload, sha, branch, key = sys.argv[1:]
         body = {
             'message': f'Update {key} software version',
             'content': base64.b64encode(open(manifest, 'rb').read()).decode('ascii'),
             'branch': branch,
+            'sha': sha,
         }
-        if sha:
-            body['sha'] = sha
         with open(payload, 'w', encoding='utf-8') as f:
             json.dump(body, f, ensure_ascii=False)
         PY
 
-          if gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$manifest_path" --input "$payload" >/dev/null 2>&1; then
-            updated=true
-            break
-          fi
+        gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$manifest_path" \
+          --input "$payload" > "$update_json"
+        updated_blob_sha="$(python3 - "$update_json" <<'PY'
+        import json, sys
+        data = json.load(open(sys.argv[1], encoding='utf-8'))
+        sha = (data.get('content') or {}).get('sha') or ''
+        if not sha:
+            raise SystemExit('写入完成后未取得 software_versions.json blob SHA')
+        print(sha)
+        PY
+        )"
 
-          # 典型情况是另一个 Build 刚刚先写入；立即读取新 SHA 后重新合并当前条目。
-          sleep 1
-        done
-
-        [[ "$updated" == true ]] || {
-          echo "$SOFTWARE_KEY 未能写入 $manifest_path。" >&2
-          exit 1
-        }
-
-        # 回读默认分支上的正式清单，只确认当前 Build 自己的条目。
-        verified=false
-        for attempt in $(seq 1 12); do
-          if gh api "repos/$GITHUB_REPOSITORY/contents/$manifest_path?ref=$default_branch" > "$current_json" 2>/dev/null; then
-            if python3 - "$current_json" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
+        # 按本次写入返回的唯一 blob SHA 校验，避免把其他内容误当成本次结果。
+        gh api "repos/$GITHUB_REPOSITORY/git/blobs/$updated_blob_sha" > "$updated_blob_json"
+        python3 - "$updated_blob_json" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
         import base64, json, sys
         path, key, version, asset, sha256 = sys.argv[1:]
         meta = json.load(open(path, encoding='utf-8'))
         raw = base64.b64decode((meta.get('content') or '').replace('\n', ''), validate=True)
         data = json.loads(raw.decode('utf-8'))
         expected = {'version': version, 'asset': asset, 'sha256': sha256}
-        raise SystemExit(0 if data.get(key) == expected else 1)
+        if data.get(key) != expected:
+            raise SystemExit(f'{key} 写入 software_versions.json 后校验失败')
         PY
-            then
-              verified=true
-              break
-            fi
-          fi
-          sleep 1
-        done
 
-        [[ "$verified" == true ]] || {
-          echo "$SOFTWARE_KEY 写入 software_versions.json 后校验失败。" >&2
-          exit 1
-        }
+        gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$lock_asset_id" >/dev/null
+        lock_owned=false
+        trap - EXIT
 
         echo "$SOFTWARE_KEY 已由当前 Build 立即更新 software_versions.json。"

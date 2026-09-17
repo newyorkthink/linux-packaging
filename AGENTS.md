@@ -43,6 +43,8 @@
 - 固定时序只有一个：**当前 Job / Action 完成自身对应的构建与发布 → 立即写入或覆盖更新自己的 `software_versions.json` 条目 → 当前 Job / Action 结束。**
 - 禁止等待其他 Job / Action；禁止等待 `all` 全部结束；禁止把多个 Job / Action 的版本信息留到最后一次性写入。
 - 禁止中央 publisher、collector、aggregator、watcher 或任何其他“先收集、后统一写入”的模式。
+- 唯一允许的短暂等待，是多个 Job / Action 并发写入 `software_versions.json` 时，在“读取最新清单 → 合并当前软件唯一条目 → 写入 → 校验”临界区等待互斥锁；构建、Release 上传和当前资产校验不得进入锁内。
+- 取得 `software_versions.json` 写锁后必须立即完成当前软件条目的读取、合并、写入和校验并释放锁；不得在锁内等待其他 Job / Action 状态、轮询构建结果、下载其他 Job artifact 或等待 `all`。
 - 后续任何 AI、workflow、Action 或版本清单架构调整，都必须把“每个独立 Job / Action 完成后立即写入自己的版本信息”作为最高且唯一标准；不得引入其他中心目标替代、弱化、延迟或绕开这一原则。
 
 ## 1. 仓库目标

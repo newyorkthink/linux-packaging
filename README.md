@@ -32,7 +32,7 @@
 
 当前统一版本元数据机制不会向 AppImage 文件内部额外写入版本信息，也不会为了版本管理修改 AppImage 内部内容。
 
-版本信息单独通过构建目录中的 `version.txt` 和 Release 中的 `software_versions.json` 维护。
+版本信息单独通过构建目录中的 `version.txt` 和仓库根目录的 `software_versions.json` 维护。
 
 AppImage 在本机运行时也不会自动生成版本信息。
 
@@ -40,16 +40,16 @@ AppImage 在本机运行时也不会自动生成版本信息。
 
 ### 软件版本清单
 
-`latest` Release 中的 `software_versions.json` 用于记录已接入版本元数据机制的软件版本、稳定资产名和 SHA-256。
+仓库根目录的 `software_versions.json` 用于记录已接入版本元数据机制的软件版本、稳定资产名和 SHA-256。
 
 发布逻辑固定为：
 
 1. 每个已接入版本元数据机制的 Build 独立构建并上传自己的 AppImage，Build 之间继续并行。
 2. 某个 Build 的 Release AppImage 上传成功后，**由当前 Build 自己立即调用** `.github/actions/publish-software-versions`；不存在中央 publisher Job 等待或汇总其他 Build。
 3. 共享 action 读取当前 Build 的 `version.txt`，确认目标 Release 资产的 GitHub SHA-256 与本次 Build 产出的 AppImage SHA-256 一致后，才允许写清单。
-4. 多个 Build 同时完成时，仅对 `software_versions.json` 的读取、合并当前软件唯一条目、上传和校验这一小段操作使用短时间互斥锁；应用构建和 AppImage 上传不因此串行。
-5. 取得锁后必须重新读取 Release 中最新的 `software_versions.json`，只覆盖当前软件自己的条目并完整保留其他条目；只有清单原本不存在时才允许从空对象初始化。
-6. 写入完成后重新取得正式清单的唯一资产 ID，并通过该资产 ID 下载同一份内容；只有资产 digest、下载内容 SHA-256 和当前软件条目全部一致，当前 Build 才完成版本元数据发布。
+4. 多个 Build 同时完成时，仅允许在 `software_versions.json` 的“读取最新清单 → 合并当前软件唯一条目 → 写入 → 校验”临界区短暂等待 `software_versions.json.lock`；应用构建、AppImage 上传和当前资产校验不进入锁内。
+5. 取得锁后立即读取默认分支中的最新 `software_versions.json`，只覆盖当前软件自己的条目并完整保留其他条目，然后通过 GitHub Contents API 写回。
+6. 写入完成后通过本次写入返回的唯一 Git blob SHA 读取并校验同一份清单；确认当前软件条目正确后立即释放锁，当前 Build 随即结束。
 
 Build 失败、Release 资产上传失败、版本文件无效、Release digest 与本次产物不一致或清单校验失败时，禁止写入错误条目。该架构禁止改回中央 publisher、汇总 Job、轮询 Job 或等待全部 Build 后统一更新的模式。
 
@@ -61,10 +61,14 @@ Build 失败、Release 资产上传失败、版本文件无效、Release digest 
 
 现已删除中央等待型 publisher Job。每个 Build 在自己的 Release AppImage 上传成功后立即写自己的条目；并发时只串行版本清单的短读改写临界区，不串行应用构建。
 
+### 2026-09-17：写锁仅覆盖版本清单临界区
+
+每个 Build 先独立完成构建、Release 上传及自身资产 SHA-256 校验，随后才为仓库根目录的 `software_versions.json` 获取短期写锁。取得锁后立即读取最新清单、合并当前软件唯一条目、写入并按本次返回的 Git blob SHA 校验，完成后立即释放；不会等待其他 Build、其他 Action 或 `all` 结束。
+
 ### 2026-09-17：修复全量构建期间版本清单读取不一致
 
 此前版本发布会先上传临时清单资产，再把临时资产改名为固定的 `software_versions.json`。全量构建连续更新清单时，固定下载地址可能短暂取得上一资产的内容，而 Release API 已返回新资产的 digest，导致并发读取出现 SHA-256 不一致。
 
-现在版本发布直接替换正式清单，并在写入后重新取得正式资产的唯一 ID；校验过程通过同一资产 ID 下载内容，同时核对 GitHub Release digest、下载内容 SHA-256 和当前软件条目。每个 Build 仍在上传自己的 AppImage 后立即更新自己的唯一条目，应用构建和 AppImage 上传继续并行。
+该阶段曾改为直接替换 Release 中的正式清单，并通过同一资产 ID 校验 digest 和下载内容；当前实现已进一步改为更新仓库根目录清单，并使用上节所述的短期写锁和 Git blob SHA 校验。每个 Build 始终在上传自己的 AppImage 后立即更新自己的唯一条目，应用构建和 AppImage 上传继续并行。
 
 > 本 README 仅作为仓库入口说明；AI 操作本仓库时请以 [AGENTS.md](./AGENTS.md) 为完整规范。
