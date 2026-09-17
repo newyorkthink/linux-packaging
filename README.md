@@ -48,7 +48,7 @@ AppImage 在本机运行时也不会自动生成版本信息。
 3. 共享 action 读取当前 Build 的 `version.txt`，确认目标 Release 资产的 GitHub SHA-256 与本次 Build 产出的 AppImage SHA-256 一致后，才允许写清单。
 4. 多个 Build 同时完成时，仅对 `software_versions.json` 的读取、合并当前软件唯一条目、上传和校验这一小段操作使用短时间互斥锁；应用构建和 AppImage 上传不因此串行。
 5. 取得锁后必须重新读取 Release 中最新的 `software_versions.json`，只覆盖当前软件自己的条目并完整保留其他条目；只有清单原本不存在时才允许从空对象初始化。
-6. 写入完成后立即重新下载清单并校验当前软件条目；校验通过后当前 Build 才完成版本元数据发布。
+6. 写入完成后重新取得正式清单的唯一资产 ID，并通过该资产 ID 下载同一份内容；只有资产 digest、下载内容 SHA-256 和当前软件条目全部一致，当前 Build 才完成版本元数据发布。
 
 Build 失败、Release 资产上传失败、版本文件无效、Release digest 与本次产物不一致或清单校验失败时，禁止写入错误条目。该架构禁止改回中央 publisher、汇总 Job、轮询 Job 或等待全部 Build 后统一更新的模式。
 
@@ -59,5 +59,11 @@ Build 失败、Release 资产上传失败、版本文件无效、Release digest 
 此前使用独立 `Publish successful software versions` Job 轮询其他 Build。该 Job 如果仍在等待 runner，已经成功上传的新 AppImage 会先于 `software_versions.json` 更新，从而出现 Release 资产已经变化、清单仍保存旧 SHA-256 的时间窗口。
 
 现已删除中央等待型 publisher Job。每个 Build 在自己的 Release AppImage 上传成功后立即写自己的条目；并发时只串行版本清单的短读改写临界区，不串行应用构建。
+
+### 2026-09-17：修复全量构建期间版本清单读取不一致
+
+此前版本发布会先上传临时清单资产，再把临时资产改名为固定的 `software_versions.json`。全量构建连续更新清单时，固定下载地址可能短暂取得上一资产的内容，而 Release API 已返回新资产的 digest，导致并发读取出现 SHA-256 不一致。
+
+现在版本发布直接替换正式清单，并在写入后重新取得正式资产的唯一 ID；校验过程通过同一资产 ID 下载内容，同时核对 GitHub Release digest、下载内容 SHA-256 和当前软件条目。每个 Build 仍在上传自己的 AppImage 后立即更新自己的唯一条目，应用构建和 AppImage 上传继续并行。
 
 > 本 README 仅作为仓库入口说明；AI 操作本仓库时请以 [AGENTS.md](./AGENTS.md) 为完整规范。

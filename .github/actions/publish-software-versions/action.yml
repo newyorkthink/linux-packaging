@@ -50,14 +50,9 @@ runs:
         lock_file="$RUNNER_TEMP/$lock_name"
         lock_asset_id=''
         lock_owned=false
-        staged_asset_id=''
-        staged_promoted=false
         printf '%s\n' "run=$GITHUB_RUN_ID job=$GITHUB_JOB attempt=$GITHUB_RUN_ATTEMPT" > "$lock_file"
 
         cleanup() {
-          if [[ "$staged_promoted" != true && -n "$staged_asset_id" ]]; then
-            gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$staged_asset_id" >/dev/null 2>&1 || true
-          fi
           if [[ "$lock_owned" == true && -n "$lock_asset_id" ]]; then
             gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$lock_asset_id" >/dev/null 2>&1 || true
           fi
@@ -139,52 +134,40 @@ runs:
             f.write('\n')
         PY
 
-        # 先把完整新清单作为唯一临时资产上传并校验，再切换正式名称。
-        # 这样网络故障发生在上传阶段时，旧 software_versions.json 仍保持原样，不会被 --clobber 先删除。
-        nonce="${GITHUB_RUN_ID}-${GITHUB_JOB}-${GITHUB_RUN_ATTEMPT}-$(date -u +%s)-$RANDOM"
-        staged_name="software_versions.json.pending.$nonce"
-        staged_path="$workdir/$staged_name"
-        cp "$manifest" "$staged_path"
-        staged_sha256="$(sha256sum "$staged_path" | awk '{print tolower($1)}')"
+        # 直接替换正式清单，避免临时资产改名后，固定下载地址仍短暂返回旧资产内容。
+        manifest_sha256="$(sha256sum "$manifest" | awk '{print tolower($1)}')"
+        gh release upload latest "$manifest" --repo "$GITHUB_REPOSITORY" --clobber
 
-        gh release upload latest "$staged_path" --repo "$GITHUB_REPOSITORY"
-        staged_asset_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" --jq ".assets[] | select(.name == \"$staged_name\") | .id" | head -n 1)"
-        [[ -n "$staged_asset_id" ]] || { echo '临时版本清单已上传，但无法读取资产 ID。' >&2; exit 1; }
-
-        staged_verify_dir="$workdir/staged-verify"
-        mkdir -p "$staged_verify_dir"
-        gh release download latest --repo "$GITHUB_REPOSITORY" --pattern "$staged_name" --dir "$staged_verify_dir" --clobber
-        downloaded_staged_sha256="$(sha256sum "$staged_verify_dir/$staged_name" | awk '{print tolower($1)}')"
-        [[ "$downloaded_staged_sha256" == "$staged_sha256" ]] || {
-          echo '临时版本清单上传后 SHA256 校验失败，保留旧正式清单。' >&2
+        # 重新取得正式资产 ID，并通过同一资产 ID 读取 digest 和内容，避免跨资产校验。
+        manifest_ready=false
+        for attempt in $(seq 1 12); do
+          manifest_row="$(
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" \
+              --jq '.assets | map(select(.name == "software_versions.json")) | if length == 1 then [.[0].id, (.[0].digest // "")] | @tsv else "" end'
+          )"
+          if [[ -n "$manifest_row" ]]; then
+            manifest_asset_id="${manifest_row%%$'\t'*}"
+            manifest_digest="${manifest_row#*$'\t'}"
+            if [[ "$manifest_digest" == "sha256:$manifest_sha256" ]]; then
+              rm -f "$verify_dir/software_versions.json"
+              if gh api \
+                -H 'Accept: application/octet-stream' \
+                "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id" \
+                > "$verify_dir/software_versions.json"; then
+                downloaded_manifest_sha256="$(sha256sum "$verify_dir/software_versions.json" | awk '{print tolower($1)}')"
+                if [[ "$downloaded_manifest_sha256" == "$manifest_sha256" ]]; then
+                  manifest_ready=true
+                  break
+                fi
+              fi
+            fi
+          fi
+          sleep 5
+        done
+        [[ "$manifest_ready" == true ]] || {
+          echo '正式版本清单上传后，资产 ID、GitHub Release digest 与实际内容未能取得一致快照。' >&2
           exit 1
         }
-
-        release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" --jq '.id')"
-        current_asset_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" --paginate --jq '.[] | select(.name == "software_versions.json") | .id' | head -n 1)"
-        backup_asset_id=''
-        backup_name=''
-
-        if [[ -n "$current_asset_id" ]]; then
-          backup_name="software_versions.json.previous.$nonce"
-          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/assets/$current_asset_id" -f name="$backup_name" >/dev/null
-          backup_asset_id="$current_asset_id"
-        fi
-
-        if ! gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/assets/$staged_asset_id" -f name='software_versions.json' >/dev/null; then
-          if [[ -n "$backup_asset_id" ]]; then
-            gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/assets/$backup_asset_id" -f name='software_versions.json' >/dev/null 2>&1 || true
-          fi
-          echo '切换正式版本清单名称失败；已尝试恢复上一份正式清单。' >&2
-          exit 1
-        fi
-        staged_promoted=true
-
-        if [[ -n "$backup_asset_id" ]]; then
-          gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$backup_asset_id" >/dev/null
-        fi
-
-        gh release download latest --repo "$GITHUB_REPOSITORY" --pattern 'software_versions.json' --dir "$verify_dir" --clobber
 
         python3 - "$verify_dir/software_versions.json" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
         import json, sys
