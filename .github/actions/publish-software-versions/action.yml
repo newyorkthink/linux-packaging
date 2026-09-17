@@ -144,14 +144,11 @@ runs:
             exit 1
           fi
           if (( ${#lock_rows[@]} == 0 )); then
-            if grep -Eiq 'HTTP 422|already[_ -]?exists' "$lock_upload_error"; then
-              # 另一 Job 刚释放锁或 Release 资产列表尚未显示该锁时，继续短暂争抢锁。
-              sleep 1
-              continue
-            fi
-            sed 's/^/gh release upload: /' "$lock_upload_error" >&2
-            echo '获取 software_versions.json 写锁失败，且未发现其他 Job / Action 持有锁。' >&2
-            exit 1
+            # 422 already_exists：别人刚抢到锁，列表还没刷新。
+            # 404/5xx：全量并发打 uploads.github.com 时的瞬时失败，锁并不存在。
+            # 这两种都继续等，不要当成“锁系统坏了”直接退出。
+            sleep 2
+            continue
           fi
           lock_row="${lock_rows[0]}"
           lock_id="${lock_row%%$'\t'*}"

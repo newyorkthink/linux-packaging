@@ -88,16 +88,16 @@ runs:
         cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
         test -s "$RELEASE_FILE"
 
-        for attempt in 1 2 3; do
-          if gh release upload latest "$RELEASE_FILE" \
+        for attempt in 1 2 3 4 5 6 7 8; do
+          if timeout 180 gh release upload latest "$RELEASE_FILE" \
             --repo "$GITHUB_REPOSITORY" \
             --clobber; then
             break
           fi
-          if [[ "$attempt" -eq 3 ]]; then
-            echo '上传 Release 资产失败，已重试 3 次。' >&2
+          if [[ "$attempt" -eq 8 ]]; then
+            echo '上传 Release 资产失败，已重试 8 次。' >&2
             exit 1
           fi
-          echo "上传 Release 资产失败，5 秒后重试（$attempt/3）。" >&2
-          sleep 5
+          echo "上传 Release 资产失败，$((attempt * 5)) 秒后重试（$attempt/8）。" >&2
+          sleep $((attempt * 5))
         done
