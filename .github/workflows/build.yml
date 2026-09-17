@@ -286,29 +286,6 @@ jobs:
           set -euo pipefail
           if gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" -f sha="$GITHUB_SHA" -F force=true >/dev/null; gh release edit latest --repo "$GITHUB_REPOSITORY" --title latest --notes latest --latest; else gh release create latest --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title latest --notes latest --latest; fi
 
-  publish_software_versions:
-    name: Publish successful software versions
-    needs: plan
-    if: ${{ always() && needs.plan.result == 'success' && needs.plan.outputs.should_build == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    concurrency:
-      group: software-versions-publisher
-      cancel-in-progress: false
-    permissions:
-      actions: read
-      contents: write
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Incrementally publish successful software versions
-        uses: ./.github/actions/publish-software-versions
-        with:
-          selected_builds: ${{ needs.plan.outputs.builds }}
-          source_run_id: ${{ github.run_id }}
-          github_token: ${{ github.token }}
 
   build_adspower_global:
     name: Build AdsPower Global
@@ -352,6 +329,16 @@ jobs:
           path: ${{ env.ARTIFACT_DIR }}/version.txt
           if-no-files-found: error
           retention-days: 1
+
+      - name: Publish software version immediately
+        if: env.SOFTWARE_KEY != ''
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: ${{ env.SOFTWARE_KEY }}
+          version_file: ${{ env.ARTIFACT_DIR }}/version.txt
+          asset_name: ${{ env.RELEASE_NAME }}
+          artifact_dir: ${{ env.ARTIFACT_DIR }}
+          github_token: ${{ github.token }}
 
   build_aionui:
     name: Build AionUi
@@ -404,6 +391,15 @@ jobs:
           gh release upload latest alacritty/dist/alacritty.AppImage \
             --repo "$GITHUB_REPOSITORY" \
             --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'alacritty'
+          version_file: 'alacritty/dist/version.txt'
+          asset_name: 'alacritty.AppImage'
+          artifact_dir: 'alacritty/dist'
+          github_token: ${{ github.token }}
 
   build_alttab:
     name: Build AltTab
@@ -471,6 +467,15 @@ jobs:
         run: |
           set -Eeuo pipefail
           gh release upload latest baidunetdisk/dist/baidunetdisk.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'baidunetdisk'
+          version_file: 'baidunetdisk/dist/version.txt'
+          asset_name: 'baidunetdisk.AppImage'
+          artifact_dir: 'baidunetdisk/dist'
+          github_token: ${{ github.token }}
 
   build_cc_switch:
     name: Build CC Switch
@@ -594,6 +599,15 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'dconf-editor'
+          version_file: 'dconf-editor/dist/version.txt'
+          asset_name: 'dconf-editor.AppImage'
+          artifact_dir: 'dconf-editor/dist'
+          github_token: ${{ github.token }}
+
   build_deepseek_harness:
     name: Build DeepSeek Harness
     needs: plan
@@ -661,6 +675,15 @@ jobs:
           test -s dingtalk/dist/dingtalk.AppImage
           gh release delete-asset latest DingTalk.AppImage --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
           gh release upload latest dingtalk/dist/dingtalk.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'dingtalk'
+          version_file: 'dingtalk/dist/version.txt'
+          asset_name: 'dingtalk.AppImage'
+          artifact_dir: 'dingtalk/dist'
+          github_token: ${{ github.token }}
 
   build_escrcpy:
     name: Build Escrcpy
@@ -793,6 +816,15 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'github-desktop'
+          version_file: 'github-desktop/dist/version.txt'
+          asset_name: 'github-desktop.AppImage'
+          artifact_dir: 'github-desktop/dist'
+          github_token: ${{ github.token }}
+
   build_gitkraken:
     name: Build GitKraken
     needs: plan
@@ -870,6 +902,15 @@ jobs:
           gh release upload latest hermes-desktop/dist/hermes-desktop.AppImage \
             --repo "$GITHUB_REPOSITORY" \
             --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'hermes-desktop'
+          version_file: 'hermes-desktop/dist/version.txt'
+          asset_name: 'hermes-desktop.AppImage'
+          artifact_dir: 'hermes-desktop/dist'
+          github_token: ${{ github.token }}
 
   build_htop:
     name: Build htop
@@ -1039,6 +1080,15 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'keyviz'
+          version_file: 'dist/version.txt'
+          asset_name: 'keyviz.AppImage'
+          artifact_dir: 'dist'
+          github_token: ${{ github.token }}
+
   build_kitty:
     name: Build kitty
     needs: plan
@@ -1161,6 +1211,15 @@ jobs:
           pacman -S --noconfirm --needed github-cli
           gh release delete-asset latest OBS-Studio.AppImage --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
           gh release upload latest obs-studio/dist/obs-studio.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'obs-studio'
+          version_file: 'obs-studio/dist/version.txt'
+          asset_name: 'obs-studio.AppImage'
+          artifact_dir: 'obs-studio/dist'
+          github_token: ${{ github.token }}
 
   build_obsidian:
     name: Build Obsidian
@@ -1325,6 +1384,15 @@ jobs:
           gh release upload latest remmina/dist/remmina.AppImage \
             --repo "$GITHUB_REPOSITORY" \
             --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'remmina'
+          version_file: 'remmina/dist/version.txt'
+          asset_name: 'remmina.AppImage'
+          artifact_dir: 'remmina/dist'
+          github_token: ${{ github.token }}
 
   build_remotedesktopmanager:
     name: Build Remote Desktop Manager
@@ -1547,6 +1615,15 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'trae-work'
+          version_file: 'trae-work/dist/version.txt'
+          asset_name: 'trae-work.AppImage'
+          artifact_dir: 'trae-work/dist'
+          github_token: ${{ github.token }}
+
   build_v2rayn:
     name: Build v2rayN
     needs: plan
@@ -1662,6 +1739,15 @@ jobs:
           test -s winpodx/dist/winpodx.AppImage
           gh release upload latest winpodx/dist/winpodx.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'winpodx'
+          version_file: 'winpodx/dist/version.txt'
+          asset_name: 'winpodx.AppImage'
+          artifact_dir: 'winpodx/dist'
+          github_token: ${{ github.token }}
+
   build_workbuddy:
     name: Build WorkBuddy AppImage
     needs: plan
@@ -1772,6 +1858,15 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'workbuddy'
+          version_file: 'workbuddy/dist/version.txt'
+          asset_name: 'workbuddy.AppImage'
+          artifact_dir: 'workbuddy/dist'
+          github_token: ${{ github.token }}
+
   build_xmind:
     name: Build Xmind
     needs: plan
@@ -1836,6 +1931,15 @@ jobs:
           set -Eeuo pipefail
           gh release upload latest xnconvert/dist/xnconvert.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'xnconvert'
+          version_file: 'xnconvert/dist/version.txt'
+          asset_name: 'xnconvert.AppImage'
+          artifact_dir: 'xnconvert/dist'
+          github_token: ${{ github.token }}
+
   build_xnviewmp:
     name: Build XnView MP
     needs: plan
@@ -1888,6 +1992,15 @@ jobs:
         run: |
           set -Eeuo pipefail
           gh release upload latest xnviewmp/dist/xnviewmp.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'xnview'
+          version_file: 'xnviewmp/dist/version.txt'
+          asset_name: 'xnviewmp.AppImage'
+          artifact_dir: 'xnviewmp/dist'
+          github_token: ${{ github.token }}
 
   build_zen:
     name: Build Zen

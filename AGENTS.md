@@ -32,6 +32,22 @@
 - 完成后必须重新读取远端分支和最近提交历史，确认目标 commit 与任何反向 commit 均不再属于该分支，并核对最终文件 tree 符合预期。
 - 删除历史仅表示目标 commit 不再属于指定分支，不代表对象已从其他分支、标签、reflog、已有克隆或平台缓存中物理消失；不得擅自扩大清理范围，也不得为了记录或说明本次操作再创建额外 commit。
 
+## 永久规则：每个 Build 成功后立即更新软件版本清单（不可豁免）
+
+**每个已接入统一版本元数据机制的 Build Job，在对应 AppImage 成功构建并成功上传到 `latest` Release 后，必须由当前 Build Job 自己立即更新 `software_versions.json` 中自己的唯一条目。此规则是固定架构约束，永久禁止改回中央 publisher Job、汇总 Job、轮询 Job或其他独立等待队列统一收集多个 Build 结果后再写清单。**
+
+强制范围：
+
+- 固定顺序必须是：当前 Build 完成 AppImage 构建 → 当前 Build 成功上传自己的 Release AppImage → 当前 Build 读取自己的 `version.txt` 并确认当前 Release 资产 SHA-256 → 当前 Build 立即更新自己的 `software_versions.json` 条目 → 当前 Build 结束。
+- 每个 Build 只能修改与自己 `software_key` 对应的一个条目；必须保留清单中其他软件已有条目，禁止重建整份清单、删除无关条目或从空对象覆盖已有清单。只有 Release 中原本不存在 `software_versions.json` 时才允许从空对象初始化。
+- 禁止设置独立的中央 `Publish successful software versions`、publisher、collector、aggregator 或 watcher Job 去等待、轮询、汇总其他 Build 的成功状态；也禁止把版本清单更新依赖于此类 Job 是否获得 runner。
+- 共享版本发布 action 必须由当前 Build Job 直接调用；元数据 artifact 可以保留用于审计，但不得作为中央 Job 后续收集并写清单的依赖链。
+- 多个不同软件 Build 并发成功时，AppImage 构建和 Release 上传必须继续并行；只允许对 `software_versions.json` 的“取得最新清单 → 合并当前软件唯一条目 → 上传 → 校验”这一小段临界区做短时间互斥保护，禁止因此串行整个 Build 流程。
+- 互斥锁必须可自动释放并具备陈旧锁恢复机制；正常情况下锁只覆盖版本清单读改写，不得覆盖应用构建、依赖安装或 AppImage 上传。
+- 写入前必须确认 `version.txt` 有效、目标 Release 资产唯一存在、GitHub Release SHA-256 digest 有效，并且该 digest 与当前 Build 产出的 AppImage SHA-256 一致；任何一项不成立都必须停止当前条目写入，禁止制造版本号与 Release 文件不对应的记录。
+- Build 失败、AppImage 上传失败、版本信息缺失、Release digest 无效或清单写后校验失败时，不得把该软件的新条目视为发布成功；已经存在的其他软件记录必须保持不变。
+- 后续任何 AI、workflow 重构、公共 action 重构或版本元数据调整都必须保持以上执行模型；“减少 Job 代码”“统一管理”“避免重复”“等待全部构建完成”等理由均不得用于恢复中央 publisher 模式。
+
 ## 1. 仓库目标
 
 本仓库用于构建、重打包、修复或同步发布 Linux 应用的 AppImage / RunImage，并维护 Termux 原生工具入口。

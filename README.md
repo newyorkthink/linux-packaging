@@ -39,27 +39,25 @@ AppImage 在本机运行时也不会自动生成版本信息。
 
 ### 软件版本清单
 
-`latest` Release 中的 `software_versions.json` 用于记录已接入更新器的软件版本、稳定资产名和 SHA-256。
+`latest` Release 中的 `software_versions.json` 用于记录已接入版本元数据机制的软件版本、稳定资产名和 SHA-256。
 
 发布逻辑固定为：
 
-1. `Publish successful software versions` Job 开始时只读取一次当前 `software_versions.json`，并把它作为本次 Job 唯一的本地工作清单。
-2. 某个软件的独立构建 Job 成功后，发布器读取该软件的 `version.txt` 与当前 Release 资产 SHA-256，更新本地工作清单中的对应条目。
-3. 每成功处理一个软件，就立即把当前这份本地工作清单上传并覆盖 `latest/software_versions.json`，因此成功的软件不需要等待其他软件全部完成。
-4. 后续软件继续基于同一个已经更新过的本地工作清单追加或覆盖自己的条目；**禁止在每个软件成功后重新从 Release 下载清单，也禁止重新从空 `{}` 开始。**
-5. 发布器使用独立 concurrency group 串行执行，避免多个新的 workflow run 同时写入同一个 `software_versions.json`。
-6. 发布器 Job 位于 `Plan` 之后、各软件构建 Job 之前，使全量构建时优先进入 runner 队列，避免全部并发 runner 被构建任务占满后版本清单长时间不更新。
+1. 每个已接入版本元数据机制的 Build 独立构建并上传自己的 AppImage，Build 之间继续并行。
+2. 某个 Build 的 Release AppImage 上传成功后，**由当前 Build 自己立即调用** `.github/actions/publish-software-versions`；不存在中央 publisher Job 等待或汇总其他 Build。
+3. 共享 action 读取当前 Build 的 `version.txt`，确认目标 Release 资产的 GitHub SHA-256 与本次 Build 产出的 AppImage SHA-256 一致后，才允许写清单。
+4. 多个 Build 同时完成时，仅对 `software_versions.json` 的读取、合并当前软件唯一条目、上传和校验这一小段操作使用短时间互斥锁；应用构建和 AppImage 上传不因此串行。
+5. 取得锁后必须重新读取 Release 中最新的 `software_versions.json`，只覆盖当前软件自己的条目并完整保留其他条目；只有清单原本不存在时才允许从空对象初始化。
+6. 写入完成后立即重新下载清单并校验当前软件条目；校验通过后当前 Build 才完成版本元数据发布。
 
-某个软件构建失败时，不更新该软件条目；已经写入本地工作清单的其他软件记录继续保留。
+Build 失败、Release 资产上传失败、版本文件无效、Release digest 与本次产物不一致或清单校验失败时，禁止写入错误条目。该架构禁止改回中央 publisher、汇总 Job、轮询 Job 或等待全部 Build 后统一更新的模式。
 
-仅修改 `.github/workflows/build.yml` 本身时，不再自动触发全部 AppImage 重构建；需要全量构建时使用手动 `all` 或定时任务。
+版本发布实现集中在 `.github/actions/publish-software-versions` composite action，但调用者始终是**各自的 Build Job 本身**。
 
-版本发布逻辑已从 `.github/workflows/build.yml` 的内嵌实现解耦到 `.github/actions/publish-software-versions` composite action；`build.yml` 仍保留同一个 `Publish successful software versions` Job 并调用该 action，因此 GitHub Actions 左侧不会额外出现独立的发布 workflow。
+### 2026-09-17：改为每个 Build 成功后立即写自己的版本条目
 
-### 2026-09-17：修复全量构建时版本清单丢失
+此前使用独立 `Publish successful software versions` Job 轮询其他 Build。该 Job 如果仍在等待 runner，已经成功上传的新 AppImage 会先于 `software_versions.json` 更新，从而出现 Release 资产已经变化、清单仍保存旧 SHA-256 的时间窗口。
 
-此前发布器在每个软件成功后都会重新从 Release 下载 `software_versions.json`。Release 资产刚被覆盖时存在短暂可见性 / 传播时序，下一轮可能重新读到旧清单，甚至按缺失分支从空对象开始，导致已经写入的条目丢失或 SHA-256 与最新 AppImage 不一致。
-
-现改为“Job 开始时读取一次、同一份本地清单持续更新、成功一个立即上传一次”，并串行化发布器；应用各自的构建 Job、AppImage 打包逻辑和稳定资产名不因此改变。
+现已删除中央等待型 publisher Job。每个 Build 在自己的 Release AppImage 上传成功后立即写自己的条目；并发时只串行版本清单的短读改写临界区，不串行应用构建。
 
 > 本 README 仅作为仓库入口说明；AI 操作本仓库时请以 [AGENTS.md](./AGENTS.md) 为完整规范。

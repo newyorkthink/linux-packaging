@@ -119,6 +119,6 @@ GitHub 官方目前仍未提供正式 Linux 二进制发行包；这里生成的
 
 - 修改文件：`.github/workflows/build.yml`、本 README。
 - 版本来源：官方源码构建后 `source/app/package.json` 的 `version`，与构建脚本使用的 `APP_VERSION` 一致。
-- 成功构建后上传 `software-version-github-desktop` 元数据 artifact；汇总 Job 仅在对应构建成功后更新 `latest` Release 中的 `software_versions.json`。
+- 成功构建后上传 `software-version-github-desktop` 元数据 artifact；当前 Build 仅在对应构建成功后更新 `latest` Release 中的 `software_versions.json`。
 - `software_versions.json` 使用版本号判断是否需要更新，Release SHA-256 仅用于文件完整性与本地状态；相同版本的重复构建不会仅因 SHA-256 改变而触发客户端更新。
 - 本次不改应用打包、运行时、补丁和 Release 资产名；提交后按仓库规则不主动监控 Actions，实际新清单记录以下一次成功构建结果为准。

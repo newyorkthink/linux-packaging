@@ -24,7 +24,7 @@ dpkg-query -W -f='${Version}' remmina
 dist/version.txt
 ```
 
-随后上传 `software-version-remmina`，汇总 Job 使用 `remmina.AppImage` 的 Release SHA-256 更新 `software_versions.json`。
+随后上传 `software-version-remmina`，当前 Build 使用 `remmina.AppImage` 的 Release SHA-256 更新 `software_versions.json`。
 
 ## 构建与运行
 

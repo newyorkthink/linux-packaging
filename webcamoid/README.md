@@ -18,7 +18,7 @@ Webcamoid 为 C++ / Qt 6 / QML 摄像头与多媒体应用。当前脚本在 Arc
 dist/version.txt
 ```
 
-统一 workflow 在成功构建后上传 `software-version-webcamoid`，汇总 Job 使用 `webcamoid.AppImage` 的 Release SHA-256 更新 `software_versions.json`。
+统一 workflow 在成功构建后上传 `software-version-webcamoid`，当前 Build 使用 `webcamoid.AppImage` 的 Release SHA-256 更新 `software_versions.json`。
 
 ## 构建与运行
 

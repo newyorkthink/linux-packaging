@@ -18,7 +18,7 @@ OBS Studio 为 Qt 6 / C++ 桌面应用。当前脚本使用 Arch Linux 构建环
 dist/version.txt
 ```
 
-统一 workflow 在成功构建后上传 `software-version-obs-studio`，汇总 Job 再使用 `obs-studio.AppImage` 的 Release SHA-256 更新 `software_versions.json`。
+统一 workflow 在成功构建后上传 `software-version-obs-studio`，当前 Build 再使用 `obs-studio.AppImage` 的 Release SHA-256 更新 `software_versions.json`。
 
 ## 构建与运行
 
