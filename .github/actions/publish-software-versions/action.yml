@@ -80,6 +80,7 @@ runs:
         verified_manifest="$workdir/verified-$manifest_name"
         lock_name='software_versions.json.lock'
         lock_file="$workdir/$lock_name"
+        lock_upload_error="$workdir/lock-upload-error.txt"
         rm -rf "$workdir"
         mkdir -p "$workdir"
         printf '%s\n' "run=$GITHUB_RUN_ID job=$GITHUB_JOB attempt=$GITHUB_RUN_ATTEMPT" > "$lock_file"
@@ -105,11 +106,25 @@ runs:
 
         acquired=false
         for attempt in $(seq 1 180); do
-          if gh release upload latest "$lock_file" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            lock_asset_id="$(
-              gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" --paginate \
-                --jq ".[] | select(.name == \"$lock_name\") | .id" | head -n 1
-            )"
+          : > "$lock_upload_error"
+          if gh release upload latest "$lock_file" --repo "$GITHUB_REPOSITORY" \
+            >/dev/null 2>"$lock_upload_error"; then
+            lock_asset_id=''
+            for visibility_attempt in $(seq 1 15); do
+              mapfile -t lock_ids < <(
+                gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" --paginate \
+                  --jq ".[] | select(.name == \"$lock_name\") | .id"
+              )
+              if (( ${#lock_ids[@]} == 1 )); then
+                lock_asset_id="${lock_ids[0]}"
+                break
+              fi
+              if (( ${#lock_ids[@]} > 1 )); then
+                echo "latest Release 中存在多个 $lock_name，禁止继续写入清单。" >&2
+                exit 1
+              fi
+              sleep 1
+            done
             [[ -n "$lock_asset_id" ]] || {
               echo '已取得 software_versions.json 写锁，但无法读取锁资产 ID。' >&2
               exit 1
@@ -119,15 +134,26 @@ runs:
             break
           fi
 
-          lock_row="$(
+          mapfile -t lock_rows < <(
             gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" --paginate \
               --jq ".[] | select(.name == \"$lock_name\") | [.id,.created_at] | @tsv" \
-              | head -n 1 || true
-          )"
-          [[ -n "$lock_row" ]] || {
+              || true
+          )
+          if (( ${#lock_rows[@]} > 1 )); then
+            echo "latest Release 中存在多个 $lock_name，禁止继续写入清单。" >&2
+            exit 1
+          fi
+          if (( ${#lock_rows[@]} == 0 )); then
+            if grep -Eiq 'HTTP 422|already[_ -]?exists' "$lock_upload_error"; then
+              # 另一 Job 刚释放锁或 Release 资产列表尚未显示该锁时，继续短暂争抢锁。
+              sleep 1
+              continue
+            fi
+            sed 's/^/gh release upload: /' "$lock_upload_error" >&2
             echo '获取 software_versions.json 写锁失败，且未发现其他 Job / Action 持有锁。' >&2
             exit 1
-          }
+          fi
+          lock_row="${lock_rows[0]}"
           lock_id="${lock_row%%$'\t'*}"
           created_at="${lock_row#*$'\t'}"
           created_epoch="$(date -u -d "$created_at" +%s 2>/dev/null || echo 0)"
