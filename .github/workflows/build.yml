@@ -968,6 +968,15 @@ jobs:
           set -Eeuo pipefail
           gh release upload latest joplin/dist/joplin.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'joplin'
+          version_file: 'joplin/dist/version.txt'
+          asset_name: 'joplin.AppImage'
+          artifact_dir: 'joplin/dist'
+          github_token: ${{ github.token }}
+
   build_jriver:
     name: Build JRiver
     needs: plan
@@ -2120,4 +2129,3 @@ jobs:
             tail -n 250 "$LOG" >&2 || true
             exit 126
           fi
-
