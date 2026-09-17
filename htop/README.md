@@ -14,7 +14,7 @@
 htop/dist/version.txt
 ```
 
-该文件由 workflow 上传为 `software-version-htop`，成功构建后增量写入 `latest/software_versions.json`。
+该文件由 workflow 上传为 `software-version-htop`，成功构建后由当前 `Build htop` Job 立即写入仓库根目录的 `software_versions.json`。
 
 ## 维护说明
 
