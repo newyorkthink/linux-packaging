@@ -54,7 +54,7 @@ AppImage 在本机运行时也不会自动生成版本信息。
 
 仅修改 `.github/workflows/build.yml` 本身时，不再自动触发全部 AppImage 重构建；需要全量构建时使用手动 `all` 或定时任务。
 
-版本发布逻辑已从 `.github/workflows/build.yml` 的内嵌实现解耦到独立的 `.github/workflows/publish-software-versions.yml` 可复用 workflow；`build.yml` 只负责选择构建任务并调用发布器。单独修改发布器 workflow 不会触发 `Build AppImages`。
+版本发布逻辑已从 `.github/workflows/build.yml` 的内嵌实现解耦到 `.github/actions/publish-software-versions` composite action；`build.yml` 仍保留同一个 `Publish successful software versions` Job 并调用该 action，因此 GitHub Actions 左侧不会额外出现独立的发布 workflow。
 
 ### 2026-09-17：修复全量构建时版本清单丢失
 

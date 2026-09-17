@@ -290,16 +290,25 @@ jobs:
     name: Publish successful software versions
     needs: plan
     if: ${{ always() && needs.plan.result == 'success' && needs.plan.outputs.should_build == 'true' }}
-    uses: ./.github/workflows/publish-software-versions.yml
-    with:
-      selected_builds: ${{ needs.plan.outputs.builds }}
-      source_run_id: ${{ github.run_id }}
-    permissions:
-      actions: read
-      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
     concurrency:
       group: software-versions-publisher
       cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Incrementally publish successful software versions
+        uses: ./.github/actions/publish-software-versions
+        with:
+          selected_builds: ${{ needs.plan.outputs.builds }}
+          source_run_id: ${{ github.run_id }}
+          github_token: ${{ github.token }}
 
   build_adspower_global:
     name: Build AdsPower Global
