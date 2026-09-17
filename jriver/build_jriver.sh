@@ -141,6 +141,9 @@ QT_IM_MODULE=fcitx
 XMODIFIERS=@im=fcitx
 # SDL 程序使用宿主 Fcitx5。
 SDL_IM_MODULE=fcitx
+# Rofi run 可能传入控制台 TERM=linux 和 XDG_SESSION_TYPE=tty；覆盖为 X11 GUI 会话。
+TERM=xterm-256color
+XDG_SESSION_TYPE=x11
 EOF_CONFIG
   # 把动态识别的主程序名称写入自动启动配置。
   printf 'RIM_AUTORUN=%q\n' "$launcher" >> "$RUNDIR/config/Run.rcfg"
