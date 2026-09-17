@@ -82,13 +82,15 @@ docker run --rm \
 
     # AUR PKGBUILD 已注明服务条款 HTML 每次下载 checksum 都会变。
     # 该文件只安装到 license 目录，不进入 AppImage；只跳过这一项，DEB 校验保留。
-    grep -Eq "^sha512sums=.([0-9a-fA-F]{128})" /tmp/dingtalk-bin/PKGBUILD || {
+    grep -Eq "^sha512sums=\(.([0-9a-fA-F]{128})" /tmp/dingtalk-bin/PKGBUILD || {
       echo "未能定位服务条款 HTML 的 sha512sums 条目" >&2
+      grep -n "^sha512sums" /tmp/dingtalk-bin/PKGBUILD >&2 || true
       exit 1
     }
     sed -i "s/^sha512sums=(\x27[0-9a-fA-F]\{128\}\x27/sha512sums=(\x27SKIP\x27/" /tmp/dingtalk-bin/PKGBUILD
-    grep -Eq "^sha512sums=.SKIP" /tmp/dingtalk-bin/PKGBUILD || {
+    grep -Eq "^sha512sums=\(.SKIP" /tmp/dingtalk-bin/PKGBUILD || {
       echo "未能将服务条款 HTML 的 sha512sums 改为 SKIP" >&2
+      grep -n "^sha512sums" /tmp/dingtalk-bin/PKGBUILD >&2 || true
       exit 1
     }
 
