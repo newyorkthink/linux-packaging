@@ -1,4 +1,5 @@
 name: Build AnyLinux AppImage
+# 共享构建 Action；修改本文件会由 Plan 触发全量 AppImage 构建。
 description: Prepare yay, build one AppImage, and publish it to the latest Release.
 
 inputs:
