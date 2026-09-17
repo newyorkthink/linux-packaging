@@ -7,19 +7,17 @@ cd "$SCRIPT_DIR"
 ###### 准备构建环境 ######
 
 # 只清理上次构建残留的平台工具和产物，保留仓库内的图标与 hook。
-rm -rf dist platform-tools bin.zip
+rm -rf dist platform-tools bin.zip AppDir/etc
 if [[ -d AppDir/bin ]]; then
   find AppDir/bin -mindepth 1 ! -name 'make-symlinks-in-path.hook' -delete
 fi
-rm -rf AppDir/etc
-mkdir -p AppDir/bin AppDir/etc/udev/rules.d dist
+mkdir -p AppDir/bin dist
 
 ARCH="$(uname -m)"
 export ARCH
 export OUTPATH=./dist
 export OUTNAME="android-tools.AppImage"
 export APPNAME="android-tools"
-export ADD_HOOKS="udev-installer.hook"
 export UPINFO="gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}|latest|android-tools.AppImage.zsync"
 export DESKTOP=DUMMY
 export MAIN_BIN=adb
@@ -54,11 +52,6 @@ VERSION="$(awk -F'=' '/Revision/ {gsub(/\r/, "", $2); gsub(/^[ \t]+|[ \t]+$/, ""
 
 # 按源仓库方式收集 AppDir/bin 中的全部平台工具与 hook。
 quick-sharun ./AppDir/bin/*
-
-# 安装 adb 设备访问所需的 udev 规则，并补入 adbusers 组处理。
-UDEV_RULES="https://raw.githubusercontent.com/M0Rf30/android-udev-rules/refs/heads/main/51-android.rules"
-wget --retry-connrefused --tries=30 "$UDEV_RULES" -O ./AppDir/etc/udev/rules.d/51-android.rules
-sed -i "/cp -v '\$_tmp_udev_dir'/a\t groupadd -f adbusers; usermod -a -G adbusers \$(logname)" ./AppDir/bin/*udev-installer.hook
 
 quick-sharun --make-appimage
 

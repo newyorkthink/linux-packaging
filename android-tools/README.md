@@ -2,7 +2,7 @@
 
 ## 用途与产物
 
-本目录把 Google 官方 Android Platform Tools（`adb`、`fastboot` 等）打包为 `android-tools.AppImage`，并附带可安装的 Android udev 规则。
+本目录把 Google 官方 Android Platform Tools（`adb`、`fastboot` 等）打包为 `android-tools.AppImage`。不自动安装 udev 规则，启动时不弹安装框。
 
 上游软件来源：
 
@@ -17,8 +17,8 @@
 - 上游为 Google 官方 Linux `platform-tools` zip（原生 C/C++ CLI，不是桌面 GUI）。
 - 目标架构：当前构建环境的 `uname -m`（与源仓库正式构建一致，x86_64）。
 - 打包工具：Arch Linux 容器中的 quick-sharun / sharun，runtime 为 uruntime。
-- 设备访问：`udev-installer.hook` + [M0Rf30/android-udev-rules](https://github.com/M0Rf30/android-udev-rules) 的 `51-android.rules`。
 - 多命令入口：`AppDir/bin/make-symlinks-in-path.hook` 为 `adb`、`fastboot` 等创建指向本 AppImage 的 PATH 符号链接。
+- 不打包、不自动安装 udev 规则。USB 调试如权限不足，需自行安装发行版提供的 Android udev 规则。
 
 ## 打包方式
 
@@ -29,9 +29,8 @@
 3. 下载 Google 官方 `platform-tools-latest-linux.zip`，解压到仓库内已有 `AppDir/bin`（保留 hook 与图标）。
 4. 从 `source.properties` 的 `Pkg.Revision` 动态读取版本。
 5. `quick-sharun ./AppDir/bin/*` 收集依赖。
-6. 下载 udev 规则，并按源仓库方式在 `udev-installer.hook` 中加入 `adbusers` 组处理。
-7. `quick-sharun --make-appimage` 生成 `dist/android-tools.AppImage`。
-8. 写入 `dist/version.txt`。
+6. `quick-sharun --make-appimage` 生成 `dist/android-tools.AppImage`。
+7. 写入 `dist/version.txt`。
 
 workflow 入口：`android-tools/build_android-tools.sh`，`SOFTWARE_KEY=android-tools`。成功后由当前 Job 立即写入 `latest` Release 的 `software_versions.json`。
 
@@ -44,14 +43,14 @@ workflow 入口：`android-tools/build_android-tools.sh`，`SOFTWARE_KEY=android
 ./android-tools.AppImage fastboot --version
 ```
 
-首次需要 USB 调试权限时，按 AppImage 提供的 udev 安装流程安装规则。该步骤会创建 `adbusers` 组并把当前登录用户加入该组，属于 adb 设备访问的必要系统集成，不是额外提权功能。
+启动不再询问安装 udev。无线调试或已有系统 udev 规则时直接使用即可。USB 设备没有权限时，自行安装发行版的 Android udev 规则。
 
 源仓库最近成功构建：
 
 - Actions：[run 33506406831](https://github.com/pkgforge-dev/android-tools-AppImage/actions/runs/33506406831)（2026-09-01，`success`）
 - Release：`Android_Tools: 37.0.1`（`37.0.1@2026-09-01_1788277689`）
 
-本仓库产物的构建与实机运行结果尚未验证。
+去掉自动 udev 之前：构建成功，实机 `adb` 可运行（`37.0.1`）。本条去掉 udev 后的产物尚未验证。
 
 ## 迁移核对
 
@@ -98,4 +97,13 @@ workflow 入口：`android-tools/build_android-tools.sh`，`SOFTWARE_KEY=android
 - 根因：迁移时没装 AGENTS.md 第 13 节规定的 quick-sharun 最小基础包；`get-debloated-pkgs` 还会卸掉 `unzip` / `patchelf`。证据：[run 35239870134](https://github.com/newyorkthink/linux-packaging/actions/runs/35239870134/job/105265331210)。
 - 修改文件：`build_android-tools.sh`。
 - 具体内容：去掉只装 unzip 的补丁，在 `get-debloated-pkgs` 之后安装 AGENTS.md 规定的整组基础包。
+- 已知结果：[run 35240408020](https://github.com/newyorkthink/linux-packaging/actions/runs/35240408020) 构建成功。实机 `adb` 可运行（`37.0.1`），但每次启动弹出 udev 安装框。已被下一条记录覆盖。
+
+### 2026-09-17：去掉自动 udev 安装
+
+- 日期：2026-09-17
+- 现象：每次运行 `adb` / `fastboot` 都弹出 udev 安装白框。
+- 根因：沿用源仓库 `ADD_HOOKS=udev-installer.hook`，每次启动都检查并询问安装规则。用户不需要强制安装。
+- 修改文件：`build_android-tools.sh`。
+- 具体内容：删除 `ADD_HOOKS`、udev 规则下载，以及对 `udev-installer.hook` 的修改。USB 权限改由使用者自行处理。
 - 已知结果：已提交，未监控 Actions，是否通过构建未验证。
