@@ -27,8 +27,12 @@ export MAIN_BIN=adb
 # 沿用源仓库已验证的精简包流程，排除无关的 Mesa / Vulkan。
 get-debloated-pkgs --add-common --prefer-nano ! mesa ! vulkan
 
-# 解压官方 platform-tools zip 需要 unzip。源仓库容器里自带，本仓库 Actions 日志已确认缺失。
-yay -S --noconfirm unzip
+# 安装 AGENTS.md 规定的 quick-sharun 最小基础包。
+# 必须放在 get-debloated-pkgs 之后：该步骤会卸掉 unzip / patchelf，
+# Actions 已分别报过 `unzip: command not found` 和 `Missing dependency 'patchelf'`。
+yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
+  grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
+  desktop-file-utils zsync ca-certificates
 
 ###### 下载上游文件 ######
 

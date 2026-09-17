@@ -25,7 +25,7 @@
 沿用源仓库已验证的 AnyLinux / quick-sharun 路线，不改用 linuxdeploy。
 
 1. 使用 `get-debloated-pkgs --add-common --prefer-nano ! mesa ! vulkan` 准备精简基础环境。
-2. 安装 `unzip`（本仓库 Actions 已确认 `get-debloated-pkgs` 之后容器没有该命令）。
+2. 按 AGENTS.md 安装 quick-sharun 最小基础包（`patchelf`、`unzip` 等）。该命令放在 `get-debloated-pkgs` 之后，避免被卸掉。
 3. 下载 Google 官方 `platform-tools-latest-linux.zip`，解压到仓库内已有 `AppDir/bin`（保留 hook 与图标）。
 4. 从 `source.properties` 的 `Pkg.Revision` 动态读取版本。
 5. `quick-sharun ./AppDir/bin/*` 收集依赖。
@@ -88,5 +88,14 @@ workflow 入口：`android-tools/build_android-tools.sh`，`SOFTWARE_KEY=android
 - 现象：`Build android-tools` 在下载官方 zip 后失败，`unzip: command not found`。
 - 根因：源仓库依赖 AnyLinux 容器自带 `unzip`；本仓库 `get-debloated-pkgs` 之后该命令不存在。证据：[run 35239278343](https://github.com/newyorkthink/linux-packaging/actions/runs/35239278343/job/105263258202)。
 - 修改文件：`build_android-tools.sh`。
-- 具体内容：在解压前单独 `yay -S --noconfirm unzip`，不改打包路线。
+- 具体内容：当时只单独安装了 `unzip`，未按 AGENTS.md 安装完整最小基础包。
+- 已知结果：unzip 问题解决，但随后仍失败。已被下一条记录覆盖。
+
+### 2026-09-17：安装 AGENTS.md 最小基础包
+
+- 日期：2026-09-17
+- 现象：unzip 修好后，`quick-sharun` 报 `Missing dependency 'patchelf'`。
+- 根因：迁移时没装 AGENTS.md 第 13 节规定的 quick-sharun 最小基础包；`get-debloated-pkgs` 还会卸掉 `unzip` / `patchelf`。证据：[run 35239870134](https://github.com/newyorkthink/linux-packaging/actions/runs/35239870134/job/105265331210)。
+- 修改文件：`build_android-tools.sh`。
+- 具体内容：去掉只装 unzip 的补丁，在 `get-debloated-pkgs` 之后安装 AGENTS.md 规定的整组基础包。
 - 已知结果：已提交，未监控 Actions，是否通过构建未验证。
