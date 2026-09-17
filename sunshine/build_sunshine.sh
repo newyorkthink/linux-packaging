@@ -21,7 +21,7 @@ yay -S --noconfirm \
   libxcb libxfixes libxrandr libxtst miniupnpc numactl openssl opus \
   systemd vulkan-icd-loader which \
   libva-mesa-driver xorg-server-xvfb \
-  fauxput-bin \
+  fauxput-bin icu76 \
   intel-media-driver libva-intel-driver xdg-desktop-portal xdg-desktop-portal-wlr \
   ibus alsa-lib alsa-plugins alsa-utils libpipewire cuda xcb-util-wm gvfs librsvg
 
