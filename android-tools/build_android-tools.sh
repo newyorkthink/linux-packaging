@@ -27,6 +27,9 @@ export MAIN_BIN=adb
 # 沿用源仓库已验证的精简包流程，排除无关的 Mesa / Vulkan。
 get-debloated-pkgs --add-common --prefer-nano ! mesa ! vulkan
 
+# 解压官方 platform-tools zip 需要 unzip。源仓库容器里自带，本仓库 Actions 日志已确认缺失。
+yay -S --noconfirm unzip
+
 ###### 下载上游文件 ######
 
 # 始终获取 Google 官方当前 latest Linux platform-tools，不锁定版本号。

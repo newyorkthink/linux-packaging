@@ -25,12 +25,13 @@
 沿用源仓库已验证的 AnyLinux / quick-sharun 路线，不改用 linuxdeploy。
 
 1. 使用 `get-debloated-pkgs --add-common --prefer-nano ! mesa ! vulkan` 准备精简基础环境。
-2. 下载 Google 官方 `platform-tools-latest-linux.zip`，解压到仓库内已有 `AppDir/bin`（保留 hook 与图标）。
-3. 从 `source.properties` 的 `Pkg.Revision` 动态读取版本。
-4. `quick-sharun ./AppDir/bin/*` 收集依赖。
-5. 下载 udev 规则，并按源仓库方式在 `udev-installer.hook` 中加入 `adbusers` 组处理。
-6. `quick-sharun --make-appimage` 生成 `dist/android-tools.AppImage`。
-7. 写入 `dist/version.txt`。
+2. 安装 `unzip`（本仓库 Actions 已确认 `get-debloated-pkgs` 之后容器没有该命令）。
+3. 下载 Google 官方 `platform-tools-latest-linux.zip`，解压到仓库内已有 `AppDir/bin`（保留 hook 与图标）。
+4. 从 `source.properties` 的 `Pkg.Revision` 动态读取版本。
+5. `quick-sharun ./AppDir/bin/*` 收集依赖。
+6. 下载 udev 规则，并按源仓库方式在 `udev-installer.hook` 中加入 `adbusers` 组处理。
+7. `quick-sharun --make-appimage` 生成 `dist/android-tools.AppImage`。
+8. 写入 `dist/version.txt`。
 
 workflow 入口：`android-tools/build_android-tools.sh`，`SOFTWARE_KEY=android-tools`。成功后由当前 Job 立即写入 `latest` Release 的 `software_versions.json`。
 
@@ -80,3 +81,12 @@ workflow 入口：`android-tools/build_android-tools.sh`，`SOFTWARE_KEY=android
 - 修改文件：新增 `android-tools/` 目录；接入 `.github/workflows/build.yml`。
 - 具体内容：原样复制图标、hook 与 LICENSE；将源仓库构建逻辑适配为动态版本、固定资产名 `android-tools.AppImage` 和统一版本清单；删除源仓库冒烟测试。
 - 已知结果：已提交，未监控 Actions，构建及运行结果未验证。
+
+### 2026-09-17：补装 unzip
+
+- 日期：2026-09-17
+- 现象：`Build android-tools` 在下载官方 zip 后失败，`unzip: command not found`。
+- 根因：源仓库依赖 AnyLinux 容器自带 `unzip`；本仓库 `get-debloated-pkgs` 之后该命令不存在。证据：[run 35239278343](https://github.com/newyorkthink/linux-packaging/actions/runs/35239278343/job/105263258202)。
+- 修改文件：`build_android-tools.sh`。
+- 具体内容：在解压前单独 `yay -S --noconfirm unzip`，不改打包路线。
+- 已知结果：已提交，未监控 Actions，是否通过构建未验证。
