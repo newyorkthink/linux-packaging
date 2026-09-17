@@ -12,7 +12,7 @@
 
 ### 用途、来源与技术栈
 
-- 用途：打包 JRiver Media Center 音视频播放器与媒体管理器，发布资产仍为 `jriver.AppImage`。
+- 用途：打包 JRiver Media Center 音视频播放器与媒体管理器，发布资产为 `mediacenter36.AppImage`。
 - 来源：RunImage 使用上游 continuous 运行时；JRiver 由当前 AUR `jriver-media-center` 配方下载官方 Linux DEB，并按配方校验。
 - 技术栈：x86_64 原生 C/C++、GTK3、JRWeb/CEF、WebKitGTK 和音频插件，运行于包内 Arch Linux 根文件系统。
 - 版本：从安装后的包信息读取版本，从包文件清单识别主程序，不写死 JRiver 主版本。
@@ -52,10 +52,10 @@
 
 ```bash
 # 为下载的 JRiver AppImage 添加执行权限
-chmod +x ./jriver.AppImage
+chmod +x ./mediacenter36.AppImage
 
 # 启动 JRiver Media Center
-./jriver.AppImage
+./mediacenter36.AppImage
 ```
 
 ---
@@ -256,3 +256,27 @@ Fcitx5 实际中文输入：尚未取得截图验证
 - 当前构建脚本恢复到 2026-09-13 已实机确认终端 GUI、简体中文和文件选择器正常的版本；NVIDIA 禁用和安静模式继续保留。
 - Rofi 启动无 GUI 明确作为未解决问题搁置，不继续修改构建脚本、Rofi、workflow、RunImage TTY / 后台等待、CEF、音频、Fcitx5、glibc 或路径兼容代码。
 - 后续只有取得能直接区分窗口创建、显示连接、单实例行为或 JRiver 内部 GUI 初始化状态的新证据后再继续；不得根据当前进程存在现象继续猜测修改。
+
+
+---
+
+## 8. 2026-09-17：Release 资产改名为 mediacenter36.AppImage
+
+### 现象
+
+`latest` Release 没有 `jriver.AppImage`。同日可见的是 RunImage 路线发布的无后缀资产 `mediacenter36`；AppImage 路线此前固定资产名 `jriver.AppImage`，且 2026-09-14 之后未再因目录变更单独构建，因此 latest 上找不到该 AppImage。
+
+### 修改
+
+- 按当前官方主程序名，将 AppImage 发布资产改为 `mediacenter36.AppImage`。
+- 修改文件：`jriver/build_jriver.sh`、`.github/workflows/build.yml`、本文件、`jriver/README.md`。
+- 只改外层产物文件名与 zsync 更新信息；不改包内 `RIM_AUTORUN`、CEF、音频、Fcitx5、glibc 隔离或启动链。
+- 与 RunImage 无后缀资产 `mediacenter36` 并存，文件名不同。
+- 未处理 Rofi 无 GUI；该问题仍按第 7 节搁置。
+
+在 Linux 终端进入下载文件所在目录后执行：
+
+```bash
+chmod +x ./mediacenter36.AppImage
+./mediacenter36.AppImage
+```

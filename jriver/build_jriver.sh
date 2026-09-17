@@ -189,8 +189,8 @@ export DESKTOP="$WORK_DIR/jriver.desktop"
 export ICON="$WORK_DIR/jriver.png"
 export APPNAME=jriver
 export OUTPATH="$SCRIPT_DIR/dist"
-export OUTNAME=jriver.AppImage
-export UPINFO="gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}|latest|jriver.AppImage.zsync"
+export OUTNAME=mediacenter36.AppImage
+export UPINFO="gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}|latest|mediacenter36.AppImage.zsync"
 export OPTIMIZE_LAUNCH=1
 cd "$SCRIPT_DIR"
 

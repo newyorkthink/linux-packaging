@@ -527,3 +527,9 @@ GUI 启动：正常
 2026-09-11 第 12 节中“GUI 未出现”的内容只保留为当时的历史记录，不再代表当前状态。
 
 本次仅更新实机状态说明，不修改构建脚本、workflow、quick-sharun / appimagetool 兼容层，也不改动现有 CEF、网页音频、Fcitx5 和 glibc 隔离链。影院模式卡住问题先作为新的 Known Issue 记录；没有新的运行时证据前，不根据现有 GTK/Glycin warning 猜测根因。
+
+---
+
+## 14. 2026-09-17：AppImage 发布名改为 mediacenter36.AppImage
+
+按当前官方主程序名，将独立 `Build JRiver` Job 的 Release 资产从 `jriver.AppImage` 改为 `mediacenter36.AppImage`。只改外层文件名与 zsync 信息，不改旧版稳定路线的 CEF、音频、Fcitx5、glibc 隔离链，也不处理 Rofi 无 GUI。现行启动命令见 [README_runimage_quick.md](./README_runimage_quick.md) 第 8 节。
