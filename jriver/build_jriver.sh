@@ -80,9 +80,9 @@ run_install() {
   pac --needed --noconfirm -S base-devel git yay
   # 按当前 AUR 配方安装 JRiver 官方包及声明的依赖，并使用配方校验值。
   yay --needed --noconfirm -S jriver-media-center
-  # 补齐官方 DEB 声明的运行依赖，以及既有音频和 GTK 中文输入支持。
+  # 补齐官方 DEB 声明的运行依赖、音频、GTK 中文输入，以及关闭宿主字体共享后所需的包内 CJK 字体。
   pac --needed --noconfirm -S libxss nss nspr python xdg-utils mesa lcms2 libva \
-    vulkan-icd-loader pulseaudio-alsa fcitx5-gtk
+    vulkan-icd-loader pulseaudio-alsa fcitx5-gtk noto-fonts-cjk
 
   # 从安装结果读取真实入口，不固定 JRiver 主版本。
   local -a launchers
@@ -124,8 +124,8 @@ RIM_NO_NVIDIA_CHECK=1
 RIM_QUIET_MODE=1
 # 共享宿主图标。
 RIM_SHARE_ICONS="${RIM_SHARE_ICONS:=1}"
-# 共享宿主字体。
-RIM_SHARE_FONTS="${RIM_SHARE_FONTS:=1}"
+# 不共享宿主字体。Rofi 启动时包内进程已连接 X11，但 Pango fontconfig 工作线程卡在 futex，窗口不出现。
+RIM_SHARE_FONTS=0
 # 共享宿主主题。
 RIM_SHARE_THEMES="${RIM_SHARE_THEMES:=1}"
 # 使用宿主 xdg-open。
