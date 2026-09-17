@@ -4,7 +4,7 @@
 
 > 旧版稳定路线、实机验证历史、CEF、网页音频、Fcitx5、glibc 和路径兼容链记录继续保留在 [README.md](./README.md)，不在本文件重复展开。
 
-> **当前状态：** 2026-09-13 已确认终端启动时 GUI、简体中文界面和文件选择器正常，NVIDIA 自动处理已禁用，成品已启用安静模式。2026-09-14 已确认通过 Rofi AppImage 启动时完整进程链存在，但始终没有 GUI；问题保持未解决，构建脚本恢复到最后实机确认正常的版本，不再加入未经验证的启动改动。详细记录见第 6～7 节。
+> **当前状态：** 2026-09-18 已确认 `mediacenter36.AppImage` 从终端启动时 JRiver Media Center 36 GUI 和简体中文界面正常。终端会打印宿主 Fontconfig 对 `48-guessfamily.conf` / `49-sansserif.conf` / `48-spacing.conf` 的警告，未阻止 GUI。Rofi 启动无 GUI 仍按第 7 节搁置。Fcitx5 实际中文输入、网页音频和影院模式鼠标操作仍未验证。详细记录见第 6～9 节。
 
 ---
 
@@ -280,3 +280,41 @@ Fcitx5 实际中文输入：尚未取得截图验证
 chmod +x ./mediacenter36.AppImage
 ./mediacenter36.AppImage
 ```
+
+---
+
+## 9. 2026-09-18：mediacenter36.AppImage 终端 GUI 已确认；Fontconfig 警告不影响界面
+
+### 检查对象与证据
+
+- 产物：`latest` Release 的 `mediacenter36.AppImage`。
+- 证据：终端直接启动截图，以及 JRiver Media Center 36 主窗口截图。
+- 未做代码修改。
+
+### 已确认
+
+- `./mediacenter36.AppImage` 从终端启动后出现主窗口。
+- 菜单、侧栏和搜索框为简体中文。
+- 播放列表页部分帮助正文仍为英文，属于上游界面字符串，不是启动失败。
+
+### Fontconfig 警告
+
+终端大量输出：
+
+```text
+Fontconfig warning: ".../48-guessfamily.conf", invalid attribute 'xsi:nil'
+Fontconfig warning: ".../48-guessfamily.conf", invalid constant used
+Fontconfig warning: ".../49-sansserif.conf", invalid constant used
+Fontconfig warning: ".../48-spacing.conf", invalid constant used : monospace
+```
+
+路径同时出现包内 `/etc/fonts/conf.d` 与宿主 `/usr/share/fontconfig/conf.avail`。成品 `Run.rcfg` 启用了 `RIM_SHARE_FONTS=1`，容器内较旧的 Fontconfig 会读到宿主较新的配置（含 `xsi:nil` 和新增 generic family）。警告出现在 GUI 之前，界面仍正常画出。
+
+当前不关闭宿主字体共享，也不改 Fontconfig 路径：中文界面可能仍依赖宿主字体；没有证据表明这些警告造成缺字或崩溃。没有新的缺字/崩溃证据前，不把该警告当成启动故障处理。
+
+### 仍未验证
+
+- Rofi 启动无 GUI（第 7 节）
+- Fcitx5 实际中文输入
+- 网页音频
+- 影院模式鼠标操作

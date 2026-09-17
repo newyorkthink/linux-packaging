@@ -533,3 +533,9 @@ GUI 启动：正常
 ## 14. 2026-09-17：AppImage 发布名改为 mediacenter36.AppImage
 
 按当前官方主程序名，将独立 `Build JRiver` Job 的 Release 资产从 `jriver.AppImage` 改为 `mediacenter36.AppImage`。只改外层文件名与 zsync 信息，不改旧版稳定路线的 CEF、音频、Fcitx5、glibc 隔离链，也不处理 Rofi 无 GUI。现行启动命令见 [README_runimage_quick.md](./README_runimage_quick.md) 第 8 节。
+
+---
+
+## 15. 2026-09-18：新资产终端 GUI 实机确认
+
+`mediacenter36.AppImage` 从终端启动后 GUI 和简体中文界面正常。终端 Fontconfig 警告来自共享宿主字体配置，未阻止界面。Rofi 无 GUI 仍未解决。详见 [README_runimage_quick.md](./README_runimage_quick.md) 第 9 节。
