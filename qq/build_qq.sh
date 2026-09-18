@@ -44,7 +44,7 @@ yay -S --noconfirm --needed \
 
 # 安装 Linux QQ 官方 DEB 声明的运行依赖，供 ldd / quick-sharun 解析外部库。
 yay -S --noconfirm --needed \
-  nss alsa-lib gtk3 gjs at-spi2-core openjpeg2 openslide \
+  nss alsa-lib gtk3 at-spi2-core \
   libappindicator-gtk3 libnotify libsecret libxss libxtst \
   nspr cups dbus glib2 pango cairo fontconfig freetype2 \
   libx11 libxext libxi libxrender libxrandr libxcomposite libxdamage libxfixes \
@@ -199,17 +199,25 @@ if ! grep -q '^X-AppImage-Version=' "${BUILD_DESKTOP}"; then
 fi
 desktop-file-validate "${BUILD_DESKTOP}"
 
-# 入口固定从包内程序目录启动；Electron 在 AppImage 中需要 --no-sandbox。
+# 入口固定从包内程序目录启动。AppImage 无法保留 chrome-sandbox setuid。
+# 官方 deb 用系统库；这里补 Electron 在 FUSE 挂载下常见的 X11 / systemd scope 参数。
 cat > "${APPDIR}/AppRun.sh" <<'APPRUN_EOF'
 #!/bin/sh
 set -e
 
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}"
+export ELECTRON_OZONE_PLATFORM_HINT="${ELECTRON_OZONE_PLATFORM_HINT:-x11}"
+export CHROME_DESKTOP="${CHROME_DESKTOP:-qq.desktop}"
 export SHARUN_EXTRA_LIBRARY_PATH="$APPDIR/bin${SHARUN_EXTRA_LIBRARY_PATH:+:$SHARUN_EXTRA_LIBRARY_PATH}"
 export SHARUN_WORKING_DIR="$APPDIR/bin"
 
 cd "$APPDIR/bin"
-exec "$APPDIR/bin/qq" --no-sandbox "$@"
+exec "$APPDIR/bin/qq" \
+  --no-sandbox \
+  --disable-setuid-sandbox \
+  --ozone-platform-hint=x11 \
+  --disable-features=SystemdCgroup \
+  "$@"
 APPRUN_EOF
 chmod 0755 "${APPDIR}/AppRun.sh"
 bash -n "${APPDIR}/AppRun.sh"
