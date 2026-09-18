@@ -1,6 +1,6 @@
 # JRiver RunImage + quick-sharun 路线
 
-本文件专门记录 `jriver/build_jriver.sh` 的 RunImage + quick-sharun 新路线、GitHub Actions 失败证据与对应修复。
+本文件专门记录 `jriver/build_jriver.sh` 的 RunImage + quick-sharun 新路线、GitHub Actions 失败证据与对应修复。本目录文件清单、当前用法和旧入口对照见 [README.md 目录说明](./README.md)。
 
 > 旧版稳定路线、实机验证历史、CEF、网页音频、Fcitx5、glibc 和路径兼容链记录继续保留在 [README.md](./README.md)，不在本文件重复展开。
 
