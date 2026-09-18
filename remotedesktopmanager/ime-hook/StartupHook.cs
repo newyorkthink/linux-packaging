@@ -3,6 +3,9 @@ using Avalonia.Input;
 using Avalonia.Input.TextInput;
 using Avalonia.Interactivity;
 
+// .NET 启动钩子：给没有 TextInputMethodClient 的终端控件补上 Avalonia IME 客户端。
+// RDM 自带的 Devolutions.TerminalControl 不会请求 IME，Fcitx5 无法 ProcessKeyEvent，
+// 选词键就会原样变成 VT 写进 LocalTerm PTY。
 public class StartupHook
 {
     public static void Initialize()
@@ -13,7 +16,7 @@ public class StartupHook
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine("rdm-ime-hook: register failed: " + ex);
+            Console.Error.WriteLine("rdm-ime-hook: 注册失败: " + ex);
         }
     }
 
@@ -28,7 +31,7 @@ public class StartupHook
             RoutingStrategies.Tunnel,
             handledEventsToo: true);
 
-        Console.Error.WriteLine("rdm-ime-hook: terminal IME client registered");
+        Console.Error.WriteLine("rdm-ime-hook: 已为终端控件注册 Avalonia IME 客户端");
     }
 
     static void OnClientRequested(InputElement sender, TextInputMethodClientRequestedEventArgs e)
@@ -100,8 +103,7 @@ sealed class TerminalImeClient : TextInputMethodClient
 
     public override string SurroundingText => string.Empty;
 
-    public override Rect CursorRectangle =>
-        _visual is null ? new Rect(0, 0, 1, 18) : new Rect(new Size(1, 18));
+    public override Rect CursorRectangle => new Rect(0, 0, 1, 18);
 
     public override TextSelection Selection
     {
