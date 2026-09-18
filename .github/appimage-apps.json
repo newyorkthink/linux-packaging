@@ -1,5 +1,5 @@
 {
-  "description": "AppImage 构建清单。kind=standard 由 build.yml 调用 build-standard.yml 的 matrix 调度（主图收成一个节点）；kind=special 必须在 build.yml 保留独立 Job。不要把特例塞进 matrix。",
+  "description": "AppImage 构建清单。kind=standard 由 build.yml 的 matrix Job 调度；kind=special 必须在 build.yml 保留独立 Job。不要把特例塞进 matrix。",
   "apps": [
     {
       "key": "antigravity_ide",

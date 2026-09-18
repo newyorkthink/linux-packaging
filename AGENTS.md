@@ -439,7 +439,7 @@ linuxdeploy 额外规则：
 
 - 一个统一入口；
 - Plan 读取清单决定构建哪些应用；
-- `kind: standard` 的 Arch / `build-anylinux` 应用由 **matrix** 调度（`fail-fast: false`），每个应用仍是独立 runner、独立运行环境；matrix 放在 `.github/workflows/build-standard.yml`，由 `build.yml` 以 reusable workflow 调用，避免主图横向铺开几十个节点；
+- `kind: standard` 的 Arch / `build-anylinux` 应用由 **matrix** 调度（`fail-fast: false`），每个应用仍是独立 runner、独立运行环境；
 - 容器、runner、步骤或额外环境与标准模板不同的应用标记为 `kind: special`，在 `build.yml` 中保持独立 Job，**不得**塞进同一个 matrix；
 - 每个 Job / matrix 组合完成自身构建与发布后，立即由当前 Job 写入 `software_versions.json`；
 - 能复用 `.github/actions/build-anylinux` 时优先复用。
@@ -448,7 +448,7 @@ linuxdeploy 额外规则：
 
 - 标准 Arch 应用：只在 `.github/appimage-apps.json` 增加一条 `kind: standard` 记录（按应用目录名不区分大小写 A→Z 插入）。不要再手写 `KEYS` / `SCRIPTS` / `DIRS`，也不要再复制一份标准 Job YAML。
 - 清单字段至少包含：`key`、`kind`、`name`、`script`、`dir`；标准应用还要有 `artifact_dir`、`release_name`、`software_key`、`timeout_minutes`、`run_from_root`。
-- 特例应用：清单里加 `kind: special`，并在 `build.yml` 新增独立 Job。特例 Job 按显示名称（去掉 `Build ` 前缀）不区分大小写 A→Z 排列；`Plan` 固定最前，接着是 `Build standard AppImages`（reusable workflow 节点），然后是特例独立 Job；非 `Build ...` 的附属 Job 仍放在全部 Build Job 之后。
+- 特例应用：清单里加 `kind: special`，并在 `build.yml` 新增独立 Job。特例 Job 按显示名称（去掉 `Build ` 前缀）不区分大小写 A→Z 排列；`Plan` 固定最前，matrix 标准 Job 紧随其后，非 `Build ...` 的附属 Job 仍放在全部 Build Job 之后。
 - 手动运行入口为字符串：`all` 或脚本路径 / 应用名；`script_search` 填写时优先模糊匹配。不再维护按应用罗列的 choice 下拉。
 - 提交前核对清单无重复、无遗漏，`script` / `dir` 与仓库路径一致；特例的独立 Job、`if: fromJSON(needs.plan.outputs.builds).<key>` 与清单 `key` 一致。
 - 本规则不授权顺手重排其他 workflow，也不得为了排序新增测试代码、测试 Job 或测试 Step。
@@ -491,7 +491,7 @@ linuxdeploy 额外规则：
 ### 正式 workflow 规则
 
 - 不得把已经验证并正式接入的普通 AppImage 项目再长期拆成独立 workflow 文件。
-- 标准 Arch 应用使用清单 + matrix（`build-standard.yml`）；不要把 runner / 容器 / 步骤不同的特例 Job 改进同一个 matrix。
+- 标准 Arch 应用使用清单 + matrix；不要把 runner / 容器 / 步骤不同的特例 Job 改进同一个 matrix。
 - 不要为了节省 public repository 的 Actions 使用量而合并本来应该隔离的构建任务；构建正确性和隔离性优先。 matrix 必须 `fail-fast: false`。
 - `.github/workflows/build_runimage.yml` 是另一类构建入口；普通 AppImage 任务不要擅自迁移过去。
 - 只有当现有统一 workflow 明确无法满足正式构建需求，或者用户明确要求时，才考虑长期新增独立 workflow；新增的长期 workflow 也不得包含测试代码。
