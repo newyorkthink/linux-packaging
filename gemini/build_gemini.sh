@@ -373,10 +373,23 @@ PY
       fallback_version="$json_version"
     else
       log "software_versions.json 没有 gemini 条目，改为从已发布 AppImage 读取兼容版本"
+      chmod +x "$candidate"
+      extract_dir="$WORK_DIR/last-appimage-meta"
+      rm -rf -- "$extract_dir"
+      mkdir -p "$extract_dir"
+      (
+        cd "$extract_dir"
+        APPIMAGE_EXTRACT_AND_RUN=1 "$candidate" --appimage-extract '*.desktop' >/dev/null
+      )
+      desktop_file="$(find "$extract_dir" -type f -name '*.desktop' -print -quit)"
+      [[ -n "$desktop_file" && -s "$desktop_file" ]] || {
+        sleep 5
+        continue
+      }
       fallback_version="$(
-        strings -a "$candidate" \
-          | awk -F= '/^X-AppImage-Version=/{print $2; exit}'
+        awk -F= '/^X-AppImage-Version=/{print $2; exit}' "$desktop_file"
       )"
+      rm -rf -- "$extract_dir"
       if [[ ! "$fallback_version" =~ ^[0-9]+(\.[0-9]+){2,3}$ ]]; then
         sleep 5
         continue
@@ -385,6 +398,7 @@ PY
         sleep 5
         continue
       fi
+      log "从已发布 AppImage 读到兼容版本：$fallback_version"
     fi
 
     mv -f -- "$candidate" "$OUTFILE"

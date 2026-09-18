@@ -257,4 +257,4 @@ dist/gemini.AppImage
 ### 2026-09-17：清单丢失 gemini 条目时仍保留已发布 AppImage
 
 - 故障现象：全量构建时 `software_versions.json` 没有 `gemini` 对象，回退路径 12 次重试后失败；`latest` 上的 `gemini.AppImage` 仍在。
-- 处理：清单缺条目时改为校验并复用已发布 AppImage，从其中的 `X-AppImage-Version` 读取真实兼容版本，再写回清单。仍不发布当前含 Windows PE `.node` 的 1.11.4。
+- 处理：清单缺条目时改为校验并复用已发布 AppImage，用 AppImage 自带的 `--appimage-extract '*.desktop'` 读取 `X-AppImage-Version`（uruntime / DwarFS 不能靠 `strings`），再写回清单。仍不发布当前含 Windows PE `.node` 的 1.11.4。
