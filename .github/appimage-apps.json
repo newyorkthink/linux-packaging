@@ -685,6 +685,18 @@
       "dir": "xnconvert"
     },
     {
+      "key": "stacer",
+      "kind": "standard",
+      "name": "Stacer",
+      "script": "stacer/build_stacer.sh",
+      "dir": "stacer",
+      "artifact_dir": "stacer/dist",
+      "release_name": "stacer.AppImage",
+      "software_key": "stacer",
+      "timeout_minutes": 60,
+      "run_from_root": "false"
+    },
+    {
       "key": "stacher",
       "kind": "standard",
       "name": "Stacher",
