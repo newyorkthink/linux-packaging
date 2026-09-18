@@ -51,7 +51,7 @@
 - 根因：从官方 DEB 用 Arch 容器 + quick-sharun 收集 GTK / Fontconfig / Glycin 后二次封装。包内旧 Fontconfig 读到宿主新缓存，Electron 再与宿主 Chromium systemd scope 撞名。官方 deb/AppImage 使用官方自己的运行库，不复现。
 - 修改文件：`qq/build_qq.sh`、`qq/README.md`。
 - 处理：改为同步腾讯官方 x86_64 AppImage，校验 SHA-256 后以 `qq.AppImage` 发布。不再使用 quick-sharun / linuxdeploy。
-- 已知结果：已提交构建，实机是否恢复待新资产验证。
+- 已知结果：2026-09-18 实机确认官方同步的 `qq.AppImage` 可打开会话列表，不再黑屏卡住。终端里 `StartTransientUnit` / `GLib-GObject` / `linux-bugly` 日志仍会出现，与官方一致，不影响窗口。
 
 ### 2026-09-18：AppImage 启动后黑屏卡住
 
