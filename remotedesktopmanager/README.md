@@ -32,7 +32,7 @@ AppImage 不内置 Fcitx5 守护进程或输入方案。
 
 内置 LocalTerm 会 `posix_spawn` 宿主 `/bin/sh`。主进程依赖由 sharun 的 bundled ld-linux `--library-path` 提供，不能再用 `LD_LIBRARY_PATH` 指向包内 `lib/`，否则宿主 shell 会加载包内 `libc.so.6`。
 
-工具 → 终端的按键由 Avalonia TermControl 直接映射成 VT 写入 PTY，不会走 GTK IM 模块。Fcitx5 候选导航键泄漏属于上游 TermControl 输入处理，不是打包缺模块。
+工具 → 终端是 Avalonia `Devolutions.TerminalControl` + LocalTerm PTY，不是 VTE。官方控件不请求 `TextInputMethodClient`，Avalonia 不会把按键交给 Fcitx5。打包时用 `DOTNET_STARTUP_HOOKS` 补一个 IME 客户端；GTK `im-fcitx5.so` 仍只服务 WebKitGTK / VTE。
 
 ## 打包方式
 
@@ -44,8 +44,9 @@ AppImage 不内置 Fcitx5 守护进程或输入方案。
 4. 一次性把主程序、`libWebView-4.1.so` 和 `im-fcitx5.so` 交给 `quick-sharun`。
 5. 向 `AppDir/.env` 写入 .NET 与中文输入环境变量，明确不写入 `LD_LIBRARY_PATH`；打包前再删除 `.env` 中可能残留的该变量。
 6. 补齐 `/usr/lib/devolutions/RemoteDesktopManager` 与 ICU 运行库。
-7. 写入 `AppDir/bin/rdm-gtk-immodules.src.hook`，启动时按当前 `$APPDIR` 生成 GTK3 `immodules.cache`。
-8. 检查 WebView 辅助进程、Fcitx5 GTK3 模块、glycin-ng、输入环境变量和 `.env` 不含 `LD_LIBRARY_PATH` 后生成 AppImage。
+7. 对照已安装的 RDM `Avalonia.Base.dll` 编译 `ime-hook/RdmImeHook.dll`，写入 `AppDir/bin`，并设置 `DOTNET_STARTUP_HOOKS`。
+8. 写入 `AppDir/bin/rdm-gtk-immodules.src.hook`，启动时按当前 `$APPDIR` 生成 GTK3 `immodules.cache`。
+9. 检查 WebView 辅助进程、Fcitx5 GTK3 模块、glycin-ng、IME 钩子、输入环境变量和 `.env` 不含 `LD_LIBRARY_PATH` 后生成 AppImage。
 
 ## 运行
 
@@ -91,3 +92,12 @@ AppImage 不内置 Fcitx5 守护进程或输入方案。
 - 已确认：包内 libc 泄漏已实机解决。GTK3 `im-fcitx5.so` 无法过滤 Avalonia TermControl 的候选导航键。
 - 未确认：主界面 TextBox、WebKitGTK 内部浏览器的 Fcitx5 是否正常，本次未测。
 - 建议：不再为 LocalTerm 候选键泄漏改打包脚本；不得回退 ICU、glycin-ng、WebView 4.1、`GTK_IM_MODULE=fcitx` 或重新写入 `LD_LIBRARY_PATH`。该泄漏需上游 TermControl 在 composing 时不要把方向键写成 VT。
+
+### 2026-09-18：给 LocalTerm 补 Avalonia IME 客户端
+
+- 现象：去掉 `LD_LIBRARY_PATH` 后终端能开，但 Fcitx5 选词时 `s`、`d`、`^[[D`、`^[[3~` 仍进入 PTY。
+- 根因：官方 `Devolutions.TerminalControl` 2026.8.24 没有 `TextInputMethodClientRequested` 处理。Avalonia 只有在控件提供 IME 客户端时才会 `FocusIn` 并 `ProcessKeyEvent`；没有客户端时按键直接到控件 `OnKeyDown`，再被编成 VT。系统候选栏仍能弹出，是 Wayland/XWayland 的 unaware 路径，滤不掉应用侧按键。此前把问题当成 VTE / GTK 模块 ID，以及当成「OnKeyDown 无法从打包层修」，都没有打到这个缺口。
+- 修改文件：`remotedesktopmanager/ime-hook/`、`remotedesktopmanager/build_remotedesktopmanager.sh`、`remotedesktopmanager/README.md`、根目录 `README.md`。
+- 修复内容：增加 `DOTNET_STARTUP_HOOKS` 程序集，给名称含 Terminal / LocalTerm 且未提供客户端的控件补上 `TextInputMethodClient`；preedit 期间再隧道拦截非修饰键作为兜底。对照 RDM 自带 `Avalonia.Base.dll` 编译，不额外捆绑 Avalonia。不回退 ICU、glycin-ng、WebView 4.1、`GTK_IM_MODULE=fcitx` 或重新写入 `LD_LIBRARY_PATH`。
+- 已知结果：脚本会把钩子打进 AppImage。选词键是否不再泄漏仍待 Linux 实机验证，不得视为已经实机解决。
+
