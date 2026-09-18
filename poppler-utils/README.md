@@ -33,7 +33,7 @@
 - 上游为 Poppler 的 C / C++ 命令行工具，不是桌面 GUI。
 - 目标架构：当前构建环境的 `uname -m`（正式构建为 x86_64）。
 - 打包工具：Arch Linux 容器中的 quick-sharun / sharun，runtime 为 uruntime。
-- 官方包没有 desktop / 图标，构建使用 `DESKTOP=DUMMY`，默认主程序为 `pdftotext`。
+- 官方包没有 desktop / 图标，构建使用 `DESKTOP=DUMMY`，默认主程序为 `pdftotext`。ICON 取构建环境里的 PDF MIME 图标（Adwaita / hicolor 的 `application-pdf`），不自绘品牌图。
 - 不安装 udev、不请求额外系统权限。
 
 ## 打包方式
@@ -96,3 +96,12 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 - 修改文件：新增 `poppler-utils/` 目录；在 `.github/appimage-apps.json` 增加标准应用记录。
 - 具体内容：按 Arch 官方 `poppler` / `poppler-data` + quick-sharun 最短链路打包 13 个命令；版本从本次安装的软件包动态读取。
 - 已知结果：已提交正式构建入口，未监控 Actions，构建及运行结果未验证。
+
+### 2026-09-18：补上 DUMMY desktop 仍缺少的 ICON
+
+- 日期：2026-09-18
+- 现象：[run 35349847442](https://github.com/newyorkthink/linux-packaging/actions/runs/35349847442) 的 `Build poppler-utils` 失败。日志：`ERROR: Missing AppDir/.DirIcon`，并提示 `Set ICON env variable`。
+- 根因：`DESKTOP=DUMMY` 只会生成空 desktop，quick-sharun 仍要求图标。官方 `poppler` 包没有 desktop / 图标。
+- 修改文件：`poppler-utils/build_poppler-utils.sh`、`poppler-utils/README.md`。
+- 具体内容：在收集依赖前从构建环境的 Adwaita / hicolor 中选取已有的 `application-pdf` MIME 图标并 `export ICON`。不自绘品牌图，不改命令收集范围。
+- 已知结果：已提交修复，未监控 Actions，构建结果待验证。

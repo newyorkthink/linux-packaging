@@ -32,6 +32,21 @@ POPPLER_VERSION="${POPPLER_VERSION%-*}"
   exit 1
 }
 
+# 官方包没有应用图标。quick-sharun 在 DESKTOP=DUMMY 时仍要求 ICON。
+# 使用构建环境已有的 PDF MIME 图标，不自绘品牌图。
+ICON=""
+while IFS= read -r -d '' icon_file; do
+  ICON="$icon_file"
+  break
+done < <(find /usr/share/icons/Adwaita /usr/share/icons/hicolor \
+  -type f \( -name 'application-pdf.svg' -o -name 'application-pdf.png' \) \
+  -print0 2>/dev/null)
+[[ -n "$ICON" && -f "$ICON" ]] || {
+  echo "错误：构建环境里找不到 application-pdf 图标，无法设置 ICON。" >&2
+  exit 1
+}
+export ICON
+
 ###### 核心打包 ######
 
 # Arch extra/poppler 当前提供的 PDF 命令行工具，与 Debian poppler-utils 同一套入口。
