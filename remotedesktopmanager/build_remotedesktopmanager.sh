@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 rm -rf AppDir || true
 
 ARCH="$(uname -m)"
@@ -22,6 +24,9 @@ yay -S --noconfirm remote-desktop-manager ca-certificates libsecret vte3 webkit2
 
 # fcitx5-gtk 提供 WebKitGTK / VTE 使用的 GTK3 中文输入模块。
 yay -S --noconfirm fcitx5-gtk
+
+# 编译 IME 启动钩子需要与 RDM 相同的 .NET SDK。
+yay -S --noconfirm dotnet-sdk
 
 # 复制并修改桌面文件的 Exec 行，匹配实际提取的二进制程序名称
 cp /usr/share/applications/com.devolutions.remotedesktopmanager.desktop ./rdm.desktop
@@ -62,6 +67,23 @@ cp -an /usr/lib/devolutions/RemoteDesktopManager/* AppDir/shared/bin/ || true
 cp -a /usr/lib/libicu*.so* AppDir/bin/ || true
 cp -a /usr/lib/libicu*.so* AppDir/shared/bin/ || true
 
+# RDM 的 Devolutions.TerminalControl 不请求 TextInputMethodClient，Avalonia 不会把按键交给 Fcitx5。
+# 用 DOTNET_STARTUP_HOOKS 补一个 IME 客户端，让 ProcessKeyEvent 能吞掉选词键。
+# 对照已安装的 RDM Avalonia.Base，避免钩子和主程序加载两套 Avalonia。
+RDM_LIB=/usr/lib/devolutions/RemoteDesktopManager
+if [ ! -f "$RDM_LIB/Avalonia.Base.dll" ]; then
+    echo "缺少编译 IME 钩子所需的 Avalonia.Base.dll。" >&2
+    exit 1
+fi
+dotnet build "$SCRIPT_DIR/ime-hook/RdmImeHook.csproj" -c Release -o /tmp/rdm-ime-hook -p:RdmDir="$RDM_LIB"
+if [ ! -f /tmp/rdm-ime-hook/RdmImeHook.dll ]; then
+    echo "编译 Remote Desktop Manager IME 启动钩子失败。" >&2
+    exit 1
+fi
+cp -a /tmp/rdm-ime-hook/RdmImeHook.dll AppDir/bin/
+cp -a /tmp/rdm-ime-hook/RdmImeHook.dll AppDir/shared/bin/
+echo 'DOTNET_STARTUP_HOOKS=${APPDIR}/bin/RdmImeHook.dll' >> AppDir/.env
+
 # 启动时按当前 AppImage 挂载路径生成 GTK3 immodules.cache。
 # 构建期缓存会留下构建机绝对路径，GTK 无法加载；Remmina / dconf-editor 同样在运行时写缓存。
 cat > AppDir/bin/rdm-gtk-immodules.src.hook << 'HOOK'
@@ -77,16 +99,18 @@ for candidate in \
   fi
 done
 
-if [ -n "$GTK_IMMODULE_DIR" ] && [ -f "$GTK_IMMODULE_DIR/im-fcitx5.so" ]; then
-  IM_CACHE_DIR="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
-  IM_CACHE_FILE="$IM_CACHE_DIR/rdm-appimage-immodules-${UID:-0}.cache"
-  cat > "$IM_CACHE_FILE" <<EOF
+if [ -n "$GTK_IMMODULE_DIR" ]; then
+  if [ -f "$GTK_IMMODULE_DIR/im-fcitx5.so" ]; then
+    IM_CACHE_DIR="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
+    IM_CACHE_FILE="$IM_CACHE_DIR/rdm-appimage-immodules-${UID:-0}.cache"
+    cat > "$IM_CACHE_FILE" <<EOF
 # GTK+ Input Method Modules file
 "$GTK_IMMODULE_DIR/im-fcitx5.so"
 "fcitx" "Fcitx 5" "fcitx" "" "ja:ko:zh:*"
 EOF
-  export GTK_IM_MODULE_FILE="$IM_CACHE_FILE"
-  export GTK_IM_MODULE="fcitx"
+    export GTK_IM_MODULE_FILE="$IM_CACHE_FILE"
+    export GTK_IM_MODULE="fcitx"
+  fi
 fi
 unset GTK_IMMODULE_DIR candidate IM_CACHE_DIR IM_CACHE_FILE
 HOOK
@@ -136,6 +160,15 @@ for required_env in \
         exit 1
     fi
 done
+
+if ! grep -Fq 'DOTNET_STARTUP_HOOKS=${APPDIR}/bin/RdmImeHook.dll' AppDir/.env; then
+    echo "缺少 Remote Desktop Manager IME 启动钩子环境变量。" >&2
+    exit 1
+fi
+if [ ! -f AppDir/bin/RdmImeHook.dll ]; then
+    echo "缺少 Remote Desktop Manager IME 启动钩子。" >&2
+    exit 1
+fi
 
 if grep -Fxq 'GTK_IM_MODULE=fcitx5' AppDir/.env; then
     echo "Remote Desktop Manager 不应再设置 GTK_IM_MODULE=fcitx5。" >&2
