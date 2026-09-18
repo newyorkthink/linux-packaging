@@ -116,13 +116,28 @@ LC_ALL=zh_CN.utf8
 LANGUAGE=zh_CN:zh
 EOF_LOCALE
 
-  # 包内启动脚本：把 stdin/out/err 从 ssrv pipe 改到日志文件。不改外层 AppRun。
-  printf '%s\n' \
-    '#!/bin/bash' \
-    'logdir="${XDG_CACHE_HOME:-$HOME/.cache}"' \
-    'mkdir -p "$logdir"' \
-    "exec /usr/bin/${launcher} \"\$@\" </dev/null >>\"\$logdir/jriver-launch.log\" 2>&1" \
-    > /usr/bin/jriver-launch
+  # 包内启动脚本：去掉 Rofi/i3 AppImage 泄漏到 PATH 的 /tmp/.mount_*，并把 stdin/out/err 写到日志。不改外层 AppRun。
+  cat > /usr/bin/jriver-launch <<'EOF_LAUNCH'
+#!/bin/bash
+_path=""
+IFS=:
+for _p in $PATH; do
+  case "$_p" in
+    /tmp/.mount_*) ;;
+    "") ;;
+    *) _path="${_path:+$_path:}$_p" ;;
+  esac
+done
+unset IFS
+PATH="$_path"
+export PATH
+export TERM="${TERM:-xterm-256color}"
+export XDG_SESSION_TYPE=x11
+logdir="${XDG_CACHE_HOME:-$HOME/.cache}"
+mkdir -p "$logdir"
+exec /usr/bin/JRIVER_LAUNCHER "$@" </dev/null >>"$logdir/jriver-launch.log" 2>&1
+EOF_LAUNCH
+  sed -i "s|JRIVER_LAUNCHER|${launcher}|g" /usr/bin/jriver-launch
   chmod 0755 /usr/bin/jriver-launch
 
   # 写入标准 RunImage 配置。
