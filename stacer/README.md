@@ -67,12 +67,12 @@ Stacer 是 C++17 / Qt6 原生 Linux 桌面程序，核心依赖：
 ### 2026-09-17：检查关闭窗口黑屏是否由打包链引起
 
 - **检查对象：** `stacer` 当前构建脚本（接入提交 `ca34fec`）及 `latest` Release 中的 `stacer.AppImage` 1.8.0。
-- **问题现象：** Linux 实机更新后仪表盘和设置可正常打开，原先 `GLIBC_2.38` 无法启动已经消失。关闭窗口后客户区变黑，窗口管理器仍把 `stacer` 列为焦点窗口。
+- **问题现象：** Linux 实机更新后仪表盘和设置可正常打开，原先 `GLIBC_2.38` 无法启动已经消失。关闭窗口后客户区变成与 Stacer 深色主题相同的空窗，窗口管理器仍把 `stacer` 列为焦点；约 10 秒后窗口才真正退出。
 - **检查范围：** 上游关闭逻辑；本仓库同类 Qt6 GUI 的打包路线；是否应改成 `linuxdeploy --appdir AppDir --plugin qt --output appimage`。
-- **证据来源：** 上游 `stacer/app.cpp` 的 `closeEvent`；实机窗口仍映射的运行反馈；仓库对 quick-sharun / linuxdeploy 的既定规则；官方 jammy AppImage 已用 go-appimage deploy，正是旧 glibc 崩溃来源。
-- **已确认结论：** 关窗黑屏不是缺少 `linuxdeploy --plugin qt`。同类从 Arch 安装的 Qt6 GUI 在本仓库走 quick-sharun。上游在“不再询问”为真时：`close` 先 `QThreadPool::waitForDone()` 再退出，`hide` 则 `event->ignore()` 并 `hide()` 到托盘。窗口仍在且发黑，符合进程未退、窗口仍映射，而不是 Qt plugin 没收集全。`linuxdeploy --output appimage` 不得作为本仓库最终封装方式；该命令也不改上游 `closeEvent`，还会丢掉 quick-sharun / uruntime 对父进程 AppImage 共享库的隔离，有机会把已修好的 glibc 混链再带回来。官方已经用过 deploy 式 Qt 捆绑，换回同类工具不能解释、也不能修关闭逻辑。
-- **未确认事项：** 实机这次走的是 `hide` 还是卡住的 `waitForDone()`；窗口隐藏或销毁时合成器是否把 ARGB 窗口画成黑。二者都不改变“不是打包链选型错误”的结论。
-- **是否建议修改：** 否。保持 Arch + quick-sharun，不改成 linuxdeploy Qt plugin。
+- **证据来源：** 上游 `stacer/app.cpp` 的 `closeEvent`；仪表盘 `checkUpdate()` 请求 `https://api.github.com/repos/QuentiumYT/Stacer/releases/latest`；启动时的 `QIODevice::read (QSslSocket): device not open`；实机约 10 秒后自行退出的运行反馈。
+- **已确认结论：** 关窗卡住不是缺少 `linuxdeploy --plugin qt`。同类从 Arch 安装的 Qt6 GUI 在本仓库走 quick-sharun。上游在“不再询问”且选择 `close` 时，GUI 线程先 `QThreadPool::waitForDone()`（无超时）再 `QApplication::quit()`。等待期间界面不再刷新，所以看起来像黑屏卡住，线程池任务结束后窗口才会消失。仪表盘启动就会发 GitHub 更新检查，TLS 读写失败时常见约 10 秒才返回。`linuxdeploy --output appimage` 不得作为本仓库最终封装方式，也不改这条上游关闭逻辑。
+- **未确认事项：** 这 10 秒具体卡在 GitHub 更新检查、服务/软件包页的 `QtConcurrent` 任务，还是二者一起。不改变“不是打包链选型错误”的结论。
+- **是否建议修改：** 否。保持 Arch + quick-sharun，不改程序关闭逻辑，不改成 linuxdeploy Qt plugin。
 
 ### 2026-09-17：接入本仓库并避开官方 jammy AppImage 的旧 glibc
 
