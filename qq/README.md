@@ -2,27 +2,26 @@
 
 ## 用途与产物
 
-本目录从腾讯官方 Linux QQ x86_64 DEB 动态取得程序，并重新封装为 `qq.AppImage`。正式构建入口为 `.github/workflows/build.yml` 通过 `.github/appimage-apps.json` 调度的标准 matrix Job。
+本目录同步腾讯官方 Linux QQ x86_64 AppImage，并以稳定资产名 `qq.AppImage` 发布。正式构建入口为 `.github/workflows/build.yml` 通过 `.github/appimage-apps.json` 调度的标准 matrix Job。
 
 ## 技术栈
 
 - 上游：腾讯 QQ NT，Electron / Chromium 桌面客户端。
-- 包格式：官方 `linuxqq_*_amd64.deb`，主程序位于 `/opt/QQ/qq`。
+- 包格式：官方 `QQ_*_x86_64_01.AppImage`。
 - 目标架构：x86_64。
-- 运行时：GTK3、NSS、ALSA，以及 Electron 常见的 X11 / 通知 / 密钥环依赖。
+- 本仓库不二次封装、不补运行库、不改启动参数。
 
 ## 打包方式
 
-当前路线与微信、飞书、腾讯文档同类：下载官方 DEB，保留 `/opt/QQ` 相对布局，用 quick-sharun 补齐外部系统库。
+当前路线是「官方 AppImage 原样同步」，不用 quick-sharun、linuxdeploy 或 appimagetool 重打包。
 
-1. 读取 AUR `linuxqq` 的 `.SRCINFO`，只取其中当前 `source_x86_64` 官方 DEB 地址和 `sha512sums_x86_64`。AUR 配方本身不作为二进制来源。
-2. 下载腾讯 `qqdl.gtimg.cn` 上的 amd64 DEB，并按 AUR 声明的 SHA512 校验。
-3. 从 DEB `control` 元数据解析 `Version`，用作 `X-AppImage-Version` 和 `dist/version.txt`。
-4. 将 `/opt/QQ` 复制到 `AppDir/bin`，删除官方包内自带的 `libssh2.so.1`（与 AUR linuxqq 相同的已知冲突处理），并把 `chrome-sandbox` 降为普通可执行文件。
-5. 使用官方 desktop / 最大尺寸 PNG 图标；`AppRun.sh` 从包内目录启动 `qq --no-sandbox --disable-setuid-sandbox --ozone-platform-hint=x11 --disable-features=SystemdCgroup`。
-6. `quick-sharun` 收集主程序外部库后 `--make-appimage`，产物名为 `qq/dist/qq.AppImage`。
+1. 读取 AUR `linuxqq-appimage` 的 `PKGBUILD`，只取 `_image_url_x86_64` 和 `_image_sha256sums_x86_64`。AUR 配方本身不作为二进制来源。
+2. 通过腾讯 `UrlSign` 接口取得当前 CDN 签名地址，下载官方 AppImage。
+3. 按 AUR 声明的 SHA-256 校验。
+4. 从官方文件名解析版本（`QQ_<version>_<date>_x86_64_01.AppImage`），写入 `dist/version.txt`。
+5. 原样复制为 `qq/dist/qq.AppImage`。
 
-未采用“官方 AppImage 原样同步”：腾讯虽然也发布 AppImage，但本仓库对其他腾讯 Electron 客户端一律从官方 DEB 重打包并补齐运行库；QQ 按同一路线处理。
+不再从官方 DEB 用 Arch 库重封。该路线会把构建容器里的 Fontconfig / GTK / Glycin 打进包，在滚动发行版上与宿主缓存冲突，实机窗口全黑卡住；官方安装包和官方 AppImage 都不走这条路径。
 
 ## 运行与兼容说明
 
@@ -32,26 +31,32 @@
 ./qq.AppImage
 ```
 
-AppImage 无法保留 `chrome-sandbox` 的 setuid，因此启动参数包含 `--no-sandbox --disable-setuid-sandbox`。默认 Ozone 使用 X11，并关掉 Chromium 的 systemd 临时 scope，避免和宿主已有 `org.chromium.Chromium-*.scope` 撞名后黑屏卡住。不打包 `gjs` / `openjpeg2` / `openslide`，避免把 Glycin 图像沙箱带进 Electron 包。
+运行行为、sandbox、输入法和图形栈均保持官方 AppImage 原状。宿主需要能跑腾讯官方 Linux QQ AppImage（通常需要 FUSE）。
 
 ## 版本元数据
 
-构建脚本在最终 AppImage 生成后写入 `qq/dist/version.txt`，内容为本次官方 DEB 的 `Version` 字段。workflow 按统一约定上传并写入 `latest/software_versions.json`。
+构建脚本在校验官方 AppImage 之后写入 `qq/dist/version.txt`。workflow 按统一约定上传并写入 `latest/software_versions.json`。
 
 ## 维护说明
 
-- 继续通过 AUR `linuxqq` 动态发现官方 DEB 地址，不在仓库中写死版本号或 CDN 哈希路径。
+- 继续通过 AUR `linuxqq-appimage` 动态发现官方 AppImage 地址，不在仓库中写死版本号或 CDN 哈希路径。
 - 最终 Release 资产名固定为 `qq.AppImage`。
-- 不把 AUR 启动器里清理用户配置目录的逻辑带进 AppRun。
+- 官方 AppImage 没有已确认需要修复的内容时，不得再拆包重封装。
 
 ## 修复记录
 
+### 2026-09-18：改为官方 AppImage 原样同步
+
+- 现象：仓库重打包的 `qq.AppImage` 启动后窗口全黑卡住；官方 QQ 不卡。preload 成功。日志有 `Glycin running without sandbox`、`StartTransientUnit` 对 `org.chromium.Chromium-*.scope` 失败，以及 Fontconfig 缓存由更新版本生成（宿主 `0x20120003`，包内 `0x20110001`）。
+- 根因：从官方 DEB 用 Arch 容器 + quick-sharun 收集 GTK / Fontconfig / Glycin 后二次封装。包内旧 Fontconfig 读到宿主新缓存，Electron 再与宿主 Chromium systemd scope 撞名。官方 deb/AppImage 使用官方自己的运行库，不复现。
+- 修改文件：`qq/build_qq.sh`、`qq/README.md`。
+- 处理：改为同步腾讯官方 x86_64 AppImage，校验 SHA-256 后以 `qq.AppImage` 发布。不再使用 quick-sharun / linuxdeploy。
+- 已知结果：已提交构建，实机是否恢复待新资产验证。
+
 ### 2026-09-18：AppImage 启动后黑屏卡住
 
-- 现象：`qq` 能进进程，preload 成功，随后窗口全黑并卡住；官方 deb / 官方包不卡。日志有 `Glycin running without sandbox`，以及 `systemd1.Manager.StartTransientUnit` 对 `app-org.chromium.Chromium-*.scope` 失败（already loaded / fragment file）。Browser LongTask 后无界面。
-- 根因：构建依赖误带 `gjs` / `openjpeg2` / `openslide`，quick-sharun 会收集 Glycin；AppImage 里 Glycin 没有 bwrap。Electron 还按通用 Chromium 名字建 systemd scope，和宿主残留单元冲突。官方安装用系统库和自己的单元名，所以不复现。
-- 修改文件：`qq/build_qq.sh`、`qq/README.md`。
-- 处理：去掉上述 GTK 图像依赖；启动改为 `--no-sandbox --disable-setuid-sandbox --ozone-platform-hint=x11 --disable-features=SystemdCgroup`，并设置 `CHROME_DESKTOP=qq.desktop`。
-- 已知结果：已提交构建，实机窗口是否恢复待新 `qq.AppImage` 验证。若仍黑屏，可临时追加 `--disable-gpu` 再试。
+- 现象：同上。当时仍走 DEB + quick-sharun。
+- 处理：去掉 `gjs` / `openjpeg2` / `openslide`，启动加上 `--no-sandbox --disable-setuid-sandbox --ozone-platform-hint=x11 --disable-features=SystemdCgroup`。
+- 已知结果：新包仍黑屏，Fontconfig 版本冲突仍在。已被上一条覆盖。
 
-尚无更早的构建或运行故障修复。新增打包于 2026-09-17。
+新增打包于 2026-09-17，当时从官方 DEB 重封装，无实机成功记录。

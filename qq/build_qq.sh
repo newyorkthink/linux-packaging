@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# 从腾讯官方 Linux QQ x86_64 DEB 重新封装 AnyLinux AppImage。
-# AUR linuxqq 只用来动态读取当前官方 DEB 地址和 SHA512，不作为二进制来源。
+# 同步腾讯官方 Linux QQ x86_64 AppImage。AUR linuxqq-appimage 只用来读取当前 CDN 地址和 SHA-256。
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,229 +18,108 @@ die() {
 HOST_ARCH="$(uname -m)"
 readonly HOST_ARCH
 [[ "${HOST_ARCH}" == x86_64 ]] || die "当前仅支持 x86_64。"
-command -v yay >/dev/null 2>&1 || die "构建环境缺少命令：yay"
 
-readonly AUR_SRCINFO_URL='https://aur.archlinux.org/cgit/aur.git/plain/.SRCINFO?h=linuxqq'
+readonly AUR_PKGBUILD_URL='https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=linuxqq-appimage'
 readonly SOURCE_DIR="${SCRIPT_DIR}/source"
-readonly PACKAGE_ROOT="${SOURCE_DIR}/package"
-readonly DEB_FILE="${SOURCE_DIR}/linuxqq_amd64.deb"
-readonly APPDIR="${SCRIPT_DIR}/AppDir"
-readonly APP_ROOT="${APPDIR}/bin"
 readonly DIST_DIR="${SCRIPT_DIR}/dist"
+readonly OFFICIAL_APPIMAGE="${SOURCE_DIR}/QQ-official.AppImage"
 readonly OUTFILE="${DIST_DIR}/qq.AppImage"
-readonly BUILD_DESKTOP="${SCRIPT_DIR}/qq.desktop"
-readonly BUILD_ICON="${SCRIPT_DIR}/qq.png"
 
-rm -rf "${SOURCE_DIR}" "${APPDIR}" "${DIST_DIR}"
-rm -f "${BUILD_DESKTOP}" "${BUILD_ICON}"
-mkdir -p "${SOURCE_DIR}" "${PACKAGE_ROOT}" "${APP_ROOT}" "${DIST_DIR}"
+rm -rf "${SOURCE_DIR}" "${DIST_DIR}"
+mkdir -p "${SOURCE_DIR}" "${DIST_DIR}"
 
-# 安装 quick-sharun 最小基础工具。
-yay -S --noconfirm --needed \
-  base-devel git wget curl jq binutils patchelf file coreutils findutils \
-  grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
-  desktop-file-utils zsync ca-certificates
+yay -S --noconfirm --needed curl jq coreutils ca-certificates
+command -v curl >/dev/null 2>&1 || die "构建环境缺少命令：curl"
+command -v jq >/dev/null 2>&1 || die "构建环境缺少命令：jq"
+command -v sha256sum >/dev/null 2>&1 || die "构建环境缺少命令：sha256sum"
 
-# 安装 Linux QQ 官方 DEB 声明的运行依赖，供 ldd / quick-sharun 解析外部库。
-yay -S --noconfirm --needed \
-  nss alsa-lib gtk3 at-spi2-core \
-  libappindicator-gtk3 libnotify libsecret libxss libxtst \
-  nspr cups dbus glib2 pango cairo fontconfig freetype2 \
-  libx11 libxext libxi libxrender libxrandr libxcomposite libxdamage libxfixes \
-  libxcb libxkbcommon libxkbcommon-x11 mesa libglvnd
+log "读取 AUR linuxqq-appimage 当前官方 x86_64 AppImage 元数据"
+PKGBUILD="$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 "${AUR_PKGBUILD_URL}")"
+[[ -n "${PKGBUILD}" ]] || die "无法获取 AUR linuxqq-appimage PKGBUILD。"
 
-for command_name in \
-  ar awk chmod curl desktop-file-validate file find grep install ldd \
-  quick-sharun readelf readlink sed sha512sum sort stat tar; do
-  command -v "${command_name}" >/dev/null 2>&1 || \
-    die "构建环境缺少命令：${command_name}"
-done
-
-#######################################################################
-# 1. 动态读取 AUR linuxqq 当前官方 DEB 地址并下载
-#######################################################################
-
-log "读取 AUR linuxqq 当前官方 x86_64 DEB 元数据"
-SRCINFO="$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 "${AUR_SRCINFO_URL}")"
-[[ -n "${SRCINFO}" ]] || die "无法获取 AUR linuxqq .SRCINFO。"
-
-DEB_URL="$(
-  awk '
-    $1 == "source_x86_64" && $2 == "=" {
-      print $3
+IMAGE_URL="$(
+  awk -F= '
+    $1 == "_image_url_x86_64" {
+      url=$2
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", url)
+      gsub(/^"/, "", url)
+      gsub(/"$/, "", url)
+      print url
       exit
     }
-  ' <<< "${SRCINFO}"
+  ' <<< "${PKGBUILD}"
 )"
-DEB_SHA512="$(
-  awk '
-    $1 == "sha512sums_x86_64" && $2 == "=" {
-      print $3
+IMAGE_SHA256="$(
+  awk -F= '
+    $1 == "_image_sha256sums_x86_64" {
+      sum=$2
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", sum)
+      gsub(/^"/, "", sum)
+      gsub(/"$/, "", sum)
+      print tolower(sum)
       exit
     }
-  ' <<< "${SRCINFO}"
+  ' <<< "${PKGBUILD}"
 )"
-[[ "${DEB_URL}" =~ ^https://qqdl\.gtimg\.cn/qqfile/QQNT/.+_amd64\.deb$ ]] || \
-  die "AUR linuxqq 未给出有效的官方 amd64 DEB 地址：${DEB_URL}"
-[[ "${DEB_SHA512}" =~ ^[0-9a-f]{128}$ ]] || \
-  die "AUR linuxqq 未给出有效的 SHA512：${DEB_SHA512}"
+[[ "${IMAGE_URL}" =~ ^https://qqdl\.gtimg\.cn/qqfile/QQNTV2/.+_x86_64_01\.AppImage$ ]] || \
+  die "AUR linuxqq-appimage 未给出有效的官方 x86_64 AppImage 地址：${IMAGE_URL}"
+[[ "${IMAGE_SHA256}" =~ ^[0-9a-f]{64}$ ]] || \
+  die "AUR linuxqq-appimage 未给出有效的 SHA-256：${IMAGE_SHA256}"
 
-log "下载腾讯官方 x86_64 DEB"
+VERSION="$(
+  awk -F= '
+    $1 == "_version" {
+      ver=$2
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", ver)
+      gsub(/^"/, "", ver)
+      gsub(/"$/, "", ver)
+      print ver
+      exit
+    }
+  ' <<< "${PKGBUILD}"
+)"
+if [[ "${IMAGE_URL}" =~ QQ_([0-9]+\.[0-9]+\.[0-9]+)_([0-9]{6})_x86_64_01\.AppImage$ ]]; then
+  VERSION="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}"
+fi
+[[ "${VERSION}" =~ ^[0-9][0-9A-Za-z.+:~_-]*$ ]] || \
+  die "无法从官方 AppImage 元数据解析有效版本：${VERSION}"
+
+sign_download_url() {
+  local unsigned_url="$1"
+  local cookie signed
+  cookie="$(mktemp)"
+  curl -fsS --retry 5 --retry-all-errors --retry-delay 2 \
+    -c "${cookie}" "https://im.qq.com" >/dev/null
+  signed="$(
+    curl -fsS --retry 5 --retry-all-errors --retry-delay 2 \
+      --json "$(jq -nc --arg url "${unsigned_url}" '{url:$url}')" \
+      -b "${cookie}" \
+      -H 'x-oidb: {"uint32_command":"0x9b8e","uint32_service_type":1}' \
+      "https://im.qq.com/http2rpc/gotrpc/noauth/trpc.qqntv2.urlsign.UrlSign/GetSign" \
+      | jq -r '.data.url // empty'
+  )"
+  rm -f -- "${cookie}"
+  [[ "${signed}" == https://* ]] || die "无法获取官方 AppImage 签名下载地址。"
+  printf '%s\n' "${signed}"
+}
+
+log "下载腾讯官方 x86_64 AppImage ${VERSION}"
+DOWNLOAD_URL="$(sign_download_url "${IMAGE_URL}")"
 curl -fL \
   --retry 5 \
   --retry-all-errors \
   --retry-delay 2 \
   --connect-timeout 20 \
-  "${DEB_URL}" \
-  -o "${DEB_FILE}"
-[[ -s "${DEB_FILE}" ]] || die "官方下载文件为空。"
-file "${DEB_FILE}" | grep -q 'Debian binary package' || \
-  die "官方下载文件不是 Debian 软件包。"
+  --max-time 1800 \
+  "${DOWNLOAD_URL}" \
+  -o "${OFFICIAL_APPIMAGE}"
+[[ -s "${OFFICIAL_APPIMAGE}" ]] || die "官方下载文件为空。"
 
-actual_sha512="$(sha512sum -- "${DEB_FILE}" | awk '{print $1}')"
-[[ "${actual_sha512}" == "${DEB_SHA512}" ]] || \
-  die "官方 DEB SHA512 与 AUR linuxqq 声明不一致。"
+actual_sha256="$(sha256sum -- "${OFFICIAL_APPIMAGE}" | awk '{print tolower($1)}')"
+[[ "${actual_sha256}" == "${IMAGE_SHA256}" ]] || \
+  die "官方 AppImage SHA-256 与 AUR linuxqq-appimage 声明不一致。"
 
-#######################################################################
-# 2. 提取官方 DEB 并解析版本
-#######################################################################
-
-log "提取官方 DEB"
-(
-  cd "${SOURCE_DIR}"
-  ar x "${DEB_FILE}"
-)
-
-shopt -s nullglob
-control_archives=("${SOURCE_DIR}"/control.tar.*)
-data_archives=("${SOURCE_DIR}"/data.tar.*)
-shopt -u nullglob
-[[ ${#control_archives[@]} -eq 1 ]] || die "官方 deb 中应且只能有一个 control.tar.*。"
-[[ ${#data_archives[@]} -eq 1 ]] || die "官方 deb 中应且只能有一个 data.tar.*。"
-
-VERSION="$(
-  tar -xOf "${control_archives[0]}" ./control \
-    | awk '$1 == "Version:" {print $2; exit}'
-)"
-[[ "${VERSION}" =~ ^[0-9][0-9A-Za-z.+:~_-]*$ ]] || \
-  die "无法从官方 deb 解析有效版本：${VERSION}"
-log "QQ version: ${VERSION}"
-
-tar -xf "${data_archives[0]}" -C "${PACKAGE_ROOT}"
-readonly SOURCE_APP_ROOT="${PACKAGE_ROOT}/opt/QQ"
-[[ -x "${SOURCE_APP_ROOT}/qq" ]] || die "官方 deb 缺少可执行主程序 /opt/QQ/qq。"
-file "${SOURCE_APP_ROOT}/qq" | grep -q 'ELF 64-bit' || \
-  die "官方 QQ 主程序不是 64 位 ELF。"
-
-mapfile -d '' desktop_candidates < <(
-  find "${PACKAGE_ROOT}/usr/share/applications" \
-    -maxdepth 1 \
-    -type f \
-    -iname '*qq*.desktop' \
-    -print0
-)
-[[ ${#desktop_candidates[@]} -eq 1 ]] || \
-  die "官方 deb 中应且只能找到一个 QQ desktop 文件，实际为 ${#desktop_candidates[@]}。"
-readonly SOURCE_DESKTOP="${desktop_candidates[0]}"
-
-mapfile -d '' icon_candidates < <(
-  find "${PACKAGE_ROOT}/usr/share/icons" \
-    -type f \
-    \( -iname 'qq.png' -o -iname 'linuxqq.png' \) \
-    -print0
-)
-[[ ${#icon_candidates[@]} -gt 0 ]] || die "官方 deb 中未找到 qq.png。"
-
-SOURCE_ICON="${icon_candidates[0]}"
-source_icon_size="$(stat -c '%s' "${SOURCE_ICON}")"
-for icon_candidate in "${icon_candidates[@]:1}"; do
-  icon_size="$(stat -c '%s' "${icon_candidate}")"
-  if (( icon_size > source_icon_size )); then
-    SOURCE_ICON="${icon_candidate}"
-    source_icon_size="${icon_size}"
-  fi
-done
-readonly SOURCE_ICON
-file "${SOURCE_ICON}" | grep -q 'PNG image data' || die "找到的 QQ 图标不是 PNG。"
-
-#######################################################################
-# 3. 保持官方 /opt/QQ 相对布局并做已知兼容处理
-#######################################################################
-
-log "复制官方运行目录"
-cp -a "${SOURCE_APP_ROOT}"/. "${APP_ROOT}"/
-
-# AUR linuxqq 会删除官方包自带的 libssh2，避免与系统库冲突。
-find "${APP_ROOT}" -type f -name 'libssh2.so.1' -delete
-
-# AppImage 无法保留 chrome-sandbox 的 setuid，启动时改走 --no-sandbox。
-if [[ -e "${APP_ROOT}/chrome-sandbox" ]]; then
-  chmod 0755 "${APP_ROOT}/chrome-sandbox"
-fi
-
-find "${APP_ROOT}" -type f -name '*.node' -exec chmod 0644 {} +
-
-install -Dm0644 "${SOURCE_DESKTOP}" "${BUILD_DESKTOP}"
-install -Dm0644 "${SOURCE_ICON}" "${BUILD_ICON}"
-[[ "$(grep -c '^Exec=' "${BUILD_DESKTOP}")" -eq 1 ]] || \
-  die "官方 desktop 的 Exec 字段数量异常。"
-[[ "$(grep -c '^Icon=' "${BUILD_DESKTOP}")" -eq 1 ]] || \
-  die "官方 desktop 的 Icon 字段数量异常。"
-sed -i \
-  -e 's|^Exec=.*|Exec=qq %U|' \
-  -e 's|^Icon=.*|Icon=qq|' \
-  "${BUILD_DESKTOP}"
-if ! grep -q '^StartupWMClass=' "${BUILD_DESKTOP}"; then
-  printf 'StartupWMClass=QQ\n' >> "${BUILD_DESKTOP}"
-fi
-if ! grep -q '^X-AppImage-Version=' "${BUILD_DESKTOP}"; then
-  printf 'X-AppImage-Version=%s\n' "${VERSION}" >> "${BUILD_DESKTOP}"
-fi
-desktop-file-validate "${BUILD_DESKTOP}"
-
-# 入口固定从包内程序目录启动。AppImage 无法保留 chrome-sandbox setuid。
-# 官方 deb 用系统库；这里补 Electron 在 FUSE 挂载下常见的 X11 / systemd scope 参数。
-cat > "${APPDIR}/AppRun.sh" <<'APPRUN_EOF'
-#!/bin/sh
-set -e
-
-export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}"
-export ELECTRON_OZONE_PLATFORM_HINT="${ELECTRON_OZONE_PLATFORM_HINT:-x11}"
-export CHROME_DESKTOP="${CHROME_DESKTOP:-qq.desktop}"
-export SHARUN_EXTRA_LIBRARY_PATH="$APPDIR/bin${SHARUN_EXTRA_LIBRARY_PATH:+:$SHARUN_EXTRA_LIBRARY_PATH}"
-export SHARUN_WORKING_DIR="$APPDIR/bin"
-
-cd "$APPDIR/bin"
-exec "$APPDIR/bin/qq" \
-  --no-sandbox \
-  --disable-setuid-sandbox \
-  --ozone-platform-hint=x11 \
-  --disable-features=SystemdCgroup \
-  "$@"
-APPRUN_EOF
-chmod 0755 "${APPDIR}/AppRun.sh"
-bash -n "${APPDIR}/AppRun.sh"
-
+install -Dm0755 "${OFFICIAL_APPIMAGE}" "${OUTFILE}"
 printf '%s\n' "${VERSION}" > ~/version
-
-export ARCH=x86_64
-export VERSION
-export APPNAME=QQ
-export MAIN_BIN=qq
-export STARTUPWMCLASS=QQ
-export ICON="${BUILD_ICON}"
-export DESKTOP="${BUILD_DESKTOP}"
-export OUTPATH="${DIST_DIR}"
-export OUTNAME=qq.AppImage
-export DEPLOY_GTK=1
-
-log "使用 quick-sharun 收集主程序外部库"
-LD_LIBRARY_PATH="${APP_ROOT}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" quick-sharun \
-  "${APP_ROOT}/qq"
-
-quick-sharun --make-appimage
-[[ -s "${OUTFILE}" ]] || die "未生成预期文件：${OUTFILE}"
-chmod 0755 "${OUTFILE}"
-
 printf '%s\n' "${VERSION}" > "${DIST_DIR}/version.txt"
-log "更新完成 ${VERSION}"
+log "同步完成 ${VERSION}"
