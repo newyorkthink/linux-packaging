@@ -33,7 +33,7 @@
 - 上游为 Poppler 的 C / C++ 命令行工具，不是桌面 GUI。
 - 目标架构：当前构建环境的 `uname -m`（正式构建为 x86_64）。
 - 打包工具：Arch Linux 容器中的 quick-sharun / sharun，runtime 为 uruntime。
-- 官方包没有 desktop / 图标，构建使用 `DESKTOP=DUMMY`，默认主程序为 `pdftotext`。ICON 使用构建环境 Adwaita 的 `x-office-document.svg`（Adwaita 50 已无 `application-pdf`），不自绘品牌图。`STARTUPWMCLASS=pdftotext` 只为消掉 dummy desktop 的警告，命令行本身没有窗口。
+- 官方包没有 desktop / 图标，构建使用 `DESKTOP=DUMMY`，默认主程序为 `pdftotext`。ICON 使用构建环境 Adwaita 的 `x-office-document.svg`（Adwaita 50 已无 `application-pdf`），不自绘品牌图。`STARTUPWMCLASS=poppler-utils` 与套件名一致，不钉成某一个子命令。
 - 不安装 udev、不请求额外系统权限。
 
 ## 打包方式
@@ -122,5 +122,14 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 - 根因：`DESKTOP=DUMMY` 生成的 desktop 没有该类名；命令行工具没有窗口，警告无功能影响。
 - 修改文件：`poppler-utils/build_poppler-utils.sh`、`poppler-utils/README.md`。
 - 具体内容：增加 `export STARTUPWMCLASS=pdftotext`。
+- 已知结果：已提交，未监控 Actions。
+
+### 2026-09-18：STARTUPWMCLASS 改为套件名
+
+- 日期：2026-09-18
+- 现象：误把 `STARTUPWMCLASS` 写成 `pdftotext`，只覆盖其中一个命令。
+- 根因：这是多命令套件，类名应与 AppImage / `APPNAME` 一致。
+- 修改文件：`poppler-utils/build_poppler-utils.sh`、`poppler-utils/README.md`。
+- 具体内容：改为 `export STARTUPWMCLASS=poppler-utils`。
 - 已知结果：已提交，未监控 Actions。
 

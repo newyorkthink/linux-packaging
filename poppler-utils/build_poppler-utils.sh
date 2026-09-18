@@ -15,7 +15,7 @@ export OUTNAME="poppler-utils.AppImage"
 export APPNAME="poppler-utils"
 export DESKTOP=DUMMY
 export MAIN_BIN=pdftotext
-export STARTUPWMCLASS=pdftotext
+export STARTUPWMCLASS=poppler-utils
 
 # 安装 quick-sharun / AppImage 打包所需的最小基础工具
 yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
