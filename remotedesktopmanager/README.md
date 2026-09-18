@@ -18,7 +18,8 @@ Remote Desktop Manager 用于集中管理 RDP、SSH、VNC 等远程连接。
 RDM Linux 是 Avalonia / .NET 桌面应用，并嵌入：
 
 - WebKitGTK 4.1（内部浏览器 / HTML 视图）
-- VTE 3（内置终端）
+- VTE 3（官方包依赖；部分 GTK 视图可能使用）
+- Devolutions.ProtocolsSharp LocalTerm（工具 → 终端：Avalonia TermControl + 宿主 `/bin/sh` PTY）
 - glycin-ng（图像加载兼容层，替换 GNOME glycin）
 - ICU（.NET 全球化与多语言界面）
 
@@ -30,6 +31,8 @@ RDM Linux 是 Avalonia / .NET 桌面应用，并嵌入：
 AppImage 不内置 Fcitx5 守护进程或输入方案。
 
 内置 LocalTerm 会 `posix_spawn` 宿主 `/bin/sh`。主进程依赖由 sharun 的 bundled ld-linux `--library-path` 提供，不能再用 `LD_LIBRARY_PATH` 指向包内 `lib/`，否则宿主 shell 会加载包内 `libc.so.6`。
+
+工具 → 终端的按键由 Avalonia TermControl 直接映射成 VT 写入 PTY，不会走 GTK IM 模块。Fcitx5 候选导航键泄漏属于上游 TermControl 输入处理，不是打包缺模块。
 
 ## 打包方式
 
@@ -79,3 +82,12 @@ AppImage 不内置 Fcitx5 守护进程或输入方案。
 - 修改文件：`remotedesktopmanager/build_remotedesktopmanager.sh`、`remotedesktopmanager/README.md`、根目录 `README.md`。
 - 修复内容：不再写入 `LD_LIBRARY_PATH`；打包前删除 `.env` 中可能残留的该变量并拒绝带该变量出包。不回退 ICU、glycin-ng、WebView 4.1、GTK3 Fcitx5 模块 ID 或运行时 immodules 缓存。
 - 已知结果：脚本与 Anylinux 文档对齐，内置终端不再被迫加载包内 libc。新 AppImage 是否能正常打开本地 shell 仍待 Linux 实机验证，不得视为已经实机解决。
+
+### 2026-09-18：Linux 实机验证 LocalTerm
+
+- 检查对象：去掉 `LD_LIBRARY_PATH` 后的 `latest/remotedesktopmanager.AppImage`（对应提交 `2df7fa17` 的构建产物）。
+- 现象：工具 → 终端能出现 `$` 提示符；用 Fcitx5 选词时方向键 / Delete 仍变成 `^[[D`、`^[[3~` 进入 PTY，上屏中文同时夹杂这些转义序列。
+- 证据：LocalTerm 日志为 `posix_spawn OK`、`first data received, 2 bytes`，不再出现 `__pointer_chk_guard` 或 `errno=5`。进程标识是 `Devolutions.ProtocolsSharp` / `LocalTerm`，不是 VTE。上游 `TermControl.OnKeyDown` 把按键直接映射成 VT 写入 PTY，没有 IME composing 判断。
+- 已确认：包内 libc 泄漏已实机解决。GTK3 `im-fcitx5.so` 无法过滤 Avalonia TermControl 的候选导航键。
+- 未确认：主界面 TextBox、WebKitGTK 内部浏览器的 Fcitx5 是否正常，本次未测。
+- 建议：不再为 LocalTerm 候选键泄漏改打包脚本；不得回退 ICU、glycin-ng、WebView 4.1、`GTK_IM_MODULE=fcitx` 或重新写入 `LD_LIBRARY_PATH`。该泄漏需上游 TermControl 在 composing 时不要把方向键写成 VT。
