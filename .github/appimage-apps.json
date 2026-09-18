@@ -302,6 +302,18 @@
       "run_from_root": "false"
     },
     {
+      "key": "poppler_utils",
+      "kind": "standard",
+      "name": "poppler-utils",
+      "script": "poppler-utils/build_poppler-utils.sh",
+      "dir": "poppler-utils",
+      "artifact_dir": "poppler-utils/dist",
+      "release_name": "poppler-utils.AppImage",
+      "software_key": "poppler-utils",
+      "timeout_minutes": 60,
+      "run_from_root": "false"
+    },
+    {
       "key": "obsidian",
       "kind": "standard",
       "name": "Obsidian",
