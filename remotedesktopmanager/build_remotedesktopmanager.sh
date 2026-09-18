@@ -20,7 +20,7 @@ yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-gli
 # remote-desktop-manager 及其依赖包
 yay -S --noconfirm remote-desktop-manager ca-certificates libsecret vte3 webkit2gtk-4.1 xorg-server-xwayland libappindicator-gtk3 lsof gnome-keyring xdotool debugedit icu openssl
 
-# fcitx5-gtk 提供 WebKitGTK3 中文输入模块。
+# fcitx5-gtk 提供 WebKitGTK / VTE 使用的 GTK3 中文输入模块。
 yay -S --noconfirm fcitx5-gtk
 
 # 复制并修改桌面文件的 Exec 行，匹配实际提取的二进制程序名称
@@ -39,11 +39,12 @@ quick-sharun \
 echo 'DOTNET_EnableWriteXorExecute=0' >> AppDir/.env
 echo 'LD_LIBRARY_PATH=${APPDIR}/bin:${APPDIR}/lib:${APPDIR}/shared/lib:${LD_LIBRARY_PATH}' >> AppDir/.env
 
-# Avalonia 主界面直接连接 Fcitx5；WebKitGTK 输入框使用随包提供的 GTK3 Fcitx5 模块。
+# Avalonia 主界面直接连接 Fcitx5；WebKitGTK / VTE 使用随包提供的 GTK3 Fcitx5 模块。
 # LANG 必须是中日韩语言环境，否则 Avalonia 默认不会启用 Linux IME。
+# GTK3 模块 ID 是 fcitx，不是 fcitx5；后者会导致找不到 IM module，候选方向键漏进终端。
 echo 'LANG=zh_CN.UTF-8' >> AppDir/.env
 echo 'AVALONIA_IM_MODULE=fcitx5' >> AppDir/.env
-echo 'GTK_IM_MODULE=fcitx5' >> AppDir/.env
+echo 'GTK_IM_MODULE=fcitx' >> AppDir/.env
 echo 'XMODIFIERS=@im=fcitx' >> AppDir/.env
 
 # 我们把真实目录里的所有文件复制到 AppDir/bin/ 和 AppDir/shared/bin/
@@ -57,6 +58,36 @@ cp -an /usr/lib/devolutions/RemoteDesktopManager/* AppDir/shared/bin/ || true
 # .NET 使用 DllImport 加载 icu 等库时，会优先查找程序所在目录 (bin)
 cp -a /usr/lib/libicu*.so* AppDir/bin/ || true
 cp -a /usr/lib/libicu*.so* AppDir/shared/bin/ || true
+
+# 启动时按当前 AppImage 挂载路径生成 GTK3 immodules.cache。
+# 构建期缓存会留下构建机绝对路径，GTK 无法加载；Remmina / dconf-editor 同样在运行时写缓存。
+cat > AppDir/bin/rdm-gtk-immodules.src.hook << 'HOOK'
+#!/bin/false
+
+GTK_IMMODULE_DIR=""
+for candidate in \
+  "$APPDIR/lib/gtk-3.0/3.0.0/immodules" \
+  "$APPDIR/usr/lib/gtk-3.0/3.0.0/immodules"; do
+  if [ -d "$candidate" ]; then
+    GTK_IMMODULE_DIR="$candidate"
+    break
+  fi
+done
+
+if [ -n "$GTK_IMMODULE_DIR" ] && [ -f "$GTK_IMMODULE_DIR/im-fcitx5.so" ]; then
+  IM_CACHE_DIR="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
+  IM_CACHE_FILE="$IM_CACHE_DIR/rdm-appimage-immodules-${UID:-0}.cache"
+  cat > "$IM_CACHE_FILE" <<EOF
+# GTK+ Input Method Modules file
+"$GTK_IMMODULE_DIR/im-fcitx5.so"
+"fcitx" "Fcitx 5" "fcitx" "" "ja:ko:zh:*"
+EOF
+  export GTK_IM_MODULE_FILE="$IM_CACHE_FILE"
+  export GTK_IM_MODULE="fcitx"
+fi
+unset GTK_IMMODULE_DIR candidate IM_CACHE_DIR IM_CACHE_FILE
+HOOK
+chmod +x AppDir/bin/rdm-gtk-immodules.src.hook
 
 # 打包前确认 WebView 4.1 的核心运行库和辅助进程已经完整进入 AppDir，避免生成必然无法启动的 AppImage。
 for required_path in \
@@ -95,12 +126,26 @@ fi
 for required_env in \
     'LANG=zh_CN.UTF-8' \
     'AVALONIA_IM_MODULE=fcitx5' \
-    'GTK_IM_MODULE=fcitx5' \
+    'GTK_IM_MODULE=fcitx' \
     'XMODIFIERS=@im=fcitx'; do
     if ! grep -Fxq "$required_env" AppDir/.env; then
         echo "缺少 Remote Desktop Manager 中文输入环境变量：$required_env" >&2
         exit 1
     fi
 done
+
+if grep -Fxq 'GTK_IM_MODULE=fcitx5' AppDir/.env; then
+    echo "Remote Desktop Manager 不应再设置 GTK_IM_MODULE=fcitx5。" >&2
+    exit 1
+fi
+
+if [ ! -f AppDir/bin/rdm-gtk-immodules.src.hook ]; then
+    echo "缺少 Remote Desktop Manager GTK3 immodules 启动 hook。" >&2
+    exit 1
+fi
+if ! grep -Fq '"fcitx" "Fcitx 5" "fcitx"' AppDir/bin/rdm-gtk-immodules.src.hook; then
+    echo "Remote Desktop Manager GTK3 immodules hook 未登记模块 ID fcitx。" >&2
+    exit 1
+fi
 
 quick-sharun --make-appimage
