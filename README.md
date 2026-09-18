@@ -13,6 +13,12 @@
 - 已验证正常的现有构建方案视为稳定基线，修改时应遵循最小变更原则。
 - 优先使用上游官方程序、资源和发布包，只处理 Linux 打包、依赖、启动及兼容性问题。
 
+## 手动构建
+
+GitHub Actions → **Build AppImages** → `script_to_build` 填 `all` 或应用名 / 脚本路径。`script_search` 可模糊匹配，优先于前者。
+
+标准 Arch 应用只改 `.github/appimage-apps.json`；特例仍在 `build.yml` 里单独 Job。RunImage 用 **Build RunImages**，Termux 用 **Build Termux**。
+
 ## 当前待处理
 
 截至 2026-09-17，以下问题暂时保留，后续继续处理前必须先完整阅读对应目录现有 README / 问题记录；已经解决的构建兼容层和已确认基线不得回退。
