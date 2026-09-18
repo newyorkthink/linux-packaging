@@ -35,9 +35,12 @@ quick-sharun \
     /usr/lib/devolutions/RemoteDesktopManager/libWebView-4.1.so \
     /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
 
-# 补充环境变量以替代原本的 wrapper 脚本
+# 补充环境变量以替代原本的 wrapper 脚本。
+# 不要设置 LD_LIBRARY_PATH。sharun 用 bundled ld-linux 的 --library-path 加载主进程依赖；
+# LD_LIBRARY_PATH 会遗传给 LocalTerm posix_spawn 的宿主 /bin/sh，使其加载包内 libc.so.6，
+# 出现 GLIBC_PRIVATE 符号错误（__pointer_chk_guard）后立刻退出。
+# .NET DllImport 会先搜程序目录；ICU 与 RDM 原生库已复制到 AppDir/bin。
 echo 'DOTNET_EnableWriteXorExecute=0' >> AppDir/.env
-echo 'LD_LIBRARY_PATH=${APPDIR}/bin:${APPDIR}/lib:${APPDIR}/shared/lib:${LD_LIBRARY_PATH}' >> AppDir/.env
 
 # Avalonia 主界面直接连接 Fcitx5；WebKitGTK / VTE 使用随包提供的 GTK3 Fcitx5 模块。
 # LANG 必须是中日韩语言环境，否则 Avalonia 默认不会启用 Linux IME。
@@ -136,6 +139,15 @@ done
 
 if grep -Fxq 'GTK_IM_MODULE=fcitx5' AppDir/.env; then
     echo "Remote Desktop Manager 不应再设置 GTK_IM_MODULE=fcitx5。" >&2
+    exit 1
+fi
+
+# 打包前去掉 .env 里的 LD_LIBRARY_PATH，避免内置终端继承包内 libc。
+if [ -f AppDir/.env ]; then
+    sed -i '/^LD_LIBRARY_PATH=/d' AppDir/.env
+fi
+if grep -q '^LD_LIBRARY_PATH=' AppDir/.env 2>/dev/null; then
+    echo "Remote Desktop Manager 的 .env 仍含 LD_LIBRARY_PATH。" >&2
     exit 1
 fi
 

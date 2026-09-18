@@ -29,6 +29,8 @@ RDM Linux 是 Avalonia / .NET 桌面应用，并嵌入：
 
 AppImage 不内置 Fcitx5 守护进程或输入方案。
 
+内置 LocalTerm 会 `posix_spawn` 宿主 `/bin/sh`。主进程依赖由 sharun 的 bundled ld-linux `--library-path` 提供，不能再用 `LD_LIBRARY_PATH` 指向包内 `lib/`，否则宿主 shell 会加载包内 `libc.so.6`。
+
 ## 打包方式
 
 构建环境使用仓库统一的 Arch Linux AnyLinux 容器和 `quick-sharun`。
@@ -37,10 +39,10 @@ AppImage 不内置 Fcitx5 守护进程或输入方案。
 2. 安装 `remote-desktop-manager` 及其运行依赖，以及 `fcitx5-gtk`。
 3. 修正 desktop `Exec` 为实际二进制名 `RemoteDesktopManager`。
 4. 一次性把主程序、`libWebView-4.1.so` 和 `im-fcitx5.so` 交给 `quick-sharun`。
-5. 向 `AppDir/.env` 写入 .NET、库路径和中文输入环境变量。
+5. 向 `AppDir/.env` 写入 .NET 与中文输入环境变量，明确不写入 `LD_LIBRARY_PATH`；打包前再删除 `.env` 中可能残留的该变量。
 6. 补齐 `/usr/lib/devolutions/RemoteDesktopManager` 与 ICU 运行库。
 7. 写入 `AppDir/bin/rdm-gtk-immodules.src.hook`，启动时按当前 `$APPDIR` 生成 GTK3 `immodules.cache`。
-8. 检查 WebView 辅助进程、Fcitx5 GTK3 模块、glycin-ng 和输入环境变量后生成 AppImage。
+8. 检查 WebView 辅助进程、Fcitx5 GTK3 模块、glycin-ng、输入环境变量和 `.env` 不含 `LD_LIBRARY_PATH` 后生成 AppImage。
 
 ## 运行
 
@@ -69,3 +71,11 @@ AppImage 不内置 Fcitx5 守护进程或输入方案。
 - 修改文件：`remotedesktopmanager/build_remotedesktopmanager.sh`、`remotedesktopmanager/README.md`、根目录 `README.md`。
 - 修复内容：`.env` 改为 `GTK_IM_MODULE=fcitx`，保留 `AVALONIA_IM_MODULE=fcitx5`。启动 hook 按当前 AppImage 挂载路径生成只含 Fcitx5 的 GTK3 缓存，并导出 `GTK_IM_MODULE_FILE`。不回退 ICU、glycin-ng、WebView 4.1 或 Avalonia IME 基线。
 - 已知结果：模块 ID 与仓库已验证 GTK3 Fcitx5 方案对齐；内置终端候选按键是否不再泄漏仍待 Linux 实机验证，不得视为已经实机解决。
+
+### 2026-09-18：去掉 LD_LIBRARY_PATH，避免内置终端加载包内 libc
+
+- 现象：打开内置终端后 LocalTerm 能 `posix_spawn` 宿主 `/bin/sh`，但立刻报 `symbol lookup error: .../lib/libc.so.6: undefined symbol: __pointer_chk_guard, version GLIBC_PRIVATE`，随后 `read error errno=5`。
+- 根因：构建脚本为替代上游 wrapper，向 `AppDir/.env` 写入 `LD_LIBRARY_PATH=${APPDIR}/bin:${APPDIR}/lib:...`。Anylinux / sharun 明确禁止用 `LD_LIBRARY_PATH`：它会遗传给子进程。宿主 `/bin/sh` 仍使用系统 `ld-linux`，却去加载 AppImage 里另一套 `libc.so.6`，`GLIBC_PRIVATE` 对不上。主进程本身应由 sharun 的 bundled ld-linux `--library-path` 解析依赖；ICU 与 RDM 原生库已在 `AppDir/bin`，.NET DllImport 会先搜程序目录。
+- 修改文件：`remotedesktopmanager/build_remotedesktopmanager.sh`、`remotedesktopmanager/README.md`、根目录 `README.md`。
+- 修复内容：不再写入 `LD_LIBRARY_PATH`；打包前删除 `.env` 中可能残留的该变量并拒绝带该变量出包。不回退 ICU、glycin-ng、WebView 4.1、GTK3 Fcitx5 模块 ID 或运行时 immodules 缓存。
+- 已知结果：脚本与 Anylinux 文档对齐，内置终端不再被迫加载包内 libc。新 AppImage 是否能正常打开本地 shell 仍待 Linux 实机验证，不得视为已经实机解决。
