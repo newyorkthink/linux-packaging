@@ -99,5 +99,6 @@ AppImage 不内置 Fcitx5 守护进程或输入方案。
 - 根因：官方 `Devolutions.TerminalControl` 2026.8.24 没有 `TextInputMethodClientRequested` 处理。Avalonia 只有在控件提供 IME 客户端时才会 `FocusIn` 并 `ProcessKeyEvent`；没有客户端时按键直接到控件 `OnKeyDown`，再被编成 VT。系统候选栏仍能弹出，是 Wayland/XWayland 的 unaware 路径，滤不掉应用侧按键。此前把问题当成 VTE / GTK 模块 ID，以及当成「OnKeyDown 无法从打包层修」，都没有打到这个缺口。
 - 修改文件：`remotedesktopmanager/ime-hook/`、`remotedesktopmanager/build_remotedesktopmanager.sh`、`remotedesktopmanager/README.md`、根目录 `README.md`。
 - 修复内容：增加 `DOTNET_STARTUP_HOOKS` 程序集，给名称含 Terminal / LocalTerm 且未提供客户端的控件补上 `TextInputMethodClient`；preedit 期间再隧道拦截非修饰键作为兜底。对照 RDM 自带 `Avalonia.Base.dll` 编译，不额外捆绑 Avalonia。不回退 ICU、glycin-ng、WebView 4.1、`GTK_IM_MODULE=fcitx` 或重新写入 `LD_LIBRARY_PATH`。
-- 已知结果：脚本会把钩子打进 AppImage。选词键是否不再泄漏仍待 Linux 实机验证，不得视为已经实机解决。
+- 已知结果：CI 已用含钩子的脚本打出新 AppImage，并上传到 `latest/remotedesktopmanager.AppImage`（构建 run `35299759646`，资产时间 2026-09-18 02:44 UTC，SHA-256 `8abf7cc9149d2dacf42bdca3657c89320f24af47bce52756939f0b8dd6a6585a`）。选词键是否不再泄漏仍待 Linux 实机验证，不得视为已经实机解决。
+- 停止条件：若本次产物仍把 Fcitx5 选词键泄漏进 PTY，停止继续改打包脚本。不再尝试环境变量、GTK 模块、启动钩子或其它包装层。不得回退 ICU、glycin-ng、WebView、`GTK_IM_MODULE=fcitx` 或重新写入 `LD_LIBRARY_PATH`。
 
