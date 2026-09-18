@@ -102,6 +102,7 @@ run_install() {
   # 将版本和官方 desktop 路径传回外层封装阶段。
   pacman -Q jriver-media-center | awk '{print $2}' > version
   printf '%s\n' "$desktop" > desktop-path
+  printf '%s\n' "$launcher" > launcher-name
 
   # 在包内生成中文 locale。
   if ! grep -qxF 'zh_CN.UTF-8 UTF-8' /etc/locale.gen; then
@@ -215,9 +216,25 @@ export DESKTOP="$WORK_DIR/jriver.desktop"
 export ICON="$WORK_DIR/jriver.png"
 export APPNAME=jriver
 export OUTPATH="$SCRIPT_DIR/dist"
-export OUTNAME=mediacenter36.AppImage
-export UPINFO="gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}|latest|mediacenter36.AppImage.zsync"
+# 发布名跟随包内主程序：mediacenter36.AppImage，主版本升级后自动变成 mediacenter37.AppImage。
+launcher="$(cat launcher-name)"
+if [[ ! "$launcher" =~ ^mediacenter[0-9]+$ ]]; then
+  echo "错误：无法从主程序名生成 AppImage 文件名：$launcher" >&2
+  exit 1
+fi
+export OUTNAME="${launcher}.AppImage"
+export UPINFO="gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}|latest|${launcher}.AppImage.zsync"
 export OPTIMIZE_LAUNCH=1
+mkdir -p "$SCRIPT_DIR/dist"
+printf '%s\n' "$OUTNAME" > "$SCRIPT_DIR/dist/release-name.txt"
+# 删除改名前留下的旧资产；主版本变化时也删掉其它 mediacenterN.AppImage。
+if [[ -n "${GH_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]] && command -v gh >/dev/null; then
+  gh release delete-asset latest jriver.AppImage --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
+  while IFS= read -r old_asset; do
+    [[ "$old_asset" == "$OUTNAME" ]] && continue
+    gh release delete-asset latest "$old_asset" --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
+  done < <(gh release view latest --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -E '^mediacenter[0-9]+\.AppImage$' || true)
+fi
 cd "$SCRIPT_DIR"
 
 # quick-sharun 只封装完整 RunImage，不重新收集 JRiver 的依赖。

@@ -84,6 +84,14 @@ runs:
           exit 1
         fi
 
+        if [[ -s "$ARTIFACT_DIR/release-name.txt" ]]; then
+          RELEASE_NAME="$(tr -d '\r\n' < "$ARTIFACT_DIR/release-name.txt")"
+        fi
+        if [[ -z "$RELEASE_NAME" || "$RELEASE_NAME" == */* ]]; then
+          echo "错误：无效的 Release 资产名：$RELEASE_NAME" >&2
+          exit 1
+        fi
+
         RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
         cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
         test -s "$RELEASE_FILE"
