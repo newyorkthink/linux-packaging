@@ -33,16 +33,10 @@ POPPLER_VERSION="${POPPLER_VERSION%-*}"
 }
 
 # 官方包没有应用图标。quick-sharun 在 DESKTOP=DUMMY 时仍要求 ICON。
-# 使用构建环境已有的 PDF MIME 图标，不自绘品牌图。
-ICON=""
-while IFS= read -r -d '' icon_file; do
-  ICON="$icon_file"
-  break
-done < <(find /usr/share/icons/Adwaita /usr/share/icons/hicolor \
-  -type f \( -name 'application-pdf.svg' -o -name 'application-pdf.png' \) \
-  -print0 2>/dev/null)
-[[ -n "$ICON" && -f "$ICON" ]] || {
-  echo "错误：构建环境里找不到 application-pdf 图标，无法设置 ICON。" >&2
+# Adwaita 50 没有 application-pdf，使用已随 appstream-glib 装上的文档 MIME 图标。
+ICON=/usr/share/icons/Adwaita/scalable/mimetypes/x-office-document.svg
+[[ -f "$ICON" ]] || {
+  echo "错误：找不到 ${ICON}，无法设置 ICON。" >&2
   exit 1
 }
 export ICON

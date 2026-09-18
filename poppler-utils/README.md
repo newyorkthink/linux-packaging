@@ -33,7 +33,7 @@
 - 上游为 Poppler 的 C / C++ 命令行工具，不是桌面 GUI。
 - 目标架构：当前构建环境的 `uname -m`（正式构建为 x86_64）。
 - 打包工具：Arch Linux 容器中的 quick-sharun / sharun，runtime 为 uruntime。
-- 官方包没有 desktop / 图标，构建使用 `DESKTOP=DUMMY`，默认主程序为 `pdftotext`。ICON 取构建环境里的 PDF MIME 图标（Adwaita / hicolor 的 `application-pdf`），不自绘品牌图。
+- 官方包没有 desktop / 图标，构建使用 `DESKTOP=DUMMY`，默认主程序为 `pdftotext`。ICON 使用构建环境 Adwaita 的 `x-office-document.svg`（Adwaita 50 已无 `application-pdf`），不自绘品牌图。
 - 不安装 udev、不请求额外系统权限。
 
 ## 打包方式
@@ -105,3 +105,12 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 - 修改文件：`poppler-utils/build_poppler-utils.sh`、`poppler-utils/README.md`。
 - 具体内容：在收集依赖前从构建环境的 Adwaita / hicolor 中选取已有的 `application-pdf` MIME 图标并 `export ICON`。不自绘品牌图，不改命令收集范围。
 - 已知结果：已提交修复，未监控 Actions，构建结果待验证。
+
+### 2026-09-18：Adwaita 50 没有 application-pdf 图标
+
+- 日期：2026-09-18
+- 现象：[run 35350625229](https://github.com/newyorkthink/linux-packaging/actions/runs/35350625229) 失败。日志：`找不到 application-pdf 图标`。
+- 根因：Adwaita 50 的 MIME 图标没有 `application-pdf`，只有 `x-office-document` 等。
+- 修改文件：`poppler-utils/build_poppler-utils.sh`、`poppler-utils/README.md`。
+- 具体内容：ICON 改为明确路径 `/usr/share/icons/Adwaita/scalable/mimetypes/x-office-document.svg`。
+- 已知结果：已提交，未监控 Actions。
