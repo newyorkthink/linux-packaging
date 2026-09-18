@@ -33,7 +33,7 @@
 - 上游为 Poppler 的 C / C++ 命令行工具，不是桌面 GUI。
 - 目标架构：当前构建环境的 `uname -m`（正式构建为 x86_64）。
 - 打包工具：Arch Linux 容器中的 quick-sharun / sharun，runtime 为 uruntime。
-- 官方包没有 desktop / 图标，构建使用 `DESKTOP=DUMMY`，默认主程序为 `pdftotext`。ICON 使用构建环境 Adwaita 的 `x-office-document.svg`（Adwaita 50 已无 `application-pdf`），不自绘品牌图。
+- 官方包没有 desktop / 图标，构建使用 `DESKTOP=DUMMY`，默认主程序为 `pdftotext`。ICON 使用构建环境 Adwaita 的 `x-office-document.svg`（Adwaita 50 已无 `application-pdf`），不自绘品牌图。`STARTUPWMCLASS=pdftotext` 只为消掉 dummy desktop 的警告，命令行本身没有窗口。
 - 不安装 udev、不请求额外系统权限。
 
 ## 打包方式
@@ -114,3 +114,13 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 - 修改文件：`poppler-utils/build_poppler-utils.sh`、`poppler-utils/README.md`。
 - 具体内容：ICON 改为明确路径 `/usr/share/icons/Adwaita/scalable/mimetypes/x-office-document.svg`。
 - 已知结果：已提交，未监控 Actions。
+
+### 2026-09-18：补上 STARTUPWMCLASS 消除 dummy desktop 警告
+
+- 日期：2026-09-18
+- 现象：[run 35350939418](https://github.com/newyorkthink/linux-packaging/actions/runs/35350939418) 构建成功，但 quick-sharun 警告 `pdftotext.desktop is missing StartupWMClass`。
+- 根因：`DESKTOP=DUMMY` 生成的 desktop 没有该类名；命令行工具没有窗口，警告无功能影响。
+- 修改文件：`poppler-utils/build_poppler-utils.sh`、`poppler-utils/README.md`。
+- 具体内容：增加 `export STARTUPWMCLASS=pdftotext`。
+- 已知结果：已提交，未监控 Actions。
+
