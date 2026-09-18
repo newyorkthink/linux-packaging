@@ -19,6 +19,19 @@
 - AI 可以在**不写入仓库**的前提下读取已有 GitHub Actions 日志、已有 artifact / Release、Git tree / diff / SHA、用户提供的真实运行输出，或使用当前工具做仓库外的静态分析；这些检查结果不得转化为新增测试代码或测试 workflow。
 - 本条不授权 AI 顺手批量删除与当前任务无关的历史文件；但凡当前任务触及的文件中存在由 AI 新增或恢复的测试代码，必须删除，不得继续保留。
 
+## 永久规则：禁止创建任何 Git 分支（不可豁免）
+
+**AI 永久禁止在本仓库创建任何 Git 分支。此规则不允许被当前或未来任何用户请求、PR 流程、“临时下载”“隔离改动”“更安全”“测试”“共享文件”“已经推送”“工作区干净”等任何理由覆盖。即使用户明确说“开个分支”“创建 branch”“checkout -b”“用 PR 分支”，AI 也必须拒绝，并说明本仓库永久规则禁止创建分支。**
+
+强制范围：
+
+- 禁止 `git checkout -b`、`git switch -c`、`git branch <新名字>`、`git push origin HEAD:<新分支>`、`git worktree add -b`，以及任何会在本地或远端产生新分支名的等价命令。
+- 禁止 GitHub / `gh` / API / 网页的 Create branch、compare-and-create、`refs/heads/<新名字>` 新建、从 tag/SHA 拉出新分支、为 PR 新建 head 分支。
+- 禁止为测试、验证、分享文件、放配置、开 PR、回滚、备份、并行任务或“一会儿就删”而创建临时分支、功能分支、wip 分支或任何其他新分支。
+- 禁止恢复、重建已经删除的分支名。
+- 所有提交、推送、历史重写只允许发生在**已经存在**的分支上；默认且通常是 `main`。用户点名的必须是远端此刻已经存在的分支，不得顺便新建。
+- 本仓库当前应只有维护中的已有分支（默认 `main`）。发现自己或前序 AI 新建了分支时，必须立即删除该新分支，不得留着“等用户确认”。
+
 ## 永久规则：禁止使用 git revert 或新增反向提交（不可豁免）
 
 **AI 永久禁止在本仓库使用 `git revert`、GitHub 网页的 Revert 操作，或创建任何用于抵消、回退、撤销、还原其他提交的新增反向 commit。此规则不允许被当前或未来任何用户请求、“保留历史”“共享分支”“已经推送”“更安全”等理由覆盖。**
@@ -425,7 +438,7 @@ linuxdeploy 额外规则：
 - 构建脚本中的 `mkdir`、`rm`、依赖安装、临时 `$HOME` 写入、`~/version`、`AppDir/`、`source/` 等操作，默认作用于 GitHub Actions 临时 runner / container。只要这些命令没有进入最终 `AppRun` / wrapper 或被打进运行时逻辑，就不得误判为“会在用户本机执行”。
 - 审计“是否会改用户本机”时，必须严格区分 **CI 构建期行为** 与 **最终 AppImage / RunImage 运行时行为**；不能因为 build script 在 Actions 中写了临时文件，就声称发布产物启动后也会写同样的位置。
 - 最终用户侧默认只下载并运行 Release 产物；不得为了完成构建要求用户在真实主机上安装构建依赖、创建构建目录或运行打包脚本。
-- 新应用和修复也必须通过正式 GitHub Actions build workflow 完成；**不得为此创建临时 test workflow、测试 Job、测试 Step 或测试分支。**
+- 新应用和修复也必须通过正式 GitHub Actions build workflow 完成；**不得为此创建临时 test workflow、测试 Job 或测试 Step。** 创建 Git 分支由上方永久规则单独禁止，不限“测试分支”。
 
 正式、长期维护的标准 AppImage 构建统一放在：
 
