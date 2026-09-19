@@ -49,7 +49,24 @@ workflow 入口：`poppler-utils/build_poppler-utils.sh`。成功发布后由当
 
 ## 运行与兼容说明
 
-现有部署方式无需修改：把 13 个命令名分别软链接到同一个 `poppler-utils.AppImage`，AppRun 会根据链接名执行对应命令。
+把同一个 AppImage 按命令名做符号链接后，AppRun 会按链接名分派对应程序：
+
+```bash
+ln -sf ./poppler-utils.AppImage ./pdftotext
+ln -sf ./poppler-utils.AppImage ./pdfinfo
+ln -sf ./poppler-utils.AppImage ./pdffonts
+ln -sf ./poppler-utils.AppImage ./pdfimages
+ln -sf ./poppler-utils.AppImage ./pdfattach
+ln -sf ./poppler-utils.AppImage ./pdfdetach
+ln -sf ./poppler-utils.AppImage ./pdfseparate
+ln -sf ./poppler-utils.AppImage ./pdfsig
+ln -sf ./poppler-utils.AppImage ./pdftocairo
+ln -sf ./poppler-utils.AppImage ./pdftohtml
+ln -sf ./poppler-utils.AppImage ./pdftoppm
+ln -sf ./poppler-utils.AppImage ./pdftops
+ln -sf ./poppler-utils.AppImage ./pdfunite
+./pdftotext -v
+```
 
 也可以直接把命令名作为第一个参数：
 
