@@ -21,10 +21,7 @@
 
 ## 打包方式
 
-本目录保留两份独立脚本：
-
-- `build_mediainfo_anylinux.sh`：原 `build_mediainfo.sh` 原样改名，保留 quick-sharun 方案。
-- `build_mediainfo_linuxdeploy.sh`：当前正式入口，使用 linuxdeploy + 官方 appimagetool。
+本目录只保留 `build_mediainfo_linuxdeploy.sh` 这一份正式构建脚本，使用 linuxdeploy + 官方 appimagetool。已经实机确认 quick-sharun / anylinux 产物会造成 lf 媒体信息预览长时间停留在 `loading...`，因此 MediaInfo 不再保留或使用该打包路线。
 
 当前流程：
 
@@ -38,7 +35,7 @@
 
 构建只在 Actions 临时容器中执行。脚本会清理当前应用的 `AppDir/`、`dist/`、`source/` 上一次构建内容；不会修改使用者的 lf 配置。
 
-以后切换两种方式，只需修改 `.github/appimage-apps.json` 中 MediaInfo 的 `script` 字段，产物名、版本文件和发布流程一致。
+MediaInfo 的稳定构建基线固定为 Ubuntu 24.04：linuxdeploy 负责整理 AppDir 和收集依赖，官方 appimagetool 使用明确下载并校验的 `runtime-x86_64` 完成最终封装。不得改回 Arch Linux + quick-sharun / anylinux，也不得在 Arch Linux 中执行 linuxdeploy + appimagetool 打包。
 
 ## 版本元数据
 
@@ -65,7 +62,7 @@ mediainfo/dist/version.txt
 
 旧 linuxdeploy / AppImageKit runtime 经常依赖宿主 `libfuse2`。官方当前文档把新 AppImage 描述为内置 FUSE3；`AppImage/type2-runtime` 对外明确保证的是 runtime 已静态链接，宿主不再需要安装 `libfuse2`。因此这里不依赖 linuxdeploy 输出插件选择最终 runtime，而是由最后一次 appimagetool 封装显式指定最新 `runtime-x86_64`。正常挂载仍需要内核提供可用的 FUSE 支持。构建工具设置的 `APPIMAGE_EXTRACT_AND_RUN=1` 仅用于 CI，不写入最终启动入口。
 
-linuxdeploy 默认不捆绑 glibc / 动态加载器，因此宿主仍需满足 Ubuntu 24.04 二进制及所打包共享库的 ABI 要求；不能把此方案描述为支持任意旧系统。当前尚未验证新产物的 lf 预览耗时。
+linuxdeploy 默认不捆绑 glibc / 动态加载器，因此宿主仍需满足 Ubuntu 24.04 二进制及所打包共享库的 ABI 要求；不能把此方案描述为支持任意旧系统。Linux 实机已经确认当前 linuxdeploy + appimagetool 产物可在 lf 中快速显示完整媒体信息。
 
 ## 修复 / 变更记录
 
@@ -100,3 +97,10 @@ linuxdeploy 默认不捆绑 glibc / 动态加载器，因此宿主仍需满足 U
 - **修改文件与处理：** `build_mediainfo_linuxdeploy.sh` 改为 Ubuntu 24.04 + APT，使用 MediaArea 官方 releases 仓库；运行时再次检查安装包文件清单，仅在 desktop 缺失时自建；`.github/appimage-apps.json` 改为特例并在 `build.yml` 增加 Ubuntu Job；`script_to_build` 恢复为包含全部清单脚本的 `choice` 下拉。
 - **runtime 边界：** linuxdeploy 负责 AppDir 与依赖收集，最终发布包由 appimagetool 使用构建时下载并校验的最新 static type2-runtime 封装。这里确认的是无需宿主 `libfuse2`，没有把工具名称本身简单等同于固定 FUSE 版本。
 - **验证状态：** 提交前完成 YAML、JSON、Bash、清单与完整 diff 的静态核对；正式构建结果和 lf 实际预览速度仍待新产物确认。
+
+### 2026-09-19：实机确认 lf 预览速度并删除 anylinux 旧路线
+
+- **实机反馈：** quick-sharun / anylinux 产物在 lf 中读取媒体文件时长时间停留在 `loading...`；改用 Ubuntu linuxdeploy + appimagetool 产物后，lf 可快速显示完整媒体信息。
+- **确认结论：** MediaInfo 的 lf 预览延迟来自 quick-sharun / anylinux 打包路线，现有 lf 配置无需修改；当前 linuxdeploy + appimagetool 产物已解决该问题。
+- **稳定基线：** MediaInfo 不再使用 Arch Linux + quick-sharun / anylinux。正式构建固定在 Ubuntu 24.04 完成，linuxdeploy 只负责整理 AppDir 和收集依赖，最终由官方 appimagetool 配合明确下载并校验的 `runtime-x86_64` 封装。
+- **修改文件与处理：** 删除停用的 `build_mediainfo_anylinux.sh`，同步整理本 README，并在仓库规则和当前构建脚本注释中明确 linuxdeploy + appimagetool 必须使用 Ubuntu 环境。

@@ -408,6 +408,13 @@ export ARCH=x86_64; appimagetool -n <AppDir路径> <输出AppImage> --runtime-fi
 - 不得加入“下载 appimagetool 失败就自动回退到 linuxdeploy 输出”“runtime 下载失败就自动换旧 runtime”之类 fallback。构建工具和最终 runtime 必须是明确、可审计、可复现的。
 - 只有确认存在与网络无关的真实兼容性问题，并完成原因核实后，才可以考虑改变既定打包路线；已经验证有效的现有项目仍按稳定基线处理，不得因一次临时下载失败推翻整个方案。
 
+### linuxdeploy + appimagetool 打包阶段必须使用 Ubuntu
+
+- linuxdeploy 负责依赖收集、AppDir 整理，appimagetool 负责最终封装的项目，实际打包阶段固定使用 Ubuntu 环境；当前默认基线为 Ubuntu 24.04。
+- 对应 GitHub Actions Job 必须直接使用 Ubuntu runner，并通过 `apt` / `aptitude` 安装构建工具和应用依赖；不得在 Arch Linux runner、container 或 chroot 中使用 `pacman` / `yay` 执行这条打包链路。
+- 上游应用如果同时提供 Ubuntu / Debian 软件包、官方 APT 仓库或发行版无关归档，应选择与 Ubuntu 构建环境匹配的来源；不得为了取得 Arch 软件包而把 linuxdeploy + appimagetool 构建阶段迁入 Arch。
+- 本规则只约束 linuxdeploy + appimagetool 路线；quick-sharun / sharun 仍按下方规则在 Arch Linux 中完成实际依赖收集和 AppDir 构建。
+
 ### Qt 应用打包必须保持 Qt 主版本一致
 
 无论使用 linuxdeploy、quick-sharun / sharun 还是其他 Qt 部署路线，都必须先根据主程序实际 ELF 依赖和随程序提供的 Qt 运行库确认 Qt 主版本，再选择对应的 Qt 部署环境、运行库和插件，禁止凭模板、包名或其他项目经验猜测。

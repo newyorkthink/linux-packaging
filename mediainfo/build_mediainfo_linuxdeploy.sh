@@ -16,6 +16,7 @@ rm -rf AppDir dist source
 # 创建 CLI、desktop、图标和构建工具目录。
 mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps dist source
 
+# linuxdeploy + appimagetool 路线固定在 Ubuntu 24.04 构建，不使用 Arch Linux / yay。
 # 更新 Ubuntu 软件包索引并准备 aptitude。
 sudo apt-get update
 sudo apt-get install -y aptitude
