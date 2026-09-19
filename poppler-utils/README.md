@@ -47,6 +47,18 @@
 
 workflow 入口：`poppler-utils/build_poppler-utils.sh`。成功发布后由当前 Job 立即更新 `software_versions.json` 中的 `poppler-utils` 条目。
 
+Poppler Utilities 的稳定构建基线固定为 Ubuntu 24.04：linuxdeploy 负责整理 AppDir 和收集依赖，官方 appimagetool 使用明确下载并校验的 `runtime-x86_64` 完成最终封装。不得改回 Arch Linux + quick-sharun，也不得在 Arch Linux 中执行 linuxdeploy + appimagetool 打包。
+
+## 版本元数据
+
+版本来自本次实际安装的 Ubuntu 官方 `poppler-utils` 软件包，去掉 Debian epoch / revision 后写入：
+
+```text
+poppler-utils/dist/version.txt
+```
+
+成功发布后，当前 Build Job 立即把 `poppler-utils` 条目写入 `latest` Release 的 `software_versions.json`。
+
 ## 运行与兼容说明
 
 把同一个 AppImage 按命令名做符号链接后，AppRun 会按链接名分派对应程序：
@@ -77,7 +89,7 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 
 直接运行 AppImage 且不提供命令名时，默认执行 `pdftotext`。
 
-真实 Linux 环境已经确认原 quick-sharun 产物用于 lf PDF 预览时会长时间停在 `loading...`。本次改为与已确认快速的 MediaInfo 相同的 `linuxdeploy + appimagetool` 路线；新产物的 lf 速度需在正式构建后确认。
+真实 Linux 环境已经确认原 quick-sharun 产物用于 lf PDF 预览时会长时间停在 `loading...`；当前 Ubuntu 24.04 `linuxdeploy + appimagetool` 产物已在 lf 中快速显示 PDF 文本预览，速度正常，现有 lf 配置无需修改。一个 AppImage、13 个命令和软链接分派方式继续作为稳定基线。
 
 ## 修复记录
 
@@ -134,3 +146,11 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 - 修改文件：`poppler-utils/build_poppler-utils.sh`、`poppler-utils/README.md`、`.github/appimage-apps.json`、`.github/workflows/build.yml`。
 - 具体内容：改用 Ubuntu 24.04 官方 `poppler-utils` / `poppler-data` deb；保留一个 AppImage 和 13 个软链接入口；由 `linuxdeploy` 收集依赖，最终由 `appimagetool` 配合官方 Type 2 runtime 封装。
 - 已知结果：脚本与 workflow 已切换；现有软链接部署方式无需修改，正式产物的 lf 速度待构建后确认。
+### 2026-09-19：实机确认 lf PDF 预览速度
+
+- 日期：2026-09-19
+- 检查对象：提交 `ecaf371afa22922342cf2bbbfc8857f3ef5bc229` 切换后的 Ubuntu 24.04 `linuxdeploy + appimagetool` 产物、提交 `d393e98e5f1ecce7f239a808db38211e4ca32822` 恢复的软链接使用说明，以及 lf 中的 PDF 文本预览。
+- 实机反馈：lf 已能快速显示 PDF 文本预览，速度正常，不再长时间停在 `loading...`。
+- 确认结论：当前打包路线已解决原 quick-sharun 产物的 lf 预览延迟；现有 lf 配置无需修改。
+- 稳定基线：继续保留一个 `poppler-utils.AppImage`、13 个命令入口和现有软链接分派；正式构建固定使用 Ubuntu 24.04、linuxdeploy 收集依赖、官方 appimagetool 配合明确下载并校验的 `runtime-x86_64` 完成最终封装。
+- 文档处理：仅更新 `poppler-utils/README.md` 的当前状态、版本元数据和实机确认记录；未修改构建脚本、workflow、AppRun 或 Release 逻辑。
