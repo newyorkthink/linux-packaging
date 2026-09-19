@@ -63,4 +63,12 @@ quick-sharun 使用仓库现有 uruntime 路线；不把当前方案描述为“
 - **已确认事实：** 历史样本为 MediaInfoLib 22.12，旧 runtime 直接运行依赖 `libfuse.so.2`；MediaArea 官方页面当前认可 Arch 官方 `mediainfo` 包，Arch Extra 当前提供 CLI 包及标准 `/usr/bin/mediainfo` 入口。
 - **处理：** 新增 `mediainfo/build_mediainfo.sh`，按 Arch 官方包 + quick-sharun 标准路线动态打包；新增本 README；在 `.github/appimage-apps.json` 登记标准应用。
 - **未采用方案：** 不复刻旧 linuxdeploy AppImage；不新增 `linuxdeploy --output appimage`；不把 FUSE3 写成固定运行要求。
-- **验证状态：** 已完成上游、旧样本和仓库实现的静态核对；提交后按仓库规则不主动监控 Actions，因此本次新构建产物和实际运行结果仍待正式构建后确认。
+- **验证状态：** 提交时已完成上游、旧样本和仓库实现的静态核对；后续正式构建与产物核查结果见下方记录。
+
+### 2026-09-19：正式构建产物核查
+
+- **检查对象：** 提交 `859f4ce23f4a0dcf373f098613d2c99878e74e6a` 中的 `mediainfo/build_mediainfo.sh`、`.github/appimage-apps.json` 登记项、Build AppImages 运行 `35440897954`、latest Release 的 `mediainfo.AppImage`，以及用户提供的同名产物。
+- **现象与范围：** 用户要求确认 MediaInfo 打包是否正常；本次核查覆盖脚本语法和动态版本逻辑、matrix 登记、正式构建与发布结果、Release 资产一致性、AppImage 结构、主程序及直接运行依赖、启动包装，以及 `--Version` / `--Help` 基础运行。
+- **证据：** Build MediaInfo Job `105891395097` 成功完成构建、上传版本元数据和即时发布；构建日志显示产物写入 `dist/mediainfo.AppImage`，并成功更新 `software_versions.json`。latest Release 资产与用户提供文件的大小均为 `13846109` 字节，SHA256 均为 `fbbf632d38a1021ccbda620d1e47ddc5b6782ae9bdee44018d0ede00f473f46b`；版本清单记录为 `26.05`。
+- **确认结论：** 产物为 x86_64 AppImage，包含 quick-sharun 启动层、`mediainfo` 主程序及 `libmediainfo` / `libzen` 等运行库；在无 FUSE 的核查环境中 uruntime 解包回退成功，`--Version` 返回 MediaInfoLib 26.05，`--Help` 正常。未发现应用专属的提权、开机启动或系统配置修改逻辑，当前打包脚本无需修改。
+- **未确认边界：** 本次未覆盖真实媒体文件解析结果、所有媒体格式，以及不同发行版上的完整兼容矩阵；这些不影响本次对打包结构、发布一致性和 CLI 基础启动的确认。
