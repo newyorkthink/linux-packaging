@@ -569,6 +569,18 @@
       "run_from_root": "false"
     },
     {
+      "key": "mediainfo",
+      "kind": "standard",
+      "name": "MediaInfo",
+      "script": "mediainfo/build_mediainfo.sh",
+      "dir": "mediainfo",
+      "artifact_dir": "mediainfo/dist",
+      "release_name": "mediainfo.AppImage",
+      "software_key": "mediainfo",
+      "timeout_minutes": 60,
+      "run_from_root": "false"
+    },
+    {
       "key": "alttab",
       "kind": "standard",
       "name": "AltTab",
