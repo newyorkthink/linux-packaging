@@ -572,7 +572,7 @@
       "key": "mediainfo",
       "kind": "standard",
       "name": "MediaInfo",
-      "script": "mediainfo/build_mediainfo.sh",
+      "script": "mediainfo/build_mediainfo_linuxdeploy.sh",
       "dir": "mediainfo",
       "artifact_dir": "mediainfo/dist",
       "release_name": "mediainfo.AppImage",
