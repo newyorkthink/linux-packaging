@@ -6,82 +6,121 @@ cd "$SCRIPT_DIR"
 
 ###### 准备构建环境 ######
 
-rm -rf AppDir dist
-mkdir -p dist
+[[ "$(uname -m)" == x86_64 ]] || {
+  echo "错误：当前仅支持 x86_64。" >&2
+  exit 1
+}
 
-export ARCH="$(uname -m)"
-export OUTPATH="./dist"
-export OUTNAME="poppler-utils.AppImage"
-export APPNAME="poppler-utils"
-export DESKTOP=DUMMY
-export MAIN_BIN=pdftotext
-export STARTUPWMCLASS=poppler-utils
+rm -rf AppDir dist source
+mkdir -p AppDir/usr/bin AppDir/usr/share/applications \
+  AppDir/usr/share/icons/hicolor/256x256/apps AppDir/usr/share dist source
 
-# 安装 quick-sharun / AppImage 打包所需的最小基础工具
-yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
-  grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
-  desktop-file-utils zsync ca-certificates
+# linuxdeploy + appimagetool 固定在 Ubuntu 24.04 构建，不使用 Arch Linux / yay。
+sudo apt-get update
+sudo apt-get install -y aptitude
+sudo aptitude install -y build-essential git wget curl jq binutils patchelf file appstream-util desktop-file-utils zsync ca-certificates
 
-# 单独安装当前应用。poppler 提供整套命令行工具；poppler-data 是文字提取所需的 CMap / 编码数据。
-yay -S --noconfirm poppler poppler-data
+# 使用 Ubuntu 官方 deb 包，不编译 Poppler 源码。
+sudo aptitude install -y poppler-utils poppler-data
 
-POPPLER_PACKAGE_VERSION="$(pacman -Q poppler | awk '{print $2}')"
+POPPLER_PACKAGE_VERSION="$(dpkg-query -W -f='${Version}\n' poppler-utils)"
 POPPLER_VERSION="${POPPLER_PACKAGE_VERSION#*:}"
 POPPLER_VERSION="${POPPLER_VERSION%-*}"
-[[ -n "$POPPLER_VERSION" ]] || {
-  echo "错误：无法解析 poppler 版本。" >&2
-  exit 1
+
+###### 下载官方打包工具 ######
+
+download_tool() {
+  local repo="$1" asset="$2" output="$3" metadata digest
+  metadata="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 \
+    "https://api.github.com/repos/$repo/releases/tags/continuous")"
+  digest="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .digest' <<< "$metadata")"
+  [[ "$digest" =~ ^sha256:[[:xdigit:]]{64}$ ]] || {
+    echo "错误：官方工具缺少有效 SHA-256：$repo/$asset" >&2
+    exit 1
+  }
+  curl -fL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 300 \
+    "https://github.com/$repo/releases/download/continuous/$asset" -o "$output"
+  printf '%s  %s\n' "${digest#sha256:}" "$output" | sha256sum -c -
 }
 
-# 官方包没有应用图标。quick-sharun 在 DESKTOP=DUMMY 时仍要求 ICON。
-# Adwaita 50 没有 application-pdf，使用已随 appstream-glib 装上的文档 MIME 图标。
-ICON=/usr/share/icons/Adwaita/scalable/mimetypes/x-office-document.svg
-[[ -f "$ICON" ]] || {
-  echo "错误：找不到 ${ICON}，无法设置 ICON。" >&2
-  exit 1
-}
-export ICON
+download_tool linuxdeploy/linuxdeploy linuxdeploy-x86_64.AppImage source/linuxdeploy
+download_tool AppImage/appimagetool appimagetool-x86_64.AppImage source/appimagetool
+download_tool AppImage/type2-runtime runtime-x86_64 source/runtime-x86_64
+chmod +x source/linuxdeploy source/appimagetool
+
+curl -fL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 \
+  https://poppler.freedesktop.org/logo.png -o source/poppler-utils.png
+
+###### 准备 AppDir ######
+
+PDF_TOOLS=(
+  pdfattach pdfdetach pdffonts pdfimages pdfinfo pdfseparate pdfsig
+  pdftocairo pdftohtml pdftoppm pdftops pdftotext pdfunite
+)
+
+for tool in "${PDF_TOOLS[@]}"; do
+  [[ -x "/usr/bin/$tool" ]] || {
+    echo "错误：Ubuntu poppler-utils 缺少 /usr/bin/$tool。" >&2
+    exit 1
+  }
+  cp "/usr/bin/$tool" AppDir/usr/bin/
+done
+
+cp -a /usr/share/poppler AppDir/usr/share/
+
+cat > AppDir/usr/share/applications/poppler-utils.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Poppler Utilities
+Exec=pdftotext %F
+Icon=poppler-utils
+Terminal=true
+Categories=Office;Utility;
+EOF
+
+cp source/poppler-utils.png AppDir/usr/share/icons/hicolor/256x256/apps/poppler-utils.png
+
+# ARGV0 保留软链接入口名；也支持把命令名作为第一个参数。
+cat > AppDir/AppRun <<'EOF'
+#!/bin/sh
+set -eu
+
+APPDIR="${APPDIR:-$(CDPATH= cd -P -- "$(dirname -- "$0")" && pwd)}"
+export PATH="$APPDIR/usr/bin${PATH:+:$PATH}"
+export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$APPDIR/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+
+tool="$(basename -- "${ARGV0:-${APPIMAGE:-$0}}")"
+case "$tool" in
+  pdfattach|pdfdetach|pdffonts|pdfimages|pdfinfo|pdfseparate|pdfsig|pdftocairo|pdftohtml|pdftoppm|pdftops|pdftotext|pdfunite) ;;
+  *)
+    case "${1-}" in
+      pdfattach|pdfdetach|pdffonts|pdfimages|pdfinfo|pdfseparate|pdfsig|pdftocairo|pdftohtml|pdftoppm|pdftops|pdftotext|pdfunite)
+        tool="$1"
+        shift
+        ;;
+      *) tool=pdftotext ;;
+    esac
+    ;;
+esac
+
+exec "$APPDIR/usr/bin/$tool" "$@"
+EOF
+chmod +x AppDir/AppRun
 
 ###### 核心打包 ######
 
-# Arch extra/poppler 当前提供的 PDF 命令行工具，与 Debian poppler-utils 同一套入口。
-PDF_TOOLS=(
-  pdfattach
-  pdfdetach
-  pdffonts
-  pdfimages
-  pdfinfo
-  pdfseparate
-  pdfsig
-  pdftocairo
-  pdftohtml
-  pdftoppm
-  pdftops
-  pdftotext
-  pdfunite
-)
+export APPIMAGE_EXTRACT_AND_RUN=1
+export PATH="$SCRIPT_DIR/source:$PATH"
+export LDAI_OUTPUT="$SCRIPT_DIR/source/poppler-utils-intermediate.AppImage"
+export LDAI_NO_APPSTREAM=1
 
-PDF_BINS=()
-for tool in "${PDF_TOOLS[@]}"; do
-  bin="/usr/bin/${tool}"
-  [[ -x "$bin" ]] || {
-    echo "错误：缺少 ${bin}，当前 poppler 包未提供该命令。" >&2
-    exit 1
-  }
-  PDF_BINS+=("$bin")
-done
+# linuxdeploy 负责收集 AppDir 中全部命令及依赖。
+export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
 
-# 有标准 /usr/bin 入口，直接交给 quick-sharun；编码数据随 poppler-data 收集。
-QS_ARGS=("${PDF_BINS[@]}")
-if [[ -d /usr/share/poppler ]]; then
-  QS_ARGS+=(/usr/share/poppler)
-fi
-
-quick-sharun "${QS_ARGS[@]}"
+# appimagetool 使用最新官方 Type 2 runtime 生成最终 AppImage。
+export ARCH=x86_64; appimagetool -n ./AppDir ./dist/poppler-utils.AppImage --runtime-file ./source/runtime-x86_64
 
 ###### 整理产物 ######
 
-quick-sharun --make-appimage
-
-test -s ./dist/poppler-utils.AppImage
 printf '%s\n' "$POPPLER_VERSION" > ./dist/version.txt

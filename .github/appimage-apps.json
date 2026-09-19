@@ -303,7 +303,7 @@
     },
     {
       "key": "poppler_utils",
-      "kind": "standard",
+      "kind": "special",
       "name": "poppler-utils",
       "script": "poppler-utils/build_poppler-utils.sh",
       "dir": "poppler-utils",

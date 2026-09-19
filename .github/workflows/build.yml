@@ -761,6 +761,54 @@ jobs:
           github_token: ${{ github.token }}
 
 
+  build_poppler_utils:
+    name: Build poppler-utils
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).poppler_utils == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build poppler-utils AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x poppler-utils/build_poppler-utils.sh
+          ./poppler-utils/build_poppler-utils.sh
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-poppler-utils
+          path: poppler-utils/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest poppler-utils/dist/poppler-utils.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'poppler-utils'
+          version_file: 'poppler-utils/dist/version.txt'
+          asset_name: 'poppler-utils.AppImage'
+          artifact_dir: 'poppler-utils/dist'
+          github_token: ${{ github.token }}
+
+
   build_obs_studio:
     name: Build OBS Studio
     needs: plan
