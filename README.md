@@ -15,7 +15,7 @@
 
 ## 手动构建
 
-GitHub Actions → **Build AppImages** → `script_to_build` 填 `all` 或应用名 / 脚本路径。`script_search` 可模糊匹配，优先于前者。
+GitHub Actions → **Build AppImages** → 在 `script_to_build` 下拉列表选择 `all` 或具体脚本。`script_search` 可选填应用名 / 脚本名称做模糊匹配，填写时优先于下拉选择。
 
 标准 Arch 应用只改 `.github/appimage-apps.json`；特例仍在 `build.yml` 里单独 Job。RunImage 用 **Build RunImages**，Termux 用 **Build Termux**。
 

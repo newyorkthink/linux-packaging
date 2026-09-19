@@ -7,17 +7,17 @@
 上游与软件来源：
 
 - 上游项目：MediaArea/MediaInfo
-- 正式构建软件包：Arch Linux Extra 的 `mediainfo`
+- 正式构建软件包：MediaArea 官方 Ubuntu releases 仓库的 `mediainfo`
 - 最终 Release 资产：`mediainfo.AppImage`
 
-正式构建通过 `.github/workflows/build.yml` 的标准 matrix Job 执行，并复用 `.github/actions/build-anylinux` 的 Arch 容器和发布流程。应用清单 `.github/appimage-apps.json` 当前指向 `mediainfo/build_mediainfo_linuxdeploy.sh`；共享 Action 的名称不代表应用仍使用 quick-sharun。
+正式构建通过 `.github/workflows/build.yml` 的 Ubuntu 24.04 独立 Job 执行。应用清单 `.github/appimage-apps.json` 当前指向 `mediainfo/build_mediainfo_linuxdeploy.sh`，并将该项目标记为 Ubuntu 特例。
 
 ## 技术栈
 
 - MediaInfo CLI 为 C / C++ 命令行程序，核心运行库为 `libmediainfo` / `libzen`。
 - 正式构建目标为 x86_64。
-- Arch 官方 `mediainfo` 提供标准 `/usr/bin/mediainfo` 入口，正式构建使用 linuxdeploy 收集依赖，官方 appimagetool 完成最终封装。
-- CLI 软件包本身没有 desktop / 图标；脚本生成 `Terminal=true` 的 desktop，品牌图标从 MediaInfo 官方源码仓库取得。无需 GTK 插件。
+- MediaArea 官方 Ubuntu `mediainfo` 包提供标准 `/usr/bin/mediainfo` 入口，正式构建使用 linuxdeploy 收集依赖，官方 appimagetool 完成最终封装。
+- 已核对 Ubuntu 24.04 发行版包和 MediaArea 官方 Ubuntu 24.04 CLI 包，两者都不包含 desktop 或图标。脚本仍会先读取本次实际安装包的文件清单；确认没有 desktop 后才生成 `Terminal=true` 的最小 desktop。品牌图标从 MediaInfo 官方源码仓库取得，无需 GTK 插件。
 
 ## 打包方式
 
@@ -28,13 +28,13 @@
 
 当前流程：
 
-1. 在现有 Arch CI 容器安装打包工具和官方 `mediainfo` 软件包，从实际安装包动态读取版本。
+1. 在 Ubuntu 24.04 runner 安装 linuxdeploy / appimagetool 最小基础工具，动态读取 MediaArea 官方 releases 仓库入口并安装最新稳定版 `mediainfo`。
 2. 下载 linuxdeploy、官方 appimagetool 和 `runtime-x86_64`，按官方 Release 的 SHA-256 校验。
-3. 将 CLI 放入 `AppDir/usr/bin`，准备 desktop 和官方图标；由 linuxdeploy 自动收集共享库并生成 AppRun，不添加自定义 wrapper。
-4. 保留 `linuxdeploy --appdir AppDir --output appimage`，其中间产物放在 `source/`；再用官方 `appimagetool -n` 和明确的 `--runtime-file` 生成最终 `dist/mediainfo.AppImage`。
+3. 将 CLI 放入 `AppDir/usr/bin`；先检查安装包是否含 desktop，仅在确认缺失时生成最小 desktop，再加入官方图标。linuxdeploy 自动收集共享库并生成 AppRun，不添加自定义 wrapper。
+4. `linuxdeploy --appdir AppDir --output appimage` 负责整理 AppDir、收集依赖并生成不发布的中间包；最后由官方 `appimagetool -n` 使用明确的 `--runtime-file` 重新封装为 `dist/mediainfo.AppImage`。Release 只上传这个最终文件。
 5. 最终封装成功后写入 `dist/version.txt`，仅发布 `dist/` 内的最终 AppImage。
 
-`runtime-x86_64` 来自 [AppImage/type2-runtime 的 continuous Release](https://github.com/AppImage/type2-runtime/releases/tag/continuous)，不是 appimagetool 的附件；[官方 appimagetool 文档](https://github.com/AppImage/appimagetool#changelog) 同样指向该 runtime 来源。CI 使用项目内的 `source/runtime-x86_64`，不依赖个人工具目录。
+`source/runtime-x86_64` 不是仓库中的固定文件。每次构建都会从 [AppImage/type2-runtime 的 continuous Release](https://github.com/AppImage/type2-runtime/releases/tag/continuous) 下载当时最新的 `runtime-x86_64`，并使用 GitHub Release 提供的 SHA-256 校验；[官方 appimagetool 文档](https://github.com/AppImage/appimagetool#changelog) 也明确说明其新 runtime 来自该仓库。CI 不依赖个人工具目录。
 
 构建只在 Actions 临时容器中执行。脚本会清理当前应用的 `AppDir/`、`dist/`、`source/` 上一次构建内容；不会修改使用者的 lf 配置。
 
@@ -42,7 +42,7 @@
 
 ## 版本元数据
 
-版本来自本次实际安装的 Arch `mediainfo` 软件包，去掉仅属于 Arch 打包的 epoch / pkgrel 后写入：
+版本来自本次实际安装的 MediaArea 官方 Ubuntu `mediainfo` 软件包，去掉 Debian epoch / revision 后写入：
 
 ```text
 mediainfo/dist/version.txt
@@ -61,11 +61,11 @@ mediainfo/dist/version.txt
 ./mediainfo.AppImage "<媒体文件>"
 ```
 
-历史 MediaInfo CLI AppImage 样本为 MediaInfoLib 22.12，使用旧 AppImageKit Type 2 runtime，直接运行时需要宿主提供 `libfuse.so.2`。当前 linuxdeploy 方案使用新的官方 type2-runtime，不复用该样本的旧 runtime 或旧依赖集合。
+历史 MediaInfo CLI AppImage 样本为 MediaInfoLib 22.12，使用旧 AppImageKit Type 2 runtime，直接运行时需要宿主提供 `libfuse.so.2`。linuxdeploy 的 `--output appimage` 只作为依赖收集后的中间输出，不作为 Release 产物；最终包由 appimagetool 配合构建时下载的最新官方 type2-runtime 重新封装。
 
-保留的 anylinux 脚本使用 uruntime。当前 linuxdeploy 脚本显式嵌入官方 type2-runtime；上游说明该 runtime 静态链接，不再要求宿主安装 `libfuse.so.2`，正常挂载仍需要可用的 FUSE 环境。构建工具设置的 `APPIMAGE_EXTRACT_AND_RUN=1` 仅用于 CI，不写入最终启动入口。
+旧 linuxdeploy / AppImageKit runtime 经常依赖宿主 `libfuse2`。官方当前文档把新 AppImage 描述为内置 FUSE3；`AppImage/type2-runtime` 对外明确保证的是 runtime 已静态链接，宿主不再需要安装 `libfuse2`。因此这里不依赖 linuxdeploy 输出插件选择最终 runtime，而是由最后一次 appimagetool 封装显式指定最新 `runtime-x86_64`。正常挂载仍需要内核提供可用的 FUSE 支持。构建工具设置的 `APPIMAGE_EXTRACT_AND_RUN=1` 仅用于 CI，不写入最终启动入口。
 
-linuxdeploy 默认不捆绑 glibc / 动态加载器，因此宿主仍需满足本次 Arch 二进制及所打包共享库的 ABI 要求；不能把此方案描述为支持任意旧系统。当前尚未验证新产物的 lf 预览耗时。
+linuxdeploy 默认不捆绑 glibc / 动态加载器，因此宿主仍需满足 Ubuntu 24.04 二进制及所打包共享库的 ABI 要求；不能把此方案描述为支持任意旧系统。当前尚未验证新产物的 lf 预览耗时。
 
 ## 修复 / 变更记录
 
@@ -92,3 +92,11 @@ linuxdeploy 默认不捆绑 glibc / 动态加载器，因此宿主仍需满足�
 - **已确认范围：** 两份 preview 脚本均直接调用 `mediainfo`，没有额外等待逻辑；旧包包含传统 AppImageKit / SquashFS runtime 字符串，新包包含 uruntime。此前记录的应用版本也不同，因此不能仅凭加载截图把根因确定为 quick-sharun 或 runtime。
 - **修改文件与处理：** 原脚本原样改名为 `build_mediainfo_anylinux.sh`；新增 `build_mediainfo_linuxdeploy.sh`，按要求保留 linuxdeploy 输出步骤并单独使用官方 appimagetool 和指定 runtime 最终封装；`.github/appimage-apps.json` 切换正式入口；同步更新本 README。未修改 lf 配置或增加运行包装。
 - **验证状态：** 完成脚本语法、静态分析、清单路径及完整 diff 核对；未在真实主机打包或反复运行样本，未监控本次 Actions。正式构建结果、宿主 ABI 兼容性及 lf 实际预览速度待新产物确认，尚不能声称加载问题已经解决。
+
+### 2026-09-19：修正为 Ubuntu linuxdeploy 构建并恢复工作流下拉
+
+- **问题：** 首次切换脚本仍在 Arch 容器中使用 `yay`，不符合本项目 linuxdeploy + appimagetool 默认使用 Ubuntu 的构建约定；统一 workflow 的 `script_to_build` 也已从可滚动下拉误改为普通文本框。
+- **核对：** Ubuntu 24.04 官方 `mediainfo` 包和 MediaArea 官方 Ubuntu 24.04 CLI 包都仅包含 CLI、文档和 man page，没有 desktop；`runtime-x86_64` 的正式来源是 AppImage/type2-runtime continuous Release。
+- **修改文件与处理：** `build_mediainfo_linuxdeploy.sh` 改为 Ubuntu 24.04 + APT，使用 MediaArea 官方 releases 仓库；运行时再次检查安装包文件清单，仅在 desktop 缺失时自建；`.github/appimage-apps.json` 改为特例并在 `build.yml` 增加 Ubuntu Job；`script_to_build` 恢复为包含全部清单脚本的 `choice` 下拉。
+- **runtime 边界：** linuxdeploy 负责 AppDir 与依赖收集，最终发布包由 appimagetool 使用构建时下载并校验的最新 static type2-runtime 封装。这里确认的是无需宿主 `libfuse2`，没有把工具名称本身简单等同于固定 FUSE 版本。
+- **验证状态：** 提交前完成 YAML、JSON、Bash、清单与完整 diff 的静态核对；正式构建结果和 lf 实际预览速度仍待新产物确认。

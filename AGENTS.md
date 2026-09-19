@@ -475,7 +475,7 @@ linuxdeploy 额外规则：
 - 标准 Arch 应用：只在 `.github/appimage-apps.json` 增加一条 `kind: standard` 记录（按应用目录名不区分大小写 A→Z 插入）。不要再手写 `KEYS` / `SCRIPTS` / `DIRS`，也不要再复制一份标准 Job YAML。
 - 清单字段至少包含：`key`、`kind`、`name`、`script`、`dir`；标准应用还要有 `artifact_dir`、`release_name`、`software_key`、`timeout_minutes`、`run_from_root`。
 - 特例应用：清单里加 `kind: special`，并在 `build.yml` 新增独立 Job。特例 Job 按显示名称（去掉 `Build ` 前缀）不区分大小写 A→Z 排列；`Plan` 固定最前，matrix 标准 Job 紧随其后，非 `Build ...` 的附属 Job 仍放在全部 Build Job 之后。
-- 手动运行入口为字符串：`all` 或脚本路径 / 应用名；`script_search` 填写时优先模糊匹配。不再维护按应用罗列的 choice 下拉。
+- 手动运行入口 `script_to_build` 必须保留 `choice` 下拉：`all` 固定在第一项，其余选项必须与 `.github/appimage-apps.json` 的全部 `script` 一一对应，并按路径不区分大小写 A→Z 排列。新增、删除或重命名应用脚本时必须同步更新下拉选项。`script_search` 可选填应用名 / 脚本名称做模糊匹配，填写时优先于下拉选择。
 - 提交前核对清单无重复、无遗漏，`script` / `dir` 与仓库路径一致；特例的独立 Job、`if: fromJSON(needs.plan.outputs.builds).<key>` 与清单 `key` 一致。
 - 本规则不授权顺手重排其他 workflow，也不得为了排序新增测试代码、测试 Job 或测试 Step。
 

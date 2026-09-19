@@ -19,12 +19,94 @@ on:
   workflow_dispatch:
     inputs:
       script_to_build:
-        description: 'all 或脚本路径 / 应用名'
+        description: '选择要构建的脚本（选择 all 构建全部）'
         required: true
         default: 'all'
-        type: string
+        type: choice
+        options:
+          - all
+          - adspower-global/build_adspower-global.sh
+          - aionui/build_aionui.sh
+          - alacritty/build_alacritty_linuxdeploy.sh
+          - alttab/build_alttab.sh
+          - android-tools/build_android-tools.sh
+          - antigravity-ide/build_antigravity-ide.sh
+          - antigravity/build_antigravity.sh
+          - baidunetdisk/build_baidunetdisk.sh
+          - cc-switch/build_cc-switch.sh
+          - chatgpt/build_chatgpt.sh
+          - chromium/build_chromium.sh
+          - claude-desktop/build_claude-desktop.sh
+          - copyq/build_copyq.sh
+          - cursor/build_cursor.sh
+          - dconf-editor/build_dconf-editor.sh
+          - deepseek-harness/build_deepseek-harness.sh
+          - deskflow/build_deskflow.sh
+          - dingtalk/build_dingtalk.sh
+          - escrcpy/build_escrcpy.sh
+          - feishu/build_feishu.sh
+          - flameshot/build_flameshot.sh
+          - folo/build_folo.sh
+          - freedownloadmanager/build_freedownloadmanager.sh
+          - freerdp/build_freerdp.sh
+          - gemini/build_gemini.sh
+          - github-desktop/build_github-desktop.sh
+          - gitkraken/build_gitkraken.sh
+          - goldendict-ng/build_goldendict-ng.sh
+          - hermes-desktop/build_hermes-desktop.sh
+          - htop/build_htop.sh
+          - i3wm/build_i3wm.sh
+          - joplin/build_joplin.sh
+          - jriver/build_jriver.sh
+          - kde-suite/build_kde_suite.sh
+          - keepass/build_keepass.sh
+          - keepassxc/build_keepassxc.sh
+          - Keyviz/build_keyviz.sh
+          - kitty/build_kitty.sh
+          - mailmaster/build_mailmaster.sh
+          - mediainfo/build_mediainfo_linuxdeploy.sh
+          - mission-center/build_mission-center.sh
+          - moderncsv/build_moderncsv.sh
+          - mpv/build_mpv.sh
+          - newsboat/build_newsboat.sh
+          - nvtop/build_nvtop.sh
+          - obs-studio/build_obs-studio.sh
+          - obsidian/build_obsidian.sh
+          - parsec/build_parsec.sh
+          - picom/build_picom.sh
+          - poppler-utils/build_poppler-utils.sh
+          - postman/build_postman.sh
+          - qemu/build_qemu.sh
+          - qq/build_qq.sh
+          - rainlendar2/build_rainlendar2.sh
+          - realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh
+          - remmina/build_remmina.sh
+          - remotedesktopmanager/build_remotedesktopmanager.sh
+          - ripdrag/build_ripdrag.sh
+          - rofi/build_rofi.sh
+          - simplescreenrecorder/build_simplescreenrecorder.sh
+          - smplayer/build_smplayer.sh
+          - stacer/build_stacer.sh
+          - stacher/build_stacher.sh
+          - sunshine/build_sunshine.sh
+          - tencent-docs/build_tencent-docs.sh
+          - trae-work/build_trae-work.sh
+          - trae/build_trae.sh
+          - v2rayn/build_v2rayn.sh
+          - ventoy/build_ventoy.sh
+          - virt-manager/build_virt-manager.sh
+          - vscode/build_vscode.sh
+          - webcamoid/build_webcamoid.sh
+          - wechat/build_wechat.sh
+          - winpodx/build_winpodx_release.sh
+          - workbuddy/build_workbuddy.sh
+          - xmind/build_xmind.sh
+          - xnconvert/build_xnconvert.sh
+          - xnviewmp/build_xnviewmp.sh
+          - zen/build_zen.sh
+          - zotero/build_zotero.sh
       script_search:
-        description: '模糊输入脚本名称（可留空；填写时优先于上方）'
+        description: '模糊输入脚本名称（可留空；填写时优先于上方下拉）'
         required: false
         default: ''
         type: string
@@ -628,6 +710,54 @@ jobs:
           version_file: 'dist/version.txt'
           asset_name: 'keyviz.AppImage'
           artifact_dir: 'dist'
+          github_token: ${{ github.token }}
+
+
+  build_mediainfo:
+    name: Build MediaInfo
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).mediainfo == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build MediaInfo AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x mediainfo/build_mediainfo_linuxdeploy.sh
+          ./mediainfo/build_mediainfo_linuxdeploy.sh
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-mediainfo
+          path: mediainfo/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest mediainfo/dist/mediainfo.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'mediainfo'
+          version_file: 'mediainfo/dist/version.txt'
+          asset_name: 'mediainfo.AppImage'
+          artifact_dir: 'mediainfo/dist'
           github_token: ${{ github.token }}
 
 
