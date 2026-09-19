@@ -390,7 +390,9 @@
       "kind": "special",
       "name": "TraeWork",
       "script": "trae-work/build_trae-work.sh",
-      "dir": "trae-work"
+      "dir": "trae-work",
+      "release_name": "trae-work.AppImage",
+      "software_key": "trae-work"
     },
     {
       "key": "deepseek_harness",
@@ -409,14 +411,18 @@
       "kind": "special",
       "name": "OBS Studio",
       "script": "obs-studio/build_obs-studio.sh",
-      "dir": "obs-studio"
+      "dir": "obs-studio",
+      "release_name": "obs-studio.AppImage",
+      "software_key": "obs-studio"
     },
     {
       "key": "dingtalk",
       "kind": "special",
       "name": "DingTalk",
       "script": "dingtalk/build_dingtalk.sh",
-      "dir": "dingtalk"
+      "dir": "dingtalk",
+      "release_name": "dingtalk.AppImage",
+      "software_key": "dingtalk"
     },
     {
       "key": "escrcpy",
@@ -435,35 +441,45 @@
       "kind": "special",
       "name": "WinPodX",
       "script": "winpodx/build_winpodx_release.sh",
-      "dir": "winpodx"
+      "dir": "winpodx",
+      "release_name": "winpodx.AppImage",
+      "software_key": "winpodx"
     },
     {
       "key": "alacritty",
       "kind": "special",
       "name": "Alacritty",
       "script": "alacritty/build_alacritty_linuxdeploy.sh",
-      "dir": "alacritty"
+      "dir": "alacritty",
+      "release_name": "alacritty.AppImage",
+      "software_key": "alacritty"
     },
     {
       "key": "keyviz",
       "kind": "special",
       "name": "Keyviz",
       "script": "Keyviz/build_keyviz.sh",
-      "dir": "Keyviz"
+      "dir": "Keyviz",
+      "release_name": "keyviz.AppImage",
+      "software_key": "keyviz"
     },
     {
       "key": "remmina",
       "kind": "special",
       "name": "Remmina",
       "script": "remmina/build_remmina.sh",
-      "dir": "remmina"
+      "dir": "remmina",
+      "release_name": "remmina.AppImage",
+      "software_key": "remmina"
     },
     {
       "key": "dconf_editor",
       "kind": "special",
       "name": "dconf Editor",
       "script": "dconf-editor/build_dconf-editor.sh",
-      "dir": "dconf-editor"
+      "dir": "dconf-editor",
+      "release_name": "dconf-editor.AppImage",
+      "software_key": "dconf-editor"
     },
     {
       "key": "rainlendar2",
@@ -518,21 +534,27 @@
       "kind": "special",
       "name": "GitHub Desktop",
       "script": "github-desktop/build_github-desktop.sh",
-      "dir": "github-desktop"
+      "dir": "github-desktop",
+      "release_name": "github-desktop.AppImage",
+      "software_key": "github-desktop"
     },
     {
       "key": "hermes_desktop",
       "kind": "special",
       "name": "Hermes Desktop",
       "script": "hermes-desktop/build_hermes-desktop.sh",
-      "dir": "hermes-desktop"
+      "dir": "hermes-desktop",
+      "release_name": "hermes-desktop.AppImage",
+      "software_key": "hermes-desktop"
     },
     {
       "key": "workbuddy",
       "kind": "special",
       "name": "WorkBuddy AppImage",
       "script": "workbuddy/build_workbuddy.sh",
-      "dir": "workbuddy"
+      "dir": "workbuddy",
+      "release_name": "workbuddy.AppImage",
+      "software_key": "workbuddy"
     },
     {
       "key": "mailmaster",
@@ -563,7 +585,9 @@
       "kind": "special",
       "name": "Baidu Netdisk",
       "script": "baidunetdisk/build_baidunetdisk.sh",
-      "dir": "baidunetdisk"
+      "dir": "baidunetdisk",
+      "release_name": "baidunetdisk.AppImage",
+      "software_key": "baidunetdisk"
     },
     {
       "key": "aionui",
@@ -618,7 +642,9 @@
       "kind": "special",
       "name": "Joplin",
       "script": "joplin/build_joplin.sh",
-      "dir": "joplin"
+      "dir": "joplin",
+      "release_name": "joplin.AppImage",
+      "software_key": "joplin"
     },
     {
       "key": "jriver",
@@ -632,7 +658,9 @@
       "kind": "special",
       "name": "ChatGPT",
       "script": "chatgpt/build_chatgpt.sh",
-      "dir": "chatgpt"
+      "dir": "chatgpt",
+      "release_name": "chatgpt.AppImage",
+      "software_key": "chatgpt"
     },
     {
       "key": "claude_desktop",
@@ -687,14 +715,18 @@
       "kind": "special",
       "name": "XnView MP",
       "script": "xnviewmp/build_xnviewmp.sh",
-      "dir": "xnviewmp"
+      "dir": "xnviewmp",
+      "release_name": "xnviewmp.AppImage",
+      "software_key": "xnview"
     },
     {
       "key": "xnconvert",
       "kind": "special",
       "name": "XnConvert",
       "script": "xnconvert/build_xnconvert.sh",
-      "dir": "xnconvert"
+      "dir": "xnconvert",
+      "release_name": "xnconvert.AppImage",
+      "software_key": "xnconvert"
     },
     {
       "key": "stacer",
@@ -725,7 +757,9 @@
       "kind": "special",
       "name": "Tencent Docs",
       "script": "tencent-docs/build_tencent-docs.sh",
-      "dir": "tencent-docs"
+      "dir": "tencent-docs",
+      "release_name": "tencent-docs.AppImage",
+      "software_key": "tencent-docs"
     },
     {
       "key": "webcamoid",

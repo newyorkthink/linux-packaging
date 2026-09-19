@@ -2,7 +2,7 @@
 # 每个选中的应用仍是独立 runner（matrix fail-fast: false），完成后立即写入 software_versions.json。
 name: Build AppImages
 run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && (inputs.script_search != '' && format('Build {0}', inputs.script_search) || inputs.script_to_build == 'all' && 'Build all AppImages' || format('Build {0}', inputs.script_to_build)) || github.event_name == 'schedule' && 'Daily build all AppImages' || github.event.head_commit.message }}
+  ${{ github.event_name == 'workflow_dispatch' && inputs.release_integrity_repair == true && format('Release integrity repair: {0}', inputs.release_integrity_keys) || github.event_name == 'workflow_dispatch' && (inputs.script_search != '' && format('Build {0}', inputs.script_search) || inputs.script_to_build == 'all' && 'Build all AppImages' || format('Build {0}', inputs.script_to_build)) || github.event_name == 'schedule' && 'Daily build all AppImages' || github.event.head_commit.message }}
 
 on:
   push:
@@ -25,6 +25,16 @@ on:
         type: string
       script_search:
         description: '模糊输入脚本名称（可留空；填写时优先于上方）'
+        required: false
+        default: ''
+        type: string
+      release_integrity_repair:
+        description: '内部使用：由 Release 完整性监督触发'
+        required: false
+        default: false
+        type: boolean
+      release_integrity_keys:
+        description: '内部使用：需要自愈的构建 key JSON 数组'
         required: false
         default: ''
         type: string
@@ -52,6 +62,8 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           SELECTED_SCRIPT: ${{ inputs.script_to_build }}
           SCRIPT_SEARCH: ${{ inputs.script_search }}
+          RELEASE_INTEGRITY_REPAIR: ${{ inputs.release_integrity_repair }}
+          RELEASE_INTEGRITY_KEYS: ${{ inputs.release_integrity_keys }}
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
         run: |

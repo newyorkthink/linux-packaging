@@ -61,6 +61,16 @@ Build 失败、Release 资产上传失败、版本文件无效、Release digest 
 
 版本发布实现集中在 `.github/actions/publish-software-versions` composite action，但调用者始终是**各自的 Build Job 本身**。
 
+### Release 完整性监督与自动自愈
+
+`.github/workflows/supervise-release-integrity.yml` 在每次实际运行过应用构建的 **Build AppImages** 完成后启动，不区分原构建来自 `push`、`schedule` 还是 `workflow_dispatch`，也不以原 Workflow 的成功或失败状态代替 Release 完整性检查。
+
+监督流程读取 `latest` Release 中唯一的 `software_versions.json`，遍历其中全部条目，根据每个条目的 `asset` 找到同一 Release 中的唯一资产，并比较清单 `sha256` 与 GitHub Release Asset 的 `sha256` digest。没有版本清单条目的软件不属于监督对象。
+
+全部条目一致时监督正常结束，不修改 Release，也不触发构建。发现不一致时，根据 `.github/appimage-apps.json` 中的 `software_key` 和 `release_name` 映射到现有构建，只通过本仓库 `Build AppImages` 的内部 `workflow_dispatch` 输入重新构建异常软件，不复制应用构建逻辑，也不扩大到全量构建。
+
+自愈 Build 仍由各自 Build Job 在发布成功后立即更新自己的 `software_versions.json` 条目；监督 Workflow 不写版本清单，不充当中央 publisher。自愈完成后自动再次监督；如果仍有异常则明确失败，不再触发第二次自愈，避免无限循环。
+
 ### 2026-09-17：改为每个 Build 成功后立即写自己的版本条目
 
 此前使用独立 `Publish successful software versions` Job 轮询其他 Build。该 Job 如果仍在等待 runner，已经成功上传的新 AppImage 会先于 `software_versions.json` 更新，从而出现 Release 资产已经变化、清单仍保存旧 SHA-256 的时间窗口。

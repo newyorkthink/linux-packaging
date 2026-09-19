@@ -61,6 +61,8 @@ def main() -> None:
     event_name = os.environ["EVENT_NAME"]
     selected_script = os.environ.get("SELECTED_SCRIPT") or "all"
     script_search = os.environ.get("SCRIPT_SEARCH") or ""
+    release_integrity_repair = (os.environ.get("RELEASE_INTEGRITY_REPAIR") or "").lower() == "true"
+    release_integrity_keys = os.environ.get("RELEASE_INTEGRITY_KEYS") or ""
     before_sha = os.environ.get("BEFORE_SHA") or ""
     after_sha = os.environ["AFTER_SHA"]
     build = {key: False for key in keys}
@@ -69,10 +71,28 @@ def main() -> None:
         for key in keys:
             build[key] = True
 
-    if event_name == "workflow_dispatch" and script_search.strip():
+    if release_integrity_repair:
+        if event_name != "workflow_dispatch":
+            raise SystemExit("Release 完整性自愈只能通过 workflow_dispatch 运行。")
+        try:
+            repair_keys = json.loads(release_integrity_keys)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"Release 完整性自愈 key 不是有效 JSON：{exc}") from exc
+        if not isinstance(repair_keys, list) or not repair_keys:
+            raise SystemExit("Release 完整性自愈 key 必须是非空 JSON 数组。")
+        if any(not isinstance(key, str) or not key for key in repair_keys):
+            raise SystemExit("Release 完整性自愈 key 必须全部是非空字符串。")
+        unknown_keys = sorted(set(repair_keys) - set(keys))
+        if unknown_keys:
+            raise SystemExit("Release 完整性自愈包含未知构建 key：" + ", ".join(unknown_keys))
+        for key in dict.fromkeys(repair_keys):
+            build[key] = True
+    elif event_name == "workflow_dispatch" and script_search.strip():
         selected_script = resolve_search(catalog, script_search)
 
-    if event_name == "workflow_dispatch":
+    if release_integrity_repair:
+        pass
+    elif event_name == "workflow_dispatch":
         if selected_script == "all":
             select_all()
         elif selected_script in script_key:

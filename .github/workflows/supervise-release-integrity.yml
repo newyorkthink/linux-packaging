@@ -1,0 +1,149 @@
+# Build AppImages 完成后监督 latest Release 的版本清单与正式资产，并最多自动修复一次。
+name: Supervise Release Integrity
+run-name: >-
+  ${{ github.event.workflow_run.event == 'workflow_dispatch' && startsWith(github.event.workflow_run.display_title, 'Release integrity repair:') && format('Verify repair for Build AppImages #{0}', github.event.workflow_run.run_number) || format('Supervise Build AppImages #{0}', github.event.workflow_run.run_number) }}
+
+on:
+  workflow_run:
+    workflows: [Build AppImages]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  supervise:
+    name: Supervise latest Release integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+      IS_REPAIR_RUN: ${{ github.event.workflow_run.event == 'workflow_dispatch' && startsWith(github.event.workflow_run.display_title, 'Release integrity repair:') }}
+
+    steps:
+      - name: Determine whether the completed workflow built an application
+        id: source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          jobs_json="$RUNNER_TEMP/source-run-jobs.json"
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/jobs?per_page=100" \
+            > "$jobs_json"
+          should_supervise="$(python3 - "$jobs_json" "$IS_REPAIR_RUN" <<'PY'
+          import json, sys
+
+          path, is_repair = sys.argv[1:]
+          pages = json.load(open(path, encoding='utf-8'))
+          jobs = [job for page in pages for job in page.get('jobs', [])]
+          built = any(
+              isinstance(job.get('name'), str)
+              and job['name'].startswith('Build ')
+              and job.get('conclusion') != 'skipped'
+              for job in jobs
+          )
+          print('true' if built or is_repair.lower() == 'true' else 'false')
+          PY
+          )"
+          echo "should_supervise=$should_supervise" >> "$GITHUB_OUTPUT"
+          if [[ "$should_supervise" != true ]]; then
+            echo '当前 Build AppImages 没有实际运行应用构建，不监督 Release。'
+          fi
+
+      - name: Checkout repository
+        if: steps.source.outputs.should_supervise == 'true'
+        uses: actions/checkout@v4
+
+      - name: Read latest Release state
+        if: steps.source.outputs.should_supervise == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          release_json="$RUNNER_TEMP/latest-release.json"
+          assets_json="$RUNNER_TEMP/latest-release-assets.json"
+          manifest="$RUNNER_TEMP/software_versions.json"
+
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" > "$release_json"
+          release_id="$(python3 - "$release_json" <<'PY'
+          import json, sys
+
+          release_id = json.load(open(sys.argv[1], encoding='utf-8')).get('id')
+          if not release_id:
+              raise SystemExit('无法取得 latest Release ID。')
+          print(release_id)
+          PY
+          )"
+
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" \
+            > "$assets_json"
+          manifest_asset_id="$(python3 - "$assets_json" <<'PY'
+          import json, sys
+
+          pages = json.load(open(sys.argv[1], encoding='utf-8'))
+          rows = [asset for page in pages for asset in page if asset.get('name') == 'software_versions.json']
+          if len(rows) != 1:
+              raise SystemExit(f'latest Release 中 software_versions.json 数量为 {len(rows)}，必须恰好为 1。')
+          print(rows[0]['id'])
+          PY
+          )"
+          gh api \
+            -H 'Accept: application/octet-stream' \
+            "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id" \
+            > "$manifest"
+
+      - name: Supervise software version manifest
+        if: steps.source.outputs.should_supervise == 'true'
+        id: integrity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 .github/scripts/supervise_release_integrity.py \
+            --manifest "$RUNNER_TEMP/software_versions.json" \
+            --assets "$RUNNER_TEMP/latest-release-assets.json" \
+            --catalog .github/appimage-apps.json
+
+      - name: Start one repair build for mismatched applications
+        if: >-
+          steps.source.outputs.should_supervise == 'true' &&
+          steps.integrity.outputs.has_mismatches == 'true' &&
+          steps.integrity.outputs.repairable == 'true' &&
+          env.IS_REPAIR_RUN != 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPAIR_KEYS: ${{ steps.integrity.outputs.repair_keys }}
+        run: |
+          set -Eeuo pipefail
+          gh api --method POST \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/build.yml/dispatches" \
+            -f ref=main \
+            -F 'inputs[release_integrity_repair]=true' \
+            -f "inputs[release_integrity_keys]=$REPAIR_KEYS"
+          echo "已触发一次完整性自愈，仅重新构建：$REPAIR_KEYS"
+
+      - name: Fail when mismatches cannot be mapped safely
+        if: >-
+          steps.source.outputs.should_supervise == 'true' &&
+          steps.integrity.outputs.has_mismatches == 'true' &&
+          steps.integrity.outputs.repairable != 'true'
+        shell: bash
+        run: |
+          echo 'Release 完整性异常无法安全映射到唯一构建，禁止自动扩大重跑范围。' >&2
+          exit 1
+
+      - name: Fail after the only repair attempt
+        if: >-
+          steps.source.outputs.should_supervise == 'true' &&
+          steps.integrity.outputs.has_mismatches == 'true' &&
+          steps.integrity.outputs.repairable == 'true' &&
+          env.IS_REPAIR_RUN == 'true'
+        shell: bash
+        run: |
+          echo '自动修复一次后 Release 完整性仍然异常，禁止继续循环重跑。' >&2
+          exit 1
