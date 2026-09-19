@@ -1,0 +1,58 @@
+# 定期删除七天前已经结束的 Actions 运行记录和日志。
+# 不处理运行中或排队中的任务，也不影响 Release、标签和提交。
+name: Cleanup Actions Runs
+
+on:
+  schedule:
+    - cron: '43 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: cleanup-actions-runs
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Cleanup completed runs older than 7 days
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: 删除七天前已完成的运行记录
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          cutoff="$(date -u -d '7 days ago' '+%Y-%m-%dT%H:%M:%SZ')"
+
+          mapfile -t run_ids < <(
+            gh api --method GET --paginate \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "/repos/${GITHUB_REPOSITORY}/actions/runs" \
+              -f status='completed' \
+              -f created="<${cutoff}" \
+              -f per_page=100 \
+              --jq '.workflow_runs[].id'
+          )
+
+          if (( ${#run_ids[@]} == 0 )); then
+            printf '没有需要删除的运行记录。保留起点：%s\n' "${cutoff}"
+            exit 0
+          fi
+
+          printf '准备删除 %d 条早于 %s 的已完成运行记录。\n' "${#run_ids[@]}" "${cutoff}"
+
+          for run_id in "${run_ids[@]}"; do
+            gh api --method DELETE --silent \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}"
+          done
+
+          printf '已删除 %d 条运行记录。\n' "${#run_ids[@]}"
