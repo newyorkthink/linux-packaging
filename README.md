@@ -63,6 +63,10 @@ Build 失败、Release 资产上传失败、版本文件无效、Release digest 
 
 ### Release 完整性监督与自动自愈
 
+手动选择 `all` 或每日定时执行的全量 **Build AppImages** 如果第一次运行失败，`.github/workflows/supervise-release-integrity.yml` 会调用 GitHub 官方 `rerun-failed-jobs` 接口，仅重新运行失败 Job 及依赖这些失败 Job 的后续 Job；已经成功的应用 Job 不会重复构建。自动重跑最多一次，第二次仍失败时停止，不再循环。单个软件手动构建、`push` 增量构建和 Release 完整性自愈构建不进入这项自动重跑。
+
+自动重跑请求发出后，本次监督先结束；失败 Job 重跑完成后，监督 workflow 再按最终结果执行 Release 完整性检查，避免首次失败状态与重跑过程并行触发另一套修复。
+
 `.github/workflows/supervise-release-integrity.yml` 在每次实际运行过应用构建的 **Build AppImages** 完成后启动，不区分原构建来自 `push`、`schedule` 还是 `workflow_dispatch`，也不以原 Workflow 的成功或失败状态代替 Release 完整性检查。
 
 监督流程读取 `latest` Release 中唯一的 `software_versions.json`，遍历其中全部条目，根据每个条目的 `asset` 找到同一 Release 中的唯一资产，并比较清单 `sha256` 与 GitHub Release Asset 的 `sha256` digest。没有版本清单条目的软件不属于监督对象。
