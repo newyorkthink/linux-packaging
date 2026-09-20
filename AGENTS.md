@@ -386,9 +386,20 @@ AppImage 应只包含应用正常运行所需内容。
 - 启动入口必须明确指向当前应用的真实可执行文件，路径和参数正确引用，最后只保留一条可到达的 `exec ... "$@"` 执行链。不得运行时抓取目录中第一个 desktop 文件并拆分 `Exec=`，也不得连续堆叠多条互相不可到达的 `exec`。
 - 默认保留宿主用户的语言、桌面后端、浏览器、主题、缩放、字体 DPI、输入法和数据目录选择。没有当前应用的明确证据时，不得统一强制 `LC_ALL` / `LANGUAGE`、`BROWSER`、`QT_QPA_PLATFORM`、`QT_FONT_DPI`、`GTK_THEME`、`QT_STYLE_OVERRIDE` 或各类 `*_IM_MODULE`，不得把 `HOME` 改写为 `~/.local/share`，也不得令 `XDG_CONFIG_HOME`、`XDG_DATA_HOME` 等目录互相混用。
 - `PATH`、`LD_LIBRARY_PATH`、`QT_PLUGIN_PATH`、`XDG_DATA_DIRS` 等变量只能加入与其语义匹配且在当前 AppDir 中真实存在的目录；不得把 `etc`、`share`、`translations` 等目录无差别塞入所有搜索路径。非 Python / Perl 应用不得预防性设置 `PYTHONHOME`、`PYTHONPATH` 或 `PERLLIB`，变量值中也不得写入不会按预期展开的通配路径。
-- `LD_PRELOAD` 只允许用于当前应用已经确认需要、随产物实际携带且 ABI 匹配的兼容库；不得把 `libunionpreload.so` 或其他 preload 库写进通用模板。设置前必须保证对应文件存在，避免动态加载器在每次启动时直接报错。
+- `LD_PRELOAD` 只允许用于当前应用已经确认需要、随产物实际携带且 ABI 匹配的兼容库；不得把 `libunionpreload.so` 或其他 preload 库写进通用模板。符合下节条件的应用可以按需选择 libunionpreload；设置任何 preload 前都必须保证对应文件存在，避免动态加载器在每次启动时直接报错。
 - 输入法支持优先依靠与 Qt / GTK 主版本一致的实际 plugin 和宿主会话环境；不得仅通过 `pgrep` 判断进程名后，为所有应用强制覆盖 Qt、GTK、SDL、GLFW 等多个框架的输入法变量。
 - 已有应用 README 明确记录并经真实运行反馈确认的特殊环境变量属于该应用稳定基线，继续按原记录保留；本节不得被用于无证据删除既有兼容处理。
+
+### libunionpreload 可以作为按需绝对路径兼容层
+
+[`project-portable/libunionpreload`](https://github.com/project-portable/libunionpreload) 通过 `LD_PRELOAD` 拦截一组 libc 文件访问、绝对路径 `dlopen`、文件型 Unix socket 和 `execve` 调用；当 `UNION_PRELOAD` 指向的目录中存在与目标绝对路径对应的文件时优先使用该文件，否则回退宿主原路径。它适合需要保留 FHS 绝对路径视图、且普通 RPATH、搜索路径或 wrapper 无法解决的特定应用，但不是所有 AppImage 的默认依赖。
+
+- 只有主程序或必要子进程确实写死 `/usr`、`/opt`、`/lib` 等绝对路径，并且 AppDir 中已经按对应根目录布局携带目标文件时，才评估 libunionpreload。能够通过上游相对路径、RPATH、标准环境变量或更小范围 wrapper 解决时，优先使用这些方法。
+- 它不是真正的 union filesystem、mount namespace 或安全沙箱；目录枚举、未拦截的 libc 接口、直接系统调用及其他特殊访问路径不保证获得完整叠加语义。不得把“启用了 libunionpreload”描述成完整隔离或全部文件访问都已重定向。
+- 使用前必须确认主程序为兼容的动态链接 ELF，并核对 libunionpreload 与目标架构、glibc ABI 和最终 AppImage 运行时匹配。静态链接程序、secure-execution / setuid 场景或动态加载器忽略 `LD_PRELOAD` 的场景不得依赖它。
+- `UNION_PRELOAD` 必须使用 AppDir 根目录的绝对路径，`LD_PRELOAD` 必须使用产物内实际 `libunionpreload.so` 的绝对路径，并在不破坏已有必要 preload 项的前提下组合。该库会尝试把自身环境传给 `execve` 子进程，因此必须同时评估对子进程、`/tmp`、`/var/lib`、Unix socket、文件写入和宿主回退行为的影响。
+- 优先从上游官方源码在当前正式 CI 的目标架构环境中构建，或使用经过来源、架构、摘要和 ABI 核实的官方资产；不得假定上游现有预编译资产覆盖所有架构。上游源码头声明 GPLv3，发布二进制前必须完成对应许可证合规检查并保留所需声明。
+- 对应应用 README 必须记录为什么普通路径方案不足、`UNION_PRELOAD` 实际指向、库的来源与构建方式、受影响的绝对路径、子进程传播需求、已知限制和证据状态。已有应用已经确认有效的 libunionpreload 配置仍作为该应用稳定基线保留，不因本节重新试错。
 
 ### AppImage 打包方式由 AI 根据项目自行判定
 
