@@ -19,13 +19,27 @@
 
 | 范围 | 主要内容 |
 | --- | --- |
-| 文首永久规则 | 测试代码边界与必要验证、修改后及时提交、Git 分支、撤销提交、仓库独立运行、版本清单即时写入 |
+| 文首永久规则 | linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、测试代码边界与必要验证、修改后及时提交、Git 分支、撤销提交、仓库独立运行、版本清单即时写入 |
 | 第 1～2 节 | 仓库目标、最小修改、应用 README、检查记录、迁移完整性 |
 | 第 3～5 节 | 宿主安全、Shell 与中文说明、上游来源、授权、动态版本和版本元数据 |
 | 第 6 节 | AppImage 内容、AppRun、libunionpreload、打包路线、linuxdeploy、Qt 与 quick-sharun |
 | 第 7～9 节 | GitHub Actions、Release、允许与禁止的检查方式 |
 | 第 10～12 节 | 安全审计、AI 工作方式、用户指令优先级与提交撤销 |
 | 第 13 节 | AppImage 最小构建环境、quick-sharun 默认流程与按证据补依赖 |
+
+## 永久规则：任何 linuxdeploy 打包必须严格遵守 linuxdeploy_projects.md（不可豁免）
+
+**凡构建脚本、workflow 或其他正式流程实际调用 `linuxdeploy`，无论是新增应用、迁移项目、修改脚本、修复故障、重做打包还是整理既有实现，都必须先完整阅读并严格遵守根目录 [`linuxdeploy_projects.md`](./linuxdeploy_projects.md) 的全部做法。该文件是本仓库所有 linuxdeploy 打包的强制实施规范，不是参考、建议、示例或可选模板。**
+
+强制范围：
+
+- 不得只阅读本文件中的 linuxdeploy 摘要；开始处理任何 linuxdeploy 项目前，必须同时完整阅读 `linuxdeploy_projects.md`，并按其中规定的实际顺序、路径、命令和最终封装方式执行。
+- 普通、Qt、GTK、GStreamer 及任何其他使用 linuxdeploy 的项目全部受此规则约束；不得以技术栈、上游包格式、历史脚本、现有 README、旧 workflow、其他项目模板或“当前项目特殊”为理由绕过。
+- 必须遵守 `linuxdeploy_projects.md` 规定的完整链路：第一次带 `--output appimage` 的普通 linuxdeploy 创建 / 整理 AppDir；把完整自定义启动逻辑写入根 `AppDir/AppRun`；第二次按技术栈带对应插件并保留 `--output appimage`；由 linuxdeploy 完成 hook、顶层 `AppRun` 和 `AppRun.wrapped`；最后对同一个 AppDir 使用官方 appimagetool 和明确的 Type 2 runtime 重新封装正式资产。
+- 禁止选择性执行、删减、调换或自行解释上述步骤；尤其不得把核心启动逻辑移到 `AppDir/usr/bin/<程序名>` 后让根 `AppRun` 只做转发，不得发布 linuxdeploy 中间 AppImage，也不得省略最终 appimagetool + Type 2 runtime 封装。
+- `linuxdeploy_projects.md` 中关于 Qt `QMAKE`、GTK `DEPLOY_GTK_VERSION`、插件选择、额外 `-l`、工具动态下载、中文说明、检查边界和正式资产位置的规则必须全部按当前应用真实情况执行，不得只挑方便的部分。
+- 如果目标项目现有脚本、README、workflow 或历史做法与 `linuxdeploy_projects.md` 冲突，处理该 linuxdeploy 项目时必须以本永久规则和 `linuxdeploy_projects.md` 为准完成最小必要修正；不得引用“旧实现已经这样写”继续保留冲突。
+- 后续修改 linuxdeploy 总体规范时，必须同步保持本文件与 `linuxdeploy_projects.md` 的强制关系和语义一致；不得删除链接、弱化为“可参考”，或把遵守范围缩小到新项目。
 
 ## 永久规则：允许必要验证，禁止向提交内容堆入测试代码（不可豁免）
 
