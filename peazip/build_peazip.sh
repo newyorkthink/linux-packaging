@@ -84,6 +84,15 @@ PEAZIP_ROOT="$APPDIR/usr/lib/peazip"
 DESKTOP_FILE="$APPDIR/usr/share/applications/peazip.desktop"
 ICON_FILE="$APPDIR/usr/share/icons/hicolor/256x256/apps/peazip.png"
 
+# 给简体中文语言文件补上 PeaZip 优先识别的 UTF-8 BOM，避免中文被按单字节编码读取成乱码。
+ZH_CN_FILE="$APPDIR/usr/share/peazip/lang/zh-cn.txt"
+ZH_CN_FILE_WITH_BOM="$WORK_DIR/zh-cn.txt"
+{
+  printf '\357\273\277'
+  cat "$ZH_CN_FILE"
+} > "$ZH_CN_FILE_WITH_BOM"
+mv "$ZH_CN_FILE_WITH_BOM" "$ZH_CN_FILE"
+
 # 官方 DEB 使用绝对链接，AppImage 内改为等价相对链接。
 ln -sfn ../lib/peazip/peazip "$APPDIR/usr/bin/peazip"
 ln -sfn ../../../share/peazip "$PEAZIP_ROOT/res/share"

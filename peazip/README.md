@@ -23,14 +23,14 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 1. 通过 GitHub `releases/latest` API 动态读取 PeaZip 最新稳定版，不锁定具体应用版本。
 2. 只接受与 Release tag 对应的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
 3. 核对 DEB 的包名、版本和架构。
-4. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。
+4. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；给 `zh-cn.txt` 补 UTF-8 BOM，并把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。
 5. linuxdeploy 只处理 PeaZip 主程序、Qt6 和界面插件。官方包内的旧归档后端在部署依赖时临时移出 AppDir，完成后原样放回，避免 linuxdeploy 扫描 32 位旧程序并错误要求 `libncurses.so.5`。
 6. linuxdeploy 不生成最终 AppImage；最后由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`。
 
 ## 运行与兼容说明
 
 - 启动脚本恢复旧版稳定结构：linuxdeploy 生成顶层 `AppRun` 加载 Qt hook，再执行保留旧版环境变量和 desktop `Exec` 解析方式的 `AppRun.wrapped`。
-- AppRun 不强制覆盖语言环境、不写入首次启动标记，也不注入 `-peaziplanguage` 参数；语言由 PeaZip 自身配置管理。
+- AppRun 不强制覆盖语言环境、不写入首次启动标记，也不注入 `-peaziplanguage` 参数；语言由 PeaZip 自身配置管理。简体中文语言文件在打包时补 UTF-8 BOM，避免中文被按单字节编码读取成乱码。
 - 继续保留旧版已实际使用的 XCB、Adwaita Dark、缩放和字体 DPI 环境；同时打包 Qt6 `adwaita.so`，避免只设置主题名却缺少样式插件。
 - 最终产物必须包含同为 Qt6 的 Compose、Fcitx5、IBus 输入上下文和 XCB 平台插件；输入法守护进程仍由宿主提供。
 - AppImage 启动链不使用 `sudo`、`pkexec`、systemd、cron 或自动安装逻辑。
@@ -66,6 +66,13 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 - **验证边界：** 上述结果覆盖构建、启动链、主题插件加载和主要归档后端；Kali Linux 实际桌面中的按钮点击、设置持久化和全部格式仍以发布产物的最终实机操作为准。
 
 ## 变更记录
+
+### 2026-09-20：修复简体中文界面乱码
+
+- **故障现象：** PeaZip 可以启动，但菜单、侧栏和文件列表中的简体中文全部显示为 `æ…` 一类乱码。
+- **根因：** `zh-cn.txt` 的 UTF-8 中文内容被 PeaZip 按单字节编码读取；PeaZip 官方说明语言文件优先使用 UTF-8 BOM。
+- **修复：** 官方 DEB 解包后，在正式打包流程中给 `usr/share/peazip/lang/zh-cn.txt` 添加 UTF-8 BOM，保留已经恢复的旧版 AppRun 启动方式。
+- **验证状态：** 按仓库永久规则未执行任何测试、试构建或产物验证；修改后直接提交并推送，显示结果以正式构建产物的真实使用反馈为准。
 
 ### 2026-09-20：恢复旧版稳定 AppRun 启动方式
 
