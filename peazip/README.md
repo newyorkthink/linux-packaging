@@ -24,13 +24,14 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 2. 只接受与 Release tag 对应的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
 3. 核对 DEB 的包名、版本和架构。
 4. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；给 `zh-cn.txt` 补 UTF-8 BOM，并把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。
-5. linuxdeploy 只处理 PeaZip 主程序、Qt6 和界面插件。官方包内的旧归档后端在部署依赖时临时移出 AppDir，完成后原样放回，避免 linuxdeploy 扫描 32 位旧程序并错误要求 `libncurses.so.5`。
-6. linuxdeploy 不生成最终 AppImage；最后由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`。
+5. 在 AppDir 中准备 PeaZip Qt6 AppRun hook，使 linuxdeploy 自动把自定义入口保留为 `AppRun.wrapped` 并生成负责加载 hook 的顶层 `AppRun`。
+6. linuxdeploy 只处理 PeaZip 主程序、Qt6 和界面插件。官方包内的旧归档后端在部署依赖时临时移出 AppDir，完成后原样放回，避免 linuxdeploy 扫描 32 位旧程序并错误要求 `libncurses.so.5`。
+7. linuxdeploy 不生成最终 AppImage；最后由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`。
 
 ## 运行与兼容说明
 
-- 启动脚本恢复旧版稳定结构：linuxdeploy 生成顶层 `AppRun` 加载 Qt hook，再执行保留旧版环境变量和 desktop `Exec` 解析方式的 `AppRun.wrapped`。
-- AppRun 不强制覆盖语言环境、不写入首次启动标记，也不注入 `-peaziplanguage` 参数；语言由 PeaZip 自身配置管理。简体中文语言文件在打包时补 UTF-8 BOM，避免中文被按单字节编码读取成乱码。
+- 启动脚本恢复旧版稳定结构：linuxdeploy 生成顶层 `AppRun` 加载 PeaZip Qt6 hook，再执行保留旧版环境变量和 desktop `Exec` 解析方式的 `AppRun.wrapped`。
+- `AppRun.wrapped` 通过 PeaZip 官方 `-peaziplanguage zh-cn.txt` 参数启动简体中文界面，不写入额外配置标记；简体中文语言文件在打包时补 UTF-8 BOM，避免中文被按单字节编码读取成乱码。
 - 继续保留旧版已实际使用的 XCB、Adwaita Dark、缩放和字体 DPI 环境；同时打包 Qt6 `adwaita.so`，避免只设置主题名却缺少样式插件。
 - 最终产物必须包含同为 Qt6 的 Compose、Fcitx5、IBus 输入上下文和 XCB 平台插件；输入法守护进程仍由宿主提供。
 - AppImage 启动链不使用 `sudo`、`pkexec`、systemd、cron 或自动安装逻辑。
@@ -66,6 +67,13 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 - **验证边界：** 上述结果覆盖构建、启动链、主题插件加载和主要归档后端；Kali Linux 实际桌面中的按钮点击、设置持久化和全部格式仍以发布产物的最终实机操作为准。
 
 ## 变更记录
+
+### 2026-09-20：恢复 linuxdeploy 的 AppRun.wrapped 启动层级
+
+- **故障现象：** 新 AppImage 只有顶层 `AppRun`，没有旧版正常包中的 `apprun-hooks` 和 `AppRun.wrapped`；界面启动后保持英文。
+- **根因：** 当前 linuxdeploy Qt 插件对 Qt6 主动跳过 AppRun hook 创建，因此仅提供自定义 `AppRun` 不会触发 linuxdeploy 包装入口。
+- **修复：** 在调用 linuxdeploy 前加入 PeaZip Qt6 兼容 hook，让 linuxdeploy 按正常机制自动生成顶层 `AppRun` 并把自定义入口保留为 `AppRun.wrapped`；同时在旧版 desktop `Exec` 启动链加入官方 `-peaziplanguage zh-cn.txt` 参数。
+- **验证状态：** 按仓库永久规则未执行任何测试、试构建或产物验证；修改后直接提交并推送，最终目录结构和中文显示以正式构建产物的真实使用反馈为准。
 
 ### 2026-09-20：修复简体中文界面乱码
 

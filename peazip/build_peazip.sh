@@ -130,11 +130,25 @@ export QT_QPA_PLATFORMTHEME=Adwaita-Dark
 export QT_QPA_PLATFORM=xcb
 export QT_FONT_DPI=96
 
+# 从 desktop 文件读取旧版稳定入口，并强制 PeaZip 使用简体中文语言文件。
 EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2- | sed -e 's|%.||g')
-exec ${EXEC} "$@"
+exec ${EXEC} -peaziplanguage zh-cn.txt "$@"
 EOF_APPRUN
 # 赋予自定义 AppRun 执行权限。
 chmod +x "$APPDIR/AppRun"
+
+# 创建旧版同类 AppRun hook，使 linuxdeploy 自动保留自定义入口为 AppRun.wrapped 并生成顶层 AppRun。
+mkdir -p "$APPDIR/apprun-hooks"
+cat > "$APPDIR/apprun-hooks/peazip-qt-hook.sh" <<'EOF_APPRUN_HOOK'
+#!/usr/bin/env bash
+
+# 把 AppImage 内的 Qt6 插件目录加入运行时搜索路径。
+PEAZIP_APPDIR="$(readlink -f "$(dirname "${BASH_SOURCE[0]}")/..")"
+export QT_PLUGIN_PATH="$PEAZIP_APPDIR/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
+unset PEAZIP_APPDIR
+EOF_APPRUN_HOOK
+# 赋予 PeaZip Qt6 AppRun hook 执行权限。
+chmod +x "$APPDIR/apprun-hooks/peazip-qt-hook.sh"
 
 ###### 核心打包 ######
 
