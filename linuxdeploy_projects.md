@@ -57,7 +57,7 @@
 export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
 ```
 
-这一步由 linuxdeploy 创建 / 整理 AppDir 的 `usr/bin`、`usr/lib`、`usr/share`、desktop、icon、根目录链接及其他能够从现有输入识别的结构。应用本体、desktop、icon、上游包或 `--executable` / `--desktop-file` / `--icon-file` 等输入仍必须按当前项目真实情况准备；linuxdeploy 不会凭空生成应用文件。
+这一步由 linuxdeploy 创建 / 整理 AppDir 的 `usr/bin`、`usr/lib`、`usr/share`、desktop、icon、根目录链接及其他能够从现有输入识别的结构。linuxdeploy 自动创建某个目录只表示基础结构存在，不表示该目录必须有文件；例如 `AppDir/usr/bin/` 可以保持为空。应用本体、desktop、icon、上游包或 `--executable` / `--desktop-file` / `--icon-file` 等输入仍必须按当前项目真实情况准备；linuxdeploy 不会凭空生成应用文件，也不得为了填满自动创建的目录而改变上游真实布局。
 
 这一步生成的 AppImage 只是中间产物，不进入发布目录。
 
@@ -69,22 +69,35 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
 
 禁止把项目自定义启动逻辑写进新建的 `AppDir/usr/bin/<程序名>`、其他 wrapper 或 launcher，再把根 `AppDir/AppRun` 写成只负责调用它的二次转发壳。特别是 `PATH`、`LD_LIBRARY_PATH`、`QT_PLUGIN_PATH`、`XDG_DATA_DIRS`、Qt / GTK 兼容变量和最终 `exec`，都应按当前应用实际需要直接位于根 `AppDir/AppRun`。
 
-`AppDir/usr/bin/` 只用于以下真实运行内容：
+**`AppDir/usr/bin/` 可以为空，而且空目录不需要处理。** 第一次 linuxdeploy 可能自动创建该目录；这只是工具生成的基础结构，不表示主程序必须放在这里。上游 DEB 或归档如果把应用全部放在 `/opt/<应用>/`，就保持 `AppDir/opt/<应用>/` 的真实布局，不复制到 `usr/bin`，不为填充目录创建自制 wrapper，也不增加没有实际需要的符号链接。
 
-- 应用自身的实际可执行文件；
-- 为 desktop 文件 `Exec=` 或第一次 linuxdeploy 扫描准备的必要符号链接；
-- 上游包原本提供且应用运行确实需要的 launcher。
+`AppDir/usr/bin/` 只有在上游包真实提供对应内容或应用确有必要入口时，才保留以下内容：
+
+- 应用自身原本位于该处的真实可执行文件；
+- 当前应用确实需要的符号链接；
+- 上游包原本提供且运行确实需要的 launcher。
 
 即使当前应用必须保留上游 `usr/bin` launcher，linuxdeploy 项目的自定义入口仍然是根 `AppDir/AppRun`，不得用 `usr/bin` launcher 取代它。第二次 linuxdeploy 产生 hook 时，应由 linuxdeploy 自动把这个根 `AppDir/AppRun` 保存成 `AppRun.wrapped`。
 
-基础结构按实际需要取用：
+根 AppRun 必须按上游真实布局直接执行主程序。`/opt` 布局示例：
 
 ```bash
 #!/usr/bin/env bash
 
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-export PATH="$HERE/usr/bin${PATH:+:$PATH}"
+export LD_LIBRARY_PATH="$HERE/opt/<应用>/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+exec "$HERE/opt/<应用>/<真实主程序>" "$@"
+```
+
+只有主程序真实位于 `AppDir/usr/bin/` 时，才使用对应入口：
+
+```bash
+#!/usr/bin/env bash
+
+HERE="$(dirname "$(readlink -f "${0}")")"
+
 export LD_LIBRARY_PATH="$HERE/usr/lib:$HERE/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 

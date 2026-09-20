@@ -558,7 +558,9 @@ linuxdeploy 额外规则：
 - 第一次先执行普通 `linuxdeploy --appdir AppDir --output appimage`，由 linuxdeploy 创建 / 整理 AppDir 基础结构；应用文件、desktop、icon 或对应命令参数仍必须按当前项目真实来源准备，linuxdeploy 不会凭空生成应用本体。
 - **所有 linuxdeploy 项目的自定义启动入口位置固定为 AppDir 根目录的 `AppDir/AppRun`，没有 Qt、GTK、GStreamer 或普通应用之分，也不得改到其他路径。** 第一次 linuxdeploy 完成后，如根目录已经存在默认生成的 `AppRun` 或指向 `usr/bin` 的链接，应先删除或替换它，再把当前项目完整的自定义启动逻辑写入 `AppDir/AppRun` 并赋予执行权限。
 - 当前项目所需的 `PATH`、`LD_LIBRARY_PATH`、Qt / GTK 环境、工作目录和最终 `exec ... "$@"` 必须直接写在这个根 `AppDir/AppRun` 中。不得把这些核心启动逻辑写进新建的 `AppDir/usr/bin/<程序名>`、其他 wrapper 或 launcher，再让根 `AppRun` 只负责二次转发。
-- `AppDir/usr/bin/` 只允许保存应用真实可执行文件、为 desktop `Exec=` 准备的必要符号链接，或上游包本来就提供且应用运行确实需要的 launcher；它不能代替根 `AppDir/AppRun`。即使必须保留上游 launcher，linuxdeploy 项目的自定义环境准备和最终启动链仍必须从根 `AppDir/AppRun` 明确开始。
+- **`AppDir/usr/bin/` 允许为空。** linuxdeploy 第一次执行时可能自动创建 `AppDir/usr/bin/`，目录被创建不代表项目必须把程序入口放进去，也不代表必须补文件。上游 DEB 或归档如果把应用本体放在 `/opt/<应用>/` 且没有真实的 `usr/bin` 入口，就保持 `AppDir/opt/<应用>/` 原布局并忽略空的 `AppDir/usr/bin/`；根 `AppDir/AppRun` 必须直接执行 `$HERE/opt/<应用>/<真实主程序>`。
+- 不得为了让 `AppDir/usr/bin/` 看起来非空、迎合目录模板或把它误当作默认入口，而额外复制 `/opt` 程序、创建自制 wrapper、launcher 或无实际需要的符号链接。linuxdeploy 自动生成目录本身不是增加这些文件的理由。
+- `AppDir/usr/bin/` 只有在上游包真实提供对应内容或当前应用确有必要入口时才保留应用真实可执行文件、必要符号链接或上游 launcher；它不能代替根 `AppDir/AppRun`。即使必须保留上游 launcher，linuxdeploy 项目的自定义环境准备和最终启动链仍必须从根 `AppDir/AppRun` 明确开始。
 - AppRun 只加入当前应用真实需要的路径、Qt / GTK 环境和兼容设置，最后直接执行当前应用的真实入口并原样传递 `"$@"`。
 - 第二次按技术栈执行普通、Qt、GTK 或 GStreamer 命令，并且必须保留 `--output appimage`。存在非空 `apprun-hooks` 时，linuxdeploy 输出阶段会把自定义 `AppRun` 保存为 `AppRun.wrapped`，再生成新的顶层 `AppRun` 加载 hooks 并执行 `AppRun.wrapped`。
 - 不得手工创建或覆盖 `AppRun.wrapped`，也不得在 linuxdeploy 完成后无依据覆盖它生成的顶层 `AppRun`。
