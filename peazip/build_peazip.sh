@@ -108,6 +108,7 @@ HERE="$(dirname "$(readlink -f "${0}")")"
 export PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$PATH"
 export LD_LIBRARY_PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$LD_LIBRARY_PATH"
 export QT_PLUGIN_PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$QT_PLUGIN_PATH"
+export QT_TRANSLATIONS_PATH="$HERE"/usr/translations:"$QT_TRANSLATIONS_PATH"
 export XDG_DATA_DIRS="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$XDG_DATA_DIRS"
 export GSETTINGS_SCHEMA_DIR="${HERE}"/usr/share/glib-2.0/schemas/:"${GSETTINGS_SCHEMA_DIR}"
 export NO_AT_BRIDGE=1
@@ -167,6 +168,9 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 
 # Qt6 依赖部署完成后，把官方归档后端原样恢复到 PeaZip 资源目录。
 mv "$BACKENDS_DIR" "$PEAZIP_ROOT/res/bin"
+
+# 第二次 linuxdeploy 完成后，统一按最终 AppDir 整理 AppRun 中的路径型 export。
+"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
 
 # 使用官方 appimagetool 和明确的 Type 2 runtime 封装最终 AppImage。
 "$WORK_DIR/tools/appimagetool-x86_64.AppImage" \

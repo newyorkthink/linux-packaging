@@ -26,7 +26,8 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 4. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局，包括上游原始 `zh-cn.txt`；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。
 5. linuxdeploy、Qt 插件、appimagetool 和 runtime 全部从官方 continuous 动态取得当前版本。先写入旧包原始自定义 `AppRun`，不加入 GTK 插件，也不手工编写 `AppRun.wrapped`。
 6. 官方归档后端在依赖部署前临时移出 AppDir，随后逐字执行已验证的 `--plugin qt --output appimage` 命令，由 linuxdeploy 部署 Qt6、处理 AppRun 并完成中间封装。
-7. Qt 命令的 `--output appimage` 只生成 `.work/peazip-intermediate.AppImage`，不发布。归档后端原样放回后，最后仍由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`；不会把缺少后端的中间产物交付给用户。
+7. Qt 命令的 `--output appimage` 只生成 `.work/peazip-intermediate.AppImage`，不发布。归档后端原样放回后，调用 `common/linuxdeploy/normalize_apprun_paths.sh`，只按最终 AppDir 整理 `AppRun.wrapped`（不存在时为 `AppRun`）中已经声明的路径型 export。
+8. 最后仍由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`；不会把缺少后端的中间产物交付给用户。
 
 正式 CI 在 `peazip` 目录中执行，以下已验证命令逐字保留于脚本中；本次按维护者要求保留中间输出，最终发布仍以独立 appimagetool 封装为准：
 
@@ -37,7 +38,7 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 
 ## 运行与兼容说明
 
-- 自定义 AppRun 原样保留旧包的环境变量和 desktop `Exec` 解析方式，包括 `usr/translations` 搜索路径；Qt6 组件和 AppRun 处理只交给 linuxdeploy Qt 插件。
+- 自定义 AppRun 保留旧包的 desktop `Exec` 解析方式以及已经确认的显示和主题设置；linuxdeploy 完成后，只有路径型环境变量会由公共脚本按最终 AppDir 的真实目录和用途整理。
 - 删除后来加入的 `LANG=C.UTF-8` 和 `LC_ALL=C.UTF-8` 强制设置，恢复旧入口继承宿主 locale 的行为。保持官方原始语言文件；不注入 `-peaziplanguage` 参数，语言由 PeaZip 自身设置管理。
 - 继续保留旧版已实际使用的 XCB、Adwaita Dark、缩放和字体 DPI 环境；同时打包 Qt6 `adwaita.so`，避免只设置主题名却缺少样式插件。
 - 最终产物必须包含同为 Qt6 的 Compose、Fcitx5、IBus 输入上下文和 XCB 平台插件；输入法守护进程仍由宿主提供。
@@ -74,6 +75,13 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - **验证边界：** 上述结果覆盖构建、启动链、主题插件加载和主要归档后端；Kali Linux 实际桌面中的按钮点击、设置持久化和全部格式仍以发布产物的最终实机操作为准。
 
 ## 变更记录
+
+### 2026-09-20：接入 linuxdeploy 公共 AppRun 路径整理
+
+- **问题：** 旧入口把 `usr`、`usr/bin`、`usr/lib`、`usr/plugins`、`usr/share` 和 `usr/translations` 同时写入多个用途不同的搜索变量，只判断目录存在仍会保留语义错误的路径。
+- **修改文件：** `peazip/build_peazip.sh`、`common/linuxdeploy/normalize_apprun_paths.sh`、公共说明和构建 Plan 的现有自动消费者识别。
+- **处理：** 保留已经确认的 linuxdeploy 命令、Qt6 技术栈、desktop `Exec` 启动方式和非路径设置；只在第二次 linuxdeploy 后、appimagetool 前调用公共脚本。最终存在且用途匹配的目录保留或补入，不存在或归类错误的路径删除；Qt translations 使用自己的变量，不再混入其他搜索路径。
+- **验证状态：** 已完成 Shell 语法、公共脚本合成 AppDir 行为、重复运行一致性、消费者识别和完整 diff 检查；未执行 PeaZip 完整构建或实机运行。
 
 ### 2026-09-20：恢复原始 AppRun 和 Qt6 打包命令
 

@@ -66,17 +66,96 @@ detect_anchor() {
   fi
 }
 
-# 将 AppDir 中真实存在的目录加入结果并去重。
+# 确认相对路径真实存在于 AppDir 内部，不接受上跳路径或指向外部的符号链接。
+is_appdir_rel_dir() {
+  local rel="$1" resolved
+  [[ "$rel" != /* ]] || return 1
+  case "/$rel/" in
+    */../*|*/./*) return 1 ;;
+  esac
+  [[ -n "$rel" && -d "$APPDIR/$rel" ]] || return 1
+  resolved="$(readlink -f -- "$APPDIR/$rel")"
+  case "$resolved" in
+    "$APPDIR"/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# 将 AppDir 中真实存在的安全目录加入结果并去重。
 add_rel_dir() {
   local rel="$1"
-  [[ -n "$rel" && -d "$APPDIR/$rel" ]] || return 0
+  is_appdir_rel_dir "$rel" || return 0
   if [[ -z "${SEEN[$rel]:-}" ]]; then
     PATHS+=("\$$ANCHOR/$rel")
     SEEN["$rel"]=1
   fi
 }
 
-# 从当前 export 行中保留仍真实存在、且属于 AppDir 的路径。
+# 判断目录是否与当前环境变量的用途一致，避免只因目录存在就放进错误搜索路径。
+is_semantic_dir() {
+  local var="$1" rel="$2" dir="$APPDIR/$2" base child
+  is_appdir_rel_dir "$rel" || return 1
+  base="${rel##*/}"
+
+  case "$var" in
+    PATH)
+      case "$rel" in
+        usr/bin|usr/sbin|usr/libexec|bin|sbin) return 0 ;;
+      esac
+      [[ -n "$(find "$dir" -maxdepth 1 -type f -perm -u+x ! -name '*.so' ! -name '*.so.*' -print -quit 2>/dev/null)" ]]
+      ;;
+
+    LD_LIBRARY_PATH)
+      case "$rel" in
+        usr/lib|usr/lib64|lib|lib64|usr/lib/*-linux-gnu|*/lib|*/lib64) return 0 ;;
+        */plugins|*/plugins/*|*/Plugins|*/Plugins/*|*/platforms|*/platforms/*|*/qml|*/qml/*|*/translations|*/translations/*|*/share|*/share/*|*/bin|*/sbin) return 1 ;;
+      esac
+      [[ -n "$(find "$dir" -maxdepth 1 -type f \( -name '*.so' -o -name '*.so.*' \) -print -quit 2>/dev/null)" ]]
+      ;;
+
+    XDG_DATA_DIRS)
+      [[ "$base" == share ]] && return 0
+      for child in applications icons mime glib-2.0; do
+        [[ -d "$dir/$child" ]] && return 0
+      done
+      return 1
+      ;;
+
+    QT_PLUGIN_PATH)
+      [[ "$base" == plugin || "$base" == plugins || "$base" == Plugin || "$base" == Plugins ]] && return 0
+      for child in platforms platforminputcontexts imageformats xcbglintegrations platformthemes styles sqldrivers; do
+        [[ -d "$dir/$child" ]] && return 0
+      done
+      return 1
+      ;;
+
+    QT_QPA_PLATFORM_PLUGIN_PATH)
+      [[ "$base" == platforms ]]
+      ;;
+
+    QML_IMPORT_PATH|QML2_IMPORT_PATH)
+      [[ "$base" == qml ]]
+      ;;
+
+    QT_TRANSLATIONS_PATH)
+      [[ "$base" == translations ]]
+      ;;
+
+    GI_TYPELIB_PATH)
+      [[ "$base" == girepository-1.0 ]]
+      ;;
+
+    GTK_PATH)
+      [[ "$base" == gtk-* ]]
+      ;;
+
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# 从当前 export 行中只保留仍真实存在、属于 AppDir 且用途正确的路径。
 add_existing_dirs() {
   local var="$1" line token rel
   line="$(normalized_export_line "$var")"
@@ -85,6 +164,8 @@ add_existing_dirs() {
   while IFS= read -r token; do
     [[ -n "$token" ]] || continue
     rel="$(sed -E 's/^\$(\{)?(HERE|ROOT)(\})?\///' <<< "$token")"
+    rel="${rel%/}"
+    is_semantic_dir "$var" "$rel" || continue
     add_rel_dir "$rel"
   done < <(grep -oE '(\$HERE|\$\{HERE\}|\$ROOT|\$\{ROOT\})/[^:"$}[:space:]]+' <<< "$line" || true)
 }
@@ -100,7 +181,7 @@ add_discovered_dirs() {
       add_rel_dir "bin"
       if [[ -d "$APPDIR/opt" ]]; then
         while IFS= read -r dir; do
-          [[ -n "$(find "$dir" -maxdepth 1 -type f -perm -u+x -print -quit 2>/dev/null)" ]] || continue
+          [[ -n "$(find "$dir" -maxdepth 1 -type f -perm -u+x ! -name '*.so' ! -name '*.so.*' -print -quit 2>/dev/null)" ]] || continue
           rel="${dir#"$APPDIR"/}"
           add_rel_dir "$rel"
         done < <(find "$APPDIR/opt" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | sort)
@@ -246,3 +327,6 @@ for var in "${MANAGED_VARS[@]}"; do
   replace_export "$var"
   unset PATHS SEEN ANCHOR
 done
+
+# 确认只整理 export 后，实际启动入口仍是有效 Shell 语法。
+bash -n "$TARGET"
