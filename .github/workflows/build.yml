@@ -73,6 +73,7 @@ on:
           - obs-studio/build_obs-studio.sh
           - obsidian/build_obsidian.sh
           - parsec/build_parsec.sh
+          - peazip/build_peazip.sh
           - picom/build_picom.sh
           - poppler-utils/build_poppler-utils.sh
           - postman/build_postman.sh

@@ -338,6 +338,18 @@
       "run_from_root": "false"
     },
     {
+      "key": "peazip",
+      "kind": "standard",
+      "name": "PeaZip",
+      "script": "peazip/build_peazip.sh",
+      "dir": "peazip",
+      "artifact_dir": "peazip/dist",
+      "release_name": "peazip.AppImage",
+      "software_key": "peazip",
+      "timeout_minutes": 60,
+      "run_from_root": "false"
+    },
+    {
       "key": "freedownloadmanager",
       "kind": "standard",
       "name": "Free Download Manager",
