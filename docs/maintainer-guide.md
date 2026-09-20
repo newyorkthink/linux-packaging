@@ -66,7 +66,7 @@
 9. 同步维护应用 README，说明上游、技术栈、打包方式、运行要求、证据状态和已完成修复。
 10. 提交前检查完整 diff、文件路径、引用、权限、YAML / JSON / Shell 语法关系和 workflow 入口，不用 GitHub Actions 失败结果反复试错。
 
-普通 HTTPS 文件下载优先调用 `common/download/download_file.sh`；linuxdeploy、appimagetool、Type 2 runtime 和已支持的 Qt 插件优先调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh`。项目脚本只保留当前应用的 URL、输出路径、摘要来源和必要解析逻辑。
+普通 HTTPS 文件下载优先调用 `common/download/download_file.sh`；linuxdeploy、appimagetool、Type 2 runtime 和已支持的 GTK / Qt 插件优先调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh`。项目脚本只保留当前应用的 URL、输出路径、摘要来源和必要解析逻辑。
 
 ## GitHub Actions 中怎么运行
 

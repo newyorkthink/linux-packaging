@@ -1,6 +1,6 @@
 # Joplin AppImage
 
-本目录用于把 Joplin 官方发布的 Linux x64 DEB 重新封装为 `joplin.AppImage`。当前方案以已经实际运行正常的包为稳定基线：Joplin 可正常启动，Adwaita 深色主题正常，宿主机 IBus 中文输入正常。
+本目录用于把 Joplin 官方发布的 Linux x64 DEB 重新封装为 `joplin.AppImage`。既有正式包已经实际确认 Joplin 可正常启动、Adwaita 深色主题正常、IBus 中文输入正常；当前脚本保留这些兼容处理，并按仓库统一 linuxdeploy 规范重排打包链路。
 
 ## 构建来源
 
@@ -12,17 +12,22 @@
 ## 构建环境与依赖
 
 - GitHub Actions 构建环境固定为 `ubuntu-22.04`。
+- 同一份官方 DEB 既安装到隔离构建环境供 linuxdeploy 解析依赖，也按上游布局解包到 AppDir。
 - 安装 GTK3、GLib/GIO、GDK Pixbuf、Pango、IBus、NSS、X11/Electron 等运行依赖。
 - `ibus-gtk3` 和 `libibus-1.0-5` 负责把 GTK3 的 IBus 输入模块及运行库带入 AppDir；不在 AppRun 中强制写死 `GTK_IM_MODULE`、`QT_IM_MODULE` 或 `XMODIFIERS`，输入法选择继续由宿主机会话管理。
 - `adwaita-icon-theme`、`adwaita-icon-theme-full`、`gnome-themes-extra-data` 直接下载并解包进 AppDir，保证 Adwaita 图标和 GTK 主题资源完整。
 
-## AppDir 与 AppRun
+## linuxdeploy 规范流程
 
-- 官方 DEB 直接解包到 `AppDir`，只补充 `usr/bin/joplin` 作为 desktop `Exec` 入口。
-- 预先创建根目录 `AppRun`；linuxdeploy 检测到 GTK hook 后生成最终启动入口，并保留实际 Joplin 启动逻辑到 `AppRun.wrapped`。
+- 动态取得 linuxdeploy、官方 GTK 插件、appimagetool 和 Type 2 runtime；GTK 插件上游未提供 Release digest，因此从官方仓库默认分支解析当前文件，核对 Git blob SHA，并输出本地 SHA-256。
+- 第一次在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，只接受基础目录已经创建、没有非预期文件且退出状态为 0 或 1 的初始化结果。
+- 初始化后才下载官方 DEB；应用主体保持在 `AppDir/opt/Joplin`，不再创建人工 `AppDir/usr/bin/joplin` 二次转发入口。
+- 第二次 linuxdeploy 前写入完整根 `AppDir/AppRun`，直接执行 `opt/Joplin/joplin`。根 AppRun 固定把 `usr/bin`、`usr/lib`、`usr/share` 分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`，并只把 `/opt/Joplin` 加入程序和库搜索路径。
+- 第二次执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage`；linuxdeploy 检测到 GTK hook 后生成顶层启动入口，并把实际 Joplin 启动逻辑保留到 `AppRun.wrapped`。
+- 当前首次按新链路构建时，在第二次 linuxdeploy 后使用公共脚本按最终 AppDir 整理一次路径型 export；成品目录确认后应把准确路径固化回脚本并移除该调用。
 - `AppRun.wrapped` 保留 AppImage 内部的 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、`GSETTINGS_SCHEMA_DIR` 和 `GIO_MODULE_DIR`，避免运行时错误混用宿主机 GTK/GLib/GIO 模块。
 - 固定 `GTK_THEME=Adwaita-dark`，保证 Joplin 使用已打包的 Adwaita 深色主题。
-- 使用本目录的 `linuxdeploy-plugin-gtk` 部署 GTK schemas、GIO modules、GTK input modules、GDK Pixbuf loaders、Pango 等 GTK 运行资源。
+- 使用动态取得的官方 `linuxdeploy-plugin-gtk` 部署 GTK schemas、GIO modules、GTK input modules、GDK Pixbuf loaders、Pango 等 GTK 运行资源。
 
 ## NSS
 
@@ -36,10 +41,10 @@ libnssutil3.so: version `NSSUTIL_xxx' not found
 
 ## 最终封装
 
-`linuxdeploy` **只负责整理 AppDir 和部署 GTK/运行库依赖，不负责最终生成 AppImage**：
+`linuxdeploy` 负责整理 AppDir、部署 GTK/运行库依赖并完成 hook 与 AppRun 包装；它生成的 AppImage 只作为中间产物：
 
 ```bash
-export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 ```
 
 最终必须由官方 `appimagetool` 使用指定的 Type-2 runtime 封装：
@@ -48,7 +53,7 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk
 export ARCH=x86_64; appimagetool -n ./AppDir "$OUTFILE" --runtime-file "$RUNTIME_FILE"
 ```
 
-不得因为 appimagetool、runtime、GitHub 或 CDN 的临时网络错误改回 `linuxdeploy --output appimage`，也不得增加自动 fallback 到其他封装方式；下载失败应由当前构建直接失败，后续正常重试。
+不得把 linuxdeploy 的中间 AppImage 发布为正式资产，也不得因为 appimagetool、runtime、GitHub 或 CDN 的临时网络错误增加自动 fallback 到其他封装方式；下载失败应由当前构建直接失败，后续正常重试。
 
 ## 已知非致命日志
 
@@ -73,7 +78,7 @@ libnssutil3.so: version `NSSUTIL_...' not found
 - 不修改 Joplin 官方 `app.asar`。
 - 不为消除非致命 warning 强行增加输入法环境变量或替换已经正常工作的 GTK/GLib/NSS 依赖。
 - 不增加 Xvfb / GUI smoke test、额外 ELF 遍历或仅用于“让 Actions 变绿”的测试代码。
-- 不把 `linuxdeploy --output appimage` 作为最终封装方式。
+- 两次 linuxdeploy 都保留 `--output appimage`，但不把它生成的中间 AppImage 作为最终封装结果。
 - 已确认正常的 AppRun、GTK/IBus、主题、GIO 和 NSS 处理方式视为稳定基线，后续仅在出现新的实际故障并确认根因后再修改。
 - 正式构建由 `.github/workflows/build.yml` 中独立的 `Build Joplin` Job 完成，发布文件名固定为 `joplin.AppImage`。
 
@@ -82,3 +87,11 @@ libnssutil3.so: version `NSSUTIL_...' not found
 - 构建脚本复用当前 Joplin Releases 解析得到的正式版 `VERSION`，在 AppImage 成功生成后写入 `dist/version.txt`。
 - 自定义 Joplin Job 上传 `software-version-joplin` artifact，并在成功构建后增量写入 `latest/software_versions.json`。
 - 本次不改动现有 Ubuntu 22.04、GTK/IBus、NSS、AppRun 或 appimagetool 稳定基线。
+
+## 变更记录
+
+### 2026-09-20：按空 AppDir 两阶段流程规范 Joplin 打包
+
+旧脚本先解包 Joplin，再人工创建 `usr/bin/joplin`，而且第二次 GTK linuxdeploy 缺少 `--output appimage`，与当前仓库强制流程冲突。脚本现改为先初始化空 AppDir，再安装并解包同一份官方 DEB；根 AppRun 直接执行 `/opt/Joplin/joplin`，第二次 linuxdeploy 同时启用 GTK 插件与 AppImage 输出阶段，最后仍由官方 appimagetool 和明确的 Type 2 runtime 生成正式资产。
+
+本次保留 Ubuntu 22.04、Adwaita 深色主题、IBus/GIO 与同版本 NSS 运行库基线；打包工具改由公共入口动态取得，并删除仓库内固定的 GTK 插件副本。已完成 Shell 语法、静态规则和完整 diff 检查；提交后不监控 Actions，新构建产物及真实运行结果待验证。

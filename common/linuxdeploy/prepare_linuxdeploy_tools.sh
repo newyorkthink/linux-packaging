@@ -7,7 +7,7 @@ TOOLS_DIR="${1:-}"
 PLUGIN="${2:-}"
 
 [[ -n "$TOOLS_DIR" ]] || {
-  echo "用法：$0 <工具目录> [qt]" >&2
+  echo "用法：$0 <工具目录> [gtk|qt]" >&2
   exit 1
 }
 [[ -x "$DOWNLOAD_FILE" ]] || {
@@ -66,9 +66,38 @@ download_release_asset AppImage/appimagetool appimagetool-x86_64.AppImage \
 download_release_asset AppImage/type2-runtime runtime-x86_64 \
   "$TOOLS_DIR/runtime-x86_64"
 
-# Qt 项目按需取得官方 linuxdeploy Qt 输入插件，其他插件后续按真实需求扩展。
+# GTK / Qt 项目按需取得对应的官方 linuxdeploy 输入插件。
 case "$PLUGIN" in
   '')
+    ;;
+  gtk)
+    # GTK 插件没有 Release 资产；从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。
+    command -v sha1sum >/dev/null 2>&1 || {
+      echo "错误：缺少 sha1sum。" >&2
+      exit 1
+    }
+    gtk_metadata="$(curl --fail --silent --show-error --location \
+      --retry 5 --retry-all-errors --retry-delay 2 \
+      --connect-timeout 20 --max-time 120 \
+      "${API_HEADERS[@]}" \
+      "https://api.github.com/repos/linuxdeploy/linuxdeploy-plugin-gtk/contents/linuxdeploy-plugin-gtk.sh")"
+    gtk_url="$(jq -er '.download_url' <<< "$gtk_metadata")"
+    gtk_blob_sha="$(jq -er '.sha' <<< "$gtk_metadata")"
+    [[ "$gtk_blob_sha" =~ ^[[:xdigit:]]{40}$ ]] || {
+      echo "错误：官方 GTK 插件没有有效的 Git blob SHA。" >&2
+      exit 1
+    }
+    "$DOWNLOAD_FILE" "$gtk_url" "$TOOLS_DIR/linuxdeploy-plugin-gtk"
+    gtk_actual_blob_sha="$({
+      printf 'blob %s\0' "$(stat -c '%s' "$TOOLS_DIR/linuxdeploy-plugin-gtk")"
+      cat "$TOOLS_DIR/linuxdeploy-plugin-gtk"
+    } | sha1sum | awk '{print $1}')"
+    [[ "$gtk_actual_blob_sha" == "$gtk_blob_sha" ]] || {
+      echo "错误：GTK 插件 Git blob SHA 校验失败。" >&2
+      exit 1
+    }
+    chmod +x "$TOOLS_DIR/linuxdeploy-plugin-gtk"
+    sha256sum "$TOOLS_DIR/linuxdeploy-plugin-gtk"
     ;;
   qt)
     download_release_asset linuxdeploy/linuxdeploy-plugin-qt linuxdeploy-plugin-qt-x86_64.AppImage \
