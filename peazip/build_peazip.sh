@@ -145,10 +145,10 @@ export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_
 export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export NO_AT_BRIDGE=1
 
-# PeaZip 的中文语言文件按 UTF-8 读取；恢复已经实际验证过的中文 locale 环境。
-export LANG=zh_CN.UTF-8
-export LANGUAGE=zh_CN:zh
-export LC_MESSAGES=zh_CN.UTF-8
+# PeaZip 用 AnsiString 读取 UTF-8 语言文件；强制使用 glibc 内置的 UTF-8 locale，
+# 避免未生成的 zh_CN.UTF-8 或宿主 LC_ALL / LC_CTYPE 使中文按单字节编码解释。
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_SCALE_FACTOR=1
