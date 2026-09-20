@@ -157,7 +157,7 @@ cp -a \
 
 ###### 核心打包 ######
 
-# 应用文件进入 AppDir 后，在第二次 linuxdeploy 前写入完整根 AppRun。
+# 最终 AppImage 已解包并实际运行确认，直接写入包含准确路径的完整根 AppRun。
 # GTK linuxdeploy 会自动把它保存为 AppRun.wrapped，并生成加载 GTK hook 的顶层 AppRun。
 cat > "$APPDIR/AppRun" <<'APPRUN'
 #!/usr/bin/env bash
@@ -184,9 +184,6 @@ bash -n "$APPDIR/AppRun"
 # Joplin 使用 GTK3；第二次 linuxdeploy 部署 GTK 资源并完成 AppRun 包装。
 export DEPLOY_GTK_VERSION=3
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
-
-# 当前首次按新规范生成的目录仍需根据第二次 linuxdeploy 结果整理一次路径型 export。
-"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
 
 ###### 整理产物 ######
 

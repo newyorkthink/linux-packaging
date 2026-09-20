@@ -24,7 +24,7 @@
 - 初始化后才下载官方 DEB；应用主体保持在 `AppDir/opt/Joplin`，不再创建人工 `AppDir/usr/bin/joplin` 二次转发入口。
 - 第二次 linuxdeploy 前写入完整根 `AppDir/AppRun`，直接执行 `opt/Joplin/joplin`。根 AppRun 固定把 `usr/bin`、`usr/lib`、`usr/share` 分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`，并只把 `/opt/Joplin` 加入程序和库搜索路径。
 - 第二次执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage`；linuxdeploy 检测到 GTK hook 后生成顶层启动入口，并把实际 Joplin 启动逻辑保留到 `AppRun.wrapped`。
-- 当前首次按新链路构建时，在第二次 linuxdeploy 后使用公共脚本按最终 AppDir 整理一次路径型 export；成品目录确认后应把准确路径固化回脚本并移除该调用。
+- 最终 AppImage 已经完成解包和实际运行核对，构建脚本直接保留确认后的准确 AppRun 路径，不再调用公共路径整理脚本。
 - `AppRun.wrapped` 保留 AppImage 内部的 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、`GSETTINGS_SCHEMA_DIR` 和 `GIO_MODULE_DIR`，避免运行时错误混用宿主机 GTK/GLib/GIO 模块。
 - 固定 `GTK_THEME=Adwaita-dark`，保证 Joplin 使用已打包的 Adwaita 深色主题。
 - 使用动态取得的官方 `linuxdeploy-plugin-gtk` 部署 GTK schemas、GIO modules、GTK input modules、GDK Pixbuf loaders、Pango 等 GTK 运行资源。
@@ -98,6 +98,10 @@ libnssutil3.so: version `NSSUTIL_...' not found
 - 本次证据来自用户实际运行；没有把仅靠静态检查的结论写成 GUI 验证结果。
 
 ## 变更记录
+
+### 2026-09-20：固化最终 AppRun
+
+实际成品已经确认顶层 GTK hook、`AppRun.wrapped`、应用入口和各路径型环境变量正确，Joplin 可正常启动、使用深色主题并进行普通 IBus 中文输入。构建脚本现直接写入已验证的最终 AppRun，删除只供首次目录尚未确认时使用的 `normalize_apprun_paths.sh` 调用；以后以这份 AppRun 为稳定基线。
 
 ### 2026-09-20：复用公共 GitHub API 与 Release 解析入口
 
