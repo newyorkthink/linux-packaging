@@ -15,12 +15,12 @@ die() {
   exit 1
 }
 
-# 从官方 continuous Release 下载指定构建工具并校验 SHA-256。
+# 从官方指定 Release 下载构建工具并校验 SHA-256；未指定标签时使用 continuous。
 download_tool() {
-  local repo="$1" asset="$2" output="$3" metadata url digest
+  local repo="$1" asset="$2" output="$3" tag="${4:-continuous}" metadata url digest
 
   metadata="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 \
-    "${api_headers[@]}" "https://api.github.com/repos/$repo/releases/tags/continuous")"
+    "${api_headers[@]}" "https://api.github.com/repos/$repo/releases/tags/$tag")"
   url="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .browser_download_url' <<< "$metadata")"
   digest="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .digest' <<< "$metadata")"
   [[ "$digest" =~ ^sha256:[[:xdigit:]]{64}$ ]] || die "官方工具缺少有效 SHA-256：$repo/$asset"
@@ -137,26 +137,16 @@ EOF_APPRUN
 # 赋予自定义 AppRun 执行权限。
 chmod +x "$APPDIR/AppRun"
 
-# 创建旧版同类 AppRun hook，使 linuxdeploy 自动保留自定义入口为 AppRun.wrapped 并生成顶层 AppRun。
-mkdir -p "$APPDIR/apprun-hooks"
-cat > "$APPDIR/apprun-hooks/peazip-qt-hook.sh" <<'EOF_APPRUN_HOOK'
-#!/usr/bin/env bash
-
-# 把 AppImage 内的 Qt6 插件目录加入运行时搜索路径。
-PEAZIP_APPDIR="$(readlink -f "$(dirname "${BASH_SOURCE[0]}")/..")"
-export QT_PLUGIN_PATH="$PEAZIP_APPDIR/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
-unset PEAZIP_APPDIR
-EOF_APPRUN_HOOK
-# 赋予 PeaZip Qt6 AppRun hook 执行权限。
-chmod +x "$APPDIR/apprun-hooks/peazip-qt-hook.sh"
-
 ###### 核心打包 ######
 
-# 下载 linuxdeploy、Qt 输入插件、官方 appimagetool 和 Type 2 runtime。
+# 固定使用上游停止为 Qt6 自动创建 hook 之前的官方 linuxdeploy 与 Qt 插件版本。
+LINUXDEPLOY_RELEASE=1-alpha-20250213-1
 download_tool linuxdeploy/linuxdeploy linuxdeploy-x86_64.AppImage \
-  "$WORK_DIR/tools/linuxdeploy-x86_64.AppImage"
+  "$WORK_DIR/tools/linuxdeploy-x86_64.AppImage" "$LINUXDEPLOY_RELEASE"
 download_tool linuxdeploy/linuxdeploy-plugin-qt linuxdeploy-plugin-qt-x86_64.AppImage \
-  "$WORK_DIR/tools/linuxdeploy-plugin-qt-x86_64.AppImage"
+  "$WORK_DIR/tools/linuxdeploy-plugin-qt-x86_64.AppImage" "$LINUXDEPLOY_RELEASE"
+
+# 下载官方 appimagetool 和 Type 2 runtime，用于最终 AppImage 封装。
 download_tool AppImage/appimagetool appimagetool-x86_64.AppImage \
   "$WORK_DIR/tools/appimagetool-x86_64.AppImage"
 download_tool AppImage/type2-runtime runtime-x86_64 \
