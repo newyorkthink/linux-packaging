@@ -56,6 +56,12 @@
 # 下载普通 HTTPS 文件；上游提供摘要时把 SHA-256 作为第三个参数传入
 "$SCRIPT_DIR/../common/download/download_file.sh" "<下载地址>" "<输出文件>" "<SHA-256>"
 
+# 从官方 SHA-256 清单选择、校验并下载最新匹配资产，同时写入版本文件
+"$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" "<官方校验清单 URL>" '<完整资产名正则>' "<输出文件>" "<版本文件>"
+
+# 统一更新 APT 索引并安装当前应用明确需要的软件包
+"$SCRIPT_DIR/../common/apt/install_packages.sh" <软件包名或本地 DEB> [...]
+
 # 动态下载 linuxdeploy、appimagetool、Type 2 runtime；GTK 项目追加 gtk 参数
 "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "<工具目录>" gtk
 
@@ -63,7 +69,9 @@
 "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "<工具目录>" qt
 ```
 
-`download_file.sh` 统一处理 HTTPS、失败退出、重试、超时、临时文件和可选 SHA-256 校验。`prepare_linuxdeploy_tools.sh` 从各自官方 continuous Release 动态解析 x86_64 资产与 GitHub 官方 digest；GTK 插件没有 Release 资产，因此从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。官方 GTK 插件当前缺少 GIO modules 复制逻辑，公共脚本只在下载文件仍没有 `gio_moduledir` 时应用已验证的最小修复；上游将来加入后自动跳过。以上文件再交给公共下载脚本取得，不固定工具版本。项目脚本只保留当前上游 URL、输出路径和摘要解析逻辑，不重复维护相同的 curl 参数或打包工具下载函数。
+`download_file.sh` 统一处理 HTTPS、失败退出、重试、超时、临时文件和可选 SHA-256 校验；`download_latest_checksum_asset.sh` 统一处理官方清单下载、最新版选择、摘要校验、资产下载和版本文件；`install_packages.sh` 统一处理 APT 索引、root / sudo、非交互安装以及公共下载与解析入口所需的基础命令，项目只传应用专用依赖。`prepare_linuxdeploy_tools.sh` 从各自官方 continuous Release 动态解析 x86_64 资产与 GitHub 官方 digest；GTK 插件没有 Release 资产，因此从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。官方 GTK 插件当前缺少 GIO modules 复制逻辑，公共脚本只在下载文件仍没有 `gio_moduledir` 时应用已验证的最小修复；上游将来加入后自动跳过。以上文件再交给公共下载脚本取得，不固定工具版本。
+
+项目脚本对每一次下载或安装只能保留一条公共脚本调用命令，并把当前应用的 URL、完整资产名正则、输出路径、版本文件或依赖名称作为参数传入。禁止在项目脚本中自行使用 `curl`、`wget`、Release / API 查询、校验清单解析、最新版选择、摘要拼装、`apt-get update`、`apt-get install` 或 root / sudo 判断。需要修复通用下载或安装行为时只修改 `common/` 公共实现；下载后的应用专用解包和 AppDir 布局仍由项目脚本处理。
 
 GIO dynamic modules 与 GI typelibs、GTK input modules 不是同一类资源。官方插件已经处理 typelibs 和 GTK immodules，但这不能替代 `gio-2.0` modules。新增、迁移或重做 GTK linuxdeploy 项目时不得直接下载未修补的官方 `linuxdeploy-plugin-gtk.sh`；必须给公共工具准备脚本传入 `gtk`，并在第二次 linuxdeploy 后确认最终 AppDir 中存在构建环境实际 `giomoduledir` 对应的模块目录。项目若明确设置 `GIO_MODULE_DIR`，必须指向该 AppDir 内的实际目录，不能指向宿主机。
 

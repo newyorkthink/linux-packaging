@@ -8,7 +8,6 @@ SOURCE_DIR="$SCRIPT_DIR/source"
 APPDIR="$SCRIPT_DIR/AppDir"
 DIST_DIR="$SCRIPT_DIR/dist"
 OUTFILE="$DIST_DIR/xnconvert.AppImage"
-CHECKSUMS="$SOURCE_DIR/XnConvert-CHECKSUMS.txt"
 DEB="$SOURCE_DIR/XnConvert.deb"
 TOOLS_DIR="$SOURCE_DIR/tools"
 APPIMAGETOOL="$TOOLS_DIR/appimagetool-x86_64.AppImage"
@@ -31,27 +30,11 @@ die() {
 rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
 mkdir -p "$TOOLS_DIR" "$DIST_DIR"
 
-# 根据当前权限选择 apt-get 调用方式，root 环境不经过 sudo。
-if ((EUID == 0)); then
-  APT=(apt-get)
-elif command -v sudo >/dev/null 2>&1; then
-  APT=(sudo apt-get)
-else
-  die "安装构建依赖需要 root 或 sudo"
-fi
-
-# 安装下载、DEB 解包、Qt5 部署、中文输入和 XCB 平台插件所需依赖。
-"${APT[@]}" update
-DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
-  ca-certificates coreutils curl desktop-file-utils dpkg file findutils gawk grep jq sed xz-utils \
-  qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools libqt5svg5 \
-  qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 \
-  fcitx5-frontend-qt5 libfcitx5-qt1 \
-  libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
-  libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
+# 通过公共入口安装当前应用明确需要的构建与运行依赖。
+"$SCRIPT_DIR/../common/apt/install_packages.sh" desktop-file-utils dpkg qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools libqt5svg5 qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 fcitx5-frontend-qt5 libfcitx5-qt1 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
 
 # 确认后续构建依赖的基础命令均可用。
-for command_name in curl desktop-file-validate dpkg-deb find jq readlink sed sha256sum sort; do
+for command_name in desktop-file-validate dpkg-deb find readlink sed sha256sum; do
   command -v "$command_name" >/dev/null 2>&1 || die "缺少必需命令：$command_name"
 done
 
@@ -93,30 +76,11 @@ done
 
 ###### 下载并准备 XnConvert ######
 
-# 从 XnConvert 官方校验清单动态解析当前最新稳定版 Linux x64 DEB。
-"$SCRIPT_DIR/../common/download/download_file.sh" \
-  "https://download.xnview.com/versions/XnConvert/XnConvert-CHECKSUMS.txt" \
-  "$CHECKSUMS"
-sed -i 's/\r$//' "$CHECKSUMS"
-
-DEB_NAME="$(
-  awk '{print $2}' "$CHECKSUMS" |
-    grep -E '^XnConvert-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' |
-    sort -V |
-    tail -n 1
-)"
-[[ -n "$DEB_NAME" ]] || die "官方校验清单中没有稳定版 Linux x64 DEB"
-VERSION="$(sed -nE 's/^XnConvert-([0-9]+(\.[0-9]+)+)-linux-x64\.deb$/\1/p' <<< "$DEB_NAME")"
-[[ -n "$VERSION" ]] || die "无法从 $DEB_NAME 解析 XnConvert 版本"
-DEB_URL="https://download.xnview.com/versions/XnConvert/$DEB_NAME"
-DEB_SHA256="$(awk -v name="$DEB_NAME" '$2 == name {print $1; exit}' "$CHECKSUMS")"
-[[ "$DEB_SHA256" =~ ^[[:xdigit:]]{64}$ ]] || die "官方 DEB 没有有效的 SHA-256"
-
-printf '[XnConvert] official stable source: %s\n' "$DEB_URL"
-"$SCRIPT_DIR/../common/download/download_file.sh" "$DEB_URL" "$DEB" "$DEB_SHA256"
+# 通过公共入口从官方校验清单取得、校验并记录当前最新稳定版 Linux x64 DEB。
+"$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" "https://download.xnview.com/versions/XnConvert/XnConvert-CHECKSUMS.txt" '^XnConvert-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$DEB" "$DIST_DIR/version.txt"
 
 # 把同一官方 DEB 安装到隔离构建环境供依赖扫描，并按上游布局解压到 AppDir。
-DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends "$DEB"
+"$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB"
 dpkg-deb -x "$DEB" "$APPDIR"
 
 [[ -x "$APPDIR/opt/XnConvert/XnConvert" ]] || die "缺少 XnConvert 主程序"
@@ -209,6 +173,5 @@ export ARCH=x86_64; linuxdeploy \
 [[ -s "$OUTFILE" ]] || die "最终 AppImage 未生成"
 chmod +x "$OUTFILE"
 
-# 构建成功后输出统一的软件版本元数据和正式资产 SHA-256。
-printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
+# 构建成功后输出正式资产 SHA-256；版本元数据已由公共下载入口写入。
 sha256sum "$OUTFILE"

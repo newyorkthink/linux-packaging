@@ -4,7 +4,7 @@
 
 本目录把 XnConvert 官方 x86_64 DEB 重新打包为 AppImage，正式 Release 资产固定为 `xnconvert.AppImage`。
 
-构建脚本每次读取官方 `XnConvert-CHECKSUMS.txt`，选择当前最新稳定版 `linux-x64.deb`，并使用同一份官方清单中的 SHA-256 校验。实际版本写入 `dist/version.txt`，不固定应用或打包工具版本。
+构建脚本单行调用公共校验清单下载入口；公共脚本每次读取官方 `XnConvert-CHECKSUMS.txt`，选择当前最新稳定版 `linux-x64.deb`，使用同一份官方清单中的 SHA-256 校验，并把实际版本写入 `dist/version.txt`。应用和打包工具版本都不固定。
 
 ## 技术栈与稳定基线
 
@@ -20,7 +20,7 @@ XnConvert 是 Qt5 应用，官方 DEB 的真实布局同时包含：
 
 ## linuxdeploy 规范流程
 
-1. 使用公共工具脚本动态取得并校验 linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime。
+1. 使用公共 APT、校验清单下载和工具准备入口；构建脚本对每次安装或下载只保留一条调用，不自行实现联网、版本选择、摘要校验或包管理器逻辑。
 2. 在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，只创建 `usr/bin`、`usr/lib`、`usr/share` 等基础目录。
 3. 下载并校验当前官方 DEB，把同一文件安装到 Ubuntu 构建环境供依赖扫描，并按上游原始布局解压到 AppDir。
 4. 保留官方 `usr/bin/xnconvert` 入口，但把其中写死的系统 `/opt` 改为转入根 AppRun；根 AppRun 始终直接执行 `opt/XnConvert/XnConvert`，不通过 `usr/bin` 二次转发。
@@ -66,3 +66,5 @@ opt/XnConvert/XnConvert # 根 AppRun 直接执行的真实主程序
 2026-09-20 下载并解包当时的旧版 `latest/xnconvert.AppImage` 后确认：顶层 AppRun 正确加载 Qt hook；`AppRun.wrapped` 是普通可执行脚本；XnConvert 自带 Qt plugin、`usr/plugins` 输入上下文、翻译链接和 XCB 依赖均存在；主程序与 qxcb plugin 在最终库路径下没有 `not found`。
 
 本次构建脚本改为仓库统一的两阶段 linuxdeploy、公共下载入口和 appimagetool + Type 2 runtime 最终封装，并删除正式脚本与 workflow 中的解包检查和 GUI smoke test。修改后已在 Ubuntu 24.04 临时环境完成一次完整构建；新成品的 AppRun 执行链、官方命令入口、三种输入上下文、翻译目录和直接动态依赖均已在仓库外解包核对通过。首次发布仍保留路径整理脚本；用户确认 Release 成品正常后，才把整理结果固化为最终 export。后续验证继续在仓库外临时目录进行，不把测试代码重新写入构建流程。
+
+2026-09-20 进一步移除构建脚本中的 APT 权限处理、软件包安装、官方校验清单解析、最新版选择、下载地址拼装、摘要提取和版本文件写入逻辑；这些通用行为分别集中到 `common/apt/install_packages.sh` 与 `common/download/download_latest_checksum_asset.sh`。XnConvert 构建脚本只传入明确依赖、官方清单地址、资产名正则和输出位置，后续通用修复只修改公共实现。迁移后已完成一次完整构建，公共入口、两次 linuxdeploy、AppRun 路径整理和最终 Type 2 AppImage 封装均正常完成。
