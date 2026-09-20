@@ -16,7 +16,7 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 
 ## linuxdeploy 规范流程
 
-1. 在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，只创建 `usr/bin`、`usr/lib`、`usr/share` 等基础目录。当前 linuxdeploy 因空 AppDir 尚无 desktop 会返回 1；脚本仅在目录已创建且没有非预期文件时接受该已知结果。
+1. 单行调用 `common/linuxdeploy/initialize_appdir.sh`；公共入口在空目录执行原始普通 linuxdeploy 命令，只创建基础目录。
 2. 第一次初始化完成后才下载并校验 XnView 官方 tar，把应用主体按上游布局解压到 `AppDir/opt/XnView`；Qt5、QML、输入法和媒体依赖同时安装在 Ubuntu 22.04 隔离构建环境中供 linuxdeploy 扫描。
 3. 写入已经按最终 AppImage 核对过的完整根 `AppDir/AppRun`。无论主程序位于 `/opt`，仍固定保留 `usr/bin`、`usr/lib`、`usr/share`，分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`；Qt plugin 只使用 `opt/XnView/lib` 与 `usr/plugins`，QML 只使用 `opt/XnView/qml`，翻译使用 `usr/translations`。
 4. 设置 `QT_SELECT=qt5` 和 `QMAKE=/usr/lib/qt5/bin/qmake`，再以 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage` 为基础命令执行第二次 linuxdeploy；只追加允许的 `--desktop-file` 与 `--icon-file`。
@@ -34,6 +34,10 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 ```
 
 ## 变更记录
+
+### 2026-09-20：复用公共空 AppDir 初始化入口
+
+第一次普通 linuxdeploy 已集中到 `common/linuxdeploy/initialize_appdir.sh`；本项目构建脚本只保留一行调用。XnView MP 专用 Qt5 环境、已确认 AppRun 和第二次 linuxdeploy 命令均未改变。
 
 ### 2026-09-20：核对正式 Release 成品并完成规范沉淀
 

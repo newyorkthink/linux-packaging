@@ -20,7 +20,7 @@
 ## linuxdeploy 规范流程
 
 1. 通过 `common/linuxdeploy/prepare_linuxdeploy_tools.sh` 动态取得 linuxdeploy、官方 GTK 插件、appimagetool 和 Type 2 runtime。公共脚本校验官方 GTK 文件，并在上游仍遗漏时补入 GIO dynamic modules 复制逻辑。
-2. 第一次在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，只接受基础目录已经创建、没有非预期文件且退出状态为 0 或 1 的初始化结果。
+2. 单行调用 `common/linuxdeploy/initialize_appdir.sh`，由公共入口在空目录执行原始普通 linuxdeploy 命令。
 3. 从官方接口取得 DEB，安装同一文件到 Ubuntu 22.04 隔离构建环境供 linuxdeploy 解析依赖，并按上游布局解包到 AppDir。
 4. 第二次 linuxdeploy 前写入完整根 `AppDir/AppRun`，保留 `usr/bin`、`usr/lib`、`usr/lib/x86_64-linux-gnu`、`usr/share` 等已确认路径，直接执行 `/opt/baidunetdisk/baidunetdisk --no-sandbox "$@"`，不再创建人工 `AppDir/usr/bin/baidunetdisk` 二次转发入口，也不切换工作目录。
 5. 设置 `DEPLOY_GTK_VERSION=3`，执行带 GTK 插件、desktop、图标以及 GTKmm/AppIndicator 精确动态库的第二次 `linuxdeploy --output appimage`。linuxdeploy 检测到 GTK hook 后生成顶层 AppRun，并把完整启动逻辑保留到 `AppRun.wrapped`。
@@ -55,6 +55,10 @@
 - 新链路提交前只进行 Shell 语法、ShellCheck、Markdown、workflow 关系和完整 diff 检查。最终 AppImage 的实际运行结果需由新产物验证后补充。
 
 ## 变更记录
+
+### 2026-09-20：复用公共空 AppDir 初始化入口
+
+第一次普通 linuxdeploy 已集中到 `common/linuxdeploy/initialize_appdir.sh`；本项目构建脚本只保留一行调用。百度网盘专用 GTK 环境、AppRun 和第二次 linuxdeploy 命令均未改变。
 
 ### 2026-09-20：固化最终 AppRun
 

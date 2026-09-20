@@ -21,7 +21,7 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 当前固定采用 Ubuntu 24.04 + linuxdeploy + 官方 appimagetool：
 
 1. linuxdeploy、Qt 插件、appimagetool 和 runtime 先通过仓库公共脚本从官方动态入口取得当前版本并校验，不固定工具版本。
-2. 应用文件进入 AppDir 前，先在空目录执行普通 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，只创建 `usr/bin`、`usr/lib`、`usr/share` 等基础目录；只接受已知的 0 / 1 退出状态，并确认没有非预期文件。
+2. 应用文件进入 AppDir 前，单行调用 `common/linuxdeploy/initialize_appdir.sh`；公共入口执行原始普通 linuxdeploy 命令，只创建基础目录。
 3. 通过仓库公共 GitHub Release 解析脚本动态取得 PeaZip 最新正式稳定版，不锁定具体应用版本；只接受对应版本的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
 4. 核对 DEB 的包名、版本和架构后，把同一个 DEB 安装到隔离构建环境供依赖解析，并把同一个 DEB 解压到 AppDir，禁止安装与解压使用不同版本。
 5. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。官方要求语言文件使用 UTF-8 BOM，因此只在 `zh-cn.txt` 缺失 BOM 时补入，不改写中文正文。
@@ -66,6 +66,11 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - **许可证：** 上游仓库标示 LGPL-3.0，官方 DEB 附带 GPL-3+ 版权说明，允许按对应许可证再分发。
 
 ## 修复记录
+
+### 2026-09-20：复用公共空 AppDir 初始化入口
+
+- **调整：** 第一次普通 linuxdeploy 集中到 `common/linuxdeploy/initialize_appdir.sh`，项目脚本只保留一行调用。
+- **边界：** PeaZip 专用 Qt6 环境、AppRun、归档后端临时移出与第二次 linuxdeploy 命令均未改变。
 
 ### 2026-09-20：修复资源路径、中文、黑色主题和解压失效
 

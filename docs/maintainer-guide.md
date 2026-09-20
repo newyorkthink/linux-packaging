@@ -66,7 +66,7 @@
 9. 同步维护应用 README，说明上游、技术栈、打包方式、运行要求、证据状态和已完成修复。
 10. 提交前检查完整 diff、文件路径、引用、权限、YAML / JSON / Shell 语法关系和 workflow 入口，不用 GitHub Actions 失败结果反复试错。
 
-普通 HTTPS 文件下载调用 `common/download/download_file.sh`；官方 SHA-256 清单中的最新匹配资产调用 `common/download/download_latest_checksum_asset.sh`；GitHub API 请求调用 `common/github/github_api.sh`，符合正式 semver Release、`{version}` 资产名模板和 GitHub SHA-256 digest 的资产解析调用 `common/github/resolve_latest_stable_release_asset.sh`；Debian / Ubuntu 软件包安装调用 `common/apt/install_packages.sh`；linuxdeploy、appimagetool、Type 2 runtime 和已支持的 GTK / Qt 插件调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh`。项目脚本的每次下载或安装只允许保留一条公共入口调用，应用参数直接传入；远端解析、版本选择、校验、重试和安装实现全部留在 `common/`，通用故障也只修公共实现。
+普通 HTTPS 文件下载调用 `common/download/download_file.sh`；官方 SHA-256 清单中的最新匹配资产调用 `common/download/download_latest_checksum_asset.sh`；GitHub API 请求调用 `common/github/github_api.sh`，符合正式 semver Release、`{version}` 资产名模板和 GitHub SHA-256 digest 的资产解析调用 `common/github/resolve_latest_stable_release_asset.sh`；Debian / Ubuntu 软件包安装调用 `common/apt/install_packages.sh`；linuxdeploy、appimagetool、Type 2 runtime 和已支持的 GTK / Qt 插件调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh`；第一次空 AppDir 初始化调用 `common/linuxdeploy/initialize_appdir.sh`。项目脚本的每次下载、安装或初始化只允许保留一条公共入口调用，通用实现全部留在 `common/`。
 
 ## GitHub Actions 中怎么运行
 
@@ -104,6 +104,7 @@
 - [ ] 构建环境与打包路线一致：quick-sharun 在 Arch，linuxdeploy + appimagetool 在 Ubuntu。
 - [ ] Qt 主版本、Qt plugins 和输入法 plugin 一致，没有混用 Qt 5 / Qt 6。
 - [ ] AppRun 只有当前应用需要的环境和唯一入口，没有万能模板或无证据 preload。
+- [ ] 第一次空 AppDir 初始化只单行调用 `common/linuxdeploy/initialize_appdir.sh`，没有在应用脚本重复命令。
 - [ ] 首次或未确认项目仍保留 `normalize_apprun_paths.sh`；已确认项目已有 Release 解包结果或用户截图作为证据，路径型 export 已原样固化，整理调用已删除，应用 README 已同步。
 - [ ] 没有宽泛通配安装、`dist-upgrade`、`chmod 777`、整个 `/usr/lib` 复制或无关系统修改。
 - [ ] 最终封装、`version.txt`、稳定资产名和 workflow 发布路径互相一致。

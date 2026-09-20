@@ -48,9 +48,9 @@
 
 ## 唯一标准流程：先初始化目录，再放入应用，最后由 appimagetool 封装
 
-### 公共下载与打包工具准备
+### 公共下载、初始化与打包工具准备
 
-仓库内可复用下载入口如下：
+仓库内可复用公共入口如下：
 
 ```bash
 # 下载普通 HTTPS 文件；上游提供摘要时把 SHA-256 作为第三个参数传入
@@ -67,11 +67,14 @@
 
 # Qt 项目追加 qt 参数
 "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "<工具目录>" qt
+
+# 第一次普通 linuxdeploy：在空目录创建并核对 AppDir 基础结构
+"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR"
 ```
 
-`download_file.sh` 统一处理 HTTPS、失败退出、重试、超时、临时文件和可选 SHA-256 校验；`download_latest_checksum_asset.sh` 统一处理官方清单下载、最新版选择、摘要校验、资产下载和版本文件；`install_packages.sh` 统一处理 APT 索引、root / sudo、非交互安装以及公共下载与解析入口所需的基础命令，项目只传应用专用依赖。`prepare_linuxdeploy_tools.sh` 从各自官方 continuous Release 动态解析 x86_64 资产与 GitHub 官方 digest；GTK 插件没有 Release 资产，因此从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。官方 GTK 插件当前缺少 GIO modules 复制逻辑，公共脚本只在下载文件仍没有 `gio_moduledir` 时应用已验证的最小修复；上游将来加入后自动跳过。以上文件再交给公共下载脚本取得，不固定工具版本。
+`download_file.sh` 统一处理 HTTPS、失败退出、重试、超时、临时文件和可选 SHA-256 校验；`download_latest_checksum_asset.sh` 统一处理官方清单下载、最新版选择、摘要校验、资产下载和版本文件；`install_packages.sh` 统一处理 APT 索引、root / sudo、非交互安装以及公共下载与解析入口所需的基础命令，项目只传应用专用依赖；`initialize_appdir.sh` 统一执行第一次普通 linuxdeploy。`prepare_linuxdeploy_tools.sh` 从各自官方 continuous Release 动态解析 x86_64 资产与 GitHub 官方 digest；GTK 插件没有 Release 资产，因此从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。官方 GTK 插件当前缺少 GIO modules 复制逻辑，公共脚本只在下载文件仍没有 `gio_moduledir` 时应用已验证的最小修复；上游将来加入后自动跳过。以上文件再交给公共下载脚本取得，不固定工具版本。
 
-项目脚本对每一次下载或安装只能保留一条公共脚本调用命令，并把当前应用的 URL、完整资产名正则、输出路径、版本文件或依赖名称作为参数传入。禁止在项目脚本中自行使用 `curl`、`wget`、Release / API 查询、校验清单解析、最新版选择、摘要拼装、`apt-get update`、`apt-get install` 或 root / sudo 判断。需要修复通用下载或安装行为时只修改 `common/` 公共实现；下载后的应用专用解包和 AppDir 布局仍由项目脚本处理。
+项目脚本对每一次下载、安装或空 AppDir 初始化只能保留一条公共脚本调用命令，并把当前应用的 URL、完整资产名正则、输出路径、版本文件、依赖名称或 AppDir 路径作为参数传入。禁止在项目脚本中自行使用 `curl`、`wget`、Release / API 查询、校验清单解析、最新版选择、摘要拼装、`apt-get update`、`apt-get install`、root / sudo 判断，或重复第一次 linuxdeploy 命令。需要修复通用行为时只修改 `common/` 公共实现；下载后的应用专用解包和 AppDir 布局仍由项目脚本处理。
 
 GIO dynamic modules 与 GI typelibs、GTK input modules 不是同一类资源。官方插件已经处理 typelibs 和 GTK immodules，但这不能替代 `gio-2.0` modules。新增、迁移或重做 GTK linuxdeploy 项目时不得直接下载未修补的官方 `linuxdeploy-plugin-gtk.sh`；必须给公共工具准备脚本传入 `gtk`，并在第二次 linuxdeploy 后确认最终 AppDir 中存在构建环境实际 `giomoduledir` 对应的模块目录。项目若明确设置 `GIO_MODULE_DIR`，必须指向该 AppDir 内的实际目录，不能指向宿主机。
 
@@ -96,18 +99,15 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 
 ### 第一步：在空目录运行普通 linuxdeploy，只创建 AppDir 基础目录
 
-应用文件进入 AppDir 之前，先执行用户本地已经验证的原命令：
+应用文件进入 AppDir 之前，项目构建脚本只调用一次公共入口：
 
 ```bash
-# 在空目录中创建 AppDir/usr/bin、AppDir/usr/lib、AppDir/usr/share 等基础目录
-export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
+"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR"
 ```
 
-这一步只用于让 linuxdeploy 创建 AppDir 目录结构，不应提前放入应用、desktop、icon、AppRun 或自制入口。当前 linuxdeploy 在创建目录后，会因为空 AppDir 尚无 desktop 而在 `--output appimage` 阶段返回 1；正式脚本必须保留上面的原命令，并只在同时满足以下条件时接受该已知结果：
+公共入口内部逐字保留已经验证的 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`。项目脚本不得复制这段实现，只保留上面一行调用；应用各自的 Qt、GTK、QMAKE、NO_STRIP 等环境仍按项目需要在调用前设置。
 
-- `AppDir/usr/bin`、`AppDir/usr/lib`、`AppDir/usr/share` 已创建；
-- AppDir 中没有非预期文件；
-- 退出状态是当前已确认的 0 或 1，其他状态立即终止。
+这一步只用于让 linuxdeploy 创建 AppDir 目录结构，不应提前放入应用、desktop、icon、AppRun 或自制入口。当前 linuxdeploy 在创建目录后，会因为空 AppDir 尚无 desktop 而在 `--output appimage` 阶段返回 1；公共入口直接兼容该结果，不添加其他检查。
 
 第一次命令不会产生正式资产，也不把它的输出放入发布目录。
 

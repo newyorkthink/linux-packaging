@@ -59,20 +59,8 @@ export LDAI_NO_APPSTREAM=1
 export LDAI_OUTPUT="$INTERMEDIATE_APPIMAGE"
 export LDAI_RUNTIME_FILE="$RUNTIME_FILE"
 
-# 第一次只让 linuxdeploy 创建空 AppDir 的 usr/bin、usr/lib、usr/share 等基础目录。
-# 当前 linuxdeploy 会因空 AppDir 尚无 desktop 而在输出阶段返回 1；只接受“目录已创建且没有文件”的结果。
-set +e
-export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
-FIRST_LINUXDEPLOY_STATUS=$?
-set -e
-
-if [[ "$FIRST_LINUXDEPLOY_STATUS" -ne 0 && "$FIRST_LINUXDEPLOY_STATUS" -ne 1 ]]; then
-  die "第一次空 AppDir 初始化异常退出：$FIRST_LINUXDEPLOY_STATUS"
-fi
-for required_dir in "$APPDIR/usr/bin" "$APPDIR/usr/lib" "$APPDIR/usr/share"; do
-  [[ -d "$required_dir" ]] || die "第一次 linuxdeploy 未创建基础目录：$required_dir"
-done
-[[ -z "$(find "$APPDIR" -type f -print -quit)" ]] || die "第一次 linuxdeploy 初始化后 AppDir 中出现了非预期文件"
+# 通过公共入口运行第一次普通 linuxdeploy，并核对空 AppDir 初始化结果。
+"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR"
 
 ###### 下载并准备 XnConvert ######
 

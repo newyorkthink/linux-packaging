@@ -21,7 +21,7 @@ XnConvert 是 Qt5 应用，官方 DEB 的真实布局同时包含：
 ## linuxdeploy 规范流程
 
 1. 使用公共 APT、校验清单下载和工具准备入口；构建脚本对每次安装或下载只保留一条调用，不自行实现联网、版本选择、摘要校验或包管理器逻辑。
-2. 在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，只创建 `usr/bin`、`usr/lib`、`usr/share` 等基础目录。
+2. 单行调用 `common/linuxdeploy/initialize_appdir.sh`；公共入口在空目录执行原始普通 linuxdeploy 命令，只创建基础目录。
 3. 下载并校验当前官方 DEB，把同一文件安装到 Ubuntu 构建环境供依赖扫描，并按上游原始布局解压到 AppDir。
 4. 保留官方 `usr/bin/xnconvert` 入口，但把其中写死的系统 `/opt` 改为转入根 AppRun；根 AppRun 始终直接执行 `opt/XnConvert/XnConvert`，不通过 `usr/bin` 二次转发。
 5. 保留已有 Qt5 翻译、XCB 平台库、Fcitx5 / IBus / Compose 输入上下文和图标部署方式。
@@ -68,3 +68,5 @@ opt/XnConvert/XnConvert # 根 AppRun 直接执行的真实主程序
 本次构建脚本改为仓库统一的两阶段 linuxdeploy、公共下载入口和 appimagetool + Type 2 runtime 最终封装，并删除正式脚本与 workflow 中的解包检查和 GUI smoke test。修改后已在 Ubuntu 24.04 临时环境完成一次完整构建；新成品的 AppRun 执行链、官方命令入口、三种输入上下文、翻译目录和直接动态依赖均已在仓库外解包核对通过。首次发布仍保留路径整理脚本；用户确认 Release 成品正常后，才把整理结果固化为最终 export。后续验证继续在仓库外临时目录进行，不把测试代码重新写入构建流程。
 
 2026-09-20 进一步移除构建脚本中的 APT 权限处理、软件包安装、官方校验清单解析、最新版选择、下载地址拼装、摘要提取和版本文件写入逻辑；这些通用行为分别集中到 `common/apt/install_packages.sh` 与 `common/download/download_latest_checksum_asset.sh`。XnConvert 构建脚本只传入明确依赖、官方清单地址、资产名正则和输出位置，后续通用修复只修改公共实现。迁移后已完成一次完整构建，公共入口、两次 linuxdeploy、AppRun 路径整理和最终 Type 2 AppImage 封装均正常完成。
+
+2026-09-20 第一次普通 linuxdeploy 进一步集中到 `common/linuxdeploy/initialize_appdir.sh`；XnConvert 构建脚本只保留一行调用。Qt5 环境、AppRun、第二次 linuxdeploy 和尚待成品确认的路径整理调用均未改变。

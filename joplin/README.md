@@ -20,7 +20,7 @@
 ## linuxdeploy 规范流程
 
 - 动态取得 linuxdeploy、官方 GTK 插件、appimagetool 和 Type 2 runtime；GTK 插件上游未提供 Release digest，因此从官方仓库默认分支解析当前文件并核对 Git blob SHA。公共准备脚本随后仅在上游仍缺少时补入已验证的 GIO modules 复制逻辑，并输出最终文件的本地 SHA-256。
-- 第一次在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，只接受基础目录已经创建、没有非预期文件且退出状态为 0 或 1 的初始化结果。
+- 单行调用 `common/linuxdeploy/initialize_appdir.sh`，由公共入口在空目录执行原始普通 linuxdeploy 命令。
 - 初始化后才下载官方 DEB；应用主体保持在 `AppDir/opt/Joplin`，不再创建人工 `AppDir/usr/bin/joplin` 二次转发入口。
 - 第二次 linuxdeploy 前写入完整根 `AppDir/AppRun`，直接执行 `opt/Joplin/joplin`。根 AppRun 固定把 `usr/bin`、`usr/lib`、`usr/share` 分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`，并只把 `/opt/Joplin` 加入程序和库搜索路径。
 - 第二次执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage`；linuxdeploy 检测到 GTK hook 后生成顶层启动入口，并把实际 Joplin 启动逻辑保留到 `AppRun.wrapped`。
@@ -98,6 +98,10 @@ libnssutil3.so: version `NSSUTIL_...' not found
 - 本次证据来自用户实际运行；没有把仅靠静态检查的结论写成 GUI 验证结果。
 
 ## 变更记录
+
+### 2026-09-20：复用公共空 AppDir 初始化入口
+
+第一次普通 linuxdeploy 已集中到 `common/linuxdeploy/initialize_appdir.sh`；本项目构建脚本只保留一行调用。Joplin 专用 GTK、GIO、AppRun 和第二次 linuxdeploy 逻辑均未改变。
 
 ### 2026-09-20：固化最终 AppRun
 
