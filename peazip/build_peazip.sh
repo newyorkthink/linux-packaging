@@ -15,12 +15,12 @@ die() {
   exit 1
 }
 
-# 从官方指定 Release 下载构建工具并校验 SHA-256；未指定标签时使用 continuous。
+# 从官方 continuous Release 下载当前构建工具并校验 SHA-256。
 download_tool() {
-  local repo="$1" asset="$2" output="$3" tag="${4:-continuous}" metadata url digest
+  local repo="$1" asset="$2" output="$3" metadata url digest
 
   metadata="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 \
-    "${api_headers[@]}" "https://api.github.com/repos/$repo/releases/tags/$tag")"
+    "${api_headers[@]}" "https://api.github.com/repos/$repo/releases/tags/continuous")"
   url="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .browser_download_url' <<< "$metadata")"
   digest="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .digest' <<< "$metadata")"
   [[ "$digest" =~ ^sha256:[[:xdigit:]]{64}$ ]] || die "官方工具缺少有效 SHA-256：$repo/$asset"
@@ -137,14 +137,16 @@ EOF_APPRUN
 # 赋予自定义 AppRun 执行权限。
 chmod +x "$APPDIR/AppRun"
 
+# 只创建 linuxdeploy 标准的空 hook 目录，不写 hook 文件，由 linuxdeploy 自动生成 AppRun.wrapped。
+mkdir -p "$APPDIR/apprun-hooks"
+
 ###### 核心打包 ######
 
-# 固定使用上游停止为 Qt6 自动创建 hook 之前的官方 linuxdeploy 与 Qt 插件版本。
-LINUXDEPLOY_RELEASE=1-alpha-20250213-1
+# 动态下载当前官方 linuxdeploy 和 Qt 输入插件。
 download_tool linuxdeploy/linuxdeploy linuxdeploy-x86_64.AppImage \
-  "$WORK_DIR/tools/linuxdeploy-x86_64.AppImage" "$LINUXDEPLOY_RELEASE"
+  "$WORK_DIR/tools/linuxdeploy-x86_64.AppImage"
 download_tool linuxdeploy/linuxdeploy-plugin-qt linuxdeploy-plugin-qt-x86_64.AppImage \
-  "$WORK_DIR/tools/linuxdeploy-plugin-qt-x86_64.AppImage" "$LINUXDEPLOY_RELEASE"
+  "$WORK_DIR/tools/linuxdeploy-plugin-qt-x86_64.AppImage"
 
 # 下载官方 appimagetool 和 Type 2 runtime，用于最终 AppImage 封装。
 download_tool AppImage/appimagetool appimagetool-x86_64.AppImage \

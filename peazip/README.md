@@ -24,13 +24,13 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 2. 只接受与 Release tag 对应的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
 3. 核对 DEB 的包名、版本和架构。
 4. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；给 `zh-cn.txt` 补 UTF-8 BOM，并把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。
-5. 固定使用官方 `1-alpha-20250213-1` linuxdeploy 与 Qt 插件；该版本仍由 Qt 插件自动生成 hook，使 linuxdeploy 自动把自定义入口保留为 `AppRun.wrapped` 并生成顶层 `AppRun`。
+5. linuxdeploy、Qt 插件、appimagetool 和 runtime 全部从官方 continuous 动态取得当前版本；只预先创建 linuxdeploy 标准的空 `apprun-hooks` 目录，不写入任何 hook 文件，由 linuxdeploy 自动把自定义入口保留为 `AppRun.wrapped` 并生成顶层 `AppRun`。
 6. linuxdeploy 只处理 PeaZip 主程序、Qt6 和界面插件。官方包内的旧归档后端在部署依赖时临时移出 AppDir，完成后原样放回，避免 linuxdeploy 扫描 32 位旧程序并错误要求 `libncurses.so.5`。
 7. linuxdeploy 不生成最终 AppImage；最后由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`。
 
 ## 运行与兼容说明
 
-- 启动脚本恢复旧版稳定结构：官方旧版 Qt 插件自动生成 hook，linuxdeploy 生成顶层 `AppRun` 加载该 hook，再执行保留旧版环境变量和 desktop `Exec` 解析方式的 `AppRun.wrapped`；脚本不手工创建 hook 或 `AppRun.wrapped`。
+- 启动脚本保留旧版环境变量和 desktop `Exec` 解析方式；脚本只创建 linuxdeploy 标准的空 `apprun-hooks` 目录，不手工创建 hook 或 `AppRun.wrapped`，入口包装由当前 linuxdeploy 自己完成。
 - `AppRun.wrapped` 通过 PeaZip 官方 `-peaziplanguage zh-cn.txt` 参数启动简体中文界面，不写入额外配置标记；简体中文语言文件在打包时补 UTF-8 BOM，避免中文被按单字节编码读取成乱码。
 - 继续保留旧版已实际使用的 XCB、Adwaita Dark、缩放和字体 DPI 环境；同时打包 Qt6 `adwaita.so`，避免只设置主题名却缺少样式插件。
 - 最终产物必须包含同为 Qt6 的 Compose、Fcitx5、IBus 输入上下文和 XCB 平台插件；输入法守护进程仍由宿主提供。
@@ -67,6 +67,13 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 - **验证边界：** 上述结果覆盖构建、启动链、主题插件加载和主要归档后端；Kali Linux 实际桌面中的按钮点击、设置持久化和全部格式仍以发布产物的最终实机操作为准。
 
 ## 变更记录
+
+### 2026-09-20：恢复全部打包工具动态更新
+
+- **失败记录：** Build PeaZip Job `106054153414` 下载固定旧标签的构建工具时连续返回 HTTP 404，在 linuxdeploy 执行前退出。
+- **根因：** 为复刻旧版入口结构错误固定了旧版 linuxdeploy / Qt 插件，违反仓库动态版本规则，也引用了不可用的旧资产。
+- **修复：** linuxdeploy、Qt 插件、appimagetool 和 runtime 全部恢复从官方 continuous 动态获取；不再固定任何旧标签。脚本只创建标准空 `apprun-hooks` 目录，不写 hook 文件，由当前 linuxdeploy 自行处理 `AppRun.wrapped`。
+- **验证状态：** 按仓库永久规则未执行任何测试、试构建或产物验证；修改后直接提交并推送，构建结果以正式 GitHub Actions 为准。
 
 ### 2026-09-20：改由官方旧版 Qt 插件自动生成 AppRun hook
 
