@@ -25,7 +25,7 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 3. 通过仓库公共 GitHub Release 解析脚本动态取得 PeaZip 最新正式稳定版，不锁定具体应用版本；只接受对应版本的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
 4. 核对 DEB 的包名、版本和架构后，把同一个 DEB 安装到隔离构建环境供依赖解析，并把同一个 DEB 解压到 AppDir，禁止安装与解压使用不同版本。
 5. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。官方要求语言文件使用 UTF-8 BOM，因此只在 `zh-cn.txt` 缺失 BOM 时补入，不改写中文正文。
-6. 写入完整根 `AppDir/AppRun`，直接固化最终用途正确的 `usr/bin`、`usr/lib/peazip`、`usr/lib`、`usr/share`、Qt plugins 和 translations 路径；使用 glibc 内置的 `C.UTF-8` 固定 FPC/Lazarus 默认代码页，并保留 desktop `Exec`、XCB、Adwaita Dark、缩放和字体 DPI 设置。
+6. 写入完整根 `AppDir/AppRun`，直接固化最终用途正确的 `usr/bin`、`usr/lib/peazip`、`usr/lib`、`usr/share`、Qt plugins 和 translations 路径；使用 glibc 实际登记的 `C.utf8` 固定 FPC/Lazarus 默认代码页，并保留 desktop `Exec`、XCB、Adwaita Dark、缩放和字体 DPI 设置。
 7. 当前官方 Qt 插件明确跳过 Qt6 AppRun hook，因此完整根 `AppDir/AppRun` 保持为最终顶层入口；没有 `AppRun.wrapped` 是当前官方工具的真实行为。构建脚本严格禁止创建 `apprun-hooks` 目录或任何 hook 文件，禁止为了复刻旧包结构自行补 hook、`AppRun.wrapped` 或包装层检查。
 8. 官方归档后端在依赖部署前临时移出 AppDir，随后逐字执行已验证的 `--plugin qt --output appimage` 命令，由 linuxdeploy 部署 Qt6 并生成中间 AppImage，完成后再把归档后端原样放回。
 9. Qt 命令只生成 `.work/peazip-intermediate.AppImage`，不发布；不再对已经确定的 AppRun 调用自动路径整理脚本。
@@ -41,7 +41,7 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 ## 运行与兼容说明
 
 - 当前最终启动入口就是完整的顶层 `AppRun`；当前官方 Qt 插件跳过 Qt6 hook，所以不存在 `apprun-hooks` 和 `AppRun.wrapped`。顶层入口保留 desktop `Exec` 解析方式以及已经确认的显示和主题设置，路径型环境变量按最终 AppDir 的真实目录和用途直接固化。
-- `zh-cn.txt` 保持官方中文正文，仅在缺失时补 UTF-8 BOM；AppRun 固定 `LANG=C.UTF-8` 和 `LC_ALL=C.UTF-8`，确保 PeaZip 的 `AnsiString` 按 UTF-8 传给 Lazarus/Qt，不依赖宿主是否生成 `zh_CN.UTF-8`，也不受宿主 `LC_ALL` / `LC_CTYPE` 覆盖。语言仍由 PeaZip 自身设置管理，不注入会使设置进程主动关闭窗口的 `-peaziplanguage` 参数。
+- `zh-cn.txt` 保持官方中文正文，仅在缺失时补 UTF-8 BOM；AppRun 固定 `LANG=C.utf8` 和 `LC_ALL=C.utf8`，确保 PeaZip 的 `AnsiString` 按 UTF-8 传给 Lazarus/Qt，不依赖宿主是否生成 `zh_CN.UTF-8`，也不受宿主 `LC_ALL` / `LC_CTYPE` 覆盖。语言仍由 PeaZip 自身设置管理，不注入会使设置进程主动关闭窗口的 `-peaziplanguage` 参数。
 - 继续保留旧版已实际使用的 XCB、Adwaita Dark、缩放和字体 DPI 环境；同时打包 Qt6 `adwaita.so`，避免只设置主题名却缺少样式插件。
 - 最终产物必须包含同为 Qt6 的 Compose、Fcitx5、IBus 输入上下文和 XCB 平台插件；输入法守护进程仍由宿主提供。
 - AppImage 启动链不使用 `sudo`、`pkexec`、systemd、cron 或自动安装逻辑。
@@ -82,6 +82,13 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - **验证边界：** 上述结果覆盖构建、启动链、主题插件加载和主要归档后端；Kali Linux 实际桌面中的按钮点击、设置持久化和全部格式仍以发布产物的最终实机操作为准。
 
 ## 变更记录
+
+### 2026-09-21：改用 glibc 登记的 UTF-8 locale 名称
+
+- **故障证据：** 正式 AppImage 已设置 `C.UTF-8`，用户实机选择简体中文后仍显示 `æ…` 一类 UTF-8 字节被按单字节代码页解释的乱码；包内 `zh-cn.txt` 已确认是带 BOM 的有效 UTF-8，问题不在语言文件正文。
+- **根因：** AppRun 使用了未按 `locale -a` 登记形式书写的 `C.UTF-8`；目标 glibc 登记的内置 UTF-8 locale 名称是 `C.utf8`。名称没有被运行环境接受时，PeaZip 会落回单字节代码页。
+- **修复：** AppRun 将 `LANG` 和 `LC_ALL` 同时固定为 `C.utf8`。不下载或捆绑字体，不改写语言文件正文，不修改其他打包与启动逻辑。
+- **验证：** 已确认构建环境的 `locale -a` 登记 `C.utf8`，且 `LC_ALL=C.utf8 locale charmap` 返回 `UTF-8`；继续执行 Shell 语法与最终 diff 检查。
 
 ### 2026-09-21：修复中文仍按单字节代码页解释
 
