@@ -22,7 +22,7 @@ XnConvert 是 Qt5 应用，官方 DEB 的真实布局同时包含：
 
 1. 使用公共 APT、校验清单下载和工具准备入口；构建脚本对每次安装或下载只保留一条调用，不自行实现联网、版本选择、摘要校验或包管理器逻辑。
 2. 单行调用 `common/linuxdeploy/initialize_appdir.sh`；公共入口在空目录执行原始普通 linuxdeploy 命令，只创建基础目录。
-3. 下载并校验当前官方 DEB，把同一文件安装到 Ubuntu 构建环境供依赖扫描，并按上游原始布局解压到 AppDir。
+3. 下载并校验当前官方 DEB，把同一文件安装到 Ubuntu 构建环境供依赖扫描，并通过 `common/archive/extract_archive.sh` 按上游原始布局解包到 AppDir。
 4. 原样保留官方 `usr/bin/xnconvert`，不再人工重写；根 AppRun 始终直接执行 `opt/XnConvert/XnConvert`，不通过 `usr/bin` 二次转发。
 5. 保留已有 Qt5 翻译、XCB 平台库、Fcitx5 / IBus / Compose 输入上下文和图标部署方式。
 6. 第二次执行 Qt linuxdeploy，由它把完整根 AppRun 保存为 `AppRun.wrapped`，并生成加载 Qt hook 的顶层 AppRun。
@@ -62,6 +62,8 @@ opt/XnConvert/XnConvert # 根 AppRun 直接执行的真实主程序
 禁止手工创建 `AppRun.wrapped`，也不能覆盖 linuxdeploy 生成的顶层 AppRun。
 
 ## 已核对结果
+
+2026-09-21 DEB 的通用格式判断与 `dpkg-deb -x` 调用集中到 `common/archive/extract_archive.sh`；XnConvert 构建脚本只传入同一官方 DEB 和 AppDir，安装、官方布局、AppRun 及 Qt5 稳定基线均未改变。
 
 2026-09-20 下载并解包当时的旧版 `latest/xnconvert.AppImage` 后确认：顶层 AppRun 正确加载 Qt hook；`AppRun.wrapped` 是普通可执行脚本；XnConvert 自带 Qt plugin、`usr/plugins` 输入上下文、翻译链接和 XCB 依赖均存在；主程序与 qxcb plugin 在最终库路径下没有 `not found`。
 

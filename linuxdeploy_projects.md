@@ -62,6 +62,9 @@
 # 统一更新 APT 索引并安装当前应用明确需要的软件包
 "$SCRIPT_DIR/../common/apt/install_packages.sh" <软件包名或本地 DEB> [...]
 
+# 统一把 DEB 或 tar 系列归档解包到指定目录
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" "<归档文件>" "<输出目录>"
+
 # 动态下载 linuxdeploy、appimagetool、Type 2 runtime；GTK 项目追加 gtk 参数
 "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "<工具目录>" gtk
 
@@ -83,9 +86,9 @@ source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" "<工具目�
 
 项目尚未把工具目录加入 `PATH` 时，可把 linuxdeploy 可执行文件作为第二个参数传入；调用仍只保留一行。
 
-`download_file.sh` 统一处理 HTTPS、失败退出、重试、超时、临时文件和可选 SHA-256 校验；`download_latest_checksum_asset.sh` 统一处理官方清单下载、最新版选择、摘要校验、资产下载和版本文件；`install_packages.sh` 统一处理 APT 索引、root / sudo、非交互安装以及公共下载与解析入口所需的基础命令，项目只传应用专用依赖；`prepare_build_workspace.sh` 统一设置标准工作路径并清理、重建目录；`configure_environment.sh` 只设置技术栈无关的 linuxdeploy 环境；`initialize_appdir.sh` 统一执行第一次普通 linuxdeploy；`package_appimage.sh` 统一使用官方 appimagetool 和 Type 2 runtime 最终封装并输出 SHA-256。`prepare_linuxdeploy_tools.sh` 从各自官方 continuous Release 动态解析 x86_64 资产与 GitHub 官方 digest；GTK 插件没有 Release 资产，因此从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。官方 GTK 插件当前缺少 GIO modules 复制逻辑，公共脚本只在下载文件仍没有 `gio_moduledir` 时应用已验证的最小修复；上游将来加入后自动跳过。以上文件再交给公共下载脚本取得，不固定工具版本。
+`download_file.sh` 统一处理 HTTPS、失败退出、重试、超时、临时文件和可选 SHA-256 校验；`download_latest_checksum_asset.sh` 统一处理官方清单下载、最新版选择、摘要校验、资产下载和版本文件；`install_packages.sh` 统一处理 APT 索引、root / sudo、非交互安装以及公共下载与解析入口所需的基础命令，项目只传应用专用依赖；`extract_archive.sh` 统一处理 DEB 与 tar 系列归档的格式判断和解包命令；`prepare_build_workspace.sh` 统一设置标准工作路径并清理、重建目录；`configure_environment.sh` 只设置技术栈无关的 linuxdeploy 环境；`initialize_appdir.sh` 统一执行第一次普通 linuxdeploy；`package_appimage.sh` 统一使用官方 appimagetool 和 Type 2 runtime 最终封装并输出 SHA-256。`prepare_linuxdeploy_tools.sh` 每次构建都从各自官方 continuous Release 动态解析当前最新 x86_64 资产与 GitHub 官方 digest，应用脚本和 AI 都不记录或人工更新工具版本；GTK 插件没有 Release 资产，因此从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。官方 GTK 插件当前缺少 GIO modules 复制逻辑，公共脚本只在下载文件仍没有 `gio_moduledir` 时应用已验证的最小修复；上游将来加入后自动跳过。以上文件再交给公共下载脚本取得，不固定工具版本。
 
-项目脚本对每一次下载、安装或空 AppDir 初始化只能保留一条公共脚本调用命令，并把当前应用的 URL、完整资产名正则、输出路径、版本文件、依赖名称或 AppDir 路径作为参数传入。禁止在项目脚本中自行使用 `curl`、`wget`、Release / API 查询、校验清单解析、最新版选择、摘要拼装、`apt-get update`、`apt-get install`、root / sudo 判断，或重复第一次 linuxdeploy 命令。需要修复通用行为时只修改 `common/` 公共实现；下载后的应用专用解包和 AppDir 布局仍由项目脚本处理。
+新增项目或当前修改触及对应代码时，项目脚本对每一次下载、安装、解包或空 AppDir 初始化只能保留一条公共脚本调用命令，并把当前应用的 URL、完整资产名正则、输出路径、版本文件、依赖名称、归档文件或 AppDir 路径作为参数传入。禁止在项目脚本中自行使用 `curl`、`wget`、Release / API 查询、校验清单解析、最新版选择、摘要拼装、`apt-get update`、`apt-get install`、`dpkg-deb -x`、`tar -x`、root / sudo 判断，或重复第一次 linuxdeploy 命令。需要修复通用行为时只修改 `common/` 公共实现；下载后的应用专用文件定位和 AppDir 布局调整仍由项目脚本处理。本规则不授权批量改写本次任务未触及的稳定项目。
 
 GIO dynamic modules 与 GI typelibs、GTK input modules 不是同一类资源。官方插件已经处理 typelibs 和 GTK immodules，但这不能替代 `gio-2.0` modules。新增、迁移或重做 GTK linuxdeploy 项目时不得直接下载未修补的官方 `linuxdeploy-plugin-gtk.sh`；必须给公共工具准备脚本传入 `gtk`，并在第二次 linuxdeploy 后确认最终 AppDir 中存在构建环境实际 `giomoduledir` 对应的模块目录。项目若明确设置 `GIO_MODULE_DIR`，必须指向该 AppDir 内的实际目录，不能指向宿主机。
 
@@ -135,19 +138,19 @@ apt download <软件包名>
 # 在隔离构建环境安装同一应用及其依赖
 sudo apt-get install -y <软件包名>
 
-# 把下载得到的同一 DEB 内容解压到 AppDir
-dpkg-deb -x ./<软件包文件>.deb ./AppDir
+# 通过公共入口把下载得到的同一 DEB 内容解压到 AppDir
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" "./<软件包文件>.deb" "$APPDIR"
 ```
 
 正式脚本应使用当前环境实际需要的 root / sudo 调用方式；不能把示例占位符直接提交。
 
 #### 网上直接下载的 DEB
 
-先校验来源与摘要，再把同一 DEB 安装到隔离构建环境，并使用 `dpkg-deb -x` 解压到 AppDir。安装和解压必须对应同一个文件，禁止拿不同版本混用。
+先校验来源与摘要，再把同一 DEB 安装到隔离构建环境，并调用 `common/archive/extract_archive.sh` 解压到 AppDir。安装和解压必须对应同一个文件，禁止拿不同版本混用。
 
 #### tar、压缩包或 GitHub Release
 
-按上游真实目录结构直接解压或复制到 AppDir：上游在 `/opt/<应用>` 就保持 `AppDir/opt/<应用>`，在 `/usr/bin`、`/usr/lib`、`/usr/share` 就保持对应 AppDir 路径。构建环境同时安装该应用明确需要的运行依赖；不得为了填充空的 `AppDir/usr/bin` 而复制主程序、创建 wrapper 或使用 `--executable`。
+通过 `common/archive/extract_archive.sh` 按上游真实目录结构解压到 AppDir：上游在 `/opt/<应用>` 就保持 `AppDir/opt/<应用>`，在 `/usr/bin`、`/usr/lib`、`/usr/share` 就保持对应 AppDir 路径。构建环境同时安装该应用明确需要的运行依赖；不得为了填充空的 `AppDir/usr/bin` 而复制主程序、创建 wrapper 或使用 `--executable`。
 
 ### 第三步：写入完整根 AppDir/AppRun
 

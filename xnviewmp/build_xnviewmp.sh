@@ -20,9 +20,9 @@ fi
 # 使用公共工作区入口统一设置路径，并清理、重建标准构建目录。
 source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" xnviewmp
 
-EXTRACT_DIR="$SOURCE_DIR/extracted"
-TGZ="$SOURCE_DIR/XnView_MP.tgz"
-mkdir -p "$EXTRACT_DIR"
+DEB="$SOURCE_DIR/XnView_MP.deb"
+DESKTOP_FILE="$APPDIR/usr/share/applications/XnView.desktop"
+ICON_FILE="$APPDIR/opt/XnView/xnview.png"
 
 ## 输出明确错误并立即终止构建。
 die() {
@@ -34,7 +34,7 @@ die() {
 
 # 通过公共 APT 入口安装 Qt5 插件部署和媒体运行库收集所需依赖。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" \
-  tar qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools qttools5-dev-tools \
+  dpkg qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools qttools5-dev-tools \
   qtdeclarative5-dev qtdeclarative5-dev-tools \
   qml-module-qtqml qml-module-qtqml-models2 \
   qml-module-qtquick2 qml-module-qtquick-window2 qml-module-qtquick-layouts \
@@ -69,25 +69,15 @@ QT5_BIN_DIR=/usr/lib/qt5/bin
 # 公共入口从官方校验清单选择最新版、核对 SHA-256，并写入版本文件。
 "$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" \
   "https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt" \
-  '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.tgz$' "$TGZ" "$DIST_DIR/version.txt"
+  '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$DEB" "$DIST_DIR/version.txt"
 
-# 解包官方归档并定位唯一的 XnView 主程序目录。
-tar -xzf "$TGZ" -C "$EXTRACT_DIR"
-mapfile -d '' xnview_bins < <(find "$EXTRACT_DIR" -type f -name XnView -perm -u+x -print0)
-[[ ${#xnview_bins[@]} -eq 1 ]] || die "预期找到一个 XnView 可执行文件，实际找到 ${#xnview_bins[@]} 个"
-SOURCE_APP_DIR="$(dirname "${xnview_bins[0]}")"
+# 把同一官方 DEB 安装到隔离构建环境供依赖扫描，并由公共入口按上游布局解包到 AppDir。
+"$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB"
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$DEB" "$APPDIR"
 
-# 保持上游 /opt/XnView 布局；不预建或填充 AppDir/usr/bin。
-mkdir -p "$APPDIR/opt/XnView" "$APPDIR/usr/share/applications"
-cp -a "$SOURCE_APP_DIR/." "$APPDIR/opt/XnView/"
-DESKTOP_FILE="$APPDIR/usr/share/applications/XnView.desktop"
-ICON_FILE="$APPDIR/opt/XnView/xnview.png"
-cp -a "$APPDIR/opt/XnView/XnView.desktop" "$DESKTOP_FILE"
-
-# 规范官方 desktop 条目，并让 Exec 名称对应 /opt 中的真实主程序。
+# 规范官方 desktop 图标；Exec 继续使用 DEB 原始提供的 usr/bin/xnview 入口。
 sed -i \
   -e 's|^Icon=.*|Icon=xnview|' \
-  -e 's|^Exec=.*|Exec=XnView|' \
   -e '/^Value=/d' \
   -e '/^Encoding=/d' \
   -e 's/^Terminal=0$/Terminal=false/' \

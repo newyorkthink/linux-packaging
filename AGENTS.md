@@ -101,23 +101,24 @@
 - 上游当前版本改变行为时，只能按当前官方行为调整打包流程，不得回退或固定旧工具恢复旧行为。
 - GitHub Actions 的 `uses:` 安全固定不属于应用或打包工具版本，继续按仓库供应链规则处理。
 
-## 永久规则：构建脚本只能单行调用公共下载、安装与初始化入口（不可豁免）
+## 永久规则：构建脚本只能单行调用公共下载、安装、解包与初始化入口（不可豁免）
 
-**任何应用的 `build_*.sh`、workflow 内联构建段或应用专用 helper 都不得自行实现软件包、应用、打包工具或其他联网文件的下载、Release / API 查询、校验清单解析、最新版选择、摘要校验参数拼装、包管理器安装流程或第一次空 AppDir 初始化检查。每一次下载、安装或空 AppDir 初始化操作只能保留一条对仓库 `common/` 公共入口的实际调用命令；需要修复通用行为时只修公共实现，不得在各应用脚本重复补丁。**
+**新增应用或当前修改触及对应代码时，`build_*.sh`、workflow 内联构建段或应用专用 helper 都不得自行实现软件包、应用、打包工具或其他联网文件的下载、Release / API 查询、校验清单解析、最新版选择、摘要校验参数拼装、包管理器安装流程、通用归档格式解包或第一次空 AppDir 初始化检查。每一次下载、安装、解包或空 AppDir 初始化操作只能保留一条对仓库 `common/` 公共入口的实际调用命令；需要修复通用行为时只修公共实现，不得在各应用脚本重复补丁。**
 
 强制范围：
 
 - 禁止在应用构建脚本中新增或保留用于联网获取文件的 `curl`、`wget`、`git clone`、`gh api`、GitHub / GitLab API 请求、自制重试函数和同类实现；普通 HTTPS、GitHub Release、官方校验清单、linuxdeploy 工具等必须分别调用仓库已有的对应公共脚本。
 - 禁止在应用构建脚本中解析 Release JSON、HTML、校验清单或远端目录后自行选择最新版、拼接下载地址、提取摘要再二次下载。已有公共入口支持该来源时，调用处只能是一条命令；尚无合适入口时，必须先在 `common/` 新增或扩展可复用实现，再由应用脚本单行调用。
 - 禁止在应用构建脚本中直接执行 `apt-get update`、`apt-get install` 或重复实现 root / sudo、非交互安装和通用包管理器错误处理。Debian / Ubuntu 构建统一调用 `common/apt/install_packages.sh`；应用专用依赖名称或本地 DEB 路径只能作为这一条调用命令的参数。
+- DEB 与 tar 系列归档统一调用 `common/archive/extract_archive.sh` 解包；应用脚本只能传入归档文件和目标目录，不得自行保留 `dpkg-deb -x` 或 `tar -x`。应用特有的文件定位、目录调整、desktop / icon 修改和 AppRun 内容仍留在应用脚本。
 - 所有 linuxdeploy 项目的第一次空 AppDir 初始化统一调用 `common/linuxdeploy/initialize_appdir.sh`。应用构建脚本只能保留一行调用，不得重复原始 linuxdeploy 命令或增加额外检查。
 - 新增项目或当前修改触及标准 `source`、`AppDir`、`dist`、`source/tools` 布局时，统一单行 `source common/linuxdeploy/prepare_build_workspace.sh` 设置公共路径并清理、重建工作目录；项目脚本只保留 DEB、desktop、icon 等应用专用路径，不得重复公共变量和目录初始化代码。
 - linuxdeploy 的 `ARCH`、`APPIMAGE_EXTRACT_AND_RUN`、工具目录 `PATH`、`LDAI_NO_APPSTREAM`、`LDAI_OUTPUT` 和 `LDAI_RUNTIME_FILE` 统一由 `common/linuxdeploy/configure_environment.sh` 设置。Qt 项目自行追加 `QT_SELECT`、`QMAKE` 和 Qt 工具路径；GTK 项目自行追加 `DEPLOY_GTK_VERSION`，公共实现不得写死技术栈。
 - 使用官方 appimagetool 与 Type 2 runtime 最终封装时，统一单行调用 `common/linuxdeploy/package_appimage.sh`；appimagetool 调用、执行权限和 SHA-256 输出只在公共实现维护。
-- “只保留一条调用”是指每一次独立下载、安装或空 AppDir 初始化操作在调用方只有一条实际命令。允许把当前应用的官方 URL、仓库名、资产名模板、完整资产名正则、输出路径、版本文件、明确依赖列表或 AppDir 路径作为参数传入；禁止在调用前后再复制公共脚本内部已经负责的解析、校验、重试、权限判断、安装或初始化检查逻辑。
-- 下载完成后的应用专用解包、文件布局、desktop / icon 调整和 AppRun 内容仍留在应用脚本；它们不得被塞进无关的万能下载器。公共代码负责获取、校验、版本选择、版本元数据和通用安装，应用代码负责使用已经取得的文件完成自身打包。
+- “只保留一条调用”是指每一次独立下载、安装、解包或空 AppDir 初始化操作在调用方只有一条实际命令。允许把当前应用的官方 URL、仓库名、资产名模板、完整资产名正则、输出路径、版本文件、明确依赖列表、归档文件或 AppDir 路径作为参数传入；禁止在调用前后再复制公共脚本内部已经负责的解析、校验、重试、权限判断、安装、解包或初始化检查逻辑。
+- 下载完成后的通用格式解包由 `common/archive/extract_archive.sh` 负责；应用专用文件定位、布局调整、desktop / icon 修改和 AppRun 内容仍留在应用脚本。公共代码负责获取、校验、版本选择、版本元数据、通用安装和格式解包，应用代码负责使用已经取得并解包的文件完成自身打包。
 - 公共入口出现通用故障时，只修改对应 `common/` 实现并核对所有调用者接口；不得只在当前应用增加特殊重试、备用下载器或第二套解析。只有上游来源本身存在无法通用化的客观差异时，才允许增加新的公共接口参数或新的可复用公共 helper。
-- 新增应用必须从一开始遵守本规则。修改既有应用且当前任务触及其下载或安装段时，必须同时把该段迁移到公共入口；本规则不授权在无关任务中批量重写所有稳定项目。
+- 新增应用必须从一开始遵守本规则。修改既有应用且当前任务触及其下载、安装或解包段时，必须同时把该段迁移到公共入口；本规则不授权在无关任务中批量重写所有稳定项目。
 - 公共脚本只能依赖本仓库和软件官方上游，禁止调用、引用或提及其他代码仓库作为运行时实现来源。
 
 ## 永久规则：应用构建脚本不得堆通用验证，长参数按行宽排版（不可豁免）
@@ -917,8 +918,8 @@ mkdir -p ./AppDir/shared/bin
 # /opt 应用：复制应用自身文件并保持内部布局
 cp -a /opt/<应用目录>/. ./AppDir/shared/bin/
 
-# 或 tar 应用：按上游真实目录结构解压到 shared/bin
-tar -xf <上游归档> -C ./AppDir/shared/bin
+# 或 tar 应用：通过公共入口按上游真实目录结构解压到 shared/bin
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" "<上游归档>" "./AppDir/shared/bin"
 
 # 对 shared/bin 中的真实主程序执行 quick-sharun
 quick-sharun ./AppDir/shared/bin/<主程序>

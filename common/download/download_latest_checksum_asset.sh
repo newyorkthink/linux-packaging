@@ -85,5 +85,6 @@ printf '官方稳定版来源：%s\n' "$ASSET_URL"
 mkdir -p "$(dirname -- "$VERSION_FILE")"
 VERSION_TEMP="$(mktemp "${VERSION_FILE}.part.XXXXXX")"
 printf '%s\n' "$VERSION" > "$VERSION_TEMP"
+chmod 0644 "$VERSION_TEMP"
 mv -f -- "$VERSION_TEMP" "$VERSION_FILE"
 VERSION_TEMP=''

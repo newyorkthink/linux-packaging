@@ -39,9 +39,9 @@ QT5_BIN_DIR=/usr/lib/qt5/bin
   "https://download.xnview.com/versions/XnConvert/XnConvert-CHECKSUMS.txt" \
   '^XnConvert-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$DEB" "$DIST_DIR/version.txt"
 
-# 把同一官方 DEB 安装到隔离构建环境供依赖扫描，并按上游布局解压到 AppDir。
+# 把同一官方 DEB 安装到隔离构建环境供依赖扫描，并由公共入口按上游布局解包到 AppDir。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB"
-dpkg-deb -x "$DEB" "$APPDIR"
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$DEB" "$APPDIR"
 
 # 官方 desktop 使用绝对图标路径；改成 AppImage 可发现的图标名称。
 sed -i 's|^Icon=.*|Icon=xnconvert|' "$DESKTOP_FILE"

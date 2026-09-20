@@ -6,7 +6,7 @@
 
 ## 上游版本与校验
 
-构建脚本每次读取 XnView 官方 `XnView_MP-CHECKSUMS.txt`，按版本号选择最新稳定版 `linux-x64.tgz`，并使用同一份官方清单中的 SHA-256 校验归档。版本不再锁死为 1.11.5；实际打包版本写入 `dist/version.txt`。
+构建脚本每次读取 XnView 官方 `XnView_MP-CHECKSUMS.txt`，按版本号选择最新稳定版 `linux-x64.deb`，并使用同一份官方清单中的 SHA-256 校验。版本不再锁死为 1.11.5；实际打包版本写入 `dist/version.txt`。
 
 统一清单键仍使用 `xnview`，Release 资产名仍为 `xnviewmp.AppImage`。
 
@@ -18,7 +18,7 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 
 1. 单行加载 `common/linuxdeploy/prepare_build_workspace.sh`，统一建立并清理标准 `source`、`AppDir`、`dist` 与 `source/tools` 工作区；APT 依赖和 linuxdeploy 工具也分别交给对应公共入口准备。
 2. 单行调用 `common/linuxdeploy/initialize_appdir.sh`；公共入口在空目录执行原始普通 linuxdeploy 命令，只创建基础目录。随后由 `common/download/download_latest_checksum_asset.sh` 从官方校验清单选择最新版、验证 SHA-256 并写入 `dist/version.txt`。
-3. 第一次初始化完成后才解压 XnView 官方 tar，把应用主体按上游布局放入 `AppDir/opt/XnView`；Qt5、QML、输入法和媒体依赖同时安装在 Ubuntu 22.04 隔离构建环境中供 linuxdeploy 扫描。
+3. 第一次初始化完成后下载同一份 XnView 官方 DEB，将它安装到 Ubuntu 22.04 隔离构建环境供依赖扫描，并由 `common/archive/extract_archive.sh` 按官方布局解包到 AppDir；上游 `opt/XnView` 与 `usr/bin/xnview` 原样保留，desktop 只把绝对图标路径改为 AppImage 可发现的图标名称。
 4. 写入已经按最终 AppImage 核对过的完整根 `AppDir/AppRun`。无论主程序位于 `/opt`，仍固定保留 `usr/bin`、`usr/lib`、`usr/share`，分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`；Qt plugin 只使用 `opt/XnView/lib` 与 `usr/plugins`，QML 只使用 `opt/XnView/qml`，翻译使用 `usr/translations`。
 5. 加载 `common/linuxdeploy/configure_environment.sh` 设置通用 linuxdeploy 环境，项目自身只追加 Qt5 的 `QT_SELECT`、`QMAKE` 和工具路径，再执行第二次 linuxdeploy；只追加允许的 `--desktop-file` 与 `--icon-file`。
 6. 第二次 linuxdeploy 把完整根 AppRun 保存为 `AppRun.wrapped`，并生成加载 Qt hook 的顶层 AppRun。
@@ -26,7 +26,7 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 8. XnView 打包永久禁止 `--executable`，不生成、不依赖 `AppDir/usr/bin/XnView` 副本。
 9. linuxdeploy 输出只作为中间结果，最终由 `common/linuxdeploy/package_appimage.sh` 使用官方 appimagetool 和官方 Type 2 runtime 封装 `dist/xnviewmp.AppImage`。
 
-应用脚本只保留“从上游归档选择唯一 XnView 主程序”和“按指定库名收集必需媒体运行库”这两类应用特有判断；通用命令、下载、初始化和最终封装检查由公共入口负责。正式脚本与工作流不提交 GUI smoke test、媒体样例生成或解包测试代码。
+应用脚本只保留按指定库名收集必需媒体运行库等 XnView 特有逻辑；通用命令、下载、安装、解包、初始化和最终封装由公共入口负责。linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime 每次构建都由公共脚本取得官方最新版本，不需要人工或 AI 更新工具版本。正式脚本与工作流不提交 GUI smoke test、媒体样例生成或解包测试代码。
 
 ## 运行
 
@@ -35,6 +35,12 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 ```
 
 ## 变更记录
+
+### 2026-09-21：改用官方 DEB 并修复版本元数据权限
+
+XnView MP 改为从官方校验清单选择当前最新 `linux-x64.deb`，同一 DEB 同时安装到 Jammy 构建环境并通过公共归档入口解包到 AppDir，不再下载 TGZ、搜索主程序后手工复制目录。官方 `usr/bin/xnview` 与 `opt/XnView` 原样保留，desktop 只规范图标字段；已经确认有效的根 AppRun、Qt5、媒体运行库和第二次 linuxdeploy 配置不变。
+
+公共版本下载入口在原子替换 `dist/version.txt` 前统一设置 `0644`，避免容器内 root 创建的 `0600` 文件导致宿主 runner 无法上传版本元数据。linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime 仍由公共工具入口在构建时动态取得官方最新版本，不记录固定版本。
 
 ### 2026-09-20：统一复用公共构建入口
 
