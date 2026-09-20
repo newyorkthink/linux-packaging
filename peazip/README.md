@@ -29,8 +29,8 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 
 ## 运行与兼容说明
 
-- AppRun 明确启动 `usr/lib/peazip/peazip`；当前 Qt6 plugin 会保留这个真实入口，不会从 desktop 动态拼接命令，也不会把主程序复制到与 `res` 分离的 `/bin`。
-- 语言环境固定为简体中文；由于 PeaZip 不按系统 locale 自动选择界面语言，AppRun 会在首次启动时通过官方 `-peaziplanguage zh-cn.txt` 参数初始化简体中文，并写入一次性标记；之后不再注入该参数，用户后续选择其他语言不会被覆盖。
+- 启动脚本恢复旧版稳定结构：linuxdeploy 生成顶层 `AppRun` 加载 Qt hook，再执行保留旧版环境变量和 desktop `Exec` 解析方式的 `AppRun.wrapped`。
+- AppRun 不强制覆盖语言环境、不写入首次启动标记，也不注入 `-peaziplanguage` 参数；语言由 PeaZip 自身配置管理。
 - 继续保留旧版已实际使用的 XCB、Adwaita Dark、缩放和字体 DPI 环境；同时打包 Qt6 `adwaita.so`，避免只设置主题名却缺少样式插件。
 - 最终产物必须包含同为 Qt6 的 Compose、Fcitx5、IBus 输入上下文和 XCB 平台插件；输入法守护进程仍由宿主提供。
 - AppImage 启动链不使用 `sudo`、`pkexec`、systemd、cron 或自动安装逻辑。
@@ -66,6 +66,13 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 - **验证边界：** 上述结果覆盖构建、启动链、主题插件加载和主要归档后端；Kali Linux 实际桌面中的按钮点击、设置持久化和全部格式仍以发布产物的最终实机操作为准。
 
 ## 变更记录
+
+### 2026-09-20：恢复旧版稳定 AppRun 启动方式
+
+- **故障现象：** 新 AppImage 启动后立即退出，旧版 linuxdeploy AppImage 可以正常打开。
+- **根因：** 新脚本没有沿用旧版已经正常工作的 `AppRun.wrapped`，而是擅自改成直接启动主程序，并额外强制中文环境和首次启动标记。
+- **修复：** 按旧版实际 `AppRun.wrapped` 恢复 `HERE` 路径、PATH、库路径、Qt plugin、XDG、GSettings、XCB、Adwaita Dark、缩放和 desktop `Exec` 启动方式；删除新增的语言强制和配置标记逻辑。
+- **验证状态：** 按仓库永久规则未执行任何测试、试构建或产物验证；修改后直接提交并推送，运行结果以正式构建产物的真实使用反馈为准。
 
 ### 2026-09-20：删除构建脚本中的全部验证代码
 

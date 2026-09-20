@@ -98,26 +98,15 @@ desktop-file-validate "$DESKTOP_FILE"
 
 cat > "$APPDIR/AppRun" <<'EOF_APPRUN'
 #!/usr/bin/env bash
-set -Eeuo pipefail
 
-ROOT="$(dirname "$(readlink -f "$0")")"
-export PATH="$ROOT/usr/bin${PATH:+:$PATH}"
-export LD_LIBRARY_PATH="$ROOT/usr/lib/peazip:$ROOT/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export QT_PLUGIN_PATH="$ROOT/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
-export XDG_DATA_DIRS="$ROOT/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+export PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:${PATH:+:$PATH}
+export LD_LIBRARY_PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+export QT_PLUGIN_PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}
+export XDG_DATA_DIRS="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}
+export GSETTINGS_SCHEMA_DIR="${HERE}"/usr/share/glib-2.0/schemas/:"${GSETTINGS_SCHEMA_DIR}"
 export NO_AT_BRIDGE=1
-
-export LANG=zh_CN.UTF-8
-export LANGUAGE=zh_CN:zh
-export LC_MESSAGES=zh_CN.UTF-8
-
-CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/peazip"
-LANGUAGE_MARKER="$CONFIG_DIR/.appimage-zh-cn-initialized"
-if [[ ! -e "$LANGUAGE_MARKER" ]]; then
-  mkdir -p "$CONFIG_DIR" 2>/dev/null || true
-  touch "$LANGUAGE_MARKER" 2>/dev/null || true
-  set -- -peaziplanguage zh-cn.txt "$@"
-fi
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_SCALE_FACTOR=1
@@ -126,7 +115,8 @@ export QT_QPA_PLATFORMTHEME=Adwaita-Dark
 export QT_QPA_PLATFORM=xcb
 export QT_FONT_DPI=96
 
-exec "$ROOT/usr/lib/peazip/peazip" "$@"
+EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2- | sed -e 's|%.||g')
+exec ${EXEC} "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/AppRun"
 
