@@ -9,11 +9,13 @@ APPDIR="$SCRIPT_DIR/AppDir"
 DIST_DIR="$SCRIPT_DIR/dist"
 OUTFILE="$DIST_DIR/peazip.AppImage"
 
+# 输出错误信息并立即终止构建。
 die() {
   echo "错误：$*" >&2
   exit 1
 }
 
+# 从官方 continuous Release 下载指定构建工具并校验 SHA-256。
 download_tool() {
   local repo="$1" asset="$2" output="$3" metadata url digest
 
