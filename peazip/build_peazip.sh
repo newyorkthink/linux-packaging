@@ -5,9 +5,13 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 WORK_DIR="$SCRIPT_DIR/.work"
+TOOLS_DIR="$WORK_DIR/tools"
 APPDIR="$SCRIPT_DIR/AppDir"
 DIST_DIR="$SCRIPT_DIR/dist"
 OUTFILE="$DIST_DIR/peazip.AppImage"
+INTERMEDIATE_APPIMAGE="$WORK_DIR/peazip-intermediate.AppImage"
+APPIMAGETOOL="$TOOLS_DIR/appimagetool-x86_64.AppImage"
+RUNTIME_FILE="$TOOLS_DIR/runtime-x86_64"
 
 # 输出错误信息并立即终止构建。
 die() {
@@ -15,74 +19,90 @@ die() {
   exit 1
 }
 
-# 从官方 continuous Release 下载当前构建工具并校验 SHA-256。
-download_tool() {
-  local repo="$1" asset="$2" output="$3" metadata url digest
-
-  metadata="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 \
-    "${api_headers[@]}" "https://api.github.com/repos/$repo/releases/tags/continuous")"
-  url="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .browser_download_url' <<< "$metadata")"
-  digest="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .digest' <<< "$metadata")"
-  [[ "$digest" =~ ^sha256:[[:xdigit:]]{64}$ ]] || die "官方工具缺少有效 SHA-256：$repo/$asset"
-
-  curl -fL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 300 \
-    "$url" -o "$output"
-  printf '%s  %s\n' "${digest#sha256:}" "$output" | sha256sum -c -
-}
-
 [[ "$(uname -m)" == x86_64 ]] || die "当前仅支持 x86_64。"
 
-rm -rf "$WORK_DIR" "$APPDIR" "$DIST_DIR"
-mkdir -p "$WORK_DIR/tools" "$APPDIR" "$DIST_DIR"
+###### 准备构建环境 ######
 
-# 安装下载、解包、linuxdeploy 和 Qt6 依赖部署所需的软件包。
+# 只清理并重建 PeaZip 自己的构建目录；AppDir 由第一次 linuxdeploy 创建。
+rm -rf "$WORK_DIR" "$APPDIR" "$DIST_DIR"
+mkdir -p "$TOOLS_DIR" "$DIST_DIR"
+
+# 准备 Ubuntu / linuxdeploy 打包所需的最小基础环境。
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends \
-  ca-certificates curl jq file binutils patchelf desktop-file-utils xz-utils zstd \
+sudo apt-get install -y aptitude
+sudo aptitude install -y \
+  build-essential git wget binutils patchelf file appstream-util \
+  desktop-file-utils zsync ca-certificates
+
+# 单独安装 PeaZip 的下载、DEB 解包和 Qt6 依赖部署环境。
+sudo aptitude install -y \
+  curl jq xz-utils zstd \
   qmake6 qt6-base-dev qt6-base-dev-tools qt6-qpa-plugins qt6-gtk-platformtheme \
   qt6-translations-l10n adwaita-qt6 fcitx5-frontend-qt6 \
   libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
   libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
 
-# 准备 GitHub API 请求头；存在令牌时同时用于提高 API 访问额度。
-api_headers=(
-  -H 'Accept: application/vnd.github+json'
-  -H 'X-GitHub-Api-Version: 2022-11-28'
-)
-if [[ -n "${GH_TOKEN:-}" ]]; then
-  api_headers+=( -H "Authorization: Bearer $GH_TOKEN" )
+# 使用公共脚本动态下载并校验 linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime。
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" qt
+
+# 配置两次 linuxdeploy 共用的 Qt6 工具、官方 runtime 和中间输出位置。
+command -v qmake6 >/dev/null 2>&1 || die "缺少 Qt6 qmake。"
+QMAKE6="$(command -v qmake6)"
+export ARCH=x86_64
+export APPIMAGE_EXTRACT_AND_RUN=1
+export PATH="$TOOLS_DIR:$PATH"
+export QMAKE="$QMAKE6"
+export NO_STRIP=1
+export LDAI_NO_APPSTREAM=1
+export LDAI_OUTPUT="$INTERMEDIATE_APPIMAGE"
+export LDAI_RUNTIME_FILE="$RUNTIME_FILE"
+
+###### 初始化 AppDir ######
+
+# 第一次只让 linuxdeploy 创建空 AppDir 的 usr/bin、usr/lib、usr/share 等基础目录。
+# 当前 linuxdeploy 会因空 AppDir 尚无 desktop 而在输出阶段返回 1；只接受“目录已创建且没有文件”的结果。
+set +e
+export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
+FIRST_LINUXDEPLOY_STATUS=$?
+set -e
+
+if [[ "$FIRST_LINUXDEPLOY_STATUS" -ne 0 && "$FIRST_LINUXDEPLOY_STATUS" -ne 1 ]]; then
+  die "第一次空 AppDir 初始化异常退出：$FIRST_LINUXDEPLOY_STATUS"
 fi
+for required_dir in "$APPDIR/usr/bin" "$APPDIR/usr/lib" "$APPDIR/usr/share"; do
+  [[ -d "$required_dir" ]] || die "第一次 linuxdeploy 未创建基础目录：$required_dir"
+done
+[[ -z "$(find "$APPDIR" -type f -print -quit)" ]] || die "第一次 linuxdeploy 初始化后 AppDir 中出现了非预期文件"
 
-###### 下载 PeaZip ######
+###### 下载并安装 PeaZip ######
 
-# 读取 PeaZip 官方最新稳定版 Release 元数据。
-RELEASE_JSON="$WORK_DIR/peazip-release.json"
-curl -fL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 \
-  "${api_headers[@]}" https://api.github.com/repos/peazip/PeaZip/releases/latest \
-  -o "$RELEASE_JSON"
-
-VERSION="$(jq -er '.tag_name | select(test("^[0-9]+(\\.[0-9]+){2}$"))' "$RELEASE_JSON")"
+# 从官方正式 Release 动态解析当前最新稳定版 Qt6 amd64 DEB。
+mapfile -t PEAZIP_RELEASE < <(
+  "$SCRIPT_DIR/../common/github/resolve_latest_stable_release_asset.sh" \
+    peazip/PeaZip 'peazip_{version}.LINUX.Qt6-1_amd64.deb'
+)
+[[ ${#PEAZIP_RELEASE[@]} -eq 3 ]] || die "无法解析 PeaZip 最新稳定版资产。"
+VERSION="${PEAZIP_RELEASE[0]}"
+ASSET_URL="${PEAZIP_RELEASE[1]}"
+ASSET_SHA256="${PEAZIP_RELEASE[2]}"
 ASSET_NAME="peazip_${VERSION}.LINUX.Qt6-1_amd64.deb"
-ASSET_URL="$(jq -er --arg name "$ASSET_NAME" '.assets[] | select(.name == $name) | .browser_download_url' "$RELEASE_JSON")"
-ASSET_DIGEST="$(jq -er --arg name "$ASSET_NAME" '.assets[] | select(.name == $name) | .digest' "$RELEASE_JSON")"
-[[ "$ASSET_DIGEST" =~ ^sha256:[[:xdigit:]]{64}$ ]] || die "PeaZip DEB 缺少有效 SHA-256。"
-
 DEB_FILE="$WORK_DIR/$ASSET_NAME"
-# 下载官方 Qt6 amd64 DEB，并使用 Release 提供的摘要确认下载内容。
-curl -fL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 600 \
-  "$ASSET_URL" -o "$DEB_FILE"
-printf '%s  %s\n' "${ASSET_DIGEST#sha256:}" "$DEB_FILE" | sha256sum -c -
+
+# 下载官方 Qt6 amd64 DEB，并使用 Release 提供的 SHA-256 校验内容。
+"$SCRIPT_DIR/../common/download/download_file.sh" \
+  "$ASSET_URL" "$DEB_FILE" "$ASSET_SHA256"
 
 [[ "$(dpkg-deb -f "$DEB_FILE" Package)" == peazip ]] || die "官方 DEB 包名异常。"
 [[ "$(dpkg-deb -f "$DEB_FILE" Version)" == "$VERSION" ]] || die "官方 DEB 版本异常。"
 [[ "$(dpkg-deb -f "$DEB_FILE" Architecture)" == amd64 ]] || die "官方 DEB 架构异常。"
 
-# 把官方 DEB 内容原样解包到 AppDir，保留 PeaZip 的程序和资源目录布局。
+# 把同一个官方 DEB 安装到隔离构建环境，让 linuxdeploy 能解析应用及其依赖。
+sudo apt-get install -y --no-install-recommends "$DEB_FILE"
+
+# 把已经安装到构建环境的同一个 DEB 原样解包到 AppDir，保留上游目录布局。
 dpkg-deb -x "$DEB_FILE" "$APPDIR"
 
 PEAZIP_ROOT="$APPDIR/usr/lib/peazip"
-DESKTOP_FILE="$APPDIR/usr/share/applications/peazip.desktop"
-ICON_FILE="$APPDIR/usr/share/icons/hicolor/256x256/apps/peazip.png"
 
 # 官方 DEB 使用绝对链接，AppImage 内改为等价相对链接。
 ln -sfn ../lib/peazip/peazip "$APPDIR/usr/bin/peazip"
@@ -99,18 +119,20 @@ cp -a "$QT6_PLUGIN_ROOT/platformthemes/libqgtk3.so" "$APPDIR/usr/plugins/platfor
 cp -a "$QT6_LIB_ROOT"/libadwaitaqt6.so.1* "$APPDIR/usr/lib/"
 cp -a "$QT6_LIB_ROOT"/libadwaitaqt6priv.so.1* "$APPDIR/usr/lib/"
 
-# 原样保留旧版稳定 AppImage 的自定义入口，先写 AppRun，再交给 linuxdeploy 包装。
+###### 准备 AppRun ######
+
+# 保留已经确认有效的显示、主题和 desktop Exec 启动方式，只固化各变量用途正确的最终路径。
 cat > "$APPDIR/AppRun" <<'EOF_APPRUN'
 #!/usr/bin/env bash
 
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-export PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$PATH"
-export LD_LIBRARY_PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$LD_LIBRARY_PATH"
-export QT_PLUGIN_PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$QT_PLUGIN_PATH"
-export QT_TRANSLATIONS_PATH="$HERE"/usr/translations:"$QT_TRANSLATIONS_PATH"
-export XDG_DATA_DIRS="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$XDG_DATA_DIRS"
-export GSETTINGS_SCHEMA_DIR="${HERE}"/usr/share/glib-2.0/schemas/:"${GSETTINGS_SCHEMA_DIR}"
+export PATH="$HERE/usr/bin${PATH:+:$PATH}"
+export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+export QT_PLUGIN_PATH="$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
+export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_TRANSLATIONS_PATH}"
+export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export NO_AT_BRIDGE=1
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
@@ -123,61 +145,29 @@ export QT_FONT_DPI=96
 EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2- | sed -e 's|%.||g')
 exec ${EXEC} "$@"
 EOF_APPRUN
-# 赋予自定义 AppRun 执行权限。
 chmod +x "$APPDIR/AppRun"
 
 ###### 核心打包 ######
-
-# 动态下载当前官方 linuxdeploy 和 Qt 输入插件。
-download_tool linuxdeploy/linuxdeploy linuxdeploy-x86_64.AppImage \
-  "$WORK_DIR/tools/linuxdeploy-x86_64.AppImage"
-download_tool linuxdeploy/linuxdeploy-plugin-qt linuxdeploy-plugin-qt-x86_64.AppImage \
-  "$WORK_DIR/tools/linuxdeploy-plugin-qt-x86_64.AppImage"
-
-# 下载官方 appimagetool 和 Type 2 runtime，用于最终 AppImage 封装。
-download_tool AppImage/appimagetool appimagetool-x86_64.AppImage \
-  "$WORK_DIR/tools/appimagetool-x86_64.AppImage"
-download_tool AppImage/type2-runtime runtime-x86_64 \
-  "$WORK_DIR/tools/runtime-x86_64"
-# 赋予三个 AppImage 构建工具执行权限。
-chmod +x "$WORK_DIR/tools"/*.AppImage
-
-# 为已验证命令保留 linuxdeploy 程序名，实际仍使用刚下载的官方当前版本。
-ln -s linuxdeploy-x86_64.AppImage "$WORK_DIR/tools/linuxdeploy"
 
 # linuxdeploy 会扫描 AppDir 中全部 ELF。官方包内的 32 位旧后端依赖已淘汰的
 # libncurses.so.5，因此先移出扫描范围，Qt 依赖部署完成后再原样放回。
 BACKENDS_DIR="$WORK_DIR/peazip-backends"
 mv "$PEAZIP_ROOT/res/bin" "$BACKENDS_DIR"
 
-# 配置 linuxdeploy、Qt6 qmake 和依赖部署所需的构建环境。
-export ARCH=x86_64
-export APPIMAGE_EXTRACT_AND_RUN=1
-export PATH="$WORK_DIR/tools:$PATH"
-export QMAKE=/usr/bin/qmake6
-export NO_STRIP=1
-export LDAI_NO_APPSTREAM=1
+# 第二次 linuxdeploy 扫描 PeaZip 主程序时，优先找到上游随包的 Qt6Pas。
 export LD_LIBRARY_PATH="$PEAZIP_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-# linuxdeploy 输出使用已下载的当前 appimagetool 和 runtime，并写入临时产物。
-export LDAI_OUTPUT="$WORK_DIR/peazip-intermediate.AppImage"
-export LDAI_RUNTIME_FILE="$WORK_DIR/tools/runtime-x86_64"
-
-# 原样执行已经验证有效的 Qt 打包命令，由 linuxdeploy 部署 Qt6 并处理中间封装。
+# 原样执行已经验证有效的 Qt6 打包命令，由 linuxdeploy 部署 Qt6 并完成 AppRun 包装。
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 
 # Qt6 依赖部署完成后，把官方归档后端原样恢复到 PeaZip 资源目录。
 mv "$BACKENDS_DIR" "$PEAZIP_ROOT/res/bin"
 
-# 第二次 linuxdeploy 完成后，统一按最终 AppDir 整理 AppRun 中的路径型 export。
-"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
-
-# 使用官方 appimagetool 和明确的 Type 2 runtime 封装最终 AppImage。
-"$WORK_DIR/tools/appimagetool-x86_64.AppImage" \
-  -n "$APPDIR" "$OUTFILE" \
-  --runtime-file "$WORK_DIR/tools/runtime-x86_64"
-
 ###### 整理产物 ######
+
+# 忽略 linuxdeploy 中间 AppImage，使用官方 appimagetool 和 Type 2 runtime
+# 对同一个 AppDir 重新封装正式发布资产。
+"$APPIMAGETOOL" -n "$APPDIR" "$OUTFILE" --runtime-file "$RUNTIME_FILE"
 
 # 赋予最终 AppImage 执行权限。
 chmod +x "$OUTFILE"

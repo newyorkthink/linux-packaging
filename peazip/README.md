@@ -20,25 +20,26 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 
 当前固定采用 Ubuntu 24.04 + linuxdeploy + 官方 appimagetool：
 
-1. 通过 GitHub `releases/latest` API 动态读取 PeaZip 最新稳定版，不锁定具体应用版本。
-2. 只接受与 Release tag 对应的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
-3. 核对 DEB 的包名、版本和架构。
-4. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局，包括上游原始 `zh-cn.txt`；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。
-5. linuxdeploy、Qt 插件、appimagetool 和 runtime 全部从官方 continuous 动态取得当前版本。先写入旧包原始自定义 `AppRun`，不加入 GTK 插件，也不手工编写 `AppRun.wrapped`。
-6. 官方归档后端在依赖部署前临时移出 AppDir，随后逐字执行已验证的 `--plugin qt --output appimage` 命令，由 linuxdeploy 部署 Qt6、处理 AppRun 并完成中间封装。
-7. Qt 命令的 `--output appimage` 只生成 `.work/peazip-intermediate.AppImage`，不发布。归档后端原样放回后，调用 `common/linuxdeploy/normalize_apprun_paths.sh`，只按最终 AppDir 整理 `AppRun.wrapped`（不存在时为 `AppRun`）中已经声明的路径型 export。
-8. 最后仍由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`；不会把缺少后端的中间产物交付给用户。
+1. linuxdeploy、Qt 插件、appimagetool 和 runtime 先通过仓库公共脚本从官方动态入口取得当前版本并校验，不固定工具版本。
+2. 应用文件进入 AppDir 前，先在空目录执行普通 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，只创建 `usr/bin`、`usr/lib`、`usr/share` 等基础目录；只接受已知的 0 / 1 退出状态，并确认没有非预期文件。
+3. 通过仓库公共 GitHub Release 解析脚本动态取得 PeaZip 最新正式稳定版，不锁定具体应用版本；只接受对应版本的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
+4. 核对 DEB 的包名、版本和架构后，把同一个 DEB 安装到隔离构建环境供依赖解析，并把同一个 DEB 解压到 AppDir，禁止安装与解压使用不同版本。
+5. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局，包括上游原始 `zh-cn.txt`；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。
+6. 写入完整根 `AppDir/AppRun`，直接固化最终用途正确的 `usr/bin`、`usr/lib`、`usr/share`、Qt plugins 和 translations 路径；保留已经确认的 desktop `Exec`、XCB、Adwaita Dark、缩放和字体 DPI 设置，不手工编写 `AppRun.wrapped`。
+7. 官方归档后端在依赖部署前临时移出 AppDir，随后逐字执行已验证的 `--plugin qt --output appimage` 命令，由 linuxdeploy 部署 Qt6、处理 AppRun 并完成中间封装；完成后把归档后端原样放回。
+8. Qt 命令只生成 `.work/peazip-intermediate.AppImage`，不发布；不再对已经确定的 AppRun 调用自动路径整理脚本。
+9. 最后由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 对同一个 AppDir 封装 `dist/peazip.AppImage`；不会把缺少后端的中间产物交付给用户。
 
 正式 CI 在 `peazip` 目录中执行，以下已验证命令逐字保留于脚本中；本次按维护者要求保留中间输出，最终发布仍以独立 appimagetool 封装为准：
 
 ```bash
-# 使用已经准备好 AppRun、GTK hook 和资源的 AppDir 完成 Qt 部署与中间封装
+# 使用已经准备好 AppRun、Qt6 资源和应用文件的 AppDir 完成 Qt 部署与中间封装
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 ```
 
 ## 运行与兼容说明
 
-- 自定义 AppRun 保留旧包的 desktop `Exec` 解析方式以及已经确认的显示和主题设置；linuxdeploy 完成后，只有路径型环境变量会由公共脚本按最终 AppDir 的真实目录和用途整理。
+- 自定义 AppRun 保留旧包的 desktop `Exec` 解析方式以及已经确认的显示和主题设置；路径型环境变量已经按最终 AppDir 的真实目录和用途直接固化，不再由公共脚本自动整理。
 - 删除后来加入的 `LANG=C.UTF-8` 和 `LC_ALL=C.UTF-8` 强制设置，恢复旧入口继承宿主 locale 的行为。保持官方原始语言文件；不注入 `-peaziplanguage` 参数，语言由 PeaZip 自身设置管理。
 - 继续保留旧版已实际使用的 XCB、Adwaita Dark、缩放和字体 DPI 环境；同时打包 Qt6 `adwaita.so`，避免只设置主题名却缺少样式插件。
 - 最终产物必须包含同为 Qt6 的 Compose、Fcitx5、IBus 输入上下文和 XCB 平台插件；输入法守护进程仍由宿主提供。
@@ -75,6 +76,15 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - **验证边界：** 上述结果覆盖构建、启动链、主题插件加载和主要归档后端；Kali Linux 实际桌面中的按钮点击、设置持久化和全部格式仍以发布产物的最终实机操作为准。
 
 ## 变更记录
+
+### 2026-09-20：按 linuxdeploy 强制流程完成 PeaZip 重排
+
+- **问题：** 现有脚本先把官方 DEB 解压到 AppDir，再执行唯一一次 Qt linuxdeploy；没有先用普通 linuxdeploy 初始化空 AppDir，也没有把网上下载的同一个 DEB 安装到隔离构建环境。
+- **修改文件：** `peazip/build_peazip.sh`、`peazip/README.md`。
+- **处理：** 改用仓库公共脚本准备并校验全部打包工具；第一次普通 linuxdeploy 只创建空 AppDir 基础目录；随后动态取得官方稳定版 DEB，校验后把同一个文件安装到构建环境并解压到 AppDir；第二次继续逐字执行已确认的 Qt6 linuxdeploy 命令，最后仍由官方 appimagetool 与 Type 2 runtime 封装正式资产。
+- **稳定基线：** 保留 PeaZip Qt6 技术栈、上游目录布局、32 位旧后端临时移出与原样恢复、desktop `Exec`、XCB、Adwaita Dark、缩放、字体 DPI、动态版本和版本清单流程；没有改 workflow。
+- **AppRun：** 根据已经确认的最终 AppDir 结构直接固化用途正确的路径，并删除本项目对自动路径整理脚本的调用；历史变更记录保留，不改写此前证据。
+- **检查状态：** 已完成 Shell 语法、命令顺序、路径、引号、公共脚本接口和完整 diff 静态核对；未执行完整构建或实机运行，提交后不监控 Actions。
 
 ### 2026-09-20：接入 linuxdeploy 公共 AppRun 路径整理
 
