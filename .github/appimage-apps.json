@@ -449,6 +449,18 @@
       "run_from_root": "false"
     },
     {
+      "key": "wine",
+      "kind": "special",
+      "name": "Wine Staging",
+      "script": "wine/build_wine.sh",
+      "dir": "wine",
+      "artifact_dir": "wine/dist",
+      "release_name": "wine.AppImage",
+      "software_key": "wine",
+      "timeout_minutes": 180,
+      "run_from_root": "false"
+    },
+    {
       "key": "winpodx",
       "kind": "special",
       "name": "WinPodX",

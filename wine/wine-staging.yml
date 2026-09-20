@@ -1,0 +1,282 @@
+version: 1
+
+script:
+  - mkdir -p "$TARGET_APPDIR/usr/bin" "$TARGET_APPDIR/usr/share/applications" "$TARGET_APPDIR/usr/share/icons/hicolor/scalable/apps"
+  - cp wrapper "$TARGET_APPDIR/wrapper"
+  - chmod +x "$TARGET_APPDIR/wrapper"
+  - cp source/wine.svg "$TARGET_APPDIR/wine.svg"
+  - cp source/wine.svg "$TARGET_APPDIR/usr/share/icons/hicolor/scalable/apps/wine.svg"
+  - cp source/org.winehq.wine.desktop "$TARGET_APPDIR/usr/share/applications/org.winehq.wine.desktop"
+
+AppDir:
+  path: ./AppDir
+
+  app_info:
+    id: org.winehq.wine
+    name: Wine Staging
+    icon: wine
+    version: !ENV '${WINE_VERSION}'
+    exec: bin/bash
+    exec_args: '$APPDIR/wrapper $@'
+
+  apt:
+    arch: [amd64, i386]
+    allow_unauthenticated: true
+    sources:
+      - sourceline: 'deb [trusted=yes] https://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse'
+      - sourceline: 'deb [trusted=yes] https://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse'
+      - sourceline: 'deb [trusted=yes] https://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse'
+
+    include:
+      # AppRun、wrapper 与 winetricks 的基础用户态。
+      - bash
+      - bzip2
+      - coreutils
+      - dash
+      - debianutils
+      - file
+      - findutils
+      - gawk
+      - grep
+      - gzip
+      - perl
+      - procps
+      - sed
+      - tar
+      - util-linux
+      - wget
+      - winbind
+      - xz-utils
+      - cabextract
+      - p7zip-full
+      - unzip
+      - xdg-utils
+      - zenity
+      - xterm
+      - cups-client
+      - fontconfig
+      - fonts-dejavu-core
+      - fonts-liberation
+      - fonts-wine
+
+      # WineHQ staging-amd64/i386 的直接依赖与建议运行库，两个 ABI 都打入。
+      - libc6
+      - libc6:i386
+      - libgcc-s1
+      - libgcc-s1:i386
+      - libstdc++6
+      - libstdc++6:i386
+      - libasound2
+      - libasound2:i386
+      - libasound2-plugins
+      - libasound2-plugins:i386
+      - libavcodec58
+      - libavcodec58:i386
+      - libavformat58
+      - libavformat58:i386
+      - libavutil56
+      - libavutil56:i386
+      - libcairo2
+      - libcairo2:i386
+      - libcapi20-3
+      - libcapi20-3:i386
+      - libcups2
+      - libcups2:i386
+      - libdbus-1-3
+      - libdbus-1-3:i386
+      - libfontconfig1
+      - libfontconfig1:i386
+      - libfreetype6
+      - libfreetype6:i386
+      - libglib2.0-0
+      - libglib2.0-0:i386
+      - libglu1-mesa
+      - libglu1-mesa:i386
+      - libgnutls30
+      - libgnutls30:i386
+      - libgphoto2-6
+      - libgphoto2-6:i386
+      - libgphoto2-port12
+      - libgphoto2-port12:i386
+      - libgsm1
+      - libgsm1:i386
+      - libgssapi-krb5-2
+      - libgssapi-krb5-2:i386
+      - libgstreamer-plugins-base1.0-0
+      - libgstreamer-plugins-base1.0-0:i386
+      - libgstreamer1.0-0
+      - libgstreamer1.0-0:i386
+      - libgtk-3-0
+      - libgtk-3-0:i386
+      - libharfbuzz0b
+      - libharfbuzz0b:i386
+      - libjpeg8
+      - libjpeg8:i386
+      - libjack-jackd2-0
+      - libjack-jackd2-0:i386
+      - libkrb5-3
+      - libkrb5-3:i386
+      - libldap-2.5-0
+      - libldap-2.5-0:i386
+      - libmspack0
+      - libmpg123-0
+      - libmpg123-0:i386
+      - libncurses6
+      - libncurses6:i386
+      - libnss3
+      - libnss3:i386
+      - libodbc2
+      - libodbc2:i386
+      - libopenal1
+      - libopenal1:i386
+      - libpcap0.8
+      - libpcap0.8:i386
+      - libpcsclite1
+      - libpcsclite1:i386
+      - libpipewire-0.3-0
+      - libpipewire-0.3-0:i386
+      - libpng16-16
+      - libpng16-16:i386
+      - libpulse0
+      - libpulse0:i386
+      - libsane1
+      - libsane1:i386
+      - libsdl2-2.0-0
+      - libsdl2-2.0-0:i386
+      - libsndio7.0
+      - libsndio7.0:i386
+      - libspa-0.2-modules
+      - libspa-0.2-modules:i386
+      - libssl3
+      - libssl3:i386
+      - libtiff5
+      - libtiff5:i386
+      - libudev1
+      - libudev1:i386
+      - libusb-1.0-0
+      - libusb-1.0-0:i386
+      - libv4l-0
+      - libv4l-0:i386
+      - libva-drm2
+      - libva-drm2:i386
+      - libva-x11-2
+      - libva-x11-2:i386
+      - libva2
+      - libva2:i386
+      - libwayland-client0
+      - libwayland-client0:i386
+      - libwayland-egl1
+      - libwayland-egl1:i386
+      - libx11-6
+      - libx11-6:i386
+      - libx11-xcb1
+      - libx11-xcb1:i386
+      - libxcomposite1
+      - libxcomposite1:i386
+      - libxcursor1
+      - libxcursor1:i386
+      - libxdamage1
+      - libxdamage1:i386
+      - libxext6
+      - libxext6:i386
+      - libxfixes3
+      - libxfixes3:i386
+      - libxi6
+      - libxi6:i386
+      - libxinerama1
+      - libxinerama1:i386
+      - libxkbcommon0
+      - libxkbcommon0:i386
+      - libxkbregistry0
+      - libxkbregistry0:i386
+      - libxml2
+      - libxml2:i386
+      - libxcb1
+      - libxcb1:i386
+      - libxcb-dri2-0
+      - libxcb-dri2-0:i386
+      - libxcb-dri3-0
+      - libxcb-dri3-0:i386
+      - libxcb-glx0
+      - libxcb-glx0:i386
+      - libxcb-present0
+      - libxcb-present0:i386
+      - libxcb-render0
+      - libxcb-render0:i386
+      - libxcb-shape0
+      - libxcb-shape0:i386
+      - libxcb-shm0
+      - libxcb-shm0:i386
+      - libxcb-xfixes0
+      - libxcb-xfixes0:i386
+      - libxrandr2
+      - libxrandr2:i386
+      - libxrender1
+      - libxrender1:i386
+      - libxshmfence1
+      - libxshmfence1:i386
+      - libxss1
+      - libxss1:i386
+      - libxslt1.1
+      - libxslt1.1:i386
+      - libxxf86vm1
+      - libxxf86vm1:i386
+      - ocl-icd-libopencl1
+      - ocl-icd-libopencl1:i386
+
+      # OpenGL/Vulkan 只放通用装载器；不放 Mesa/NVIDIA/AMD 驱动和 ICD。
+      - libegl1
+      - libegl1:i386
+      - libgl1
+      - libgl1:i386
+      - libgles2
+      - libgles2:i386
+      - libglvnd0
+      - libglvnd0:i386
+      - libglx0
+      - libglx0:i386
+      - libvulkan1
+      - libvulkan1:i386
+
+      # 常见音视频解码链，64 位与 32 位保持一致。
+      - gstreamer1.0-alsa
+      - gstreamer1.0-alsa:i386
+      - gstreamer1.0-libav
+      - gstreamer1.0-libav:i386
+      - gstreamer1.0-plugins-base
+      - gstreamer1.0-plugins-base:i386
+      - gstreamer1.0-plugins-good
+      - gstreamer1.0-plugins-good:i386
+      - gstreamer1.0-plugins-bad
+      - gstreamer1.0-plugins-bad:i386
+      - gstreamer1.0-plugins-ugly
+      - gstreamer1.0-plugins-ugly:i386
+      - gstreamer1.0-pulseaudio
+      - gstreamer1.0-pulseaudio:i386
+      - gstreamer1.0-x
+      - gstreamer1.0-x:i386
+
+  files:
+    exclude:
+      - usr/include/**
+      - usr/share/doc/**
+      - usr/share/lintian/**
+      - usr/share/man/**
+      - usr/share/bash-completion/**
+
+  runtime:
+    arch: [x86_64, i386]
+    version: v2.0.0
+    env:
+      PATH: '$APPDIR/opt/wine-staging/bin:$APPDIR/usr/bin:$APPDIR/bin:$PATH'
+    path_mappings:
+      - /opt/wine-staging:$APPDIR/opt/wine-staging
+      - /usr/lib/x86_64-linux-gnu/gstreamer-1.0:$APPDIR/usr/lib/x86_64-linux-gnu/gstreamer-1.0
+      - /usr/lib/i386-linux-gnu/gstreamer-1.0:$APPDIR/usr/lib/i386-linux-gnu/gstreamer-1.0
+      - /usr/lib/x86_64-linux-gnu/gstreamer1.0:$APPDIR/usr/lib/x86_64-linux-gnu/gstreamer1.0
+      - /usr/lib/i386-linux-gnu/gstreamer1.0:$APPDIR/usr/lib/i386-linux-gnu/gstreamer1.0
+      - /usr/share/alsa:$APPDIR/usr/share/alsa
+      - /usr/share/gstreamer-1.0:$APPDIR/usr/share/gstreamer-1.0
+
+AppImage:
+  arch: x86_64

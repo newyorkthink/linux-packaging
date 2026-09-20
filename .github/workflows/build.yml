@@ -99,6 +99,7 @@ on:
           - vscode/build_vscode.sh
           - webcamoid/build_webcamoid.sh
           - wechat/build_wechat.sh
+          - wine/build_wine.sh
           - winpodx/build_winpodx_release.sh
           - workbuddy/build_workbuddy.sh
           - xmind/build_xmind.sh
@@ -1119,6 +1120,55 @@ jobs:
     permissions: *arch_permissions
     env: {BUILD_SCRIPT: 'virt-manager/build_virt-manager.sh', ARTIFACT_DIR: 'virt-manager/dist', RELEASE_NAME: 'virt-manager.AppImage', RUN_FROM_ROOT: 'false'}
     steps: *arch_steps
+
+
+  build_wine:
+    name: Build Wine Staging
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).wine == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Wine Staging AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x wine/build_wine.sh wine/wrapper
+          ./wine/build_wine.sh
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-wine
+          path: wine/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -s wine/dist/wine.AppImage
+          gh release upload latest wine/dist/wine.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'wine'
+          version_file: 'wine/dist/version.txt'
+          asset_name: 'wine.AppImage'
+          artifact_dir: 'wine/dist'
+          github_token: ${{ github.token }}
 
 
   build_winpodx:

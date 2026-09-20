@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# AppImageBuilder 的 AppRun 会提供 APPDIR 和 ARGV0。这里不设置 WINEPREFIX，
+# 因而 Wine 默认继续使用 ~/.wine，并尊重用户显式传入的 WINEPREFIX。
+WINE_ROOT="$APPDIR/opt/wine-staging"
+WINE_BIN="$WINE_ROOT/bin/wine"
+
+[[ -x "$WINE_BIN" ]] || {
+  echo "错误：AppImage 内缺少 Wine 主程序：$WINE_BIN" >&2
+  exit 1
+}
+
+run_named_command() {
+  local command_name="$1"
+  shift
+
+  if [[ -x "$WINE_ROOT/bin/$command_name" ]]; then
+    exec "$WINE_ROOT/bin/$command_name" "$@"
+  fi
+  if [[ -x "$APPDIR/usr/bin/$command_name" ]]; then
+    exec "$APPDIR/usr/bin/$command_name" "$@"
+  fi
+  return 1
+}
+
+# 支持把同一个 wine.AppImage 链接成 wine、winecfg、wineserver、winetricks 等名称。
+ENTRY_NAME="$(basename -- "${ARGV0:-${APPIMAGE:-$0}}")"
+case "$ENTRY_NAME" in
+  wine.AppImage|*.AppImage|AppRun|wrapper)
+    ;;
+  wine64)
+    if [[ -x "$WINE_ROOT/bin/wine64" ]]; then
+      exec "$WINE_ROOT/bin/wine64" "$@"
+    fi
+    exec "$WINE_BIN" "$@"
+    ;;
+  *)
+    if run_named_command "$ENTRY_NAME" "$@"; then
+      exit 0
+    fi
+    ;;
+esac
+
+# 也允许直接写 wine.AppImage winecfg / wine.AppImage winetricks。
+if (( $# > 0 )); then
+  REQUESTED_COMMAND="$1"
+  if [[ "$REQUESTED_COMMAND" != */* ]] && {
+    [[ -x "$WINE_ROOT/bin/$REQUESTED_COMMAND" ]] ||
+      [[ -x "$APPDIR/usr/bin/$REQUESTED_COMMAND" ]]
+  }; then
+    shift
+    run_named_command "$REQUESTED_COMMAND" "$@"
+  fi
+fi
+
+# 无参数时打开 winecfg；其余参数按官方 wine CLI 语义传递。
+if (( $# == 0 )); then
+  exec "$WINE_ROOT/bin/winecfg"
+fi
+exec "$WINE_BIN" "$@"
