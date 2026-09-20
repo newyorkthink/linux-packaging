@@ -59,11 +59,15 @@ usr/bin/xnconvert       # 官方 DEB 原始命令入口，保持不改
 opt/XnConvert/XnConvert # 根 AppRun 直接执行的真实主程序
 ```
 
+`usr/bin/xnconvert` 是 XnConvert 官方 DEB 自带的 182 字节 shell launcher，负责设置上游 `/opt/XnConvert/lib` 路径并转发到 `/opt/XnConvert/XnConvert`。构建脚本没有创建、覆盖或修改这个文件；AppImage 根 `AppRun` 也不依赖它二次转发。
+
 禁止手工创建 `AppRun.wrapped`，也不能覆盖 linuxdeploy 生成的顶层 AppRun。
 
 ## 已核对结果
 
 2026-09-21 DEB 的通用格式判断与 `dpkg-deb -x` 调用集中到 `common/archive/extract_archive.sh`；XnConvert 构建脚本只传入同一官方 DEB 和 AppDir，安装、官方布局、AppRun 及 Qt5 稳定基线均未改变。
+
+最终产物解包截图中的 `usr/bin/xnconvert` 已与当前官方 DEB 内同路径文件逐行核对一致；截图同时确认 XnConvert 正常启动、中文界面和中文输入。当前正式 Actions 构建及版本元数据上传均成功，没有发现需要继续修改打包代码的问题。
 
 2026-09-20 下载并解包当时的旧版 `latest/xnconvert.AppImage` 后确认：顶层 AppRun 正确加载 Qt hook；`AppRun.wrapped` 是普通可执行脚本；XnConvert 自带 Qt plugin、`usr/plugins` 输入上下文、翻译链接和 XCB 依赖均存在；主程序与 qxcb plugin 在最终库路径下没有 `not found`。
 

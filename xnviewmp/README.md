@@ -28,6 +28,12 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 
 应用脚本只保留按指定库名收集必需媒体运行库等 XnView 特有逻辑；通用命令、下载、安装、解包、初始化和最终封装由公共入口负责。linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime 每次构建都由公共脚本取得官方最新版本，不需要人工或 AI 更新工具版本。正式脚本与工作流不提交 GUI smoke test、媒体样例生成或解包测试代码。
 
+## 官方 DEB 启动入口
+
+`usr/bin/xnview` 是 XnView 官方 DEB 自带的 88 字节 shell launcher，内容仅根据参数情况转发到 `/opt/XnView/XnView`。构建脚本没有创建、覆盖或修改这个文件，只通过公共解包入口把官方 DEB 的原始目录布局放入 AppDir。
+
+AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/XnView/XnView`；保留 `usr/bin/xnview` 是为了完整保留官方 DEB 布局，不是本仓库另外增加了一层启动包装。
+
 ## 运行
 
 ```bash
@@ -41,6 +47,8 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 XnView MP 改为从官方校验清单选择当前最新 `linux-x64.deb`，同一 DEB 同时安装到 Jammy 构建环境并通过公共归档入口解包到 AppDir，不再下载 TGZ、搜索主程序后手工复制目录。官方 `usr/bin/xnview` 与 `opt/XnView` 原样保留，desktop 只规范图标字段；已经确认有效的根 AppRun、Qt5、媒体运行库和第二次 linuxdeploy 配置不变。
 
 公共版本下载入口在原子替换 `dist/version.txt` 前统一设置 `0644`，避免容器内 root 创建的 `0600` 文件导致宿主 runner 无法上传版本元数据。linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime 仍由公共工具入口在构建时动态取得官方最新版本，不记录固定版本。
+
+最终产物解包截图中的 `usr/bin/xnview` 已与当前官方 DEB 内同路径文件逐行核对一致；截图同时确认 XnView MP 正常启动、中文界面、中文输入和媒体浏览。当前正式 Actions 构建及版本元数据上传均成功，没有发现需要继续修改打包代码的问题。
 
 ### 2026-09-20：统一复用公共构建入口
 
