@@ -110,3 +110,7 @@ wine/dist/version.txt
 3. Mono/Gecko 根据当前源码自动匹配并放入官方 Wine 数据目录；
 4. `/opt/wine-staging` 由 AppRun hook 映射，不依赖宿主机同路径；
 5. 显卡驱动留给宿主，避免把某一台构建机的驱动带到其他电脑。
+
+## 修复记录
+
+- **2026-09-20：修复 AppImageBuilder 间接带入 Mesa 驱动后导致构建中止。** 在提交 `5a14f62` 的 Actions 构建中，Wine 11.18、amd64/i386、Mono 11.3.0 和 Gecko 2.47.4 均已下载并通过校验，但 AppImageBuilder 解析 Jammy 通用 GL/Vulkan 装载器的替代依赖时仍部署了 Mesa vendor 文件，最终被封装前的 GPU 驱动检查拦截。`build_wine.sh` 现在会在 AppImageBuilder 完成后精确移除 DRI、特定 VDPAU 驱动、Vulkan ICD、NVIDIA 库及 Mesa EGL/GLX vendor 库，并继续用原检查阻止残留文件进入产物；通用 OpenGL/Vulkan 装载器仍保留。修复已依据该失败日志和脚本静态检查确认，后续 Actions 构建及实机运行尚未验证。

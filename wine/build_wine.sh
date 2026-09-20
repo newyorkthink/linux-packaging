@@ -81,6 +81,21 @@ download_pinned_apprun_asset() {
   verify_sha256 "$expected" "$cache_dir/$asset"
 }
 
+find_host_gpu_files() {
+  find AppDir \( -type f -o -type l \) \( \
+    -path '*/dri/*' -o \
+    -path '*/vdpau/libvdpau_nvidia.so*' -o \
+    -path '*/vdpau/libvdpau_nouveau.so*' -o \
+    -path '*/vdpau/libvdpau_radeonsi.so*' -o \
+    -path '*/vdpau/libvdpau_va_gl.so*' -o \
+    -path '*/vulkan/icd.d/*.json' -o \
+    -name 'libnvidia*.so*' -o \
+    -name 'libvulkan_*.so*' -o \
+    -name 'libGLX_mesa.so*' -o \
+    -name 'libEGL_mesa.so*' \
+  \) "$@"
+}
+
 ###### 准备 Ubuntu 构建环境 ######
 
 [[ "$(uname -m)" == x86_64 ]] || {
@@ -217,6 +232,10 @@ source/appimage-builder \
   --skip-tests \
   --skip-appimage
 
+# Jammy 的通用 GL/Vulkan 装载器依赖可能让 AppImageBuilder 同时部署 Mesa
+# vendor 实现。封装前精确移除驱动与 ICD，只保留跨机器可用的通用装载器。
+find_host_gpu_files -print -delete
+
 # AppImageBuilder 只会为一个 ABI 选择 GStreamer scanner。移除其单 ABI 覆盖，
 # 让 32/64 位 libgstreamer 各自通过上面的绝对路径映射找到配套 scanner/插件。
 # 同时确保任何自动探测变量都不会屏蔽目标电脑自己的 GPU 驱动。
@@ -246,18 +265,7 @@ printf '%s\n' "${WINE_UNIX_BINARIES[@]}" | grep -q 'x86_64-unix/wine'
 printf '%s\n' "${WINE_UNIX_BINARIES[@]}" | grep -q 'i386-unix/wine'
 
 # 明确禁止把跨机器最容易冲突的 GPU 驱动/ICD 塞进包内。
-if find AppDir \( -type f -o -type l \) \( \
-  -path '*/dri/*' -o \
-  -path '*/vdpau/libvdpau_nvidia.so*' -o \
-  -path '*/vdpau/libvdpau_nouveau.so*' -o \
-  -path '*/vdpau/libvdpau_radeonsi.so*' -o \
-  -path '*/vdpau/libvdpau_va_gl.so*' -o \
-  -path '*/vulkan/icd.d/*.json' -o \
-  -name 'libnvidia*.so*' -o \
-  -name 'libvulkan_*.so*' -o \
-  -name 'libGLX_mesa.so*' -o \
-  -name 'libEGL_mesa.so*' \
-\) -print -quit | grep -q .; then
+if find_host_gpu_files -print -quit | grep -q .; then
   echo '错误：检测到不应打包的主机 GPU 驱动或 Vulkan ICD。' >&2
   exit 1
 fi
