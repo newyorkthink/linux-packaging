@@ -3,6 +3,12 @@
 BUILD_ROOT="$1"
 APPIMAGE_BASENAME="$2"
 
+# 当前 linuxdeploy 公共工具链固定使用 x86_64 资产，架构检查统一在工作区入口完成。
+[[ "$(uname -m)" == x86_64 ]] || {
+  echo "错误：当前 linuxdeploy 公共流程仅支持 x86_64。" >&2
+  return 1
+}
+
 cd "$BUILD_ROOT"
 
 SOURCE_DIR="$BUILD_ROOT/source"

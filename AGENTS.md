@@ -108,13 +108,13 @@
 强制范围：
 
 - 禁止在应用构建脚本中新增或保留用于联网获取文件的 `curl`、`wget`、`git clone`、`gh api`、GitHub / GitLab API 请求、自制重试函数和同类实现；普通 HTTPS、GitHub Release、官方校验清单、linuxdeploy 工具等必须分别调用仓库已有的对应公共脚本。
-- 禁止在应用构建脚本中解析 Release JSON、HTML、校验清单或远端目录后自行选择最新版、拼接下载地址、提取摘要再二次下载。已有公共入口支持该来源时，调用处只能是一条命令；尚无合适入口时，必须先在 `common/` 新增或扩展可复用实现，再由应用脚本单行调用。
-- 禁止在应用构建脚本中直接执行 `apt-get update`、`apt-get install` 或重复实现 root / sudo、非交互安装和通用包管理器错误处理。Debian / Ubuntu 构建统一调用 `common/apt/install_packages.sh`；应用专用依赖名称或本地 DEB 路径只能作为这一条调用命令的参数。
+- 禁止在应用构建脚本中解析 Release JSON、HTML、校验清单或远端目录后自行选择最新版、拼接下载地址、提取摘要再二次下载。已有公共入口支持该来源时，调用处只能是一条命令；尚无合适入口时，必须先在 `common/` 新增或扩展可复用实现，再由应用脚本单行调用。符合“正式 semver Release + `{version}` 资产模板 + GitHub SHA-256 digest”的 GitHub 资产需要直接下载时，统一调用 `common/github/download_latest_stable_release_asset.sh`，应用脚本不得再保留 `mapfile`、URL / digest 拆分和二次 `download_file.sh` 调用。
+- 禁止在应用构建脚本中直接执行 `apt-get update`、`apt-get install` 或重复实现 root / sudo、非交互安装和通用包管理器错误处理。Debian / Ubuntu 构建统一调用 `common/apt/install_packages.sh`；应用专用依赖名称或本地 DEB 路径只能作为这一条调用命令的参数。只需要把指定 APT 包下载并解包进 AppDir、而不安装到构建环境时，统一调用 `common/apt/download_and_extract_packages.sh`，不得在应用脚本自行保留 `apt-get download` + DEB 遍历解包循环。
 - DEB 与 tar 系列归档统一调用 `common/archive/extract_archive.sh` 解包；应用脚本只能传入归档文件和目标目录，不得自行保留 `dpkg-deb -x` 或 `tar -x`。应用特有的文件定位、目录调整、desktop / icon 修改和 AppRun 内容仍留在应用脚本。
 - 所有 linuxdeploy 项目的第一次空 AppDir 初始化统一调用 `common/linuxdeploy/initialize_appdir.sh`。应用构建脚本只能保留一行调用，不得重复原始 linuxdeploy 命令或增加额外检查。
-- 新增项目或当前修改触及标准 `source`、`AppDir`、`dist`、`source/tools` 布局时，统一单行 `source common/linuxdeploy/prepare_build_workspace.sh` 设置公共路径并清理、重建工作目录；项目脚本只保留 DEB、desktop、icon 等应用专用路径，不得重复公共变量和目录初始化代码。
-- linuxdeploy 的 `ARCH`、`APPIMAGE_EXTRACT_AND_RUN`、工具目录 `PATH`、`LDAI_NO_APPSTREAM`、`LDAI_OUTPUT` 和 `LDAI_RUNTIME_FILE` 统一由 `common/linuxdeploy/configure_environment.sh` 设置。Qt 项目自行追加 `QT_SELECT`、`QMAKE` 和 Qt 工具路径；GTK 项目自行追加 `DEPLOY_GTK_VERSION`，公共实现不得写死技术栈。
-- 使用官方 appimagetool 与 Type 2 runtime 最终封装时，统一单行调用 `common/linuxdeploy/package_appimage.sh`；appimagetool 调用、执行权限和 SHA-256 输出只在公共实现维护。
+- 新增项目或当前修改触及标准 `source`、`AppDir`、`dist`、`source/tools` 布局时，统一单行 `source common/linuxdeploy/prepare_build_workspace.sh` 设置公共路径并清理、重建工作目录；当前公共 linuxdeploy 工具链的 x86_64 架构检查也由该入口统一负责，项目脚本不得再重复 `uname -m` / 自定义 `die` 预检查。项目脚本只保留 DEB、desktop、icon 等应用专用路径，不得重复公共变量和目录初始化代码。
+- linuxdeploy 的 `ARCH`、`APPIMAGE_EXTRACT_AND_RUN`、工具目录 `PATH`、`LDAI_NO_APPSTREAM`、`LDAI_OUTPUT` 和 `LDAI_RUNTIME_FILE` 统一由 `common/linuxdeploy/configure_environment.sh` 设置。Qt 项目自行追加 `QT_SELECT`、`QMAKE` 和 Qt 工具路径；GTK 项目自行追加 `DEPLOY_GTK_VERSION`，公共实现不得写死技术栈。需要把同一 Debian / Ubuntu 运行环境的 NSS 核心库与 dlopen 模块按当前稳定清单放入 AppDir 时，调用 `common/linuxdeploy/copy_nss_runtime.sh`，应用脚本不得重复维护同一组 NSS 文件列表。
+- 使用官方 appimagetool 与 Type 2 runtime 最终封装时，统一单行调用 `common/linuxdeploy/package_appimage.sh`；appimagetool 调用、最终资产非空检查、执行权限和 SHA-256 输出只在公共实现维护。调用方已经可靠取得当前软件版本时，应把版本作为第五参数交给该公共入口，由它在最终资产成功生成后写入同目录 `version.txt`，应用脚本不得再重复 `[[ -s ... ]]` 或 `printf ... > version.txt`。
 - “只保留一条调用”是指每一次独立下载、安装、解包或空 AppDir 初始化操作在调用方只有一条实际命令。允许把当前应用的官方 URL、仓库名、资产名模板、完整资产名正则、输出路径、版本文件、明确依赖列表、归档文件或 AppDir 路径作为参数传入；禁止在调用前后再复制公共脚本内部已经负责的解析、校验、重试、权限判断、安装、解包或初始化检查逻辑。
 - 下载完成后的通用格式解包由 `common/archive/extract_archive.sh` 负责；应用专用文件定位、布局调整、desktop / icon 修改和 AppRun 内容仍留在应用脚本。公共代码负责获取、校验、版本选择、版本元数据、通用安装和格式解包，应用代码负责使用已经取得并解包的文件完成自身打包。
 - 公共入口出现通用故障时，只修改对应 `common/` 实现并核对所有调用者接口；不得只在当前应用增加特殊重试、备用下载器或第二套解析。只有上游来源本身存在无法通用化的客观差异时，才允许增加新的公共接口参数或新的可复用公共 helper。
@@ -128,7 +128,7 @@
 强制范围：
 
 - 应用脚本不得为了“确认工具存在”逐项执行 `command -v`；公共脚本依赖的工具由对应公共脚本检查，应用专用命令直接由正式构建步骤执行并按退出状态失败。
-- 应用解包后不得罗列主程序、launcher、desktop、图标、plugin、库等存在性检查。后续 `sed`、`cp`、linuxdeploy 或 appimagetool 已会在输入缺失时失败，不再增加一套重复验证。
+- 应用解包后不得罗列主程序、launcher、desktop、图标、plugin、库等存在性检查。后续 `sed`、`cp`、linuxdeploy 或 appimagetool 已会在输入缺失时失败，不再增加一套重复验证；生成固定内容的 AppRun 也不得在正式构建脚本中额外保留只用于预检查的 `bash -n`，语法检查应在提交前的仓库外验证阶段执行。
 - 只有决定真实构建分支、选择唯一上游文件或防止危险操作所必需的应用特有判断可以留在应用脚本；不得把普通预检查包装成“应用特有逻辑”。
 - APT 软件包、命令参数和同类长列表不得机械地每项占一行。应在每行放入尽可能多且仍清晰可读的参数，接近正常代码行宽后再用 `\` 换行；短列表保持单行。
 - 调整公共检查或排版规则时同步更新当前触及的应用 README；不得为了套用本规则顺手重写未触及项目。

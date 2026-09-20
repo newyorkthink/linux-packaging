@@ -4,19 +4,18 @@
 
 ## 构建来源
 
-- 构建脚本通过公共 GitHub Release 解析入口读取 Joplin 官方 Releases，忽略 draft / prerelease，选择版本号最高且唯一提供 `Joplin-<版本>.deb` 的 Linux x64 正式版本。
-- 下载官方 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
+- 构建脚本通过 `common/github/download_latest_stable_release_asset.sh` 读取 Joplin 官方 Releases，忽略 draft / prerelease，选择版本号最高且唯一提供 `Joplin-<版本>.deb` 的 Linux x64 正式版本，并在同一公共入口中校验 GitHub Release 提供的 SHA-256 digest 后下载。
 - 保留官方 `/opt/Joplin`、`resources/app.asar`、Node 原生模块、desktop 文件和图标，不修改 Joplin 官方 `app.asar`。
 - GitHub Releases API 在 Actions 中优先使用现有 GitHub 认证，避免匿名 API 请求触发限流或 403。
 
 ## 构建环境与依赖
 
 - GitHub Actions 构建环境固定为 `ubuntu-22.04`。
-- 标准 `source` / `AppDir` / `dist` / `source/tools` 工作区由 `common/linuxdeploy/prepare_build_workspace.sh` 统一创建；APT 安装和 DEB 解包分别复用 `common/apt/install_packages.sh` 与 `common/archive/extract_archive.sh`。
+- 标准 `source` / `AppDir` / `dist` / `source/tools` 工作区和 x86_64 检查由 `common/linuxdeploy/prepare_build_workspace.sh` 统一处理；APT 安装和 DEB 解包分别复用 `common/apt/install_packages.sh` 与 `common/archive/extract_archive.sh`。
 - 同一份官方 DEB 既安装到隔离构建环境供 linuxdeploy 解析依赖，也按上游布局解包到 AppDir。
 - 安装 GTK3、GLib/GIO、GDK Pixbuf、Pango、IBus、NSS、X11/Electron 等运行依赖。
 - `ibus-gtk3` 和 `libibus-1.0-5` 负责把 GTK3 的 IBus 输入模块及运行库带入 AppDir；已解包成品可见 `im-ibus.so`、`libibus-1.0.so.5` 等文件，因此运行日志中的 `IBUS-WARNING` 不是构建环境未安装 IBus。不在 AppRun 中强制写死 `GTK_IM_MODULE`、`QT_IM_MODULE` 或 `XMODIFIERS`，输入法选择继续由宿主机会话管理。
-- `adwaita-icon-theme`、`adwaita-icon-theme-full`、`gnome-themes-extra-data` 直接下载并解包进 AppDir，保证 Adwaita 图标和 GTK 主题资源完整。
+- `adwaita-icon-theme`、`adwaita-icon-theme-full`、`gnome-themes-extra-data` 通过 `common/apt/download_and_extract_packages.sh` 下载并按原始 DEB 布局解包进 AppDir，保证 Adwaita 图标和 GTK 主题资源完整。
 
 ## linuxdeploy 规范流程
 
@@ -32,7 +31,7 @@
 
 ## NSS
 
-Electron/NSS 会通过 `dlopen` 动态加载 NSS 模块。为避免 AppImage 内旧版 NSS 与宿主机新版 NSS 混用，构建时把 Ubuntu 22.04 同一套 `libnss3` 核心库和 NSS modules 一起放入 `AppDir/usr/lib`。
+Electron/NSS 会通过 `dlopen` 动态加载 NSS 模块。为避免 AppImage 内旧版 NSS 与宿主机新版 NSS 混用，构建时调用 `common/linuxdeploy/copy_nss_runtime.sh`，把 Ubuntu 22.04 同一套 `libnss3` 核心库和 NSS modules 一起放入 `AppDir/usr/lib`；公共 helper 内保持原先已经实际运行确认的文件清单。
 
 这部分用于避免类似以下版本冲突：
 
@@ -48,11 +47,11 @@ libnssutil3.so: version `NSSUTIL_xxx' not found
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 ```
 
-项目脚本最终单行调用 `common/linuxdeploy/package_appimage.sh`；公共入口内部仍由官方 `appimagetool` 使用指定的 Type-2 runtime 封装，并负责可执行权限和 SHA-256 输出：
+项目脚本最终单行调用 `common/linuxdeploy/package_appimage.sh`；公共入口内部仍由官方 `appimagetool` 使用指定的 Type-2 runtime 封装，并统一负责最终资产非空检查、可执行权限、SHA-256 输出，以及在封装成功后写入版本元数据：
 
 ```bash
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
-  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE"
+  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
 ```
 
 不得把 linuxdeploy 的中间 AppImage 发布为正式资产，也不得因为 appimagetool、runtime、GitHub 或 CDN 的临时网络错误增加自动 fallback 到其他封装方式；下载失败应由当前构建直接失败，后续正常重试。
@@ -88,7 +87,7 @@ libnssutil3.so: version `NSSUTIL_...' not found
 
 ## 版本元数据接入（2026-09-16）
 
-- 构建脚本复用当前 Joplin Releases 解析得到的正式版 `VERSION`，在 AppImage 成功生成后写入 `dist/version.txt`。
+- 构建脚本复用当前 Joplin Releases 解析得到的正式版 `VERSION`，交给公共最终封装入口在 AppImage 成功生成后写入 `dist/version.txt`。
 - 自定义 Joplin Job 上传 `software-version-joplin` artifact，并在成功构建后增量写入 `latest/software_versions.json`。
 - 本次不改动现有 Ubuntu 22.04、GTK/IBus、NSS、AppRun 或 appimagetool 稳定基线。
 
@@ -103,9 +102,9 @@ libnssutil3.so: version `NSSUTIL_...' not found
 
 ### 2026-09-21：复用 linuxdeploy 公共构建入口
 
-Joplin 构建脚本现与仓库当前 linuxdeploy 规范对齐：标准工作区改由 `prepare_build_workspace.sh` 创建，APT 安装改走 `install_packages.sh`，Joplin DEB 与主题 DEB 解包改走 `extract_archive.sh`，第二次 linuxdeploy 前由 `configure_environment.sh` 设置通用环境，最终正式 AppImage 改由 `package_appimage.sh` 封装。
+Joplin 构建脚本现与仓库当前 linuxdeploy 规范对齐：标准工作区、x86_64 检查、APT 安装、GitHub 正式 Release 解析 + 下载、主题包下载 + 解包、NSS 运行库复制、linuxdeploy 通用环境和最终 appimagetool 封装分别交给对应 `common/` 入口。应用脚本只保留 Joplin 自身依赖、desktop 调整、已验证 AppRun、GTK3 选择和第二次 linuxdeploy。
 
-本次没有改动已经实际运行确认的 Joplin 根 AppRun、GTK3、IBus/GIO、Adwaita 深色主题、同版本 NSS 运行库和第二次 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage` 命令；`.github/workflows/build.yml` 的 Ubuntu 22.04 独立 Job 也保持不变。
+同时删除应用脚本内的 `die` / `uname -m`、Release `mapfile` 元数据拆分、直接 `apt-get download` + DEB 遍历、重复 NSS 文件清单、`desktop-file-validate`、固定 AppRun 的内联 `bash -n`、最终 AppImage 重复检查和手写 `version.txt`。本次没有改动已经实际运行确认的 Joplin 根 AppRun、GTK3、IBus/GIO、Adwaita 深色主题、NSS 文件集合和第二次 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage` 命令；`.github/workflows/build.yml` 的 Ubuntu 22.04 独立 Job 也保持不变。
 
 ### 2026-09-20：复用公共空 AppDir 初始化入口
 

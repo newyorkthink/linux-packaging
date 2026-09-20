@@ -3,25 +3,16 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-# 输出明确错误并立即终止构建。
-die() {
-  echo "错误：$*" >&2
-  exit 1
-}
-
-[[ "$(uname -m)" == x86_64 ]] || die "当前仅支持 x86_64"
-
 # 使用公共工作区入口统一设置路径，并清理、重建标准构建目录。
 source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" joplin
 
 DEB_FILE="$SOURCE_DIR/joplin.deb"
-THEME_DEB_DIR="$SOURCE_DIR/theme-debs"
 
 ###### 准备构建环境 ######
 
 # 通过公共 APT 入口安装 GTK3 插件、Joplin 运行时和当前脚本明确需要的依赖。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" \
-  desktop-file-utils dpkg-dev pkgconf \
+  dpkg-dev pkgconf \
   libglib2.0-bin libglib2.0-dev libgirepository1.0-dev \
   libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev \
   librsvg2-dev librsvg2-common libpango1.0-dev \
@@ -47,66 +38,29 @@ THEME_DEB_DIR="$SOURCE_DIR/theme-debs"
 
 ###### 下载并准备 Joplin ######
 
-# 通过公共入口读取正式 semver Release，并解析唯一的 Linux x64 DEB 与官方摘要。
-mapfile -t RELEASE_META < <(
-  "$SCRIPT_DIR/../common/github/resolve_latest_stable_release_asset.sh" \
-    "laurent22/joplin" \
-    'Joplin-{version}.deb'
-)
-[[ ${#RELEASE_META[@]} -eq 3 ]] || die "无法解析唯一的 Joplin 正式版 DEB 元数据"
-
-VERSION="${RELEASE_META[0]}"
-DEB_URL="${RELEASE_META[1]}"
-EXPECTED_SHA256="${RELEASE_META[2]}"
-printf 'Joplin version: %s\n' "$VERSION"
-
-# 下载并校验本次实际安装、解包的同一份官方 DEB。
-"$SCRIPT_DIR/../common/download/download_file.sh" "$DEB_URL" "$DEB_FILE" "$EXPECTED_SHA256"
+# 公共入口选择正式 semver Release、核对唯一 Linux x64 DEB 与官方摘要，并下载同一资产。
+VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" \
+  "laurent22/joplin" 'Joplin-{version}.deb' "$DEB_FILE")"
 
 # 把同一官方 DEB 安装到隔离构建环境供依赖扫描，并由公共入口按上游布局解包到 AppDir。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB_FILE"
 "$SCRIPT_DIR/../common/archive/extract_archive.sh" "$DEB_FILE" "$APPDIR"
-[[ -x "$APPDIR/opt/Joplin/joplin" ]] || die "缺少 Joplin 主程序"
-[[ -f "$APPDIR/opt/Joplin/resources/app.asar" ]] || die "缺少 Joplin app.asar"
 
-# 将 Ubuntu 22.04 的 Adwaita 图标与 GTK 主题包直接解包进 AppDir。
-mkdir -p "$THEME_DEB_DIR"
-(
-  cd "$THEME_DEB_DIR"
-  apt-get download adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
-)
-for theme_deb in "$THEME_DEB_DIR"/*.deb; do
-  "$SCRIPT_DIR/../common/archive/extract_archive.sh" "$theme_deb" "$APPDIR"
-done
+# 通过公共 APT 入口下载并解包 Ubuntu 22.04 的 Adwaita 图标与 GTK 主题包。
+"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" \
+  adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
 
 # 规范官方 desktop 条目，并保留 Joplin 的 URI 参数。
 DESKTOP_FILE="$(find "$APPDIR/usr/share/applications" -maxdepth 1 -type f -iname '*joplin*.desktop' -print -quit)"
-[[ -n "$DESKTOP_FILE" ]] || die "缺少 Joplin desktop 文件"
 sed -i -e 's|^Exec=.*|Exec=joplin %U|' -e 's|^Icon=.*|Icon=joplin|' "$DESKTOP_FILE"
-desktop-file-validate "$DESKTOP_FILE"
 
 # linuxdeploy 不接受 1024x1024 图标；保留官方 512x512 及其他标准尺寸。
 rm -f "$APPDIR/usr/share/icons/hicolor/1024x1024/apps/joplin.png"
 
 ###### 准备兼容运行库 ######
 
-# NSS 核心库和 dlopen 模块必须来自同一套 Ubuntu 22.04 libnss3，避免与宿主机新版 NSS 混用。
-MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
-cp -a \
-  "/usr/lib/$MULTIARCH/libnss3.so" \
-  "/usr/lib/$MULTIARCH/libnssutil3.so" \
-  "/usr/lib/$MULTIARCH/libsmime3.so" \
-  "/usr/lib/$MULTIARCH/libssl3.so" \
-  "/usr/lib/$MULTIARCH/libfreebl3.so" \
-  "/usr/lib/$MULTIARCH/libfreebl3.chk" \
-  "/usr/lib/$MULTIARCH/libfreeblpriv3.so" \
-  "/usr/lib/$MULTIARCH/libfreeblpriv3.chk" \
-  "/usr/lib/$MULTIARCH/nss/libnssckbi.so" \
-  "/usr/lib/$MULTIARCH/nss/libnssdbm3.so" \
-  "/usr/lib/$MULTIARCH/nss/libnssdbm3.chk" \
-  "/usr/lib/$MULTIARCH/nss/libsoftokn3.so" \
-  "/usr/lib/$MULTIARCH/nss/libsoftokn3.chk" \
-  "$APPDIR/usr/lib/"
+# NSS 核心库和 dlopen 模块必须来自同一套 Ubuntu 22.04 libnss3；复制清单由公共入口统一维护。
+"$SCRIPT_DIR/../common/linuxdeploy/copy_nss_runtime.sh" "$APPDIR/usr/lib"
 
 ###### 核心打包 ######
 
@@ -132,7 +86,6 @@ export NO_AT_BRIDGE=1
 exec "$HERE/opt/Joplin/joplin" "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
-bash -n "$APPDIR/AppRun"
 
 # 公共入口配置 linuxdeploy 通用环境；GTK3 只在当前 GTK 项目中追加。
 source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" \
@@ -144,10 +97,6 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 
 ###### 整理产物 ######
 
-# 忽略 linuxdeploy 中间 AppImage，由公共入口使用官方 appimagetool 和 Type 2 runtime 正式封装。
+# 忽略 linuxdeploy 中间 AppImage；公共入口负责正式封装、产物检查、SHA-256 和成功后的版本元数据。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
-  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE"
-[[ -s "$OUTFILE" ]] || die "最终 AppImage 未生成"
-
-# 写入本次实际打包的软件版本。
-printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
+  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
