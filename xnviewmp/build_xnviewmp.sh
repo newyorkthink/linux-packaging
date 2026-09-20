@@ -41,21 +41,6 @@ die() {
   exit 1
 }
 
-## 从官方 continuous Release 下载当前打包工具并校验官方 SHA-256。
-download_tool() {
-  local repo="$1" asset="$2" output="$3" metadata url digest
-
-  metadata="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 \
-    "${api_headers[@]}" "https://api.github.com/repos/$repo/releases/tags/continuous")"
-  url="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .browser_download_url' <<< "$metadata")"
-  digest="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .digest' <<< "$metadata")"
-  [[ "$digest" =~ ^sha256:[[:xdigit:]]{64}$ ]] || die "官方工具没有有效的 SHA-256：$repo/$asset"
-
-  curl -fL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 300 \
-    "$url" -o "$output"
-  printf '%s  %s\n' "${digest#sha256:}" "$output" | sha256sum -c -
-}
-
 [[ "$(uname -m)" == x86_64 ]] || die "当前仅支持 x86_64"
 
 ###### 准备构建环境 ######
@@ -103,24 +88,10 @@ for qt_tool in qmake qmlimportscanner; do
   [[ -x "$QT5_BIN_DIR/$qt_tool" ]] || die "缺少 Qt5 工具：$QT5_BIN_DIR/$qt_tool"
 done
 
-# 准备 GitHub API 请求头；有令牌时用于提高官方 API 访问额度。
-api_headers=(
-  -H 'Accept: application/vnd.github+json'
-  -H 'X-GitHub-Api-Version: 2022-11-28'
-)
-if [[ -n "${GH_TOKEN:-}" ]]; then
-  api_headers+=( -H "Authorization: Bearer $GH_TOKEN" )
-fi
-
 ###### 下载打包工具 ######
 
-# 动态下载 linuxdeploy、Qt 插件、appimagetool 和官方 Type 2 runtime。
-download_tool linuxdeploy/linuxdeploy linuxdeploy-x86_64.AppImage "$LINUXDEPLOY"
-download_tool linuxdeploy/linuxdeploy-plugin-qt linuxdeploy-plugin-qt-x86_64.AppImage "$QT_PLUGIN"
-download_tool AppImage/appimagetool appimagetool-x86_64.AppImage "$APPIMAGETOOL"
-download_tool AppImage/type2-runtime runtime-x86_64 "$RUNTIME_FILE"
-chmod +x "$LINUXDEPLOY" "$QT_PLUGIN" "$APPIMAGETOOL"
-ln -sfn linuxdeploy-x86_64.AppImage "$TOOLS_DIR/linuxdeploy"
+# 使用公共脚本动态下载并校验 linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime。
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" qt
 
 ###### 初始化 AppDir ######
 
@@ -153,9 +124,7 @@ done
 ###### 下载并准备 XnView MP ######
 
 # 从 XnView 官方校验清单动态解析当前最新稳定版 Linux x64 归档。
-curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 120 \
-  https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt \
-  -o "$CHECKSUMS"
+"$SCRIPT_DIR/../common/download/download_file.sh" "https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt" "$CHECKSUMS"
 sed -i 's/\r$//' "$CHECKSUMS"
 
 TGZ_NAME="$(
@@ -173,9 +142,7 @@ TGZ_SHA256="$(awk -v name="$TGZ_NAME" '$2 == name {print $1; exit}' "$CHECKSUMS"
 [[ "$TGZ_SHA256" =~ ^[[:xdigit:]]{64}$ ]] || die "官方归档没有有效的 SHA-256"
 
 printf '[XnView MP] official stable source: %s\n' "$TGZ_URL"
-curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 900 \
-  "$TGZ_URL" -o "$TGZ"
-printf '%s  %s\n' "$TGZ_SHA256" "$TGZ" | sha256sum -c -
+"$SCRIPT_DIR/../common/download/download_file.sh" "$TGZ_URL" "$TGZ" "$TGZ_SHA256"
 
 # 解包官方归档并定位唯一的 XnView 主程序目录。
 tar -xzf "$TGZ" -C "$EXTRACT_DIR"
@@ -267,14 +234,14 @@ export LANGUAGE=zh_CN:zh
 
 # 所有 linuxdeploy AppRun 都保留 AppDir/usr 下的 bin、lib、share 三个基础搜索目录。
 # XnView 的真实程序位于 /opt，因此在对应变量前继续加入上游 /opt 路径。
-export PATH="$HERE/opt/XnView:$HERE/usr/bin:${PATH:-}"
-export LD_LIBRARY_PATH="$HERE/opt/XnView:$HERE/opt/XnView/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export PATH="$HERE/opt/XnView:$HERE/usr/bin${PATH:+:$PATH}"
+export LD_LIBRARY_PATH="$HERE/opt/XnView/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
-# Qt 专用目录按最终 AppDir 的实际结构成对加入 /opt 与 /usr 路径。
-export QT_PLUGIN_PATH="$HERE/opt/XnView/lib:$HERE/opt/XnView/Plugins:$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
-export QML_IMPORT_PATH="$HERE/opt/XnView/qml:$HERE/usr/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
-export QML2_IMPORT_PATH="$HERE/opt/XnView/qml:$HERE/usr/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
+# Qt 专用目录只加入最终 AppDir 中已经确认用途正确的真实路径。
+export QT_PLUGIN_PATH="$HERE/opt/XnView/lib:$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
+export QML_IMPORT_PATH="$HERE/opt/XnView/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
+export QML2_IMPORT_PATH="$HERE/opt/XnView/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
 export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_TRANSLATIONS_PATH}"
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
@@ -295,9 +262,6 @@ export ARCH=x86_64; linuxdeploy \
   --icon-file "$ICON_FILE" \
   --plugin qt \
   --output appimage
-
-# 第二次 linuxdeploy 完成后，统一按最终 AppDir 整理 AppRun 中的路径型 export。
-"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
 
 ###### 整理产物 ######
 

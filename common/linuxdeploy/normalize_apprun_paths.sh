@@ -122,7 +122,6 @@ is_semantic_dir() {
       ;;
 
     QT_PLUGIN_PATH)
-      [[ "$base" == plugin || "$base" == plugins || "$base" == Plugin || "$base" == Plugins ]] && return 0
       for child in platforms platforminputcontexts imageformats xcbglintegrations platformthemes styles sqldrivers; do
         [[ -d "$dir/$child" ]] && return 0
       done

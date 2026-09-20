@@ -114,11 +114,17 @@ def main() -> None:
         if any(path.startswith(".github/actions/build-anylinux/") for path in files):
             select_all()
         else:
-            if any(path.startswith("common/linuxdeploy/") for path in files):
-                marker = "common/linuxdeploy/normalize_apprun_paths.sh"
+            changed_common_helpers = [path for path in files if path.startswith("common/")]
+            if changed_common_helpers:
                 for app in catalog:
                     script_path = Path(app["script"])
-                    if script_path.is_file() and marker in script_path.read_text(encoding="utf-8"):
+                    if not script_path.is_file():
+                        continue
+                    script_text = script_path.read_text(encoding="utf-8")
+                    markers = list(changed_common_helpers)
+                    if "common/download/download_file.sh" in changed_common_helpers:
+                        markers.append("common/linuxdeploy/prepare_linuxdeploy_tools.sh")
+                    if any(marker in script_text for marker in markers):
                         build[app["key"]] = True
 
             for path in files:

@@ -48,7 +48,7 @@
 ### AppRun 与 libunionpreload
 
 - AppRun 只保留当前应用需要的入口和环境，不使用万能模板，不统一强制语言、浏览器、主题、显示后端、字体 DPI、输入法或用户目录。
-- `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、Qt / QML / GTK 路径变量的用途和 linuxdeploy 后统一整理方式见 [AppRun 路径型环境变量说明](./apprun-path-environment.md)。
+- `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、Qt / QML / GTK 路径变量的用途，以及首次打包时可选的 linuxdeploy 路径整理方式，见 [AppRun 路径型环境变量说明](./apprun-path-environment.md)。已经确认的 AppRun 直接固化准确路径，不再自动整理。
 - 启动链只保留一条真实可到达的 `exec ... "$@"`，路径和参数必须正确引用。
 - 程序确实写死 `/usr`、`/opt`、`/lib` 等绝对路径，且普通 RPATH、搜索路径或小范围 wrapper 无法解决时，可以评估 libunionpreload。
 - libunionpreload 不是 mount、真正的 union filesystem 或安全沙箱。使用前必须核对动态链接方式、架构、glibc ABI、子进程传播、文件写入和许可证要求。
@@ -65,6 +65,8 @@
 8. 标准应用写入 `.github/appimage-apps.json`；构建环境或步骤不同的特例才在 `build.yml` 中维护独立 Job。
 9. 同步维护应用 README，说明上游、技术栈、打包方式、运行要求、证据状态和已完成修复。
 10. 提交前检查完整 diff、文件路径、引用、权限、YAML / JSON / Shell 语法关系和 workflow 入口，不用 GitHub Actions 失败结果反复试错。
+
+普通 HTTPS 文件下载优先调用 `common/download/download_file.sh`；linuxdeploy、appimagetool、Type 2 runtime 和已支持的 Qt 插件优先调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh`。项目脚本只保留当前应用的 URL、输出路径、摘要来源和必要解析逻辑。
 
 ## GitHub Actions 中怎么运行
 

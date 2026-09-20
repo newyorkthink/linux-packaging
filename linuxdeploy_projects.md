@@ -48,6 +48,22 @@
 
 ## 唯一标准流程：先初始化目录，再放入应用，最后由 appimagetool 封装
 
+### 公共下载与打包工具准备
+
+仓库内可复用下载入口如下：
+
+```bash
+# 下载普通 HTTPS 文件；上游提供摘要时把 SHA-256 作为第三个参数传入
+"$SCRIPT_DIR/../common/download/download_file.sh" "<下载地址>" "<输出文件>" "<SHA-256>"
+
+# 动态下载 linuxdeploy、appimagetool、Type 2 runtime；Qt 项目追加 qt 参数
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "<工具目录>" qt
+```
+
+`download_file.sh` 统一处理 HTTPS、失败退出、重试、超时、临时文件和可选 SHA-256 校验。`prepare_linuxdeploy_tools.sh` 从各自官方 continuous Release 动态解析 x86_64 资产与 GitHub 官方 digest，再调用公共下载脚本，不固定工具版本。项目脚本只保留当前上游 URL、输出路径和摘要解析逻辑，不重复维护相同的 curl 参数或打包工具下载函数。
+
+以上占位符只用于说明接口，正式脚本必须换成当前项目的真实变量。公共脚本属于本仓库自身实现，不得在代码或说明中依赖、调用或提及其他仓库。
+
 ### linuxdeploy 命令形式固定
 
 linuxdeploy 统一只使用下面三种基础命令，不因应用来自 DEB、tar、GitHub Release，也不因主程序位于 `/opt`、`/usr/bin` 或其他目录而改变：
@@ -126,7 +142,7 @@ export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 ```
 
-应用位于 `/opt` 时，在这三项基础路径上追加上游真实目录，不能删掉 `usr/bin`、`usr/lib`、`usr/share`：
+应用位于 `/opt` 时，只按每个变量的用途追加真实目录，不能删掉 `usr/bin`、`usr/lib`、`usr/share`：
 
 ```bash
 #!/usr/bin/env bash
@@ -136,8 +152,8 @@ HERE="$(dirname "$(readlink -f "${0}")")"
 # 保留 /usr/bin 基础路径，并加入 /opt 中的真实程序目录
 export PATH="$HERE/opt/<应用>:$HERE/usr/bin${PATH:+:$PATH}"
 
-# 保留 /usr/lib 基础路径，并加入 /opt 中的真实库目录
-export LD_LIBRARY_PATH="$HERE/opt/<应用>:$HERE/opt/<应用>/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# 保留 /usr/lib 基础路径，并只加入 /opt 中真实存在的库目录
+export LD_LIBRARY_PATH="$HERE/opt/<应用>/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # 所有布局都保留 /usr/share
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
@@ -199,9 +215,9 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage -
 
 不得把该 NSS 列表复制到不需要的项目，也不得使用目录或通配符代替精确库路径。
 
-### 第五步：第二次 linuxdeploy 后统一整理 AppRun 路径
+### 第五步：目录尚不确定时才整理 AppRun 路径
 
-第二次 linuxdeploy 已经完成 Qt / GTK / GStreamer hook 和最终 AppDir 目录布局后，在 appimagetool 最终封装之前统一调用仓库公共脚本：
+已经通过最终 AppImage 解包和真实运行确认目录的项目，必须把准确路径直接写回构建脚本中的根 `AppDir/AppRun`，不再调用自动整理脚本。只有首次打包，或第二次 linuxdeploy 可能新增、删除目录而暂时无法提前确定最终路径时，才在 appimagetool 最终封装之前调用：
 
 ```bash
 # 根据最终 AppDir 整理 AppRun.wrapped / AppRun 中已经声明的路径型 export
@@ -210,10 +226,12 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage -
 
 规则：
 
-- 应用构建脚本只增加这一条实际调用命令；下载、解包、根 AppRun、第二次 linuxdeploy 等前置流程继续按当前应用原有逻辑执行。
+- 已确认正确的 AppRun 是稳定基线，直接保持准确路径；不得为了形式统一继续运行整理脚本。
+- 首次或不确定项目只增加这一条实际调用命令；下载、解包、根 AppRun、第二次 linuxdeploy 等前置流程继续按当前应用原有逻辑执行。
 - 有 `AppRun.wrapped` 时只处理 wrapped；没有 wrapped 时才处理 `AppRun`。顶层 linuxdeploy hook AppRun 不得覆盖。
 - 公共脚本只处理当前 AppRun 已经声明的路径型变量；存在的 AppDir 路径保留，不存在的删除，并按变量用途补入第二次 linuxdeploy 后真实生成的标准目录。
 - 不得借公共脚本建立万能 AppRun，也不得修改 `exec`、语言、主题、输入法、显示后端或其他应用专用逻辑。
+- 最终产物确认后，必须把整理结果固化回构建脚本中的 AppRun，并移除该项目的公共整理脚本调用，避免每次构建重新猜测已经确定的目录。
 - 路径变量具体用途见 [`docs/apprun-path-environment.md`](./docs/apprun-path-environment.md)。
 - 已经稳定且本次未涉及的 linuxdeploy 项目不为统一形式批量改写；后续实际修改对应项目时再接入同一行调用。
 
@@ -230,7 +248,7 @@ AppRun
 - 顶层 `AppRun` 由 linuxdeploy 生成并加载 hook；
 - `AppRun.wrapped` 保存第三步写入的完整根 AppRun；
 - `apprun-hooks/` 保存当前插件实际生成的 hook；
-- 禁止手工创建 `AppRun.wrapped`，也不得覆盖 linuxdeploy 生成的顶层 AppRun；第二次 linuxdeploy 后只允许上述公共脚本在既有 `AppRun.wrapped` / `AppRun` 中整理路径型 export。
+- 禁止手工创建 `AppRun.wrapped`，也不得覆盖 linuxdeploy 生成的顶层 AppRun；目录尚不确定时只允许上述公共脚本在既有 `AppRun.wrapped` / `AppRun` 中整理路径型 export，已确定项目不做额外后处理。
 
 普通应用没有输入插件时不一定产生 `apprun-hooks` 或 `AppRun.wrapped`，以最终 AppDir 实际结构为准。
 
@@ -256,7 +274,7 @@ linuxdeploy 产生或尝试产生的 AppImage 都只能留在临时位置，禁�
 
 ### 通用基础
 
-所有 linuxdeploy AppRun 都必须保留 `$HERE/usr/bin`、`$HERE/usr/lib`、`$HERE/usr/share`，分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`。应用位于 `/opt` 时，在对应变量中继续追加真实 `/opt/<应用>` 路径，不能用 `/opt` 替代三个 `/usr` 基础目录。
+所有 linuxdeploy AppRun 都必须保留 `$HERE/usr/bin`、`$HERE/usr/lib`、`$HERE/usr/share`，分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`。应用位于 `/opt` 时按变量用途追加真实目录：程序入口所在目录加入 `PATH`，包含动态库的目录加入 `LD_LIBRARY_PATH`，包含共享数据的目录加入 `XDG_DATA_DIRS`；不能因为应用位于 `/opt` 就把同一个根目录无差别加入所有变量，也不能用 `/opt` 替代三个 `/usr` 基础目录。
 
 `GSETTINGS_SCHEMA_DIR`、工作目录和其他变量按应用真实需要加入。每个变量只放与其用途对应的目录：不能把 `usr/bin` 塞入 `LD_LIBRARY_PATH`，也不能把 `usr/lib` 塞入 `PATH`；不同变量包含的目录数量不要求相同。
 
@@ -290,7 +308,7 @@ GTK plugin 自动生成的 hook 会设置 GTK 数据、schemas、typelib、immod
 - Qt 5 / Qt 6 没有混用；
 - 额外 `-l` 只包含当前应用确实需要且无法自动发现的库；
 - 最终 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks` 执行链正确；
-- 公共路径整理脚本只位于第二次 linuxdeploy 与 appimagetool 之间，且只修改路径型 export；
+- 已确定项目的 AppRun 直接包含最终准确路径；未确定项目的公共路径整理脚本只位于第二次 linuxdeploy 与 appimagetool 之间，且只修改路径型 export；
 - linuxdeploy 生成的中间 AppImage没有进入发布目录；
 - 正式资产由 appimagetool + 官方 Type 2 runtime 生成；
 - workflow 没有新增临时 test workflow、测试 Job 或测试 Step；
