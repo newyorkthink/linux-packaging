@@ -9,7 +9,6 @@ APPDIR="$SCRIPT_DIR/AppDir"
 DIST_DIR="$SCRIPT_DIR/dist"
 TOOLS_DIR="$SOURCE_DIR/tools"
 DEB_FILE="$SOURCE_DIR/joplin.deb"
-RELEASES_JSON="$SOURCE_DIR/releases.json"
 THEME_DEB_DIR="$SOURCE_DIR/theme-debs"
 LINUXDEPLOY="$TOOLS_DIR/linuxdeploy-x86_64.AppImage"
 APPIMAGETOOL="$TOOLS_DIR/appimagetool-x86_64.AppImage"
@@ -41,7 +40,7 @@ fi
 # 安装下载、DEB 处理、GTK3 插件和 Joplin 运行时所需依赖。
 "${APT[@]}" update
 DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
-  ca-certificates curl desktop-file-utils dpkg-dev file findutils gawk grep jq pkgconf python3 sed \
+  ca-certificates curl desktop-file-utils dpkg-dev file findutils gawk grep jq pkgconf sed \
   libglib2.0-bin libglib2.0-dev libgirepository1.0-dev \
   libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev \
   librsvg2-dev librsvg2-common libpango1.0-dev \
@@ -56,7 +55,7 @@ DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   xdg-utils shared-mime-info hicolor-icon-theme
 
 # 确认后续构建依赖的基础命令均可用。
-for command_name in curl desktop-file-validate dpkg-deb find jq python3 readlink sed sha256sum; do
+for command_name in curl desktop-file-validate dpkg-deb find jq readlink sed sha256sum; do
   command -v "$command_name" >/dev/null 2>&1 || die "缺少必需命令：$command_name"
 done
 
@@ -93,62 +92,13 @@ done
 
 ###### 下载并准备 Joplin ######
 
-# 使用现有 GitHub 认证读取官方 Releases，避免匿名 API 请求限流。
-GITHUB_API_HEADERS=(-H 'Accept: application/vnd.github+json')
-if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-  GITHUB_API_HEADERS+=(-H "Authorization: Bearer $GITHUB_TOKEN")
-elif [[ -n "${GH_TOKEN:-}" ]]; then
-  GITHUB_API_HEADERS+=(-H "Authorization: Bearer $GH_TOKEN")
-elif command -v git >/dev/null 2>&1; then
-  CHECKOUT_AUTH_HEADER="$(git config --get http.https://github.com/.extraheader 2>/dev/null || true)"
-  if [[ -n "$CHECKOUT_AUTH_HEADER" ]]; then
-    GITHUB_API_HEADERS+=(-H "$CHECKOUT_AUTH_HEADER")
-  fi
-fi
-
-curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
-  "${GITHUB_API_HEADERS[@]}" \
-  'https://api.github.com/repos/laurent22/joplin/releases?per_page=30' \
-  -o "$RELEASES_JSON"
-
-# 从正式 Release 中选择版本号最高且带官方 SHA-256 的 Linux x64 DEB。
+# 通过公共入口读取正式 semver Release，并解析唯一的 Linux x64 DEB 与官方摘要。
 mapfile -t RELEASE_META < <(
-  python3 - "$RELEASES_JSON" <<'PY'
-import json
-import re
-import sys
-
-with open(sys.argv[1], encoding='utf-8') as f:
-    releases = json.load(f)
-
-items = []
-for release in releases:
-    if release.get('draft') or release.get('prerelease'):
-        continue
-    tag = str(release.get('tag_name', ''))
-    m = re.fullmatch(r'v?([0-9]+(?:\.[0-9]+)+)', tag)
-    if not m:
-        continue
-    version = m.group(1)
-    name = f'Joplin-{version}.deb'
-    assets = [a for a in release.get('assets', []) if a.get('name') == name]
-    if len(assets) != 1:
-        continue
-    asset = assets[0]
-    digest = str(asset.get('digest', ''))
-    if not re.fullmatch(r'sha256:[0-9a-fA-F]{64}', digest):
-        continue
-    items.append((tuple(map(int, version.split('.'))), version, asset['browser_download_url'], digest.split(':', 1)[1].lower()))
-
-if not items:
-    raise SystemExit('No published Joplin Linux x64 DEB found')
-
-_, version, url, sha256 = max(items, key=lambda x: x[0])
-print(version)
-print(url)
-print(sha256)
-PY
+  "$SCRIPT_DIR/../common/github/resolve_latest_stable_release_asset.sh" \
+    "laurent22/joplin" \
+    'Joplin-{version}.deb'
 )
+[[ ${#RELEASE_META[@]} -eq 3 ]] || die "无法解析唯一的 Joplin 正式版 DEB 元数据"
 
 VERSION="${RELEASE_META[0]}"
 DEB_URL="${RELEASE_META[1]}"

@@ -4,7 +4,7 @@
 
 ## 构建来源
 
-- 构建脚本读取 Joplin 官方 GitHub Releases，忽略 draft，选择版本号最高且提供 `Joplin-<版本>.deb` 的 Linux x64 正式版本。
+- 构建脚本通过公共 GitHub Release 解析入口读取 Joplin 官方 Releases，忽略 draft / prerelease，选择版本号最高且唯一提供 `Joplin-<版本>.deb` 的 Linux x64 正式版本。
 - 下载官方 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
 - 保留官方 `/opt/Joplin`、`resources/app.asar`、Node 原生模块、desktop 文件和图标，不修改 Joplin 官方 `app.asar`。
 - GitHub Releases API 在 Actions 中优先使用现有 GitHub 认证，避免匿名 API 请求触发限流或 403。
@@ -89,6 +89,10 @@ libnssutil3.so: version `NSSUTIL_...' not found
 - 本次不改动现有 Ubuntu 22.04、GTK/IBus、NSS、AppRun 或 appimagetool 稳定基线。
 
 ## 变更记录
+
+### 2026-09-20：复用公共 GitHub API 与 Release 解析入口
+
+原脚本内重复维护 GitHub 认证头、API 下载和 Python Release 筛选。现已把 `GITHUB_TOKEN`、`GH_TOKEN`、checkout extraheader 的认证优先级与请求参数提取到 `common/github/github_api.sh`，并把“正式 semver Release + `{version}` 资产名模板 + GitHub SHA-256 digest”提取到 `common/github/resolve_latest_stable_release_asset.sh`。Joplin 脚本只保留官方仓库名和 `Joplin-{version}.deb` 资产模板，不再需要内嵌 Python；linuxdeploy 工具准备也复用同一 GitHub API 入口。
 
 ### 2026-09-20：恢复 GTK 插件的 GIO modules 部署
 

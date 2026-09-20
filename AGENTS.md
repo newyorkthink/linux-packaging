@@ -346,7 +346,7 @@ GitHub Actions 的临时 CI 容器 / runner 内可以使用 `pacman`、`yay`、`
 - 不允许静默吞掉关键错误；`|| true` 只能用于明确允许失败且后续有正常构建处理的非关键步骤。
 - 路径和变量必须正确引用，避免 word splitting 和 glob 意外展开。
 
-仓库内简单 HTTPS 文件下载优先复用 `common/download/download_file.sh`，由应用脚本传入当前上游 URL、输出路径和可选 SHA-256；不得在每个项目中重复维护相同的 curl 重试、超时、临时文件和摘要校验逻辑。linuxdeploy 项目准备 linuxdeploy、appimagetool、Type 2 runtime 及当前已支持的 GTK / Qt 插件时，优先调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh`。需要特殊请求头、API 解析、认证或上游协议时可以保留项目专用逻辑，但实际资产下载仍应尽量复用公共入口。已经稳定且本次未涉及的项目不为统一形式批量重构。
+仓库内简单 HTTPS 文件下载优先复用 `common/download/download_file.sh`，由应用脚本传入当前上游 URL、输出路径和可选 SHA-256；不得在每个项目中重复维护相同的 curl 重试、超时、临时文件和摘要校验逻辑。GitHub API 请求统一复用 `common/github/github_api.sh` 的认证与请求入口；符合“正式 semver Release + 包含 `{version}` 的资产名 + GitHub SHA-256 digest”模式时，优先调用 `common/github/resolve_latest_stable_release_asset.sh`。linuxdeploy 项目准备 linuxdeploy、appimagetool、Type 2 runtime 及当前已支持的 GTK / Qt 插件时，优先调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh`。需要其他特殊请求头、API 解析、认证或上游协议时可以保留项目专用逻辑，但实际资产下载仍应尽量复用公共入口。已经稳定且本次未涉及的项目不为统一形式批量重构。
 
 ### 构建脚本必须使用中文分区注释
 
