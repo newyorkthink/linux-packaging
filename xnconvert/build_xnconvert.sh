@@ -2,25 +2,15 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
-
-SOURCE_DIR="$SCRIPT_DIR/source"
-APPDIR="$SCRIPT_DIR/AppDir"
-DIST_DIR="$SCRIPT_DIR/dist"
-OUTFILE="$DIST_DIR/xnconvert.AppImage"
-DEB="$SOURCE_DIR/XnConvert.deb"
-TOOLS_DIR="$SOURCE_DIR/tools"
-APPIMAGETOOL="$TOOLS_DIR/appimagetool-x86_64.AppImage"
-RUNTIME_FILE="$TOOLS_DIR/runtime-x86_64"
-INTERMEDIATE_APPIMAGE="$SOURCE_DIR/xnconvert-linuxdeploy-intermediate.AppImage"
-DESKTOP_FILE="$APPDIR/usr/share/applications/XnConvert.desktop"
-ICON_FILE="$APPDIR/opt/XnConvert/xnconvert.png"
 
 ###### 准备构建环境 ######
 
-# 只清理并重建当前项目自己的构建目录。
-rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
-mkdir -p "$TOOLS_DIR" "$DIST_DIR"
+# 公共入口统一设置标准路径，并清理、重建 source、AppDir、dist 和 tools。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" xnconvert
+
+DEB="$SOURCE_DIR/XnConvert.deb"
+DESKTOP_FILE="$APPDIR/usr/share/applications/XnConvert.desktop"
+ICON_FILE="$APPDIR/opt/XnConvert/xnconvert.png"
 
 # 通过公共入口安装当前应用明确需要的构建与运行依赖。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" \

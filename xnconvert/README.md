@@ -74,3 +74,5 @@ opt/XnConvert/XnConvert # 根 AppRun 直接执行的真实主程序
 2026-09-20 清理第一次空 AppDir 初始化：Qt、QMAKE 和 LDAI 变量全部移到第二次 linuxdeploy 前；官方 `usr/bin/xnconvert` 保持 DEB 原样，不再用 `cat` 人工覆盖；公共 APT 调用改为反斜杠分行，依赖内容不变。
 
 2026-09-20 继续删除应用脚本中的通用命令预检查、解包后文件清单检查、desktop 验证和最终文件重复检查；缺少输入时由实际 `sed`、`cp`、linuxdeploy 或 appimagetool 步骤直接失败。APT 参数改为接近正常行宽后再换行，不再每个包独占一行，并删除仅供 desktop 验证使用的 `desktop-file-utils`。
+
+2026-09-20 标准 `source`、`AppDir`、`dist`、`source/tools` 路径及其清理、重建改为单行加载 `common/linuxdeploy/prepare_build_workspace.sh`；XnConvert 脚本只保留 DEB、desktop 和 icon 三个应用专用路径。
