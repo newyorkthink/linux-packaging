@@ -89,8 +89,8 @@ case "$PLUGIN" in
       exit 1
     }
 
-    # 官方 GTK 插件没有复制 GIO 动态模块；Joplin 已确认需要隔离并使用 AppDir 内的模块。
-    # 只在上游仍缺少该逻辑时，把 Joplin 稳定基线中的最小 GIO 修复加入当前下载文件。
+    # 官方 GTK 插件当前没有复制 GIO 动态模块；GTK AppImage 需要使用 AppDir 内对应模块时必须随包部署。
+    # 只在上游仍缺少该逻辑时，把已经验证的最小 GIO 修复加入当前下载文件。
     if ! grep -Fq 'gio_moduledir=' "$TOOLS_DIR/linuxdeploy-plugin-gtk"; then
       gtk_patch_tmp="$(mktemp "$TOOLS_DIR/linuxdeploy-plugin-gtk.patch.XXXXXX")"
       if ! awk '

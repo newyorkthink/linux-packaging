@@ -4,7 +4,7 @@
 
 本目录把 XnConvert 官方 x86_64 DEB 重新打包为 AppImage，正式 Release 资产固定为 `xnconvert.AppImage`。
 
-构建脚本单行调用公共校验清单下载入口；公共脚本每次读取官方 `XnConvert-CHECKSUMS.txt`，选择当前最新稳定版 `linux-x64.deb`，使用同一份官方清单中的 SHA-256 校验，并把实际版本写入 `dist/version.txt`。应用和打包工具版本都不固定。
+构建脚本单行调用公共校验清单下载入口；公共脚本每次读取官方 `XnConvert-CHECKSUMS.txt`，选择当前最新稳定版 `linux-x64.deb`，使用同一份官方清单中的 SHA-256 校验并返回实际版本。最终 `dist/version.txt` 只由公共封装入口在正式 AppImage 成功生成后写入。应用和打包工具版本都不固定。
 
 ## 技术栈与稳定基线
 
@@ -73,7 +73,7 @@ opt/XnConvert/XnConvert # 根 AppRun 直接执行的真实主程序
 
 本次构建脚本改为仓库统一的两阶段 linuxdeploy、公共下载入口和 appimagetool + Type 2 runtime 最终封装，并删除正式脚本与 workflow 中的解包检查和 GUI smoke test。修改后已在 Ubuntu 24.04 临时环境完成一次完整构建；新成品的 AppRun 执行链、官方命令入口、三种输入上下文、翻译目录和直接动态依赖均已在仓库外解包核对通过。首次发布仍保留路径整理脚本；用户确认 Release 成品正常后，才把整理结果固化为最终 export。后续验证继续在仓库外临时目录进行，不把测试代码重新写入构建流程。
 
-2026-09-20 进一步移除构建脚本中的 APT 权限处理、软件包安装、官方校验清单解析、最新版选择、下载地址拼装、摘要提取和版本文件写入逻辑；这些通用行为分别集中到 `common/apt/install_packages.sh` 与 `common/download/download_latest_checksum_asset.sh`。XnConvert 构建脚本只传入明确依赖、官方清单地址、资产名正则和输出位置，后续通用修复只修改公共实现。迁移后已完成一次完整构建，公共入口、两次 linuxdeploy、AppRun 路径整理和最终 Type 2 AppImage 封装均正常完成。
+2026-09-20 进一步移除构建脚本中的 APT 权限处理、软件包安装、官方校验清单解析、最新版选择、下载地址拼装和摘要提取逻辑；这些通用行为分别集中到 `common/apt/install_packages.sh` 与 `common/download/download_latest_checksum_asset.sh`。校验清单入口只返回本次实际版本，`version.txt` 由最终封装公共入口在正式 AppImage 成功后统一写入。XnConvert 构建脚本只传入明确依赖、官方清单地址、资产名正则和输出位置，后续通用修复只修改公共实现。迁移后已完成一次完整构建，公共入口、两次 linuxdeploy、AppRun 路径整理和最终 Type 2 AppImage 封装均正常完成。
 
 2026-09-20 第一次普通 linuxdeploy 进一步集中到 `common/linuxdeploy/initialize_appdir.sh`；XnConvert 构建脚本只保留一行调用。Qt5 环境、AppRun、第二次 linuxdeploy 和尚待成品确认的路径整理调用均未改变。
 

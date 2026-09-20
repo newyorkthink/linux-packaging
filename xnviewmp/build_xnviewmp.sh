@@ -66,10 +66,10 @@ QT5_BIN_DIR=/usr/lib/qt5/bin
 
 ###### 下载并准备 XnView MP ######
 
-# 公共入口从官方校验清单选择最新版、核对 SHA-256，并写入版本文件。
-"$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" \
+# 公共入口从官方校验清单选择最新版并核对 SHA-256，同时返回本次实际版本。
+VERSION="$("$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" \
   "https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt" \
-  '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$DEB" "$DIST_DIR/version.txt"
+  '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$DEB")"
 
 # 把同一官方 DEB 安装到隔离构建环境供依赖扫描，并由公共入口按上游布局解包到 AppDir。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB"
@@ -169,4 +169,4 @@ export ARCH=x86_64; linuxdeploy \
 
 # 忽略 linuxdeploy 中间产物，由公共入口使用官方工具和 Type 2 runtime 正式封装。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
-  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE"
+  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

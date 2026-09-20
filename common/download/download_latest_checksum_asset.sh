@@ -6,10 +6,9 @@ DOWNLOAD_FILE="$SCRIPT_DIR/download_file.sh"
 CHECKSUM_URL="${1:-}"
 ASSET_REGEX="${2:-}"
 OUTPUT="${3:-}"
-VERSION_FILE="${4:-}"
 
-[[ -n "$CHECKSUM_URL" && -n "$ASSET_REGEX" && -n "$OUTPUT" && -n "$VERSION_FILE" ]] || {
-  echo "用法：$0 <HTTPS 校验清单 URL> <完整资产名正则> <输出文件> <版本文件>" >&2
+[[ -n "$CHECKSUM_URL" && -n "$ASSET_REGEX" && -n "$OUTPUT" ]] || {
+  echo "用法：$0 <HTTPS 校验清单 URL> <完整资产名正则> <输出文件>" >&2
   exit 1
 }
 [[ "$CHECKSUM_URL" == https://* ]] || {
@@ -33,14 +32,10 @@ for command_name in grep mktemp sed sort tail; do
 done
 
 CHECKSUM_FILE="$(mktemp)"
-VERSION_TEMP=''
 
 # 退出时只删除本次解析产生的临时校验清单。
 cleanup() {
   rm -f -- "$CHECKSUM_FILE"
-  if [[ -n "$VERSION_TEMP" ]]; then
-    rm -f -- "$VERSION_TEMP"
-  fi
 }
 trap cleanup EXIT
 
@@ -78,13 +73,8 @@ VERSION="$(grep -oE '[0-9]+([.][0-9]+)+' <<< "$ASSET_NAME" | sed -n '1p')"
 }
 
 ASSET_URL="${CHECKSUM_URL%/*}/$ASSET_NAME"
-printf '官方稳定版来源：%s\n' "$ASSET_URL"
-"$DOWNLOAD_FILE" "$ASSET_URL" "$OUTPUT" "$ASSET_SHA256"
+printf '官方稳定版来源：%s\n' "$ASSET_URL" >&2
+"$DOWNLOAD_FILE" "$ASSET_URL" "$OUTPUT" "$ASSET_SHA256" >&2
 
-# 下载和摘要校验成功后，原子写入本次实际取得的软件版本。
-mkdir -p "$(dirname -- "$VERSION_FILE")"
-VERSION_TEMP="$(mktemp "${VERSION_FILE}.part.XXXXXX")"
-printf '%s\n' "$VERSION" > "$VERSION_TEMP"
-chmod 0644 "$VERSION_TEMP"
-mv -f -- "$VERSION_TEMP" "$VERSION_FILE"
-VERSION_TEMP=''
+# stdout 只返回本次实际取得的软件版本，供最终封装成功后统一写入版本元数据。
+printf '%s\n' "$VERSION"

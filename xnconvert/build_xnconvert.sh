@@ -34,10 +34,10 @@ QT5_BIN_DIR=/usr/lib/qt5/bin
 
 ###### 下载并准备 XnConvert ######
 
-# 通过公共入口从官方校验清单取得、校验并记录当前最新稳定版 Linux x64 DEB。
-"$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" \
+# 通过公共入口从官方校验清单取得并校验当前最新稳定版 Linux x64 DEB，同时返回实际版本。
+VERSION="$("$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" \
   "https://download.xnview.com/versions/XnConvert/XnConvert-CHECKSUMS.txt" \
-  '^XnConvert-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$DEB" "$DIST_DIR/version.txt"
+  '^XnConvert-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$DEB")"
 
 # 把同一官方 DEB 安装到隔离构建环境供依赖扫描，并由公共入口按上游布局解包到 AppDir。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB"
@@ -106,4 +106,4 @@ export ARCH=x86_64; linuxdeploy \
 
 # 公共入口使用官方 appimagetool 和 Type 2 runtime 封装，并输出正式资产 SHA-256。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
-  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE"
+  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

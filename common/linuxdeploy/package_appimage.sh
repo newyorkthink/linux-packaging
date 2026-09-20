@@ -19,11 +19,18 @@ export APPIMAGE_EXTRACT_AND_RUN=1
 chmod +x "$OUTFILE"
 sha256sum "$OUTFILE"
 
-# 调用方传入软件版本时，只在最终 AppImage 成功生成后写入标准版本元数据。
+# 调用方传入软件版本时，只在最终 AppImage 成功生成后原子写入标准版本元数据。
 if (( $# >= 5 )); then
   [[ -n "$VERSION" ]] || {
     echo "错误：软件版本不能为空。" >&2
     exit 1
   }
-  printf '%s\n' "$VERSION" > "$VERSION_FILE"
+
+  mkdir -p "$(dirname -- "$VERSION_FILE")"
+  VERSION_TEMP="$(mktemp "${VERSION_FILE}.part.XXXXXX")"
+  trap 'rm -f -- "$VERSION_TEMP"' EXIT
+  printf '%s\n' "$VERSION" > "$VERSION_TEMP"
+  chmod 0644 "$VERSION_TEMP"
+  mv -f -- "$VERSION_TEMP" "$VERSION_FILE"
+  trap - EXIT
 fi
