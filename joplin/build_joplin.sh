@@ -2,19 +2,6 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
-
-SOURCE_DIR="$SCRIPT_DIR/source"
-APPDIR="$SCRIPT_DIR/AppDir"
-DIST_DIR="$SCRIPT_DIR/dist"
-TOOLS_DIR="$SOURCE_DIR/tools"
-DEB_FILE="$SOURCE_DIR/joplin.deb"
-THEME_DEB_DIR="$SOURCE_DIR/theme-debs"
-LINUXDEPLOY="$TOOLS_DIR/linuxdeploy-x86_64.AppImage"
-APPIMAGETOOL="$TOOLS_DIR/appimagetool-x86_64.AppImage"
-RUNTIME_FILE="$TOOLS_DIR/runtime-x86_64"
-INTERMEDIATE_APPIMAGE="$SOURCE_DIR/joplin-linuxdeploy-intermediate.AppImage"
-OUTFILE="$DIST_DIR/joplin.AppImage"
 
 # 输出明确错误并立即终止构建。
 die() {
@@ -24,23 +11,17 @@ die() {
 
 [[ "$(uname -m)" == x86_64 ]] || die "当前仅支持 x86_64"
 
+# 使用公共工作区入口统一设置路径，并清理、重建标准构建目录。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" joplin
+
+DEB_FILE="$SOURCE_DIR/joplin.deb"
+THEME_DEB_DIR="$SOURCE_DIR/theme-debs"
+
 ###### 准备构建环境 ######
 
-# 只清理并重建当前项目自己的构建目录。
-rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
-mkdir -p "$TOOLS_DIR" "$DIST_DIR"
-
-# 根据当前环境选择 apt-get 调用方式。
-if command -v sudo >/dev/null 2>&1; then
-  APT=(sudo apt-get)
-else
-  APT=(apt-get)
-fi
-
-# 安装下载、DEB 处理、GTK3 插件和 Joplin 运行时所需依赖。
-"${APT[@]}" update
-DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
-  ca-certificates curl desktop-file-utils dpkg-dev file findutils gawk grep jq pkgconf sed \
+# 通过公共 APT 入口安装 GTK3 插件、Joplin 运行时和当前脚本明确需要的依赖。
+"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+  desktop-file-utils dpkg-dev pkgconf \
   libglib2.0-bin libglib2.0-dev libgirepository1.0-dev \
   libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev \
   librsvg2-dev librsvg2-common libpango1.0-dev \
@@ -54,11 +35,6 @@ DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   libxshmfence1 libxss1 libxtst6 \
   xdg-utils shared-mime-info hicolor-icon-theme
 
-# 确认后续构建依赖的基础命令均可用。
-for command_name in curl desktop-file-validate dpkg-deb find jq readlink sed sha256sum; do
-  command -v "$command_name" >/dev/null 2>&1 || die "缺少必需命令：$command_name"
-done
-
 ###### 下载打包工具 ######
 
 # 动态取得 linuxdeploy、GTK 插件、appimagetool 和 Type 2 runtime，并记录可用摘要。
@@ -66,17 +42,8 @@ done
 
 ###### 初始化 AppDir ######
 
-# 配置 linuxdeploy 和中间输出位置；最终发布资产不会使用该中间文件。
-export ARCH=x86_64
-export APPIMAGE_EXTRACT_AND_RUN=1
-export PATH="$TOOLS_DIR:$PATH"
-export LINUXDEPLOY="$LINUXDEPLOY"
-export LDAI_NO_APPSTREAM=1
-export LDAI_OUTPUT="$INTERMEDIATE_APPIMAGE"
-export LDAI_RUNTIME_FILE="$RUNTIME_FILE"
-
-# 通过公共入口运行第一次普通 linuxdeploy，并核对空 AppDir 初始化结果。
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR"
+# 通过公共入口运行第一次普通 linuxdeploy，只创建空 AppDir 基础目录。
+"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
 ###### 下载并准备 Joplin ######
 
@@ -96,11 +63,9 @@ printf 'Joplin version: %s\n' "$VERSION"
 # 下载并校验本次实际安装、解包的同一份官方 DEB。
 "$SCRIPT_DIR/../common/download/download_file.sh" "$DEB_URL" "$DEB_FILE" "$EXPECTED_SHA256"
 
-# 把官方 DEB 安装进隔离构建环境，使 linuxdeploy 能解析同一应用及其依赖。
-DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends "$DEB_FILE"
-
-# 保持上游 /opt/Joplin 与 /usr/share 布局解包到 AppDir。
-dpkg-deb -x "$DEB_FILE" "$APPDIR"
+# 把同一官方 DEB 安装到隔离构建环境供依赖扫描，并由公共入口按上游布局解包到 AppDir。
+"$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB_FILE"
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$DEB_FILE" "$APPDIR"
 [[ -x "$APPDIR/opt/Joplin/joplin" ]] || die "缺少 Joplin 主程序"
 [[ -f "$APPDIR/opt/Joplin/resources/app.asar" ]] || die "缺少 Joplin app.asar"
 
@@ -111,7 +76,7 @@ mkdir -p "$THEME_DEB_DIR"
   apt-get download adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
 )
 for theme_deb in "$THEME_DEB_DIR"/*.deb; do
-  dpkg-deb -x "$theme_deb" "$APPDIR"
+  "$SCRIPT_DIR/../common/archive/extract_archive.sh" "$theme_deb" "$APPDIR"
 done
 
 # 规范官方 desktop 条目，并保留 Joplin 的 URI 参数。
@@ -169,18 +134,20 @@ APPRUN
 chmod +x "$APPDIR/AppRun"
 bash -n "$APPDIR/AppRun"
 
+# 公共入口配置 linuxdeploy 通用环境；GTK3 只在当前 GTK 项目中追加。
+source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" \
+  "$TOOLS_DIR" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
+
 # Joplin 使用 GTK3；第二次 linuxdeploy 部署 GTK 资源并完成 AppRun 包装。
 export DEPLOY_GTK_VERSION=3
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 
 ###### 整理产物 ######
 
-# 忽略 linuxdeploy 中间 AppImage，使用官方 appimagetool 和 Type 2 runtime
-# 对同一个 AppDir 重新封装正式发布资产。
-export ARCH=x86_64; "$APPIMAGETOOL" -n ./AppDir "$OUTFILE" --runtime-file "$RUNTIME_FILE"
+# 忽略 linuxdeploy 中间 AppImage，由公共入口使用官方 appimagetool 和 Type 2 runtime 正式封装。
+"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
+  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE"
 [[ -s "$OUTFILE" ]] || die "最终 AppImage 未生成"
-chmod +x "$OUTFILE"
 
-# 写入本次实际打包的软件版本，并输出正式资产 SHA-256。
+# 写入本次实际打包的软件版本。
 printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
-sha256sum "$OUTFILE"

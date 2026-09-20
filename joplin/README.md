@@ -12,6 +12,7 @@
 ## 构建环境与依赖
 
 - GitHub Actions 构建环境固定为 `ubuntu-22.04`。
+- 标准 `source` / `AppDir` / `dist` / `source/tools` 工作区由 `common/linuxdeploy/prepare_build_workspace.sh` 统一创建；APT 安装和 DEB 解包分别复用 `common/apt/install_packages.sh` 与 `common/archive/extract_archive.sh`。
 - 同一份官方 DEB 既安装到隔离构建环境供 linuxdeploy 解析依赖，也按上游布局解包到 AppDir。
 - 安装 GTK3、GLib/GIO、GDK Pixbuf、Pango、IBus、NSS、X11/Electron 等运行依赖。
 - `ibus-gtk3` 和 `libibus-1.0-5` 负责把 GTK3 的 IBus 输入模块及运行库带入 AppDir；已解包成品可见 `im-ibus.so`、`libibus-1.0.so.5` 等文件，因此运行日志中的 `IBUS-WARNING` 不是构建环境未安装 IBus。不在 AppRun 中强制写死 `GTK_IM_MODULE`、`QT_IM_MODULE` 或 `XMODIFIERS`，输入法选择继续由宿主机会话管理。
@@ -47,10 +48,11 @@ libnssutil3.so: version `NSSUTIL_xxx' not found
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 ```
 
-最终必须由官方 `appimagetool` 使用指定的 Type-2 runtime 封装：
+项目脚本最终单行调用 `common/linuxdeploy/package_appimage.sh`；公共入口内部仍由官方 `appimagetool` 使用指定的 Type-2 runtime 封装，并负责可执行权限和 SHA-256 输出：
 
 ```bash
-export ARCH=x86_64; appimagetool -n ./AppDir "$OUTFILE" --runtime-file "$RUNTIME_FILE"
+"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
+  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE"
 ```
 
 不得把 linuxdeploy 的中间 AppImage 发布为正式资产，也不得因为 appimagetool、runtime、GitHub 或 CDN 的临时网络错误增加自动 fallback 到其他封装方式；下载失败应由当前构建直接失败，后续正常重试。
@@ -98,6 +100,12 @@ libnssutil3.so: version `NSSUTIL_...' not found
 - 本次证据来自用户实际运行；没有把仅靠静态检查的结论写成 GUI 验证结果。
 
 ## 变更记录
+
+### 2026-09-21：复用 linuxdeploy 公共构建入口
+
+Joplin 构建脚本现与仓库当前 linuxdeploy 规范对齐：标准工作区改由 `prepare_build_workspace.sh` 创建，APT 安装改走 `install_packages.sh`，Joplin DEB 与主题 DEB 解包改走 `extract_archive.sh`，第二次 linuxdeploy 前由 `configure_environment.sh` 设置通用环境，最终正式 AppImage 改由 `package_appimage.sh` 封装。
+
+本次没有改动已经实际运行确认的 Joplin 根 AppRun、GTK3、IBus/GIO、Adwaita 深色主题、同版本 NSS 运行库和第二次 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage` 命令；`.github/workflows/build.yml` 的 Ubuntu 22.04 独立 Job 也保持不变。
 
 ### 2026-09-20：复用公共空 AppDir 初始化入口
 
