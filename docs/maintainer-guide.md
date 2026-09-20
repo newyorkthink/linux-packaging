@@ -41,7 +41,7 @@
 ### linuxdeploy 插件
 
 - Qt 应用按实际 Qt 主版本选择 `linuxdeploy-plugin-qt`，通过 `--plugin qt` 部署 Qt plugins、QML 和翻译；非 Qt 应用不添加。
-- GTK、GStreamer 等输入插件也只在技术栈和证据需要时启用，不能为了“打得更全”一次加入全部插件。
+- GTK、GStreamer 等输入插件也只在技术栈和证据需要时启用，不能为了“打得更全”一次加入全部插件。新增、迁移或重做 GTK 项目时必须用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh` 的 `gtk` 模式取得插件，因为它会校验官方文件并在上游仍遗漏时补入 GIO dynamic modules；不要直接下载未修补的官方 GTK 脚本。
 - `linuxdeploy-plugin-native_packages` 用于输出 DEB / RPM，不是 AppImage 依赖收集插件。
 - `linuxdeploy-plugin-appimage` 对应 `--output appimage`。本仓库的 linuxdeploy 路线不使用它作为最终封装，继续单独调用官方 appimagetool。
 

@@ -65,6 +65,8 @@
 
 `download_file.sh` 统一处理 HTTPS、失败退出、重试、超时、临时文件和可选 SHA-256 校验。`prepare_linuxdeploy_tools.sh` 从各自官方 continuous Release 动态解析 x86_64 资产与 GitHub 官方 digest；GTK 插件没有 Release 资产，因此从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。官方 GTK 插件当前缺少 GIO modules 复制逻辑，公共脚本只在下载文件仍没有 `gio_moduledir` 时应用已验证的最小修复；上游将来加入后自动跳过。以上文件再交给公共下载脚本取得，不固定工具版本。项目脚本只保留当前上游 URL、输出路径和摘要解析逻辑，不重复维护相同的 curl 参数或打包工具下载函数。
 
+GIO dynamic modules 与 GI typelibs、GTK input modules 不是同一类资源。官方插件已经处理 typelibs 和 GTK immodules，但这不能替代 `gio-2.0` modules。新增、迁移或重做 GTK linuxdeploy 项目时不得直接下载未修补的官方 `linuxdeploy-plugin-gtk.sh`；必须给公共工具准备脚本传入 `gtk`，并在第二次 linuxdeploy 后确认最终 AppDir 中存在构建环境实际 `giomoduledir` 对应的模块目录。项目若明确设置 `GIO_MODULE_DIR`，必须指向该 AppDir 内的实际目录，不能指向宿主机。
+
 以上占位符只用于说明接口，正式脚本必须换成当前项目的真实变量。公共脚本属于本仓库自身实现，不得在代码或说明中依赖、调用或提及其他仓库。
 
 ### linuxdeploy 命令形式固定

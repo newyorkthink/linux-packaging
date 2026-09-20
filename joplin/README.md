@@ -14,7 +14,7 @@
 - GitHub Actions 构建环境固定为 `ubuntu-22.04`。
 - 同一份官方 DEB 既安装到隔离构建环境供 linuxdeploy 解析依赖，也按上游布局解包到 AppDir。
 - 安装 GTK3、GLib/GIO、GDK Pixbuf、Pango、IBus、NSS、X11/Electron 等运行依赖。
-- `ibus-gtk3` 和 `libibus-1.0-5` 负责把 GTK3 的 IBus 输入模块及运行库带入 AppDir；不在 AppRun 中强制写死 `GTK_IM_MODULE`、`QT_IM_MODULE` 或 `XMODIFIERS`，输入法选择继续由宿主机会话管理。
+- `ibus-gtk3` 和 `libibus-1.0-5` 负责把 GTK3 的 IBus 输入模块及运行库带入 AppDir；已解包成品可见 `im-ibus.so`、`libibus-1.0.so.5` 等文件，因此运行日志中的 `IBUS-WARNING` 不是构建环境未安装 IBus。不在 AppRun 中强制写死 `GTK_IM_MODULE`、`QT_IM_MODULE` 或 `XMODIFIERS`，输入法选择继续由宿主机会话管理。
 - `adwaita-icon-theme`、`adwaita-icon-theme-full`、`gnome-themes-extra-data` 直接下载并解包进 AppDir，保证 Adwaita 图标和 GTK 主题资源完整。
 
 ## linuxdeploy 规范流程
@@ -66,6 +66,8 @@ IBUS-WARNING: joplin has no capability of surrounding-text feature
 ERROR:ui/gfx/x/atom_cache.cc ... Add application/vnd.portal.* to kAtomsToCache
 ```
 
+其中 `has no capability of surrounding-text feature` 表示当前应用输入上下文没有向 IBus 提供光标附近文本能力，不表示 IBus 模块或运行库缺失。当前实测普通中文输入正常；依赖 surrounding-text 删除、替换光标前后字符的特殊输入法功能不在本次验证范围内。不得为了消除该提示额外打包 `ibus-daemon`，也不得强制覆盖宿主会话的输入法环境变量。
+
 以下类型则属于实际依赖混用错误，不应忽略：
 
 ```text
@@ -88,6 +90,13 @@ libnssutil3.so: version `NSSUTIL_...' not found
 - 自定义 Joplin Job 上传 `software-version-joplin` artifact，并在成功构建后增量写入 `latest/software_versions.json`。
 - 本次不改动现有 Ubuntu 22.04、GTK/IBus、NSS、AppRun 或 appimagetool 稳定基线。
 
+## 实际运行验证（2026-09-20）
+
+- AppImage 可正常启动，Joplin 主界面、Adwaita 深色主题、笔记编辑和普通 IBus 中文输入均正常。
+- 解包后确认 GTK immodules、`im-ibus.so`、IBus 运行库和 AppRun 中的 AppDir `GIO_MODULE_DIR` 路径均已保留。
+- 终端仍会重复输出 `has no capability of surrounding-text feature`；结合成品文件和中文输入结果，确认它不是 IBus 缺包或 AppImage 启动失败。
+- 本次证据来自用户实际运行；没有把仅靠静态检查的结论写成 GUI 验证结果。
+
 ## 变更记录
 
 ### 2026-09-20：复用公共 GitHub API 与 Release 解析入口
@@ -104,4 +113,4 @@ libnssutil3.so: version `NSSUTIL_...' not found
 
 旧脚本先解包 Joplin，再人工创建 `usr/bin/joplin`，而且第二次 GTK linuxdeploy 缺少 `--output appimage`，与当前仓库强制流程冲突。脚本现改为先初始化空 AppDir，再安装并解包同一份官方 DEB；根 AppRun 直接执行 `/opt/Joplin/joplin`，第二次 linuxdeploy 同时启用 GTK 插件与 AppImage 输出阶段，最后仍由官方 appimagetool 和明确的 Type 2 runtime 生成正式资产。
 
-本次保留 Ubuntu 22.04、Adwaita 深色主题、IBus/GIO 与同版本 NSS 运行库基线；打包工具改由公共入口动态取得，并删除仓库内固定的 GTK 插件副本。已完成 Shell 语法、静态规则和完整 diff 检查；提交后不监控 Actions，新构建产物及真实运行结果待验证。
+本次保留 Ubuntu 22.04、Adwaita 深色主题、IBus/GIO 与同版本 NSS 运行库基线；打包工具改由公共入口动态取得，并删除仓库内固定的 GTK 插件副本。已完成 Shell 语法、静态规则和完整 diff 检查；随后提供的实际运行结果确认 AppImage、深色主题和普通 IBus 中文输入正常，终端 `surrounding-text` 提示按上文边界记录为非致命日志。

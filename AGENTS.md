@@ -542,6 +542,7 @@ linuxdeploy 插件分为输入 / bundling 插件和输出插件。输入插件�
 - 一个项目只启用其技术栈和已确认运行需求所需的输入插件。Qt 使用 `--plugin qt`，GTK 使用 `--plugin gtk`，GStreamer 按需使用 `--plugin gstreamer`；不得为了“打得更全”一次启用全部插件。
 - Qt 插件只解决 Qt 框架资源部署，不替代与主程序主版本一致的 Qt 运行库、qmake / qtpaths 和 plugins，也不替代 linuxdeploy 对普通 ELF 依赖的收集。
 - GTK 插件支持通过 `DEPLOY_GTK_VERSION` 明确 GTK 2 / 3 / 4；已确认主版本时应显式设置，避免依赖自动检测产生歧义。
+- 官方 `linuxdeploy-plugin-gtk` 当前没有复制 GIO dynamic modules。新增、迁移或重做 GTK linuxdeploy 项目时，必须通过 `common/linuxdeploy/prepare_linuxdeploy_tools.sh <工具目录> gtk` 取得经过 Git blob 校验并按需补入 GIO modules 复制逻辑的插件；不得直接下载未修补的官方脚本作为最终构建输入。公共脚本只在上游仍缺少 `gio_moduledir` 时应用一次最小修复，上游加入等价实现后自动跳过。已经验证稳定且本次未涉及的旧项目不为套用该规则批量改写。
 - linuxdeploy 自动发现不到的 `dlopen` 库、NSS / provider、helper 或其他运行时模块，只能根据当前应用的源码、ELF、日志、已有产物或真实运行反馈用 `-l` 精确补入，不得复制其他项目的整组库。
 - `--plugin <名称>` 与 `--output appimage` 应在第二次 linuxdeploy 命令中同时使用：输入插件部署资源和 hook，输出阶段生成顶层 AppRun / AppRun.wrapped 并产生中间 AppImage。
 - 对应应用 README 的“打包方式”必须写清实际启用了哪些输入插件、为什么需要、额外补入了哪些库，以及最终 appimagetool / runtime 封装方式。
