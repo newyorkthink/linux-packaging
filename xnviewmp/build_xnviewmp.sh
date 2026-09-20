@@ -272,13 +272,15 @@ export LD_LIBRARY_PATH="$HERE/opt/XnView:$HERE/opt/XnView/lib:$HERE/usr/lib${LD_
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
 # Qt 专用目录按最终 AppDir 的实际结构成对加入 /opt 与 /usr 路径。
-export QT_PLUGIN_PATH="$HERE/opt/XnView/Plugins:$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
+export QT_PLUGIN_PATH="$HERE/opt/XnView/lib:$HERE/opt/XnView/Plugins:$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
 export QML_IMPORT_PATH="$HERE/opt/XnView/qml:$HERE/usr/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 export QML2_IMPORT_PATH="$HERE/opt/XnView/qml:$HERE/usr/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
 export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_TRANSLATIONS_PATH}"
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
+# XnView 官方针对视频播放时的 XCB OpenGL 上下文问题建议使用 EGL 集成。
 export QT_QPA_PLATFORM=xcb
+export QT_XCB_GL_INTEGRATION=xcb_egl
 export QT_FONT_DPI=96
 
 exec "$HERE/opt/XnView/XnView" "$@"
@@ -293,6 +295,9 @@ export ARCH=x86_64; linuxdeploy \
   --icon-file "$ICON_FILE" \
   --plugin qt \
   --output appimage
+
+# 第二次 linuxdeploy 完成后，统一按最终 AppDir 整理 AppRun 中的路径型 export。
+"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
 
 ###### 整理产物 ######
 

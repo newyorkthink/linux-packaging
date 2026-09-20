@@ -114,6 +114,13 @@ def main() -> None:
         if any(path.startswith(".github/actions/build-anylinux/") for path in files):
             select_all()
         else:
+            if any(path.startswith("common/linuxdeploy/") for path in files):
+                marker = "common/linuxdeploy/normalize_apprun_paths.sh"
+                for app in catalog:
+                    script_path = Path(app["script"])
+                    if script_path.is_file() and marker in script_path.read_text(encoding="utf-8"):
+                        build[app["key"]] = True
+
             for path in files:
                 if path == ".github/scripts/ci_build_dingtalk.sh":
                     build["dingtalk"] = True

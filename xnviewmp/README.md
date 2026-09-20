@@ -21,8 +21,9 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 3. 写入完整根 `AppDir/AppRun`。无论主程序位于 `/opt`，仍固定保留 `usr/bin`、`usr/lib`、`usr/share`，分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`；随后追加 XnView 的 `/opt` 路径和 Qt 实际生成的 plugins、QML、translations 路径。
 4. 设置 `QT_SELECT=qt5` 和 `QMAKE=/usr/lib/qt5/bin/qmake`，再以 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage` 为基础命令执行第二次 linuxdeploy；只追加允许的 `--desktop-file` 与 `--icon-file`。
 5. 第二次 linuxdeploy 把完整根 AppRun 保存为 `AppRun.wrapped`，并生成加载 Qt hook 的顶层 AppRun。
-6. XnView 打包永久禁止 `--executable`，不生成、不依赖 `AppDir/usr/bin/XnView` 副本。
-7. linuxdeploy 输出只作为中间结果，最终从同一个 AppDir 使用官方 appimagetool 和官方 Type 2 runtime 封装 `dist/xnviewmp.AppImage`。
+6. 第二次 linuxdeploy 完成后调用 `common/linuxdeploy/normalize_apprun_paths.sh`，只按最终 AppDir 整理 `AppRun.wrapped` 中已经声明的路径型 export；不存在的目录删除，实际生成的同用途目录补入并去重。
+7. XnView 打包永久禁止 `--executable`，不生成、不依赖 `AppDir/usr/bin/XnView` 副本。
+8. linuxdeploy 输出只作为中间结果，最终从同一个 AppDir 使用官方 appimagetool 和官方 Type 2 runtime 封装 `dist/xnviewmp.AppImage`。
 
 脚本中的检查只用于构建输入、官方摘要、第一次目录初始化状态和最终产物的必要错误处理；正式脚本与工作流不提交 GUI smoke test、媒体样例生成或解包测试代码。
 
@@ -33,6 +34,14 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 ```
 
 ## 变更记录
+
+### 2026-09-20：整理最终 AppRun 路径并处理视频 OpenGL 上下文
+
+真实运行日志出现 `QXcbIntegration: Cannot create platform OpenGL context, neither GLX nor EGL are enabled`、`QOpenGLWidget: Failed to create context` 和连续 `composeAndFlush: makeCurrent() failed`。XnView 官方论坛针对 Linux 视频播放问题明确建议 `QT_XCB_GL_INTEGRATION=xcb_egl`，并有 AppImage 用户反馈该设置可恢复视频播放。
+
+构建脚本现在把 XnView 自带的 `opt/XnView/lib` 加入 `QT_PLUGIN_PATH`，保留现有 Qt / 中文环境基线，并设置 `QT_XCB_GL_INTEGRATION=xcb_egl`。第二次 linuxdeploy 后只增加一行公共路径整理脚本调用，在 appimagetool 前根据最终 AppDir 整理 `AppRun.wrapped` 的路径型 export；不会改顶层 Qt hook、`exec` 或其他应用逻辑。
+
+本次已完成脚本静态语法、公共脚本合成 AppDir 行为和修改范围核对；提交后按仓库规则不监控 Actions，新产物的视频播放结果仍需真实运行确认。
 
 ### 2026-09-20：修正空 AppDir 初始化与第二阶段部署顺序
 

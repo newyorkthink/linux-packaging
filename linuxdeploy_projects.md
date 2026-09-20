@@ -199,7 +199,25 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage -
 
 不得把该 NSS 列表复制到不需要的项目，也不得使用目录或通配符代替精确库路径。
 
-### 第五步：核对 AppRun 包装结果
+### 第五步：第二次 linuxdeploy 后统一整理 AppRun 路径
+
+第二次 linuxdeploy 已经完成 Qt / GTK / GStreamer hook 和最终 AppDir 目录布局后，在 appimagetool 最终封装之前统一调用仓库公共脚本：
+
+```bash
+# 根据最终 AppDir 整理 AppRun.wrapped / AppRun 中已经声明的路径型 export
+"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
+```
+
+规则：
+
+- 应用构建脚本只增加这一条实际调用命令；下载、解包、根 AppRun、第二次 linuxdeploy 等前置流程继续按当前应用原有逻辑执行。
+- 有 `AppRun.wrapped` 时只处理 wrapped；没有 wrapped 时才处理 `AppRun`。顶层 linuxdeploy hook AppRun 不得覆盖。
+- 公共脚本只处理当前 AppRun 已经声明的路径型变量；存在的 AppDir 路径保留，不存在的删除，并按变量用途补入第二次 linuxdeploy 后真实生成的标准目录。
+- 不得借公共脚本建立万能 AppRun，也不得修改 `exec`、语言、主题、输入法、显示后端或其他应用专用逻辑。
+- 路径变量具体用途见 [`docs/apprun-path-environment.md`](./docs/apprun-path-environment.md)。
+- 已经稳定且本次未涉及的 linuxdeploy 项目不为统一形式批量改写；后续实际修改对应项目时再接入同一行调用。
+
+### 第六步：核对 AppRun 包装结果
 
 存在 Qt、GTK、GStreamer 等 hook 时，第二次 linuxdeploy 的标准结果是：
 
@@ -212,11 +230,11 @@ AppRun
 - 顶层 `AppRun` 由 linuxdeploy 生成并加载 hook；
 - `AppRun.wrapped` 保存第三步写入的完整根 AppRun；
 - `apprun-hooks/` 保存当前插件实际生成的 hook；
-- 禁止手工创建或改写 `AppRun.wrapped`，也不得在 linuxdeploy 完成后覆盖顶层 AppRun。
+- 禁止手工创建 `AppRun.wrapped`，也不得覆盖 linuxdeploy 生成的顶层 AppRun；第二次 linuxdeploy 后只允许上述公共脚本在既有 `AppRun.wrapped` / `AppRun` 中整理路径型 export。
 
 普通应用没有输入插件时不一定产生 `apprun-hooks` 或 `AppRun.wrapped`，以最终 AppDir 实际结构为准。
 
-### 第六步：忽略 linuxdeploy 中间输出，使用 appimagetool 最终封装
+### 第七步：忽略 linuxdeploy 中间输出，使用 appimagetool 最终封装
 
 只发布 appimagetool 对同一个 AppDir 最终生成的文件。用户本地已经验证的命令必须原样保留：
 
@@ -272,6 +290,7 @@ GTK plugin 自动生成的 hook 会设置 GTK 数据、schemas、typelib、immod
 - Qt 5 / Qt 6 没有混用；
 - 额外 `-l` 只包含当前应用确实需要且无法自动发现的库；
 - 最终 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks` 执行链正确；
+- 公共路径整理脚本只位于第二次 linuxdeploy 与 appimagetool 之间，且只修改路径型 export；
 - linuxdeploy 生成的中间 AppImage没有进入发布目录；
 - 正式资产由 appimagetool + 官方 Type 2 runtime 生成；
 - workflow 没有新增临时 test workflow、测试 Job 或测试 Step；

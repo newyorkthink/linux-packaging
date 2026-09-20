@@ -48,6 +48,7 @@
 ### AppRun 与 libunionpreload
 
 - AppRun 只保留当前应用需要的入口和环境，不使用万能模板，不统一强制语言、浏览器、主题、显示后端、字体 DPI、输入法或用户目录。
+- `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、Qt / QML / GTK 路径变量的用途和 linuxdeploy 后统一整理方式见 [AppRun 路径型环境变量说明](./apprun-path-environment.md)。
 - 启动链只保留一条真实可到达的 `exec ... "$@"`，路径和参数必须正确引用。
 - 程序确实写死 `/usr`、`/opt`、`/lib` 等绝对路径，且普通 RPATH、搜索路径或小范围 wrapper 无法解决时，可以评估 libunionpreload。
 - libunionpreload 不是 mount、真正的 union filesystem 或安全沙箱。使用前必须核对动态链接方式、架构、glibc ABI、子进程传播、文件写入和许可证要求。
