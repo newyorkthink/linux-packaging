@@ -79,6 +79,7 @@ libnssutil3.so: version `NSSUTIL_...' not found
 ## 稳定基线
 
 - 不修改 Joplin 官方 `app.asar`。
+- 不主动删除 Joplin 官方 DEB 中的文件，包括官方提供的 1024×1024 图标；打包工具的图标尺寸限制不得作为删减上游包内容的理由。
 - 不为消除非致命 warning 强行增加输入法环境变量或替换已经正常工作的 GTK/GLib/NSS 依赖。
 - 不增加 Xvfb / GUI smoke test、额外 ELF 遍历或仅用于“让 Actions 变绿”的测试代码。
 - 两次 linuxdeploy 都保留 `--output appimage`，但不把它生成的中间 AppImage 作为最终封装结果。
@@ -104,7 +105,7 @@ libnssutil3.so: version `NSSUTIL_...' not found
 
 Joplin 构建脚本现与仓库当前 linuxdeploy 规范对齐：标准工作区、x86_64 检查、APT 安装、GitHub 正式 Release 解析 + 下载、主题包下载 + 解包、NSS 运行库复制、linuxdeploy 通用环境和最终 appimagetool 封装分别交给对应 `common/` 入口。应用脚本只保留 Joplin 自身依赖、desktop 调整、已验证 AppRun、GTK3 选择和第二次 linuxdeploy。
 
-同时删除应用脚本内的 `die` / `uname -m`、Release `mapfile` 元数据拆分、直接 `apt-get download` + DEB 遍历、重复 NSS 文件清单、`desktop-file-validate`、固定 AppRun 的内联 `bash -n`、最终 AppImage 重复检查和手写 `version.txt`。本次没有改动已经实际运行确认的 Joplin 根 AppRun、GTK3、IBus/GIO、Adwaita 深色主题、NSS 文件集合和第二次 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage` 命令；`.github/workflows/build.yml` 的 Ubuntu 22.04 独立 Job 也保持不变。
+同时删除应用脚本内的 `die` / `uname -m`、Release `mapfile` 元数据拆分、直接 `apt-get download` + DEB 遍历、重复 NSS 文件清单、`desktop-file-validate`、固定 AppRun 的内联 `bash -n`、最终 AppImage 重复检查和手写 `version.txt`。后续取消对官方 1024×1024 Joplin 图标的主动删除，保持上游 DEB 内容完整。本次没有改动已经实际运行确认的 Joplin 根 AppRun、GTK3、IBus/GIO、Adwaita 深色主题、NSS 文件集合和第二次 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage` 命令；`.github/workflows/build.yml` 的 Ubuntu 22.04 独立 Job 也保持不变。
 
 ### 2026-09-20：复用公共空 AppDir 初始化入口
 

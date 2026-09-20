@@ -54,9 +54,6 @@ VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh
 DESKTOP_FILE="$(find "$APPDIR/usr/share/applications" -maxdepth 1 -type f -iname '*joplin*.desktop' -print -quit)"
 sed -i -e 's|^Exec=.*|Exec=joplin %U|' -e 's|^Icon=.*|Icon=joplin|' "$DESKTOP_FILE"
 
-# linuxdeploy 不接受 1024x1024 图标；保留官方 512x512 及其他标准尺寸。
-rm -f "$APPDIR/usr/share/icons/hicolor/1024x1024/apps/joplin.png"
-
 ###### 准备兼容运行库 ######
 
 # NSS 核心库和 dlopen 模块必须来自同一套 Ubuntu 22.04 libnss3；复制清单由公共入口统一维护。
