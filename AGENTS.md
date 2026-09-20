@@ -35,6 +35,7 @@
 
 - 不得只阅读本文件中的 linuxdeploy 摘要；开始处理任何 linuxdeploy 项目前，必须同时完整阅读 `linuxdeploy_projects.md`，并按其中规定的实际顺序、路径、命令和最终封装方式执行。
 - 普通、Qt、GTK、GStreamer 及任何其他使用 linuxdeploy 的项目全部受此规则约束；不得以技术栈、上游包格式、历史脚本、现有 README、旧 workflow、其他项目模板或“当前项目特殊”为理由绕过。
+- 无论上游 DEB、归档或安装结果把真实程序放在 `/opt`、`/usr/bin` 还是其他目录，linuxdeploy 的基础调用形式都不得随布局改变：普通项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，GTK 项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage`，Qt 项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage`。按项目真实需要只允许追加 `--desktop-file`、`--icon-file` 和精确的 `-l <库路径>`；禁止追加 `--executable`，也禁止擅自增加其他未经本规范确认的 linuxdeploy 参数。
 - 必须遵守 `linuxdeploy_projects.md` 规定的完整链路：第一次带 `--output appimage` 的普通 linuxdeploy 创建 / 整理 AppDir；把完整自定义启动逻辑写入根 `AppDir/AppRun`；第二次按技术栈带对应插件并保留 `--output appimage`；由 linuxdeploy 完成 hook、顶层 `AppRun` 和 `AppRun.wrapped`；最后对同一个 AppDir 使用官方 appimagetool 和明确的 Type 2 runtime 重新封装正式资产。
 - 禁止选择性执行、删减、调换或自行解释上述步骤；尤其不得把核心启动逻辑移到 `AppDir/usr/bin/<程序名>` 后让根 `AppRun` 只做转发，不得发布 linuxdeploy 中间 AppImage，也不得省略最终 appimagetool + Type 2 runtime 封装。
 - 判断 `AppDir/usr/bin/<程序名>` 是否属于应用真实入口时，必须追溯上游 DEB、归档或源码安装结果的原始文件布局，不能只看当前构建脚本最终造出了什么文件。构建脚本自己通过 `cat > "$APPDIR/usr/bin/<程序名>"`、复制、拼接或其他方式生成的转发 wrapper，不属于“上游真实提供的 launcher”，不得作为保留根 `AppRun` 二次转发结构的依据。

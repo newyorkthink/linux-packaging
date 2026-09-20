@@ -16,11 +16,12 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 
 ## linuxdeploy 规范流程
 
-1. 普通 linuxdeploy 阶段使用 `--output appimage` 创建并规范化 `AppDir`。
+1. 普通阶段固定以 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage` 为基础命令创建并规范化 `AppDir`；本项目只按需追加允许的 `--desktop-file` 与 `--icon-file`。
 2. 第一阶段完成后，脚本写入项目真实的根 `AppDir/AppRun`；入口直接执行 `/opt/XnView/XnView`，并同时加入上游 `/opt` 与 linuxdeploy 实际生成的 `usr/bin`、`usr/lib`、`usr/plugins`、`usr/qml`、`usr/translations`、`usr/share` 路径。
-3. 把 `/usr/lib/qt5/bin` 放在 `PATH` 最前，设置 `QT_SELECT=qt5` 和 `QMAKE=/usr/lib/qt5/bin/qmake`，再执行 `--plugin qt --output appimage`；linuxdeploy 使用真实 Qt5 `qmake` / `qmlimportscanner` 生成 Qt hook、顶层入口和 `AppRun.wrapped`。
-4. linuxdeploy 生成的 AppImage 只作为中间产物。
-5. 最终从同一个 `AppDir` 使用官方 appimagetool 和官方 Type 2 runtime 重新封装 `dist/xnviewmp.AppImage`。
+3. 把 `/usr/lib/qt5/bin` 放在 `PATH` 最前，设置 `QT_SELECT=qt5` 和 `QMAKE=/usr/lib/qt5/bin/qmake`，再以 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage` 为基础命令执行 Qt 阶段；本项目仍只追加允许的 desktop 与 icon 参数，由 linuxdeploy 使用真实 Qt5 `qmake` / `qmlimportscanner` 生成 Qt hook、顶层入口和 `AppRun.wrapped`。
+4. linuxdeploy 命令不因主程序位于 `/opt` 而增加 `--executable`；该参数会生成不属于上游布局的 `AppDir/usr/bin/XnView` 副本，XnView 打包永久禁止使用。
+5. linuxdeploy 生成的 AppImage 只作为中间产物。
+6. 最终从同一个 `AppDir` 使用官方 appimagetool 和官方 Type 2 runtime 重新封装 `dist/xnviewmp.AppImage`。
 
 脚本中的检查只用于构建输入、官方摘要和最终产物的必要错误处理；正式脚本与工作流不提交 GUI smoke test、媒体样例生成或解包测试代码。
 

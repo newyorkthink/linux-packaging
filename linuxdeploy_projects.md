@@ -48,6 +48,29 @@
 
 ## 唯一标准流程：linuxdeploy 中间输出，再由 appimagetool 最终封装
 
+### linuxdeploy 命令形式固定，不随上游安装目录改变
+
+无论上游 DEB、归档或安装结果把真实程序放在 `/opt`、`/usr/bin` 还是其他目录，先按上游真实布局准备 AppDir；linuxdeploy 本身统一只使用下面三种基础命令：
+
+```bash
+# 普通应用统一使用此命令
+export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
+
+# GTK 应用统一使用此命令
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
+
+# Qt 应用统一使用此命令
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
+```
+
+项目确有需要时，只允许在对应基础命令上追加以下三类参数：
+
+- `--desktop-file <desktop 文件>`；
+- `--icon-file <图标文件>`；
+- `-l <已核实的单个库路径>`，需要多个库时逐个追加 `-l`。
+
+**禁止追加 `--executable`。** 该参数可能把原本位于 `AppDir/opt/<应用>/` 的真实主程序再次部署到 `AppDir/usr/bin/`，制造不属于上游包布局的副本。也禁止擅自加入上述允许范围之外的其他 linuxdeploy 参数。应用真实入口统一由根 `AppDir/AppRun` 按实际布局直接执行，不通过 linuxdeploy 命令行改变上游目录结构。
+
 ### 第一步：普通 linuxdeploy 创建并整理 AppDir
 
 先执行用户本地已经验证的原命令：
@@ -57,7 +80,7 @@
 export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
 ```
 
-这一步由 linuxdeploy 创建 / 整理 AppDir 的 `usr/bin`、`usr/lib`、`usr/share`、desktop、icon、根目录链接及其他能够从现有输入识别的结构。linuxdeploy 自动创建某个目录只表示基础结构存在，不表示该目录必须有文件；例如 `AppDir/usr/bin/` 可以保持为空。应用本体、desktop、icon、上游包或 `--executable` / `--desktop-file` / `--icon-file` 等输入仍必须按当前项目真实情况准备；linuxdeploy 不会凭空生成应用文件，也不得为了填满自动创建的目录而改变上游真实布局。
+这一步由 linuxdeploy 创建 / 整理 AppDir 的 `usr/bin`、`usr/lib`、`usr/share`、desktop、icon、根目录链接及其他能够从现有输入识别的结构。linuxdeploy 自动创建某个目录只表示基础结构存在，不表示该目录必须有文件；例如 `AppDir/usr/bin/` 可以保持为空。应用本体必须提前按上游真实布局放入 AppDir；desktop 和 icon 可按需通过允许的 `--desktop-file`、`--icon-file` 传入。不得使用 `--executable` 把 `/opt` 中的程序再次部署到 `usr/bin`，也不得为了填满自动创建的目录而改变上游真实布局。
 
 这一步生成的 AppImage 只是中间产物，不进入发布目录。
 
