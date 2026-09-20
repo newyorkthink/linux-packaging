@@ -48,6 +48,13 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - AppImage 启动链不使用 `sudo`、`pkexec`、systemd、cron 或自动安装逻辑。
 - 官方包内 32 位旧格式后端的实际可用性仍取决于宿主是否具备对应 32 位兼容运行库；这不影响 PeaZip 主程序和主要 64 位归档后端。
 
+## 已实机确认的稳定基线（禁止改动）
+
+- **验收结果：** 2026-09-21，用户已在 Kali Linux + i3wm 中运行正式 `peazip.AppImage` 并提供截图确认：菜单、工具栏、侧栏、文件列表、状态栏和历史记录均正常显示简体中文，原有 `æ…` 类乱码已经消失。中文乱码问题至此确认修复，不再属于待验证项目。
+- **稳定实现：** `peazip_utf8_fix.c`、构建脚本中生成 `libpeazip-utf8-fix.so` 的 GCC 命令、AppRun 中的 `PEAZIP_ORIGINAL_LD_PRELOAD` / `LD_PRELOAD` 两行以及当前 Qt6Pas 回调修复链共同组成同一套已验证实现，必须完整保留。
+- **永久约束：** 后续更新 PeaZip、依赖、公共脚本、linuxdeploy、AppRun 或文档时，禁止以整理、简化、重构、统一模板、减少预加载或改用其他编码方案为由删除、绕过、改名、替换或改写上述实现；禁止重新加入已失败的 locale-only 方案，禁止改用字体、反复改写 BOM 或 `-peaziplanguage` 掩盖编码问题。
+- **变更门槛：** 只有用户明确要求重新处理该兼容层，并且出现新的真实产物实机回归证据时，才允许单独评估；在得到明确授权前必须原样保留当前实现，不能先改后试。
+
 ## 运行
 
 在 Linux 终端进入 AppImage 所在目录后执行：
@@ -75,7 +82,8 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - **代码路径证据：** PeaZip 11.2.0 的 `load_texts` 通过 Pascal `Text` / `AnsiString` 读取语言正文，`read_header` 只跳过 BOM；`libQt6Pas.so.6` 最终统一通过 `UnicodeOfPWideString` 和 `LengthOfPWideString` 把 Pascal WideString 送入 `QString::setUtf16`。截图中的字符正好可逆映射回原 UTF-8 字节。
 - **修复：** 新增仓库内 `peazip_utf8_fix.c`，构建为 PeaZip 专用共享库，并在 `initPWideStrings` 这一处边界替换两个读取回调。只有完整文本能从 Latin-1/CP1252 字符严格解码为合法多字节 UTF-8 时才修复；其他文本不修改。AppRun 不再强制任何 locale。
 - **临时测试（未写入仓库）：** 使用 `-Wall -Wextra -Werror -Wpedantic` 编译通过；`æ–‡ä»¶ → 文件` 通过；正确中文、ASCII、`Résumé` 原样通过；伪 Qt6Pas 共享库验证实际 ELF 符号拦截、两个回调求值顺序和长度均正确；正式包内真实 `libQt6Pas.so.6` 的全局回调槽实际返回 `文件`；真实 PeaZip 动态加载追踪确认绑定链为 `peazip → libpeazip-utf8-fix.so → libQt6Pas.so.6`；私有预加载变量被删除且用户原有 `LD_PRELOAD` 被恢复。真实 PeaZip 曾加载兼容库启动到虚拟显示窗口阶段；本轮复测因执行容器禁止创建 X11 socket 未能重复截图，不把该环境失败记成应用通过。
-- **验证边界：** 算法、ABI 拦截和环境恢复已在仓库外临时程序验证；未把测试代码、测试脚本或测试 workflow 加入仓库。Kali 桌面最终显示仍必须以本次正式构建产物实机确认为准。
+- **Kali 实机验收：** 用户已运行本次正式产物并提供截图，确认菜单、工具栏、侧栏、文件列表、状态栏和历史记录中的简体中文均正常显示，没有继续出现乱码。
+- **最终结论：** 算法、ABI 拦截、环境恢复和 Kali 桌面正式产物显示均已验证；乱码问题确认修复。当前实现升级为禁止改动的稳定基线，后续不得再把本问题标记为待确认，也不得回退到此前失败方案。
 
 ### 2026-09-20：复用公共空 AppDir 初始化入口
 
