@@ -75,7 +75,13 @@ fi
 "${APT[@]}" update
 DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   ca-certificates coreutils curl desktop-file-utils file findutils gawk grep jq tar xz-utils \
-  qt5-qmake qtbase5-dev libqt5svg5 qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 \
+  qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools qttools5-dev-tools \
+  qtdeclarative5-dev qtdeclarative5-dev-tools \
+  qml-module-qtqml qml-module-qtqml-models2 \
+  qml-module-qtquick2 qml-module-qtquick-window2 qml-module-qtquick-layouts \
+  qml-module-qtquick-controls qml-module-qtquick-controls2 qml-module-qtquick-templates2 \
+  qml-module-qtgraphicaleffects qml-module-qt-labs-platform qml-module-qt-labs-settings \
+  libqt5svg5 qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 \
   fcitx5-frontend-qt5 libfcitx5-qt1 \
   libqt5multimedia5 libqt5multimedia5-plugins libqt5multimediagsttools5 \
   libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 \
@@ -87,8 +93,14 @@ DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
 
 # 确认后续构建依赖的基础命令均可用。
-for command_name in curl desktop-file-validate find jq qmake readlink sed sha256sum tar; do
+for command_name in curl desktop-file-validate find jq readlink sed sha256sum tar; do
   command -v "$command_name" >/dev/null 2>&1 || die "缺少必需命令：$command_name"
+done
+
+# Qt 插件必须直接使用 Qt5 的真实工具，不能落到没有选中版本的 qtchooser wrapper。
+QT5_BIN_DIR=/usr/lib/qt5/bin
+for qt_tool in qmake qmlimportscanner; do
+  [[ -x "$QT5_BIN_DIR/$qt_tool" ]] || die "缺少 Qt5 工具：$QT5_BIN_DIR/$qt_tool"
 done
 
 # 准备 GitHub API 请求头；有令牌时用于提高官方 API 访问额度。
@@ -213,8 +225,9 @@ ln -sfn linuxdeploy-x86_64.AppImage "$TOOLS_DIR/linuxdeploy"
 # 配置 linuxdeploy、Qt5 qmake、中间产物和运行库搜索路径。
 export ARCH=x86_64
 export APPIMAGE_EXTRACT_AND_RUN=1
-export PATH="$TOOLS_DIR:$PATH"
-export QMAKE=/usr/bin/qmake
+export QT_SELECT=qt5
+export PATH="$QT5_BIN_DIR:$TOOLS_DIR:$PATH"
+export QMAKE="$QT5_BIN_DIR/qmake"
 export NO_STRIP=1
 export LDAI_NO_APPSTREAM=1
 export LDAI_OUTPUT="$INTERMEDIATE_APPIMAGE"
@@ -253,8 +266,8 @@ exec "$HERE/opt/XnView/XnView" "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/AppRun"
 
-# XnView MP 使用 Qt5，QMAKE 必须指向当前环境真实的 Qt5 qmake。
-export QMAKE=/usr/bin/qmake
+# XnView MP 使用 Qt5，QMAKE 必须继续指向 Qt5 bin 目录中的真实 qmake。
+export QMAKE="$QT5_BIN_DIR/qmake"
 export ARCH=x86_64; linuxdeploy \
   --appdir AppDir \
   --executable "$APPDIR/opt/XnView/XnView" \

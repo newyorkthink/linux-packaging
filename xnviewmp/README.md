@@ -18,7 +18,7 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 
 1. 普通 linuxdeploy 阶段使用 `--output appimage` 创建并规范化 `AppDir`。
 2. 第一阶段完成后，脚本写入项目真实的根 `AppDir/AppRun`。
-3. 设置 Qt5 的 `export QMAKE=/usr/bin/qmake`，再执行 `--plugin qt --output appimage`；linuxdeploy 据此生成 Qt hook、顶层入口和 `AppRun.wrapped`。
+3. 把 `/usr/lib/qt5/bin` 放在 `PATH` 最前，设置 `QT_SELECT=qt5` 和 `QMAKE=/usr/lib/qt5/bin/qmake`，再执行 `--plugin qt --output appimage`；linuxdeploy 使用真实 Qt5 `qmake` / `qmlimportscanner` 生成 Qt hook、顶层入口和 `AppRun.wrapped`。
 4. linuxdeploy 生成的 AppImage 只作为中间产物。
 5. 最终从同一个 `AppDir` 使用官方 appimagetool 和官方 Type 2 runtime 重新封装 `dist/xnviewmp.AppImage`。
 
@@ -35,3 +35,7 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 ### 2026-09-20：统一 linuxdeploy 与最终封装流程
 
 改为动态解析官方最新稳定版；补齐两阶段 linuxdeploy、Qt5 `QMAKE`、真实 `AppRun`、Qt hook/`AppRun.wrapped` 及 appimagetool + Type 2 runtime 最终封装，并移除正式提交中的 smoke/test 代码。
+
+### 2026-09-20：补齐 Qt5 Declarative 与 QML 打包工具
+
+Actions Job `106069546113` 在 Qt 插件的 QML 阶段调用 `/usr/bin/qmlimportscanner`，因 qtchooser 没有选中 Qt installation 而退出。构建脚本补装 Qt5 qmake、Declarative 开发工具、`qmlimportscanner` 和常用 Qt Quick/QML 模块，并把 `PATH`、`QT_SELECT`、`QMAKE` 明确绑定到 `/usr/lib/qt5/bin`。本次仅完成脚本语法和远端 diff 核对，提交后未监控 Actions，实际构建结果未验证。
