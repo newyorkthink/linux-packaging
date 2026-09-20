@@ -26,12 +26,12 @@ XnConvert 是 Qt5 应用，官方 DEB 的真实布局同时包含：
 4. 原样保留官方 `usr/bin/xnconvert`，不再人工重写；根 AppRun 始终直接执行 `opt/XnConvert/XnConvert`，不通过 `usr/bin` 二次转发。
 5. 保留已有 Qt5 翻译、XCB 平台库、Fcitx5 / IBus / Compose 输入上下文和图标部署方式。
 6. 第二次执行 Qt linuxdeploy，由它把完整根 AppRun 保存为 `AppRun.wrapped`，并生成加载 Qt hook 的顶层 AppRun。
-7. 第二次 linuxdeploy 后调用 `normalize_apprun_paths.sh`，只按最终 AppDir 中真实存在的目录整理 AppRun 路径型 export。新版正式成品经用户确认正常后，再固化最终 export 并删除这次调用。
+7. 当前 Release 成品的目录、AppRun 和实际功能已经确认正常，构建脚本直接保留核对后的最终 export，不再调用 `normalize_apprun_paths.sh`。
 8. linuxdeploy 产物只作为中间结果；正式资产由 appimagetool 使用官方 Type 2 runtime 对同一个 AppDir 重新封装。
 
 ## AppRun 路径
 
-当前 AppRun 的候选稳定路径为：
+当前 AppRun 已确认的稳定路径为：
 
 - `PATH`：`opt/XnConvert`、`usr/bin`；
 - `LD_LIBRARY_PATH`：`opt/XnConvert/lib`、`usr/lib`；
@@ -78,3 +78,7 @@ opt/XnConvert/XnConvert # 根 AppRun 直接执行的真实主程序
 2026-09-20 标准 `source`、`AppDir`、`dist`、`source/tools` 路径及其清理、重建改为单行加载 `common/linuxdeploy/prepare_build_workspace.sh`；XnConvert 脚本只保留 DEB、desktop 和 icon 三个应用专用路径。
 
 2026-09-20 技术栈无关的 linuxdeploy 环境改由 `common/linuxdeploy/configure_environment.sh` 设置，Qt5 的 `QT_SELECT`、`QMAKE` 和 Qt 工具路径仍留在项目脚本；最终 appimagetool、Type 2 runtime、执行权限和 SHA-256 输出改为调用 `common/linuxdeploy/package_appimage.sh`。
+
+2026-09-20 下载并解包 `latest/xnconvert.AppImage`，确认 SHA-256 为 `752784f8cfe04017f70be27914959a4ce095bf9d5ea32ff1a5c010027c31440a`，产物是 x86_64 Type 2 AppImage。顶层 `AppRun` 正确加载 Qt hook 并执行 `AppRun.wrapped`；`PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、`QT_PLUGIN_PATH`、`QT_QPA_PLATFORM_PLUGIN_PATH` 和 `QT_TRANSLATIONS_PATH` 中的目录均实际存在。`usr/plugins/platforminputcontexts` 包含 Compose、Fcitx5 和 IBus 三种 Qt5 输入插件，`usr/translations` 同时包含系统 Qt5 翻译和指向 `opt/XnConvert/language` 的应用翻译；主程序、qxcb 和三种输入插件在当前库路径下均没有直接缺失依赖。
+
+用户实际运行进一步确认中文界面、文件选择框中文输入、主界面中文输入、图片导入、效果预览、批量转换、结果保存和外部查看均正常。终端出现的 `QCursor`、`QObject::connect`、`QFileSystemWatcher` 和 `QMutex` 信息来自 XnConvert 自身运行过程；在对应操作与转换已经成功的证据下，不属于 AppImage 依赖或 AppRun 故障。构建脚本现已删除 `normalize_apprun_paths.sh`，以上述 AppRun export 作为最终稳定基线。

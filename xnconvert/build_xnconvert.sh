@@ -102,9 +102,6 @@ export ARCH=x86_64; linuxdeploy \
   --appdir AppDir --desktop-file "$DESKTOP_FILE" --icon-file "$ICON_FILE" \
   --plugin qt --output appimage
 
-# 新版正式成品尚待用户确认，先按最终 AppDir 整理 AppRun 中的路径型 export。
-"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
-
 ###### 整理产物 ######
 
 # 公共入口使用官方 appimagetool 和 Type 2 runtime 封装，并输出正式资产 SHA-256。
