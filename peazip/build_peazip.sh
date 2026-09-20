@@ -117,6 +117,13 @@ cp -a "$QT6_PLUGIN_ROOT/platformthemes/libqgtk3.so" "$APPDIR/usr/plugins/platfor
 cp -a "$QT6_LIB_ROOT"/libadwaitaqt6.so.1* "$APPDIR/usr/lib/"
 cp -a "$QT6_LIB_ROOT"/libadwaitaqt6priv.so.1* "$APPDIR/usr/lib/"
 
+# PeaZip 11.2.0 会把语言文件的 UTF-8 字节按单字节字符交给 Qt6Pas。
+# 在唯一的 Pascal WideString -> Qt QString 边界严格还原这类乱码。
+gcc -std=c11 -O2 -fPIC -shared -Wall -Wextra -Werror -Wpedantic \
+  "$SCRIPT_DIR/peazip_utf8_fix.c" \
+  -o "$PEAZIP_ROOT/libpeazip-utf8-fix.so" \
+  -ldl
+
 ###### 准备 AppRun ######
 
 # 保留已经确认有效的显示、主题和 desktop Exec 启动方式，只固化各变量用途正确的最终路径。
@@ -133,10 +140,10 @@ export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_
 export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export NO_AT_BRIDGE=1
 
-# PeaZip 用 AnsiString 读取 UTF-8 语言文件；使用 glibc 实际登记的 C.utf8，
-# 避免 locale 名称未被识别后退回单字节代码页并把中文显示成 UTF-8 乱码。
-export LANG=C.utf8
-export LC_ALL=C.utf8
+# 只给 PeaZip 主进程加载 UTF-8 兼容层；库构造函数会立即恢复原环境，
+# 避免 PeaZip 启动的 7z 等子进程继续继承该兼容层。
+export PEAZIP_ORIGINAL_LD_PRELOAD="${LD_PRELOAD-}"
+export LD_PRELOAD="$HERE/usr/lib/peazip/libpeazip-utf8-fix.so${LD_PRELOAD:+:$LD_PRELOAD}"
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_SCALE_FACTOR=1

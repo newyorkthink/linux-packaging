@@ -12,7 +12,7 @@
 
 ## 技术栈
 
-PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，主程序通过上游随包的 `libQt6Pas.so.6` 使用 Qt6 Widgets，并完整保留 `pea`、归档后端、简体中文语言文件、主题、帮助文档、desktop 和图标资源。
+PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，主程序通过上游随包的 `libQt6Pas.so.6` 使用 Qt6 Widgets，并完整保留 `pea`、归档后端、简体中文语言文件、主题、帮助文档、desktop 和图标资源。目录内的 `peazip_utf8_fix.c` 是随包编译的最小兼容层，只处理 PeaZip 11.2.0 在 Pascal WideString 到 Qt QString 边界产生的可逆 UTF-8 乱码。
 
 目标架构为 x86_64。官方包内仍包含少量上游保留的 32 位旧格式后端；脚本不修改或删除这些文件，部署依赖期间临时移出完整 `res/bin`，完成后原样恢复。
 
@@ -25,7 +25,7 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 3. 通过仓库公共 GitHub Release 解析脚本动态取得 PeaZip 最新正式稳定版，不锁定具体应用版本；只接受对应版本的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
 4. 核对 DEB 的包名、版本和架构后，把同一个 DEB 安装到隔离构建环境供依赖解析，并把同一个 DEB 解压到 AppDir，禁止安装与解压使用不同版本。
 5. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。官方要求语言文件使用 UTF-8 BOM，因此只在 `zh-cn.txt` 缺失 BOM 时补入，不改写中文正文。
-6. 写入完整根 `AppDir/AppRun`，直接固化最终用途正确的 `usr/bin`、`usr/lib/peazip`、`usr/lib`、`usr/share`、Qt plugins 和 translations 路径；使用 glibc 实际登记的 `C.utf8` 固定 FPC/Lazarus 默认代码页，并保留 desktop `Exec`、XCB、Adwaita Dark、缩放和字体 DPI 设置。
+6. 使用构建环境已有的 GCC 把仓库内 `peazip_utf8_fix.c` 编译为 `usr/lib/peazip/libpeazip-utf8-fix.so`；不下载额外源码、程序或字体。写入完整根 `AppDir/AppRun`，固化用途正确的路径，并只在启动 PeaZip 主进程时预加载该兼容层；保留 desktop `Exec`、XCB、Adwaita Dark、缩放和字体 DPI 设置。
 7. 当前官方 Qt 插件明确跳过 Qt6 AppRun hook，因此完整根 `AppDir/AppRun` 保持为最终顶层入口；没有 `AppRun.wrapped` 是当前官方工具的真实行为。构建脚本严格禁止创建 `apprun-hooks` 目录或任何 hook 文件，禁止为了复刻旧包结构自行补 hook、`AppRun.wrapped` 或包装层检查。
 8. 官方归档后端在依赖部署前临时移出 AppDir，随后逐字执行已验证的 `--plugin qt --output appimage` 命令，由 linuxdeploy 部署 Qt6 并生成中间 AppImage，完成后再把归档后端原样放回。
 9. Qt 命令只生成 `.work/peazip-intermediate.AppImage`，不发布；不再对已经确定的 AppRun 调用自动路径整理脚本。
@@ -41,7 +41,8 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 ## 运行与兼容说明
 
 - 当前最终启动入口就是完整的顶层 `AppRun`；当前官方 Qt 插件跳过 Qt6 hook，所以不存在 `apprun-hooks` 和 `AppRun.wrapped`。顶层入口保留 desktop `Exec` 解析方式以及已经确认的显示和主题设置，路径型环境变量按最终 AppDir 的真实目录和用途直接固化。
-- `zh-cn.txt` 保持官方中文正文，仅在缺失时补 UTF-8 BOM；AppRun 固定 `LANG=C.utf8` 和 `LC_ALL=C.utf8`，确保 PeaZip 的 `AnsiString` 按 UTF-8 传给 Lazarus/Qt，不依赖宿主是否生成 `zh_CN.UTF-8`，也不受宿主 `LC_ALL` / `LC_CTYPE` 覆盖。语言仍由 PeaZip 自身设置管理，不注入会使设置进程主动关闭窗口的 `-peaziplanguage` 参数。
+- `zh-cn.txt` 保持官方中文正文，仅在缺失时补 UTF-8 BOM；不再覆盖 `LANG`、`LANGUAGE`、`LC_ALL` 或 `LC_MESSAGES`。兼容层只在整段 UTF-16 文本能严格还原为有效多字节 UTF-8 时转换，例如 `æ–‡ä»¶` 还原为 `文件`；正确中文、ASCII 和普通拉丁文字原样通过。语言仍由 PeaZip 自身设置管理，不注入会使设置进程主动关闭窗口的 `-peaziplanguage` 参数。
+- `LD_PRELOAD` 只用于 PeaZip 主进程。兼容层加载后立即恢复用户原有值并删除私有变量，PeaZip 启动的 7z 等子进程不会继承该兼容库。
 - 继续保留旧版已实际使用的 XCB、Adwaita Dark、缩放和字体 DPI 环境；同时打包 Qt6 `adwaita.so`，避免只设置主题名却缺少样式插件。
 - 最终产物必须包含同为 Qt6 的 Compose、Fcitx5、IBus 输入上下文和 XCB 平台插件；输入法守护进程仍由宿主提供。
 - AppImage 启动链不使用 `sudo`、`pkexec`、systemd、cron 或自动安装逻辑。
@@ -66,6 +67,15 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - **许可证：** 上游仓库标示 LGPL-3.0，官方 DEB 附带 GPL-3+ 版权说明，允许按对应许可证再分发。
 
 ## 修复记录
+
+### 2026-09-21：在 Qt6Pas 字符串边界修复 UTF-8 乱码
+
+- **实机故障证据：** 用户在 Kali Linux 正式产物中反复看到 `æ–‡ä»¶` 一类菜单乱码。官方 `zh-cn.txt` 已确认带 UTF-8 BOM、正文可按 UTF-8 正确解码，并与官方 DEB、portable 包逐字一致；这不是缺字体造成的方框，也不是语言文件内容损坏。
+- **失败方案，禁止重新启用：** `LANG=zh_CN.UTF-8` + `LANGUAGE=zh_CN:zh` + `LC_MESSAGES=zh_CN.UTF-8`、`LANG=C.UTF-8` + `LC_ALL=C.UTF-8`、`LANG=C.utf8` + `LC_ALL=C.utf8` 三种 locale-only 方案均已被用户实机证明无效。后续不得再把任何一种方案作为乱码修复写回 AppRun，也不得通过下载字体掩盖编码错误。
+- **代码路径证据：** PeaZip 11.2.0 的 `load_texts` 通过 Pascal `Text` / `AnsiString` 读取语言正文，`read_header` 只跳过 BOM；`libQt6Pas.so.6` 最终统一通过 `UnicodeOfPWideString` 和 `LengthOfPWideString` 把 Pascal WideString 送入 `QString::setUtf16`。截图中的字符正好可逆映射回原 UTF-8 字节。
+- **修复：** 新增仓库内 `peazip_utf8_fix.c`，构建为 PeaZip 专用共享库，并在 `initPWideStrings` 这一处边界替换两个读取回调。只有完整文本能从 Latin-1/CP1252 字符严格解码为合法多字节 UTF-8 时才修复；其他文本不修改。AppRun 不再强制任何 locale。
+- **临时测试（未写入仓库）：** 使用 `-Wall -Wextra -Werror -Wpedantic` 编译通过；`æ–‡ä»¶ → 文件` 通过；正确中文、ASCII、`Résumé` 原样通过；伪 Qt6Pas 共享库验证实际 ELF 符号拦截、两个回调求值顺序和长度均正确；正式包内真实 `libQt6Pas.so.6` 的全局回调槽实际返回 `文件`；真实 PeaZip 动态加载追踪确认绑定链为 `peazip → libpeazip-utf8-fix.so → libQt6Pas.so.6`；私有预加载变量被删除且用户原有 `LD_PRELOAD` 被恢复。真实 PeaZip 曾加载兼容库启动到虚拟显示窗口阶段；本轮复测因执行容器禁止创建 X11 socket 未能重复截图，不把该环境失败记成应用通过。
+- **验证边界：** 算法、ABI 拦截和环境恢复已在仓库外临时程序验证；未把测试代码、测试脚本或测试 workflow 加入仓库。Kali 桌面最终显示仍必须以本次正式构建产物实机确认为准。
 
 ### 2026-09-20：复用公共空 AppDir 初始化入口
 
