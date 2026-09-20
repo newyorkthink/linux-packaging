@@ -339,7 +339,7 @@
     },
     {
       "key": "peazip",
-      "kind": "standard",
+      "kind": "special",
       "name": "PeaZip",
       "script": "peazip/build_peazip.sh",
       "dir": "peazip",

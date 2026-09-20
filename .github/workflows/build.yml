@@ -867,6 +867,58 @@ jobs:
           github_token: ${{ github.token }}
 
 
+  build_peazip:
+    name: Build PeaZip
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).peazip == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build PeaZip AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x peazip/build_peazip.sh
+          ./peazip/build_peazip.sh
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-peazip
+          path: peazip/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest peazip/dist/peazip.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'peazip'
+          version_file: 'peazip/dist/version.txt'
+          asset_name: 'peazip.AppImage'
+          artifact_dir: 'peazip/dist'
+          github_token: ${{ github.token }}
+
+
   build_remmina:
     name: Build Remmina
     needs: plan
