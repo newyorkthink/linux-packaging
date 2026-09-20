@@ -379,6 +379,17 @@ AppImage 应只包含应用正常运行所需内容。
 - 对 glibc、动态加载器、GPU 驱动、Mesa/NVIDIA/VAAPI 等高度宿主相关组件要谨慎；只有在明确必要并确认兼容性后才处理。
 - `AppRun` / wrapper 默认只做启动 AppImage 所必需的环境准备；如果应用核心功能确实需要系统权限或系统集成，可以调用必要的辅助机制，但必须遵守第 3 节的最小权限和可审计要求，不得夹带无关系统修改。
 
+### AppRun / wrapper 必须按当前应用编写
+
+本仓库不维护也不套用能够覆盖 Qt、GTK、Python、Perl、浏览器和多入口程序的“万能 AppRun 模板”。每个 AppRun / wrapper 必须根据当前应用的真实入口、AppDir 布局、技术栈和已经确认的兼容需求保留最小环境；其他应用曾经使用过的变量不得整段复制。
+
+- 启动入口必须明确指向当前应用的真实可执行文件，路径和参数正确引用，最后只保留一条可到达的 `exec ... "$@"` 执行链。不得运行时抓取目录中第一个 desktop 文件并拆分 `Exec=`，也不得连续堆叠多条互相不可到达的 `exec`。
+- 默认保留宿主用户的语言、桌面后端、浏览器、主题、缩放、字体 DPI、输入法和数据目录选择。没有当前应用的明确证据时，不得统一强制 `LC_ALL` / `LANGUAGE`、`BROWSER`、`QT_QPA_PLATFORM`、`QT_FONT_DPI`、`GTK_THEME`、`QT_STYLE_OVERRIDE` 或各类 `*_IM_MODULE`，不得把 `HOME` 改写为 `~/.local/share`，也不得令 `XDG_CONFIG_HOME`、`XDG_DATA_HOME` 等目录互相混用。
+- `PATH`、`LD_LIBRARY_PATH`、`QT_PLUGIN_PATH`、`XDG_DATA_DIRS` 等变量只能加入与其语义匹配且在当前 AppDir 中真实存在的目录；不得把 `etc`、`share`、`translations` 等目录无差别塞入所有搜索路径。非 Python / Perl 应用不得预防性设置 `PYTHONHOME`、`PYTHONPATH` 或 `PERLLIB`，变量值中也不得写入不会按预期展开的通配路径。
+- `LD_PRELOAD` 只允许用于当前应用已经确认需要、随产物实际携带且 ABI 匹配的兼容库；不得把 `libunionpreload.so` 或其他 preload 库写进通用模板。设置前必须保证对应文件存在，避免动态加载器在每次启动时直接报错。
+- 输入法支持优先依靠与 Qt / GTK 主版本一致的实际 plugin 和宿主会话环境；不得仅通过 `pgrep` 判断进程名后，为所有应用强制覆盖 Qt、GTK、SDL、GLFW 等多个框架的输入法变量。
+- 已有应用 README 明确记录并经真实运行反馈确认的特殊环境变量属于该应用稳定基线，继续按原记录保留；本节不得被用于无证据删除既有兼容处理。
+
 ### AppImage 打包方式由 AI 根据项目自行判定
 
 本仓库不强制所有应用使用同一种 AppImage 打包工具。新增应用或处理尚未稳定的打包方案时，AI 必须先检查上游包类型、程序技术栈、ELF 与动态依赖、插件 / `dlopen` 依赖、目标发行版兼容性、glibc / loader 要求、FUSE / runtime 兼容性以及仓库中相近项目的成熟做法，然后选择**一套最合适的方案**。
@@ -692,6 +703,8 @@ sudo aptitude install -y build-essential git wget binutils patchelf file appstre
 - 应用包本身通过包管理器依赖链自动拉入 GTK、Qt、Fcitx、Mesa 等真实依赖是正常行为；禁止的是 AI 为了“保险”把这些组件预先塞进所有项目的基础包。
 - 当前应用确实还需要额外软件包时，必须在基础命令下面使用**独立的一条应用级安装命令**，不得回填到通用基础包。
 - 不得把其他项目的依赖列表整段复制过来，也不得因为某个项目曾缺过一个库，就把该库永久加入所有应用的基础环境。
+- 应用级依赖必须使用核实后的精确包名；禁止使用 `qml*`、`qt5*`、`qt6*`、`libqt*`、`libgtk*`、`gstreamer*` 等宽泛通配安装来碰运气，也不得在正式打包中执行 `upgrade` / `dist-upgrade` 升级整个临时 runner。
+- 下载的打包工具、插件和脚本只赋予实际需要的执行权限，优先使用 `chmod +x` 或 `install -m 0755`；禁止使用 `chmod 777` 扩大无关写权限。
 
 ### quick-sharun 默认必须走最短链路
 
