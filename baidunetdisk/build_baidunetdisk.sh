@@ -181,7 +181,7 @@ APPINDICATOR_LIB="/usr/lib/$MULTIARCH/libappindicator3.so.1"
 
 ###### 核心打包 ######
 
-# 首次新链路尚待最终成品核对；先写入基于官方包布局的完整根 AppRun。
+# 最终 AppImage 已解包确认目录，直接写入包含准确路径的完整根 AppRun。
 # GTK linuxdeploy 会自动把它保存为 AppRun.wrapped，并生成加载 GTK hook 的顶层 AppRun。
 cat > "$APPDIR/AppRun" <<'APPRUN'
 #!/usr/bin/env bash
@@ -191,12 +191,11 @@ HERE="$(dirname "$(readlink -f "${0}")")"
 
 # 保留三个 linuxdeploy 基础目录，并把百度网盘真实程序目录加入对应变量。
 export PATH="$HERE/opt/baidunetdisk:$HERE/usr/bin${PATH:+:$PATH}"
-export LD_LIBRARY_PATH="$HERE/opt/baidunetdisk:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="$HERE/opt/baidunetdisk:$HERE/usr/lib:$HERE/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
 
-cd "$HERE/opt/baidunetdisk"
 exec "$HERE/opt/baidunetdisk/baidunetdisk" --no-sandbox "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
@@ -212,9 +211,6 @@ export ARCH=x86_64; linuxdeploy \
   -l "$APPINDICATOR_LIB" \
   --plugin gtk \
   --output appimage
-
-# 当前首次按新规范生成的目录仍需根据第二次 linuxdeploy 结果整理一次路径型 export。
-"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
 
 ###### 整理产物 ######
 

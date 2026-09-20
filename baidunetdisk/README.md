@@ -22,9 +22,9 @@
 1. 通过 `common/linuxdeploy/prepare_linuxdeploy_tools.sh` 动态取得 linuxdeploy、官方 GTK 插件、appimagetool 和 Type 2 runtime。公共脚本校验官方 GTK 文件，并在上游仍遗漏时补入 GIO dynamic modules 复制逻辑。
 2. 第一次在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，只接受基础目录已经创建、没有非预期文件且退出状态为 0 或 1 的初始化结果。
 3. 从官方接口取得 DEB，安装同一文件到 Ubuntu 22.04 隔离构建环境供 linuxdeploy 解析依赖，并按上游布局解包到 AppDir。
-4. 第二次 linuxdeploy 前写入完整根 `AppDir/AppRun`，保留 `usr/bin`、`usr/lib`、`usr/share` 三个基础路径，直接执行 `/opt/baidunetdisk/baidunetdisk --no-sandbox "$@"`，不再创建人工 `AppDir/usr/bin/baidunetdisk` 二次转发入口。
+4. 第二次 linuxdeploy 前写入完整根 `AppDir/AppRun`，保留 `usr/bin`、`usr/lib`、`usr/lib/x86_64-linux-gnu`、`usr/share` 等已确认路径，直接执行 `/opt/baidunetdisk/baidunetdisk --no-sandbox "$@"`，不再创建人工 `AppDir/usr/bin/baidunetdisk` 二次转发入口，也不切换工作目录。
 5. 设置 `DEPLOY_GTK_VERSION=3`，执行带 GTK 插件、desktop、图标以及 GTKmm/AppIndicator 精确动态库的第二次 `linuxdeploy --output appimage`。linuxdeploy 检测到 GTK hook 后生成顶层 AppRun，并把完整启动逻辑保留到 `AppRun.wrapped`。
-6. 当前首次按新链路构建时，在第二次 linuxdeploy 后使用公共脚本按最终 AppDir 整理一次路径型 export；成品目录确认后必须把准确路径固化回 AppRun，并删除该调用。
+6. 最终 AppImage 已经解包确认目录，构建脚本直接保留准确 AppRun，不再调用公共路径整理脚本。
 7. linuxdeploy 生成的 AppImage 只作为中间产物；正式 `dist/baidunetdisk.AppImage` 由官方 appimagetool 使用明确的 Type 2 runtime 对同一个 AppDir 重新封装。
 
 ## AppRun
@@ -32,14 +32,13 @@
 当前根 AppRun 基于官方 8.7.0 DEB 的实际布局：
 
 - `PATH`：`opt/baidunetdisk`、`usr/bin`；
-- `LD_LIBRARY_PATH`：`opt/baidunetdisk`、`usr/lib`；
+- `LD_LIBRARY_PATH`：`opt/baidunetdisk`、`usr/lib`、`usr/lib/x86_64-linux-gnu`；
 - `XDG_DATA_DIRS`：`usr/share`；
 - `GSETTINGS_SCHEMA_DIR`：`usr/share/glib-2.0/schemas`；
 - `GIO_MODULE_DIR`：`usr/lib/x86_64-linux-gnu/gio/modules`；
-- 工作目录：`opt/baidunetdisk`；
 - 唯一入口：`opt/baidunetdisk/baidunetdisk --no-sandbox "$@"`。
 
-这些路径需要由首次新链路生成的最终 AppImage 再次解包核对。核对完成前属于基于当前官方包布局和仓库规则的实现，不描述为真实 GUI 运行验证。
+最终 AppImage 已解包确认存在顶层 `AppRun`、`AppRun.wrapped`、GTK hook、空的 `usr/bin`、`usr/lib/x86_64-linux-gnu`、`usr/share` 和完整的 `opt/baidunetdisk`。以上路径已经固化；GUI、登录、托盘、上传下载、中文输入和文件关联仍需分别以实际运行结果为准。
 
 ## 版本与正式资产
 
@@ -51,10 +50,15 @@
 ## 验证边界
 
 - 已核对当前官方 8.7.0 DEB 的包名、版本、amd64 架构、`/opt/baidunetdisk` 主程序、`resources/app.asar`、desktop、图标、`$ORIGIN` RPATH 和包依赖声明。
+- 已根据最终 AppImage 解包结果确认 AppRun 包装关系和实际目录，并固化 `usr/lib/x86_64-linux-gnu`；这项证据不等于 GUI 功能验证。
 - 本次删除构建内的 Xvfb、两轮 smoke test、AppImage 自解包验证和批量 `ldd` 检查；不以无真实桌面的自动启动替代用户 GUI、登录、托盘、上传下载、中文输入和文件关联验证。
 - 新链路提交前只进行 Shell 语法、ShellCheck、Markdown、workflow 关系和完整 diff 检查。最终 AppImage 的实际运行结果需由新产物验证后补充。
 
 ## 变更记录
+
+### 2026-09-20：固化最终 AppRun
+
+根据最终 AppImage 解包结果，把 `usr/lib/x86_64-linux-gnu` 固化到 `LD_LIBRARY_PATH`，删除不需要的工作目录切换，直接执行百度网盘真实入口；同时删除只供目录尚未确认时使用的 `normalize_apprun_paths.sh` 调用。以后以这份 AppRun 为稳定基线。
 
 ### 2026-09-20：迁移到公共 GTK linuxdeploy 两阶段流程
 
