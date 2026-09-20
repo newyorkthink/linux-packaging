@@ -2,15 +2,10 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
 
 # XnView MP 自带较旧的 Qt 和媒体运行库，因此在 Ubuntu 22.04 中完成实际打包，
 # 避免 linuxdeploy 混入 Ubuntu 24.04 的媒体库。
 if [[ "${GITHUB_ACTIONS:-}" == "true" && "${XNVIEWMP_JAMMY_INNER:-0}" != "1" ]]; then
-  command -v docker >/dev/null 2>&1 || {
-    echo "错误：XnView MP 的 Jammy 构建需要 Docker。" >&2
-    exit 1
-  }
   REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
   exec docker run --rm \
     -e XNVIEWMP_JAMMY_INNER=1 \
@@ -22,18 +17,12 @@ if [[ "${GITHUB_ACTIONS:-}" == "true" && "${XNVIEWMP_JAMMY_INNER:-0}" != "1" ]];
     bash ./build_xnviewmp.sh
 fi
 
-SOURCE_DIR="$SCRIPT_DIR/source"
-APPDIR="$SCRIPT_DIR/AppDir"
-DIST_DIR="$SCRIPT_DIR/dist"
-OUTFILE="$DIST_DIR/xnviewmp.AppImage"
+# 使用公共工作区入口统一设置路径，并清理、重建标准构建目录。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" xnviewmp
+
 EXTRACT_DIR="$SOURCE_DIR/extracted"
-CHECKSUMS="$SOURCE_DIR/XnView_MP-CHECKSUMS.txt"
-TOOLS_DIR="$SOURCE_DIR/tools"
-LINUXDEPLOY="$TOOLS_DIR/linuxdeploy-x86_64.AppImage"
-QT_PLUGIN="$TOOLS_DIR/linuxdeploy-plugin-qt-x86_64.AppImage"
-APPIMAGETOOL="$TOOLS_DIR/appimagetool-x86_64.AppImage"
-RUNTIME_FILE="$TOOLS_DIR/runtime-x86_64"
-INTERMEDIATE_APPIMAGE="$SOURCE_DIR/xnviewmp-linuxdeploy-intermediate.AppImage"
+TGZ="$SOURCE_DIR/XnView_MP.tgz"
+mkdir -p "$EXTRACT_DIR"
 
 ## 输出明确错误并立即终止构建。
 die() {
@@ -41,26 +30,11 @@ die() {
   exit 1
 }
 
-[[ "$(uname -m)" == x86_64 ]] || die "当前仅支持 x86_64"
-
 ###### 准备构建环境 ######
 
-# 只清理并重建当前项目自己的构建目录。
-rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
-mkdir -p "$TOOLS_DIR" "$EXTRACT_DIR" "$DIST_DIR"
-
-# 根据当前环境选择 apt-get 调用方式。
-if command -v sudo >/dev/null 2>&1; then
-  APT=(sudo apt-get)
-else
-  APT=(apt-get)
-fi
-
-# 安装下载、解包、Qt5 插件部署和媒体运行库收集所需依赖。
-"${APT[@]}" update
-DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
-  ca-certificates coreutils curl desktop-file-utils file findutils gawk grep jq tar xz-utils \
-  qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools qttools5-dev-tools \
+# 通过公共 APT 入口安装 Qt5 插件部署和媒体运行库收集所需依赖。
+"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+  tar qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools qttools5-dev-tools \
   qtdeclarative5-dev qtdeclarative5-dev-tools \
   qml-module-qtqml qml-module-qtqml-models2 \
   qml-module-qtquick2 qml-module-qtquick-window2 qml-module-qtquick-layouts \
@@ -77,16 +51,8 @@ DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
   libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
 
-# 确认后续构建依赖的基础命令均可用。
-for command_name in curl desktop-file-validate find jq readlink sed sha256sum tar; do
-  command -v "$command_name" >/dev/null 2>&1 || die "缺少必需命令：$command_name"
-done
-
 # Qt 插件必须直接使用 Qt5 的真实工具，不能落到没有选中版本的 qtchooser wrapper。
 QT5_BIN_DIR=/usr/lib/qt5/bin
-for qt_tool in qmake qmlimportscanner; do
-  [[ -x "$QT5_BIN_DIR/$qt_tool" ]] || die "缺少 Qt5 工具：$QT5_BIN_DIR/$qt_tool"
-done
 
 ###### 下载打包工具 ######
 
@@ -95,42 +61,15 @@ done
 
 ###### 初始化 AppDir ######
 
-# 配置 linuxdeploy、Qt5 qmake 和中间输出位置。
-export ARCH=x86_64
-export APPIMAGE_EXTRACT_AND_RUN=1
-export QT_SELECT=qt5
-export PATH="$QT5_BIN_DIR:$TOOLS_DIR:$PATH"
-export QMAKE="$QT5_BIN_DIR/qmake"
-export NO_STRIP=1
-export LDAI_NO_APPSTREAM=1
-export LDAI_OUTPUT="$INTERMEDIATE_APPIMAGE"
-export LDAI_RUNTIME_FILE="$RUNTIME_FILE"
-
-# 通过公共入口运行第一次普通 linuxdeploy，并核对空 AppDir 初始化结果。
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR"
+# 通过公共入口运行第一次普通 linuxdeploy，只创建空 AppDir 基础目录。
+"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
 ###### 下载并准备 XnView MP ######
 
-# 从 XnView 官方校验清单动态解析当前最新稳定版 Linux x64 归档。
-"$SCRIPT_DIR/../common/download/download_file.sh" "https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt" "$CHECKSUMS"
-sed -i 's/\r$//' "$CHECKSUMS"
-
-TGZ_NAME="$(
-  awk '{print $2}' "$CHECKSUMS" |
-    grep -E '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.tgz$' |
-    sort -V |
-    tail -n 1
-)"
-[[ -n "$TGZ_NAME" ]] || die "官方校验清单中没有稳定版 Linux x64 归档"
-VERSION="$(sed -nE 's/^XnView_MP-([0-9]+(\.[0-9]+)+)-linux-x64\.tgz$/\1/p' <<< "$TGZ_NAME")"
-[[ -n "$VERSION" ]] || die "无法从 $TGZ_NAME 解析 XnView MP 版本"
-TGZ="$SOURCE_DIR/$TGZ_NAME"
-TGZ_URL="https://download.xnview.com/versions/XnView_MP/$TGZ_NAME"
-TGZ_SHA256="$(awk -v name="$TGZ_NAME" '$2 == name {print $1; exit}' "$CHECKSUMS")"
-[[ "$TGZ_SHA256" =~ ^[[:xdigit:]]{64}$ ]] || die "官方归档没有有效的 SHA-256"
-
-printf '[XnView MP] official stable source: %s\n' "$TGZ_URL"
-"$SCRIPT_DIR/../common/download/download_file.sh" "$TGZ_URL" "$TGZ" "$TGZ_SHA256"
+# 公共入口从官方校验清单选择最新版、核对 SHA-256，并写入版本文件。
+"$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" \
+  "https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt" \
+  '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.tgz$' "$TGZ" "$DIST_DIR/version.txt"
 
 # 解包官方归档并定位唯一的 XnView 主程序目录。
 tar -xzf "$TGZ" -C "$EXTRACT_DIR"
@@ -145,10 +84,6 @@ DESKTOP_FILE="$APPDIR/usr/share/applications/XnView.desktop"
 ICON_FILE="$APPDIR/opt/XnView/xnview.png"
 cp -a "$APPDIR/opt/XnView/XnView.desktop" "$DESKTOP_FILE"
 
-[[ -x "$APPDIR/opt/XnView/XnView" ]] || die "缺少 XnView 可执行文件"
-[[ -e "$ICON_FILE" ]] || die "缺少 XnView 图标"
-[[ -e "$APPDIR/opt/XnView/lib/libmdk.so" ]] || die "缺少 XnView 媒体引擎"
-
 # 规范官方 desktop 条目，并让 Exec 名称对应 /opt 中的真实主程序。
 sed -i \
   -e 's|^Icon=.*|Icon=xnview|' \
@@ -157,15 +92,12 @@ sed -i \
   -e '/^Encoding=/d' \
   -e 's/^Terminal=0$/Terminal=false/' \
   "$DESKTOP_FILE"
-desktop-file-validate "$DESKTOP_FILE"
 
 ###### 准备兼容运行库 ######
 
 # 复制 Qt5 翻译和 XCB 平台库，继续优先使用 XnView 自带 Qt。
 mkdir -p "$APPDIR/usr/lib" "$APPDIR/usr/translations"
-if [[ -d /usr/share/qt5/translations ]]; then
-  cp -a /usr/share/qt5/translations/. "$APPDIR/usr/translations/"
-fi
+cp -a /usr/share/qt5/translations/. "$APPDIR/usr/translations/"
 cp -a "$APPDIR/opt/XnView/lib"/libQt5XcbQpa.so* "$APPDIR/usr/lib/"
 
 # 按明确的库名模式复制当前应用需要的 Jammy 运行库。
@@ -179,31 +111,25 @@ copy_runtime_glob() {
 
 # 补入已有兼容基线所需的 GStreamer、PulseAudio、VA-API、Wayland 和 udev 库。
 for runtime_lib in \
-  libgstreamer-1.0.so.0 \
-  libgstapp-1.0.so.0 \
-  libgstbase-1.0.so.0 \
-  libgstaudio-1.0.so.0 \
-  libgstvideo-1.0.so.0 \
-  libgstpbutils-1.0.so.0 \
-  libgsttag-1.0.so.0 \
-  libgstallocators-1.0.so.0 \
-  libgstfft-1.0.so.0 \
-  libgstgl-1.0.so.0 \
-  libpulse.so.0 \
-  libpulse-mainloop-glib.so.0 \
-  libva.so.2 \
-  libva-drm.so.2 \
-  libva-x11.so.2 \
-  libwayland-client.so.0 \
-  libwayland-cursor.so.0 \
-  libwayland-egl.so.1 \
-  libwayland-server.so.0 \
+  libgstreamer-1.0.so.0 libgstapp-1.0.so.0 libgstbase-1.0.so.0 libgstaudio-1.0.so.0 \
+  libgstvideo-1.0.so.0 libgstpbutils-1.0.so.0 libgsttag-1.0.so.0 libgstallocators-1.0.so.0 \
+  libgstfft-1.0.so.0 libgstgl-1.0.so.0 libpulse.so.0 libpulse-mainloop-glib.so.0 \
+  libva.so.2 libva-drm.so.2 libva-x11.so.2 libwayland-client.so.0 libwayland-cursor.so.0 \
+  libwayland-egl.so.1 libwayland-server.so.0 \
   libudev.so.1; do
   copy_runtime_glob "/usr/lib/x86_64-linux-gnu/${runtime_lib}*"
 done
 copy_runtime_glob "/usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-*.so"
 
 ###### 核心打包 ######
+
+# 公共入口配置 linuxdeploy 通用环境；Qt5 只在当前 Qt 项目中追加。
+source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" \
+  "$TOOLS_DIR" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
+export QT_SELECT=qt5
+export PATH="$QT5_BIN_DIR:$PATH"
+export QMAKE="$QT5_BIN_DIR/qmake"
+export NO_STRIP=1
 
 # 第二次 linuxdeploy 扫描上游 /opt 布局时，优先使用 XnView 自带运行库并保留 AppDir/usr/lib。
 export LD_LIBRARY_PATH="$APPDIR/opt/XnView:$APPDIR/opt/XnView/lib:$APPDIR/opt/XnView/Plugins:$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
@@ -245,22 +171,12 @@ EOF_APPRUN
 chmod +x "$APPDIR/AppRun"
 
 # XnView MP 使用 Qt5；第二次 linuxdeploy 部署 Qt 资源并完成 AppRun 包装。
-export QMAKE="$QT5_BIN_DIR/qmake"
 export ARCH=x86_64; linuxdeploy \
-  --appdir AppDir \
-  --desktop-file "$DESKTOP_FILE" \
-  --icon-file "$ICON_FILE" \
-  --plugin qt \
-  --output appimage
+  --appdir AppDir --desktop-file "$DESKTOP_FILE" --icon-file "$ICON_FILE" \
+  --plugin qt --output appimage
 
 ###### 整理产物 ######
 
-# 忽略 linuxdeploy 中间 AppImage，使用官方 appimagetool 和 Type 2 runtime
-# 对同一个 AppDir 重新封装正式发布资产。
-"$APPIMAGETOOL" -n "$APPDIR" "$OUTFILE" --runtime-file "$RUNTIME_FILE"
-[[ -s "$OUTFILE" ]] || die "最终 AppImage 未生成"
-chmod +x "$OUTFILE"
-
-# 写入本次实际打包的软件版本，并输出正式资产 SHA-256。
-printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
-sha256sum "$OUTFILE"
+# 忽略 linuxdeploy 中间产物，由公共入口使用官方工具和 Type 2 runtime 正式封装。
+"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
+  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE"
