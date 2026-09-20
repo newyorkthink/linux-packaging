@@ -24,9 +24,9 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 2. 只接受与 Release tag 对应的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
 3. 核对 DEB 的包名、版本、架构、主程序、`pea`、7z 后端、简体中文文件、黑色主题、desktop 和图标。
 4. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。
-5. linuxdeploy 负责整理 AppDir 和收集 ELF 依赖；`linuxdeploy-plugin-qt` 负责部署 Qt6 plugins、翻译和输入上下文；可选的 Qt6 Adwaita、它的两条运行库与 GTK3 platform theme 明确作为部署输入加入。
+5. linuxdeploy 只处理 PeaZip 主程序、Qt6 和界面插件。官方包内的旧归档后端在部署依赖时临时移出 AppDir，完成后原样放回，避免 linuxdeploy 扫描 32 位旧程序并错误要求 `libncurses.so.5`。
 6. linuxdeploy 不生成最终 AppImage；最后由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`。
-7. 最终产物重新解包，核对真实 AppRun 链、PeaZip 与 `res` 相邻布局、7z 后端、中文、黑色主题、XCB 和 Qt6 输入组件；全部通过后才写入 `dist/version.txt`。
+7. 最终产物只核对 AppRun、主程序、7z、中文、主题和关键 Qt 插件，并执行一次包内 7z 基础启动。
 
 ## 运行与兼容说明
 
@@ -67,6 +67,12 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 - **验证边界：** 上述结果覆盖构建、启动链、主题插件加载和主要归档后端；Kali Linux 实际桌面中的按钮点击、设置持久化和全部格式仍以发布产物的最终实机操作为准。
 
 ## 变更记录
+
+### 2026-09-20：修复 GitHub Actions 的 32 位旧后端扫描失败
+
+- **失败记录：** Build PeaZip Job `106047998141` 在 linuxdeploy 扫描官方包内 `res/bin/arc/arc` 时，因找不到已淘汰的 32 位 `libncurses.so.5` 退出。
+- **根因：** linuxdeploy 会先扫描 AppDir 中所有 ELF；原脚本虽然只把 64 位后端加入参数，但没有阻止它自动扫描已经位于 AppDir 的 32 位旧后端。
+- **修复：** linuxdeploy 运行前临时移出完整 `res/bin`，只部署主程序和 Qt6，随后原样恢复官方后端。同步删除重复的逐文件验证，只保留与实际故障直接相关的最终检查。
 
 ### 2026-09-20：接入官方最新 Qt6 AppImage 构建
 
