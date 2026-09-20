@@ -23,15 +23,15 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 1. 通过 GitHub `releases/latest` API 动态读取 PeaZip 最新稳定版，不锁定具体应用版本。
 2. 只接受与 Release tag 对应的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
 3. 核对 DEB 的包名、版本和架构。
-4. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；给 `zh-cn.txt` 补 UTF-8 BOM，并把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。
-5. linuxdeploy、Qt 插件、appimagetool 和 runtime 全部从官方 continuous 动态取得当前版本；只预先创建 linuxdeploy 标准的空 `apprun-hooks` 目录，不写入任何 hook 文件，由 linuxdeploy 自动把自定义入口保留为 `AppRun.wrapped` 并生成顶层 `AppRun`。
+4. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局，包括上游原始 `zh-cn.txt`；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。
+5. linuxdeploy、Qt 插件、appimagetool 和 runtime 全部从官方 continuous 动态取得当前版本；不手工创建 hook、空 hook 目录或 `AppRun.wrapped`。
 6. linuxdeploy 只处理 PeaZip 主程序、Qt6 和界面插件。官方包内的旧归档后端在部署依赖时临时移出 AppDir，完成后原样放回，避免 linuxdeploy 扫描 32 位旧程序并错误要求 `libncurses.so.5`。
 7. linuxdeploy 不生成最终 AppImage；最后由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`。
 
 ## 运行与兼容说明
 
-- 启动脚本保留旧版环境变量和 desktop `Exec` 解析方式；脚本只创建 linuxdeploy 标准的空 `apprun-hooks` 目录，不手工创建 hook 或 `AppRun.wrapped`，入口包装由当前 linuxdeploy 自己完成。
-- `AppRun.wrapped` 通过 PeaZip 官方 `-peaziplanguage zh-cn.txt` 参数启动简体中文界面，不写入额外配置标记；简体中文语言文件在打包时补 UTF-8 BOM，避免中文被按单字节编码读取成乱码。
+- 启动脚本保留旧版环境变量和 desktop `Exec` 解析方式；当前 linuxdeploy 没有生成 hook 时，自定义入口直接作为顶层 `AppRun`，脚本不伪造 `AppRun.wrapped`。
+- AppRun 设置通用 `C.UTF-8` locale，并通过 PeaZip 官方 `-peaziplanguage zh-cn.txt` 参数启动简体中文界面；不改写上游语言文件字节，也不写入额外配置标记。
 - 继续保留旧版已实际使用的 XCB、Adwaita Dark、缩放和字体 DPI 环境；同时打包 Qt6 `adwaita.so`，避免只设置主题名却缺少样式插件。
 - 最终产物必须包含同为 Qt6 的 Compose、Fcitx5、IBus 输入上下文和 XCB 平台插件；输入法守护进程仍由宿主提供。
 - AppImage 启动链不使用 `sudo`、`pkexec`、systemd、cron 或自动安装逻辑。
@@ -67,6 +67,13 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 - **验证边界：** 上述结果覆盖构建、启动链、主题插件加载和主要归档后端；Kali Linux 实际桌面中的按钮点击、设置持久化和全部格式仍以发布产物的最终实机操作为准。
 
 ## 变更记录
+
+### 2026-09-20：删除无效空 hook 目录并恢复上游语言文件
+
+- **故障现象：** 最终 AppImage 中存在空 `apprun-hooks` 目录，但自定义入口仍是顶层 `AppRun`；强制加载简体中文后程序立即退出。
+- **根因：** 空 hook 目录不会让当前 linuxdeploy 生成 `AppRun.wrapped`；同时脚本擅自给上游 `zh-cn.txt` 添加 BOM，强制加载改写后的语言文件引入启动故障。
+- **修复：** 删除空 hook 目录和语言文件字节改写，完整保留官方 `zh-cn.txt`；AppRun 只设置通用 `C.UTF-8` locale，并继续使用 PeaZip 官方简体中文启动参数。
+- **验证状态：** 按仓库永久规则未执行任何测试、试构建或产物验证；修改后直接提交并推送，启动和中文显示以正式构建产物的真实使用反馈为准。
 
 ### 2026-09-20：恢复全部打包工具动态更新
 

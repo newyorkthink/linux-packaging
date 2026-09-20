@@ -84,15 +84,6 @@ PEAZIP_ROOT="$APPDIR/usr/lib/peazip"
 DESKTOP_FILE="$APPDIR/usr/share/applications/peazip.desktop"
 ICON_FILE="$APPDIR/usr/share/icons/hicolor/256x256/apps/peazip.png"
 
-# 给简体中文语言文件补上 PeaZip 优先识别的 UTF-8 BOM，避免中文被按单字节编码读取成乱码。
-ZH_CN_FILE="$APPDIR/usr/share/peazip/lang/zh-cn.txt"
-ZH_CN_FILE_WITH_BOM="$WORK_DIR/zh-cn.txt"
-{
-  printf '\357\273\277'
-  cat "$ZH_CN_FILE"
-} > "$ZH_CN_FILE_WITH_BOM"
-mv "$ZH_CN_FILE_WITH_BOM" "$ZH_CN_FILE"
-
 # 官方 DEB 使用绝对链接，AppImage 内改为等价相对链接。
 ln -sfn ../lib/peazip/peazip "$APPDIR/usr/bin/peazip"
 ln -sfn ../../../share/peazip "$PEAZIP_ROOT/res/share"
@@ -116,6 +107,10 @@ cat > "$APPDIR/AppRun" <<'EOF_APPRUN'
 
 HERE="$(dirname "$(readlink -f "${0}")")"
 
+# 使用通用 UTF-8 locale 读取上游原始语言文件，避免依赖宿主是否安装中文 locale。
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
 export PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:${PATH:+:$PATH}
 export LD_LIBRARY_PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 export QT_PLUGIN_PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}
@@ -136,9 +131,6 @@ exec ${EXEC} -peaziplanguage zh-cn.txt "$@"
 EOF_APPRUN
 # 赋予自定义 AppRun 执行权限。
 chmod +x "$APPDIR/AppRun"
-
-# 只创建 linuxdeploy 标准的空 hook 目录，不写 hook 文件，由 linuxdeploy 自动生成 AppRun.wrapped。
-mkdir -p "$APPDIR/apprun-hooks"
 
 ###### 核心打包 ######
 
