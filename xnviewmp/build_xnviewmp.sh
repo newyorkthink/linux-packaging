@@ -239,9 +239,11 @@ export LD_LIBRARY_PATH="$HERE/opt/XnView/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$L
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
 # Qt 专用目录只加入最终 AppDir 中已经确认用途正确的真实路径。
+# opt/XnView/Plugins 是 XnView 自身格式解码库，不是 Qt plugin 根目录。
 export QT_PLUGIN_PATH="$HERE/opt/XnView/lib:$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
 export QML_IMPORT_PATH="$HERE/opt/XnView/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 export QML2_IMPORT_PATH="$HERE/opt/XnView/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
+# XnView 会读取自身 language 目录；linuxdeploy 同时把对应翻译链接到 usr/translations。
 export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_TRANSLATIONS_PATH}"
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1

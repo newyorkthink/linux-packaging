@@ -41,3 +41,14 @@
 - 首次产物确认后，应把整理结果固化回对应构建脚本的 AppRun，并删除该项目的整理脚本调用；不能让已经确定的路径在每次构建中继续自动猜测。
 
 因此公共脚本负责“根据最终 AppDir 校准路径”，而每个应用自己的 AppRun 仍负责决定“这个应用到底需要哪些变量和特殊设置”。
+
+## 从临时整理转为稳定 AppRun
+
+首次成品应在仓库外临时目录解包，核对顶层 `AppRun`、`AppRun.wrapped`、`apprun-hooks/` 和各项 export 的最终关系。路径存在只是第一步，还必须确认目录内容与变量用途一致：
+
+- Qt plugin 根目录应包含 `platforms`、`imageformats`、`platforminputcontexts` 等分类目录；普通动态库目录或应用自己的 `Plugins` 目录不能仅凭名称加入 `QT_PLUGIN_PATH`。
+- QML 路径必须是实际 import 根目录；不存在的 `usr/qml` 不得保留。
+- 应用自己的语言目录如果由程序自行发现，或其内容已经链接、复制到 `usr/translations`，不必重复放入 `QT_TRANSLATIONS_PATH`。
+- `AddOn`、`UI`、资源包和应用私有插件目录由应用自身使用，不属于 `PATH`、`LD_LIBRARY_PATH` 或 Qt 路径，除非文件内容和实际加载方式能够证明用途。
+
+成品运行与目录用途都确认后，应把准确 export 固化进项目构建脚本，并移除该项目对公共整理脚本的调用。后续不得仅因通用模板变化而重写已经确认有效的 AppRun。

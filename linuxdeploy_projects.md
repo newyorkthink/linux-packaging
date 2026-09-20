@@ -314,6 +314,19 @@ GTK plugin 自动生成的 hook 会设置 GTK 数据、schemas、typelib、immod
 - workflow 没有新增临时 test workflow、测试 Job 或测试 Step；
 - 完整 diff 没有临时日志、解包目录、缓存或无关改动。
 
+### 首次成品确认后固化 AppRun
+
+首次或目录尚不确定的项目生成正式 AppImage 后，应在仓库外临时目录解包一次成品，再完成以下核对：
+
+- 顶层 `AppRun` 正确加载当前技术栈的 hook，并继续执行 `AppRun.wrapped`；没有 hook 的普通项目按实际结构核对。
+- `AppRun.wrapped` 中每个路径都在最终 AppDir 中真实存在，而且用途与变量一致；不能只凭目录名称判断。
+- `QT_PLUGIN_PATH` 指向的根目录实际包含 `platforms`、`imageformats`、`platforminputcontexts` 等 Qt plugin 分类目录。应用自己的 `Plugins`、`AddOn`、`UI` 等目录不得仅因名称相似加入 Qt 搜索路径。
+- 应用自带翻译目录由程序自身读取，或已经由 linuxdeploy 以文件、复制项或符号链接接入 `usr/translations` 时，不重复增加无依据路径。
+- 主程序通过最终 `LD_LIBRARY_PATH` 执行 `ldd` 时没有 `not found`。对未被主程序加载的可选组件，必须结合实际用途判断，不能仅凭整个 AppDir 的批量扫描结果改动稳定 AppRun。
+- desktop、icon、真实入口、Qt 主版本和输入上下文 plugin 与当前应用一致；linuxdeploy 中间产物没有被误当成正式 Release 资产。
+
+确认完成后，把最终准确路径直接写回构建脚本中的根 `AppDir/AppRun`，删除该项目对 `normalize_apprun_paths.sh` 的调用。以后继续以这份 AppRun 为稳定基线，只有 AppDir 布局或技术栈实际变化时才重新核对。
+
 ## 不计入的已核对项目
 
 - `htop/build_htop.sh`：明确使用 quick-sharun，不使用 linuxdeploy。

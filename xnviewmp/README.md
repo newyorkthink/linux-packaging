@@ -35,6 +35,14 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 
 ## 变更记录
 
+### 2026-09-20：核对正式 Release 成品并完成规范沉淀
+
+重新下载并解包 `latest/xnviewmp.AppImage` 后确认：顶层 AppRun 正确加载 Qt hook 并执行 `AppRun.wrapped`；主程序在当前 AppDir 库路径下没有缺失的直接动态依赖；`opt/XnView/lib` 与 `usr/plugins` 都包含真实 Qt plugin 分类目录；`opt/XnView/Plugins` 是 XnView 自身格式解码库，`AddOn` 与 `UI` 也是应用私有目录，均不属于 `QT_PLUGIN_PATH`。
+
+`opt/XnView/language` 保留 XnView 自带翻译，linuxdeploy 已把对应翻译逐项链接到 `usr/translations`，因此 `QT_TRANSLATIONS_PATH` 只保留 `usr/translations`。用户实际运行截图同时确认中文界面、中文路径、图片浏览和视频播放正常。终端中的 `libvdpau_va_gl.so` 信息表示宿主缺少可选 VDPAU 后端；当前视频已经通过其他后端正常播放，不构成 AppImage 打包失败。
+
+本次只补充成品证据和后续 linuxdeploy 项目的核对方法，没有改动已经确认有效的 AppRun export 或启动命令。
+
 ### 2026-09-20：固化最终 AppRun 并复用公共下载入口
 
 实际 Release AppImage 已确认视频播放、中文界面和中文输入正常。解包核对显示 `usr/qml` 不存在；`usr/translations` 已通过符号链接完整接入 `opt/XnView/language`；`opt/XnView/lib` 是 Qt plugin 根目录，而 `opt/XnView/Plugins` 是由主程序 `$ORIGIN/Plugins` RPATH 加载的图片格式组件，不属于 `QT_PLUGIN_PATH`。
