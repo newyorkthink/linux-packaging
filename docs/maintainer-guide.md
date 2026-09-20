@@ -48,7 +48,7 @@
 ### AppRun 与 libunionpreload
 
 - AppRun 只保留当前应用需要的入口和环境，不使用万能模板，不统一强制语言、浏览器、主题、显示后端、字体 DPI、输入法或用户目录。
-- `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、Qt / QML / GTK 路径变量的用途，以及首次打包时可选的 linuxdeploy 路径整理方式，见 [AppRun 路径型环境变量说明](./apprun-path-environment.md)。已经确认的 AppRun 直接固化准确路径，不再自动整理。
+- `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、Qt / QML / GTK 路径变量的用途，以及首次打包时的 linuxdeploy 路径整理方式，见 [AppRun 路径型环境变量说明](./apprun-path-environment.md)。首次成品尚未由用户确认时保留 `normalize_apprun_paths.sh`；确认没有问题后，通过当前仓库 Release 成品的实际解包结果或用户提供的最终成品解包截图取得已确认的路径型 export，原样固化到构建脚本生成的根 AppRun，再删除整理调用并同步应用 README。
 - 启动链只保留一条真实可到达的 `exec ... "$@"`，路径和参数必须正确引用。
 - 程序确实写死 `/usr`、`/opt`、`/lib` 等绝对路径，且普通 RPATH、搜索路径或小范围 wrapper 无法解决时，可以评估 libunionpreload。
 - libunionpreload 不是 mount、真正的 union filesystem 或安全沙箱。使用前必须核对动态链接方式、架构、glibc ABI、子进程传播、文件写入和许可证要求。
@@ -104,6 +104,7 @@
 - [ ] 构建环境与打包路线一致：quick-sharun 在 Arch，linuxdeploy + appimagetool 在 Ubuntu。
 - [ ] Qt 主版本、Qt plugins 和输入法 plugin 一致，没有混用 Qt 5 / Qt 6。
 - [ ] AppRun 只有当前应用需要的环境和唯一入口，没有万能模板或无证据 preload。
+- [ ] 首次或未确认项目仍保留 `normalize_apprun_paths.sh`；已确认项目已有 Release 解包结果或用户截图作为证据，路径型 export 已原样固化，整理调用已删除，应用 README 已同步。
 - [ ] 没有宽泛通配安装、`dist-upgrade`、`chmod 777`、整个 `/usr/lib` 复制或无关系统修改。
 - [ ] 最终封装、`version.txt`、稳定资产名和 workflow 发布路径互相一致。
 - [ ] 标准应用清单、特例 Job、手动下拉选项、目录和脚本路径没有遗漏或重复。
