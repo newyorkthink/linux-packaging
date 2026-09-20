@@ -108,14 +108,31 @@ GTK 插件也支持 GTK 2 和 GTK 4。只有主程序真实使用对应主版本
 
 #### Qt 应用
 
-先确认主程序实际使用 Qt 5 还是 Qt 6，再使用用户已经验证的原命令：
+先确认主程序实际使用 Qt 5 还是 Qt 6。linuxdeploy-plugin-qt 读取的变量名是大写 `QMAKE`，变量值必须是对应的 qmake 可执行文件名或完整路径，不是单独写数字 `5` / `6`。
+
+Qt 6 应用使用：
 
 ```bash
-# 部署与主程序 Qt 主版本一致的 Qt plugins、资源和 hook，并完成 AppRun 包装
+# 指定 Qt 6 的 qmake，确保插件从 Qt 6 路径部署资源
+export QMAKE=qmake6
+
+# 部署 Qt 6 plugins、资源和 hook，并完成 AppRun 包装
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 ```
 
-Qt 5 / Qt 6 的运行库、qmake / qtpaths、platform plugins、输入上下文和 QML 路径必须保持同一主版本。
+Qt 5 应用使用：
+
+```bash
+# 指定 Qt 5 的 qmake，确保插件从 Qt 5 路径部署资源
+export QMAKE=qmake
+
+# 部署 Qt 5 plugins、资源和 hook，并完成 AppRun 包装
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
+```
+
+如果构建环境中的命令名不同，应把 `QMAKE` 设置为 `command -v qmake6` / `command -v qmake` 得到的真实完整路径；不得猜测路径。插件已经能够明确找到唯一且正确的 qmake 时可以不设置 `QMAKE`，但同时安装 Qt 5 和 Qt 6 或自动识别可能选错时必须显式设置。
+
+Qt 5 / Qt 6 的运行库、`QMAKE`、qmake / qtpaths、platform plugins、输入上下文和 QML 路径必须保持同一主版本。
 
 #### 需要额外动态加载库的 GTK 应用
 
