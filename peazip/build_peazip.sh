@@ -125,9 +125,9 @@ export QT_QPA_PLATFORMTHEME=Adwaita-Dark
 export QT_QPA_PLATFORM=xcb
 export QT_FONT_DPI=96
 
-# 从 desktop 文件读取旧版稳定入口，并强制 PeaZip 使用简体中文语言文件。
+# 从 desktop 文件读取旧版稳定入口，并原样传递用户参数。
 EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2- | sed -e 's|%.||g')
-exec ${EXEC} -peaziplanguage zh-cn.txt "$@"
+exec ${EXEC} "$@"
 EOF_APPRUN
 # 赋予自定义 AppRun 执行权限。
 chmod +x "$APPDIR/AppRun"
