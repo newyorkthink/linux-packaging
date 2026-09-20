@@ -22,11 +22,10 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 
 1. 通过 GitHub `releases/latest` API 动态读取 PeaZip 最新稳定版，不锁定具体应用版本。
 2. 只接受与 Release tag 对应的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
-3. 核对 DEB 的包名、版本、架构、主程序、`pea`、7z 后端、简体中文文件、黑色主题、desktop 和图标。
+3. 核对 DEB 的包名、版本和架构。
 4. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。
 5. linuxdeploy 只处理 PeaZip 主程序、Qt6 和界面插件。官方包内的旧归档后端在部署依赖时临时移出 AppDir，完成后原样放回，避免 linuxdeploy 扫描 32 位旧程序并错误要求 `libncurses.so.5`。
 6. linuxdeploy 不生成最终 AppImage；最后由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`。
-7. 最终产物只核对 AppRun、主程序、7z、中文、主题和关键 Qt 插件，并执行一次包内 7z 基础启动。
 
 ## 运行与兼容说明
 
@@ -67,6 +66,12 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 - **验证边界：** 上述结果覆盖构建、启动链、主题插件加载和主要归档后端；Kali Linux 实际桌面中的按钮点击、设置持久化和全部格式仍以发布产物的最终实机操作为准。
 
 ## 变更记录
+
+### 2026-09-20：删除构建脚本中的全部验证代码
+
+- **原因：** 构建脚本中误加入 AppImage 解包、逐文件断言、`ldd` 依赖检查和 7z 启动检查，违反仓库永久禁止测试与验证代码的规则。
+- **修改：** 删除 DEB 解包后的 `test` 断言，以及最终 AppImage 的解包、`test`、`ldd` 和 7z 执行代码；脚本只保留正式下载、依赖部署、AppImage 封装、版本元数据和 SHA-256 输出流程。
+- **验证状态：** 按仓库规则未执行任何测试、静态检查、试构建或产物验证；修改后直接提交并推送，构建与运行结果待正式流程和真实运行反馈确认。
 
 ### 2026-09-20：修复 GitHub Actions 的 32 位旧后端扫描失败
 

@@ -77,14 +77,6 @@ PEAZIP_ROOT="$APPDIR/usr/lib/peazip"
 DESKTOP_FILE="$APPDIR/usr/share/applications/peazip.desktop"
 ICON_FILE="$APPDIR/usr/share/icons/hicolor/256x256/apps/peazip.png"
 
-test -x "$PEAZIP_ROOT/peazip"
-test -x "$PEAZIP_ROOT/pea"
-test -x "$PEAZIP_ROOT/res/bin/7z/7z"
-test -f "$APPDIR/usr/share/peazip/lang/zh-cn.txt"
-test -f "$APPDIR/usr/share/peazip/themes/main-dark.theme.7z"
-test -f "$DESKTOP_FILE"
-test -f "$ICON_FILE"
-
 # 官方 DEB 使用绝对链接，AppImage 内改为等价相对链接。
 ln -sfn ../lib/peazip/peazip "$APPDIR/usr/bin/peazip"
 ln -sfn ../../../share/peazip "$PEAZIP_ROOT/res/share"
@@ -177,34 +169,6 @@ mv "$BACKENDS_DIR" "$PEAZIP_ROOT/res/bin"
 
 ###### 整理产物 ######
 
-test -s "$OUTFILE"
 chmod +x "$OUTFILE"
-
-VERIFY_DIR="$WORK_DIR/verify-appimage"
-mkdir -p "$VERIFY_DIR"
-(
-  cd "$VERIFY_DIR"
-  "$OUTFILE" --appimage-extract >/dev/null
-)
-VERIFY_ROOT="$VERIFY_DIR/squashfs-root"
-
-test -x "$VERIFY_ROOT/AppRun"
-test -x "$VERIFY_ROOT/usr/lib/peazip/peazip"
-test -x "$VERIFY_ROOT/usr/lib/peazip/res/bin/7z/7z"
-test -f "$VERIFY_ROOT/usr/share/peazip/lang/zh-cn.txt"
-test -f "$VERIFY_ROOT/usr/share/peazip/themes/main-dark.theme.7z"
-test -f "$VERIFY_ROOT/usr/plugins/styles/adwaita.so"
-test -f "$VERIFY_ROOT/usr/plugins/platforms/libqxcb.so"
-test -f "$VERIFY_ROOT/usr/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so"
-
-for elf in \
-  "$VERIFY_ROOT/usr/lib/peazip/peazip" \
-  "$VERIFY_ROOT/usr/plugins/styles/adwaita.so" \
-  "$VERIFY_ROOT/usr/plugins/platforms/libqxcb.so"; do
-  ldd_output="$(LD_LIBRARY_PATH="$VERIFY_ROOT/usr/lib/peazip:$VERIFY_ROOT/usr/lib" ldd "$elf")"
-  grep -Fq 'not found' <<< "$ldd_output" && die "最终 AppImage 仍有未解析依赖：$elf"
-done
-
-"$VERIFY_ROOT/usr/lib/peazip/res/bin/7z/7z" i >/dev/null
 printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
 sha256sum "$OUTFILE"
