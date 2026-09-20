@@ -112,6 +112,8 @@
 - 禁止在应用构建脚本中直接执行 `apt-get update`、`apt-get install` 或重复实现 root / sudo、非交互安装和通用包管理器错误处理。Debian / Ubuntu 构建统一调用 `common/apt/install_packages.sh`；应用专用依赖名称或本地 DEB 路径只能作为这一条调用命令的参数。
 - 所有 linuxdeploy 项目的第一次空 AppDir 初始化统一调用 `common/linuxdeploy/initialize_appdir.sh`。应用构建脚本只能保留一行调用，不得重复原始 linuxdeploy 命令或增加额外检查。
 - 新增项目或当前修改触及标准 `source`、`AppDir`、`dist`、`source/tools` 布局时，统一单行 `source common/linuxdeploy/prepare_build_workspace.sh` 设置公共路径并清理、重建工作目录；项目脚本只保留 DEB、desktop、icon 等应用专用路径，不得重复公共变量和目录初始化代码。
+- linuxdeploy 的 `ARCH`、`APPIMAGE_EXTRACT_AND_RUN`、工具目录 `PATH`、`LDAI_NO_APPSTREAM`、`LDAI_OUTPUT` 和 `LDAI_RUNTIME_FILE` 统一由 `common/linuxdeploy/configure_environment.sh` 设置。Qt 项目自行追加 `QT_SELECT`、`QMAKE` 和 Qt 工具路径；GTK 项目自行追加 `DEPLOY_GTK_VERSION`，公共实现不得写死技术栈。
+- 使用官方 appimagetool 与 Type 2 runtime 最终封装时，统一单行调用 `common/linuxdeploy/package_appimage.sh`；appimagetool 调用、执行权限和 SHA-256 输出只在公共实现维护。
 - “只保留一条调用”是指每一次独立下载、安装或空 AppDir 初始化操作在调用方只有一条实际命令。允许把当前应用的官方 URL、仓库名、资产名模板、完整资产名正则、输出路径、版本文件、明确依赖列表或 AppDir 路径作为参数传入；禁止在调用前后再复制公共脚本内部已经负责的解析、校验、重试、权限判断、安装或初始化检查逻辑。
 - 下载完成后的应用专用解包、文件布局、desktop / icon 调整和 AppRun 内容仍留在应用脚本；它们不得被塞进无关的万能下载器。公共代码负责获取、校验、版本选择、版本元数据和通用安装，应用代码负责使用已经取得的文件完成自身打包。
 - 公共入口出现通用故障时，只修改对应 `common/` 实现并核对所有调用者接口；不得只在当前应用增加特殊重试、备用下载器或第二套解析。只有上游来源本身存在无法通用化的客观差异时，才允许增加新的公共接口参数或新的可复用公共 helper。

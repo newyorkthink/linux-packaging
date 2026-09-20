@@ -76,3 +76,5 @@ opt/XnConvert/XnConvert # 根 AppRun 直接执行的真实主程序
 2026-09-20 继续删除应用脚本中的通用命令预检查、解包后文件清单检查、desktop 验证和最终文件重复检查；缺少输入时由实际 `sed`、`cp`、linuxdeploy 或 appimagetool 步骤直接失败。APT 参数改为接近正常行宽后再换行，不再每个包独占一行，并删除仅供 desktop 验证使用的 `desktop-file-utils`。
 
 2026-09-20 标准 `source`、`AppDir`、`dist`、`source/tools` 路径及其清理、重建改为单行加载 `common/linuxdeploy/prepare_build_workspace.sh`；XnConvert 脚本只保留 DEB、desktop 和 icon 三个应用专用路径。
+
+2026-09-20 技术栈无关的 linuxdeploy 环境改由 `common/linuxdeploy/configure_environment.sh` 设置，Qt5 的 `QT_SELECT`、`QMAKE` 和 Qt 工具路径仍留在项目脚本；最终 appimagetool、Type 2 runtime、执行权限和 SHA-256 输出改为调用 `common/linuxdeploy/package_appimage.sh`。

@@ -58,15 +58,12 @@ cp -a "$ICON_FILE" "$APPDIR/usr/share/icons/hicolor/256x256/apps/xnconvert.png"
 
 ###### 核心打包 ######
 
-# 这些变量只服务于第二次 Qt linuxdeploy 和后续最终封装。
-export ARCH=x86_64
-export APPIMAGE_EXTRACT_AND_RUN=1
+# 公共入口设置技术栈无关的 linuxdeploy 环境；Qt5 参数仍由当前项目追加。
+source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" \
+  "$TOOLS_DIR" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 export QT_SELECT=qt5
-export PATH="$QT5_BIN_DIR:$TOOLS_DIR:$PATH"
+export PATH="$QT5_BIN_DIR:$PATH"
 export QMAKE="$QT5_BIN_DIR/qmake"
-export LDAI_NO_APPSTREAM=1
-export LDAI_OUTPUT="$INTERMEDIATE_APPIMAGE"
-export LDAI_RUNTIME_FILE="$RUNTIME_FILE"
 
 # 应用文件进入 AppDir 后，在第二次 linuxdeploy 前写入完整根 AppRun。
 # Qt linuxdeploy 会自动把它保存为 AppRun.wrapped，并生成加载 Qt hook 的顶层 AppRun。
@@ -110,10 +107,6 @@ export ARCH=x86_64; linuxdeploy \
 
 ###### 整理产物 ######
 
-# 忽略 linuxdeploy 中间 AppImage，使用官方 appimagetool 和 Type 2 runtime
-# 对同一个 AppDir 重新封装正式发布资产。
-"$APPIMAGETOOL" -n "$APPDIR" "$OUTFILE" --runtime-file "$RUNTIME_FILE"
-chmod +x "$OUTFILE"
-
-# 构建成功后输出正式资产 SHA-256；版本元数据已由公共下载入口写入。
-sha256sum "$OUTFILE"
+# 公共入口使用官方 appimagetool 和 Type 2 runtime 封装，并输出正式资产 SHA-256。
+"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
+  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE"
