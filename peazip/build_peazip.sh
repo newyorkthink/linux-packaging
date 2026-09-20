@@ -103,6 +103,16 @@ sudo apt-get install -y --no-install-recommends "$DEB_FILE"
 dpkg-deb -x "$DEB_FILE" "$APPDIR"
 
 PEAZIP_ROOT="$APPDIR/usr/lib/peazip"
+ZH_CN_FILE="$APPDIR/usr/share/peazip/lang/zh-cn.txt"
+
+# PeaZip 官方要求语言文件使用 UTF-8 BOM；仅在官方 DEB 缺失 BOM 时补入，中文正文保持原样。
+ZH_CN_PREFIX="$(od -An -tx1 -N3 "$ZH_CN_FILE" | tr -d '[:space:]')"
+if [[ "$ZH_CN_PREFIX" != efbbbf ]]; then
+  ZH_CN_TEMP="$WORK_DIR/zh-cn.txt"
+  printf '\xEF\xBB\xBF' > "$ZH_CN_TEMP"
+  cat "$ZH_CN_FILE" >> "$ZH_CN_TEMP"
+  install -m 0644 "$ZH_CN_TEMP" "$ZH_CN_FILE"
+fi
 
 # 官方 DEB 使用绝对链接，AppImage 内改为等价相对链接。
 ln -sfn ../lib/peazip/peazip "$APPDIR/usr/bin/peazip"
@@ -128,12 +138,17 @@ cat > "$APPDIR/AppRun" <<'EOF_APPRUN'
 HERE="$(dirname "$(readlink -f "${0}")")"
 
 export PATH="$HERE/usr/bin${PATH:+:$PATH}"
-export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="$HERE/usr/lib/peazip:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 export QT_PLUGIN_PATH="$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
 export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_TRANSLATIONS_PATH}"
 export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export NO_AT_BRIDGE=1
+
+# PeaZip 的中文语言文件按 UTF-8 读取；恢复已经实际验证过的中文 locale 环境。
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
+export LC_MESSAGES=zh_CN.UTF-8
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_SCALE_FACTOR=1
@@ -147,6 +162,17 @@ exec ${EXEC} "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/AppRun"
 
+# 当前官方 Qt 插件明确跳过 Qt6 AppRun hook；加入 PeaZip 专用兼容 hook，
+# 让 linuxdeploy 输出阶段自动保留 AppRun.wrapped 并生成加载 hook 的顶层 AppRun。
+mkdir -p "$APPDIR/apprun-hooks"
+cat > "$APPDIR/apprun-hooks/peazip-qt6-hook.sh" <<'EOF_QT6_HOOK'
+#!/usr/bin/env bash
+
+# PeaZip 的 Qt6 环境已经由 AppRun.wrapped 完整设置；此 hook 用于保留标准包装层。
+true
+EOF_QT6_HOOK
+chmod +x "$APPDIR/apprun-hooks/peazip-qt6-hook.sh"
+
 ###### 核心打包 ######
 
 # linuxdeploy 会扫描 AppDir 中全部 ELF。官方包内的 32 位旧后端依赖已淘汰的
@@ -159,6 +185,10 @@ export LD_LIBRARY_PATH="$PEAZIP_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # 原样执行已经验证有效的 Qt6 打包命令，由 linuxdeploy 部署 Qt6 并完成 AppRun 包装。
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
+
+# 没有标准包装层时禁止继续发布，避免再次生成只有顶层自定义 AppRun 的错误产物。
+[[ -x "$APPDIR/AppRun.wrapped" ]] || die "第二次 linuxdeploy 未生成 AppRun.wrapped。"
+grep -Fq 'AppRun.wrapped' "$APPDIR/AppRun" || die "顶层 AppRun 没有调用 AppRun.wrapped。"
 
 # Qt6 依赖部署完成后，把官方归档后端原样恢复到 PeaZip 资源目录。
 mv "$BACKENDS_DIR" "$PEAZIP_ROOT/res/bin"
