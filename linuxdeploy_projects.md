@@ -59,6 +59,11 @@
 # 从官方 SHA-256 清单选择、校验并下载最新匹配资产，同时写入版本文件
 "$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" "<官方校验清单 URL>" '<完整资产名正则>' "<输出文件>" "<版本文件>"
 
+# 从官方 JSON 元数据提取版本和 DEB URL，并按调用方参数校验后下载；stdout 返回实际版本
+VERSION="$("$SCRIPT_DIR/../common/download/download_json_deb_asset.sh" \
+  "<元数据 URL>" '<版本 jq>' '<资产 URL jq>' '<允许 URL 正则>' \
+  '<资产名-{version}.deb>' '<DEB 包名>' '<架构>' "<输出 DEB>")"
+
 # 从 GitHub 正式 semver Release 选择、校验并下载唯一的 {version} 资产；stdout 返回实际版本
 VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" "<owner/repo>" '<资产名-{version}.扩展名>' "<输出文件>")"
 
@@ -95,7 +100,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" "<工具目�
 
 项目尚未把工具目录加入 `PATH` 时，可把 linuxdeploy 可执行文件作为第二个参数传入；调用仍只保留一行。
 
-`download_file.sh` 统一处理 HTTPS、失败退出、重试、超时、临时文件和可选 SHA-256 校验；`download_latest_checksum_asset.sh` 统一处理官方清单下载、最新版选择、摘要校验、资产下载和版本文件；`download_latest_stable_release_asset.sh` 复用 GitHub Release 解析与公共下载入口，把“正式 semver + `{version}` 资产模板 + GitHub digest”的解析、拆分、下载和校验收进一处，并只把实际版本写到 stdout；`install_packages.sh` 统一处理 APT 索引、root / sudo、非交互安装以及公共下载与解析入口所需的基础命令，项目只传应用专用依赖；`download_and_extract_packages.sh` 统一处理“只下载指定 APT 包并解包到目标目录”的场景；`extract_archive.sh` 统一处理 DEB 与 tar 系列归档的格式判断和解包命令；`prepare_build_workspace.sh` 统一检查当前 x86_64 linuxdeploy 架构、设置标准工作路径并清理、重建目录；`copy_nss_runtime.sh` 统一维护当前已验证的 Debian / Ubuntu NSS 核心库和 dlopen 模块复制清单；`configure_environment.sh` 只设置技术栈无关的 linuxdeploy 环境；`initialize_appdir.sh` 统一执行第一次普通 linuxdeploy；`package_appimage.sh` 统一使用官方 appimagetool 和 Type 2 runtime 最终封装、确认正式资产非空并输出 SHA-256；调用方已取得软件版本时可追加第五参数，由该公共入口在最终资产成功生成后写入同目录 `version.txt`。`prepare_linuxdeploy_tools.sh` 每次构建都从各自官方 continuous Release 动态解析当前最新 x86_64 资产与 GitHub 官方 digest，应用脚本和 AI 都不记录或人工更新工具版本；GTK 插件没有 Release 资产，因此从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。官方 GTK 插件当前缺少 GIO modules 复制逻辑，公共脚本只在下载文件仍没有 `gio_moduledir` 时应用已验证的最小修复；上游将来加入后自动跳过。以上文件再交给公共下载脚本取得，不固定工具版本。
+`download_file.sh` 统一处理 HTTPS、失败退出、重试、超时、临时文件和可选 SHA-256 校验；`download_latest_checksum_asset.sh` 统一处理官方清单下载、最新版选择、摘要校验、资产下载和版本文件；`download_json_deb_asset.sh` 统一处理官方 JSON 元数据中的版本 / DEB URL 提取、URL 与文件名约束、DEB 包名 / 版本 / 架构核对和资产下载，应用专用 API、jq 过滤器、域名规则、文件名模板、包名和架构均由调用方传参；`download_latest_stable_release_asset.sh` 复用 GitHub Release 解析与公共下载入口，把“正式 semver + `{version}` 资产模板 + GitHub digest”的解析、拆分、下载和校验收进一处，并只把实际版本写到 stdout；`install_packages.sh` 统一处理 APT 索引、root / sudo、非交互安装以及公共下载与解析入口所需的基础命令，项目只传应用专用依赖；`download_and_extract_packages.sh` 统一处理“只下载指定 APT 包并解包到目标目录”的场景；`extract_archive.sh` 统一处理 DEB 与 tar 系列归档的格式判断和解包命令；`prepare_build_workspace.sh` 统一检查当前 x86_64 linuxdeploy 架构、设置标准工作路径并清理、重建目录；`copy_nss_runtime.sh` 统一维护当前已验证的 Debian / Ubuntu NSS 核心库和 dlopen 模块复制清单；`configure_environment.sh` 只设置技术栈无关的 linuxdeploy 环境；`initialize_appdir.sh` 统一执行第一次普通 linuxdeploy；`package_appimage.sh` 统一使用官方 appimagetool 和 Type 2 runtime 最终封装、确认正式资产非空并输出 SHA-256；调用方已取得软件版本时可追加第五参数，由该公共入口在最终资产成功生成后写入同目录 `version.txt`。`prepare_linuxdeploy_tools.sh` 每次构建都从各自官方 continuous Release 动态解析当前最新 x86_64 资产与 GitHub 官方 digest，应用脚本和 AI 都不记录或人工更新工具版本；GTK 插件没有 Release 资产，因此从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。官方 GTK 插件当前缺少 GIO modules 复制逻辑，公共脚本只在下载文件仍没有 `gio_moduledir` 时应用已验证的最小修复；上游将来加入后自动跳过。以上文件再交给公共下载脚本取得，不固定工具版本。
 
 新增项目或当前修改触及对应代码时，项目脚本对每一次下载、安装、解包或空 AppDir 初始化只能保留一条公共脚本调用命令，并把当前应用的 URL、完整资产名正则、输出路径、版本文件、依赖名称、归档文件或 AppDir 路径作为参数传入。禁止在项目脚本中自行使用 `curl`、`wget`、Release / API 查询、校验清单解析、最新版选择、摘要拼装、`apt-get update`、`apt-get install`、`dpkg-deb -x`、`tar -x`、root / sudo 判断，或重复第一次 linuxdeploy 命令。需要修复通用行为时只修改 `common/` 公共实现；下载后的应用专用文件定位和 AppDir 布局调整仍由项目脚本处理。本规则不授权批量改写本次任务未触及的稳定项目。
 
