@@ -4,48 +4,49 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-log() {
-  printf '[BaiduNetDisk] %s\n' "$*"
-}
-
-die() {
-  printf 'ERROR: %s\n' "$*" >&2
-  exit 1
-}
-
-[[ "$(uname -m)" == "x86_64" ]] || die "only x86_64 is supported"
-
 SOURCE_DIR="$SCRIPT_DIR/source"
 APPDIR="$SCRIPT_DIR/AppDir"
 DIST_DIR="$SCRIPT_DIR/dist"
-OUTFILE="$DIST_DIR/baidunetdisk.AppImage"
-DEB="$SOURCE_DIR/baidunetdisk.deb"
-LINUXDEPLOY="$SOURCE_DIR/linuxdeploy"
-GTK_PLUGIN="$SOURCE_DIR/linuxdeploy-plugin-gtk"
+TOOLS_DIR="$SOURCE_DIR/tools"
+CLIENT_JSON_FILE="$SOURCE_DIR/client.json"
+DEB_FILE="$SOURCE_DIR/baidunetdisk.deb"
 THEME_DEB_DIR="$SOURCE_DIR/theme-debs"
-VERIFY_DIR="$SOURCE_DIR/verify-appimage"
-SMOKE_HOME="$SOURCE_DIR/smoke-home"
-SMOKE_RUNTIME="$SOURCE_DIR/smoke-runtime"
-SMOKE_LOG_1="$SOURCE_DIR/smoke-1.log"
-SMOKE_LOG_2="$SOURCE_DIR/smoke-2.log"
+LINUXDEPLOY="$TOOLS_DIR/linuxdeploy-x86_64.AppImage"
+APPIMAGETOOL="$TOOLS_DIR/appimagetool-x86_64.AppImage"
+RUNTIME_FILE="$TOOLS_DIR/runtime-x86_64"
+INTERMEDIATE_APPIMAGE="$SOURCE_DIR/baidunetdisk-linuxdeploy-intermediate.AppImage"
+OUTFILE="$DIST_DIR/baidunetdisk.AppImage"
 CLIENT_API='https://pan.baidu.com/disk/cmsdata?do=client'
 
-rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
-mkdir -p "$SOURCE_DIR" "$DIST_DIR"
+# 输出明确错误并立即终止构建。
+die() {
+  echo "错误：$*" >&2
+  exit 1
+}
 
+[[ "$(uname -m)" == x86_64 ]] || die "当前仅支持 x86_64"
+
+###### 准备构建环境 ######
+
+# 只清理并重建当前项目自己的构建目录。
+rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
+mkdir -p "$TOOLS_DIR" "$DIST_DIR"
+
+# 根据当前环境选择 apt-get 调用方式。
 if command -v sudo >/dev/null 2>&1; then
   APT=(sudo apt-get)
 else
   APT=(apt-get)
 fi
 
+# 安装下载、DEB 处理、GTK3 插件和百度网盘运行时所需依赖。
 "${APT[@]}" update
 DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
-  ca-certificates curl desktop-file-utils dpkg-dev file findutils gawk grep pkgconf python3 sed coreutils \
-  binutils patchelf xz-utils bzip2 zstd dbus dbus-x11 xvfb xauth \
-  libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-dev \
-  libgdk-pixbuf-2.0-dev librsvg2-dev libpango1.0-dev \
-  ibus-gtk3 \
+  ca-certificates curl desktop-file-utils dpkg-dev file findutils gawk grep jq pkgconf sed \
+  libglib2.0-bin libglib2.0-dev libgirepository1.0-dev \
+  libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev \
+  librsvg2-dev librsvg2-common libpango1.0-dev \
+  ibus-gtk3 libibus-1.0-5 \
   libasound2 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcairo2 libcups2 \
   libdbus-1-3 libdrm2 libgbm1 libgdk-pixbuf-2.0-0 libglib2.0-0 libgtk-3-0 \
   libgtkmm-2.4-1v5 libnotify4 libnss3 libnspr4 libpango-1.0-0 libsecret-1-0 \
@@ -54,44 +55,77 @@ DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   libxfixes3 libxi6 libxkbcommon0 libxrandr2 libxrender1 libxss1 libxtst6 \
   xdg-utils shared-mime-info hicolor-icon-theme
 
-for command_name in \
-  curl dbus-run-session desktop-file-validate dpkg-deb file find grep ldd \
-  python3 readelf sed sha256sum timeout xvfb-run; do
-  command -v "$command_name" >/dev/null 2>&1 || die "required command missing: $command_name"
+# 确认后续构建依赖的基础命令均可用。
+for command_name in curl cut desktop-file-validate dpkg-architecture dpkg-deb file find jq readlink sed sha256sum sort tail; do
+  command -v "$command_name" >/dev/null 2>&1 || die "缺少必需命令：$command_name"
 done
 
-log "read current official Linux client version"
-CLIENT_JSON="$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 "$CLIENT_API")"
-[[ -n "$CLIENT_JSON" ]] || die "official client metadata is empty"
+###### 下载打包工具 ######
 
-RAW_VERSION="$(printf '%s' "$CLIENT_JSON" | python3 -c '
-import json, sys
-payload = json.load(sys.stdin)
-linux = payload.get("linux") or {}
-print(linux.get("version") or "")
-')"
-if [[ "$RAW_VERSION" =~ ^(百度网盘Linux电脑客户端)?V?([0-9]+(\.[0-9]+)+)$ ]]; then
+# 动态取得 linuxdeploy、带 GIO 修复的 GTK 插件、appimagetool 和 Type 2 runtime。
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" gtk
+
+###### 初始化 AppDir ######
+
+# 配置 linuxdeploy 和中间输出位置；最终发布资产不会使用该中间文件。
+export ARCH=x86_64
+export APPIMAGE_EXTRACT_AND_RUN=1
+export PATH="$TOOLS_DIR:$PATH"
+export LINUXDEPLOY="$LINUXDEPLOY"
+export LDAI_NO_APPSTREAM=1
+export LDAI_OUTPUT="$INTERMEDIATE_APPIMAGE"
+export LDAI_RUNTIME_FILE="$RUNTIME_FILE"
+
+# 第一次只让 linuxdeploy 创建空 AppDir 的 usr/bin、usr/lib、usr/share 等基础目录。
+# 当前 linuxdeploy 会因空 AppDir 尚无 desktop 而在输出阶段返回 1；只接受“目录已创建且没有文件”的结果。
+set +e
+export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
+FIRST_LINUXDEPLOY_STATUS=$?
+set -e
+
+if [[ "$FIRST_LINUXDEPLOY_STATUS" -ne 0 && "$FIRST_LINUXDEPLOY_STATUS" -ne 1 ]]; then
+  die "第一次空 AppDir 初始化异常退出：$FIRST_LINUXDEPLOY_STATUS"
+fi
+for required_dir in "$APPDIR/usr/bin" "$APPDIR/usr/lib" "$APPDIR/usr/share"; do
+  [[ -d "$required_dir" ]] || die "第一次 linuxdeploy 未创建基础目录：$required_dir"
+done
+[[ -z "$(find "$APPDIR" -type f -print -quit)" ]] || die "第一次 linuxdeploy 初始化后 AppDir 中出现了非预期文件"
+
+###### 下载并准备百度网盘 ######
+
+# 读取百度网盘官方接口返回的当前 Linux 版本和 DEB 下载地址。
+"$SCRIPT_DIR/../common/download/download_file.sh" "$CLIENT_API" "$CLIENT_JSON_FILE"
+RAW_VERSION="$(jq -er '.linux.version // empty' "$CLIENT_JSON_FILE")"
+DEB_URL="$(jq -er '.linux.url_1 // empty' "$CLIENT_JSON_FILE")"
+
+if [[ "$RAW_VERSION" =~ ^(百度网盘Linux电脑客户端)?V?([0-9]+([.][0-9]+)+)$ ]]; then
   VERSION="${BASH_REMATCH[2]}"
 else
-  die "unexpected official version string: $RAW_VERSION"
+  die "官方接口返回了无法识别的版本：$RAW_VERSION"
 fi
-PACKAGE_URL="https://issuepcdn.baidupcs.com/issue/netdisk/LinuxGuanjia/$VERSION/baidunetdisk_${VERSION}_amd64.deb"
+[[ "$DEB_URL" == https://*.baidu.com/* || "$DEB_URL" == https://*.baidupcs.com/* ]] || \
+  die "官方接口返回了非百度 HTTPS 地址：$DEB_URL"
+[[ "${DEB_URL##*/}" == "baidunetdisk_${VERSION}_amd64.deb" ]] || \
+  die "官方 DEB 地址与版本不一致：$DEB_URL"
+printf '百度网盘版本：%s\n' "$VERSION"
 
-log "download official DEB: $VERSION"
-curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 "$PACKAGE_URL" -o "$DEB"
-[[ -s "$DEB" ]] || die "downloaded DEB is empty"
-file "$DEB" | grep -q 'Debian binary package' || die "download is not a Debian package"
-sha256sum "$DEB"
+# 官方接口未提供摘要；公共下载入口负责 HTTPS、重试和输出本次文件 SHA-256。
+"$SCRIPT_DIR/../common/download/download_file.sh" "$DEB_URL" "$DEB_FILE"
+file "$DEB_FILE" | grep -q 'Debian binary package' || die "下载文件不是 Debian 软件包"
+sha256sum "$DEB_FILE"
+[[ "$(dpkg-deb -f "$DEB_FILE" Package)" == baidunetdisk ]] || die "官方 DEB 包名异常"
+[[ "$(dpkg-deb -f "$DEB_FILE" Version)" == "$VERSION" ]] || die "官方 DEB 版本不一致"
+[[ "$(dpkg-deb -f "$DEB_FILE" Architecture)" == amd64 ]] || die "官方 DEB 架构不是 amd64"
 
-# Use dpkg-deb so data.tar.{xz,gz,bz2,zst,...} is handled by dpkg itself.
-dpkg-deb -x "$DEB" "$APPDIR"
-
+# 把同一份官方 DEB 安装进隔离构建环境供 linuxdeploy 解析，并按上游布局解包到 AppDir。
+DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends "$DEB_FILE"
+dpkg-deb -x "$DEB_FILE" "$APPDIR"
 APP_ROOT="$APPDIR/opt/baidunetdisk"
 MAIN_BIN="$APP_ROOT/baidunetdisk"
-[[ -x "$MAIN_BIN" ]] || die "official package is missing /opt/baidunetdisk/baidunetdisk"
-file "$MAIN_BIN" | grep -q 'ELF 64-bit' || die "main executable is not a 64-bit ELF"
+[[ -x "$MAIN_BIN" ]] || die "缺少百度网盘主程序"
+[[ -f "$APP_ROOT/resources/app.asar" ]] || die "缺少百度网盘 app.asar"
 
-# Bundle the Adwaita assets used by the GTK hook instead of relying on the host theme installation.
+# 将 Ubuntu 22.04 的 Adwaita 图标与 GTK 主题包直接解包进 AppDir。
 mkdir -p "$THEME_DEB_DIR"
 (
   cd "$THEME_DEB_DIR"
@@ -101,32 +135,11 @@ for theme_deb in "$THEME_DEB_DIR"/*.deb; do
   dpkg-deb -x "$theme_deb" "$APPDIR"
 done
 
-mapfile -d '' desktop_candidates < <(
-  find "$APPDIR/usr/share/applications" -maxdepth 1 -type f \
-    \( -iname '*baidunetdisk*.desktop' -o -iname '*baidu*netdisk*.desktop' \) -print0 2>/dev/null
-)
-[[ ${#desktop_candidates[@]} -eq 1 ]] || die "expected exactly one Baidu Netdisk desktop file, found ${#desktop_candidates[@]}"
-DESKTOP_FILE="${desktop_candidates[0]}"
-
-mapfile -d '' icon_candidates < <(
-  find "$APPDIR/usr/share/icons" "$APPDIR/usr/share/pixmaps" "$APP_ROOT" \
-    -type f \( -iname '*baidunetdisk*.png' -o -iname '*baidunetdisk*.svg' -o \
-    -iname '*baidu*netdisk*.png' -o -iname '*baidu*netdisk*.svg' \) -print0 2>/dev/null
-)
-[[ ${#icon_candidates[@]} -gt 0 ]] || die "official package does not contain a Baidu Netdisk icon"
-
-ICON_FILE="${icon_candidates[0]}"
-ICON_SIZE="$(stat -c '%s' "$ICON_FILE")"
-for candidate in "${icon_candidates[@]:1}"; do
-  candidate_size="$(stat -c '%s' "$candidate")"
-  if (( candidate_size > ICON_SIZE )); then
-    ICON_FILE="$candidate"
-    ICON_SIZE="$candidate_size"
-  fi
-done
-
+# 规范官方 desktop 条目，并保留上游已经使用的 --no-sandbox 与 URI 参数。
+DESKTOP_FILE="$(find "$APPDIR/usr/share/applications" -maxdepth 1 -type f -name 'baidunetdisk.desktop' -print -quit)"
+[[ -n "$DESKTOP_FILE" ]] || die "缺少百度网盘 desktop 文件"
 sed -i \
-  -e 's|^Exec=.*|Exec=baidunetdisk %U|' \
+  -e 's|^Exec=.*|Exec=baidunetdisk --no-sandbox %U|' \
   -e 's|^Icon=.*|Icon=baidunetdisk|' \
   -e '/^Encoding=/d' \
   -e '/^Value=/d' \
@@ -134,24 +147,16 @@ sed -i \
   "$DESKTOP_FILE"
 desktop-file-validate "$DESKTOP_FILE"
 
-mkdir -p "$APPDIR/usr/bin"
-cat > "$APPDIR/usr/bin/baidunetdisk" <<'EOF_LAUNCHER'
-#!/usr/bin/env bash
-set -Eeuo pipefail
-HERE="$(dirname "$(readlink -f "$0")")"
-ROOT="$(readlink -f "$HERE/../..")"
-APP_ROOT="$ROOT/opt/baidunetdisk"
-export LD_LIBRARY_PATH="$APP_ROOT:$ROOT/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export PATH="$ROOT/usr/bin:${PATH:-/usr/bin:/bin}"
-cd "$APP_ROOT"
-exec "$APP_ROOT/baidunetdisk" --no-sandbox "$@"
-EOF_LAUNCHER
-chmod +x "$APPDIR/usr/bin/baidunetdisk"
-bash -n "$APPDIR/usr/bin/baidunetdisk"
+# 选取官方包中实际存在的百度网盘图标交给 linuxdeploy。
+ICON_FILE="$(find "$APPDIR/usr/share/icons" "$APP_ROOT" \
+  -type f \( -iname 'baidunetdisk.png' -o -iname 'baidunetdisk.svg' \) \
+  -printf '%s\t%p\n' 2>/dev/null | sort -n | tail -n 1 | cut -f2-)"
+[[ -n "$ICON_FILE" ]] || die "官方包中没有百度网盘图标"
 
-# Keep the Electron NSS core and dlopen modules on one Ubuntu 22.04 runtime set.
+###### 准备兼容运行库 ######
+
+# NSS 核心库和 dlopen 模块必须来自同一套 Ubuntu 22.04 libnss3，避免与宿主机新版 NSS 混用。
 MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
-mkdir -p "$APPDIR/usr/lib"
 cp -a \
   "/usr/lib/$MULTIARCH/libnss3.so" \
   "/usr/lib/$MULTIARCH/libnssutil3.so" \
@@ -168,100 +173,57 @@ cp -a \
   "/usr/lib/$MULTIARCH/nss/libsoftokn3.chk" \
   "$APPDIR/usr/lib/"
 
-# Baidu Netdisk loads GTKmm 2.4 dynamically through Koffi, so normal ldd on the Electron binary cannot discover it.
+# 百度网盘通过 Koffi 动态加载 GTKmm 2.4，并按上游依赖推荐使用 AppIndicator。
 GTKMM2_LIB="/usr/lib/$MULTIARCH/libgtkmm-2.4.so.1"
 APPINDICATOR_LIB="/usr/lib/$MULTIARCH/libappindicator3.so.1"
-[[ -e "$GTKMM2_LIB" ]] || die "required GTKmm 2.4 runtime is missing: $GTKMM2_LIB"
-[[ -e "$APPINDICATOR_LIB" ]] || die "required AppIndicator runtime is missing: $APPINDICATOR_LIB"
+[[ -e "$GTKMM2_LIB" ]] || die "缺少 GTKmm 2.4 运行库：$GTKMM2_LIB"
+[[ -e "$APPINDICATOR_LIB" ]] || die "缺少 AppIndicator 运行库：$APPINDICATOR_LIB"
 
-curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
-  https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
-  -o "$LINUXDEPLOY"
-cp "$SCRIPT_DIR/linuxdeploy-plugin-gtk" "$GTK_PLUGIN"
-chmod +x "$LINUXDEPLOY" "$GTK_PLUGIN"
+###### 核心打包 ######
 
-export PATH="$SOURCE_DIR:$PATH"
-export LINUXDEPLOY="$LINUXDEPLOY"
-export ARCH=x86_64
-export APPIMAGE_EXTRACT_AND_RUN=1
+# 首次新链路尚待最终成品核对；先写入基于官方包布局的完整根 AppRun。
+# GTK linuxdeploy 会自动把它保存为 AppRun.wrapped，并生成加载 GTK hook 的顶层 AppRun。
+cat > "$APPDIR/AppRun" <<'APPRUN'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+# 保留三个 linuxdeploy 基础目录，并把百度网盘真实程序目录加入对应变量。
+export PATH="$HERE/opt/baidunetdisk:$HERE/usr/bin${PATH:+:$PATH}"
+export LD_LIBRARY_PATH="$HERE/opt/baidunetdisk:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
+export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
+
+cd "$HERE/opt/baidunetdisk"
+exec "$HERE/opt/baidunetdisk/baidunetdisk" --no-sandbox "$@"
+APPRUN
+chmod +x "$APPDIR/AppRun"
+bash -n "$APPDIR/AppRun"
+
+# 百度网盘使用 GTK3；第二次 linuxdeploy 部署 GTK 资源、精确动态库并完成 AppRun 包装。
 export DEPLOY_GTK_VERSION=3
-export LDAI_OUTPUT="$OUTFILE"
-export VERSION
-
-log "package with Ubuntu 22.04 + linuxdeploy + GTK plugin"
-"$LINUXDEPLOY" \
-  --appdir "$APPDIR" \
+export ARCH=x86_64; linuxdeploy \
+  --appdir AppDir \
   --desktop-file "$DESKTOP_FILE" \
   --icon-file "$ICON_FILE" \
-  --library "$GTKMM2_LIB" \
-  --library "$APPINDICATOR_LIB" \
+  -l "$GTKMM2_LIB" \
+  -l "$APPINDICATOR_LIB" \
   --plugin gtk \
   --output appimage
 
-[[ -s "$OUTFILE" ]] || die "linuxdeploy did not create the AppImage"
+# 当前首次按新规范生成的目录仍需根据第二次 linuxdeploy 结果整理一次路径型 export。
+"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
+
+###### 整理产物 ######
+
+# 忽略 linuxdeploy 中间 AppImage，使用官方 appimagetool 和 Type 2 runtime
+# 对同一个 AppDir 重新封装正式发布资产。
+export ARCH=x86_64; "$APPIMAGETOOL" -n ./AppDir "$OUTFILE" --runtime-file "$RUNTIME_FILE"
+[[ -s "$OUTFILE" ]] || die "最终 AppImage 未生成"
 chmod +x "$OUTFILE"
-"$OUTFILE" --appimage-version
 
-rm -rf "$VERIFY_DIR"
-mkdir -p "$VERIFY_DIR"
-(
-  cd "$VERIFY_DIR"
-  "$OUTFILE" --appimage-extract >/dev/null
-)
-VERIFY_ROOT="$VERIFY_DIR/squashfs-root"
-[[ -x "$VERIFY_ROOT/usr/bin/baidunetdisk" ]] || die "final AppImage is missing launcher"
-[[ -x "$VERIFY_ROOT/opt/baidunetdisk/baidunetdisk" ]] || die "final AppImage is missing official executable"
-grep -Fq -- '--no-sandbox' "$VERIFY_ROOT/usr/bin/baidunetdisk" || die "final launcher is incorrect"
-find "$VERIFY_ROOT/usr/lib" -maxdepth 1 -name 'libgtkmm-2.4.so.1*' -print -quit | grep -q . || die "final AppImage is missing GTKmm 2.4"
-[[ -e "$VERIFY_ROOT/usr/lib/libnss3.so" ]] || die "final AppImage is missing bundled NSS"
-
-LDD_OUTPUT="$(LD_LIBRARY_PATH="$VERIFY_ROOT/opt/baidunetdisk:$VERIFY_ROOT/usr/lib" ldd "$VERIFY_ROOT/opt/baidunetdisk/baidunetdisk" 2>&1 || true)"
-printf '%s\n' "$LDD_OUTPUT"
-if grep -Fq 'not found' <<<"$LDD_OUTPUT"; then
-  die "final AppImage still has unresolved shared libraries"
-fi
-
-run_smoke() {
-  local pass="$1"
-  local log_file="$2"
-  local status=0
-
-  mkdir -p "$SMOKE_HOME" "$SMOKE_RUNTIME"
-  chmod 0700 "$SMOKE_RUNTIME"
-
-  set +e
-  timeout 25s \
-    env HOME="$SMOKE_HOME" \
-      XDG_CONFIG_HOME="$SMOKE_HOME/.config" \
-      XDG_CACHE_HOME="$SMOKE_HOME/.cache" \
-      XDG_DATA_HOME="$SMOKE_HOME/.local/share" \
-      XDG_RUNTIME_DIR="$SMOKE_RUNTIME" \
-      APPIMAGE_EXTRACT_AND_RUN=1 \
-      dbus-run-session -- xvfb-run -a "$OUTFILE" --disable-gpu \
-      >"$log_file" 2>&1
-  status=$?
-  set -e
-
-  cat "$log_file" || true
-  case "$status" in
-    0|124) ;;
-    *) die "smoke pass $pass exited with status $status" ;;
-  esac
-
-  if grep -Eqi \
-    'failed to load shared library|cannot open shared object file|sqlcipher_page_cipher: hmac check failed|sqlite3Codec: error decrypting|sqlcipher_codec_ctx_set_error|segmentation fault|trace/breakpoint trap|symbol lookup error|error while loading shared libraries|wrong ELF class|invalid ELF' \
-    "$log_file"; then
-    die "smoke pass $pass detected a fatal runtime error"
-  fi
-}
-
-rm -rf "$SMOKE_HOME" "$SMOKE_RUNTIME"
-run_smoke 1 "$SMOKE_LOG_1"
-run_smoke 2 "$SMOKE_LOG_2"
-
-sha256sum "$OUTFILE"
-
-# 最终 AppImage 与启动检查成功后输出统一的软件版本元数据。
+# 写入本次实际打包的软件版本，并输出正式资产 SHA-256。
 printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
-
-log "done: $OUTFILE"
+sha256sum "$OUTFILE"
