@@ -408,6 +408,25 @@ export ARCH=x86_64; appimagetool -n <AppDir路径> <输出AppImage> --runtime-fi
 - 不得加入“下载 appimagetool 失败就自动回退到 linuxdeploy 输出”“runtime 下载失败就自动换旧 runtime”之类 fallback。构建工具和最终 runtime 必须是明确、可审计、可复现的。
 - 只有确认存在与网络无关的真实兼容性问题，并完成原因核实后，才可以考虑改变既定打包路线；已经验证有效的现有项目仍按稳定基线处理，不得因一次临时下载失败推翻整个方案。
 
+### linuxdeploy 插件必须按类型和应用技术栈选择
+
+linuxdeploy 插件分为输入 / bundling 插件和输出插件，两类用途不得混淆。输入插件通过 `--plugin <名称>` 补充 AppDir 中的框架运行库、plugin、翻译或其他资源；输出插件通过 `--output <名称>` 把 AppDir 转换为另一种分发格式。不得因为文件名都以 `linuxdeploy-plugin-` 开头，就把全部插件预防性下载或全部加入每个项目。
+
+| 官方插件 | 类型与用途 | 本仓库使用规则 |
+| --- | --- | --- |
+| `linuxdeploy-plugin-qt-<架构>.AppImage` | Qt 输入 / bundling 插件；识别 AppDir 中的 Qt 5 或 Qt 6 运行库，并部署对应 Qt plugins、QML、翻译和相关资源 | 仅 Qt 应用按需下载并使用 `--plugin qt`；必须先确认主程序 Qt 主版本及实际 Qt 路径。非 Qt 应用不得加入，Qt 插件在没有识别到 Qt 时返回错误属于预期行为 |
+| `linuxdeploy-plugin-native_packages-<架构>.AppImage` | 输出插件；把 AppDir 生成发行版原生 `.deb` / `.rpm` 包 | 不是 ELF 依赖收集插件，也不补 Qt / GTK 运行库。当前 AppImage / RunImage 构建不需要下载或调用；只有用户明确要求新增 DEB / RPM 正式产物时，才按对应工作流单独评估 |
+| `linuxdeploy-plugin-appimage-<架构>.AppImage` | AppImage 输出插件；对应 `--output appimage`，linuxdeploy 官方 AppImage 通常已经内置一个版本，旁置下载的版本会优先于内置版本 | 本仓库 linuxdeploy 路线不使用该输出插件，不得把它作为必需下载项；继续由独立官方 `appimagetool` 和明确 runtime 封装最终 AppImage |
+
+插件使用要求：
+
+- 只从插件的 linuxdeploy 官方仓库 Release 下载与当前 runner 架构匹配的正式资产；应用版本仍按本文件规则动态获取，插件属于构建工具，可按供应链与可复现性要求选择经过核实的工具版本。
+- 需要外置插件时，保持官方 `linuxdeploy-plugin-<名称>-<架构>.AppImage` 命名，赋予执行权限，并放在 linuxdeploy AppImage 同一目录、`PATH` 或当前工作目录等官方发现位置；不得下载后随意改成 linuxdeploy 无法识别的名称。
+- 一个项目只启用其技术栈和已确认运行需求所需的输入插件。例如 Qt 使用 `--plugin qt`，GTK / GStreamer 等插件也必须根据实际技术栈和已有证据选择，不得为了“打得更全”一次启用全部插件。
+- Qt 插件只解决 Qt 框架资源部署，不替代构建环境中与主程序主版本一致的 Qt 运行库、qmake / qtpaths 和 plugins，也不替代 linuxdeploy 对普通 ELF 依赖的收集或最终 appimagetool 封装。QML、额外 Qt modules、Wayland platform plugin 等只在源码、ELF、已有日志或真实运行反馈证明需要时，通过该插件支持的配置补入。
+- `--plugin qt` 与 `--output appimage` / `--output native_packages` 分属输入和输出阶段，不得互换；当前仓库的标准 linuxdeploy 链路只允许按需使用输入插件，然后单独调用 appimagetool。
+- 对应应用 README 的“打包方式”必须写清实际下载并启用了哪些 linuxdeploy 输入插件、为什么需要，以及最终采用哪种封装方式；不得笼统写成“使用 linuxdeploy 插件”。
+
 ### linuxdeploy + appimagetool 打包阶段必须使用 Ubuntu
 
 - linuxdeploy 负责依赖收集、AppDir 整理，appimagetool 负责最终封装的项目，实际打包阶段固定使用 Ubuntu 环境；当前默认基线为 Ubuntu 24.04。
