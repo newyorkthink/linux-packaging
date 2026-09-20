@@ -79,7 +79,7 @@ DEBIAN_FRONTEND=noninteractive "${APT[@]}" install -y --no-install-recommends \
   libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
   libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
 
-for command_name in curl desktop-file-validate find jq qmake readlink sha256sum tar; do
+for command_name in curl desktop-file-validate find jq qmake readlink sed sha256sum tar; do
   command -v "$command_name" >/dev/null 2>&1 || die "required command missing: $command_name"
 done
 
@@ -95,6 +95,7 @@ fi
 curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 120 \
   https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt \
   -o "$CHECKSUMS"
+sed -i 's/\r$//' "$CHECKSUMS"
 
 TGZ_NAME="$(
   awk '{print $2}' "$CHECKSUMS" |
