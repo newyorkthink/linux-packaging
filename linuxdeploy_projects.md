@@ -1,11 +1,17 @@
 # linuxdeploy 项目清单与打包规范
 
-本文件同时承担两项职责：
+本文件记录当前仓库实际调用 `linuxdeploy` 的项目，并规定以后新增、迁移或重做 linuxdeploy 项目的统一流程。
 
-1. 记录当前仓库中**构建脚本实际调用 `linuxdeploy`** 的项目；
-2. 规定以后新增、迁移或重做 linuxdeploy 项目时必须遵守的共同流程。
+本规范基于以下证据整理：
 
-仅在 README、注释或说明文字中出现 `linuxdeploy`，但构建脚本没有实际调用的项目，不计入本清单。已经验证稳定的现有项目继续以自身 README 和脚本为稳定基线；本规范用于后续工作，不得为了套模板而顺手重写稳定项目。
+- 当前仓库全部 linuxdeploy 构建脚本；
+- 用户本地已经实际使用的两阶段命令；
+- 用户提供的 PeaZip 与 File Roller AppImage 解包结果；
+- linuxdeploy、linuxdeploy-plugin-qt、linuxdeploy-plugin-gtk 和 Type 2 runtime 的实际行为。
+
+两个样本解包后都确认存在顶层 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks/`。PeaZip 顶层 AppRun 自动加载 `linuxdeploy-plugin-qt-hook.sh`，File Roller 顶层 AppRun 自动加载 `linuxdeploy-plugin-gtk.sh`，随后执行 `AppRun.wrapped`。这证明第二次 linuxdeploy 必须保留 `--output appimage`，让输出阶段完成 hook 与 AppRun 包装。
+
+已经验证稳定的现有项目继续以自身 README 和脚本为稳定基线；不得为了套用本文模板而顺手重写稳定项目。
 
 ## 当前项目清单
 
@@ -24,53 +30,47 @@
 | Rainlendar2 | `rainlendar2/build_rainlendar2.sh` | linuxdeploy + GTK 插件 |
 | RealVNC RVNC Connect | `realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh` | linuxdeploy + GTK 插件 |
 
-部分项目使用 linuxdeploy 负责整理 AppDir、收集依赖或调用输入插件，最终 AppImage 由 appimagetool 单独封装；本清单的判断标准是构建流程中是否实际调用 linuxdeploy。
+仅在 README、注释或说明文字中出现 linuxdeploy，但构建脚本没有实际调用的项目，不计入本清单。
 
 ## 新项目必须先横向参考现有实现
 
 开始新增、迁移或重做 linuxdeploy 项目前，必须先完整阅读根目录 `AGENTS.md`、本文件、目标应用 README、构建脚本和对应 workflow，再从本仓库选择至少 2～3 个技术栈与上游包布局最接近的项目横向核对。
 
-参考优先级：
-
 | 当前项目类型 | 优先参考 |
 | --- | --- |
-| 普通 ELF / CLI，无 Qt、GTK 输入插件 | MediaInfo、Poppler Utils、Alacritty |
+| 普通 ELF / CLI | MediaInfo、Poppler Utils、Alacritty |
 | Qt 应用 | PeaZip、XnConvert、XnView MP |
 | GTK 应用 | Joplin、百度网盘、Rainlendar2、RealVNC RVNC Connect |
 | GTK + GStreamer / 多插件应用 | Remmina，并同时参考一个普通 GTK 项目 |
-| GSettings、dconf、locale 或多入口较复杂 | dconf Editor、Poppler Utils，并结合相同技术栈项目 |
+| GSettings、dconf、locale 或多入口应用 | dconf Editor、Poppler Utils，并结合相同技术栈项目 |
 
-横向参考的目的是比较上游来源、AppDir 布局、主程序入口、desktop / icon、AppRun、插件、动态加载依赖、appimagetool 和 runtime 处理，不是复制整段脚本。不得把另一个项目的 Qt、GTK、GStreamer、主题、输入法、多媒体或兼容变量无条件搬入当前项目。
+横向参考只用于比较上游来源、AppDir 布局、AppRun、desktop / icon、插件和动态加载依赖。不得复制另一个项目的整段 Qt、GTK、GStreamer、主题、输入法、多媒体或特殊兼容逻辑。
 
-## 标准打包顺序
+## 唯一标准流程：linuxdeploy 中间输出，再由 appimagetool 最终封装
 
-新增或重做的 linuxdeploy 项目默认按以下顺序完成：
+### 第一步：普通 linuxdeploy 创建并整理 AppDir
 
-1. 使用 Ubuntu 环境准备最小构建工具和当前应用真实需要的依赖；默认基线见 `AGENTS.md`。
-2. 动态取得当前官方 linuxdeploy、实际需要的输入插件、官方 appimagetool 和明确的 Type 2 runtime。
-3. 准备 AppDir，放入真实主程序、desktop、icon、应用资源及已经确认需要显式带入的动态加载依赖。
-4. **在调用 linuxdeploy 前，先创建当前项目自己的根目录 `AppDir/AppRun`，并赋予执行权限。**
-5. 根据实际技术栈选择输入插件：Qt 才使用 `--plugin qt`，GTK 才使用 `--plugin gtk`，确实需要 GStreamer 才使用 `--plugin gstreamer`；普通 ELF 不添加框架插件。
-6. linuxdeploy 只负责整理 AppDir、部署普通 ELF 依赖和所选输入插件，不使用 `--output appimage` 生成最终发布产物。
-7. linuxdeploy 完成后核对最终 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks` 的实际执行链。
-8. 使用官方 appimagetool 和明确的 runtime 单独封装最终 AppImage。
-9. 按当前修改风险完成必要检查，核对完整 diff 后一次提交；临时测试脚本、日志、解包目录和测试专用代码不得进入正式提交。
-10. 同步更新当前应用 README；新增 linuxdeploy 项目时同时更新本文件的项目清单。
-
-不得为了让构建通过而跳过 AppRun 设计、预防性启用全部插件、固定旧打包工具、把 linuxdeploy 输出插件当最终封装器，或通过多次提交和反复触发 Actions 试错。
-
-## AppRun 默认规则
-
-### 默认先创建真实 AppRun
-
-新项目默认在 linuxdeploy 运行前写入真实的 `AppDir/AppRun`。它必须是普通可执行文件，明确设置当前应用真正需要的运行路径，最后使用 `exec` 启动真实主程序并原样传递 `"$@"`。
-
-基础结构只保留当前应用需要的内容，例如：
+先执行用户本地已经验证的原命令：
 
 ```bash
-#!/bin/sh
+# 创建并整理 AppDir，同时生成 linuxdeploy 中间 AppImage
+export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
+```
 
-HERE="$(CDPATH= cd -P -- "$(dirname -- "$0")" && pwd)"
+这一步由 linuxdeploy 创建 / 整理 AppDir 的 `usr/bin`、`usr/lib`、`usr/share`、desktop、icon、根目录链接及其他能够从现有输入识别的结构。应用本体、desktop、icon、上游包或 `--executable` / `--desktop-file` / `--icon-file` 等输入仍必须按当前项目真实情况准备；linuxdeploy 不会凭空生成应用文件。
+
+这一步生成的 AppImage 只是中间产物，不进入发布目录。
+
+### 第二步：写入当前项目自己的 AppRun
+
+第一次 linuxdeploy 完成后，再创建或替换 `AppDir/AppRun`，并赋予执行权限。AppRun 必须使用当前 AppDir 的真实路径，最后执行真正主程序并原样传递 `"$@"`。
+
+基础结构按实际需要取用：
+
+```bash
+#!/usr/bin/env bash
+
+HERE="$(dirname "$(readlink -f "${0}")")"
 
 export PATH="$HERE/usr/bin${PATH:+:$PATH}"
 export LD_LIBRARY_PATH="$HERE/usr/lib:$HERE/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
@@ -79,67 +79,135 @@ export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 exec "$HERE/usr/bin/<真实主程序>" "$@"
 ```
 
-示例中的主程序和目录必须替换为当前 AppDir 的真实路径。不使用的目录不得为了“模板完整”加入搜索路径；上游程序位于 `opt/<应用>`、需要特定工作目录、包含多个入口或需要保留宿主变量时，必须按当前应用实际布局调整。
+不得把截图或其他项目中的全部目录和变量机械复制过来。Qt、GTK、主题、缩放、输入法和工作目录设置只按当前应用实际需要追加。
 
-### Qt、GTK 和 GStreamer 内容按需追加
+### 第三步：按技术栈再次执行 linuxdeploy，必须保留 --output appimage
 
-- **Qt 应用：** 先确认主程序实际使用 Qt 5 还是 Qt 6，再启用 `--plugin qt`。只有最终 AppDir 的真实 Qt plugin / QML 路径或已确认运行需求需要时，才在 AppRun 中加入 `QT_PLUGIN_PATH`、`QT_QPA_PLATFORM_PLUGIN_PATH`、`QML_IMPORT_PATH`、`QML2_IMPORT_PATH`、`QT_QPA_PLATFORM`、`QT_QPA_PLATFORMTHEME` 等变量。
-- **GTK 应用：** 只在应用确实为 GTK 且需要 GTK 输入插件部署时启用 `--plugin gtk`。基础 AppRun 可以保留 `XDG_DATA_DIRS` 和应用实际需要的 `GSETTINGS_SCHEMA_DIR`；`GTK_PATH`、`GTK_THEME`、输入法和 pixbuf / immodules 变量应优先由 GTK hook 管理，只有已有证据表明需要覆盖或补充时才写入自定义 AppRun。
-- **GStreamer 应用：** 只有程序确实依赖 GStreamer plugin，且普通 ELF 收集不能完整部署运行时模块时，才启用 `--plugin gstreamer` 并添加对应搜索路径。
-- **普通 ELF / CLI：** 不得因为其他项目使用了 Qt、GTK 或 GStreamer 插件，就照抄相应插件和环境变量。
+#### 普通应用
 
-`QT_AUTO_SCREEN_SCALE_FACTOR`、`QT_SCALE_FACTOR`、`QT_STYLE_OVERRIDE`、`QT_QPA_PLATFORMTHEME`、`QT_QPA_PLATFORM`、`QT_FONT_DPI`、`GTK_THEME`、`NO_AT_BRIDGE` 等都属于可能影响显示、主题、缩放、辅助功能或后端选择的项目级配置，**不是 linuxdeploy 通用 AppRun 模板**。只有当前应用的稳定基线、上游要求、已有日志或真实运行反馈证明需要时才可加入。
-
-### 正确保留 AppRun hook 执行链
-
-Qt、GTK、GStreamer 等输入插件可能在 `AppDir/apprun-hooks/` 安装 hook。linuxdeploy 发现非空 hook 后，可能把预先创建的自定义 AppRun 保存为 `AppRun.wrapped`，再生成新的顶层 `AppRun` 负责加载 hook 并执行 `AppRun.wrapped`。
-
-因此：
-
-- 必须先创建自定义 `AppDir/AppRun`，再运行 linuxdeploy。
-- 不得手工创建、编辑或把业务逻辑直接写进 `AppRun.wrapped`。
-- linuxdeploy 完成后，不得无依据覆盖它生成的顶层 `AppRun`，否则可能绕过 Qt / GTK / GStreamer hook。
-- 最终必须确认顶层 `AppRun` 能加载实际存在的 hook，并正确执行保存下来的自定义入口。
-- 如果某个已经验证稳定的历史项目因明确兼容原因使用 `--custom-apprun`、在 linuxdeploy 后恢复最终 AppRun，或主动移除 `AppRun.wrapped`，继续以该项目 README 和现有脚本为稳定基线；新项目不得无证据复制这种例外。
-
-## linuxdeploy 与 appimagetool 的职责边界
-
-标准调用结构如下，实际路径和插件按项目填写：
+继续使用用户已经验证的原命令：
 
 ```bash
-# linuxdeploy 只整理 AppDir 并部署依赖；无框架插件时删除 --plugin 参数
-export ARCH=x86_64
-linuxdeploy --appdir <AppDir路径> --plugin <qt|gtk|gstreamer>
-
-# appimagetool 使用明确的 runtime 生成最终 AppImage
-export ARCH=x86_64
-appimagetool -n <AppDir路径> <输出AppImage> --runtime-file <runtime文件>
+# 为普通应用完成 linuxdeploy 输出阶段和 AppRun 处理
+export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
 ```
 
-强制要求：
+#### GTK 应用
 
-- linuxdeploy 命令不得使用 `--output appimage` 作为最终发布步骤。
-- 输入插件只按技术栈启用，不得一次下载或启用全部插件。
-- linuxdeploy、输入插件、appimagetool 和 runtime 必须来自各自官方动态入口，不得为了恢复旧行为固定旧版本、旧提交或旧资产。
-- 网络下载失败应让当前构建明确失败或按既有下载重试逻辑处理，不得自动回退到旧工具、旧 runtime 或另一套打包路线。
-- linuxdeploy 自动收集不到的 `dlopen` plugin、provider、翻译、helper、数据文件或特殊目录，只能根据源码、ELF、已有日志、已有产物或真实运行反馈补入最小集合。
-- 最终产物名、desktop、icon、主程序入口和 workflow 接入必须与当前项目 README 及仓库清单一致。
+已经确认是 GTK 3 时，明确指定 GTK 主版本：
+
+```bash
+# 明确要求 GTK 插件部署 GTK 3
+export DEPLOY_GTK_VERSION=3
+
+# 部署 GTK 运行资源、生成 GTK hook，并完成 AppRun 包装
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
+```
+
+GTK 插件也支持 GTK 2 和 GTK 4。只有主程序真实使用对应主版本时，才把 `DEPLOY_GTK_VERSION` 改为 `2` 或 `4`；不得跨主版本混用。主版本能够可靠自动识别时可以不设置，但已确认版本时优先显式设置。
+
+#### Qt 应用
+
+先确认主程序实际使用 Qt 5 还是 Qt 6，再使用用户已经验证的原命令：
+
+```bash
+# 部署与主程序 Qt 主版本一致的 Qt plugins、资源和 hook，并完成 AppRun 包装
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
+```
+
+Qt 5 / Qt 6 的运行库、qmake / qtpaths、platform plugins、输入上下文和 QML 路径必须保持同一主版本。
+
+#### 需要额外动态加载库的 GTK 应用
+
+linuxdeploy 只能从可见 ELF 依赖自动收集库。NSS、provider、`dlopen` 模块或其他动态加载库确实无法自动发现时，按证据使用 `-l` 精确补入。用户已经验证的命令原样保留：
+
+```bash
+# 为 GTK 应用精确补入无法自动发现的 NSS 运行库
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage -l /usr/lib/x86_64-linux-gnu/libnss3.so -l /usr/lib/x86_64-linux-gnu/libnssutil3.so  -l /usr/lib/x86_64-linux-gnu/libsmime3.so -l /usr/lib/x86_64-linux-gnu/libsoftokn3.so
+```
+
+只有当前应用确实需要这些库时才使用；不得把这组 NSS 库复制到所有 GTK 项目。其他缺失库也必须逐个核实后追加独立 `-l`，禁止使用宽泛目录或通配符碰运气。
+
+### 第四步：核对 linuxdeploy 自动生成的 AppRun 执行链
+
+第二次 linuxdeploy 的 `--output appimage` 会完成输出阶段。存在 Qt、GTK、GStreamer 等 hook 时，标准结果是：
+
+```text
+AppRun
+├── source apprun-hooks/<当前插件 hook>
+└── exec AppRun.wrapped
+```
+
+实际目录中应看到：
+
+- 顶层 `AppRun`：linuxdeploy 自动生成，负责加载 hook；
+- `AppRun.wrapped`：保存第二步写入的自定义启动逻辑；
+- `apprun-hooks/linuxdeploy-plugin-qt-hook.sh`、`linuxdeploy-plugin-gtk.sh` 或当前项目实际启用的 hook；
+- linuxdeploy 自动整理的 `usr/bin`、`usr/lib`、`usr/share`、desktop、icon 和根目录链接。
+
+禁止手工创建或改写 `AppRun.wrapped`。linuxdeploy 完成后也不得无依据覆盖顶层 `AppRun`，否则会绕过自动生成的 hook。
+
+没有使用输入插件的普通应用不一定产生 `apprun-hooks` 或 `AppRun.wrapped`；必须以当前项目最终 AppDir 的真实结构为准，不得为了“结构一致”伪造 hook。
+
+### 第五步：忽略 linuxdeploy 中间 AppImage，用 appimagetool 最终封装
+
+linuxdeploy 在第一步和第三步生成的 AppImage 只用于完成 linuxdeploy 输出阶段，不能作为正式发布资产。最终必须对同一个 AppDir 使用官方 appimagetool 和从 `AppImage/type2-runtime` 官方动态入口取得的 `runtime-x86_64` 重新封装。
+
+用户本地已经验证的原命令如下，必须原样保留：
+
+```bash
+# 使用本地 Type 2 runtime 对同一个 AppDir 最终封装
+export ARCH=x86_64; appimagetool -n ./AppDir --runtime-file ~/Appimages/BuildAppimageTools/runtime-x86_64
+```
+
+GitHub Actions 中应使用仓库构建目录里的 runtime，并明确指定稳定输出资产名，例如：
+
+```bash
+# 在 GitHub Actions 中使用官方 Type 2 runtime 生成明确命名的正式资产
+export ARCH=x86_64; appimagetool -n ./AppDir ./dist/<应用名>.AppImage --runtime-file ./source/runtime-x86_64
+```
+
+只发布 appimagetool 最终生成的文件。linuxdeploy 中间 AppImage必须留在临时位置或排除在发布目录之外，防止上传错误产物。
+
+## AppRun 变量按项目实际需要添加
+
+### 通用基础
+
+通常只需要当前应用真实使用的 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、`GSETTINGS_SCHEMA_DIR`、工作目录和主程序入口。路径必须对应最终 AppDir，不能为了模板完整把 `usr`、`bin`、`lib`、`plugins`、`share`、`translations` 全部重复塞入每个变量。
+
+### Qt
+
+只有 Qt 应用才加入 `QT_PLUGIN_PATH`、`QT_QPA_PLATFORM_PLUGIN_PATH`、`QML_IMPORT_PATH`、`QML2_IMPORT_PATH`、`QT_QPA_PLATFORM` 或 `QT_QPA_PLATFORMTHEME`。
+
+`QT_AUTO_SCREEN_SCALE_FACTOR`、`QT_SCALE_FACTOR`、`QT_STYLE_OVERRIDE`、`QT_QPA_PLATFORMTHEME`、`QT_QPA_PLATFORM` 和 `QT_FONT_DPI` 会影响缩放、主题、平台后端与字体 DPI，不是 linuxdeploy 通用模板；只在上游要求、现有稳定基线、日志或真实运行反馈证明需要时加入。
+
+### GTK
+
+GTK plugin 自动生成的 hook 会设置 GTK 数据、schemas、typelib、immodules、pixbuf loader 和主题相关变量。自定义 AppRun 中不要无依据重复覆盖 `GTK_PATH`、`GTK_THEME`、`GTK_IM_MODULE_FILE`、`GDK_PIXBUF_MODULE_FILE` 或 `GDK_BACKEND`。
+
+`NO_AT_BRIDGE` 会影响辅助功能，也不是所有 GTK / Qt 应用都必须设置。
+
+### GStreamer
+
+只有应用确实需要动态加载 GStreamer modules 时才启用 `--plugin gstreamer`。不要因为某个相近项目使用 GStreamer，就把插件和搜索路径加入所有 GUI 应用。
 
 ## 检查要求
 
-AI 可以在本地、容器或临时目录执行与当前修改直接相关的语法检查、静态分析、试构建、试打包、AppImage 解包、`ldd`、启动或功能验证。
+可以在本地、容器或临时目录执行与当前修改直接相关的检查，但不得把 test / smoke 代码写进正式脚本。
 
-检查重点：
+至少核对：
 
-- `AppRun` 是普通可执行文件，主程序路径、引号和 `"$@"` 传参正确；
-- 插件与应用技术栈一致，Qt 5 / Qt 6 没有混用；
+- 第一次普通 linuxdeploy 已创建 / 整理 AppDir；
+- 第二步写入的 AppRun 路径、引号、工作目录和 `"$@"` 传参正确；
+- 第二次 linuxdeploy 保留 `--output appimage`，并只启用当前技术栈需要的插件；
+- GTK 项目的 `DEPLOY_GTK_VERSION` 与主程序一致；
+- Qt 5 / Qt 6 没有混用；
+- 额外 `-l` 只包含当前应用确实需要且无法自动发现的库；
 - 最终 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks` 执行链正确；
-- desktop、icon、主程序、动态加载模块和最终 AppImage 资产名正确；
-- linuxdeploy 未承担最终 AppImage 封装，appimagetool 使用了明确 runtime；
-- workflow 只触发当前项目所需构建，没有新增临时 test workflow、测试 Job 或测试 Step；
-- 完整 diff 没有测试脚本、临时日志、解包目录、缓存、测试专用断言或无关改动。
-
-不能完成的构建或运行检查必须明确标记为未验证，不得把静态检查通过描述为实机运行通过，也不得为了验证而把一堆 test / smoke 代码写入正式构建脚本。
+- linuxdeploy 生成的中间 AppImage没有进入发布目录；
+- 正式资产由 appimagetool + 官方 Type 2 runtime 生成；
+- workflow 没有新增临时 test workflow、测试 Job 或测试 Step；
+- 完整 diff 没有临时日志、解包目录、缓存或无关改动。
 
 ## 不计入的已核对项目
 
