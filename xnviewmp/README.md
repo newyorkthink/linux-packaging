@@ -16,14 +16,15 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 
 ## linuxdeploy 规范流程
 
-1. 普通阶段固定以 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage` 为基础命令创建并规范化 `AppDir`；本项目只按需追加允许的 `--desktop-file` 与 `--icon-file`。
-2. 第一阶段完成后，脚本写入项目真实的根 `AppDir/AppRun`；入口直接执行 `/opt/XnView/XnView`，并同时加入上游 `/opt` 与 linuxdeploy 实际生成的 `usr/bin`、`usr/lib`、`usr/plugins`、`usr/qml`、`usr/translations`、`usr/share` 路径。
-3. 把 `/usr/lib/qt5/bin` 放在 `PATH` 最前，设置 `QT_SELECT=qt5` 和 `QMAKE=/usr/lib/qt5/bin/qmake`，再以 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage` 为基础命令执行 Qt 阶段；本项目仍只追加允许的 desktop 与 icon 参数，由 linuxdeploy 使用真实 Qt5 `qmake` / `qmlimportscanner` 生成 Qt hook、顶层入口和 `AppRun.wrapped`。
-4. linuxdeploy 命令不因主程序位于 `/opt` 而增加 `--executable`；该参数会生成不属于上游布局的 `AppDir/usr/bin/XnView` 副本，XnView 打包永久禁止使用。
-5. linuxdeploy 生成的 AppImage 只作为中间产物。
-6. 最终从同一个 `AppDir` 使用官方 appimagetool 和官方 Type 2 runtime 重新封装 `dist/xnviewmp.AppImage`。
+1. 在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，只创建 `usr/bin`、`usr/lib`、`usr/share` 等基础目录。当前 linuxdeploy 因空 AppDir 尚无 desktop 会返回 1；脚本仅在目录已创建且没有非预期文件时接受该已知结果。
+2. 第一次初始化完成后才下载并校验 XnView 官方 tar，把应用主体按上游布局解压到 `AppDir/opt/XnView`；Qt5、QML、输入法和媒体依赖同时安装在 Ubuntu 22.04 隔离构建环境中供 linuxdeploy 扫描。
+3. 写入完整根 `AppDir/AppRun`。无论主程序位于 `/opt`，仍固定保留 `usr/bin`、`usr/lib`、`usr/share`，分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`；随后追加 XnView 的 `/opt` 路径和 Qt 实际生成的 plugins、QML、translations 路径。
+4. 设置 `QT_SELECT=qt5` 和 `QMAKE=/usr/lib/qt5/bin/qmake`，再以 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage` 为基础命令执行第二次 linuxdeploy；只追加允许的 `--desktop-file` 与 `--icon-file`。
+5. 第二次 linuxdeploy 把完整根 AppRun 保存为 `AppRun.wrapped`，并生成加载 Qt hook 的顶层 AppRun。
+6. XnView 打包永久禁止 `--executable`，不生成、不依赖 `AppDir/usr/bin/XnView` 副本。
+7. linuxdeploy 输出只作为中间结果，最终从同一个 AppDir 使用官方 appimagetool 和官方 Type 2 runtime 封装 `dist/xnviewmp.AppImage`。
 
-脚本中的检查只用于构建输入、官方摘要和最终产物的必要错误处理；正式脚本与工作流不提交 GUI smoke test、媒体样例生成或解包测试代码。
+脚本中的检查只用于构建输入、官方摘要、第一次目录初始化状态和最终产物的必要错误处理；正式脚本与工作流不提交 GUI smoke test、媒体样例生成或解包测试代码。
 
 ## 运行
 
@@ -32,6 +33,10 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 ```
 
 ## 变更记录
+
+### 2026-09-20：修正空 AppDir 初始化与第二阶段部署顺序
+
+Actions Job `106072203246` 在第一次 linuxdeploy 时已经放入 XnView desktop，但 `AppDir/usr/bin` 为空且根 AppRun 尚未写入，因此 linuxdeploy 按 `Exec=XnView` 查找入口并报错。脚本现改为先在空目录执行普通 linuxdeploy，只接受基础目录已创建且没有非预期文件的初始化结果；随后再解压 XnView、写入包含 `usr/bin`、`usr/lib`、`usr/share` 基础路径的完整根 AppRun，最后执行 Qt linuxdeploy。全程不使用 `--executable`，也不制造 `usr/bin/XnView`。
 
 ### 2026-09-20：统一 linuxdeploy 与最终封装流程
 

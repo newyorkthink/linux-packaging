@@ -46,11 +46,11 @@
 
 横向参考只用于比较上游来源、AppDir 布局、AppRun、desktop / icon、插件和动态加载依赖。不得复制另一个项目的整段 Qt、GTK、GStreamer、主题、输入法、多媒体或特殊兼容逻辑。
 
-## 唯一标准流程：linuxdeploy 中间输出，再由 appimagetool 最终封装
+## 唯一标准流程：先初始化目录，再放入应用，最后由 appimagetool 封装
 
-### linuxdeploy 命令形式固定，不随上游安装目录改变
+### linuxdeploy 命令形式固定
 
-无论上游 DEB、归档或安装结果把真实程序放在 `/opt`、`/usr/bin` 还是其他目录，先按上游真实布局准备 AppDir；linuxdeploy 本身统一只使用下面三种基础命令：
+linuxdeploy 统一只使用下面三种基础命令，不因应用来自 DEB、tar、GitHub Release，也不因主程序位于 `/opt`、`/usr/bin` 或其他目录而改变：
 
 ```bash
 # 普通应用统一使用此命令
@@ -63,139 +63,145 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 ```
 
-项目确有需要时，只允许在对应基础命令上追加以下三类参数：
+项目确有需要时，只允许追加 `--desktop-file`、`--icon-file` 和精确的 `-l <库路径>`。禁止追加 `--executable`，也禁止擅自增加其他未经本规范确认的 linuxdeploy 参数。
 
-- `--desktop-file <desktop 文件>`；
-- `--icon-file <图标文件>`；
-- `-l <已核实的单个库路径>`，需要多个库时逐个追加 `-l`。
+### 第一步：在空目录运行普通 linuxdeploy，只创建 AppDir 基础目录
 
-**禁止追加 `--executable`。** 该参数可能把原本位于 `AppDir/opt/<应用>/` 的真实主程序再次部署到 `AppDir/usr/bin/`，制造不属于上游包布局的副本。也禁止擅自加入上述允许范围之外的其他 linuxdeploy 参数。应用真实入口统一由根 `AppDir/AppRun` 按实际布局直接执行，不通过 linuxdeploy 命令行改变上游目录结构。
-
-### 第一步：普通 linuxdeploy 创建并整理 AppDir
-
-先执行用户本地已经验证的原命令：
+应用文件进入 AppDir 之前，先执行用户本地已经验证的原命令：
 
 ```bash
-# 创建并整理 AppDir，同时生成 linuxdeploy 中间 AppImage
+# 在空目录中创建 AppDir/usr/bin、AppDir/usr/lib、AppDir/usr/share 等基础目录
 export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
 ```
 
-这一步由 linuxdeploy 创建 / 整理 AppDir 的 `usr/bin`、`usr/lib`、`usr/share`、desktop、icon、根目录链接及其他能够从现有输入识别的结构。linuxdeploy 自动创建某个目录只表示基础结构存在，不表示该目录必须有文件；例如 `AppDir/usr/bin/` 可以保持为空。应用本体必须提前按上游真实布局放入 AppDir；desktop 和 icon 可按需通过允许的 `--desktop-file`、`--icon-file` 传入。不得使用 `--executable` 把 `/opt` 中的程序再次部署到 `usr/bin`，也不得为了填满自动创建的目录而改变上游真实布局。
+这一步只用于让 linuxdeploy 创建 AppDir 目录结构，不应提前放入应用、desktop、icon、AppRun 或自制入口。当前 linuxdeploy 在创建目录后，会因为空 AppDir 尚无 desktop 而在 `--output appimage` 阶段返回 1；正式脚本必须保留上面的原命令，并只在同时满足以下条件时接受该已知结果：
 
-这一步生成的 AppImage 只是中间产物，不进入发布目录。
+- `AppDir/usr/bin`、`AppDir/usr/lib`、`AppDir/usr/share` 已创建；
+- AppDir 中没有非预期文件；
+- 退出状态是当前已确认的 0 或 1，其他状态立即终止。
 
-### 第二步：所有 linuxdeploy 项目统一写入根 AppDir/AppRun
+第一次命令不会产生正式资产，也不把它的输出放入发布目录。
 
-**任何使用 linuxdeploy 的项目，自定义启动入口都必须写在 AppDir 根目录的 `AppDir/AppRun`。这是固定路径，不因普通、Qt、GTK 或 GStreamer 技术栈而改变。**
+### 第二步：下载应用，同时安装到构建环境并解压到 AppDir
 
-第一次 linuxdeploy 完成后，如根目录已经存在 linuxdeploy 默认创建的 `AppRun` 或指向 `usr/bin` 的链接，应先删除或替换它；随后把当前项目完整的启动环境、必要工作目录和最终执行命令直接写入 `AppDir/AppRun`，并赋予执行权限。这个根 `AppDir/AppRun` 必须使用当前 AppDir 的真实路径，最后直接执行真正主程序并原样传递 `"$@"`。
+第一次目录初始化完成后，再取得应用文件。不得只安装到构建环境而不解压 AppDir，也不得只解压 AppDir 却遗漏构建环境中用于依赖解析的对应软件包和依赖。
 
-禁止把项目自定义启动逻辑写进新建的 `AppDir/usr/bin/<程序名>`、其他 wrapper 或 launcher，再把根 `AppDir/AppRun` 写成只负责调用它的二次转发壳。特别是 `PATH`、`LD_LIBRARY_PATH`、`QT_PLUGIN_PATH`、`XDG_DATA_DIRS`、Qt / GTK 兼容变量和最终 `exec`，都应按当前应用实际需要直接位于根 `AppDir/AppRun`。
+#### Debian / Ubuntu 软件源中的应用
 
-**`AppDir/usr/bin/` 可以为空，而且空目录不需要处理。** 第一次 linuxdeploy 可能自动创建该目录；这只是工具生成的基础结构，不表示主程序必须放在这里。上游 DEB 或归档如果把应用全部放在 `/opt/<应用>/`，就保持 `AppDir/opt/<应用>/` 的真实布局，不复制到 `usr/bin`，不为填充目录创建自制 wrapper，也不增加没有实际需要的符号链接。
+```bash
+# 下载当前软件源实际提供的 DEB
+apt download <软件包名>
 
-`AppDir/usr/bin/` 只有在上游包真实提供对应内容或应用确有必要入口时，才保留以下内容：
+# 在隔离构建环境安装同一应用及其依赖
+sudo apt-get install -y <软件包名>
 
-- 应用自身原本位于该处的真实可执行文件；
-- 当前应用确实需要的符号链接；
-- 上游包原本提供且运行确实需要的 launcher。
+# 把下载得到的同一 DEB 内容解压到 AppDir
+dpkg-deb -x ./<软件包文件>.deb ./AppDir
+```
 
-即使当前应用必须保留上游 `usr/bin` launcher，linuxdeploy 项目的自定义入口仍然是根 `AppDir/AppRun`，不得用 `usr/bin` launcher 取代它。第二次 linuxdeploy 产生 hook 时，应由 linuxdeploy 自动把这个根 `AppDir/AppRun` 保存成 `AppRun.wrapped`。
+正式脚本应使用当前环境实际需要的 root / sudo 调用方式；不能把示例占位符直接提交。
 
-根 AppRun 必须按上游真实布局直接执行主程序。`/opt` 布局示例：
+#### 网上直接下载的 DEB
+
+先校验来源与摘要，再把同一 DEB 安装到隔离构建环境，并使用 `dpkg-deb -x` 解压到 AppDir。安装和解压必须对应同一个文件，禁止拿不同版本混用。
+
+#### tar、压缩包或 GitHub Release
+
+按上游真实目录结构直接解压或复制到 AppDir：上游在 `/opt/<应用>` 就保持 `AppDir/opt/<应用>`，在 `/usr/bin`、`/usr/lib`、`/usr/share` 就保持对应 AppDir 路径。构建环境同时安装该应用明确需要的运行依赖；不得为了填充空的 `AppDir/usr/bin` 而复制主程序、创建 wrapper 或使用 `--executable`。
+
+### 第三步：写入完整根 AppDir/AppRun
+
+所有 linuxdeploy 项目的自定义启动逻辑都必须直接写入根 `AppDir/AppRun`。禁止把启动逻辑写入新建的 `AppDir/usr/bin/<程序名>`，再让根 AppRun 二次转发。
+
+无论应用实际位于 `/opt` 还是 `/usr/bin`，完整根 AppRun 都必须保留以下三项基础路径：
+
+```bash
+# 让 AppImage 优先找到 AppDir/usr/bin 中的程序
+export PATH="$HERE/usr/bin${PATH:+:$PATH}"
+
+# 让 AppImage 优先找到 AppDir/usr/lib 中的运行库
+export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# 让应用找到 AppDir/usr/share 中的数据、desktop、locale 和 schemas
+export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+```
+
+应用位于 `/opt` 时，在这三项基础路径上追加上游真实目录，不能删掉 `usr/bin`、`usr/lib`、`usr/share`：
 
 ```bash
 #!/usr/bin/env bash
 
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-export LD_LIBRARY_PATH="$HERE/opt/<应用>/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# 保留 /usr/bin 基础路径，并加入 /opt 中的真实程序目录
+export PATH="$HERE/opt/<应用>:$HERE/usr/bin${PATH:+:$PATH}"
+
+# 保留 /usr/lib 基础路径，并加入 /opt 中的真实库目录
+export LD_LIBRARY_PATH="$HERE/opt/<应用>:$HERE/opt/<应用>/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# 所有布局都保留 /usr/share
+export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
 exec "$HERE/opt/<应用>/<真实主程序>" "$@"
 ```
 
-只有主程序真实位于 `AppDir/usr/bin/` 时，才使用对应入口：
+Qt 应用再按最终 AppDir 的真实内容加入 `usr/plugins`、`usr/qml`、`usr/translations` 及对应的上游 `/opt` 目录；GTK hook 会处理 GTK 专用目录，但不能因此删除上述三个 `/usr` 基础路径。各变量只加入与自身用途对应的目录，不要求每行目录数量相同。
+
+`AppDir/usr/bin` 可以为空；只要上游没有真实入口，就不得为了填满目录制造 `usr/bin/<程序名>`。完整根 AppRun 应直接执行上游真实主程序。
+
+### 第四步：按技术栈执行第二次 linuxdeploy
+
+普通应用继续执行：
 
 ```bash
-#!/usr/bin/env bash
-
-HERE="$(dirname "$(readlink -f "${0}")")"
-
-export LD_LIBRARY_PATH="$HERE/usr/lib:$HERE/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
-
-exec "$HERE/usr/bin/<真实主程序>" "$@"
-```
-
-不得把截图或其他项目中的全部目录和变量机械复制过来。Qt、GTK、主题、缩放、输入法和工作目录设置只按当前应用实际需要追加。
-
-### 第三步：按技术栈再次执行 linuxdeploy，必须保留 --output appimage
-
-#### 普通应用
-
-继续使用用户已经验证的原命令：
-
-```bash
-# 为普通应用完成 linuxdeploy 输出阶段和 AppRun 处理
+# 部署普通应用并处理根 AppRun
 export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
 ```
 
-#### GTK 应用
-
-已经确认是 GTK 3 时，明确指定 GTK 主版本：
+GTK 3 应用执行：
 
 ```bash
 # 明确要求 GTK 插件部署 GTK 3
 export DEPLOY_GTK_VERSION=3
 
-# 部署 GTK 运行资源、生成 GTK hook，并完成 AppRun 包装
+# 部署 GTK 资源、生成 hook 并完成 AppRun 包装
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 ```
 
-GTK 插件也支持 GTK 2 和 GTK 4。只有主程序真实使用对应主版本时，才把 `DEPLOY_GTK_VERSION` 改为 `2` 或 `4`；不得跨主版本混用。主版本能够可靠自动识别时可以不设置，但已确认版本时优先显式设置。
+只有主程序真实使用 GTK 2 或 GTK 4 时，才把 `DEPLOY_GTK_VERSION` 改为 `2` 或 `4`。
 
-#### Qt 应用
-
-先确认主程序实际使用 Qt 5 还是 Qt 6。linuxdeploy-plugin-qt 读取的变量名是大写 `QMAKE`，变量值必须是对应的 qmake 可执行文件名或完整路径，不是单独写数字 `5` / `6`。
-
-Qt 6 应用使用：
+Qt 应用先确认 Qt 5 / Qt 6，再把大写 `QMAKE` 指向对应 qmake 的真实命令或完整路径：
 
 ```bash
-# 指定 Qt 6 的 qmake，确保插件从 Qt 6 路径部署资源
+# 指定 Qt 6 qmake
 export QMAKE=qmake6
 
-# 部署 Qt 6 plugins、资源和 hook，并完成 AppRun 包装
+# 部署 Qt 6 资源、生成 hook 并完成 AppRun 包装
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 ```
-
-Qt 5 应用使用：
 
 ```bash
-# 指定 Qt 5 的 qmake，确保插件从 Qt 5 路径部署资源
+# 指定 Qt 5 qmake
 export QMAKE=qmake
 
-# 部署 Qt 5 plugins、资源和 hook，并完成 AppRun 包装
+# 部署 Qt 5 资源、生成 hook 并完成 AppRun 包装
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 ```
 
-如果构建环境中的命令名不同，应把 `QMAKE` 设置为 `command -v qmake6` / `command -v qmake` 得到的真实完整路径；不得猜测路径。插件已经能够明确找到唯一且正确的 qmake 时可以不设置 `QMAKE`，但同时安装 Qt 5 和 Qt 6 或自动识别可能选错时必须显式设置。
+Qt 运行库、qmake、plugins、输入上下文和 QML 必须保持同一主版本。能够唯一、正确自动识别 qmake 时可以不设置 `QMAKE`；否则必须使用 `command -v qmake6` 或 `command -v qmake` 核实真实路径。
 
-Qt 5 / Qt 6 的运行库、`QMAKE`、qmake / qtpaths、platform plugins、输入上下文和 QML 路径必须保持同一主版本。
-
-#### 需要额外动态加载库的 GTK 应用
-
-linuxdeploy 只能从可见 ELF 依赖自动收集库。NSS、provider、`dlopen` 模块或其他动态加载库确实无法自动发现时，按证据使用 `-l` 精确补入。用户已经验证的命令原样保留：
+动态加载库确实无法自动发现时，只能逐个使用 `-l` 精确补入。用户已经验证的 GTK NSS 命令原样保留：
 
 ```bash
 # 为 GTK 应用精确补入无法自动发现的 NSS 运行库
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage -l /usr/lib/x86_64-linux-gnu/libnss3.so -l /usr/lib/x86_64-linux-gnu/libnssutil3.so  -l /usr/lib/x86_64-linux-gnu/libsmime3.so -l /usr/lib/x86_64-linux-gnu/libsoftokn3.so
 ```
 
-只有当前应用确实需要这些库时才使用；不得把这组 NSS 库复制到所有 GTK 项目。其他缺失库也必须逐个核实后追加独立 `-l`，禁止使用宽泛目录或通配符碰运气。
+不得把该 NSS 列表复制到不需要的项目，也不得使用目录或通配符代替精确库路径。
 
-### 第四步：核对 linuxdeploy 自动生成的 AppRun 执行链
+### 第五步：核对 AppRun 包装结果
 
-第二次 linuxdeploy 的 `--output appimage` 会完成输出阶段。存在 Qt、GTK、GStreamer 等 hook 时，标准结果是：
+存在 Qt、GTK、GStreamer 等 hook 时，第二次 linuxdeploy 的标准结果是：
 
 ```text
 AppRun
@@ -203,42 +209,38 @@ AppRun
 └── exec AppRun.wrapped
 ```
 
-实际目录中应看到：
+- 顶层 `AppRun` 由 linuxdeploy 生成并加载 hook；
+- `AppRun.wrapped` 保存第三步写入的完整根 AppRun；
+- `apprun-hooks/` 保存当前插件实际生成的 hook；
+- 禁止手工创建或改写 `AppRun.wrapped`，也不得在 linuxdeploy 完成后覆盖顶层 AppRun。
 
-- 顶层 `AppRun`：linuxdeploy 自动生成，负责加载 hook；
-- `AppRun.wrapped`：保存第二步写入的自定义启动逻辑；
-- `apprun-hooks/linuxdeploy-plugin-qt-hook.sh`、`linuxdeploy-plugin-gtk.sh` 或当前项目实际启用的 hook；
-- linuxdeploy 自动整理的 `usr/bin`、`usr/lib`、`usr/share`、desktop、icon 和根目录链接。
+普通应用没有输入插件时不一定产生 `apprun-hooks` 或 `AppRun.wrapped`，以最终 AppDir 实际结构为准。
 
-禁止手工创建或改写 `AppRun.wrapped`。linuxdeploy 完成后也不得无依据覆盖顶层 `AppRun`，否则会绕过自动生成的 hook。
+### 第六步：忽略 linuxdeploy 中间输出，使用 appimagetool 最终封装
 
-没有使用输入插件的普通应用不一定产生 `apprun-hooks` 或 `AppRun.wrapped`；必须以当前项目最终 AppDir 的真实结构为准，不得为了“结构一致”伪造 hook。
-
-### 第五步：忽略 linuxdeploy 中间 AppImage，用 appimagetool 最终封装
-
-linuxdeploy 在第一步和第三步生成的 AppImage 只用于完成 linuxdeploy 输出阶段，不能作为正式发布资产。最终必须对同一个 AppDir 使用官方 appimagetool 和从 `AppImage/type2-runtime` 官方动态入口取得的 `runtime-x86_64` 重新封装。
-
-用户本地已经验证的原命令如下，必须原样保留：
+只发布 appimagetool 对同一个 AppDir 最终生成的文件。用户本地已经验证的命令必须原样保留：
 
 ```bash
 # 使用本地 Type 2 runtime 对同一个 AppDir 最终封装
 export ARCH=x86_64; appimagetool -n ./AppDir --runtime-file ~/Appimages/BuildAppimageTools/runtime-x86_64
 ```
 
-GitHub Actions 中应使用仓库构建目录里的 runtime，并明确指定稳定输出资产名，例如：
+GitHub Actions 使用构建目录中的官方 Type 2 runtime 和明确资产名：
 
 ```bash
-# 在 GitHub Actions 中使用官方 Type 2 runtime 生成明确命名的正式资产
+# 使用官方 Type 2 runtime 生成正式资产
 export ARCH=x86_64; appimagetool -n ./AppDir ./dist/<应用名>.AppImage --runtime-file ./source/runtime-x86_64
 ```
 
-只发布 appimagetool 最终生成的文件。linuxdeploy 中间 AppImage必须留在临时位置或排除在发布目录之外，防止上传错误产物。
+linuxdeploy 产生或尝试产生的 AppImage 都只能留在临时位置，禁止作为正式 Release 资产。
 
 ## AppRun 变量按项目实际需要添加
 
 ### 通用基础
 
-通常只需要当前应用真实使用的 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、`GSETTINGS_SCHEMA_DIR`、工作目录和主程序入口。路径必须对应最终 AppDir，不能为了模板完整把 `usr`、`bin`、`lib`、`plugins`、`share`、`translations` 全部重复塞入每个变量。
+所有 linuxdeploy AppRun 都必须保留 `$HERE/usr/bin`、`$HERE/usr/lib`、`$HERE/usr/share`，分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`。应用位于 `/opt` 时，在对应变量中继续追加真实 `/opt/<应用>` 路径，不能用 `/opt` 替代三个 `/usr` 基础目录。
+
+`GSETTINGS_SCHEMA_DIR`、工作目录和其他变量按应用真实需要加入。每个变量只放与其用途对应的目录：不能把 `usr/bin` 塞入 `LD_LIBRARY_PATH`，也不能把 `usr/lib` 塞入 `PATH`；不同变量包含的目录数量不要求相同。
 
 ### Qt
 
@@ -262,8 +264,9 @@ GTK plugin 自动生成的 hook 会设置 GTK 数据、schemas、typelib、immod
 
 至少核对：
 
-- 第一次普通 linuxdeploy 已创建 / 整理 AppDir；
-- 第二步写入的 AppRun 路径、引号、工作目录和 `"$@"` 传参正确；
+- 第一次普通 linuxdeploy 在空目录中创建了 `AppDir/usr/bin`、`AppDir/usr/lib`、`AppDir/usr/share`，且初始化后没有非预期文件；
+- 发行版应用已经同时安装到隔离构建环境并下载、解压到 AppDir；tar / GitHub Release 已按上游真实布局进入 AppDir；
+- 第三步写入的 AppRun 包含三个 `/usr` 基础路径，且路径、引号、工作目录和 `"$@"` 传参正确；
 - 第二次 linuxdeploy 保留 `--output appimage`，并只启用当前技术栈需要的插件；
 - GTK 项目的 `DEPLOY_GTK_VERSION` 与主程序一致；
 - Qt 5 / Qt 6 没有混用；

@@ -112,6 +112,44 @@ if [[ -n "${GH_TOKEN:-}" ]]; then
   api_headers+=( -H "Authorization: Bearer $GH_TOKEN" )
 fi
 
+###### 下载打包工具 ######
+
+# 动态下载 linuxdeploy、Qt 插件、appimagetool 和官方 Type 2 runtime。
+download_tool linuxdeploy/linuxdeploy linuxdeploy-x86_64.AppImage "$LINUXDEPLOY"
+download_tool linuxdeploy/linuxdeploy-plugin-qt linuxdeploy-plugin-qt-x86_64.AppImage "$QT_PLUGIN"
+download_tool AppImage/appimagetool appimagetool-x86_64.AppImage "$APPIMAGETOOL"
+download_tool AppImage/type2-runtime runtime-x86_64 "$RUNTIME_FILE"
+chmod +x "$LINUXDEPLOY" "$QT_PLUGIN" "$APPIMAGETOOL"
+ln -sfn linuxdeploy-x86_64.AppImage "$TOOLS_DIR/linuxdeploy"
+
+###### 初始化 AppDir ######
+
+# 配置 linuxdeploy、Qt5 qmake 和中间输出位置。
+export ARCH=x86_64
+export APPIMAGE_EXTRACT_AND_RUN=1
+export QT_SELECT=qt5
+export PATH="$QT5_BIN_DIR:$TOOLS_DIR:$PATH"
+export QMAKE="$QT5_BIN_DIR/qmake"
+export NO_STRIP=1
+export LDAI_NO_APPSTREAM=1
+export LDAI_OUTPUT="$INTERMEDIATE_APPIMAGE"
+export LDAI_RUNTIME_FILE="$RUNTIME_FILE"
+
+# 第一次只让 linuxdeploy 创建空 AppDir 的 usr/bin、usr/lib、usr/share 等基础目录。
+# 当前 linuxdeploy 会因空 AppDir 尚无 desktop 而在输出阶段返回 1；只接受“目录已创建且没有文件”的结果。
+set +e
+export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
+FIRST_LINUXDEPLOY_STATUS=$?
+set -e
+
+if [[ "$FIRST_LINUXDEPLOY_STATUS" -ne 0 && "$FIRST_LINUXDEPLOY_STATUS" -ne 1 ]]; then
+  die "第一次空 AppDir 初始化异常退出：$FIRST_LINUXDEPLOY_STATUS"
+fi
+for required_dir in "$APPDIR/usr/bin" "$APPDIR/usr/lib" "$APPDIR/usr/share"; do
+  [[ -d "$required_dir" ]] || die "第一次 linuxdeploy 未创建基础目录：$required_dir"
+done
+[[ -z "$(find "$APPDIR" -type f -print -quit)" ]] || die "第一次 linuxdeploy 初始化后 AppDir 中出现了非预期文件"
+
 ###### 下载并准备 XnView MP ######
 
 # 从 XnView 官方校验清单动态解析当前最新稳定版 Linux x64 归档。
@@ -210,40 +248,13 @@ for runtime_lib in \
 done
 copy_runtime_glob "/usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-*.so"
 
-###### 下载打包工具 ######
-
-# 动态下载 linuxdeploy、Qt 插件、appimagetool 和官方 Type 2 runtime。
-download_tool linuxdeploy/linuxdeploy linuxdeploy-x86_64.AppImage "$LINUXDEPLOY"
-download_tool linuxdeploy/linuxdeploy-plugin-qt linuxdeploy-plugin-qt-x86_64.AppImage "$QT_PLUGIN"
-download_tool AppImage/appimagetool appimagetool-x86_64.AppImage "$APPIMAGETOOL"
-download_tool AppImage/type2-runtime runtime-x86_64 "$RUNTIME_FILE"
-chmod +x "$LINUXDEPLOY" "$QT_PLUGIN" "$APPIMAGETOOL"
-ln -sfn linuxdeploy-x86_64.AppImage "$TOOLS_DIR/linuxdeploy"
-
 ###### 核心打包 ######
 
-# 配置 linuxdeploy、Qt5 qmake、中间产物和运行库搜索路径。
-export ARCH=x86_64
-export APPIMAGE_EXTRACT_AND_RUN=1
-export QT_SELECT=qt5
-export PATH="$QT5_BIN_DIR:$TOOLS_DIR:$PATH"
-export QMAKE="$QT5_BIN_DIR/qmake"
-export NO_STRIP=1
-export LDAI_NO_APPSTREAM=1
-export LDAI_OUTPUT="$INTERMEDIATE_APPIMAGE"
-export LDAI_RUNTIME_FILE="$RUNTIME_FILE"
+# 第二次 linuxdeploy 扫描上游 /opt 布局时，优先使用 XnView 自带运行库并保留 AppDir/usr/lib。
 export LD_LIBRARY_PATH="$APPDIR/opt/XnView:$APPDIR/opt/XnView/lib:$APPDIR/opt/XnView/Plugins:$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-# 第一次普通 linuxdeploy 负责创建并整理 AppDir；生成的 AppImage 只是中间产物。
-export ARCH=x86_64; linuxdeploy \
-  --appdir AppDir \
-  --desktop-file "$DESKTOP_FILE" \
-  --icon-file "$ICON_FILE" \
-  --output appimage
-
-# 删除第一次 linuxdeploy 生成的默认入口，把当前项目完整启动逻辑写入根 AppRun。
-# 第二次 Qt linuxdeploy 会自动把它保存为 AppRun.wrapped，并生成加载 hook 的顶层 AppRun。
-rm -f "$APPDIR/AppRun"
+# 应用文件进入 AppDir 后，在第二次 linuxdeploy 前写入完整根 AppRun。
+# Qt linuxdeploy 会自动把它保存为 AppRun.wrapped，并生成加载 Qt hook 的顶层 AppRun。
 cat > "$APPDIR/AppRun" <<'EOF_APPRUN'
 #!/usr/bin/env bash
 set -Eeuo pipefail
@@ -254,14 +265,17 @@ HERE="$(dirname "$(readlink -f "${0}")")"
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
 
-# 同时覆盖上游 /opt 布局和 linuxdeploy 在 AppDir/usr 中部署的运行时目录。
+# 所有 linuxdeploy AppRun 都保留 AppDir/usr 下的 bin、lib、share 三个基础搜索目录。
+# XnView 的真实程序位于 /opt，因此在对应变量前继续加入上游 /opt 路径。
 export PATH="$HERE/opt/XnView:$HERE/usr/bin:${PATH:-}"
 export LD_LIBRARY_PATH="$HERE/opt/XnView:$HERE/opt/XnView/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+
+# Qt 专用目录按最终 AppDir 的实际结构成对加入 /opt 与 /usr 路径。
 export QT_PLUGIN_PATH="$HERE/opt/XnView/Plugins:$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
 export QML_IMPORT_PATH="$HERE/opt/XnView/qml:$HERE/usr/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 export QML2_IMPORT_PATH="$HERE/opt/XnView/qml:$HERE/usr/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
 export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_TRANSLATIONS_PATH}"
-export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_QPA_PLATFORM=xcb
@@ -271,7 +285,7 @@ exec "$HERE/opt/XnView/XnView" "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/AppRun"
 
-# XnView MP 使用 Qt5，QMAKE 必须继续指向 Qt5 bin 目录中的真实 qmake。
+# XnView MP 使用 Qt5；第二次 linuxdeploy 部署 Qt 资源并完成 AppRun 包装。
 export QMAKE="$QT5_BIN_DIR/qmake"
 export ARCH=x86_64; linuxdeploy \
   --appdir AppDir \
