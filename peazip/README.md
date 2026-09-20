@@ -14,7 +14,7 @@
 
 PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，主程序通过上游随包的 `libQt6Pas.so.6` 使用 Qt6 Widgets，并完整保留 `pea`、归档后端、简体中文语言文件、主题、帮助文档、desktop 和图标资源。
 
-目标架构为 x86_64。官方包内仍包含少量上游保留的 32 位旧格式后端；脚本不修改或删除这些文件，只把 64 位动态后端交给 linuxdeploy 收集依赖。
+目标架构为 x86_64。官方包内仍包含少量上游保留的 32 位旧格式后端；脚本不修改或删除这些文件，部署依赖期间临时移出完整 `res/bin`，完成后原样恢复。
 
 ## 打包方式
 
@@ -24,14 +24,21 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 2. 只接受与 Release tag 对应的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
 3. 核对 DEB 的包名、版本和架构。
 4. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局，包括上游原始 `zh-cn.txt`；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。
-5. linuxdeploy、Qt 插件、appimagetool 和 runtime 全部从官方 continuous 动态取得当前版本；不手工创建 hook、空 hook 目录或 `AppRun.wrapped`。
-6. linuxdeploy 只处理 PeaZip 主程序、Qt6 和界面插件。官方包内的旧归档后端在部署依赖时临时移出 AppDir，完成后原样放回，避免 linuxdeploy 扫描 32 位旧程序并错误要求 `libncurses.so.5`。
-7. linuxdeploy 不生成最终 AppImage；最后由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`。
+5. linuxdeploy、Qt 插件、appimagetool 和 runtime 全部从官方 continuous 动态取得当前版本。先写入旧包原始自定义 `AppRun`，不加入 GTK 插件，也不手工编写 `AppRun.wrapped`。
+6. 官方归档后端在依赖部署前临时移出 AppDir，随后逐字执行已验证的 `--plugin qt --output appimage` 命令，由 linuxdeploy 部署 Qt6、处理 AppRun 并完成中间封装。
+7. Qt 命令的 `--output appimage` 只生成 `.work/peazip-intermediate.AppImage`，不发布。归档后端原样放回后，最后仍由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`；不会把缺少后端的中间产物交付给用户。
+
+正式 CI 在 `peazip` 目录中执行，以下已验证命令逐字保留于脚本中；本次按维护者要求保留中间输出，最终发布仍以独立 appimagetool 封装为准：
+
+```bash
+# 使用已经准备好 AppRun、GTK hook 和资源的 AppDir 完成 Qt 部署与中间封装
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
+```
 
 ## 运行与兼容说明
 
-- 启动脚本保留旧版环境变量和 desktop `Exec` 解析方式；当前 linuxdeploy 没有生成 hook 时，自定义入口直接作为顶层 `AppRun`，脚本不伪造 `AppRun.wrapped`。
-- AppRun 设置通用 `C.UTF-8` locale，并按旧版稳定入口原样启动 PeaZip；不再注入导致当前 Qt6 包启动退出的 `-peaziplanguage` 参数，语言由 PeaZip 自身设置管理。
+- 自定义 AppRun 原样保留旧包的环境变量和 desktop `Exec` 解析方式，包括 `usr/translations` 搜索路径；Qt6 组件和 AppRun 处理只交给 linuxdeploy Qt 插件。
+- 删除后来加入的 `LANG=C.UTF-8` 和 `LC_ALL=C.UTF-8` 强制设置，恢复旧入口继承宿主 locale 的行为。保持官方原始语言文件；不注入 `-peaziplanguage` 参数，语言由 PeaZip 自身设置管理。
 - 继续保留旧版已实际使用的 XCB、Adwaita Dark、缩放和字体 DPI 环境；同时打包 Qt6 `adwaita.so`，避免只设置主题名却缺少样式插件。
 - 最终产物必须包含同为 Qt6 的 Compose、Fcitx5、IBus 输入上下文和 XCB 平台插件；输入法守护进程仍由宿主提供。
 - AppImage 启动链不使用 `sudo`、`pkexec`、systemd、cron 或自动安装逻辑。
@@ -67,6 +74,17 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 - **验证边界：** 上述结果覆盖构建、启动链、主题插件加载和主要归档后端；Kali Linux 实际桌面中的按钮点击、设置持久化和全部格式仍以发布产物的最终实机操作为准。
 
 ## 变更记录
+
+### 2026-09-20：恢复原始 AppRun 和 Qt6 打包命令
+
+- **故障现象：** 新包中文菜单显示为 `æ…` 一类乱码，且只有顶层自定义 `AppRun`；旧包可以正常显示，并包含 linuxdeploy 自动生成的 `AppRun`、`AppRun.wrapped` 和 Qt hook。
+- **证据范围：** 读取用户提供的新旧包内容、截图、当前脚本，以及 linuxdeploy、Qt / GTK / AppImage 插件和 PeaZip 官方源码；未运行应用或构建。
+- **已确认差异：** 两包的 `zh-cn.txt` 都已有 UTF-8 BOM，中文内容本身可正确解码；主要 Qt6 Core / GUI / Widgets 及 Qt6Pas 的 `.text` 内容一致。旧包含有较完整的 GTK3 依赖，新包缺少其中多项；新 AppRun 还额外强制 locale，并改写了旧版搜索路径。以上差异不能单独证明乱码的完整根因。
+- **包装机制：** 自定义 AppRun 在 linuxdeploy 前写入 AppDir，随后逐字执行旧版已确认有效的 Qt 打包命令。当前流程不混入 GTK 插件，也不手工生成 `AppRun.wrapped`。
+- **修改文件：** `peazip/build_peazip.sh`、`peazip/README.md`。
+- **修复内容：** 自定义 AppRun 恢复为旧包原文，移除后加的 locale 覆盖；逐字执行原 Qt 打包命令，原样恢复归档后端后，最后单独用 appimagetool 生成发布资产。应用和工具仍动态获取当前版本，保留中文文件原始字节，不混入 GTK 插件，不手写 AppRun.wrapped，也不覆盖 linuxdeploy 处理后的入口。删除构建脚本内的 `desktop-file-validate` 验证命令。
+- **更正历史判断：** PeaZip 官方 `peaziplanguage` 实现会调用 `FormPeach.Close`；不能把该参数执行后退出直接认定为崩溃，也不能把此前退出直接归因于 BOM。正常启动不应反复注入这个会关闭窗口的设置命令。
+- **结果边界：** 本次仅恢复已知有效的自定义入口并修正打包流程；中文乱码的完整根因仍未确认，不能宣称已经解决。未进行构建、启动或功能测试，未监控提交后的 Actions，最终结果待正式产物的真实使用反馈。
 
 ### 2026-09-20：删除导致启动退出的强制语言参数
 

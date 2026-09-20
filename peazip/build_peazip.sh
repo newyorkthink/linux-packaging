@@ -99,22 +99,16 @@ cp -a "$QT6_PLUGIN_ROOT/platformthemes/libqgtk3.so" "$APPDIR/usr/plugins/platfor
 cp -a "$QT6_LIB_ROOT"/libadwaitaqt6.so.1* "$APPDIR/usr/lib/"
 cp -a "$QT6_LIB_ROOT"/libadwaitaqt6priv.so.1* "$APPDIR/usr/lib/"
 
-desktop-file-validate "$DESKTOP_FILE"
-
-# 按旧版稳定 AppImage 的启动环境生成自定义 AppRun，交给 linuxdeploy 包装。
+# 原样保留旧版稳定 AppImage 的自定义入口，先写 AppRun，再交给 linuxdeploy 包装。
 cat > "$APPDIR/AppRun" <<'EOF_APPRUN'
 #!/usr/bin/env bash
 
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-# 使用通用 UTF-8 locale 读取上游原始语言文件，避免依赖宿主是否安装中文 locale。
-export LANG=C.UTF-8
-export LC_ALL=C.UTF-8
-
-export PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:${PATH:+:$PATH}
-export LD_LIBRARY_PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-export QT_PLUGIN_PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}
-export XDG_DATA_DIRS="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}
+export PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$PATH"
+export LD_LIBRARY_PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$LD_LIBRARY_PATH"
+export QT_PLUGIN_PATH="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$QT_PLUGIN_PATH"
+export XDG_DATA_DIRS="$HERE"/usr:"$HERE"/usr/bin:"$HERE"/usr/lib:"$HERE"/usr/plugins:"$HERE"/usr/share:"$HERE"/usr/translations:"$XDG_DATA_DIRS"
 export GSETTINGS_SCHEMA_DIR="${HERE}"/usr/share/glib-2.0/schemas/:"${GSETTINGS_SCHEMA_DIR}"
 export NO_AT_BRIDGE=1
 
@@ -125,7 +119,6 @@ export QT_QPA_PLATFORMTHEME=Adwaita-Dark
 export QT_QPA_PLATFORM=xcb
 export QT_FONT_DPI=96
 
-# 从 desktop 文件读取旧版稳定入口，并原样传递用户参数。
 EXEC=$(grep -e '^Exec=.*' "${HERE}"/*.desktop | head -n 1 | cut -d "=" -f 2- | sed -e 's|%.||g')
 exec ${EXEC} "$@"
 EOF_APPRUN
@@ -148,6 +141,9 @@ download_tool AppImage/type2-runtime runtime-x86_64 \
 # 赋予三个 AppImage 构建工具执行权限。
 chmod +x "$WORK_DIR/tools"/*.AppImage
 
+# 为已验证命令保留 linuxdeploy 程序名，实际仍使用刚下载的官方当前版本。
+ln -s linuxdeploy-x86_64.AppImage "$WORK_DIR/tools/linuxdeploy"
+
 # linuxdeploy 会扫描 AppDir 中全部 ELF。官方包内的 32 位旧后端依赖已淘汰的
 # libncurses.so.5，因此先移出扫描范围，Qt 依赖部署完成后再原样放回。
 BACKENDS_DIR="$WORK_DIR/peazip-backends"
@@ -162,14 +158,12 @@ export NO_STRIP=1
 export LDAI_NO_APPSTREAM=1
 export LD_LIBRARY_PATH="$PEAZIP_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-# 使用 linuxdeploy 收集 PeaZip 主程序、pea 和 Qt6 所需的运行依赖。
-"$WORK_DIR/tools/linuxdeploy-x86_64.AppImage" \
-  --appdir "$APPDIR" \
-  --desktop-file "$DESKTOP_FILE" \
-  --icon-file "$ICON_FILE" \
-  --executable "$PEAZIP_ROOT/peazip" \
-  --executable "$PEAZIP_ROOT/pea" \
-  --plugin qt
+# linuxdeploy 输出使用已下载的当前 appimagetool 和 runtime，并写入临时产物。
+export LDAI_OUTPUT="$WORK_DIR/peazip-intermediate.AppImage"
+export LDAI_RUNTIME_FILE="$WORK_DIR/tools/runtime-x86_64"
+
+# 原样执行已经验证有效的 Qt 打包命令，由 linuxdeploy 部署 Qt6 并处理中间封装。
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 
 # Qt6 依赖部署完成后，把官方归档后端原样恢复到 PeaZip 资源目录。
 mv "$BACKENDS_DIR" "$PEAZIP_ROOT/res/bin"
