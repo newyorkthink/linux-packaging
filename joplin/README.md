@@ -19,7 +19,7 @@
 
 ## linuxdeploy 规范流程
 
-- 动态取得 linuxdeploy、官方 GTK 插件、appimagetool 和 Type 2 runtime；GTK 插件上游未提供 Release digest，因此从官方仓库默认分支解析当前文件，核对 Git blob SHA，并输出本地 SHA-256。
+- 动态取得 linuxdeploy、官方 GTK 插件、appimagetool 和 Type 2 runtime；GTK 插件上游未提供 Release digest，因此从官方仓库默认分支解析当前文件并核对 Git blob SHA。公共准备脚本随后仅在上游仍缺少时补入已验证的 GIO modules 复制逻辑，并输出最终文件的本地 SHA-256。
 - 第一次在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，只接受基础目录已经创建、没有非预期文件且退出状态为 0 或 1 的初始化结果。
 - 初始化后才下载官方 DEB；应用主体保持在 `AppDir/opt/Joplin`，不再创建人工 `AppDir/usr/bin/joplin` 二次转发入口。
 - 第二次 linuxdeploy 前写入完整根 `AppDir/AppRun`，直接执行 `opt/Joplin/joplin`。根 AppRun 固定把 `usr/bin`、`usr/lib`、`usr/share` 分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`，并只把 `/opt/Joplin` 加入程序和库搜索路径。
@@ -89,6 +89,12 @@ libnssutil3.so: version `NSSUTIL_...' not found
 - 本次不改动现有 Ubuntu 22.04、GTK/IBus、NSS、AppRun 或 appimagetool 稳定基线。
 
 ## 变更记录
+
+### 2026-09-20：恢复 GTK 插件的 GIO modules 部署
+
+官方 `linuxdeploy-plugin-gtk.sh` 长期没有复制 `gio-2.0` 的动态模块，而 Joplin 已验证需要把同一构建环境中的 GIO modules 放入 AppDir，避免运行时混用宿主模块。公共工具准备脚本现在先下载并核对官方当前文件的 Git blob SHA，再在确认上游仍缺少 `gio_moduledir` 逻辑时加入最小 GIO 修复；上游将来合入同类修复后会自动跳过，避免重复插入。
+
+现有修正版同时包含 WebKit2GTK 和 JavaScriptCore 3/4 收集逻辑；这些不是所有 GTK 应用的通用依赖，其中 JavaScriptCore 两个 pkg-config 查询还会在相应开发包不存在时中断插件，因此没有并入公共修复。
 
 ### 2026-09-20：按空 AppDir 两阶段流程规范 Joplin 打包
 
