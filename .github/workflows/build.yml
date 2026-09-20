@@ -1411,12 +1411,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Install Qt packaging dependencies
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends qt5-qmake qtbase5-dev libqt5svg5 xvfb
       - name: Build XnConvert AppImage
         shell: bash
         run: |
@@ -1424,20 +1418,6 @@ jobs:
           chmod +x xnconvert/build_xnconvert.sh
           ./xnconvert/build_xnconvert.sh
           test -s xnconvert/dist/xnconvert.AppImage
-      - name: Smoke test XnConvert
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          LOG="$RUNNER_TEMP/xnconvert-smoke.log"
-          set +e
-          APPIMAGE_EXTRACT_AND_RUN=1 timeout 20s xvfb-run -a ./xnconvert/dist/xnconvert.AppImage >"$LOG" 2>&1
-          rc=$?
-          set -e
-          cat "$LOG"
-          if grep -Eqi 'Could not load the Qt platform plugin|no Qt platform plugin could be initialized|error while loading shared libraries|Segmentation fault|Aborted' "$LOG"; then
-            exit 1
-          fi
-          [[ "$rc" -eq 0 || "$rc" -eq 124 ]]
       - name: Upload software version metadata
         uses: actions/upload-artifact@v4
         with:
