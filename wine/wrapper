@@ -5,11 +5,20 @@ set -Eeuo pipefail
 # 因而 Wine 默认继续使用 ~/.wine，并尊重用户显式传入的 WINEPREFIX。
 WINE_ROOT="$APPDIR/opt/wine-staging"
 WINE_BIN="$WINE_ROOT/bin/wine"
+WINESERVER_LAUNCHER="$APPDIR/usr/bin/wineserver-launcher"
 
 [[ -x "$WINE_BIN" ]] || {
   echo "错误：AppImage 内缺少 Wine 主程序：$WINE_BIN" >&2
   exit 1
 }
+[[ -x "$WINESERVER_LAUNCHER" ]] || {
+  echo "错误：AppImage 内缺少 wineserver launcher：$WINESERVER_LAUNCHER" >&2
+  exit 1
+}
+
+# Wine 通过 posix_spawn 启动 wineserver，而 AppRun v2 的 exec hook 不覆盖 posix_spawn。
+# 先让 Wine 启动绝对 /bin/sh launcher，再由 shell 的 exec 进入 AppRun hook。
+export WINESERVER="$WINESERVER_LAUNCHER"
 
 run_named_command() {
   local command_name="$1"

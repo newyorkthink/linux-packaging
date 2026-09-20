@@ -264,6 +264,12 @@ AppDir:
       - usr/share/man/**
       - usr/share/bash-completion/**
 
+  after_runtime:
+    # Wine 通过 posix_spawn 启动 wineserver，而 AppRun v2 的 exec hook 不覆盖 posix_spawn。
+    # 必须在 runtime 设置完成后再放入 launcher，保留绝对 /bin/sh shebang，
+    # 让 shell 随后通过 AppRun exec hook 启动包内真实 wineserver。
+    - install -m 0755 wineserver-launcher "$TARGET_APPDIR/usr/bin/wineserver-launcher"
+
   runtime:
     arch: [x86_64, i386]
     version: v2.0.0

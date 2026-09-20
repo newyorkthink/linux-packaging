@@ -81,6 +81,10 @@ ln -sfn wine.AppImage "$HOME/.local/bin/winetricks"
 
 依赖部署使用 [AppImageCrafters/appimage-builder](https://github.com/AppImageCrafters/appimage-builder) 1.1.0，并固定 [AppImageCrafters/AppRun](https://github.com/AppImageCrafters/AppRun) v2.0.0。AppRun 把双架构 `libapprun_hooks` 放进 `LD_PRELOAD`，通过 `APPDIR_PATH_MAPPINGS` 将 Wine 编译时的 `/opt/wine-staging` 映射到只读 AppImage 内部。
 
+当前 Wine 的 ntdll 使用 `posix_spawn()` 启动 `wineserver`，而 AppRun v2 的 exec hook 不覆盖 `posix_spawn()`。AppImageBuilder 又会把包内 ELF 的解释器改成依赖 AppRun runtime 工作目录的相对路径，因此 Wine 从已经恢复的用户工作目录直接 spawn 包内 `wineserver` 时可能报 `wine: could not exec wineserver`。
+
+为保持现有 AppRun v2 双架构运行库不变，wrapper 将 `WINESERVER` 指向包内 `usr/bin/wineserver-launcher`。该 launcher 在 AppImageBuilder 完成 runtime 设置后才复制进去，保留绝对 `#!/bin/sh` shebang；Wine 可以先通过 `posix_spawn()` 启动宿主 `/bin/sh`，随后 shell 再通过正常 `exec` 进入 AppRun hook 并启动真实的包内 `wineserver`。这个处理不设置或修改 `WINEPREFIX`。
+
 这里**不加入** `project-portable/libunionpreload.so`，也不维护第二套 preload 逻辑。最终文件由 [VHSgunzo/uruntime](https://github.com/VHSgunzo/uruntime) 0.7.1 加 DwarFS 封装；uruntime 负责挂载/解包，AppRun 负责库环境和路径映射。
 
 ## Ubuntu 构建
@@ -113,4 +117,5 @@ wine/dist/version.txt
 
 ## 修复记录
 
+- **2026-09-21：修复 `wine: could not exec wineserver`。** 用户实机运行当前 `wine.AppImage` 时，Wine 主程序能够启动但内部 `wineserver` 启动失败。Wine 当前源码在 `dlls/ntdll/unix/loader.c` 中通过 `posix_spawn()` 启动 server，而 AppRun v2 的 hook 只覆盖 `exec*` 路径；AppImageBuilder v2 同时会为包内 ELF 设置依赖 runtime 工作目录的相对解释器，因此 Wine 直接 spawn 真实 `wineserver` 时绕过了 AppRun 的运行时切换。现在新增绝对 `/bin/sh` 的 `wineserver-launcher`，由 `after_runtime` 在 AppImageBuilder 完成后放入 AppDir，并由 wrapper 通过 `WINESERVER` 指向它；launcher 随后用正常 `exec` 启动真实 server，使执行重新进入 AppRun hook。未改动默认 `~/.wine`、用户自定义 `WINEPREFIX`、WineHQ 双架构包、Mono/Gecko 或 GPU 驱动策略。源码与配置已按上游 Wine/AppRun 执行路径核对；提交后不监控 Actions，新的构建产物及实机运行结果仍需由本次正常构建确认。
 - **2026-09-20：修复 AppImageBuilder 间接带入 Mesa 驱动后导致构建中止。** 在提交 `5a14f62` 的 Actions 构建中，Wine 11.18、amd64/i386、Mono 11.3.0 和 Gecko 2.47.4 均已下载并通过校验，但 AppImageBuilder 解析 Jammy 通用 GL/Vulkan 装载器的替代依赖时仍部署了 Mesa vendor 文件，最终被封装前的 GPU 驱动检查拦截。`build_wine.sh` 现在会在 AppImageBuilder 完成后精确移除 DRI、特定 VDPAU 驱动、Vulkan ICD、NVIDIA 库及 Mesa EGL/GLX vendor 库，并继续用原检查阻止残留文件进入产物；通用 OpenGL/Vulkan 装载器仍保留。修复已依据该失败日志和脚本静态检查确认，后续 Actions 构建及实机运行尚未验证。
