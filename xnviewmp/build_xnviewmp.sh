@@ -237,7 +237,6 @@ export LD_LIBRARY_PATH="$APPDIR/opt/XnView:$APPDIR/opt/XnView/lib:$APPDIR/opt/Xn
 # 第一次普通 linuxdeploy 负责创建并整理 AppDir；生成的 AppImage 只是中间产物。
 export ARCH=x86_64; linuxdeploy \
   --appdir AppDir \
-  --executable "$APPDIR/opt/XnView/XnView" \
   --desktop-file "$DESKTOP_FILE" \
   --icon-file "$ICON_FILE" \
   --output appimage
@@ -251,12 +250,18 @@ set -Eeuo pipefail
 
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-export PATH="$HERE/opt/XnView:${PATH:-}"
-export LD_LIBRARY_PATH="$HERE/opt/XnView:$HERE/opt/XnView/lib:$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
-export QT_PLUGIN_PATH="$HERE/opt/XnView/Plugins:$HERE/usr/plugins:${QT_PLUGIN_PATH:-}"
-export QML_IMPORT_PATH="$HERE/opt/XnView/qml:${QML_IMPORT_PATH:-}"
-export QML2_IMPORT_PATH="$HERE/opt/XnView/qml:${QML2_IMPORT_PATH:-}"
-export XDG_DATA_DIRS="$HERE/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+# 保留中文界面环境；输入法仍由 Qt 插件和宿主桌面负责。
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
+
+# 同时覆盖上游 /opt 布局和 linuxdeploy 在 AppDir/usr 中部署的运行时目录。
+export PATH="$HERE/opt/XnView:$HERE/usr/bin:${PATH:-}"
+export LD_LIBRARY_PATH="$HERE/opt/XnView:$HERE/opt/XnView/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export QT_PLUGIN_PATH="$HERE/opt/XnView/Plugins:$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
+export QML_IMPORT_PATH="$HERE/opt/XnView/qml:$HERE/usr/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
+export QML2_IMPORT_PATH="$HERE/opt/XnView/qml:$HERE/usr/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
+export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_TRANSLATIONS_PATH}"
+export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_QPA_PLATFORM=xcb
@@ -270,7 +275,6 @@ chmod +x "$APPDIR/AppRun"
 export QMAKE="$QT5_BIN_DIR/qmake"
 export ARCH=x86_64; linuxdeploy \
   --appdir AppDir \
-  --executable "$APPDIR/opt/XnView/XnView" \
   --desktop-file "$DESKTOP_FILE" \
   --icon-file "$ICON_FILE" \
   --plugin qt \

@@ -17,7 +17,7 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 ## linuxdeploy 规范流程
 
 1. 普通 linuxdeploy 阶段使用 `--output appimage` 创建并规范化 `AppDir`。
-2. 第一阶段完成后，脚本写入项目真实的根 `AppDir/AppRun`。
+2. 第一阶段完成后，脚本写入项目真实的根 `AppDir/AppRun`；入口直接执行 `/opt/XnView/XnView`，并同时加入上游 `/opt` 与 linuxdeploy 实际生成的 `usr/bin`、`usr/lib`、`usr/plugins`、`usr/qml`、`usr/translations`、`usr/share` 路径。
 3. 把 `/usr/lib/qt5/bin` 放在 `PATH` 最前，设置 `QT_SELECT=qt5` 和 `QMAKE=/usr/lib/qt5/bin/qmake`，再执行 `--plugin qt --output appimage`；linuxdeploy 使用真实 Qt5 `qmake` / `qmlimportscanner` 生成 Qt hook、顶层入口和 `AppRun.wrapped`。
 4. linuxdeploy 生成的 AppImage 只作为中间产物。
 5. 最终从同一个 `AppDir` 使用官方 appimagetool 和官方 Type 2 runtime 重新封装 `dist/xnviewmp.AppImage`。
@@ -35,6 +35,12 @@ XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions
 ### 2026-09-20：统一 linuxdeploy 与最终封装流程
 
 改为动态解析官方最新稳定版；补齐两阶段 linuxdeploy、Qt5 `QMAKE`、真实 `AppRun`、Qt hook/`AppRun.wrapped` 及 appimagetool + Type 2 runtime 最终封装，并移除正式提交中的 smoke/test 代码。
+
+### 2026-09-20：修复 XnView 入口布局、中文环境与 AppDir 路径
+
+Actions Job `106070682762` 已成功完成打包；用户实际解包和运行确认 Qt hook、`AppRun.wrapped` 与中文输入法可用，同时发现界面语言退回英文。最终 AppDir 实际包含 `usr/bin`、`usr/lib`、`usr/plugins`、`usr/qml`、`usr/translations` 和 `usr/share`。根 AppRun 因此恢复 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`，并把这些 linuxdeploy 生成目录加入对应搜索路径。
+
+两次 linuxdeploy 调用移除 `--executable AppDir/opt/XnView/XnView`：该参数会把上游位于 `/opt/XnView` 的主程序额外部署成 `AppDir/usr/bin/XnView`，不属于原始包布局。脚本不创建、不依赖该副本，根 AppRun 始终直接执行 `AppDir/opt/XnView/XnView`。
 
 ### 2026-09-20：补齐 Qt5 Declarative 与 QML 打包工具
 
