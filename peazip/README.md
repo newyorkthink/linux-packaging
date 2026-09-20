@@ -26,8 +26,8 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 4. 核对 DEB 的包名、版本和架构后，把同一个 DEB 安装到隔离构建环境供依赖解析，并把同一个 DEB 解压到 AppDir，禁止安装与解压使用不同版本。
 5. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。官方要求语言文件使用 UTF-8 BOM，因此只在 `zh-cn.txt` 缺失 BOM 时补入，不改写中文正文。
 6. 写入完整根 `AppDir/AppRun`，直接固化最终用途正确的 `usr/bin`、`usr/lib/peazip`、`usr/lib`、`usr/share`、Qt plugins 和 translations 路径；恢复已经实际验证过的中文 locale，并保留 desktop `Exec`、XCB、Adwaita Dark、缩放和字体 DPI 设置。
-7. 当前官方 Qt 插件会明确跳过 Qt6 AppRun hook，因此在第二次 linuxdeploy 前加入 PeaZip 专用 Qt6 兼容 hook。linuxdeploy 输出阶段据此自动把完整根 AppRun 保存为 `AppRun.wrapped`，再生成加载 hook 的顶层 `AppRun`；脚本不手工创建或覆盖 `AppRun.wrapped`。
-8. 官方归档后端在依赖部署前临时移出 AppDir，随后逐字执行已验证的 `--plugin qt --output appimage` 命令，由 linuxdeploy 部署 Qt6 并完成 AppRun 包装；缺少 `AppRun.wrapped` 或顶层调用链时立即停止，完成后再把归档后端原样放回。
+7. 当前官方 Qt 插件明确跳过 Qt6 AppRun hook，因此完整根 `AppDir/AppRun` 保持为最终顶层入口；没有 `AppRun.wrapped` 是当前官方工具的真实行为。构建脚本严格禁止创建 `apprun-hooks` 目录或任何 hook 文件，禁止为了复刻旧包结构自行补 hook、`AppRun.wrapped` 或包装层检查。
+8. 官方归档后端在依赖部署前临时移出 AppDir，随后逐字执行已验证的 `--plugin qt --output appimage` 命令，由 linuxdeploy 部署 Qt6 并生成中间 AppImage，完成后再把归档后端原样放回。
 9. Qt 命令只生成 `.work/peazip-intermediate.AppImage`，不发布；不再对已经确定的 AppRun 调用自动路径整理脚本。
 10. 最后由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 对同一个 AppDir 封装 `dist/peazip.AppImage`；不会把缺少后端的中间产物交付给用户。
 
@@ -40,7 +40,7 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 
 ## 运行与兼容说明
 
-- 最终启动链固定为顶层 `AppRun` 加载 `apprun-hooks/peazip-qt6-hook.sh`，再执行 `AppRun.wrapped`；`AppRun.wrapped` 保留 desktop `Exec` 解析方式以及已经确认的显示和主题设置，路径型环境变量按最终 AppDir 的真实目录和用途直接固化。
+- 当前最终启动入口就是完整的顶层 `AppRun`；当前官方 Qt 插件跳过 Qt6 hook，所以不存在 `apprun-hooks` 和 `AppRun.wrapped`。顶层入口保留 desktop `Exec` 解析方式以及已经确认的显示和主题设置，路径型环境变量按最终 AppDir 的真实目录和用途直接固化。
 - `zh-cn.txt` 保持官方中文正文，仅在缺失时补 UTF-8 BOM；恢复 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_MESSAGES=zh_CN.UTF-8`。不注入会让 PeaZip 设置语言后主动关闭窗口的 `-peaziplanguage` 参数，语言仍由 PeaZip 自身设置管理。
 - 继续保留旧版已实际使用的 XCB、Adwaita Dark、缩放和字体 DPI 环境；同时打包 Qt6 `adwaita.so`，避免只设置主题名却缺少样式插件。
 - 最终产物必须包含同为 Qt6 的 Compose、Fcitx5、IBus 输入上下文和 XCB 平台插件；输入法守护进程仍由宿主提供。
@@ -77,6 +77,14 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - **验证边界：** 上述结果覆盖构建、启动链、主题插件加载和主要归档后端；Kali Linux 实际桌面中的按钮点击、设置持久化和全部格式仍以发布产物的最终实机操作为准。
 
 ## 变更记录
+
+### 2026-09-20：删除人工 Qt6 hook 并写死禁止补造
+
+- **问题：** 为了强制得到旧包中的 `AppRun.wrapped`，脚本错误加入了只执行 `true` 的 `apprun-hooks/peazip-qt6-hook.sh`，并把 `AppRun.wrapped` 设为发布硬条件。这是在当前官方 Qt6 插件明确跳过 hook 时无中生有补造包装层。
+- **修复：** 删除人工 hook 的目录、脚本生成逻辑和两条 `AppRun.wrapped` 强制检查。第二次 linuxdeploy 命令保持原样，只负责当前官方 Qt6 部署与中间输出；完整根 `AppRun` 直接作为最终顶层入口。
+- **永久约束：** PeaZip 以及仓库内所有 linuxdeploy 项目禁止手工创建、复制、下载、修改或注入 hook；禁止空 hook、`true` hook、兼容 hook和占位 hook；官方插件不生成 hook 时禁止自行补 `AppRun.wrapped` 或因此让构建失败。该约束已同步写入 `AGENTS.md` 和 `linuxdeploy_projects.md`。
+- **中文处理：** 保留本次与包装层无关的 UTF-8 BOM 保证和中文 locale 修复；不加入会让 PeaZip 设置语言后主动关闭窗口的 `-peaziplanguage` 参数。
+- **检查状态：** 已完成 Shell 语法、人工 hook / `AppRun.wrapped` 强制检查全量检索及完整 diff 核对；未执行完整构建或实机运行，提交后不监控 Actions。
 
 ### 2026-09-20：修复中文乱码并恢复 AppRun.wrapped
 

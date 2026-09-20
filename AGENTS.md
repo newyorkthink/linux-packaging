@@ -36,7 +36,7 @@
 - 不得只阅读本文件中的 linuxdeploy 摘要；开始处理任何 linuxdeploy 项目前，必须同时完整阅读 `linuxdeploy_projects.md`，并按其中规定的实际顺序、路径、命令和最终封装方式执行。
 - 普通、Qt、GTK、GStreamer 及任何其他使用 linuxdeploy 的项目全部受此规则约束；不得以技术栈、上游包格式、历史脚本、现有 README、旧 workflow、其他项目模板或“当前项目特殊”为理由绕过。
 - 无论上游 DEB、归档或安装结果把真实程序放在 `/opt`、`/usr/bin` 还是其他目录，linuxdeploy 的基础调用形式都不得随布局改变：普通项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，GTK 项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage`，Qt 项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage`。按项目真实需要只允许追加 `--desktop-file`、`--icon-file` 和精确的 `-l <库路径>`；禁止追加 `--executable`，也禁止擅自增加其他未经本规范确认的 linuxdeploy 参数。
-- 必须遵守 `linuxdeploy_projects.md` 规定的完整链路：先在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，仅由 linuxdeploy 创建 `usr/bin`、`usr/lib`、`usr/share` 等基础目录；再下载应用，按上游真实布局解包到 AppDir，同时把发行版软件包装入构建环境供依赖扫描；随后写完整根 `AppDir/AppRun`；最后按技术栈执行第二次 linuxdeploy 并保留 `--output appimage`，由 linuxdeploy 完成 hook、顶层 `AppRun` 和 `AppRun.wrapped`；已经通过最终产物确认目录的项目直接在根 AppRun 中写入最终路径，只有首次打包或第二次 linuxdeploy 后目录尚不确定时才调用 `common/linuxdeploy/normalize_apprun_paths.sh`；最后再使用官方 appimagetool 和明确的 Type 2 runtime 重新封装正式资产。
+- 必须遵守 `linuxdeploy_projects.md` 规定的完整链路：先在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，仅由 linuxdeploy 创建 `usr/bin`、`usr/lib`、`usr/share` 等基础目录；再下载应用，按上游真实布局解包到 AppDir，同时把发行版软件包装入构建环境供依赖扫描；随后写完整根 `AppDir/AppRun`；最后按技术栈执行第二次 linuxdeploy 并保留 `--output appimage`，由当前官方插件完成资源部署，并仅在插件自身实际生成 hook 时由 linuxdeploy 自动处理顶层 `AppRun` 和 `AppRun.wrapped`；禁止手工补 hook 或包装层；已经通过最终产物确认目录的项目直接在根 AppRun 中写入最终路径，只有首次打包或第二次 linuxdeploy 后目录尚不确定时才调用 `common/linuxdeploy/normalize_apprun_paths.sh`；最后再使用官方 appimagetool 和明确的 Type 2 runtime 重新封装正式资产。
 - 第一次针对空 AppDir 的命令在当前 linuxdeploy 中会创建基础目录，但因尚无 desktop 而在输出阶段返回 1；正式脚本只能在确认 `AppDir/usr/bin`、`AppDir/usr/lib`、`AppDir/usr/share` 已创建且 AppDir 中没有非预期文件时接受该已知结果，其他失败必须立即终止。不得删掉 `--output appimage`，也不得把应用文件提前塞入这次初始化。
 - 发行版仓库提供的应用必须同时执行两条路径：在隔离构建环境中正常安装该应用及依赖；并使用 `apt download` 等对应包管理器下载实际软件包，再把同一包内容解压到 AppDir。网上直接下载的 DEB 也必须同时安装到构建环境并解压到 AppDir；tar、压缩包或 GitHub Release 则按上游布局直接解压到 AppDir，并在构建环境安装其明确依赖。
 - 所有完整根 AppRun 都必须包含 `AppDir/usr/bin`、`AppDir/usr/lib`、`AppDir/usr/share` 三个基础路径，分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`；应用位于 `/opt` 时只能按变量用途追加真实目录，例如程序目录进入 `PATH`、库目录进入 `LD_LIBRARY_PATH`、共享数据目录进入 `XDG_DATA_DIRS`，不得用 `/opt` 路径替代或遗漏 `/usr` 基础路径。Qt、GTK、QML、translations、plugins 等目录继续按最终 AppDir 的实际结构补充。
@@ -45,6 +45,19 @@
 - `linuxdeploy_projects.md` 中关于 Qt `QMAKE`、GTK `DEPLOY_GTK_VERSION`、插件选择、额外 `-l`、工具动态下载、中文说明、检查边界和正式资产位置的规则必须全部按当前应用真实情况执行，不得只挑方便的部分。
 - 如果目标项目现有脚本、README、workflow 或历史做法与 `linuxdeploy_projects.md` 冲突，处理该 linuxdeploy 项目时必须以本永久规则和 `linuxdeploy_projects.md` 为准完成最小必要修正；不得引用“旧实现已经这样写”继续保留冲突。
 - 后续修改 linuxdeploy 总体规范时，必须同步保持本文件与 `linuxdeploy_projects.md` 的强制关系和语义一致；不得删除链接、弱化为“可参考”，或把遵守范围缩小到新项目。
+
+## 永久规则：禁止手工创建 linuxdeploy hook 或伪造 AppRun.wrapped（不可豁免）
+
+**AI 永久禁止为了让 linuxdeploy 生成 `AppRun.wrapped`、复刻旧包目录结构或绕过当前插件行为，手工创建、复制、下载、拼接或注入任何 `apprun-hooks` 文件。没有上游工具实际生成 hook 时，禁止无中生有补 hook，也禁止把缺少 `AppRun.wrapped` 判定为构建失败。**
+
+强制范围：
+
+- `AppDir/apprun-hooks/` 及其中脚本只能由当前动态取得的官方 linuxdeploy 输入插件在正式部署过程中实际生成；项目构建脚本、workflow、公共 helper 和 AI 都不得自行 `mkdir`、`cat`、`cp`、`install`、下载或修改 hook。
+- 禁止加入空 hook、只执行 `true` 的 hook、兼容 hook、占位 hook或任何仅用于触发 linuxdeploy 包装逻辑的 hook；“不手写 `AppRun.wrapped`”不能作为手写 hook 的借口。
+- 当前官方插件没有生成 hook 时，第三步写入的完整根 `AppDir/AppRun` 就是最终顶层入口；不存在 `AppRun.wrapped` 属于当前工具的真实结果，不得自行补造，也不得增加要求其必须存在的生产检查。
+- 当前官方插件实际生成非空 hook 时，linuxdeploy 可以按自身机制保存 `AppRun.wrapped` 并生成顶层 `AppRun`；AI 只能核对工具真实产物，不得预先制造或事后改写该结构。
+- 禁止为了恢复旧 hook 行为固定旧版 linuxdeploy 或插件；仍必须动态使用当前官方版本。
+- 应用 README 必须如实记录当前官方插件是否生成 hook，以及最终入口是顶层完整 `AppRun` 还是 linuxdeploy 自动生成的 `AppRun → AppRun.wrapped`，不得把历史样本结构写成所有版本必然结果。
 
 ## 永久规则：允许必要验证，禁止向提交内容堆入测试代码（不可豁免）
 
@@ -485,15 +498,15 @@ AppImage 应只包含应用正常运行所需内容。
 
 - **官方 AppImage 原样同步：** 上游已提供目标架构的正式 AppImage，且没有已确认需要修复的问题时，可以动态获取、校验后以稳定资产名发布。README 必须明确这是同步入口，说明统一下载与校验的用途，不得声称重新编译、补齐依赖或提升兼容性；不得仅为“自己打包一次”而拆包重封装。
 - **quick-sharun / sharun：** 适合需要较强跨发行版兼容性、自包含运行库、非 FHS / 较旧发行版兼容，或现有相近项目已经通过该路线稳定运行的应用。quick-sharun 使用的 uruntime 具备在 FUSE 不可用时回退到其他运行方式的能力，因此不能把它简单等同于传统 AppImage 的 FUSE 依赖模型。
-- **linuxdeploy + 官方 appimagetool：** 凡选择 linuxdeploy 路线，标准流程必须先用 `linuxdeploy --output appimage` 创建 / 整理 AppDir，再写入自定义 `AppRun`，然后按技术栈使用普通、Qt、GTK 或 GStreamer 插件再次执行带 `--output appimage` 的 linuxdeploy，让输出阶段完成 hook、顶层 `AppRun` 与 `AppRun.wrapped` 处理。**linuxdeploy 生成的 AppImage 仅是中间产物，不进入发布目录；最终 AppImage仍必须对同一个 AppDir 使用官方 appimagetool 和明确的 Type 2 runtime 重新封装。**
+- **linuxdeploy + 官方 appimagetool：** 凡选择 linuxdeploy 路线，标准流程必须先用 `linuxdeploy --output appimage` 创建 / 整理 AppDir，再写入自定义 `AppRun`，然后按技术栈使用普通、Qt、GTK 或 GStreamer 插件再次执行带 `--output appimage` 的 linuxdeploy，让输出阶段处理中间 AppImage，并仅在官方输入插件实际生成 hook 时自动处理顶层 `AppRun` 与 `AppRun.wrapped`。**linuxdeploy 生成的 AppImage 仅是中间产物，不进入发布目录；最终 AppImage仍必须对同一个 AppDir 使用官方 appimagetool 和明确的 Type 2 runtime 重新封装。**
 - **官方 appimagetool 直接打包：** 适用于 AppDir 本身已经完整、依赖已经由上游、手工逻辑或其他工具正确部署的项目。appimagetool 的职责是把 AppDir 转为 AppImage，**不会替代 linuxdeploy / sharun 自动发现并补齐缺失运行库**。
 
-### linuxdeploy 必须先完成 AppDir / hook，再由 appimagetool 最终封装
+### linuxdeploy 必须先完成 AppDir 与当前插件部署，再由 appimagetool 最终封装
 
 凡使用 linuxdeploy 的项目，标准链路固定为三个阶段：
 
 1. 在空目录执行第一次普通 linuxdeploy，只创建 AppDir 的 `usr/bin`、`usr/lib`、`usr/share` 等基础目录；此时不提前放入应用、desktop、icon 或 AppRun。
-2. 初始化完成后再获取应用：发行版软件包同时安装到隔离构建环境并下载、解压到 AppDir，tar / GitHub Release 按上游布局解压到 AppDir；随后写完整根 `AppDir/AppRun`，第二次 linuxdeploy 再按技术栈部署插件、生成 `apprun-hooks`、顶层 `AppRun`、`AppRun.wrapped` 和中间 AppImage。
+2. 初始化完成后再获取应用：发行版软件包同时安装到隔离构建环境并下载、解压到 AppDir，tar / GitHub Release 按上游布局解压到 AppDir；随后写完整根 `AppDir/AppRun`，第二次 linuxdeploy 再按技术栈部署插件并生成中间 AppImage；只有当前官方插件自身实际生成 hook 时，linuxdeploy 才自动生成对应 `apprun-hooks`、顶层 `AppRun` 和 `AppRun.wrapped`，禁止人工补齐。
 3. 已确认最终目录的项目直接在根 AppRun 中维护准确路径；只有首次打包或最终目录仍不确定时，才在第二次 linuxdeploy 后调用 `common/linuxdeploy/normalize_apprun_paths.sh`，按最终 AppDir 只整理 `AppRun.wrapped`（没有 wrapped 时为 `AppRun`）中现有的路径型 export。随后官方 appimagetool 使用明确的 Type 2 runtime 对同一个 AppDir 重新封装正式 AppImage，只有这个最终产物可以进入发布目录。
 
 完整顺序、普通 / Qt / GTK 命令、`DEPLOY_GTK_VERSION`、额外 `-l` 库和本地已验证命令统一见根目录 `linuxdeploy_projects.md`。核心结构如下：
@@ -515,7 +528,7 @@ export ARCH=x86_64; appimagetool -n ./AppDir <正式输出AppImage> --runtime-fi
 
 强制规则：
 
-- linuxdeploy 两个阶段都保留 `--output appimage`。第一次只初始化空 AppDir；当前版本因没有 desktop 会在目录创建后返回 1，脚本必须核对三个基础目录和空文件状态后才能接受。写入应用和完整根 AppRun 后的第二次用于执行当前技术栈插件并完成 hook 与 AppRun 包装。
+- linuxdeploy 两个阶段都保留 `--output appimage`。第一次只初始化空 AppDir；当前版本因没有 desktop 会在目录创建后返回 1，脚本必须核对三个基础目录和空文件状态后才能接受。写入应用和完整根 AppRun 后的第二次用于执行当前技术栈插件并生成中间 AppImage；AppRun 是否自动包装以插件实际产物为准。
 - 第一次初始化不产生可用 AppImage；第二次 linuxdeploy 生成的中间 AppImage 也不得作为正式发布资产，不得移入发布目录或与最终资产混淆。
 - appimagetool 和 Type 2 runtime 必须在最终封装前明确准备好，并使用失败即退出、重试和合理超时的下载逻辑；不得依赖打包阶段临时自动下载未知 runtime。
 - **网络故障不是更换打包路线的理由。** 如果 appimagetool、runtime 或其官方下载源出现临时网络失败、GitHub / CDN 超时、重定向异常、HTTP 错误等，应重试；重试后仍失败则让当前构建明确失败，等待网络恢复或修正下载地址。
@@ -525,15 +538,15 @@ export ARCH=x86_64; appimagetool -n ./AppDir <正式输出AppImage> --runtime-fi
 
 ### linuxdeploy 插件必须按类型和应用技术栈选择
 
-linuxdeploy 插件分为输入 / bundling 插件和输出插件。输入插件通过 `--plugin <名称>` 补充 AppDir 中的框架运行库、plugin、翻译、hook 或其他资源；AppImage 输出插件由 `--output appimage` 调用，用于完成本仓库标准流程所需的中间 AppImage 和 AppRun hook 收尾。不得因为文件名都以 `linuxdeploy-plugin-` 开头，就把全部插件预防性下载或全部加入每个项目。
+linuxdeploy 插件分为输入 / bundling 插件和输出插件。输入插件通过 `--plugin <名称>` 补充 AppDir 中的框架运行库、plugin、翻译以及其当前版本实际提供的 hook 或其他资源；AppImage 输出插件由 `--output appimage` 调用，用于生成本仓库标准流程所需的中间 AppImage，并在确有非空 hook 时按 linuxdeploy 自身机制处理 AppRun 包装。不得因为文件名都以 `linuxdeploy-plugin-` 开头，就把全部插件预防性下载或全部加入每个项目。
 
 | 官方插件 | 类型与用途 | 本仓库使用规则 |
 | --- | --- | --- |
-| `linuxdeploy-plugin-qt-<架构>.AppImage` | Qt 输入 / bundling 插件；识别 AppDir 中的 Qt 5 或 Qt 6 运行库，并部署对应 Qt plugins、QML、翻译、hook 和相关资源 | 仅 Qt 应用按需下载并使用 `--plugin qt`；必须先确认主程序 Qt 主版本及实际 Qt 路径。非 Qt 应用不得加入 |
+| `linuxdeploy-plugin-qt-<架构>.AppImage` | Qt 输入 / bundling 插件；识别 AppDir 中的 Qt 5 或 Qt 6 运行库，并部署对应 Qt plugins、QML、翻译和当前版本实际提供的相关资源 | 仅 Qt 应用按需下载并使用 `--plugin qt`；必须先确认主程序 Qt 主版本及实际 Qt 路径。是否生成 hook 以当前官方插件行为为准，禁止人工补入；非 Qt 应用不得加入 |
 | `linuxdeploy-plugin-gtk` | GTK 输入 / bundling 插件；部署 GTK、GLib schemas、GI typelibs、immodules、pixbuf loader 和 AppRun hook | 仅 GTK 应用使用 `--plugin gtk`；明确为 GTK 3 时应设置 `DEPLOY_GTK_VERSION=3`，GTK 2 / GTK 4 项目按真实主版本设置 |
 | `linuxdeploy-plugin-gstreamer` | GStreamer 输入 / bundling 插件；部署动态加载的 GStreamer modules、helper 和 AppRun hook | 只有应用确实依赖 GStreamer 且普通 ELF 收集不足时才使用 `--plugin gstreamer` |
 | `linuxdeploy-plugin-native_packages-<架构>.AppImage` | 输出插件；把 AppDir 生成发行版原生 `.deb` / `.rpm` 包 | 当前 AppImage / RunImage 构建不需要；只有用户明确要求新增 DEB / RPM 正式产物时才单独评估 |
-| `linuxdeploy-plugin-appimage-<架构>.AppImage` | AppImage 输出插件；对应 `--output appimage`，linuxdeploy 官方 AppImage通常已内置 | linuxdeploy 阶段必须使用它完成中间输出和 AppRun hook 收尾；它生成的 AppImage不是最终发布资产，最终仍由官方 appimagetool + Type 2 runtime 重新封装 |
+| `linuxdeploy-plugin-appimage-<架构>.AppImage` | AppImage 输出插件；对应 `--output appimage`，linuxdeploy 官方 AppImage通常已内置 | linuxdeploy 阶段必须使用它完成中间输出；存在官方插件实际生成的非空 hook 时由它按自身机制处理 AppRun 包装。它生成的 AppImage不是最终发布资产，最终仍由官方 appimagetool + Type 2 runtime 重新封装 |
 
 插件使用要求：
 
@@ -544,7 +557,7 @@ linuxdeploy 插件分为输入 / bundling 插件和输出插件。输入插件�
 - GTK 插件支持通过 `DEPLOY_GTK_VERSION` 明确 GTK 2 / 3 / 4；已确认主版本时应显式设置，避免依赖自动检测产生歧义。
 - 官方 `linuxdeploy-plugin-gtk` 当前没有复制 GIO dynamic modules。新增、迁移或重做 GTK linuxdeploy 项目时，必须通过 `common/linuxdeploy/prepare_linuxdeploy_tools.sh <工具目录> gtk` 取得经过 Git blob 校验并按需补入 GIO modules 复制逻辑的插件；不得直接下载未修补的官方脚本作为最终构建输入。公共脚本只在上游仍缺少 `gio_moduledir` 时应用一次最小修复，上游加入等价实现后自动跳过。已经验证稳定且本次未涉及的旧项目不为套用该规则批量改写。
 - linuxdeploy 自动发现不到的 `dlopen` 库、NSS / provider、helper 或其他运行时模块，只能根据当前应用的源码、ELF、日志、已有产物或真实运行反馈用 `-l` 精确补入，不得复制其他项目的整组库。
-- `--plugin <名称>` 与 `--output appimage` 应在第二次 linuxdeploy 命令中同时使用：输入插件部署资源和 hook，输出阶段生成顶层 AppRun / AppRun.wrapped 并产生中间 AppImage。
+- `--plugin <名称>` 与 `--output appimage` 应在第二次 linuxdeploy 命令中同时使用：输入插件部署当前版本实际提供的资源，输出阶段产生中间 AppImage；只有插件自身生成非空 hook 时才由 linuxdeploy 自动生成顶层 AppRun / AppRun.wrapped。
 - 对应应用 README 的“打包方式”必须写清实际启用了哪些输入插件、为什么需要、额外补入了哪些库，以及最终 appimagetool / runtime 封装方式。
 
 ### linuxdeploy + appimagetool 打包阶段必须使用 Ubuntu
@@ -576,9 +589,10 @@ linuxdeploy 额外规则：
 - 不得因为错误结构已经存在于当前脚本、历史提交或当前 AppDir 中，就把它误称为“稳定基线”“上游 launcher”或“当前项目确有需要”。是否需要 `usr/bin` 文件必须由上游原始包布局和真实运行入口证明。
 - `AppDir/usr/bin/` 只有在上游包真实提供对应内容或当前应用确有必要入口时才保留应用真实可执行文件、必要符号链接或上游 launcher；它不能代替根 `AppDir/AppRun`。即使必须保留上游 launcher，linuxdeploy 项目的自定义环境准备和最终启动链仍必须从根 `AppDir/AppRun` 明确开始。
 - AppRun 只加入当前应用真实需要的路径、Qt / GTK 环境和兼容设置，最后直接执行当前应用的真实入口并原样传递 `"$@"`。
-- 第二次按技术栈执行普通、Qt、GTK 或 GStreamer 命令，并且必须保留 `--output appimage`。存在非空 `apprun-hooks` 时，linuxdeploy 输出阶段会把自定义 `AppRun` 保存为 `AppRun.wrapped`，再生成新的顶层 `AppRun` 加载 hooks 并执行 `AppRun.wrapped`。
+- 第二次按技术栈执行普通、Qt、GTK 或 GStreamer 命令，并且必须保留 `--output appimage`。只有当前官方插件自身实际生成非空 `apprun-hooks` 时，linuxdeploy 输出阶段才会把自定义 `AppRun` 保存为 `AppRun.wrapped`，再生成新的顶层 `AppRun` 加载 hooks 并执行 `AppRun.wrapped`；没有 hook 时完整根 `AppRun` 保持为顶层入口。
+- **禁止手工创建、复制、下载、修改或注入任何 linuxdeploy hook；禁止用空 hook、`true` hook、兼容 hook或占位 hook触发包装；禁止因当前插件没有生成 `AppRun.wrapped` 而自行补造或让构建失败。**
 - 不得手工创建或覆盖 `AppRun.wrapped`，也不得在 linuxdeploy 完成后覆盖它生成的顶层 `AppRun`。已经确认最终目录的 AppRun 不再调用自动整理脚本；首次打包或最终目录仍不确定时，可以在第二次 linuxdeploy 完成后、appimagetool 最终封装前调用 `common/linuxdeploy/normalize_apprun_paths.sh`。该脚本只能整理现有路径型 export，不得改写 hook、`exec` 或其他应用逻辑；产物确认后应把正确路径固化回构建脚本，并移除该项目的自动整理调用。
-- linuxdeploy 完成后必须核对最终 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks` 的实际关系及执行链，确认自定义启动逻辑仍位于 `AppRun.wrapped` 并由顶层 `AppRun` 正确调用。
+- linuxdeploy 完成后必须按实际产物核对入口：有官方插件生成的 hook 时核对 `AppRun → AppRun.wrapped` 执行链；没有 hook 时核对完整自定义逻辑仍保留在顶层 `AppRun`。
 - linuxdeploy 输出的 AppImage 只用于完成自身输出阶段，不进入发布目录；最终使用官方 appimagetool 和明确的 Type 2 runtime 对同一个 AppDir 重新封装。
 
 ### quick-sharun / sharun 打包阶段必须使用 Arch Linux

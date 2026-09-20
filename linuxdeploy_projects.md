@@ -9,7 +9,7 @@
 - 用户提供的 PeaZip 与 File Roller AppImage 解包结果；
 - linuxdeploy、linuxdeploy-plugin-qt、linuxdeploy-plugin-gtk 和 Type 2 runtime 的实际行为。
 
-两个样本解包后都确认存在顶层 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks/`。PeaZip 顶层 AppRun 自动加载 `linuxdeploy-plugin-qt-hook.sh`，File Roller 顶层 AppRun 自动加载 `linuxdeploy-plugin-gtk.sh`，随后执行 `AppRun.wrapped`。这证明第二次 linuxdeploy 必须保留 `--output appimage`，让输出阶段完成 hook 与 AppRun 包装。
+历史样本解包后都确认存在顶层 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks/`：当时的 PeaZip 顶层 AppRun 自动加载 `linuxdeploy-plugin-qt-hook.sh`，File Roller 顶层 AppRun 自动加载 `linuxdeploy-plugin-gtk.sh`，随后执行 `AppRun.wrapped`。这些样本证明第二次 linuxdeploy 必须保留 `--output appimage`，但不证明当前每个插件版本都会生成 hook；例如当前官方 Qt 插件会跳过 Qt6 hook。最终结构必须以当前官方工具实际产物为准，禁止为了复刻历史样本手工补 hook。
 
 已经验证稳定的现有项目继续以自身 README 和脚本为稳定基线；不得为了套用本文模板而顺手重写稳定项目。
 
@@ -172,6 +172,9 @@ Qt 应用再按最终 AppDir 的真实内容加入 `usr/plugins`、`usr/qml`、`
 
 ### 第四步：按技术栈执行第二次 linuxdeploy
 
+> [!IMPORTANT]
+> **禁止项目脚本、workflow、公共 helper 或 AI 手工创建、复制、下载、修改或注入任何 linuxdeploy hook。禁止空 hook、`true` hook、兼容 hook和占位 hook；当前官方插件没有生成 hook 时，禁止为了得到 `AppRun.wrapped` 无中生有补 hook，也禁止把缺少 `AppRun.wrapped` 当作构建失败。完整根 `AppDir/AppRun` 在无 hook 时就是最终顶层入口。**
+
 普通应用继续执行：
 
 ```bash
@@ -185,7 +188,7 @@ GTK 3 应用执行：
 # 明确要求 GTK 插件部署 GTK 3
 export DEPLOY_GTK_VERSION=3
 
-# 部署 GTK 资源、生成 hook 并完成 AppRun 包装
+# 部署 GTK 资源并生成中间 AppImage；仅使用官方插件实际生成的 hook
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 ```
 
@@ -197,7 +200,7 @@ Qt 应用先确认 Qt 5 / Qt 6，再把大写 `QMAKE` 指向对应 qmake 的真�
 # 指定 Qt 6 qmake
 export QMAKE=qmake6
 
-# 部署 Qt 6 资源、生成 hook 并完成 AppRun 包装
+# 部署 Qt 6 资源并生成中间 AppImage；不得手工补 hook
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 ```
 
@@ -205,7 +208,7 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 # 指定 Qt 5 qmake
 export QMAKE=qmake
 
-# 部署 Qt 5 资源、生成 hook 并完成 AppRun 包装
+# 部署 Qt 5 资源并生成中间 AppImage；不得手工补 hook
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 ```
 
@@ -240,9 +243,9 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage -
 - 路径变量具体用途见 [`docs/apprun-path-environment.md`](./docs/apprun-path-environment.md)。
 - 已经稳定且本次未涉及的 linuxdeploy 项目不为统一形式批量改写；后续实际修改对应项目时再接入同一行调用。
 
-### 第六步：核对 AppRun 包装结果
+### 第六步：按实际产物核对 AppRun 入口
 
-存在 Qt、GTK、GStreamer 等 hook 时，第二次 linuxdeploy 的标准结果是：
+只有当前官方 Qt、GTK、GStreamer 等插件自身实际生成非空 hook 时，第二次 linuxdeploy 的包装结果才是：
 
 ```text
 AppRun
@@ -255,7 +258,7 @@ AppRun
 - `apprun-hooks/` 保存当前插件实际生成的 hook；
 - 禁止手工创建 `AppRun.wrapped`，也不得覆盖 linuxdeploy 生成的顶层 AppRun；目录尚不确定时只允许上述公共脚本在既有 `AppRun.wrapped` / `AppRun` 中整理路径型 export，已确定项目不做额外后处理。
 
-普通应用没有输入插件时不一定产生 `apprun-hooks` 或 `AppRun.wrapped`，以最终 AppDir 实际结构为准。
+**任何项目和任何技术栈都不得自行创建 `apprun-hooks` 目录或 hook 文件。** 当前官方插件没有生成 hook 时，不产生 `AppRun.wrapped` 是正常的实际结果，第三步写入的完整根 `AppRun` 保持为最终顶层入口；不得补 hook、不得补 `AppRun.wrapped`、不得增加强制检查要求两者存在。
 
 ### 第七步：忽略 linuxdeploy 中间输出，使用 appimagetool 最终封装
 
@@ -312,7 +315,7 @@ GTK plugin 自动生成的 hook 会设置 GTK 数据、schemas、typelib、immod
 - GTK 项目的 `DEPLOY_GTK_VERSION` 与主程序一致；
 - Qt 5 / Qt 6 没有混用；
 - 额外 `-l` 只包含当前应用确实需要且无法自动发现的库；
-- 最终 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks` 执行链正确；
+- 最终入口符合实际产物：有官方插件生成的 hook 时核对 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks` 执行链；没有 hook 时核对完整启动逻辑仍位于顶层 `AppRun`，且仓库没有人工补 hook；
 - 已确定项目的 AppRun 直接包含最终准确路径；未确定项目的公共路径整理脚本只位于第二次 linuxdeploy 与 appimagetool 之间，且只修改路径型 export；
 - linuxdeploy 生成的中间 AppImage没有进入发布目录；
 - 正式资产由 appimagetool + 官方 Type 2 runtime 生成；
@@ -323,8 +326,8 @@ GTK plugin 自动生成的 hook 会设置 GTK 数据、schemas、typelib、immod
 
 首次或目录尚不确定的项目生成正式 AppImage 后，应在仓库外临时目录解包一次成品，再完成以下核对：
 
-- 顶层 `AppRun` 正确加载当前技术栈的 hook，并继续执行 `AppRun.wrapped`；没有 hook 的普通项目按实际结构核对。
-- `AppRun.wrapped` 中每个路径都在最终 AppDir 中真实存在，而且用途与变量一致；不能只凭目录名称判断。
+- 官方插件实际生成 hook 时，顶层 `AppRun` 正确加载 hook 并继续执行 `AppRun.wrapped`；没有 hook 时，无论技术栈，均按实际结构核对完整顶层 `AppRun`，禁止人工补齐包装层。
+- 有 `AppRun.wrapped` 时其中每个路径都在最终 AppDir 中真实存在，而且用途与变量一致；没有 wrapped 时对顶层 `AppRun` 做同样核对，不能只凭目录名称判断。
 - `QT_PLUGIN_PATH` 指向的根目录实际包含 `platforms`、`imageformats`、`platforminputcontexts` 等 Qt plugin 分类目录。应用自己的 `Plugins`、`AddOn`、`UI` 等目录不得仅因名称相似加入 Qt 搜索路径。
 - 应用自带翻译目录由程序自身读取，或已经由 linuxdeploy 以文件、复制项或符号链接接入 `usr/translations` 时，不重复增加无依据路径。
 - 主程序通过最终 `LD_LIBRARY_PATH` 执行 `ldd` 时没有 `not found`。对未被主程序加载的可选组件，必须结合实际用途判断，不能仅凭整个 AppDir 的批量扫描结果改动稳定 AppRun。
