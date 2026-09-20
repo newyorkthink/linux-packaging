@@ -72,3 +72,5 @@ opt/XnConvert/XnConvert # 根 AppRun 直接执行的真实主程序
 2026-09-20 第一次普通 linuxdeploy 进一步集中到 `common/linuxdeploy/initialize_appdir.sh`；XnConvert 构建脚本只保留一行调用。Qt5 环境、AppRun、第二次 linuxdeploy 和尚待成品确认的路径整理调用均未改变。
 
 2026-09-20 清理第一次空 AppDir 初始化：Qt、QMAKE 和 LDAI 变量全部移到第二次 linuxdeploy 前；官方 `usr/bin/xnconvert` 保持 DEB 原样，不再用 `cat` 人工覆盖；公共 APT 调用改为反斜杠分行，依赖内容不变。
+
+2026-09-20 继续删除应用脚本中的通用命令预检查、解包后文件清单检查、desktop 验证和最终文件重复检查；缺少输入时由实际 `sed`、`cp`、linuxdeploy 或 appimagetool 步骤直接失败。APT 参数改为接近正常行宽后再换行，不再每个包独占一行，并删除仅供 desktop 验证使用的 `desktop-file-utils`。

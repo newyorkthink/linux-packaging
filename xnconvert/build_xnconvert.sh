@@ -16,14 +16,6 @@ INTERMEDIATE_APPIMAGE="$SOURCE_DIR/xnconvert-linuxdeploy-intermediate.AppImage"
 DESKTOP_FILE="$APPDIR/usr/share/applications/XnConvert.desktop"
 ICON_FILE="$APPDIR/opt/XnConvert/xnconvert.png"
 
-# 输出明确错误并立即终止构建。
-die() {
-  echo "错误：$*" >&2
-  exit 1
-}
-
-[[ "$(uname -m)" == x86_64 ]] || die "当前仅支持 x86_64"
-
 ###### 准备构建环境 ######
 
 # 只清理并重建当前项目自己的构建目录。
@@ -32,35 +24,13 @@ mkdir -p "$TOOLS_DIR" "$DIST_DIR"
 
 # 通过公共入口安装当前应用明确需要的构建与运行依赖。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" \
-  desktop-file-utils \
-  dpkg \
-  qtchooser \
-  qt5-qmake \
-  qt5-qmake-bin \
-  qtbase5-dev \
-  qtbase5-dev-tools \
-  libqt5svg5 \
-  qttranslations5-l10n \
-  qt5-gtk-platformtheme \
-  qtwayland5 \
-  fcitx5-frontend-qt5 \
-  libfcitx5-qt1 \
-  libxkbcommon-x11-0 \
-  libxcb-icccm4 \
-  libxcb-image0 \
-  libxcb-keysyms1 \
-  libxcb-render-util0 \
-  libxcb-xinerama0 \
-  libxcb-xkb1
-
-# 确认后续构建依赖的基础命令均可用。
-for command_name in desktop-file-validate dpkg-deb find readlink sed sha256sum; do
-  command -v "$command_name" >/dev/null 2>&1 || die "缺少必需命令：$command_name"
-done
+  dpkg qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools libqt5svg5 \
+  qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 fcitx5-frontend-qt5 libfcitx5-qt1 \
+  libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
+  libxcb-xinerama0 libxcb-xkb1
 
 # XnConvert 使用 Qt5，Qt 插件必须使用同一主版本的真实 qmake。
 QT5_BIN_DIR=/usr/lib/qt5/bin
-[[ -x "$QT5_BIN_DIR/qmake" ]] || die "缺少 Qt5 工具：$QT5_BIN_DIR/qmake"
 
 ###### 下载打包工具 ######
 
@@ -75,35 +45,26 @@ QT5_BIN_DIR=/usr/lib/qt5/bin
 ###### 下载并准备 XnConvert ######
 
 # 通过公共入口从官方校验清单取得、校验并记录当前最新稳定版 Linux x64 DEB。
-"$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" "https://download.xnview.com/versions/XnConvert/XnConvert-CHECKSUMS.txt" '^XnConvert-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$DEB" "$DIST_DIR/version.txt"
+"$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" \
+  "https://download.xnview.com/versions/XnConvert/XnConvert-CHECKSUMS.txt" \
+  '^XnConvert-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$DEB" "$DIST_DIR/version.txt"
 
 # 把同一官方 DEB 安装到隔离构建环境供依赖扫描，并按上游布局解压到 AppDir。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB"
 dpkg-deb -x "$DEB" "$APPDIR"
 
-[[ -x "$APPDIR/opt/XnConvert/XnConvert" ]] || die "缺少 XnConvert 主程序"
-[[ -x "$APPDIR/usr/bin/xnconvert" ]] || die "缺少 XnConvert 官方命令入口"
-[[ -f "$DESKTOP_FILE" ]] || die "缺少 XnConvert desktop 文件"
-[[ -f "$ICON_FILE" ]] || die "缺少 XnConvert 图标"
-[[ -f "$APPDIR/opt/XnConvert/lib/platforms/libqxcb.so" ]] || die "缺少 XnConvert 自带 qxcb 插件"
-
 # 官方 desktop 使用绝对图标路径；改成 AppImage 可发现的图标名称。
 sed -i 's|^Icon=.*|Icon=xnconvert|' "$DESKTOP_FILE"
-desktop-file-validate "$DESKTOP_FILE"
 
 ###### 准备 Qt5 运行资源 ######
 
 # 保留已经验证的 Qt5 翻译、XCB 平台库和图标部署方式。
 mkdir -p \
-  "$APPDIR/usr/lib" \
-  "$APPDIR/usr/translations" \
+  "$APPDIR/usr/lib" "$APPDIR/usr/translations" \
   "$APPDIR/usr/share/icons/hicolor/256x256/apps"
-if [[ -d /usr/share/qt5/translations ]]; then
-  cp -a /usr/share/qt5/translations/. "$APPDIR/usr/translations/"
-fi
+cp -a /usr/share/qt5/translations/. "$APPDIR/usr/translations/"
 cp -a "$APPDIR/opt/XnConvert/lib"/libQt5XcbQpa.so* "$APPDIR/usr/lib/"
 cp -a "$ICON_FILE" "$APPDIR/usr/share/icons/hicolor/256x256/apps/xnconvert.png"
-[[ -e "$APPDIR/usr/lib/libQt5XcbQpa.so.5" ]] || die "缺少 Qt5 XCB 平台运行库"
 
 ###### 核心打包 ######
 
@@ -151,11 +112,8 @@ export LD_LIBRARY_PATH="$APPDIR/opt/XnConvert/lib:$APPDIR/opt/XnConvert/Plugins:
 
 # XnConvert 使用 Qt5；第二次 linuxdeploy 部署 Qt 资源并完成 AppRun 包装。
 export ARCH=x86_64; linuxdeploy \
-  --appdir AppDir \
-  --desktop-file "$DESKTOP_FILE" \
-  --icon-file "$ICON_FILE" \
-  --plugin qt \
-  --output appimage
+  --appdir AppDir --desktop-file "$DESKTOP_FILE" --icon-file "$ICON_FILE" \
+  --plugin qt --output appimage
 
 # 新版正式成品尚待用户确认，先按最终 AppDir 整理 AppRun 中的路径型 export。
 "$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
@@ -165,7 +123,6 @@ export ARCH=x86_64; linuxdeploy \
 # 忽略 linuxdeploy 中间 AppImage，使用官方 appimagetool 和 Type 2 runtime
 # 对同一个 AppDir 重新封装正式发布资产。
 "$APPIMAGETOOL" -n "$APPDIR" "$OUTFILE" --runtime-file "$RUNTIME_FILE"
-[[ -s "$OUTFILE" ]] || die "最终 AppImage 未生成"
 chmod +x "$OUTFILE"
 
 # 构建成功后输出正式资产 SHA-256；版本元数据已由公共下载入口写入。
