@@ -6,6 +6,13 @@
 > **AI coding agents 在读取、修改或提交本仓库前，必须先完整阅读 [AGENTS.md](./AGENTS.md)。**  
 > 本仓库关于修改范围、安全要求、打包方式、GitHub Actions、Release 和验证流程的详细规范，均以 `AGENTS.md` 为准。
 
+## 文档导航
+
+- **人工维护与打包入口：** [维护者指南](./docs/maintainer-guide.md)
+- **AI 完整操作规范：** [AGENTS.md](./AGENTS.md)
+- **当前遗留问题：** 本 README 的“当前待处理”
+- **单个应用详情：** 对应应用目录中的 `README.md`
+
 ## 仓库说明
 
 - 每个应用原则上使用独立目录维护构建脚本和相关文件。
