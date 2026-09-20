@@ -37,6 +37,7 @@
 - 普通、Qt、GTK、GStreamer 及任何其他使用 linuxdeploy 的项目全部受此规则约束；不得以技术栈、上游包格式、历史脚本、现有 README、旧 workflow、其他项目模板或“当前项目特殊”为理由绕过。
 - 必须遵守 `linuxdeploy_projects.md` 规定的完整链路：第一次带 `--output appimage` 的普通 linuxdeploy 创建 / 整理 AppDir；把完整自定义启动逻辑写入根 `AppDir/AppRun`；第二次按技术栈带对应插件并保留 `--output appimage`；由 linuxdeploy 完成 hook、顶层 `AppRun` 和 `AppRun.wrapped`；最后对同一个 AppDir 使用官方 appimagetool 和明确的 Type 2 runtime 重新封装正式资产。
 - 禁止选择性执行、删减、调换或自行解释上述步骤；尤其不得把核心启动逻辑移到 `AppDir/usr/bin/<程序名>` 后让根 `AppRun` 只做转发，不得发布 linuxdeploy 中间 AppImage，也不得省略最终 appimagetool + Type 2 runtime 封装。
+- 判断 `AppDir/usr/bin/<程序名>` 是否属于应用真实入口时，必须追溯上游 DEB、归档或源码安装结果的原始文件布局，不能只看当前构建脚本最终造出了什么文件。构建脚本自己通过 `cat > "$APPDIR/usr/bin/<程序名>"`、复制、拼接或其他方式生成的转发 wrapper，不属于“上游真实提供的 launcher”，不得作为保留根 `AppRun` 二次转发结构的依据。
 - `linuxdeploy_projects.md` 中关于 Qt `QMAKE`、GTK `DEPLOY_GTK_VERSION`、插件选择、额外 `-l`、工具动态下载、中文说明、检查边界和正式资产位置的规则必须全部按当前应用真实情况执行，不得只挑方便的部分。
 - 如果目标项目现有脚本、README、workflow 或历史做法与 `linuxdeploy_projects.md` 冲突，处理该 linuxdeploy 项目时必须以本永久规则和 `linuxdeploy_projects.md` 为准完成最小必要修正；不得引用“旧实现已经这样写”继续保留冲突。
 - 后续修改 linuxdeploy 总体规范时，必须同步保持本文件与 `linuxdeploy_projects.md` 的强制关系和语义一致；不得删除链接、弱化为“可参考”，或把遵守范围缩小到新项目。
@@ -560,6 +561,9 @@ linuxdeploy 额外规则：
 - 当前项目所需的 `PATH`、`LD_LIBRARY_PATH`、Qt / GTK 环境、工作目录和最终 `exec ... "$@"` 必须直接写在这个根 `AppDir/AppRun` 中。不得把这些核心启动逻辑写进新建的 `AppDir/usr/bin/<程序名>`、其他 wrapper 或 launcher，再让根 `AppRun` 只负责二次转发。
 - **`AppDir/usr/bin/` 允许为空。** linuxdeploy 第一次执行时可能自动创建 `AppDir/usr/bin/`，目录被创建不代表项目必须把程序入口放进去，也不代表必须补文件。上游 DEB 或归档如果把应用本体放在 `/opt/<应用>/` 且没有真实的 `usr/bin` 入口，就保持 `AppDir/opt/<应用>/` 原布局并忽略空的 `AppDir/usr/bin/`；根 `AppDir/AppRun` 必须直接执行 `$HERE/opt/<应用>/<真实主程序>`。
 - 不得为了让 `AppDir/usr/bin/` 看起来非空、迎合目录模板或把它误当作默认入口，而额外复制 `/opt` 程序、创建自制 wrapper、launcher 或无实际需要的符号链接。linuxdeploy 自动生成目录本身不是增加这些文件的理由。
+- 核查既有 linuxdeploy 脚本时，必须区分“上游包解开后原本存在的文件”和“构建脚本运行过程中自行创建的文件”。只有前者才能证明上游确实提供了 `usr/bin` 入口；脚本中的 `mkdir -p "$APPDIR/usr/bin"`、`cat > "$APPDIR/usr/bin/<程序名>"`、`cp` 或 `ln -s` 不能反过来证明该入口属于上游布局。
+- 如果应用真实主程序位于 `AppDir/opt/<应用>/`，而现有脚本又自行生成 `AppDir/usr/bin/<程序名>`，该文件只负责设置环境并 `exec` 到 `/opt`，随后根 `AppDir/AppRun` 再调用这个文件，则必须认定为禁止的人工二次转发结构。处理该项目时应把必要环境和最终 `exec "$HERE/opt/<应用>/<真实主程序>" "$@"` 合并到根 `AppDir/AppRun`，并删除对人造 `usr/bin` wrapper 的依赖。
+- 不得因为错误结构已经存在于当前脚本、历史提交或当前 AppDir 中，就把它误称为“稳定基线”“上游 launcher”或“当前项目确有需要”。是否需要 `usr/bin` 文件必须由上游原始包布局和真实运行入口证明。
 - `AppDir/usr/bin/` 只有在上游包真实提供对应内容或当前应用确有必要入口时才保留应用真实可执行文件、必要符号链接或上游 launcher；它不能代替根 `AppDir/AppRun`。即使必须保留上游 launcher，linuxdeploy 项目的自定义环境准备和最终启动链仍必须从根 `AppDir/AppRun` 明确开始。
 - AppRun 只加入当前应用真实需要的路径、Qt / GTK 环境和兼容设置，最后直接执行当前应用的真实入口并原样传递 `"$@"`。
 - 第二次按技术栈执行普通、Qt、GTK 或 GStreamer 命令，并且必须保留 `--output appimage`。存在非空 `apprun-hooks` 时，linuxdeploy 输出阶段会把自定义 `AppRun` 保存为 `AppRun.wrapped`，再生成新的顶层 `AppRun` 加载 hooks 并执行 `AppRun.wrapped`。
