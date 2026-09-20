@@ -30,9 +30,9 @@ package_field() {
     {
       package_name = ""; package_version = ""; value = ""
       for (i = 1; i <= NF; i++) {
+        if (index($i, wanted_field ": ") == 1) value = substr($i, length(wanted_field) + 3)
         if ($i ~ /^Package: /) package_name = substr($i, 10)
         else if ($i ~ /^Version: /) package_version = substr($i, 10)
-        else if (index($i, wanted_field ": ") == 1) value = substr($i, length(wanted_field) + 3)
       }
       if (package_name == wanted_package && (wanted_version == "" || package_version == wanted_version)) {
         print value
