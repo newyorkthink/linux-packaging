@@ -61,9 +61,21 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
 
 这一步生成的 AppImage 只是中间产物，不进入发布目录。
 
-### 第二步：写入当前项目自己的 AppRun
+### 第二步：所有 linuxdeploy 项目统一写入根 AppDir/AppRun
 
-第一次 linuxdeploy 完成后，再创建或替换 `AppDir/AppRun`，并赋予执行权限。AppRun 必须使用当前 AppDir 的真实路径，最后执行真正主程序并原样传递 `"$@"`。
+**任何使用 linuxdeploy 的项目，自定义启动入口都必须写在 AppDir 根目录的 `AppDir/AppRun`。这是固定路径，不因普通、Qt、GTK 或 GStreamer 技术栈而改变。**
+
+第一次 linuxdeploy 完成后，如根目录已经存在 linuxdeploy 默认创建的 `AppRun` 或指向 `usr/bin` 的链接，应先删除或替换它；随后把当前项目完整的启动环境、必要工作目录和最终执行命令直接写入 `AppDir/AppRun`，并赋予执行权限。这个根 `AppDir/AppRun` 必须使用当前 AppDir 的真实路径，最后直接执行真正主程序并原样传递 `"$@"`。
+
+禁止把项目自定义启动逻辑写进新建的 `AppDir/usr/bin/<程序名>`、其他 wrapper 或 launcher，再把根 `AppDir/AppRun` 写成只负责调用它的二次转发壳。特别是 `PATH`、`LD_LIBRARY_PATH`、`QT_PLUGIN_PATH`、`XDG_DATA_DIRS`、Qt / GTK 兼容变量和最终 `exec`，都应按当前应用实际需要直接位于根 `AppDir/AppRun`。
+
+`AppDir/usr/bin/` 只用于以下真实运行内容：
+
+- 应用自身的实际可执行文件；
+- 为 desktop 文件 `Exec=` 或第一次 linuxdeploy 扫描准备的必要符号链接；
+- 上游包原本提供且应用运行确实需要的 launcher。
+
+即使当前应用必须保留上游 `usr/bin` launcher，linuxdeploy 项目的自定义入口仍然是根 `AppDir/AppRun`，不得用 `usr/bin` launcher 取代它。第二次 linuxdeploy 产生 hook 时，应由 linuxdeploy 自动把这个根 `AppDir/AppRun` 保存成 `AppRun.wrapped`。
 
 基础结构按实际需要取用：
 
