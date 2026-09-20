@@ -68,9 +68,11 @@
 # Qt 项目追加 qt 参数
 "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "<工具目录>" qt
 
-# 第一次普通 linuxdeploy：在空目录创建并核对 AppDir 基础结构
+# 第一次普通 linuxdeploy：在空目录创建 AppDir 基础结构
 "$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR"
 ```
+
+项目尚未把工具目录加入 `PATH` 时，可把 linuxdeploy 可执行文件作为第二个参数传入；调用仍只保留一行。
 
 `download_file.sh` 统一处理 HTTPS、失败退出、重试、超时、临时文件和可选 SHA-256 校验；`download_latest_checksum_asset.sh` 统一处理官方清单下载、最新版选择、摘要校验、资产下载和版本文件；`install_packages.sh` 统一处理 APT 索引、root / sudo、非交互安装以及公共下载与解析入口所需的基础命令，项目只传应用专用依赖；`initialize_appdir.sh` 统一执行第一次普通 linuxdeploy。`prepare_linuxdeploy_tools.sh` 从各自官方 continuous Release 动态解析 x86_64 资产与 GitHub 官方 digest；GTK 插件没有 Release 资产，因此从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。官方 GTK 插件当前缺少 GIO modules 复制逻辑，公共脚本只在下载文件仍没有 `gio_moduledir` 时应用已验证的最小修复；上游将来加入后自动跳过。以上文件再交给公共下载脚本取得，不固定工具版本。
 

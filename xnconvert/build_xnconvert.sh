@@ -31,7 +31,27 @@ rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
 mkdir -p "$TOOLS_DIR" "$DIST_DIR"
 
 # 通过公共入口安装当前应用明确需要的构建与运行依赖。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" desktop-file-utils dpkg qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools libqt5svg5 qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 fcitx5-frontend-qt5 libfcitx5-qt1 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
+"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+  desktop-file-utils \
+  dpkg \
+  qtchooser \
+  qt5-qmake \
+  qt5-qmake-bin \
+  qtbase5-dev \
+  qtbase5-dev-tools \
+  libqt5svg5 \
+  qttranslations5-l10n \
+  qt5-gtk-platformtheme \
+  qtwayland5 \
+  fcitx5-frontend-qt5 \
+  libfcitx5-qt1 \
+  libxkbcommon-x11-0 \
+  libxcb-icccm4 \
+  libxcb-image0 \
+  libxcb-keysyms1 \
+  libxcb-render-util0 \
+  libxcb-xinerama0 \
+  libxcb-xkb1
 
 # 确认后续构建依赖的基础命令均可用。
 for command_name in desktop-file-validate dpkg-deb find readlink sed sha256sum; do
@@ -49,18 +69,8 @@ QT5_BIN_DIR=/usr/lib/qt5/bin
 
 ###### 初始化 AppDir ######
 
-# 配置 linuxdeploy、Qt5 qmake 和中间输出位置。
-export ARCH=x86_64
-export APPIMAGE_EXTRACT_AND_RUN=1
-export QT_SELECT=qt5
-export PATH="$QT5_BIN_DIR:$TOOLS_DIR:$PATH"
-export QMAKE="$QT5_BIN_DIR/qmake"
-export LDAI_NO_APPSTREAM=1
-export LDAI_OUTPUT="$INTERMEDIATE_APPIMAGE"
-export LDAI_RUNTIME_FILE="$RUNTIME_FILE"
-
-# 通过公共入口运行第一次普通 linuxdeploy，并核对空 AppDir 初始化结果。
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR"
+# 第一次只运行普通 linuxdeploy 创建空 AppDir；此处不配置 Qt 或中间产物。
+"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
 ###### 下载并准备 XnConvert ######
 
@@ -76,18 +86,6 @@ dpkg-deb -x "$DEB" "$APPDIR"
 [[ -f "$DESKTOP_FILE" ]] || die "缺少 XnConvert desktop 文件"
 [[ -f "$ICON_FILE" ]] || die "缺少 XnConvert 图标"
 [[ -f "$APPDIR/opt/XnConvert/lib/platforms/libqxcb.so" ]] || die "缺少 XnConvert 自带 qxcb 插件"
-
-# 官方命令入口原本写死系统 /opt；保留这个真实入口，但统一转入根 AppRun 启动链。
-cat > "$APPDIR/usr/bin/xnconvert" <<'EOF_LAUNCHER'
-#!/usr/bin/env bash
-set -Eeuo pipefail
-
-HERE="$(dirname "$(readlink -f "${0}")")"
-ROOT="$(readlink -f "$HERE/../..")"
-
-exec "$ROOT/AppRun" "$@"
-EOF_LAUNCHER
-chmod +x "$APPDIR/usr/bin/xnconvert"
 
 # 官方 desktop 使用绝对图标路径；改成 AppImage 可发现的图标名称。
 sed -i 's|^Icon=.*|Icon=xnconvert|' "$DESKTOP_FILE"
@@ -108,6 +106,16 @@ cp -a "$ICON_FILE" "$APPDIR/usr/share/icons/hicolor/256x256/apps/xnconvert.png"
 [[ -e "$APPDIR/usr/lib/libQt5XcbQpa.so.5" ]] || die "缺少 Qt5 XCB 平台运行库"
 
 ###### 核心打包 ######
+
+# 这些变量只服务于第二次 Qt linuxdeploy 和后续最终封装。
+export ARCH=x86_64
+export APPIMAGE_EXTRACT_AND_RUN=1
+export QT_SELECT=qt5
+export PATH="$QT5_BIN_DIR:$TOOLS_DIR:$PATH"
+export QMAKE="$QT5_BIN_DIR/qmake"
+export LDAI_NO_APPSTREAM=1
+export LDAI_OUTPUT="$INTERMEDIATE_APPIMAGE"
+export LDAI_RUNTIME_FILE="$RUNTIME_FILE"
 
 # 应用文件进入 AppDir 后，在第二次 linuxdeploy 前写入完整根 AppRun。
 # Qt linuxdeploy 会自动把它保存为 AppRun.wrapped，并生成加载 Qt hook 的顶层 AppRun。
@@ -140,7 +148,6 @@ chmod +x "$APPDIR/AppRun"
 
 # 第二次 linuxdeploy 扫描上游 /opt 布局时，优先使用 XnConvert 自带运行库。
 export LD_LIBRARY_PATH="$APPDIR/opt/XnConvert/lib:$APPDIR/opt/XnConvert/Plugins:$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export QMAKE="$QT5_BIN_DIR/qmake"
 
 # XnConvert 使用 Qt5；第二次 linuxdeploy 部署 Qt 资源并完成 AppRun 包装。
 export ARCH=x86_64; linuxdeploy \

@@ -23,7 +23,7 @@ XnConvert 是 Qt5 应用，官方 DEB 的真实布局同时包含：
 1. 使用公共 APT、校验清单下载和工具准备入口；构建脚本对每次安装或下载只保留一条调用，不自行实现联网、版本选择、摘要校验或包管理器逻辑。
 2. 单行调用 `common/linuxdeploy/initialize_appdir.sh`；公共入口在空目录执行原始普通 linuxdeploy 命令，只创建基础目录。
 3. 下载并校验当前官方 DEB，把同一文件安装到 Ubuntu 构建环境供依赖扫描，并按上游原始布局解压到 AppDir。
-4. 保留官方 `usr/bin/xnconvert` 入口，但把其中写死的系统 `/opt` 改为转入根 AppRun；根 AppRun 始终直接执行 `opt/XnConvert/XnConvert`，不通过 `usr/bin` 二次转发。
+4. 原样保留官方 `usr/bin/xnconvert`，不再人工重写；根 AppRun 始终直接执行 `opt/XnConvert/XnConvert`，不通过 `usr/bin` 二次转发。
 5. 保留已有 Qt5 翻译、XCB 平台库、Fcitx5 / IBus / Compose 输入上下文和图标部署方式。
 6. 第二次执行 Qt linuxdeploy，由它把完整根 AppRun 保存为 `AppRun.wrapped`，并生成加载 Qt hook 的顶层 AppRun。
 7. 第二次 linuxdeploy 后调用 `normalize_apprun_paths.sh`，只按最终 AppDir 中真实存在的目录整理 AppRun 路径型 export。新版正式成品经用户确认正常后，再固化最终 export 并删除这次调用。
@@ -55,7 +55,7 @@ XnConvert 使用自带的 `opt/XnConvert/lib/platforms/libqxcb.so`，`QT_QPA_PLA
 ```text
 AppRun                  # linuxdeploy 生成并加载 Qt hook
 AppRun.wrapped          # 构建脚本预置的完整根启动脚本
-usr/bin/xnconvert       # 官方命令入口，转入根 AppRun
+usr/bin/xnconvert       # 官方 DEB 原始命令入口，保持不改
 opt/XnConvert/XnConvert # 根 AppRun 直接执行的真实主程序
 ```
 
@@ -70,3 +70,5 @@ opt/XnConvert/XnConvert # 根 AppRun 直接执行的真实主程序
 2026-09-20 进一步移除构建脚本中的 APT 权限处理、软件包安装、官方校验清单解析、最新版选择、下载地址拼装、摘要提取和版本文件写入逻辑；这些通用行为分别集中到 `common/apt/install_packages.sh` 与 `common/download/download_latest_checksum_asset.sh`。XnConvert 构建脚本只传入明确依赖、官方清单地址、资产名正则和输出位置，后续通用修复只修改公共实现。迁移后已完成一次完整构建，公共入口、两次 linuxdeploy、AppRun 路径整理和最终 Type 2 AppImage 封装均正常完成。
 
 2026-09-20 第一次普通 linuxdeploy 进一步集中到 `common/linuxdeploy/initialize_appdir.sh`；XnConvert 构建脚本只保留一行调用。Qt5 环境、AppRun、第二次 linuxdeploy 和尚待成品确认的路径整理调用均未改变。
+
+2026-09-20 清理第一次空 AppDir 初始化：Qt、QMAKE 和 LDAI 变量全部移到第二次 linuxdeploy 前；官方 `usr/bin/xnconvert` 保持 DEB 原样，不再用 `cat` 人工覆盖；公共 APT 调用改为反斜杠分行，依赖内容不变。
