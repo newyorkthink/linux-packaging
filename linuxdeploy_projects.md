@@ -6,10 +6,10 @@
 
 - 当前仓库全部 linuxdeploy 构建脚本；
 - 用户本地已经实际使用的两阶段命令；
-- 用户提供的 PeaZip 与 File Roller AppImage 解包结果；
+- 用户提供的历史 Qt 与 GTK AppImage 解包结果；
 - linuxdeploy、linuxdeploy-plugin-qt、linuxdeploy-plugin-gtk 和 Type 2 runtime 的实际行为。
 
-历史样本解包后都确认存在顶层 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks/`：当时的 PeaZip 顶层 AppRun 自动加载 `linuxdeploy-plugin-qt-hook.sh`，File Roller 顶层 AppRun 自动加载 `linuxdeploy-plugin-gtk.sh`，随后执行 `AppRun.wrapped`。这些样本证明第二次 linuxdeploy 必须保留 `--output appimage`，但不证明当前每个插件版本都会生成 hook；例如当前官方 Qt 插件会跳过 Qt6 hook。最终结构必须以当前官方工具实际产物为准，禁止为了复刻历史样本手工补 hook。
+历史 Qt / GTK 样本解包后都确认存在顶层 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks/`，随后执行 `AppRun.wrapped`。这些样本证明第二次 linuxdeploy 必须保留 `--output appimage`，但不证明当前每个插件版本都会生成 hook；例如当前官方 Qt 插件会跳过 Qt6 hook。最终结构必须以当前官方工具实际产物为准，禁止为了复刻历史样本手工补 hook。
 
 已经验证稳定的现有项目继续以自身 README 和脚本为稳定基线；不得为了套用本文模板而顺手重写稳定项目。
 
