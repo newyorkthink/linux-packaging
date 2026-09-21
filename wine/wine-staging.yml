@@ -55,7 +55,7 @@ AppDir:
       - xterm
       - cups-client
       - fontconfig
-      - locales-all
+      - locales
       - fonts-dejavu-core
       - fonts-liberation
       - fonts-wine

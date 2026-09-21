@@ -52,17 +52,17 @@ WINEPREFIX="$HOME/.wine-office" ./wine.AppImage winecfg
 
 ## 简体中文界面环境
 
-AppImage 默认把 Wine/Windows 程序的界面消息语言固定为 `zh_CN.UTF-8`。Jammy `locales-all` 已经提供独立的 `usr/lib/locale/zh_CN.utf8` 数据，wrapper 通过 `LOCPATH=$APPDIR/usr/lib/locale` 使用它；构建阶段同时强校验 `LC_MESSAGES/SYS_LC_MESSAGES` 必须真实存在，因此不依赖目标电脑是否生成中文 locale。
+Wine 的用户 UI locale 来自 Unix `LC_MESSAGES`。AppRun v2 在较新的宿主上会选择宿主 glibc，因此不能把 Jammy `locales-all` 的预编译 locale 二进制直接通过 `LOCPATH` 交给任意新版本 glibc；实机已经出现 `setlocale: LC_MESSAGES: cannot change locale`。
 
-如果宿主导出了 `LC_ALL`，它会按 glibc 规则覆盖单独的 `LC_MESSAGES`。wrapper 现在先把宿主 `LC_ALL` 的当前有效值保留到字符集、日期、数字、排序等其他 locale 分类，再在 AppImage 子进程中取消 `LC_ALL` 并单独设置 `LC_MESSAGES=zh_CN.UTF-8`；因此中文 UI 可以生效，同时日期、数字、排序、字符集和输入法仍保持宿主原来的实际环境。
+现在 AppImage 只携带 Jammy `locales` 包中的 `zh_CN` locale 源文件和 `UTF-8` charmap。首次运行或缓存失效时，wrapper 调用目标电脑自己的 `/usr/bin/localedef`，在 `${XDG_CACHE_HOME:-$HOME/.cache}/appimage-wine/locale/zh_CN.UTF-8` 生成与当前宿主 glibc 匹配的独立 locale；之后直接复用。运行 Wine 时设置 `LANG=zh_CN.UTF-8`、`LC_ALL=zh_CN.UTF-8` 和 `LANGUAGE=zh_CN:zh`，因此 Wine 11.18 的 `zh_CN` 资源能够被正确选择。
 
-同时加入 `fonts-wqy-zenhei` 作为简体中文字体后备；宿主已有更合适的中文字体时，Fontconfig 仍可按正常规则选择。Wine 11.18 自身包含 `zh_CN` 翻译资源，Wine 初始化时会从 `LC_MESSAGES` 解析用户 UI language。
+同时保留 `fonts-wqy-zenhei` 作为简体中文字体后备。这个缓存只保存可再生成的 glibc locale 数据，不是 Wine Prefix、Mono/Gecko 下载缓存，也不会改写 `WINEPREFIX`。
 
 ## NVIDIA X11 的 EGL / GLX 兼容
 
 Wine 11 在 X11 默认使用 EGL，并保留注册表 `HKCU\Software\Wine\X11 Driver\UseEGL=N` 作为官方 GLX fallback。部分 NVIDIA / 异常 EGL 设备环境会在 Wine 初始化 OpenGL context 时出现长时间停顿或失败。
 
-wrapper 只在 **X11 + NVIDIA 驱动已加载 + 当前 Prefix 没有显式全局 `UseEGL` 值** 时写入 `UseEGL=N`，让 Wine 走 GLX；纯 Wayland 不处理。用户已经设置的全局 `UseEGL` 不覆盖，Wine 自己的 `AppDefaults\<程序>\X11 Driver\UseEGL` 应用级设置仍保持更高优先级。这个兼容处理只写 Wine 的图形后端注册表值，不设置或改写 `WINEPREFIX` 路径，也不打包任何宿主 NVIDIA/Mesa 驱动。
+wrapper 只在 **X11 + NVIDIA 驱动已加载 + 已有 Prefix 没有显式全局 `UseEGL` 值** 时设置 `UseEGL=N`，让 Wine 走 GLX；纯 Wayland不处理。上一版通过 `wine reg add` 写值，会在正式启动前额外启动一次 Wine，导致 EGL 初始化的长等待被先执行一遍。现在不再启动 Wine：仅在没有运行中 wineserver 时原子修改已有 Prefix 的 `user.reg`；新 Prefix 不预造注册表文件。用户已有 `UseEGL` 设置不覆盖，应用级 `AppDefaults\<程序>\X11 Driver\UseEGL` 仍由 Wine 按原优先级处理。
 
 ## 多命令与软链接
 
@@ -133,6 +133,7 @@ wine/dist/version.txt
 
 ## 修复记录
 
+- **2026-09-21：修复中文 locale 与 GLX fallback 自身造成的启动延迟。** 实机最新包明确输出 `setlocale: LC_MESSAGES: cannot change locale (zh_CN.UTF-8)`，证明把 Jammy 预编译 locale 通过 `LOCPATH` 直接交给较新宿主 glibc 的方案不可靠；同时上一版为写 `UseEGL=N` 先执行 `wine reg add`，会在真正打开 winecfg 前额外启动一次 Wine，正好重复触发原本要规避的慢初始化。现在改为携带 `locales` 源数据，并由宿主 `localedef` 生成与当前 glibc 匹配的可再生中文 locale 缓存；GLX fallback 则在安全条件满足时直接原子修改已有 Prefix 的 `user.reg`，不再预启动 Wine。构建检查同步改为强校验 `zh_CN` 源文件与 `UTF-8` charmap。
 - **2026-09-21：修复 Wine 11.18 在 NVIDIA X11 上启动约 20 秒并继续修正中文 UI。** 实机新包已不再出现 `wineserver` / FreeType 故障，但 `winecfg` 打开前仍停顿约 20 秒并输出 `wgl:internal_context_create Failed to create internal global context`，且界面继续显示英文。Wine 11 在 X11 默认启用 EGL，同时官方仍支持 `HKCU\Software\Wine\X11 Driver\UseEGL=N` 强制 GLX；Wine Bugzilla 也已有 Wine 11/EGL 初始化异常通过禁用 EGL规避的案例。wrapper 现在仅在 NVIDIA + X11 且当前 Prefix 没有显式全局 `UseEGL` 时写入 `N`，已有设置不覆盖，Wayland 不处理。中文方面确认 glibc 的 `LC_ALL` 优先级高于 `LC_MESSAGES`；现在保留宿主 `LC_ALL` 对其他 locale 分类的实际效果后取消子进程 `LC_ALL`，再固定 `LC_MESSAGES=zh_CN.UTF-8`。构建同时强校验包内 `zh_CN.utf8/LC_MESSAGES/SYS_LC_MESSAGES`，避免再次出现“环境变量已写但 locale 数据不可用”的假修复。
 - **2026-09-21：补齐简体中文 UI locale 与中文字体后备。** FreeType 修复后的实机截图确认 Wine 11.18 `winecfg` 已正常启动且此前 FreeType 缺失提示消失，但界面仍为英文。Wine 11.18 在 `ntdll/unix/env.c` 中从 `LC_MESSAGES` 解析用户 UI language；当前 wrapper 没有提供中文消息 locale。现在加入 Jammy `locales-all` 与 `fonts-wqy-zenhei`，wrapper 设置 `LOCPATH=$APPDIR/usr/lib/locale`、`LC_MESSAGES=zh_CN.UTF-8` 和 `LANGUAGE=zh_CN:zh`。只固定界面消息语言，不改 `LANG`、`LC_ALL`、日期、数字、排序、输入法或 `WINEPREFIX`。新成品仍需实机确认 winecfg 中文显示。
 - **2026-09-21：修复包内 FreeType 已存在但 Wine 仍反复报告找不到 FreeType。** `wineserver` 修复后的实机反馈确认 `winecfg` 已能正常打开，同时终端反复出现 `Wine cannot find the FreeType font library`。对应构建日志确认 `libfreetype6`、`libpng16-16`、`libbrotli1` 和 `zlib1g` 均已同时部署 amd64/i386，因此不是漏装 FreeType。进一步核对 AppImageBuilder v2 源码确认其会把 `libz.so*` 归入 glibc compat runtime；较新的宿主选择 system runtime 后不会把 compat 库目录加入正常搜索路径，而 Wine 的 FreeType 后端通过 `dlopen()` 加载 `libfreetype.so.6`，其 32 位依赖链因此会在 zlib 处失败。现在由 `wine-staging.yml` 的 `after_runtime` 只把已打包的 32/64 位 zlib 恢复到正常 multiarch 库目录，同时保留 compat 中原文件；不复制旧 glibc、不修改 `WINEPREFIX`，也不要求宿主安装额外 32 位字体库。修改依据实机日志、当前成功构建日志和 AppImageBuilder/Wine 源码交叉核对；新成品仍需正常构建后由实机确认该提示消失。

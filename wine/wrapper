@@ -20,26 +20,39 @@ WINESERVER_LAUNCHER="$APPDIR/usr/bin/wineserver-launcher"
 # 先让 Wine 启动绝对 /bin/sh launcher，再由 shell 的 exec 进入 AppRun hook。
 export WINESERVER="$WINESERVER_LAUNCHER"
 
-# 固定 Wine/Windows 程序的界面消息为简体中文；日期、数字、排序和字符集仍沿用宿主设置。
-# LC_ALL 的优先级高于 LC_MESSAGES。若宿主设置了 LC_ALL，先把其当前有效值保留到
-# 其他 locale 分类，再仅覆盖 LC_MESSAGES，避免中文界面被 LC_ALL 强行压回英文。
-if [[ -n "${LC_ALL:-}" ]]; then
-  export LC_CTYPE="$LC_ALL"
-  export LC_NUMERIC="$LC_ALL"
-  export LC_TIME="$LC_ALL"
-  export LC_COLLATE="$LC_ALL"
-  export LC_MONETARY="$LC_ALL"
-  export LC_PAPER="$LC_ALL"
-  export LC_NAME="$LC_ALL"
-  export LC_ADDRESS="$LC_ALL"
-  export LC_TELEPHONE="$LC_ALL"
-  export LC_MEASUREMENT="$LC_ALL"
-  export LC_IDENTIFICATION="$LC_ALL"
-  unset LC_ALL
-fi
-export LOCPATH="$APPDIR/usr/lib/locale"
-export LC_MESSAGES="zh_CN.UTF-8"
-export LANGUAGE="zh_CN:zh"
+# 固定 Wine/Windows 程序的界面消息为简体中文。AppRun 在较新的宿主上会使用宿主 glibc，
+# 因此不能直接把 Jammy 预编译 locale 数据交给宿主 glibc；不同 glibc 版本的 locale
+# 二进制格式可能不兼容。首次运行或缓存失效时，用目标机自己的 localedef 基于包内
+# zh_CN/UTF-8 源数据生成本机兼容的独立 locale，后续直接复用。
+prepare_chinese_locale() {
+  local cache_root locale_dir
+
+  cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/appimage-wine/locale"
+  locale_dir="$cache_root/zh_CN.UTF-8"
+
+  if ! /usr/bin/env -u LD_PRELOAD -u LD_LIBRARY_PATH \
+      LOCPATH="$cache_root" LC_ALL=zh_CN.UTF-8 \
+      /usr/bin/locale charmap >/dev/null 2>&1; then
+    command -v /usr/bin/localedef >/dev/null 2>&1 || {
+      echo '错误：宿主系统缺少 /usr/bin/localedef，无法生成简体中文 locale。' >&2
+      return 1
+    }
+    mkdir -p "$cache_root"
+    rm -rf "$locale_dir"
+    /usr/bin/env -u LD_PRELOAD -u LD_LIBRARY_PATH -u LOCPATH -u LC_ALL -u LC_MESSAGES \
+      /usr/bin/localedef --no-archive \
+      -i "$APPDIR/usr/share/i18n/locales/zh_CN" \
+      -f "$APPDIR/usr/share/i18n/charmaps/UTF-8.gz" \
+      "$locale_dir"
+  fi
+
+  export LOCPATH="$cache_root"
+  export LANG="zh_CN.UTF-8"
+  export LC_ALL="zh_CN.UTF-8"
+  export LANGUAGE="zh_CN:zh"
+}
+
+prepare_chinese_locale
 
 # Wine 11 在 X11 默认使用 EGL。部分 NVIDIA 环境会在 EGL 内部 context 初始化阶段明显卡顿。
 # 仅当当前是 NVIDIA + X11 且用户没有显式 UseEGL 配置时，给该 Prefix 写入 Wine 官方
@@ -57,19 +70,46 @@ has_global_useegl_setting() {
 }
 
 ensure_nvidia_x11_glx_default() {
-  local prefix_dir user_reg
+  local prefix_dir user_reg tmp_file
 
   [[ -n "${DISPLAY:-}" ]] || return 0
   [[ -r /proc/driver/nvidia/version || -d /sys/module/nvidia ]] || return 0
 
   prefix_dir="${WINEPREFIX:-$HOME/.wine}"
   user_reg="$prefix_dir/user.reg"
+  [[ -f "$user_reg" ]] || return 0
   has_global_useegl_setting "$user_reg" && return 0
 
-  "$WINE_BIN" reg add 'HKCU\Software\Wine\X11 Driver' /v UseEGL /t REG_SZ /d N /f     >/dev/null 2>&1 || {
-      echo '警告：无法为当前 Prefix 写入 Wine X11 UseEGL=N，继续使用 Wine 默认图形后端。' >&2
-      return 0
+  # 不再通过 wine reg add 设置该值，否则正式启动前会先额外启动一次 Wine，
+  # 正好把 EGL 初始化的长等待重复执行一遍。仅在没有运行中的 wineserver 时，
+  # 原子修改已有 Prefix 的 user.reg；新 Prefix 首次创建不预造注册表文件。
+  if pgrep -u "$UID" -x 'wineserver|wineserver64' >/dev/null 2>&1; then
+    return 0
+  fi
+
+  tmp_file="$(mktemp "${user_reg}.tmp.XXXXXX")"
+  if ! awk '
+    /^\[Software\\\\Wine\\\\X11 Driver\]/ && !inserted {
+      print
+      print "\"UseEGL\"=\"N\""
+      inserted = 1
+      next
     }
+    { print }
+    END {
+      if (!inserted) {
+        print ""
+        print "[Software\\\\Wine\\\\X11 Driver]"
+        print "\"UseEGL\"=\"N\""
+      }
+    }
+  ' "$user_reg" > "$tmp_file"; then
+    rm -f "$tmp_file"
+    return 0
+  fi
+
+  chmod --reference="$user_reg" "$tmp_file" 2>/dev/null || chmod 0600 "$tmp_file"
+  mv -f "$tmp_file" "$user_reg"
 }
 
 prepare_wine_launch() {
