@@ -44,8 +44,10 @@ fi
 
 # desktop / icon 由 DESKTOP / ICON 环境变量处理，不放进 quick-sharun 参数里。
 # /usr/bin/hostname 先不加；如果实际运行报 hostname 相关错误，再补。
+# CC Switch 托盘通过 dlopen 运行时加载 AppIndicator；显式收集 Ayatana 实现，避免 AppImage 启动时缺少动态库。
 quick-sharun \
   /usr/bin/cc-switch \
+  /usr/lib/libayatana-appindicator3.so.1 \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
 
 quick-sharun --make-appimage
