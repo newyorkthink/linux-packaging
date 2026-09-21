@@ -126,10 +126,11 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 # Qt6 依赖部署完成后，把官方归档后端原样恢复到 PeaZip 资源目录。
 mv "$BACKENDS_DIR" "$PEAZIP_ROOT/res/bin"
 
-# AppRun 已直接把真实程序目录加入 PATH，最终包不再保留 usr/bin/peazip 转发链接。
+# 7-Zip 26.x 会把目标中包含 ".." 的 SquashFS 符号链接视为危险链接并拒绝解压。
+# AppRun 已直接把真实程序目录加入 PATH，因此最终包不再保留 usr/bin/peazip 转发链接。
 rm -f "$APPDIR/usr/bin/peazip"
 
-# res/share 最终使用真实目录副本，保持资源与主程序相邻可达且不依赖跨层级符号链接。
+# res/share 必须继续与主程序相邻可达；最终改为真实目录副本，避免 ../../../share/peazip 被拒绝解压。
 rm -f "$PEAZIP_ROOT/res/share"
 mkdir -p "$PEAZIP_ROOT/res/share"
 cp -a "$APPDIR/usr/share/peazip/." "$PEAZIP_ROOT/res/share/"
