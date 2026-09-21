@@ -20,16 +20,16 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 
 当前固定采用 Ubuntu 24.04 + linuxdeploy + 官方 appimagetool：
 
-1. linuxdeploy、Qt 插件、appimagetool 和 runtime 先通过仓库公共脚本从官方动态入口取得当前版本并校验，不固定工具版本。
+1. 标准 `source`、`AppDir`、`dist`、`source/tools` 工作区与 x86_64 检查统一由 `common/linuxdeploy/prepare_build_workspace.sh` 处理；构建依赖统一通过 `common/apt/install_packages.sh` 安装。linuxdeploy、Qt 插件、appimagetool 和 runtime 继续由公共工具入口从官方动态来源取得并校验，不固定工具版本。
 2. 应用文件进入 AppDir 前，单行调用 `common/linuxdeploy/initialize_appdir.sh`；公共入口执行原始普通 linuxdeploy 命令，只创建基础目录。
-3. 通过仓库公共 GitHub Release 解析脚本动态取得 PeaZip 最新正式稳定版，不锁定具体应用版本；只接受对应版本的官方 Qt6 amd64 DEB，并校验 GitHub Release 提供的 SHA-256 digest。
-4. 核对 DEB 的包名、版本和架构后，把同一个 DEB 安装到隔离构建环境供依赖解析，并把同一个 DEB 解压到 AppDir，禁止安装与解压使用不同版本。
+3. 通过 `common/github/download_latest_stable_release_asset.sh` 动态取得 PeaZip 最新正式稳定版，只接受对应版本的官方 Qt6 amd64 DEB，并在同一公共入口中校验 GitHub Release 提供的 SHA-256 digest。
+4. 核对 DEB 的包名、版本和架构后，通过公共 APT 入口把同一个 DEB 安装到隔离构建环境供依赖解析，再通过 `common/archive/extract_archive.sh` 把同一个 DEB 按上游布局解包到 AppDir，禁止安装与解压使用不同版本。
 5. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。官方要求语言文件使用 UTF-8 BOM，因此只在 `zh-cn.txt` 缺失 BOM 时补入，不改写中文正文。
 6. 使用构建环境已有的 GCC 把仓库内 `peazip_utf8_fix.c` 编译为 `usr/lib/peazip/libpeazip-utf8-fix.so`；不下载额外源码、程序或字体。写入完整根 `AppDir/AppRun`，固化用途正确的路径，并只在启动 PeaZip 主进程时预加载该兼容层；保留 desktop `Exec`、XCB、Adwaita Dark、缩放和字体 DPI 设置。
 7. 当前官方 Qt 插件明确跳过 Qt6 AppRun hook，因此完整根 `AppDir/AppRun` 保持为最终顶层入口；没有 `AppRun.wrapped` 是当前官方工具的真实行为。构建脚本严格禁止创建 `apprun-hooks` 目录或任何 hook 文件，禁止为了复刻旧包结构自行补 hook、`AppRun.wrapped` 或包装层检查。
-8. 官方归档后端在依赖部署前临时移出 AppDir，随后逐字执行已验证的 `--plugin qt --output appimage` 命令，由 linuxdeploy 部署 Qt6 并生成中间 AppImage，完成后再把归档后端原样放回。
-9. Qt 命令只生成 `.work/peazip-intermediate.AppImage`，不发布；不再对已经确定的 AppRun 调用自动路径整理脚本。
-10. 最后由官方 appimagetool 配合单独下载并校验的 `runtime-x86_64` 对同一个 AppDir 封装 `dist/peazip.AppImage`；不会把缺少后端的中间产物交付给用户。
+8. 第二次 linuxdeploy 前由 `common/linuxdeploy/configure_environment.sh` 设置通用环境，PeaZip 只追加 Qt6 `QMAKE` 与 `NO_STRIP`。官方归档后端仍在依赖部署前临时移出 AppDir，随后逐字执行已验证的 `--plugin qt --output appimage` 命令，完成后再把归档后端原样放回。
+9. Qt 命令只生成 `source/peazip-linuxdeploy-intermediate.AppImage`，不发布；不再对已经确定的 AppRun 调用自动路径整理脚本。
+10. 最终由 `common/linuxdeploy/package_appimage.sh` 统一调用官方 appimagetool 和已校验的 `runtime-x86_64` 封装 `dist/peazip.AppImage`，成功后写入 `dist/version.txt` 并输出 SHA-256；不会把缺少后端的中间产物交付给用户。
 
 正式 CI 在 `peazip` 目录中执行，以下已验证命令逐字保留于脚本中；本次按维护者要求保留中间输出，最终发布仍以独立 appimagetool 封装为准：
 
@@ -74,6 +74,13 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - **许可证：** 上游仓库标示 LGPL-3.0，官方 DEB 附带 GPL-3+ 版权说明，允许按对应许可证再分发。
 
 ## 修复记录
+
+### 2026-09-21：复用统一工作区、下载、安装、解包与最终封装入口
+
+- **修改范围：** 仅调整 `peazip/build_peazip.sh` 与本 README；`xnconvert`、`xnviewmp` 只用于核对已经成熟的公共入口复用方式，没有修改。
+- **调整：** 标准工作区与架构检查改由 `prepare_build_workspace.sh` 处理；依赖与同一官方 DEB 的安装改由 `install_packages.sh` 处理；正式 Release 解析、摘要校验和下载合并到 `download_latest_stable_release_asset.sh`；DEB 解包改由 `extract_archive.sh` 处理；第二次 linuxdeploy 的通用环境改由 `configure_environment.sh` 处理；最终 appimagetool 封装、SHA-256 输出和 `version.txt` 写入改由 `package_appimage.sh` 处理。
+- **保持不变：** `peazip_utf8_fix.c`、生成兼容库的 GCC 命令、AppRun 中的 UTF-8 兼容层与显示 / 主题设置、官方归档后端临时移出与恢复逻辑，以及已验证的 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage` 命令均未改写。
+- **检查状态：** 已核对所有公共 helper 的当前接口、PeaZip 原有稳定基线和本次完整修改范围；workflow 未修改。提交后按仓库规则不监控 Actions，因此本次新构建与实机运行结果不在此记录中宣称已验证。
 
 ### 2026-09-21：在 Qt6Pas 字符串边界修复 UTF-8 乱码
 
