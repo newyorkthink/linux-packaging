@@ -43,14 +43,15 @@ ASSET_SHA256="${RELEASE_META[2]}"
 # 下载并校验解析到的同一资产；下载日志写入 stderr。
 "$DOWNLOAD_FILE" "$ASSET_URL" "$OUTPUT" "$ASSET_SHA256" >&2
 
-# 调用方明确传入 DEB 包名和架构时，在公共入口统一核对包名、Release 版本和架构。
+# 调用方明确传入 DEB 包名和架构时，在公共入口统一核对 DEB 身份与目标架构。
+# Release 版本已经由资产名模板和 GitHub digest 绑定；不能假设 DEB Version 必须与 Release tag 完全相同。
 if [[ -n "$EXPECTED_DEB_PACKAGE" ]]; then
-  [[ "$(dpkg-deb -f "$OUTPUT" Package)" == "$EXPECTED_DEB_PACKAGE" ]] || {
-    echo "错误：DEB 包名不符合预期：$OUTPUT" >&2
+  command -v dpkg-deb >/dev/null 2>&1 || {
+    echo "错误：校验 DEB 元数据需要 dpkg-deb。" >&2
     exit 1
   }
-  [[ "$(dpkg-deb -f "$OUTPUT" Version)" == "$VERSION" ]] || {
-    echo "错误：DEB 版本与 Release 版本不一致：$OUTPUT" >&2
+  [[ "$(dpkg-deb -f "$OUTPUT" Package)" == "$EXPECTED_DEB_PACKAGE" ]] || {
+    echo "错误：DEB 包名不符合预期：$OUTPUT" >&2
     exit 1
   }
   [[ "$(dpkg-deb -f "$OUTPUT" Architecture)" == "$EXPECTED_DEB_ARCHITECTURE" ]] || {

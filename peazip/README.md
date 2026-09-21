@@ -22,7 +22,7 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 
 1. 标准 `source`、`AppDir`、`dist`、`source/tools` 工作区与 x86_64 检查统一由 `common/linuxdeploy/prepare_build_workspace.sh` 处理；构建依赖统一通过 `common/apt/install_packages.sh` 安装。linuxdeploy、Qt 插件、appimagetool 和 runtime 继续由公共工具入口从官方动态来源取得并校验，不固定工具版本。
 2. 应用文件进入 AppDir 前，单行调用 `common/linuxdeploy/initialize_appdir.sh`；公共入口执行原始普通 linuxdeploy 命令，只创建基础目录。
-3. 通过 `common/github/download_latest_stable_release_asset.sh` 动态取得 PeaZip 最新正式稳定版；同一公共入口校验 GitHub Release 提供的 SHA-256 digest，并按调用参数统一核对 DEB 包名 `peazip`、Release 版本和 `amd64` 架构。
+3. 通过 `common/github/download_latest_stable_release_asset.sh` 动态取得 PeaZip 最新正式稳定版；同一公共入口通过资产名模板与 GitHub SHA-256 digest 绑定对应 Release，并按调用参数统一核对 DEB 包名 `peazip` 和 `amd64` 架构，不假设 DEB 内部 `Version` 必须与 Release tag 完全相同。
 4. 通过公共 APT 入口把同一个已校验 DEB 安装到隔离构建环境供依赖解析，再通过 `common/archive/extract_archive.sh` 把同一个 DEB 按上游布局解包到 AppDir，禁止安装与解压使用不同版本。
 5. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。官方要求语言文件使用 UTF-8 BOM，因此只在 `zh-cn.txt` 缺失 BOM 时补入，不改写中文正文。
 6. 使用构建环境已有的 GCC 把仓库内 `peazip_utf8_fix.c` 编译为 `usr/lib/peazip/libpeazip-utf8-fix.so`；不下载额外源码、程序或字体。写入完整根 `AppDir/AppRun`，固化用途正确的路径，并只在启动 PeaZip 主进程时预加载该兼容层；保留 desktop `Exec`、XCB、Adwaita Dark、缩放和字体 DPI 设置。
@@ -77,7 +77,7 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 
 ### 2026-09-21：DEB 元数据校验下沉到公共 GitHub Release 入口
 
-- **调整：** PeaZip 构建脚本删除三条 `dpkg-deb -f` 本地判断；包名、Release 版本和架构校验改由 `common/github/download_latest_stable_release_asset.sh` 的可选 DEB 参数统一处理。
+- **调整：** PeaZip 构建脚本删除三条 `dpkg-deb -f` 本地判断；DEB 包名和架构校验改由 `common/github/download_latest_stable_release_asset.sh` 的可选 DEB 参数统一处理。Release 版本继续由正式 Release 解析、资产名模板和 GitHub digest 共同绑定，公共入口不再错误要求 DEB 内部 `Version` 必须与 Release tag 完全相同。
 - **兼容性：** 公共入口不传 DEB 包名和架构时保持原有行为，现有非 DEB 调用不受影响。
 - **保持不变：** UTF-8 兼容层、GCC 命令、AppRun、Qt6 配置、归档后端处理和已验证的第二次 linuxdeploy 命令均未改动。
 
