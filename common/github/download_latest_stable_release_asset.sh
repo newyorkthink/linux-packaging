@@ -14,10 +14,12 @@ EXPECTED_DEB_ARCHITECTURE="${5:-}"
   echo "用法：$0 <owner/repo> '<包含 {version} 的资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
   exit 1
 }
-[[ -z "$EXPECTED_DEB_PACKAGE" == -z "$EXPECTED_DEB_ARCHITECTURE" ]] || {
-  echo "错误：DEB 包名和架构必须同时提供。" >&2
-  exit 1
-}
+if [[ -n "$EXPECTED_DEB_PACKAGE" || -n "$EXPECTED_DEB_ARCHITECTURE" ]]; then
+  [[ -n "$EXPECTED_DEB_PACKAGE" && -n "$EXPECTED_DEB_ARCHITECTURE" ]] || {
+    echo "错误：DEB 包名和架构必须同时提供。" >&2
+    exit 1
+  }
+fi
 [[ -x "$RESOLVER" ]] || {
   echo "错误：稳定 Release 解析入口不存在或不可执行：$RESOLVER" >&2
   exit 1
