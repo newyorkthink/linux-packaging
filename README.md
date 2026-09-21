@@ -10,6 +10,7 @@
 
 - **人工维护与打包入口：** [维护者指南](./docs/maintainer-guide.md)
 - **AI 完整操作规范：** [AGENTS.md](./AGENTS.md)
+- **等待 AI 后续统一处理：** [PENDING_AI_TASKS.md](./PENDING_AI_TASKS.md)
 - **当前遗留问题：** 本 README 的“当前待处理”
 - **单个应用详情：** 对应应用目录中的 `README.md`
 
@@ -28,7 +29,7 @@ GitHub Actions → **Build AppImages** → 在 `script_to_build` 下拉列表选
 
 ## 当前待处理
 
-截至 2026-09-18，以下问题暂时保留，后续继续处理前必须先完整阅读对应目录现有 README / 问题记录；已经解决的构建兼容层和已确认基线不得回退。
+截至 2026-09-21，以下问题暂时保留，后续继续处理前必须先完整阅读对应目录现有 README / 问题记录；PeaZip、Wine、JRiver 与公共代码的统一暂停项另见 [PENDING_AI_TASKS.md](./PENDING_AI_TASKS.md)。已经解决的构建兼容层和已确认基线不得回退。
 
 - `gemini`：2026-09-17 Google Omaha `prod` channel 的 Gemini 1.11.4 已包含 Windows PE 原生 Node 模块 `resources/app.asar.unpacked/src/gemini_native.node`，现有“Windows Electron 产品层 + 官方 Linux Electron runtime”路径不能安全直接移植该模块。当前构建保留原生模块检测，不删除或绕过，并在遇到此类上游版本时通过 Release 资产 ID、Release digest、`software_versions.json` 和实际文件 SHA-256 校验后继续保留最后一次成功构建的 Linux 兼容 `gemini.AppImage`，版本清单仍记录真实兼容版本。1.11.4 的原生模块 Linux 实现仍未解决；在没有来源可靠、ABI 匹配的 Linux 对应实现前不得强行发布。详见 [gemini/README.md](./gemini/README.md)。
 - `runimage/jriver-media-center`：JRiver RunImage 当前仍未解决。Rofi 启动 `mediacenter36` 时存在后台进程但 GUI 不显示；回退到文件选择器实验前的旧构建逻辑后仍然复现，因此不能把根因简单归到 GVFS、`dbus-run-session`、`LD_PRELOAD` 或 launcher 中的单一改动。当前 RunImage 不作为日常使用基线。后续应从此前实际可用产物与当前产物、RunImage 版本、挂载环境、父进程环境、残留进程 / 会话状态等方向做对照；详见 [runimage/jriver-media-center/README.md](./runimage/jriver-media-center/README.md) 与 [TEST_ISSUE.md](./runimage/jriver-media-center/TEST_ISSUE.md)。
