@@ -33,6 +33,9 @@ exec_wine_command() {
     "$command_path" "$@"
 }
 
+# 已知遗留问题（2026-09-21）：当前实机 winecfg 最终可正常显示中文，但从命令执行到窗口出现仍约 30 秒。
+# 这里暂不继续增加启动前探测或修复命令。后续必须先对 uruntime/AppRun/wrapper/wineserver/wineboot/winecfg
+# 分段计时并用 strace/进程时间线定位实际阻塞点；没有证据前不要再叠加 locale、GPU、Prefix 或注册表试探逻辑。
 # Wine 11 在 X11 默认使用 EGL。部分 NVIDIA 环境会在 EGL 内部 context 初始化阶段明显卡顿。
 # 仅当当前是 NVIDIA + X11 且用户没有显式 UseEGL 配置时，给该 Prefix 写入 Wine 官方
 # 支持的 GLX fallback；已有全局或应用级配置仍由 Wine 自己按正常优先级处理。

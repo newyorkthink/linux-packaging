@@ -6,12 +6,48 @@
 
 ## Wine
 
-- 最近一次已经取得的实机结果仍是：Wine GUI 最终可以启动，但启动前有明显延迟，约 **20～30 秒**；`winecfg` 仍未显示简体中文。
-- 在上述实机结果之后，`main` 已新增提交 `5965be944de303afce0b75746c45c9372cb36b6a`（`Fix Wine locale portability and startup delay`），再次调整 locale 与启动延迟处理；**该提交当前尚无新的用户实机确认，不能提前标记为已解决。**
-- [wine/README.md](./wine/README.md) 中 2026-09-21 的“修复记录”包含已经提交的代码调整以及仍待新产物验证的内容；后续必须区分“代码已修改”和“实机已确认”。
-- 后续需要分别验证“启动延迟”和“中文 UI”是否真的解决，同时保留已经修复的 `wineserver` 启动链、FreeType / zlib 依赖链以及现有 Prefix 行为，避免修一个问题时回退另一个已经解决的问题。
-- 在取得新的构建产物与实机证据前，不得把当前 Wine 状态写成“中文已解决”或“启动速度已恢复正常”。
-- 详见 [wine/README.md](./wine/README.md)。
+### 当前实机基线
+
+截至 2026-09-21，用户已经用当前发布的 `wine.AppImage` 实机确认：
+
+- `winecfg` 可以正常打开，GUI 可用；
+- `winecfg` 已显示**简体中文**，中文环境修复完成；
+- 早期的 `wine: could not exec wineserver` 已不再出现；
+- 早期反复出现的 `Wine cannot find the FreeType font library` 已不再出现；
+- 后续出现过的 `setlocale: LC_MESSAGES/LC_ALL: cannot change locale` 已不再出现在最新实机结果中；
+- 早期截图中的 `wgl:internal_context_create Failed to create internal global context` 在最新实机结果中也已不再出现；
+- 默认 Prefix 行为仍保持 Wine 官方语义：wrapper 不设置 `WINEPREFIX`，默认继续使用 `~/.wine`，用户显式传入的 Prefix 原样生效。
+
+### 当前唯一明确遗留问题
+
+- 从终端执行 `./wine.AppImage` 到 `winecfg` 窗口真正出现，实机仍需要约 **30 秒**。
+- 这不是期望的日常启动速度。当前已经停止继续叠加猜测性修复，**暂不再改 Wine 包装代码**。
+- 该问题不能再简单归因于中文 locale、FreeType、`wineserver`、此前的 EGL 报错或“第一次创建 Prefix”；这些方向已经分别处理过，最新实机仍保留约 30 秒延迟。
+
+### 后续重新处理时的固定方法
+
+后续只有在 AI coding 额度和上下文都足够时再继续。开始前必须重新完整阅读 `AGENTS.md`、本文件、`wine/README.md`、`wine/build_wine.sh`、`wine/wine-staging.yml`、`wine/wrapper`、Wine workflow 以及当前上游 Wine/AppRun/AppImageBuilder 行为。
+
+第一步**不是继续改代码**，而是对同一个现有 Prefix 做可重复的分段计时和系统调用/进程时间线采样，至少区分：
+
+1. uruntime / DwarFS 挂载耗时；
+2. AppRun 初始化、runtime 选择和 hook 注入耗时；
+3. wrapper 自身耗时；
+4. `wineserver` / `wineboot` / services 启动与等待耗时；
+5. `winecfg` 进程创建到窗口可见的耗时。
+
+优先使用 `time`、时间戳日志、`strace -f -tt -T`、进程树和必要的 Wine debug channel 做一次完整采样，再根据最长阻塞点决定是否需要处理 AppRun v2、Wine 11.x、Prefix service、DwarFS 或其他具体组件。
+
+**禁止重复的方向：**
+
+- 不得为了启动速度删除或重建用户 `~/.wine`；
+- 不得把宿主 NVIDIA/Mesa 驱动或 ICD 打进 AppImage；
+- 不得重新加入启动前 `wine reg add`、`localedef` 或其他会额外启动 Wine/增加启动阶段工作的逻辑；
+- 不得回退已经实机确认有效的中文 UI、`wineserver-launcher`、FreeType/zlib 修复和 Prefix 语义；
+- 在没有分段计时证据前，不得再把 30 秒延迟归因于某一个组件并直接修改。
+
+详见 [wine/README.md](./wine/README.md)。
+
 
 ## runimage/jriver-media-center
 

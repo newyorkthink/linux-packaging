@@ -6,6 +6,31 @@
 
 这里选择 Ubuntu 22.04（Jammy）作为运行库基线：Wine 本体保持最新 staging，同时比使用 Ubuntu 24.04 运行库有更低的 glibc 门槛。GitHub Actions 的构建 runner 是 Ubuntu 24.04，但包内用户态依赖来自 Jammy。
 
+## 当前实机状态（2026-09-21）
+
+当前发布基线已经由用户实机确认到以下状态：
+
+- `wine.AppImage` 可以正常启动 `winecfg`；
+- `winecfg` **简体中文界面已经修复并确认**；
+- `wine: could not exec wineserver` 已修复；
+- FreeType / zlib 依赖链已修复，早期 `Wine cannot find the FreeType font library` 不再出现；
+- 之前出现过的 `setlocale: LC_MESSAGES/LC_ALL: cannot change locale` 在最新实机结果中不再出现；
+- 之前截图中的 `wgl:internal_context_create Failed to create internal global context` 在最新实机结果中不再出现；
+- wrapper 仍不设置 `WINEPREFIX`，默认 `~/.wine` 与用户自定义 Prefix 行为保持不变。
+
+**当前唯一明确未解决的问题：启动速度。** 从执行 `./wine.AppImage` 到 `winecfg` 窗口出现，实机仍需要约 **30 秒**。这不是预期的日常启动速度，但当前先停止继续试错，等待以后 AI coding 能力/额度和完整上下文更充足时再处理。
+
+### 后续启动延迟排查计划
+
+以后重新处理前，先保持当前能正常运行、中文可用的基线不动。第一轮只做测量，不先改代码：
+
+1. 分别记录 uruntime/DwarFS 挂载、AppRun 初始化、wrapper、`wineserver/wineboot`、`winecfg` 到窗口可见的耗时；
+2. 对同一个现有 Prefix 使用 `strace -f -tt -T` 和进程树确认真正的长等待发生在哪个阶段；
+3. 如果阻塞在 AppRun/runtime，再核对 AppRun v2、相对 ELF interpreter、双架构 hook 和 system/compat runtime；如果阻塞在 Wine 服务，则核对 Wine 11.x 的 server/service/driver 初始化；如果阻塞在挂载，则单独比较 uruntime/DwarFS；
+4. 只有拿到最长阻塞点的直接证据后才修改，不再通过 locale、GPU、注册表或 Prefix 的猜测性调整逐项试错。
+
+后续**不要重复**以下方向：删除/重建 `~/.wine`、打包宿主 GPU 驱动、重新加入启动前 `wine reg add`、重新加入 `localedef/LOCPATH`、回退中文环境、回退 `wineserver-launcher` 或 FreeType/zlib 修复。
+
 ## 包含与不包含的内容
 
 - 同时放入 WineHQ 的 `wine-staging`、`wine-staging-amd64`、`wine-staging-i386`，不是只有 amd64 的缩水包。
@@ -133,11 +158,31 @@ wine/dist/version.txt
 
 ## 修复记录
 
-- **2026-09-21：修复中文环境注入后 winecfg 报“没有那个文件或目录”。** 上一版为了避免 Bash 自身处理无效的 `LC_ALL`，通过宿主 `/usr/bin/env` 最后注入中文环境；但 AppRun v2 会把宿主 env 视为包外目标并恢复包外执行环境，env 随后再执行 AppImage 内 Wine ELF 时已经不在 AppRun hook 的正常 inner-target 链路中，因此实机出现 `env: .../opt/wine-staging/bin/winecfg: 没有那个文件或目录`。现在改用 AppImage 已经打包的 `$APPDIR/usr/bin/env`，它作为包内目标继续由 AppRun 处理；LC_ALL 仍只在最终 Wine 子进程生效，不重新引入 wrapper 的 setlocale 警告或 localedef 启动开销。
-- **2026-09-21：移除启动前 localedef，保留中文并消除 LC_ALL 警告。** 实机新包的 `winecfg` 已经正确显示简体中文，但仍在 wrapper 第 51 行输出 `setlocale: LC_ALL: cannot change locale (zh_CN.UTF-8)`，并且启动约 30 秒。继续对照 Wine 11.18 `ntdll/unix/env.c` 后确认，Wine 在 locale 无效/为 C 时会从 `LC_ALL` 环境变量回退解析 Windows locale；因此不需要先为 Bash/glibc 构造真实中文 locale。现在彻底删除 wrapper 的 `localedef`、`LOCPATH` 与 locale 缓存逻辑，并移除不再需要的 Jammy `locales` 包；只在最终 exec Wine 时通过 `/usr/bin/env` 注入 `LC_ALL=zh_CN.UTF-8`。这样不会让 Bash 自身调用 `setlocale()`，中文 UI 保持不变，同时去掉启动前额外工作。
-- **2026-09-21：修复中文 locale 与 GLX fallback 自身造成的启动延迟。** 实机最新包明确输出 `setlocale: LC_MESSAGES: cannot change locale (zh_CN.UTF-8)`，证明把 Jammy 预编译 locale 通过 `LOCPATH` 直接交给较新宿主 glibc 的方案不可靠；同时上一版为写 `UseEGL=N` 先执行 `wine reg add`，会在真正打开 winecfg 前额外启动一次 Wine，正好重复触发原本要规避的慢初始化。现在改为携带 `locales` 源数据，并由宿主 `localedef` 生成与当前 glibc 匹配的可再生中文 locale 缓存；GLX fallback 则在安全条件满足时直接原子修改已有 Prefix 的 `user.reg`，不再预启动 Wine。构建检查同步改为强校验 `zh_CN` 源文件与 `UTF-8` charmap。
-- **2026-09-21：修复 Wine 11.18 在 NVIDIA X11 上启动约 20 秒并继续修正中文 UI。** 实机新包已不再出现 `wineserver` / FreeType 故障，但 `winecfg` 打开前仍停顿约 20 秒并输出 `wgl:internal_context_create Failed to create internal global context`，且界面继续显示英文。Wine 11 在 X11 默认启用 EGL，同时官方仍支持 `HKCU\Software\Wine\X11 Driver\UseEGL=N` 强制 GLX；Wine Bugzilla 也已有 Wine 11/EGL 初始化异常通过禁用 EGL规避的案例。wrapper 现在仅在 NVIDIA + X11 且当前 Prefix 没有显式全局 `UseEGL` 时写入 `N`，已有设置不覆盖，Wayland 不处理。中文方面确认 glibc 的 `LC_ALL` 优先级高于 `LC_MESSAGES`；现在保留宿主 `LC_ALL` 对其他 locale 分类的实际效果后取消子进程 `LC_ALL`，再固定 `LC_MESSAGES=zh_CN.UTF-8`。构建同时强校验包内 `zh_CN.utf8/LC_MESSAGES/SYS_LC_MESSAGES`，避免再次出现“环境变量已写但 locale 数据不可用”的假修复。
-- **2026-09-21：补齐简体中文 UI locale 与中文字体后备。** FreeType 修复后的实机截图确认 Wine 11.18 `winecfg` 已正常启动且此前 FreeType 缺失提示消失，但界面仍为英文。Wine 11.18 在 `ntdll/unix/env.c` 中从 `LC_MESSAGES` 解析用户 UI language；当前 wrapper 没有提供中文消息 locale。现在加入 Jammy `locales-all` 与 `fonts-wqy-zenhei`，wrapper 设置 `LOCPATH=$APPDIR/usr/lib/locale`、`LC_MESSAGES=zh_CN.UTF-8` 和 `LANGUAGE=zh_CN:zh`。只固定界面消息语言，不改 `LANG`、`LC_ALL`、日期、数字、排序、输入法或 `WINEPREFIX`。新成品仍需实机确认 winecfg 中文显示。
-- **2026-09-21：修复包内 FreeType 已存在但 Wine 仍反复报告找不到 FreeType。** `wineserver` 修复后的实机反馈确认 `winecfg` 已能正常打开，同时终端反复出现 `Wine cannot find the FreeType font library`。对应构建日志确认 `libfreetype6`、`libpng16-16`、`libbrotli1` 和 `zlib1g` 均已同时部署 amd64/i386，因此不是漏装 FreeType。进一步核对 AppImageBuilder v2 源码确认其会把 `libz.so*` 归入 glibc compat runtime；较新的宿主选择 system runtime 后不会把 compat 库目录加入正常搜索路径，而 Wine 的 FreeType 后端通过 `dlopen()` 加载 `libfreetype.so.6`，其 32 位依赖链因此会在 zlib 处失败。现在由 `wine-staging.yml` 的 `after_runtime` 只把已打包的 32/64 位 zlib 恢复到正常 multiarch 库目录，同时保留 compat 中原文件；不复制旧 glibc、不修改 `WINEPREFIX`，也不要求宿主安装额外 32 位字体库。修改依据实机日志、当前成功构建日志和 AppImageBuilder/Wine 源码交叉核对；新成品仍需正常构建后由实机确认该提示消失。
-- **2026-09-21：修复 `wine: could not exec wineserver`。** 用户实机运行当前 `wine.AppImage` 时，Wine 主程序能够启动但内部 `wineserver` 启动失败。Wine 当前源码在 `dlls/ntdll/unix/loader.c` 中通过 `posix_spawn()` 启动 server，而 AppRun v2 的 hook 只覆盖 `exec*` 路径；AppImageBuilder v2 同时会为包内 ELF 设置依赖 runtime 工作目录的相对解释器，因此 Wine 直接 spawn 真实 `wineserver` 时绕过了 AppRun 的运行时切换。现在新增绝对 `/bin/sh` 的 `wineserver-launcher`，由 `after_runtime` 在 AppImageBuilder 完成后放入 AppDir，并由 wrapper 通过 `WINESERVER` 指向它；launcher 随后用正常 `exec` 启动真实 server，使执行重新进入 AppRun hook。未改动默认 `~/.wine`、用户自定义 `WINEPREFIX`、WineHQ 双架构包、Mono/Gecko 或 GPU 驱动策略。源码与配置已按上游 Wine/AppRun 执行路径核对；提交后不监控 Actions，新的构建产物及实机运行结果仍需由本次正常构建确认。
-- **2026-09-20：修复 AppImageBuilder 间接带入 Mesa 驱动后导致构建中止。** 在提交 `5a14f62` 的 Actions 构建中，Wine 11.18、amd64/i386、Mono 11.3.0 和 Gecko 2.47.4 均已下载并通过校验，但 AppImageBuilder 解析 Jammy 通用 GL/Vulkan 装载器的替代依赖时仍部署了 Mesa vendor 文件，最终被封装前的 GPU 驱动检查拦截。`build_wine.sh` 现在会在 AppImageBuilder 完成后精确移除 DRI、特定 VDPAU 驱动、Vulkan ICD、NVIDIA 库及 Mesa EGL/GLX vendor 库，并继续用原检查阻止残留文件进入产物；通用 OpenGL/Vulkan 装载器仍保留。修复已依据该失败日志和脚本静态检查确认，后续 Actions 构建及实机运行尚未验证。
+### 2026-09-21：当前稳定基线
+
+本轮 Wine AppImage 已完成并由实机确认以下修复：
+
+- **wineserver 启动链：** Wine 11.x 通过 `posix_spawn()` 启动 `wineserver`，AppRun v2 不 hook `posix_spawn`。当前使用包内 `wineserver-launcher` 先由绝对 `/bin/sh` 启动，再通过正常 `exec` 回到 AppRun hook 链，实机已不再出现 `wine: could not exec wineserver`。
+- **FreeType / zlib：** AppImageBuilder v2 会把 `libz.so*` 归到 compat runtime；较新宿主选择 system runtime 时，32 位 FreeType 可能因此缺少包内 zlib。当前在 `after_runtime` 只把已打包的 32/64 位 zlib 恢复到正常 multiarch 目录，不复制 compat glibc。实机已不再出现 `Wine cannot find the FreeType font library`。
+- **简体中文：** Wine 原生命令最终通过包内 `$APPDIR/usr/bin/env` 注入 `LC_ALL=zh_CN.UTF-8` 与 `LANGUAGE=zh_CN:zh`，避免 Bash wrapper 自身处理目标机不存在的中文 locale，也避免通过宿主 `/usr/bin/env` 脱离 AppRun inner-target 环境。实机 `winecfg` 已确认显示简体中文。
+- **中文字体：** 保留 `fonts-wqy-zenhei` 作为中文字体后备。
+- **GPU 处理：** AppImage 不打包宿主 Mesa/NVIDIA/AMD 驱动和 Vulkan ICD，只保留通用装载器；目标机 GPU 驱动继续由宿主提供。
+- **Prefix 行为：** wrapper 不设置 `WINEPREFIX`，默认继续使用 `~/.wine`，用户显式传入的 Prefix 原样生效。
+- **EGL/GLX 兼容：** 当前 NVIDIA + X11 兼容逻辑保留；不再通过启动前 `wine reg add` 额外启动一次 Wine。最新实机截图中此前的 `wgl:internal_context_create` 报错已不再出现。
+
+### 仍未解决：启动约 30 秒
+
+当前同一个可正常工作的 AppImage/Prefix，从命令执行到 `winecfg` 窗口出现仍约 **30 秒**。这项问题暂时搁置，不再在本轮继续增加补丁。
+
+以后继续时必须先按本文“后续启动延迟排查计划”做分段计时和 `strace`，再按证据定位；构建成功、静态检查或单个错误消失都不能替代启动时间的实机结果。
+
+### 已经试过且不要直接重复的方向
+
+- 仅把 `LC_MESSAGES` 指向中文；
+- 把 Jammy `locales-all` 的预编译 locale 直接通过 `LOCPATH` 给较新宿主 glibc；
+- 启动前调用宿主 `localedef` 生成 locale 缓存；
+- 通过启动前 `wine reg add` 设置 `UseEGL`；
+- 使用宿主 `/usr/bin/env` 再执行包内 Wine ELF；
+- 把问题简单归因于 GPU、locale 或第一次创建 Prefix，而没有分段计时证据。
+
+这些历史尝试的价值仅用于避免以后重复走弯路；当前代码应以本 README 前面的“当前实机状态”和现有 wrapper/recipe 为准。
