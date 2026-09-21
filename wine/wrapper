@@ -27,7 +27,7 @@ exec_wine_command() {
   local command_path="$1"
   shift
 
-  exec /usr/bin/env \
+  exec "$APPDIR/usr/bin/env" \
     LC_ALL='zh_CN.UTF-8' \
     LANGUAGE='zh_CN:zh' \
     "$command_path" "$@"
