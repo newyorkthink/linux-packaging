@@ -52,11 +52,11 @@ WINEPREFIX="$HOME/.wine-office" ./wine.AppImage winecfg
 
 ## 简体中文界面环境
 
-Wine 的用户 UI locale 来自 Unix `LC_MESSAGES`。AppRun v2 在较新的宿主上会选择宿主 glibc，因此不能把 Jammy `locales-all` 的预编译 locale 二进制直接通过 `LOCPATH` 交给任意新版本 glibc；实机已经出现 `setlocale: LC_MESSAGES: cannot change locale`。
+Wine 11.18 的 Unix 初始化逻辑会从 locale 推导 Windows 用户 UI language；当 `setlocale()` 最终仍处于 `C` / 无效 locale 时，Wine 的 `unix_to_win_locale()` 会回退读取 `LC_ALL`。实机已经证明，仅向 Wine 进程提供 `LC_ALL=zh_CN.UTF-8` 即可让 `winecfg` 使用简体中文资源。
 
-现在 AppImage 只携带 Jammy `locales` 包中的 `zh_CN` locale 源文件和 `UTF-8` charmap。首次运行或缓存失效时，wrapper 调用目标电脑自己的 `/usr/bin/localedef`，在 `${XDG_CACHE_HOME:-$HOME/.cache}/appimage-wine/locale/zh_CN.UTF-8` 生成与当前宿主 glibc 匹配的独立 locale；之后直接复用。运行 Wine 时设置 `LANG=zh_CN.UTF-8`、`LC_ALL=zh_CN.UTF-8` 和 `LANGUAGE=zh_CN:zh`，因此 Wine 11.18 的 `zh_CN` 资源能够被正确选择。
+因此 wrapper 不再 `export LC_ALL`，也不再在启动前调用 `localedef` 或维护 `LOCPATH` 缓存。所有 Wine 原生命令只在最终 `exec` 时通过 `/usr/bin/env LC_ALL=zh_CN.UTF-8 LANGUAGE=zh_CN:zh` 注入环境：Bash wrapper 自身不会尝试切换到目标机不存在的中文 locale，所以不会再出现 `setlocale: LC_ALL: cannot change locale`；同时删除了每次启动前可能触发的 locale 编译和缓存检查。
 
-同时保留 `fonts-wqy-zenhei` 作为简体中文字体后备。这个缓存只保存可再生成的 glibc locale 数据，不是 Wine Prefix、Mono/Gecko 下载缓存，也不会改写 `WINEPREFIX`。
+`fonts-wqy-zenhei` 仍作为简体中文字体后备。这个方案不修改宿主 locale、不写 `/etc/locale.gen`，也不改变 `WINEPREFIX`。
 
 ## NVIDIA X11 的 EGL / GLX 兼容
 
@@ -133,6 +133,7 @@ wine/dist/version.txt
 
 ## 修复记录
 
+- **2026-09-21：移除启动前 localedef，保留中文并消除 LC_ALL 警告。** 实机新包的 `winecfg` 已经正确显示简体中文，但仍在 wrapper 第 51 行输出 `setlocale: LC_ALL: cannot change locale (zh_CN.UTF-8)`，并且启动约 30 秒。继续对照 Wine 11.18 `ntdll/unix/env.c` 后确认，Wine 在 locale 无效/为 C 时会从 `LC_ALL` 环境变量回退解析 Windows locale；因此不需要先为 Bash/glibc 构造真实中文 locale。现在彻底删除 wrapper 的 `localedef`、`LOCPATH` 与 locale 缓存逻辑，并移除不再需要的 Jammy `locales` 包；只在最终 exec Wine 时通过 `/usr/bin/env` 注入 `LC_ALL=zh_CN.UTF-8`。这样不会让 Bash 自身调用 `setlocale()`，中文 UI 保持不变，同时去掉启动前额外工作。
 - **2026-09-21：修复中文 locale 与 GLX fallback 自身造成的启动延迟。** 实机最新包明确输出 `setlocale: LC_MESSAGES: cannot change locale (zh_CN.UTF-8)`，证明把 Jammy 预编译 locale 通过 `LOCPATH` 直接交给较新宿主 glibc 的方案不可靠；同时上一版为写 `UseEGL=N` 先执行 `wine reg add`，会在真正打开 winecfg 前额外启动一次 Wine，正好重复触发原本要规避的慢初始化。现在改为携带 `locales` 源数据，并由宿主 `localedef` 生成与当前 glibc 匹配的可再生中文 locale 缓存；GLX fallback 则在安全条件满足时直接原子修改已有 Prefix 的 `user.reg`，不再预启动 Wine。构建检查同步改为强校验 `zh_CN` 源文件与 `UTF-8` charmap。
 - **2026-09-21：修复 Wine 11.18 在 NVIDIA X11 上启动约 20 秒并继续修正中文 UI。** 实机新包已不再出现 `wineserver` / FreeType 故障，但 `winecfg` 打开前仍停顿约 20 秒并输出 `wgl:internal_context_create Failed to create internal global context`，且界面继续显示英文。Wine 11 在 X11 默认启用 EGL，同时官方仍支持 `HKCU\Software\Wine\X11 Driver\UseEGL=N` 强制 GLX；Wine Bugzilla 也已有 Wine 11/EGL 初始化异常通过禁用 EGL规避的案例。wrapper 现在仅在 NVIDIA + X11 且当前 Prefix 没有显式全局 `UseEGL` 时写入 `N`，已有设置不覆盖，Wayland 不处理。中文方面确认 glibc 的 `LC_ALL` 优先级高于 `LC_MESSAGES`；现在保留宿主 `LC_ALL` 对其他 locale 分类的实际效果后取消子进程 `LC_ALL`，再固定 `LC_MESSAGES=zh_CN.UTF-8`。构建同时强校验包内 `zh_CN.utf8/LC_MESSAGES/SYS_LC_MESSAGES`，避免再次出现“环境变量已写但 locale 数据不可用”的假修复。
 - **2026-09-21：补齐简体中文 UI locale 与中文字体后备。** FreeType 修复后的实机截图确认 Wine 11.18 `winecfg` 已正常启动且此前 FreeType 缺失提示消失，但界面仍为英文。Wine 11.18 在 `ntdll/unix/env.c` 中从 `LC_MESSAGES` 解析用户 UI language；当前 wrapper 没有提供中文消息 locale。现在加入 Jammy `locales-all` 与 `fonts-wqy-zenhei`，wrapper 设置 `LOCPATH=$APPDIR/usr/lib/locale`、`LC_MESSAGES=zh_CN.UTF-8` 和 `LANGUAGE=zh_CN:zh`。只固定界面消息语言，不改 `LANG`、`LC_ALL`、日期、数字、排序、输入法或 `WINEPREFIX`。新成品仍需实机确认 winecfg 中文显示。

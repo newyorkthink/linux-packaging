@@ -20,39 +20,18 @@ WINESERVER_LAUNCHER="$APPDIR/usr/bin/wineserver-launcher"
 # 先让 Wine 启动绝对 /bin/sh launcher，再由 shell 的 exec 进入 AppRun hook。
 export WINESERVER="$WINESERVER_LAUNCHER"
 
-# 固定 Wine/Windows 程序的界面消息为简体中文。AppRun 在较新的宿主上会使用宿主 glibc，
-# 因此不能直接把 Jammy 预编译 locale 数据交给宿主 glibc；不同 glibc 版本的 locale
-# 二进制格式可能不兼容。首次运行或缓存失效时，用目标机自己的 localedef 基于包内
-# zh_CN/UTF-8 源数据生成本机兼容的独立 locale，后续直接复用。
-prepare_chinese_locale() {
-  local cache_root locale_dir
+# Wine 的 Unix locale 解析会在 setlocale() 得到 C/无效 locale 时回退读取 LC_ALL。
+# 不在当前 Bash wrapper 中 export 中文 locale，避免 Bash 自己调用 setlocale() 产生警告；
+# 也不再运行 localedef。只在真正 exec Wine 时通过 env 注入，保持中文 UI 且不增加启动前耗时。
+exec_wine_command() {
+  local command_path="$1"
+  shift
 
-  cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/appimage-wine/locale"
-  locale_dir="$cache_root/zh_CN.UTF-8"
-
-  if ! /usr/bin/env -u LD_PRELOAD -u LD_LIBRARY_PATH \
-      LOCPATH="$cache_root" LC_ALL=zh_CN.UTF-8 \
-      /usr/bin/locale charmap >/dev/null 2>&1; then
-    command -v /usr/bin/localedef >/dev/null 2>&1 || {
-      echo '错误：宿主系统缺少 /usr/bin/localedef，无法生成简体中文 locale。' >&2
-      return 1
-    }
-    mkdir -p "$cache_root"
-    rm -rf "$locale_dir"
-    /usr/bin/env -u LD_PRELOAD -u LD_LIBRARY_PATH -u LOCPATH -u LC_ALL -u LC_MESSAGES \
-      /usr/bin/localedef --no-archive \
-      -i "$APPDIR/usr/share/i18n/locales/zh_CN" \
-      -f "$APPDIR/usr/share/i18n/charmaps/UTF-8.gz" \
-      "$locale_dir"
-  fi
-
-  export LOCPATH="$cache_root"
-  export LANG="zh_CN.UTF-8"
-  export LC_ALL="zh_CN.UTF-8"
-  export LANGUAGE="zh_CN:zh"
+  exec /usr/bin/env \
+    LC_ALL='zh_CN.UTF-8' \
+    LANGUAGE='zh_CN:zh' \
+    "$command_path" "$@"
 }
-
-prepare_chinese_locale
 
 # Wine 11 在 X11 默认使用 EGL。部分 NVIDIA 环境会在 EGL 内部 context 初始化阶段明显卡顿。
 # 仅当当前是 NVIDIA + X11 且用户没有显式 UseEGL 配置时，给该 Prefix 写入 Wine 官方
@@ -140,7 +119,7 @@ run_named_command() {
 
   if [[ -x "$WINE_ROOT/bin/$command_name" ]]; then
     prepare_wine_launch "$command_name" "$@"
-    exec "$WINE_ROOT/bin/$command_name" "$@"
+    exec_wine_command "$WINE_ROOT/bin/$command_name" "$@"
   fi
   if [[ -x "$APPDIR/usr/bin/$command_name" ]]; then
     exec "$APPDIR/usr/bin/$command_name" "$@"
@@ -156,9 +135,9 @@ case "$ENTRY_NAME" in
   wine64)
     prepare_wine_launch wine64 "$@"
     if [[ -x "$WINE_ROOT/bin/wine64" ]]; then
-      exec "$WINE_ROOT/bin/wine64" "$@"
+      exec_wine_command "$WINE_ROOT/bin/wine64" "$@"
     fi
-    exec "$WINE_BIN" "$@"
+    exec_wine_command "$WINE_BIN" "$@"
     ;;
   *)
     if run_named_command "$ENTRY_NAME" "$@"; then
@@ -182,7 +161,7 @@ fi
 # 无参数时打开 winecfg；其余参数按官方 wine CLI 语义传递。
 if (( $# == 0 )); then
   prepare_wine_launch winecfg
-  exec "$WINE_ROOT/bin/winecfg"
+  exec_wine_command "$WINE_ROOT/bin/winecfg"
 fi
 prepare_wine_launch wine "$@"
-exec "$WINE_BIN" "$@"
+exec_wine_command "$WINE_BIN" "$@"

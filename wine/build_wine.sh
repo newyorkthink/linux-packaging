@@ -255,8 +255,6 @@ test -x AppDir/AppRun
 test -x AppDir/opt/wine-staging/bin/wine
 test -x AppDir/opt/wine-staging/bin/wineserver
 test -x AppDir/usr/bin/winetricks
-test -s AppDir/usr/share/i18n/locales/zh_CN
-test -s AppDir/usr/share/i18n/charmaps/UTF-8.gz
 grep -Fq '/opt/wine-staging:$APPDIR/opt/wine-staging' AppDir/AppRun.env
 test -s AppDir/lib/x86_64/libapprun_hooks.so
 test -s AppDir/lib/i386/libapprun_hooks.so
