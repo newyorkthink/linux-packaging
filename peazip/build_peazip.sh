@@ -12,12 +12,6 @@ DEB_FILE="$SOURCE_DIR/peazip.deb"
 PEAZIP_ROOT="$APPDIR/usr/lib/peazip"
 ZH_CN_FILE="$APPDIR/usr/share/peazip/lang/zh-cn.txt"
 
-# 输出错误信息并立即终止构建。
-die() {
-  echo "错误：$*" >&2
-  exit 1
-}
-
 # 通过公共 APT 入口安装 linuxdeploy 基础工具和 PeaZip 明确需要的 Qt6 构建、运行依赖。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" \
   build-essential git wget binutils patchelf appstream-util desktop-file-utils zsync dpkg zstd \
@@ -28,10 +22,6 @@ die() {
 
 # 使用公共脚本动态下载并校验 linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime。
 "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" qt
-
-# Qt 插件必须明确使用 Qt6 的真实 qmake。
-command -v qmake6 >/dev/null 2>&1 || die "缺少 Qt6 qmake。"
-QMAKE6="$(command -v qmake6)"
 
 ###### 初始化 AppDir ######
 
@@ -44,9 +34,9 @@ QMAKE6="$(command -v qmake6)"
 VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" \
   peazip/PeaZip 'peazip_{version}.LINUX.Qt6-1_amd64.deb' "$DEB_FILE")"
 
-[[ "$(dpkg-deb -f "$DEB_FILE" Package)" == peazip ]] || die "官方 DEB 包名异常。"
-[[ "$(dpkg-deb -f "$DEB_FILE" Version)" == "$VERSION" ]] || die "官方 DEB 版本异常。"
-[[ "$(dpkg-deb -f "$DEB_FILE" Architecture)" == amd64 ]] || die "官方 DEB 架构异常。"
+[[ "$(dpkg-deb -f "$DEB_FILE" Package)" == peazip ]]
+[[ "$(dpkg-deb -f "$DEB_FILE" Version)" == "$VERSION" ]]
+[[ "$(dpkg-deb -f "$DEB_FILE" Architecture)" == amd64 ]]
 
 # 把同一个官方 DEB 安装到隔离构建环境，让 linuxdeploy 能解析应用及其依赖。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB_FILE"
@@ -123,7 +113,7 @@ chmod +x "$APPDIR/AppRun"
 # 公共入口设置技术栈无关的 linuxdeploy 环境；Qt6 qmake 与 NO_STRIP 仍由当前项目追加。
 source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" \
   "$TOOLS_DIR" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
-export QMAKE="$QMAKE6"
+export QMAKE=qmake6
 export NO_STRIP=1
 
 # linuxdeploy 会扫描 AppDir 中全部 ELF。官方包内的 32 位旧后端依赖已淘汰的

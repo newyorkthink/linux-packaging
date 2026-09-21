@@ -75,6 +75,12 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 
 ## 修复记录
 
+### 2026-09-21：移除应用脚本中的通用工具预检查
+
+- **问题：** 公共化后仍残留自定义 `die()` 和 `command -v qmake6` 预检查，不符合应用脚本不重复维护通用工具检查的仓库规则。
+- **修正：** 删除 `die()`、`command -v qmake6` 和 `QMAKE6` 临时变量；Qt 部署直接使用 `export QMAKE=qmake6`。DEB 包名、版本和架构仍保留为供应链判断，但依赖 `set -Eeuo pipefail` 直接失败，不再通过自定义错误函数包装。
+- **保持不变：** UTF-8 兼容层、GCC 命令、AppRun、归档后端处理和已验证的第二次 linuxdeploy 命令均未改动。
+
 ### 2026-09-21：复用统一工作区、下载、安装、解包与最终封装入口
 
 - **修改范围：** 仅调整 `peazip/build_peazip.sh` 与本 README；`xnconvert`、`xnviewmp` 只用于核对已经成熟的公共入口复用方式，没有修改。
