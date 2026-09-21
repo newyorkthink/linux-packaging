@@ -21,16 +21,85 @@ WINESERVER_LAUNCHER="$APPDIR/usr/bin/wineserver-launcher"
 export WINESERVER="$WINESERVER_LAUNCHER"
 
 # 固定 Wine/Windows 程序的界面消息为简体中文；日期、数字、排序和字符集仍沿用宿主设置。
-# locales-all 提供随包 zh_CN.UTF-8 数据，LOCPATH 避免宿主未生成中文 locale 时回退到英文。
+# LC_ALL 的优先级高于 LC_MESSAGES。若宿主设置了 LC_ALL，先把其当前有效值保留到
+# 其他 locale 分类，再仅覆盖 LC_MESSAGES，避免中文界面被 LC_ALL 强行压回英文。
+if [[ -n "${LC_ALL:-}" ]]; then
+  export LC_CTYPE="$LC_ALL"
+  export LC_NUMERIC="$LC_ALL"
+  export LC_TIME="$LC_ALL"
+  export LC_COLLATE="$LC_ALL"
+  export LC_MONETARY="$LC_ALL"
+  export LC_PAPER="$LC_ALL"
+  export LC_NAME="$LC_ALL"
+  export LC_ADDRESS="$LC_ALL"
+  export LC_TELEPHONE="$LC_ALL"
+  export LC_MEASUREMENT="$LC_ALL"
+  export LC_IDENTIFICATION="$LC_ALL"
+  unset LC_ALL
+fi
 export LOCPATH="$APPDIR/usr/lib/locale"
 export LC_MESSAGES="zh_CN.UTF-8"
 export LANGUAGE="zh_CN:zh"
+
+# Wine 11 在 X11 默认使用 EGL。部分 NVIDIA 环境会在 EGL 内部 context 初始化阶段明显卡顿。
+# 仅当当前是 NVIDIA + X11 且用户没有显式 UseEGL 配置时，给该 Prefix 写入 Wine 官方
+# 支持的 GLX fallback；已有全局或应用级配置仍由 Wine 自己按正常优先级处理。
+has_global_useegl_setting() {
+  local user_reg="$1"
+  [[ -f "$user_reg" ]] || return 1
+
+  awk '
+    /^\[Software\\\\Wine\\\\X11 Driver\]/ { in_section = 1; next }
+    /^\[/ { in_section = 0 }
+    in_section && /^"UseEGL"=/ { found = 1; exit }
+    END { exit found ? 0 : 1 }
+  ' "$user_reg"
+}
+
+ensure_nvidia_x11_glx_default() {
+  local prefix_dir user_reg
+
+  [[ -n "${DISPLAY:-}" ]] || return 0
+  [[ -r /proc/driver/nvidia/version || -d /sys/module/nvidia ]] || return 0
+
+  prefix_dir="${WINEPREFIX:-$HOME/.wine}"
+  user_reg="$prefix_dir/user.reg"
+  has_global_useegl_setting "$user_reg" && return 0
+
+  "$WINE_BIN" reg add 'HKCU\Software\Wine\X11 Driver' /v UseEGL /t REG_SZ /d N /f     >/dev/null 2>&1 || {
+      echo '警告：无法为当前 Prefix 写入 Wine X11 UseEGL=N，继续使用 Wine 默认图形后端。' >&2
+      return 0
+    }
+}
+
+prepare_wine_launch() {
+  local command_name="$1"
+  shift
+
+  case "$command_name" in
+    wine|wine64)
+      case "${1:-}" in
+        --version|-v|--help|-h)
+          return 0
+          ;;
+      esac
+      ;;
+    winecfg|regedit|wineboot)
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+
+  ensure_nvidia_x11_glx_default
+}
 
 run_named_command() {
   local command_name="$1"
   shift
 
   if [[ -x "$WINE_ROOT/bin/$command_name" ]]; then
+    prepare_wine_launch "$command_name" "$@"
     exec "$WINE_ROOT/bin/$command_name" "$@"
   fi
   if [[ -x "$APPDIR/usr/bin/$command_name" ]]; then
@@ -45,6 +114,7 @@ case "$ENTRY_NAME" in
   wine.AppImage|*.AppImage|AppRun|wrapper)
     ;;
   wine64)
+    prepare_wine_launch wine64 "$@"
     if [[ -x "$WINE_ROOT/bin/wine64" ]]; then
       exec "$WINE_ROOT/bin/wine64" "$@"
     fi
@@ -71,6 +141,8 @@ fi
 
 # 无参数时打开 winecfg；其余参数按官方 wine CLI 语义传递。
 if (( $# == 0 )); then
+  prepare_wine_launch winecfg
   exec "$WINE_ROOT/bin/winecfg"
 fi
+prepare_wine_launch wine "$@"
 exec "$WINE_BIN" "$@"
