@@ -55,9 +55,11 @@ AppDir:
       - xterm
       - cups-client
       - fontconfig
+      - locales-all
       - fonts-dejavu-core
       - fonts-liberation
       - fonts-wine
+      - fonts-wqy-zenhei
 
       # WineHQ staging-amd64/i386 的直接依赖与建议运行库，两个 ABI 都打入。
       - libc6
