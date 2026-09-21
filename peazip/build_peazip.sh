@@ -32,11 +32,7 @@ ZH_CN_FILE="$APPDIR/usr/share/peazip/lang/zh-cn.txt"
 
 # 公共入口选择正式 semver Release、核对唯一 Qt6 amd64 DEB 与 GitHub SHA-256，并下载同一资产。
 VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" \
-  peazip/PeaZip 'peazip_{version}.LINUX.Qt6-1_amd64.deb' "$DEB_FILE")"
-
-[[ "$(dpkg-deb -f "$DEB_FILE" Package)" == peazip ]]
-[[ "$(dpkg-deb -f "$DEB_FILE" Version)" == "$VERSION" ]]
-[[ "$(dpkg-deb -f "$DEB_FILE" Architecture)" == amd64 ]]
+  peazip/PeaZip 'peazip_{version}.LINUX.Qt6-1_amd64.deb' "$DEB_FILE" peazip amd64)"
 
 # 把同一个官方 DEB 安装到隔离构建环境，让 linuxdeploy 能解析应用及其依赖。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB_FILE"
