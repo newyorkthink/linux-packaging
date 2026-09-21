@@ -24,7 +24,7 @@ PeaZip 使用 Free Pascal / Lazarus 构建。本目录选择官方 Qt6 版本，
 2. 应用文件进入 AppDir 前，单行调用 `common/linuxdeploy/initialize_appdir.sh`；公共入口执行原始普通 linuxdeploy 命令，只创建基础目录。
 3. 通过 `common/github/download_latest_stable_release_asset.sh` 动态取得 PeaZip 最新正式稳定版；同一公共入口通过资产名模板与 GitHub SHA-256 digest 绑定对应 Release，并按调用参数统一核对 DEB 包名 `peazip` 和 `amd64` 架构，不假设 DEB 内部 `Version` 必须与 Release tag 完全相同。
 4. 通过公共 APT 入口把同一个已校验 DEB 安装到隔离构建环境供依赖解析，再通过 `common/archive/extract_archive.sh` 把同一个 DEB 按上游布局解包到 AppDir，禁止安装与解压使用不同版本。
-5. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局；仅把系统安装所用的两个绝对符号链接改为 AppImage 内等价相对链接。官方要求语言文件使用 UTF-8 BOM，因此只在 `zh-cn.txt` 缺失 BOM 时补入，不改写中文正文。
+5. 完整保留官方 `/usr/lib/peazip` 与 `/usr/share/peazip` 布局。linuxdeploy 阶段继续使用等价相对链接；最终封装前删除 `usr/bin/peazip` 转发链接，并把 `usr/lib/peazip/res/share` 物化为真实目录副本，避免最终 SquashFS 中出现目标含 `..` 的链接而被 7-Zip 拒绝解压。官方要求语言文件使用 UTF-8 BOM，因此只在 `zh-cn.txt` 缺失 BOM 时补入，不改写中文正文。
 6. 使用构建环境已有的 GCC 把仓库内 `peazip_utf8_fix.c` 编译为 `usr/lib/peazip/libpeazip-utf8-fix.so`；不下载额外源码、程序或字体。写入完整根 `AppDir/AppRun`，固化用途正确的路径，并只在启动 PeaZip 主进程时预加载该兼容层；保留 desktop `Exec`、XCB、Adwaita Dark、缩放和字体 DPI 设置。
 7. 当前官方 Qt 插件明确跳过 Qt6 AppRun hook，因此完整根 `AppDir/AppRun` 保持为最终顶层入口；没有 `AppRun.wrapped` 是当前官方工具的真实行为。构建脚本严格禁止创建 `apprun-hooks` 目录或任何 hook 文件，禁止为了复刻旧包结构自行补 hook、`AppRun.wrapped` 或包装层检查。
 8. 第二次 linuxdeploy 前由 `common/linuxdeploy/configure_environment.sh` 设置通用环境，PeaZip 只追加 Qt6 `QMAKE` 与 `NO_STRIP`。官方归档后端仍在依赖部署前临时移出 AppDir，随后逐字执行已验证的 `--plugin qt --output appimage` 命令，完成后再把归档后端原样放回。
@@ -40,7 +40,7 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 
 ## 运行与兼容说明
 
-- 当前最终启动入口就是完整的顶层 `AppRun`；当前官方 Qt 插件跳过 Qt6 hook，所以不存在 `apprun-hooks` 和 `AppRun.wrapped`。顶层入口保留 desktop `Exec` 解析方式以及已经确认的显示和主题设置，路径型环境变量按最终 AppDir 的真实目录和用途直接固化。
+- 当前最终启动入口就是完整的顶层 `AppRun`；当前官方 Qt 插件跳过 Qt6 hook，所以不存在 `apprun-hooks` 和 `AppRun.wrapped`。顶层入口保留 desktop `Exec` 解析方式以及已经确认的显示和主题设置；`PATH` 额外优先加入真实主程序目录 `usr/lib/peazip`，因此最终包无需依赖 `usr/bin/peazip` 的相对符号链接。
 - `zh-cn.txt` 保持官方中文正文，仅在缺失时补 UTF-8 BOM；不再覆盖 `LANG`、`LANGUAGE`、`LC_ALL` 或 `LC_MESSAGES`。兼容层只在整段 UTF-16 文本能严格还原为有效多字节 UTF-8 时转换，例如 `æ–‡ä»¶` 还原为 `文件`；正确中文、ASCII 和普通拉丁文字原样通过。语言仍由 PeaZip 自身设置管理，不注入会使设置进程主动关闭窗口的 `-peaziplanguage` 参数。
 - `LD_PRELOAD` 只用于 PeaZip 主进程。兼容层加载后立即恢复用户原有值并删除私有变量，PeaZip 启动的 7z 等子进程不会继承该兼容库。
 - 继续保留旧版已实际使用的 XCB、Adwaita Dark、缩放和字体 DPI 环境；同时打包 Qt6 `adwaita.so`，避免只设置主题名却缺少样式插件。
@@ -74,6 +74,13 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - **许可证：** 上游仓库标示 LGPL-3.0，官方 DEB 附带 GPL-3+ 版权说明，允许按对应许可证再分发。
 
 ## 修复记录
+
+### 2026-09-21：修复 PeaZip 解压 AppImage 时的危险符号链接错误
+
+- **旧包实测：** 对 SHA-256 为 `5137a3d3f5ab541a52ddccdfa0ac47b057de09f52598980a2fd47e84b9fee6b7` 的旧 AppImage，直接调用包内 7-Zip 26.00 解压时，明确只拒绝 `usr/bin/peazip -> ../lib/peazip/peazip` 一个目标含 `..` 的链接；旧包的 `usr/lib/peazip/res/share` 仍是绝对链接，没有形成第二个同类错误。
+- **当前回归：** 新脚本把 `res/share` 也改成 `../../../share/peazip`，因此最终 SquashFS 同时存在两条目标含 `..` 的链接，与当前产物解压时出现的两个子项错误一致。
+- **修复：** AppRun 的 `PATH` 直接优先加入 `usr/lib/peazip`，最终封装前删除 `usr/bin/peazip` 链接；同时把 `res/share` 从相对链接改为真实目录副本。PeaZip 仍从真实主程序路径启动，资源仍与主程序相邻可达。
+- **保持不变：** UTF-8 兼容层、GCC 命令、`LD_PRELOAD` 两行、中文处理、主题 / 显示设置、归档后端临时移出与恢复、第二次 linuxdeploy 命令和最终公共 appimagetool 封装均未改动。
 
 ### 2026-09-21：DEB 元数据校验下沉到公共 GitHub Release 入口
 
