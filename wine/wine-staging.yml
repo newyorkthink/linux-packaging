@@ -265,10 +265,30 @@ AppDir:
       - usr/share/bash-completion/**
 
   after_runtime:
-    # Wine 通过 posix_spawn 启动 wineserver，而 AppRun v2 的 exec hook 不覆盖 posix_spawn。
-    # 必须在 runtime 设置完成后再放入 launcher，保留绝对 /bin/sh shebang，
-    # 让 shell 随后通过 AppRun exec hook 启动包内真实 wineserver。
-    - install -m 0755 wineserver-launcher "$TARGET_APPDIR/usr/bin/wineserver-launcher"
+    - |
+      # Wine 通过 posix_spawn 启动 wineserver，而 AppRun v2 的 exec hook 不覆盖 posix_spawn。
+      # 必须在 runtime 设置完成后再放入 launcher，保留绝对 /bin/sh shebang，
+      # 让 shell 随后通过 AppRun exec hook 启动包内真实 wineserver。
+      install -m 0755 wineserver-launcher "$TARGET_APPDIR/usr/bin/wineserver-launcher"
+
+      # AppImageBuilder v2 会把 libz.so* 归入 glibc compat runtime。
+      # 新宿主选择 system runtime 时 compat 不进入库搜索路径，32 位 FreeType 因而无法加载 zlib。
+      # 只把已经打包的 zlib 恢复到正常 multiarch 目录；不复制 compat glibc 或其他运行库。
+      while IFS= read -r library; do
+        case "$(file -Lb "$library")" in
+          ELF\ 32-bit*)
+            target_dir="$TARGET_APPDIR/usr/lib/i386-linux-gnu"
+            ;;
+          ELF\ 64-bit*)
+            target_dir="$TARGET_APPDIR/usr/lib/x86_64-linux-gnu"
+            ;;
+          *)
+            continue
+            ;;
+        esac
+        mkdir -p "$target_dir"
+        cp -a "$library" "$target_dir/"
+      done < <(find "$TARGET_APPDIR/runtime/compat" \( -type f -o -type l \) -name 'libz.so*' -print)
 
   runtime:
     arch: [x86_64, i386]
