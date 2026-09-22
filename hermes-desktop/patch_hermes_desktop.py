@@ -245,6 +245,11 @@ package_path = root / "apps/desktop/package.json"
 package_data = json.loads(package_path.read_text(encoding="utf-8"))
 build_config = package_data.setdefault("build", {})
 build_config["publish"] = None
+after_pack_hook = "scripts/after-pack-appimage.mjs"
+existing_after_pack_hook = build_config.get("afterPack")
+if existing_after_pack_hook not in (None, after_pack_hook):
+    die(f"上游已配置未知 afterPack hook：{existing_after_pack_hook}，停止构建，避免覆盖上游逻辑。")
+build_config["afterPack"] = after_pack_hook
 extra_resources = build_config.setdefault("extraResources", [])
 libsecret_resource = {
     "from": "build/linux-libs/libsecret-1.so.0",
@@ -254,50 +259,34 @@ if libsecret_resource not in extra_resources:
     extra_resources.append(libsecret_resource)
 package_path.write_text(json.dumps(package_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-after_pack_path = root / "apps/desktop/scripts/after-pack.mjs"
-after_pack_text = after_pack_path.read_text(encoding="utf-8")
-rpath_marker = "Hermes standalone Linux AppImage: add the bundled libsecret directory to Electron RUNPATH"
-if rpath_marker not in after_pack_text:
-    import_anchor = "import path from 'node:path'\n"
-    if import_anchor not in after_pack_text:
-        die("无法定位 afterPack import，停止构建，避免错误修改上游源码。")
-    after_pack_text = after_pack_text.replace(
-        import_anchor,
-        "import { execFile } from 'node:child_process'\n"
-        "import path from 'node:path'\n"
-        "import { promisify } from 'node:util'\n",
-        1,
-    )
+after_pack_path = root / "apps/desktop/scripts/after-pack-appimage.mjs"
+after_pack_text = r'''import { execFile } from 'node:child_process'
+import path from 'node:path'
+import { promisify } from 'node:util'
 
-    function_anchor = "export default async function afterPack(context) {\n"
-    if function_anchor not in after_pack_text:
-        die("无法定位 afterPack 函数，停止构建，避免错误修改上游源码。")
+export default async function afterPack(context) {
+  // Hermes standalone Linux AppImage: add the bundled libsecret directory to Electron RUNPATH.
+  // Chromium loads libsecret with dlopen("libsecret-1.so.0"), so selecting
+  // gnome-libsecret alone is insufficient on hosts where the client library is absent.
+  if (context.electronPlatformName === 'linux') {
+    const productName = context.packager?.appInfo?.productFilename || 'Hermes'
+    const executable = path.join(context.appOutDir, productName)
+    const execFileAsync = promisify(execFile)
+    const { stdout } = await execFileAsync('patchelf', ['--print-rpath', executable])
+    const bundledLibsecretRpath = '$ORIGIN/resources/linux-libs'
+    const existingRpath = stdout.trim()
+    const rpathParts = existingRpath ? existingRpath.split(':').filter(Boolean) : []
 
-    rpath_patch = r'''export default async function afterPack(context) {
-// Hermes standalone Linux AppImage: add the bundled libsecret directory to Electron RUNPATH.
-// Chromium loads libsecret with dlopen("libsecret-1.so.0"), so selecting
-// gnome-libsecret alone is insufficient on hosts where the client library is absent.
-if (context.electronPlatformName === 'linux') {
-  const productName = context.packager?.appInfo?.productFilename || 'Hermes'
-  const executable = path.join(context.appOutDir, productName)
-  const execFileAsync = promisify(execFile)
-  const { stdout } = await execFileAsync('patchelf', ['--print-rpath', executable])
-  const bundledLibsecretRpath = '$ORIGIN/resources/linux-libs'
-  const existingRpath = stdout.trim()
-  const rpathParts = existingRpath ? existingRpath.split(':').filter(Boolean) : []
+    if (!rpathParts.includes(bundledLibsecretRpath)) {
+      rpathParts.push(bundledLibsecretRpath)
+      await execFileAsync('patchelf', ['--set-rpath', rpathParts.join(':'), executable])
+    }
 
-  if (!rpathParts.includes(bundledLibsecretRpath)) {
-    rpathParts.push(bundledLibsecretRpath)
-    await execFileAsync('patchelf', ['--set-rpath', rpathParts.join(':'), executable])
+    console.log(`[after-pack] Linux Electron RUNPATH includes ${bundledLibsecretRpath}`)
   }
-
-  console.log(`[after-pack] Linux Electron RUNPATH includes ${bundledLibsecretRpath}`)
-  return
 }
-
 '''
-    after_pack_text = after_pack_text.replace(function_anchor, rpath_patch, 1)
-    after_pack_path.write_text(after_pack_text, encoding="utf-8")
+after_pack_path.write_text(after_pack_text, encoding="utf-8")
 
 checks = [
     (main_path, "Hermes standalone Linux AppImage: detect the Secret Service/KWallet backend directly"),
@@ -308,6 +297,7 @@ checks = [
     (preload_path, "Hermes standalone Linux AppImage: disable source-checkout desktop self-update"),
     (about_path, "Hermes standalone Linux AppImage: hide source-checkout desktop update controls"),
     (package_path, '"publish": null'),
+    (package_path, '"afterPack": "scripts/after-pack-appimage.mjs"'),
     (package_path, '"to": "linux-libs/libsecret-1.so.0"'),
     (after_pack_path, "Hermes standalone Linux AppImage: add the bundled libsecret directory to Electron RUNPATH"),
 ]

@@ -36,6 +36,13 @@
 - 上游 `v2026.9.11` 已在 Desktop i18n 中原生使用机器 locale 作为未保存语言时的回退；当前补丁不再覆盖这段上游逻辑，只校验其仍存在。Desktop update preload bridge 同时兼容当前带 `opts` 的签名和旧版无参数签名。
 - 当前启动日志中的 Fontconfig cache 版本提示、systemd `UnitExists`、IBus surrounding-text 警告以及 Electron deprecated 提示，在上述成功启动和功能验证中均未造成实际故障；不得仅为消除这些非致命日志改动当前稳定打包链。
 
+## 上游兼容修复记录（2026-09-22）
+
+- GitHub Actions Run `35688857294` 的 `Build Hermes Desktop` Job `106632942395` 在上游稳定版更新为 `v2026.9.21` 后失败，实际错误为 `FileNotFoundError: apps/desktop/scripts/after-pack.mjs`。
+- 根因是上游已删除原 `after-pack.mjs`，并将 Windows 可执行文件标记逻辑迁移到 `afterExtract`；旧补丁仍强制读取已经不存在的文件。
+- 当前修复不改动上游 `afterExtract`：补丁脚本改为生成独立的 `scripts/after-pack-appimage.mjs`，通过 electron-builder 的 `afterPack` 配置只负责 Linux Electron RUNPATH 处理，继续保留内置 `libsecret-1.so.0` 方案。
+- 已对 `v2026.9.21` 实际源码执行完整补丁，补丁锚点校验、Python 语法检查、生成的 Node.js hook 语法检查及 diff whitespace 检查均通过；提交时尚未通过新的 GitHub Actions 完整构建和最终 AppImage 运行验证。
+
 ## 构建文件
 
 ```text
