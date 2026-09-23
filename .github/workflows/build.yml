@@ -87,6 +87,7 @@ on:
           - rofi/build_rofi.sh
           - simplescreenrecorder/build_simplescreenrecorder.sh
           - smplayer/build_smplayer.sh
+          - st/build_st.sh
           - stacer/build_stacer.sh
           - stacher/build_stacher.sh
           - sunshine/build_sunshine.sh

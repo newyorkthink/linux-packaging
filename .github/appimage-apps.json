@@ -765,6 +765,18 @@
       "software_key": "xnconvert"
     },
     {
+      "key": "st",
+      "kind": "standard",
+      "name": "st",
+      "script": "st/build_st.sh",
+      "dir": "st",
+      "artifact_dir": "st/dist",
+      "release_name": "st.AppImage",
+      "software_key": "st",
+      "timeout_minutes": 60,
+      "run_from_root": "false"
+    },
+    {
       "key": "stacer",
       "kind": "standard",
       "name": "Stacer",
