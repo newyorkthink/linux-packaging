@@ -626,6 +626,15 @@
       "software_key": "baidunetdisk"
     },
     {
+      "key": "binance",
+      "kind": "special",
+      "name": "Binance",
+      "script": "binance/build_binance.sh",
+      "dir": "binance",
+      "release_name": "binance.AppImage",
+      "software_key": "binance"
+    },
+    {
       "key": "aionui",
       "kind": "standard",
       "name": "AionUi",

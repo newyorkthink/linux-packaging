@@ -22,6 +22,7 @@
 | PeaZip | `peazip/build_peazip.sh` | linuxdeploy + Qt 插件 |
 | XnConvert | `xnconvert/build_xnconvert.sh` | linuxdeploy + Qt 插件 |
 | Joplin | `joplin/build_joplin.sh` | linuxdeploy + GTK 插件 |
+| Binance | `binance/build_binance.sh` | linuxdeploy + GTK 插件 |
 | XnView MP | `xnviewmp/build_xnviewmp.sh` | linuxdeploy + Qt 插件 |
 | Poppler Utils | `poppler-utils/build_poppler-utils.sh` | linuxdeploy |
 | Remmina | `remmina/build_remmina.sh` | linuxdeploy + GTK / GStreamer 插件 |
