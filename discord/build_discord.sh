@@ -15,7 +15,8 @@ DOWNLOAD="$SOURCE/installed"
 ###### 准备构建环境 ######
 # 安装打包工具和官方 Electron 程序需要的图形、声音与证书依赖。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-"$SCRIPT_DIR/../common/arch/install_packages.sh" ca-certificates nss nspr gtk3 libxss libnotify alsa-lib libpulse libx11 libxcomposite libxdamage libxrandr libxcb libxkbcommon libdrm mesa libglvnd at-spi2-core cups dbus xdg-utils fontconfig
+# 安装 GTK3 输入模块，供 AppImage 连接宿主正在运行的 IBus 或 Fcitx5。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" ca-certificates nss nspr gtk3 libxss libnotify alsa-lib libpulse libx11 libxcomposite libxdamage libxrandr libxcb libxkbcommon libdrm mesa libglvnd at-spi2-core cups dbus xdg-utils fontconfig ibus fcitx5-gtk
 
 # 清理 Discord 自己的临时内容，建立官方安装器的隔离下载目录。
 rm -rf -- "$SOURCE" "$APPDIR" "$DIST"
@@ -52,7 +53,17 @@ sed -i -e 's|^Exec=.*|Exec=Discord %U|' -e 's|^Icon=.*|Icon=discord|' "$SOURCE/d
 export ARCH=x86_64 VERSION APPNAME=Discord MAIN_BIN=Discord
 export ICON="$SOURCE/Discord/discord.png" DESKTOP="$SOURCE/discord.desktop"
 export OUTPATH="$DIST" OUTNAME=discord.AppImage NO_STRIP=1 DEPLOY_OPENGL=1
-quick-sharun "$APPDIR/bin/Discord"
+# 将动态加载的 GTK3 输入模块及依赖一起交给 quick-sharun。
+quick-sharun "$APPDIR/bin/Discord" /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
+
+# 在 AppImage 内生成真实的简体中文 UTF-8 locale，并设置中文语言优先级。
+mkdir -p "$APPDIR/lib/locale"
+localedef --no-archive -i zh_CN -f UTF-8 "$APPDIR/lib/locale/zh_CN.utf8"
+cat >> "$APPDIR/.env" <<'LOCALE'
+LANG=zh_CN.UTF-8
+LANGUAGE=zh_CN:zh
+LOCPATH=${SHARUN_DIR}/lib/locale
+LOCALE
 quick-sharun --make-appimage
 
 # 只有完整程序封装成功后，才写入 Release 所用的动态版本。

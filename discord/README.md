@@ -23,3 +23,7 @@
 ## 2026-09-23：同名 Release 资产导致上传失败
 
 Actions 运行 35846090462 已生成 `discord.AppImage`，但上传 `latest` 时因已有 `discord.AppImage`，`gh release upload --clobber` 连续返回 HTTP 422 `ReleaseAsset.name already exists`，重试八次仍失败。现仅在 Discord 的完整程序封装完成后，若 CI 中的 Release 已存在同名资产，先明确删除旧资产，再由现有共享步骤上传新资产；删除失败则停止发布。新一轮上传结果及桌面运行效果待确认。
+
+## 2026-09-23：补充中文输入和中文环境
+
+用户截图显示仍在运行 `1.0.158`，且提示 `1.0.159` 可用；上一次构建虽通过包内版本一致性检查，却在上传 Release 时失败，因此该截图不能证明新构建已替换旧资产。保留已有版本检查与同名资产上传修复，本次只调整 `build_discord.sh`：应用级安装 Arch 的 `ibus`、`fcitx5-gtk`，将两个 GTK3 输入模块明确交给 quick-sharun；生成包内 `zh_CN.UTF-8` locale 并写入 `LANG`、`LANGUAGE`、`LOCPATH`。不覆盖宿主会话选择的输入法，也不更改 Discord 官方资源或启动入口。新产物的版本、中文界面和中文输入仍待实际构建与运行确认。
