@@ -19,9 +19,9 @@ OUTFILE="$SCRIPT_DIR/dist/tradingview.AppImage"
 # 公共入口安装 quick-sharun 构建所需的最小基础工具。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 
-# 依据官方 Electron 程序和 AUR 的 keytar 依赖安装应用级工具与运行库。
+# 安装 TradingView 应用级运行库与 GTK3 输入法模块。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" \
-  squashfs-tools openssl gtk3 nss libsecret libnotify
+  squashfs-tools openssl gtk3 nss libsecret libnotify ibus fcitx5-gtk
 
 ###### 获取官方稳定版 ######
 

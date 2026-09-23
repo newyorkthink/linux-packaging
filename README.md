@@ -29,6 +29,8 @@ GitHub Actions → **Build AppImages** → 在 `script_to_build` 下拉列表选
 
 ## 当前待处理
 
+- `bluemail` / `tradingview`：2026-09-23 实机反馈中文无法输入；旧产物缺 IBus/Fcitx5 GTK3 模块，构建脚本已补模块包。新产物中文输入仍待实机确认，详见 [BlueMail](./bluemail/README.md) 和 [TradingView](./tradingview/README.md)。
+
 截至 2026-09-21，以下问题暂时保留，后续继续处理前必须先完整阅读对应目录现有 README / 问题记录；Wine、JRiver 与公共代码的统一暂停项另见 [PENDING_AI_TASKS.md](./PENDING_AI_TASKS.md)。已经解决的构建兼容层和已确认基线不得回退。
 
 - `wine`：2026-09-21 当前实机基线为：`wine.AppImage` 可以正常启动 `winecfg`，简体中文界面已经确认；此前的 `wine: could not exec wineserver`、FreeType/zlib 加载失败、locale 警告和实机截图中的 `wgl:internal_context_create` 报错均已不再出现。**唯一明确保留的问题是启动仍需约 30 秒，当前暂不继续试错。** 后续有充足 AI coding 额度时，必须先按阶段计时并用 `strace`/进程时间线区分 uruntime 挂载、AppRun、wrapper、wineserver/wineboot、winecfg 各阶段耗时，再根据证据修复；不得继续通过修改 locale、GPU 驱动打包、删除 Prefix 或叠加启动前 Wine 命令来猜测。已确认中文、wineserver、FreeType 和 Prefix 行为不得回退。详见 [wine/README.md](./wine/README.md) 与 [PENDING_AI_TASKS.md](./PENDING_AI_TASKS.md)。

@@ -19,9 +19,10 @@ OUTFILE="$SCRIPT_DIR/dist/bluemail.AppImage"
 # 公共入口安装 quick-sharun 构建所需的最小基础工具。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 
-# 依据 AUR 依赖和官方 Snap 格式安装 BlueMail 所需的应用级工具与运行库。
+# 安装 BlueMail 应用级运行库与 GTK3 输入法模块。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" \
-  squashfs-tools openssl gtk3 nss libnotify libsecret libappindicator libxtst libxss
+  squashfs-tools openssl gtk3 nss libnotify libsecret libappindicator libxtst libxss \
+  ibus fcitx5-gtk
 
 ###### 获取官方稳定版 ######
 
