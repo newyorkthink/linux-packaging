@@ -49,7 +49,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        sudo pacman -Syu --noconfirm github-cli || yay -S --noconfirm github-cli
+        sudo pacman -Syu --noconfirm github-cli jq || yay -S --noconfirm github-cli jq
 
     - name: Build and publish AppImage
       shell: bash
