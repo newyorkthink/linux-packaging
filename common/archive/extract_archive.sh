@@ -24,6 +24,13 @@ case "$ARCHIVE" in
     }
     dpkg-deb -x "$ARCHIVE" "$OUTPUT_DIR"
     ;;
+  *.snap)
+    command -v unsquashfs >/dev/null 2>&1 || {
+      echo "错误：解包 Snap 需要 unsquashfs。" >&2
+      exit 1
+    }
+    unsquashfs -no-progress -d "$OUTPUT_DIR" "$ARCHIVE"
+    ;;
   *.tar | *.tar.gz | *.tgz | *.tar.xz | *.txz | *.tar.bz2 | *.tbz2)
     command -v tar >/dev/null 2>&1 || {
       echo "错误：解包 tar 归档需要 tar。" >&2

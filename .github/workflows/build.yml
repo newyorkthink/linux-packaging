@@ -34,6 +34,7 @@ on:
           - antigravity/build_antigravity.sh
           - baidunetdisk/build_baidunetdisk.sh
           - binance/build_binance.sh
+          - bluemail/build_bluemail.sh
           - cc-switch/build_cc-switch.sh
           - chatgpt/build_chatgpt.sh
           - chromium/build_chromium.sh
@@ -93,6 +94,7 @@ on:
           - stacher/build_stacher.sh
           - sunshine/build_sunshine.sh
           - tencent-docs/build_tencent-docs.sh
+          - tradingview/build_tradingview.sh
           - trae-work/build_trae-work.sh
           - trae/build_trae.sh
           - v2rayn/build_v2rayn.sh

@@ -635,6 +635,30 @@
       "software_key": "binance"
     },
     {
+      "key": "bluemail",
+      "kind": "standard",
+      "name": "BlueMail",
+      "script": "bluemail/build_bluemail.sh",
+      "dir": "bluemail",
+      "artifact_dir": "bluemail/dist",
+      "release_name": "bluemail.AppImage",
+      "software_key": "bluemail",
+      "timeout_minutes": 90,
+      "run_from_root": "false"
+    },
+    {
+      "key": "tradingview",
+      "kind": "standard",
+      "name": "TradingView",
+      "script": "tradingview/build_tradingview.sh",
+      "dir": "tradingview",
+      "artifact_dir": "tradingview/dist",
+      "release_name": "tradingview.AppImage",
+      "software_key": "tradingview",
+      "timeout_minutes": 90,
+      "run_from_root": "false"
+    },
+    {
       "key": "aionui",
       "kind": "standard",
       "name": "AionUi",
