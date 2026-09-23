@@ -137,10 +137,12 @@ quick-sharun 生成的 `AppRun` 就是启动入口。一般情况禁止再创建
 
 quick-sharun 上游生成的默认 `AppRun.sh` 会先按文件名顺序加载 `AppDir/bin/*.hook`，再把主程序放到当前参数最前面并执行。构建脚本不得为了设置环境或追加固定参数而预先创建自己的 `AppRun.sh`。
 
-运行时需要相邻库目录或固定工作目录时，在第一次 `quick-sharun` 之后、`quick-sharun --make-appimage` 之前追加到现有 `.env`；必须使用运行时可解析的 `${SHARUN_DIR}`，并保留 quick-sharun 已经写入的内容：
+运行时需要相邻库目录或固定工作目录时，在第一次 `quick-sharun` 之后、`quick-sharun --make-appimage` 之前追加到现有 `.env`；必须使用运行时可解析的 `${SHARUN_DIR}`，并保留 quick-sharun 已经写入的内容。目录必须来自当前应用的真实布局，禁止把下面的 `shared/bin` 当作所有 quick-sharun 项目的默认路径。
+
+下面仅以 [BlueMail 官方 Snap 布局](./bluemail/build_bluemail.sh)为例：BlueMail 的官方程序、相邻库和 Electron 资源被完整解包到 `AppDir/shared/bin/`，因此两个变量才指向该目录。只有布局相同的应用才能采用这两个值；其他应用必须替换成自己的真实目录，不需要额外库目录或固定工作目录时不得添加这些变量。
 
 ```bash
-# 追加应用运行时环境，保留 quick-sharun 已写入的 .env 内容
+# BlueMail Snap 布局示例：追加运行时环境，保留 quick-sharun 已写入的 .env 内容
 cat >> "$APPDIR/.env" <<'ENV'
 SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/shared/bin:${SHARUN_EXTRA_LIBRARY_PATH}
 SHARUN_WORKING_DIR=${SHARUN_DIR}/shared/bin
