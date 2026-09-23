@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 官方 Linux tar.gz 现在是在线安装器；构建时先让官方安装器取得完整 stable 程序。
+# 官网 Linux tar.gz 只是安装器。完整 stable 程序从官方更新清单的 full.distro 取得。
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,41 +10,57 @@ SOURCE="$SCRIPT_DIR/source"
 APPDIR="$SCRIPT_DIR/AppDir"
 DIST="$SCRIPT_DIR/dist"
 ARCHIVE="$SOURCE/discord-official.tar.gz"
-DOWNLOAD="$SOURCE/installed"
+MANIFEST="$SOURCE/manifest.json"
+DISTRO="$SOURCE/discord.distro"
+HOST="$SOURCE/host"
 
 ###### 准备构建环境 ######
 # 安装打包工具和官方 Electron 程序需要的图形、声音与证书依赖。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 # 安装 GTK3 输入模块，供 AppImage 连接宿主正在运行的 IBus 或 Fcitx5。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" ca-certificates nss nspr gtk3 libxss libnotify alsa-lib libpulse libx11 libxcomposite libxdamage libxrandr libxcb libxkbcommon libdrm mesa libglvnd at-spi2-core cups dbus xdg-utils fontconfig ibus fcitx5-gtk
+"$SCRIPT_DIR/../common/arch/install_packages.sh" ca-certificates nss nspr gtk3 libxss libnotify alsa-lib libpulse libx11 libxcomposite libxdamage libxrandr libxcb libxkbcommon libdrm mesa libglvnd at-spi2-core cups dbus xdg-utils fontconfig ibus fcitx5-gtk brotli
 
-# 清理 Discord 自己的临时内容，建立官方安装器的隔离下载目录。
+# 清理 Discord 自己的临时内容。
 rm -rf -- "$SOURCE" "$APPDIR" "$DIST"
-mkdir -p "$SOURCE" "$DOWNLOAD" "$APPDIR/bin" "$DIST"
+mkdir -p "$SOURCE" "$APPDIR/bin" "$DIST"
 
 ###### 获取官方完整程序 ######
-# 下载 Discord 官网 stable Linux 归档；这个归档本身只有在线安装器。
+# 官网归档只保留桌面入口和图标，不能当作 Discord 程序。
 "$SCRIPT_DIR/../common/download/download_file.sh" 'https://discord.com/api/download?platform=linux&format=tar.gz' "$ARCHIVE"
 "$SCRIPT_DIR/../common/archive/extract_archive.sh" "$ARCHIVE" "$SOURCE"
-[[ -x "$SOURCE/Discord/updater_bootstrap" ]] || { echo '官方归档缺少安装器。' >&2; exit 1; }
-
-# 调用官方 bootstrap 在构建时取得完整 stable 版本，绝不把 2 MB 安装器当作成品。
-APP_DIR="$("$SOURCE/Discord/updater_bootstrap" --no-zenity "$DOWNLOAD" stable https://updates.discord.com/)"
-[[ "$APP_DIR" =~ ^app-[0-9]+([.][0-9]+)+$ ]] || { echo "安装器返回无效目录：$APP_DIR" >&2; exit 1; }
-VERSION="${APP_DIR#app-}"
-[[ -x "$DOWNLOAD/$APP_DIR/Discord" ]] || { echo '官方安装器没有下载完整 Discord 程序。' >&2; exit 1; }
-
-# 官方安装目录名与程序资源内声明的版本可能不同；只有真实程序版本一致才发布。
-BUILD_INFO="$DOWNLOAD/$APP_DIR/resources/build_info.json"
-[[ -f "$BUILD_INFO" ]] || { echo '官方下载内容缺少 build_info.json。' >&2; exit 1; }
-ACTUAL_VERSION="$(jq -er '.version' "$BUILD_INFO")"
-[[ "$ACTUAL_VERSION" == "$VERSION" ]] || {
-  echo "官方更新目录为 $APP_DIR，但包内程序版本是 $ACTUAL_VERSION；停止发布旧版程序。" >&2
+[[ -f "$SOURCE/Discord/discord.desktop" && -f "$SOURCE/Discord/discord.png" ]] || {
+  echo '官方归档缺少桌面入口或图标。' >&2
   exit 1
 }
 
-# 保留官方 Electron 可执行文件、资源和 helper 程序的相对位置。
-cp -a -- "$DOWNLOAD/$APP_DIR"/. "$APPDIR/bin/"
+# 安装器曾把目录叫成 app-1.0.159，包内 build_info.json 却仍是 1.0.158。
+# 不再调用 updater_bootstrap，只使用更新清单指向的完整主程序包。
+"$SCRIPT_DIR/../common/download/download_file.sh" \
+  'https://updates.discord.com/distributions/app/manifests/latest?channel=stable&platform=linux&arch=x64' \
+  "$MANIFEST"
+VERSION="$(jq -er '.full.host_version | map(tostring) | join(".")' "$MANIFEST")"
+DISTRO_URL="$(jq -er '.full.url' "$MANIFEST")"
+DISTRO_SHA="$(jq -er '.full.package_sha256' "$MANIFEST")"
+[[ "$VERSION" =~ ^[0-9]+([.][0-9]+)+$ ]] || { echo "官方清单版本无效：$VERSION" >&2; exit 1; }
+[[ "$DISTRO_URL" == https://*.discordapp.net/distro/app/stable/linux/x64/${VERSION}/full.distro ]] || {
+  echo "官方完整包地址与清单版本不一致：$DISTRO_URL" >&2
+  exit 1
+}
+"$SCRIPT_DIR/../common/download/download_file.sh" "$DISTRO_URL" "$DISTRO" "$DISTRO_SHA"
+
+mkdir -p "$HOST"
+brotli -dc "$DISTRO" | tar -x -C "$HOST"
+[[ -x "$HOST/files/Discord" ]] || { echo '官方完整包缺少 Discord 程序。' >&2; exit 1; }
+BUILD_INFO="$HOST/files/resources/build_info.json"
+[[ -f "$BUILD_INFO" ]] || { echo '官方完整包缺少 build_info.json。' >&2; exit 1; }
+ACTUAL_VERSION="$(jq -er '.version' "$BUILD_INFO")"
+[[ "$ACTUAL_VERSION" == "$VERSION" ]] || {
+  echo "官方清单版本是 $VERSION，但完整包内程序版本是 $ACTUAL_VERSION；停止发布。" >&2
+  exit 1
+}
+echo "Discord 完整包版本：$ACTUAL_VERSION"
+
+cp -a -- "$HOST/files"/. "$APPDIR/bin/"
 install -Dm0644 "$SOURCE/Discord/discord.desktop" "$SOURCE/discord.desktop"
 sed -i -e 's|^Exec=.*|Exec=Discord %U|' -e 's|^Icon=.*|Icon=discord|' "$SOURCE/discord.desktop"
 
