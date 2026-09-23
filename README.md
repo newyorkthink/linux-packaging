@@ -30,6 +30,7 @@ GitHub Actions → **Build AppImages** → 在 `script_to_build` 下拉列表选
 ## 当前待处理
 
 - `bluemail` / `tradingview`：2026-09-23 实机反馈中文无法输入；旧产物缺 IBus/Fcitx5 GTK3 模块，构建脚本已补模块包。新产物中文输入仍待实机确认，详见 [BlueMail](./bluemail/README.md) 和 [TradingView](./tradingview/README.md)。
+- `rustdesk` / `wemeet`：2026-09-23 实机分别报告 `APPRUN ERROR: Unable to open file: (null)` 和缺少 `libwemeet.so`。启动入口已按实际打包方式调整，新产物运行待确认，详见 [RustDesk](./rustdesk/README.md) 和 [腾讯会议](./wemeet/README.md)。
 
 截至 2026-09-21，以下问题暂时保留，后续继续处理前必须先完整阅读对应目录现有 README / 问题记录；Wine、JRiver 与公共代码的统一暂停项另见 [PENDING_AI_TASKS.md](./PENDING_AI_TASKS.md)。已经解决的构建兼容层和已确认基线不得回退。
 
@@ -69,6 +70,8 @@ AppImage 在本机运行时也不会自动生成版本信息。
 6. 写入完成后重新取得正式清单的唯一 Release 资产 ID，并校验资产 digest、下载内容 SHA-256 和当前软件条目；确认正确后立即释放锁，当前 Build 随即结束。
 
 Build 失败、Release 资产上传失败、版本文件无效、Release digest 与本次产物不一致或清单校验失败时，禁止写入错误条目。该架构禁止改回中央 publisher、汇总 Job、轮询 Job 或等待全部 Build 后统一更新的模式。
+
+2026-09-23 BlueMail 与 TradingView 已完成构建，但共享上传入口的 `gh release upload --clobber` 对旧同名资产连续返回 HTTP 422。上传入口现分页查询 `latest` Release，只按当前应用的资产名删除旧资产，再上传新产物；不触碰其他应用资产。修改后的发布结果待确认。
 
 版本发布实现集中在 `.github/actions/publish-software-versions` composite action，但调用者始终是**各自的 Build Job 本身**。
 

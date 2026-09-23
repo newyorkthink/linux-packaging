@@ -10,6 +10,12 @@
 
 用户现有 `runimage/setup_general_env.sh` 没有改动。
 
+上述“新 `AppRun`”方案已被后续 Linux 实机结果否定，见下文记录。
+
 ## 2026-09-23：首次 CI 构建失败
 
 首次 CI 在解包步骤报 `Permission denied`：公共下载入口保存官方 AppImage 时没有执行权限。公共解包脚本在调用官方 `--appimage-extract` 前为下载文件设置可执行位；后续构建结果待确认。
+
+## 2026-09-23：恢复官方 ELF AppRun
+
+Linux 实机运行重封装产物报 `APPRUN ERROR: Unable to open file: (null)`。先前把官方 ELF `AppRun` 移到 `AppRun.official` 并以 shell 脚本转发的方案已被实机否定；ELF 也不能像 shell 脚本一样直接插入环境变量语句。`build_rustdesk.sh` 现原样保留官方 `AppRun`，只重封装官方目录。原来的 tty 误判仍需单独核对；新构建和实机运行尚未验证。

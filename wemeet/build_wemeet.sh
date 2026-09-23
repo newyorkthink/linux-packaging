@@ -37,26 +37,6 @@ install -Dm0644 "$PACKAGE/usr/share/applications/wemeetapp.desktop" "$SOURCE/wem
 # 桌面入口指向 AppImage 内的主程序，图标使用官方 DEB 自带的 PNG。
 sed -i -e 's|^Exec=.*|Exec=wemeetapp %u|' -e 's|^Icon=.*|Icon=wemeet|' "$SOURCE/wemeet.desktop"
 
-# 官方启动器依赖 /opt 绝对路径；便携入口只设置同等目录和插件环境。
-cat > "$APPDIR/AppRun.sh" <<'APPRUN'
-#!/bin/sh
-set -e
-ROOT="$APPDIR/opt/wemeet"
-export PATH="$ROOT/bin${PATH:+:$PATH}"
-export SHARUN_EXTRA_LIBRARY_PATH="$ROOT/lib${SHARUN_EXTRA_LIBRARY_PATH:+:$SHARUN_EXTRA_LIBRARY_PATH}"
-export SHARUN_WORKING_DIR="$ROOT"
-export SHARUN_ALLOW_QT_PLUGIN_PATH=1
-export QT_PLUGIN_PATH="$ROOT/plugins"
-export QT_QPA_PLATFORM_PLUGIN_PATH="$ROOT/plugins/platforms"
-if [ "${XDG_SESSION_TYPE:-}" = wayland ] && [ ! -f /opt/x11-wayland/x11-ext.sh ]; then
-  export QT_QPA_PLATFORM=xcb
-  export WEMEET_XWAYLAND=1
-fi
-cd "$ROOT"
-exec "$ROOT/bin/wemeetapp" "$@"
-APPRUN
-chmod 0755 "$APPDIR/AppRun.sh"
-
 ###### 封装正式资产 ######
 # quick-sharun 按主程序 ELF 收集外部运行库，保留腾讯自带的 Qt 库和资源布局。
 export ARCH=x86_64 VERSION APPNAME='Tencent Meeting' MAIN_BIN=wemeetapp
@@ -64,6 +44,15 @@ export ICON="$SOURCE/wemeet.png" DESKTOP="$SOURCE/wemeet.desktop"
 export OUTPATH="$DIST" OUTNAME=wemeet.AppImage NO_STRIP=1
 export DEPLOY_OPENGL=1 DEPLOY_PIPEWIRE=1
 LD_LIBRARY_PATH="$APPDIR/opt/wemeet/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun "$APPDIR/opt/wemeet/bin/wemeetapp"
+
+# 由 sharun 原生 AppRun 启动包装器；私有库和 Qt 插件保持官方 DEB 的相对目录。
+cat > "$APPDIR/.env" <<'ENV'
+SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/opt/wemeet/lib
+SHARUN_WORKING_DIR=${SHARUN_DIR}/opt/wemeet
+SHARUN_ALLOW_QT_PLUGIN_PATH=1
+QT_PLUGIN_PATH=${SHARUN_DIR}/opt/wemeet/plugins
+QT_QPA_PLATFORM_PLUGIN_PATH=${SHARUN_DIR}/opt/wemeet/plugins/platforms
+ENV
 quick-sharun --make-appimage
 
 # 成品存在时记录官网实际版本，供统一 Release 版本清单读取。
