@@ -8,9 +8,9 @@
 
 - `common/snap/download_stable_snap.sh` 从 Snap Store 读取当前稳定版，核对发布者、架构和官方 SHA3-384，再下载 Snap。
 - `common/archive/extract_archive.sh` 解包 Snap。构建脚本保留 TradingView 自带的 Electron/Chromium 程序、相邻库和资源，去掉 Snap 专用宿主运行时目录。
-- Arch Linux 容器中的 quick-sharun 收集主程序及 `keytar.node` 所需的 `libsecret`，生成默认入口；`AppDir/.env` 提供相邻库目录和工作目录，`90-tradingview-arguments.hook` 保留官方 Snap 使用的 `--no-sandbox` 参数。桌面图标与 desktop 文件来自同一 Snap。
+- Arch Linux 容器中的 quick-sharun 收集主程序及 `keytar.node` 所需的 `libsecret`，生成默认入口。构建脚本把需要保持相邻关系的官方 Snap 程序、库和 Electron 资源解包到自己创建的 `AppDir/shared/bin/`，因此通过 `AppDir/.env` 把该目录设为额外库目录和工作目录；这不是所有 Snap 的固定路径。`90-tradingview-arguments.hook` 通过 quick-sharun 通用 hook 机制保留官方 Snap 使用的 `--no-sandbox` 参数。桌面图标与 desktop 文件来自同一 Snap。
 - 将 ICU、PAK、`locales` 和 `resources` 以包内链接接到启动包装器旁，保持 Electron 按可执行文件目录查找资源的行为。
-- 官方 Snap 自带 Electron/Chromium 运行时，本脚本保留其程序文件和资源，没有另外下载或打包独立的 Chromium 浏览器。构建环境安装 IBus 与 Fcitx5 的 GTK3 输入模块；本次 CI 日志确认 `DEPLOY_GTK=1` 收集了 `im-ibus.so` 和 `im-fcitx5.so`。启动入口不覆盖宿主输入法变量；中文输入效果仍待实机确认。官方说明 Snap 版在原生 Wayland 下可能不稳定，当前入口使用 X11。
+- 官方 Snap 自带 Electron/Chromium 运行时，本脚本保留其程序文件和资源，没有另外下载或打包独立的 Chromium 浏览器。构建环境安装 IBus 与 Fcitx5 的 GTK3 输入模块；CI 日志确认 `DEPLOY_GTK=1` 收集了 `im-ibus.so` 和 `im-fcitx5.so`。启动入口不覆盖宿主输入法变量；2026-09-24 Linux 实机已确认观点编辑和商品代码搜索等输入框能够显示中文候选并正常上屏。官方说明 Snap 版在原生 Wayland 下可能不稳定，当前入口使用 X11。
 
 ## 运行
 
@@ -27,7 +27,7 @@
 
 ## 维护说明
 
-TradingView 为专有软件，使用和再分发应遵守其许可条款。构建脚本不固定应用或打包工具版本。GUI 启动和图表加载已有 Linux 实机截图；登录仍需单独核对。
+TradingView 为专有软件，使用和再分发应遵守其许可条款。构建脚本不固定应用或打包工具版本。迁移后的 quick-sharun 默认入口、GUI 启动、图表加载和中文输入已有 Linux 实机截图及运行日志确认；登录、交易和观点实际发布仍需分别核对。
 
 ## 2026-09-23：中文输入修复待实机验证
 
@@ -40,6 +40,10 @@ Linux 实机反馈观点编辑框只能输入英文。检查此前 AppImage 的 
 ## 2026-09-23：同名 Release 资产上传失败
 
 Build TradingView（run `35844883809`）已生成 AppImage，日志也显示两个 GTK3 输入模块进入 AppDir；发布时 `gh release upload --clobber` 对已有 `tradingview.AppImage` 连续返回 HTTP 422 `ReleaseAsset.name already exists`。共享 `.github/actions/build-anylinux/action.yml` 改为分页查找并只删除该同名旧资产，再上传新资产；提交后的构建、发布和中文输入尚未验证。
+
+## 2026-09-24：quick-sharun 新入口实机确认
+
+Linux 实机运行入口迁移后的 `tradingview.AppImage`，程序能够启动并进入 `cn.tradingview.com/chart/`，图表、自选列表和指标正常加载；观点编辑框与商品代码搜索框能够显示 IBus/Fcitx5 中文候选并正常上屏，视频观点预览界面也能够打开。运行日志显示 Electron 从挂载目录的 `bin/resources` 加载应用资源并成功恢复图表布局，证明 quick-sharun 生成入口、`.env` 运行环境和包内资源链接能够共同保持官方 Snap 的相对资源布局。本次确认未覆盖账号重新登录、真实交易或观点实际发布，不把这些功能写成已验证。
 
 ## 2026-09-23 自根目录原样迁入
 

@@ -8,7 +8,7 @@
 
 - `common/snap/download_stable_snap.sh` 从 Snap Store 读取当前稳定版，核对发布者、架构和官方 SHA3-384，再下载 Snap。
 - `common/archive/extract_archive.sh` 解包 Snap。构建脚本保留 BlueMail 自带的 Electron/Chromium 程序、相邻库和资源，去掉 Snap 专用宿主运行时目录。
-- Arch Linux 容器中的 quick-sharun 收集主程序依赖并生成默认入口；`AppDir/.env` 提供相邻库目录和工作目录，`90-bluemail-arguments.hook` 保留官方 Snap 使用的 `--ozone-platform=x11 --no-sandbox` 参数。桌面图标与 desktop 文件来自同一 Snap。
+- Arch Linux 容器中的 quick-sharun 收集主程序依赖并生成默认入口。构建脚本把需要保持相邻关系的官方 Snap 程序、库和 Electron 资源解包到自己创建的 `AppDir/shared/bin/`，因此通过 `AppDir/.env` 把该目录设为额外库目录和工作目录；这不是所有 Snap 的固定路径。`90-bluemail-arguments.hook` 通过 quick-sharun 通用 hook 机制保留官方 Snap 使用的 `--ozone-platform=x11 --no-sandbox` 参数。桌面图标与 desktop 文件来自同一 Snap。
 - 将 ICU、PAK、`locales` 和 `resources` 以包内链接接到启动包装器旁，保持 Electron 按可执行文件目录查找资源的行为。
 - 官方 Snap 自带 Electron/Chromium 运行时，本脚本保留其程序文件和资源，没有另外下载或打包独立的 Chromium 浏览器。构建环境安装 IBus 与 Fcitx5 的 GTK3 输入模块；本次 CI 日志确认 `DEPLOY_GTK=1` 收集了 `im-ibus.so` 和 `im-fcitx5.so`。启动入口不覆盖宿主输入法变量；2026-09-23 Linux 实机已确认邮件编辑框能够正常显示 IBus/Fcitx5 候选框并输入中文。
 
@@ -27,7 +27,7 @@
 
 ## 维护说明
 
-上游 BlueMail 为专有软件，使用和再分发应遵守其许可条款。构建脚本不固定应用或打包工具版本。GUI 启动、邮件阅读和中文输入已有 Linux 实机截图确认；邮件发送仍需单独核对。
+上游 BlueMail 为专有软件，使用和再分发应遵守其许可条款。构建脚本不固定应用或打包工具版本。迁移后的 quick-sharun 默认入口、GUI 启动、邮件列表与编辑界面和中文输入已有 Linux 实机截图及启动日志确认；邮件发送仍需单独核对。
 
 ## 2026-09-23：中文输入修复待实机验证
 
@@ -44,6 +44,10 @@ Linux 实机反馈邮件编辑框只能输入英文。检查此前 AppImage 的 
 ## 2026-09-23：同名 Release 资产上传失败
 
 Build BlueMail（run `35844883809`）已生成 AppImage，日志也显示两个 GTK3 输入模块进入 AppDir；发布时 `gh release upload --clobber` 对已有 `bluemail.AppImage` 连续返回 HTTP 422 `ReleaseAsset.name already exists`。共享 `.github/actions/build-anylinux/action.yml` 改为分页查找并只删除该同名旧资产，再上传新资产；提交后的构建、发布和中文输入尚未验证。
+
+## 2026-09-24：quick-sharun 新入口实机确认
+
+Linux 实机运行入口迁移后的 `bluemail.AppImage`，程序能够启动并加载邮件列表和编辑界面；编辑框能够显示 IBus/Fcitx5 中文候选并正常上屏。启动日志明确显示实际参数包含 `--ozone-platform=x11 --no-sandbox`，证明 `90-bluemail-arguments.hook` 已通过 quick-sharun 生成入口生效；挂载路径中的 `shared/bin/resources` 也被正常加载，证明 `.env` 中的相邻库目录和工作目录配置保持了官方 Snap 的 Electron 资源布局。日志中的 `latest-linux.yml` HTTP 404 来自 BlueMail 自身的自动更新检查地址，出现时主界面和已确认功能仍正常；本仓库继续通过官方 Snap 稳定通道构建更新，不为该上游更新地址改动当前打包入口。邮件发送未在本次截图范围内验证。
 
 ## 2026-09-23 自根目录原样迁入
 
