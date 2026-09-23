@@ -10,6 +10,8 @@ DOWNLOAD="$SCRIPT_DIR/../common/download/download_file.sh"
 WORKDIR="$SCRIPT_DIR/source"
 APP="$WORKDIR/app"
 MODULES="$WORKDIR/modules"
+OFFICIAL_ARCHIVE="$WORKDIR/discord-official.tar.gz"
+OFFICIAL_DIR="$WORKDIR/official"
 
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 # Discord 本体链接这些库；输入法、托盘和打开链接是额外要带走的。
@@ -20,6 +22,18 @@ MODULES="$WORKDIR/modules"
 
 rm -rf -- "$WORKDIR" AppDir dist
 mkdir -p "$APP" "$MODULES" dist AppDir/bin
+
+# 从 Discord 官网稳定版 tar.gz 提取官方 desktop 和图标，不在仓库内手写桌面元数据。
+"$DOWNLOAD" \
+  'https://discord.com/api/download?platform=linux&format=tar.gz' \
+  "$OFFICIAL_ARCHIVE"
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$OFFICIAL_ARCHIVE" "$OFFICIAL_DIR"
+OFFICIAL_DESKTOP="$OFFICIAL_DIR/Discord/discord.desktop"
+OFFICIAL_ICON="$OFFICIAL_DIR/Discord/discord.png"
+[[ -f "$OFFICIAL_DESKTOP" && -f "$OFFICIAL_ICON" ]] || {
+  echo 'Discord 官方归档缺少 desktop 或图标。' >&2
+  exit 1
+}
 
 "$DOWNLOAD" \
   'https://updates.discord.com/distributions/app/manifests/latest?channel=stable&platform=linux&arch=x64' \
@@ -62,20 +76,9 @@ jq -c '.modules | with_entries(.value = {installedVersion: .value.full.module_ve
 mkdir -p "$MODULES/discord_krisp/KMS/logs"
 cp -a "$APP"/. AppDir/bin/
 
-cat > "$WORKDIR/discord.desktop" <<'EOF'
-[Desktop Entry]
-Name=Discord
-Comment=All-in-one voice and text chat for gamers
-Exec=Discord %U
-Icon=discord
-Type=Application
-Categories=Network;InstantMessaging;
-MimeType=x-scheme-handler/discord;
-StartupWMClass=discord
-EOF
-
 export ARCH=x86_64 VERSION
-export ICON="$APP/discord.png" DESKTOP="$WORKDIR/discord.desktop"
+export APPNAME=Discord MAIN_BIN=Discord STARTUPWMCLASS=discord
+export ICON="$OFFICIAL_ICON" DESKTOP="$OFFICIAL_DESKTOP"
 export OUTPATH="$SCRIPT_DIR/dist" OUTNAME=discord.AppImage
 export DEPLOY_OPENGL=1 NO_STRIP=1
 quick-sharun AppDir/bin/Discord \

@@ -2,9 +2,9 @@
 
 ## 来源与构建
 
-`build_discord.sh` 从 [Discord 官网](https://discord.com/download)下载 stable Linux tar.gz。2026-09-23 获取的官网归档只有约 2 MB：其中 `discord` 是调用 `updater_bootstrap` 的 Shell 入口，不是完整程序。因此构建阶段调用官方 bootstrap 下载完整 stable 程序，确认其 `Discord` 可执行文件存在后，再使用 quick-sharun 封装 `dist/discord.AppImage` 和 `dist/version.txt`。
+`build_discord.sh` 从 [Discord 官网](https://discord.com/download)动态下载 stable Linux tar.gz，只提取官方 `discord.desktop` 和 `discord.png`。官网归档中的程序入口是 bootstrap，不作为 AppImage 主程序；完整 stable 主程序及模块从 Discord 官方更新清单对应的 `full.distro` 动态取得。脚本核对清单版本与完整包内 `resources/build_info.json` 一致后，再使用 quick-sharun 封装 `dist/discord.AppImage` 和 `dist/version.txt`。
 
-不运行官方 `postinst.sh`，不修改宿主机 AppArmor、服务或用户配置。官方安装器下载需要访问 `updates.discord.com`；构建环境无法连接时构建会失败，不会发布只有安装器的假 AppImage。实际 CI 构建与桌面启动尚未验证。
+不运行官方 `postinst.sh` 或 bootstrap，不修改宿主机 AppArmor、服务或用户配置。官方完整程序下载需要访问 `updates.discord.com`；构建环境无法连接时构建会失败，不会发布只有安装器的假 AppImage。实际桌面运行状态以本 README 后续记录为准。
 
 ## 2026-09-23：首次 CI 构建失败
 
@@ -31,3 +31,7 @@ Actions 运行 35846090462 已生成 `discord.AppImage`，但上传 `latest` 时
 ## 2026-09-23：更新提示与 Release 资产核对
 
 用户在 18:34 的启动日志中看到程序自身版本 `1.0.158`，Discord 提示 `1.0.159` 可下载。核对仓库 `main` 的构建脚本、已有 Build Discord 运行 35848533399 和 `latest` Release：该 Job 于 18:30 成功结束，现有脚本在封装前检查官方安装目录版本与 `resources/build_info.json` 的真实程序版本一致；Release 的 `discord.AppImage` 资产 ID 583540613 于 18:29 上传，SHA-256 为 `bb4aec9bf420b463efb549722c81b466d49bd6110ca69fb0796fadeeb5df3f2e`。截图中的 `1.0.158` 进程不能证明新发布资产仍为旧版，现有证据指向本地启动入口仍指向旧 AppImage。建议从本仓库 `latest` Release 取得新资产，替换原先运行的 AppImage，再启动；不应通过伪造版本或关闭更新检查掩盖旧程序。此次仅为已有日志、代码和 Release 元数据的静态核对，未下载解包新资产、未执行桌面实机验证；没有修改构建脚本，也不额外触发测试构建。
+
+## 2026-09-24：改用官方 desktop 和图标
+
+构建脚本不再手写 `discord.desktop`。现在从 Discord 官网动态 stable tar.gz 提取官方 `Discord/discord.desktop` 和 `Discord/discord.png`，直接交给 quick-sharun；完整主程序及模块仍由官方 stable manifest 的 `full.distro` 提供。软件版本继续取 manifest 的 `full.host_version`，并与完整包内 `resources/build_info.json` 强制比对，两者不一致时停止发布，因此 desktop 来源不会改变或回退实际程序版本。此次只完成静态检查，实际新构建与桌面运行结果以下一次 Actions 和实机反馈为准。
