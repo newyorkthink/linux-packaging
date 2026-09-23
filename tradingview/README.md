@@ -8,7 +8,7 @@
 
 - `common/snap/download_stable_snap.sh` 从 Snap Store 读取当前稳定版，核对发布者、架构和官方 SHA3-384，再下载 Snap。
 - `common/archive/extract_archive.sh` 解包 Snap。构建脚本保留 TradingView 自带的 Electron/Chromium 程序、相邻库和资源，去掉 Snap 专用宿主运行时目录。
-- Arch Linux 容器中的 quick-sharun 收集主程序及 `keytar.node` 所需的 `libsecret`，生成 AppImage。入口保留官方 Snap 使用的 `--no-sandbox` 参数，桌面图标与 desktop 文件来自同一 Snap。
+- Arch Linux 容器中的 quick-sharun 收集主程序及 `keytar.node` 所需的 `libsecret`，生成默认入口；`AppDir/.env` 提供相邻库目录和工作目录，`90-tradingview-arguments.hook` 保留官方 Snap 使用的 `--no-sandbox` 参数。桌面图标与 desktop 文件来自同一 Snap。
 - 将 ICU、PAK、`locales` 和 `resources` 以包内链接接到启动包装器旁，保持 Electron 按可执行文件目录查找资源的行为。
 - 官方 Snap 自带 Electron/Chromium 运行时，本脚本保留其程序文件和资源，没有另外下载或打包独立的 Chromium 浏览器。构建环境安装 IBus 与 Fcitx5 的 GTK3 输入模块；本次 CI 日志确认 `DEPLOY_GTK=1` 收集了 `im-ibus.so` 和 `im-fcitx5.so`。启动入口不覆盖宿主输入法变量；中文输入效果仍待实机确认。官方说明 Snap 版在原生 Wayland 下可能不稳定，当前入口使用 X11。
 
@@ -32,6 +32,10 @@ TradingView 为专有软件，使用和再分发应遵守其许可条款。构�
 ## 2026-09-23：中文输入修复待实机验证
 
 Linux 实机反馈观点编辑框只能输入英文。检查此前 AppImage 的 GTK3 输入模块目录，未找到 `im-ibus.so` 和 `im-fcitx5.so`。本次仅在 `build_tradingview.sh` 的应用级依赖加入 `ibus` 与 `fcitx5-gtk`，保留已能启动并加载图表的 Electron 入口；新产物中文输入尚待实机验证。
+
+## 2026-09-23：入口迁移至 quick-sharun 官方机制
+
+构建脚本不再预先创建自写 `AppRun.sh`，改由 quick-sharun 生成默认入口；相邻库目录和工作目录写入 `AppDir/.env`，固定启动参数写入 `AppDir/bin/90-tradingview-arguments.hook`。自定义 hook 放入 `AppDir/bin/` 并由生成入口加载、运行时环境写入 `.env`，均沿用 quick-sharun 上游机制；`90-` 是本仓库用于在当前上游内置 hook 之后处理应用固定参数的顺序约定，不冒充上游保留编号。主程序、资源、依赖及 `--no-sandbox` 参数均未改变；此前 GUI 启动和图表加载基线继续保留，迁移后的新产物尚未构建和实机确认，中文输入仍待确认。
 
 ## 2026-09-23：同名 Release 资产上传失败
 

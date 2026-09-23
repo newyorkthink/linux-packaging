@@ -46,18 +46,6 @@ rm -rf -- "${APP_ROOT:?}/data-dir" "${APP_ROOT:?}/gnome-platform" \
 rm -f -- "$APP_ROOT/command.sh" "$APP_ROOT/desktop-init.sh" \
   "$APP_ROOT/desktop-common.sh" "$APP_ROOT/desktop-gnome-specific.sh"
 
-# 沿用官方 Snap 启动参数，并从 BlueMail 文件目录加载相邻资源和库。
-cat > "$APPDIR/AppRun.sh" <<'APPRUN'
-#!/bin/sh
-set -e
-
-export SHARUN_EXTRA_LIBRARY_PATH="$APPDIR/shared/bin${SHARUN_EXTRA_LIBRARY_PATH:+:$SHARUN_EXTRA_LIBRARY_PATH}"
-export SHARUN_WORKING_DIR="$APPDIR/shared/bin"
-
-exec "$APPDIR/bin/bluemail" --ozone-platform=x11 --no-sandbox "$@"
-APPRUN
-chmod +x "$APPDIR/AppRun.sh"
-
 ###### 构建 AppImage ######
 
 export ARCH=x86_64
@@ -78,6 +66,17 @@ LD_LIBRARY_PATH="$APP_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
   quick-sharun "$APP_ROOT/bluemail" "$APP_ROOT/chrome_crashpad_handler" \
   /usr/lib/libnotify.so.4 /usr/lib/libsecret-1.so.0 \
   /usr/lib/libappindicator3.so.1
+
+# 按 quick-sharun 官方机制追加运行时环境，保留工具已写入的 .env 内容。
+cat >> "$APPDIR/.env" <<'ENV'
+SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/shared/bin:${SHARUN_EXTRA_LIBRARY_PATH}
+SHARUN_WORKING_DIR=${SHARUN_DIR}/shared/bin
+ENV
+
+# 在上游内置 hook 之后追加官方 Snap 的固定参数，并保留用户传入参数。
+cat > "$APPDIR/bin/90-bluemail-arguments.hook" <<'HOOK'
+set -- --ozone-platform=x11 --no-sandbox "$@"
+HOOK
 
 # Electron 从包装器所在目录寻找 ICU、PAK、locales 和 resources；用包内链接保留原文件。
 for item in "$APP_ROOT"/*; do

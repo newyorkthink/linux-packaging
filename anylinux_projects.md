@@ -135,6 +135,29 @@ quick-sharun 生成的 `AppRun` 就是启动入口。一般情况禁止再创建
 2. 启动前要改参数或准备目录时，写 `AppDir/bin/<名字>.hook`。上游现在用 `.hook`；本仓库已有的 `.src.hook` 只在该脚本本来就这样写时保留。hook 由生成的 `AppRun` 加载。说明见 [hook-system.md](https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/useful-tools/hooks/hook-system.md)。
 3. 缺的是库或输入法模块时，先安装那个包，再把对应 `.so` 和主程序放在同一次 `quick-sharun` 参数里。
 
+quick-sharun 上游生成的默认 `AppRun.sh` 会先按文件名顺序加载 `AppDir/bin/*.hook`，再把主程序放到当前参数最前面并执行。构建脚本不得为了设置环境或追加固定参数而预先创建自己的 `AppRun.sh`。
+
+运行时需要相邻库目录或固定工作目录时，在第一次 `quick-sharun` 之后、`quick-sharun --make-appimage` 之前追加到现有 `.env`；必须使用运行时可解析的 `${SHARUN_DIR}`，并保留 quick-sharun 已经写入的内容：
+
+```bash
+# 追加应用运行时环境，保留 quick-sharun 已写入的 .env 内容
+cat >> "$APPDIR/.env" <<'ENV'
+SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/shared/bin:${SHARUN_EXTRA_LIBRARY_PATH}
+SHARUN_WORKING_DIR=${SHARUN_DIR}/shared/bin
+ENV
+```
+
+应用每次启动都必须携带的固定参数统一写入 `AppDir/bin/90-<应用>-arguments.hook`。`90-` 是本仓库的顺序约定，不是上游保留编号：quick-sharun 当前内置 hook 使用 `01-`、`05-`、`07-` 和 `10-`，应用参数放在 `90-` 可在它们之后处理，并给真正的最终收尾保留 `99-`。固定参数放在用户参数之前，原有 `"$@"` 必须完整保留：
+
+```bash
+# 在上游内置 hook 之后追加应用固定参数，并保留用户传入参数
+cat > "$APPDIR/bin/90-<应用>-arguments.hook" <<'HOOK'
+set -- --固定参数 "$@"
+HOOK
+```
+
+`STRACE_FLAGS` 只控制构建期间的 strace，传给 `quick-sharun --test` 或 `--simple-test` 的参数也只用于对应检查；这些都不会把固定参数写入最终 AppImage，不能代替运行时 hook。
+
 只有 `.env` 和 hook 都解决不了，并且应用 README 写明了失败证据，才允许加别的启动包装。已有并且已经验证过的 `AppRun.sh` 不要为了本条删掉。
 
 下面这些不算“特别情况”，不能用来给自己写 `AppRun.sh`：
