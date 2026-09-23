@@ -28,12 +28,13 @@ mkdir -p "$SOURCE" "$DOWNLOAD" "$APPDIR/bin" "$DIST"
 [[ -x "$SOURCE/Discord/updater_bootstrap" ]] || { echo '官方归档缺少安装器。' >&2; exit 1; }
 
 # 调用官方 bootstrap 在构建时取得完整 stable 版本，绝不把 2 MB 安装器当作成品。
-APP_VERSION="$("$SOURCE/Discord/updater_bootstrap" --no-zenity "$DOWNLOAD" stable https://updates.discord.com/)"
-[[ "$APP_VERSION" =~ ^[0-9]+([.][0-9]+)+$ ]] || { echo "安装器返回无效版本：$APP_VERSION" >&2; exit 1; }
-[[ -x "$DOWNLOAD/$APP_VERSION/Discord" ]] || { echo '官方安装器没有下载完整 Discord 程序。' >&2; exit 1; }
+APP_DIR="$("$SOURCE/Discord/updater_bootstrap" --no-zenity "$DOWNLOAD" stable https://updates.discord.com/)"
+[[ "$APP_DIR" =~ ^app-[0-9]+([.][0-9]+)+$ ]] || { echo "安装器返回无效目录：$APP_DIR" >&2; exit 1; }
+VERSION="${APP_DIR#app-}"
+[[ -x "$DOWNLOAD/$APP_DIR/Discord" ]] || { echo '官方安装器没有下载完整 Discord 程序。' >&2; exit 1; }
 
 # 保留官方 Electron 可执行文件、资源和 helper 程序的相对位置。
-cp -a -- "$DOWNLOAD/$APP_VERSION"/. "$APPDIR/bin/"
+cp -a -- "$DOWNLOAD/$APP_DIR"/. "$APPDIR/bin/"
 install -Dm0644 "$SOURCE/Discord/discord.png" "$APPDIR/discord.png"
 install -Dm0644 "$SOURCE/Discord/discord.desktop" "$APPDIR/discord.desktop"
 sed -i -e 's|^Exec=.*|Exec=discord %U|' -e 's|^Icon=.*|Icon=discord|' "$APPDIR/discord.desktop"
@@ -50,7 +51,7 @@ chmod 0755 "$APPDIR/AppRun.sh"
 
 ###### 封装正式资产 ######
 # quick-sharun 部署官方 Electron 主程序直接依赖并封装完整运行目录。
-export ARCH=x86_64 VERSION="$APP_VERSION" APPNAME=Discord MAIN_BIN=discord
+export ARCH=x86_64 VERSION APPNAME=Discord MAIN_BIN=discord
 export ICON="$APPDIR/discord.png" DESKTOP="$APPDIR/discord.desktop"
 export OUTPATH="$DIST" OUTNAME=discord.AppImage NO_STRIP=1 DEPLOY_OPENGL=1
 quick-sharun "$APPDIR/bin/Discord"
@@ -58,4 +59,4 @@ quick-sharun --make-appimage
 
 # 只有完整程序封装成功后，才写入 Release 所用的动态版本。
 [[ -s "$DIST/discord.AppImage" ]] || { echo 'Discord AppImage 未生成。' >&2; exit 1; }
-printf '%s\n' "$APP_VERSION" > "$DIST/version.txt"
+printf '%s\n' "$VERSION" > "$DIST/version.txt"

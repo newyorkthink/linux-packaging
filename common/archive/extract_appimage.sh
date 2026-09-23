@@ -12,6 +12,8 @@ OUTPUT="${2:-}"
 IMAGE="$(readlink -f -- "$IMAGE")"
 mkdir -p "$OUTPUT"
 OUTPUT="$(cd -- "$OUTPUT" && pwd)"
+# 公共下载入口保存文件时不保留可执行位，官方 AppImage 自解包前需赋予执行权限。
+chmod 0755 -- "$IMAGE"
 (
   cd "$OUTPUT"
   "$IMAGE" --appimage-extract >/dev/null

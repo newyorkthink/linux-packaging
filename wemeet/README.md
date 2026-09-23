@@ -9,3 +9,7 @@
 ## 2026-09-23 检查记录
 
 已核对官网当前 DEB 的 `Package: wemeet`、`Architecture: amd64`，官方主程序、插件和桌面入口均在包内。用户目前通过 `runimage/setup_general_env.sh` 启动；此脚本和现有环境没有修改。
+
+## 2026-09-23：首次 CI 构建失败
+
+首次 CI 在 DEB 包身份校验时报 `dpkg-deb: command not found`。Arch 构建容器没有预装 `dpkg`；构建脚本现通过公共 Arch 安装入口安装 `dpkg`，再使用原有公共下载和解包入口。后续构建结果待确认。

@@ -16,6 +16,7 @@ OFFICIAL='https://meeting.tencent.com/web-service/query-download-info?q=%5B%7B%2
 ###### 准备构建环境 ######
 # 安装基础工具和会议运行所需的系统图形、音频、Qt XCB 依赖。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../common/arch/install_packages.sh" dpkg
 "$SCRIPT_DIR/../common/arch/install_packages.sh" nss nspr dbus glib2 libpulse pipewire fontconfig freetype2 libx11 libxext libxrender libxrandr libxfixes libxcomposite libxdamage libxkbcommon libxkbcommon-x11 libxcb xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm mesa libglvnd alsa-lib at-spi2-core gtk3 cups ibus hicolor-icon-theme
 
 # 只清理腾讯会议自己的工作目录，预留官方原包与打包目录。

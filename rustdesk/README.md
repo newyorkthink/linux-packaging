@@ -9,3 +9,7 @@
 用户提供的 1.4.9 官方 AppImage 截图显示 GUI 提示“当前显示服务器 tty 不支持，请切换到 X11”，终端日志没有明确缺库错误。RustDesk 对应版本源码的 `hbb_common` 支持 `RUSTDESK_FORCED_DISPLAY_SERVER`。新 `AppRun` 只在 `DISPLAY` 存在、`XDG_SESSION_TYPE=tty` 且没有 `WAYLAND_DISPLAY` 时指定 `x11`，然后执行未经修改的官方启动器；其他会话按官方原样运行。该修复不能给纯 tty 创建 X11 桌面。构建和用户桌面实际效果尚未验证。
 
 用户现有 `runimage/setup_general_env.sh` 没有改动。
+
+## 2026-09-23：首次 CI 构建失败
+
+首次 CI 在解包步骤报 `Permission denied`：公共下载入口保存官方 AppImage 时没有执行权限。公共解包脚本在调用官方 `--appimage-extract` 前为下载文件设置可执行位；后续构建结果待确认。
