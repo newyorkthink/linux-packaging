@@ -61,7 +61,7 @@
 
 ### 什么提交会触发构建
 
-`.github/workflows/build.yml` 在推送到 `main` 时匹配这些路径：`build.yml` 自身、`.github/actions/build-anylinux/**`、`.github/actions/publish-software-versions/**`、`.github/appimage-apps.json`、`.github/scripts/**`、以及任意子目录 `*/**`。根目录的 `README.md`、`AGENTS.md`、`linuxdeploy_projects.md` 不匹配，不会开构建。
+`.github/workflows/build.yml` 在推送到 `main` 时匹配这些路径：`build.yml` 自身、`.github/actions/build-anylinux/**`、`.github/actions/publish-software-versions/**`、`.github/appimage-apps.json`、`.github/scripts/**`、以及任意子目录 `*/**`。根目录的 `README.md`、`AGENTS.md`、`linuxdeploy_projects.md`、`anylinux_projects.md` 不匹配，不会开构建。
 
 Plan 的选择规则：
 
@@ -99,7 +99,7 @@ Plan 的选择规则：
 
 | 范围 | 主要内容 |
 | --- | --- |
-| 文首永久规则 | 修复记录只增不删、GitHub 提交步骤、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、测试代码边界与必要验证、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入 |
+| 文首永久规则 | 修复记录只增不删、GitHub 提交步骤、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、测试代码边界与必要验证、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入 |
 | 第 1～2 节 | 仓库目标、最小修改、应用 README、检查记录、迁移完整性 |
 | 第 3～5 节 | 宿主安全、Shell 与中文说明、上游来源、授权、动态版本和版本元数据 |
 | 第 6 节 | AppImage 内容、AppRun、libunionpreload、打包路线、linuxdeploy、Qt 与 quick-sharun |
@@ -141,6 +141,18 @@ Plan 的选择规则：
 - `linuxdeploy_projects.md` 中关于 Qt `QMAKE`、GTK `DEPLOY_GTK_VERSION`、插件选择、额外 `-l`、工具动态下载、中文说明、检查边界和正式资产位置的规则必须全部按当前应用真实情况执行，不得只挑方便的部分。
 - 如果目标项目现有脚本、README、workflow 或历史做法与 `linuxdeploy_projects.md` 冲突，处理该 linuxdeploy 项目时必须以本永久规则和 `linuxdeploy_projects.md` 为准完成最小必要修正；不得引用“旧实现已经这样写”继续保留冲突。
 - 后续修改 linuxdeploy 总体规范时，必须同步保持本文件与 `linuxdeploy_projects.md` 的强制关系和语义一致；不得删除链接、弱化为“可参考”，或把遵守范围缩小到新项目。
+
+## 永久规则：任何 quick-sharun 打包必须严格遵守 anylinux_projects.md（不可豁免）
+
+**凡构建脚本或正式流程使用 quick-sharun / sharun，无论是新增应用、迁移、修复还是重做打包，都必须先完整阅读并严格遵守根目录 [`anylinux_projects.md`](./anylinux_projects.md)。该文件是本仓库 Anylinux 打包的强制规范，不是可选示例。**
+
+强制范围：
+
+- 不得只看本节摘要。有 `/usr/bin/<主程序>` 的应用按该文件里的 mpv 写法：安装官方包，`quick-sharun /usr/bin/<主程序>`，再 `quick-sharun --make-appimage`。
+- 非必要不得自己写 `AppRun.sh`，也不得覆盖 quick-sharun 生成的 `AppRun`。补参数用 hook，补环境变量用 `AppDir/.env`。
+- 调用 `linuxdeploy` 的项目继续只遵守 `linuxdeploy_projects.md`，不得改成 quick-sharun，也不得两套混用。
+- 已验证稳定的现有脚本保持原样。不得为了套用 `anylinux_projects.md` 的示例去批量改写它们。
+- 后续修改这条路线时，必须同时保持本文件与 `anylinux_projects.md` 的强制关系，不得把链接弱化成“可参考”。
 
 ## 永久规则：禁止手工创建 linuxdeploy hook 或伪造 AppRun.wrapped（不可豁免）
 
@@ -932,7 +944,7 @@ AI 应根据当前任务和修改风险选择最小且有效的检查，不需�
 
 ## 13. AppImage 构建最小基础环境与 quick-sharun 默认流程
 
-先按第 6 节确定当前项目的路线；官方 AppImage 原样同步不套用本节的依赖收集和封装命令，选择 linuxdeploy 的项目仍执行其专属流程。已有稳定实现保持原样。
+先按第 6 节确定当前项目的路线。quick-sharun 的完整做法、mpv 这类短写法和“非必要不写 AppRun.sh”以根目录 `anylinux_projects.md` 为准；本节只保留最短链路。官方 AppImage 原样同步不套用本节的依赖收集和封装命令，选择 linuxdeploy 的项目仍执行其专属流程。已有稳定实现保持原样。
 
 本节是需要构建、迁移后适配或重做 AppImage 打包方案时的**强制最小依赖基线**：先使用最小依赖和最短打包链路完成正式构建，只有出现明确、可定位的构建或运行时缺失后，才允许增加应用级依赖、复制额外库 / plugin 或加入特殊兼容处理。
 
