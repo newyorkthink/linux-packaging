@@ -61,13 +61,6 @@ jq -c '.modules | with_entries(.value = {installedVersion: .value.full.module_ve
   "$WORKDIR/manifest.json" > "$MODULES/installed.json"
 mkdir -p "$MODULES/discord_krisp/KMS/logs"
 cp -a "$APP"/. AppDir/bin/
-cp -a "$MODULES"/. AppDir/share/discord-modules/
-mkdir -p AppDir/share
-mv AppDir/share/discord-modules "$WORKDIR/discord-modules"
-mkdir -p AppDir/share
-# modules are copied after quick-sharun so the launcher wrapper is left intact
-mkdir -p "$WORKDIR/staged-modules"
-cp -a "$MODULES"/. "$WORKDIR/staged-modules/"
 
 cat > "$WORKDIR/discord.desktop" <<'EOF'
 [Desktop Entry]
@@ -98,7 +91,7 @@ quick-sharun AppDir/bin/Discord \
   /usr/lib/libasound.so* \
   /usr/lib/libwayland-client.so*
 
-mkdir -p AppDir/share/discord-modules AppDir/bin
+mkdir -p AppDir/share/discord-modules
 cp -a "$MODULES"/. AppDir/share/discord-modules/
 cat > AppDir/bin/stage-discord-modules.src.hook <<EOF
 #!/bin/false
