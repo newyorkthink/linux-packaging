@@ -16,12 +16,11 @@ mkdir -p AppDir/usr/bin AppDir/usr/share/applications \
   AppDir/usr/share/icons/hicolor/256x256/apps AppDir/usr/share dist source
 
 # linuxdeploy + appimagetool 固定在 Ubuntu 24.04 构建，不使用 Arch Linux / yay。
-sudo apt-get update
-sudo apt-get install -y aptitude
-sudo aptitude install -y build-essential git wget curl jq binutils patchelf file appstream-util desktop-file-utils zsync ca-certificates
-
 # 使用 Ubuntu 官方 deb 包，不编译 Poppler 源码。
-sudo aptitude install -y poppler-utils poppler-data
+"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+  aptitude build-essential git wget curl jq binutils patchelf file \
+  appstream-util desktop-file-utils zsync ca-certificates \
+  poppler-utils poppler-data
 
 POPPLER_PACKAGE_VERSION="$(dpkg-query -W -f='${Version}\n' poppler-utils)"
 POPPLER_VERSION="${POPPLER_PACKAGE_VERSION#*:}"

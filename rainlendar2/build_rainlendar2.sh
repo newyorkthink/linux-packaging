@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+
 # 修改此脚本时，build.yml 只触发 Rainlendar 单项构建。
 #
 # Rainlendar AppImage 稳定基线：

@@ -6,6 +6,17 @@ set -Eeuo pipefail
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+    ca-certificates curl file patchelf pax-utils binutils xvfb xauth \
+    libgl1 libegl1 libglu1-mesa libgbm1 libxss1 libasound2t64 \
+    libpulse0 libpulse-mainloop-glib0 libopus0 libcups2t64 libnss3 \
+    libnspr4 libcrypt1 libgtk2.0-0t64 libfcitx5-qt1 libdbus-1-3 \
+    libinput10 libmtdev1t64 libxkbcommon0 libxkbcommon-x11-0 libxcb1 \
+    libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+    libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-shm0 \
+    libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0 libxcomposite1 \
+    libxdamage1 libxrandr2 libxtst6 zenity
+
 log() {
     printf '[DingTalk] %s\n' "$*"
 }

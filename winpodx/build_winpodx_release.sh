@@ -6,6 +6,9 @@ shopt -s nullglob
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+  ca-certificates curl libegl1 libgl1 libxcb-shape0 libxkbcommon0
+
 log() {
   printf '[WinPodX Release] %s\n' "$*"
 }

@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+
 rm -rf AppDir usr opt etc debian-binary control.tar.* data.tar.* \
   cursor.desktop co.anysphere.cursor.png \
   /tmp/cursor.deb /tmp/cursor-download.log || true

@@ -6,6 +6,9 @@
 set -e
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 REAL_QUICK_SHARUN="$(type -P quick-sharun || true)"
 
 if [ -z "$REAL_QUICK_SHARUN" ]; then

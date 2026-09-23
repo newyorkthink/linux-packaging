@@ -3,6 +3,9 @@ set -Eeuo pipefail
 
 # Zen 相关构建文件集中放在 zen/ 目录；无论从仓库哪个目录调用，都固定在脚本目录内构建。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 cd "$SCRIPT_DIR"
 
 rm -rf AppDir dist || true

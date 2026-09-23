@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+
 # DeepSeek Harness 官方 Linux AppImage：仅封装官方 @deepseek-ai/dsh 与 Node 运行时。
 # npm 仅用于 GitHub Actions 构建阶段；最终 AppImage 在用户机器上不需要 Node/npm。
 

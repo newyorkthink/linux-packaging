@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+
 rm -rf AppDir dist trae.desktop trae.png \
   /tmp/aur-trae /tmp/trae-extract /tmp/trae.tar.gz || true
 

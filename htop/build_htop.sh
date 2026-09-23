@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+
 # 稳定基线说明：
 # - 使用 Arch Linux Extra 官方 htop 软件包。
 # - 使用 quick-sharun 打包，不使用 linuxdeploy。

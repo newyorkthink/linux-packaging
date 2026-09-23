@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+
 rm -rf AppDir dist trae-work.desktop trae-work.png \
   /tmp/aur-trae /tmp/trae-linux /tmp/trae-linux.tar.gz \
   /tmp/traework-win /tmp/traework-wine /tmp/traework.exe /tmp/traecode-linux-app || true

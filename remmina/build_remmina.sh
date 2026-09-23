@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+  fcitx5-frontend-gtk3 ibus-gtk3 libgtk-3-bin
 
 if ! command -v docker >/dev/null 2>&1; then
   if command -v yay >/dev/null 2>&1; then

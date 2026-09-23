@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+
 # 注意：
 # 1. 不将 /usr/bin/perl 加入 AppImage；单独打包解释器会缺少 strict.pm 等核心模块，
 #    i3-dmenu-desktop、i3-save-tree 等 Perl 脚本继续使用主机 Perl。

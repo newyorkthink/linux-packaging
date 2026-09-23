@@ -35,8 +35,7 @@ rm -rf "$UPSTREAM_DIR" "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
 log "安装 Linux 构建、打包和 smoke-test 依赖"
-sudo apt-get update
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+"$SCRIPT_DIR/../common/apt/install_packages.sh" \
   build-essential \
   ca-certificates \
   curl \

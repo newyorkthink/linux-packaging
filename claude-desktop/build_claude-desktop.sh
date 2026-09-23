@@ -6,6 +6,9 @@ set -Eeuo pipefail
 
 # 所有构建路径均基于脚本目录。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 readonly SCRIPT_DIR
 cd "$SCRIPT_DIR"
 

@@ -112,8 +112,7 @@ find_host_gpu_files() {
 rm -rf -- AppDir dist source
 mkdir -p AppDir dist source
 
-sudo apt-get update
-sudo apt-get install -y --no-install-recommends \
+"$SCRIPT_DIR/../common/apt/install_packages.sh" \
   ca-certificates curl file git gzip jq patchelf xz-utils
 
 ###### 动态解析并下载 WineHQ 最新 staging ######

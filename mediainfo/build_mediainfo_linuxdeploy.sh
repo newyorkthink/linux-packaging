@@ -17,11 +17,10 @@ rm -rf AppDir dist source
 mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps dist source
 
 # linuxdeploy + appimagetool 路线固定在 Ubuntu 24.04 构建，不使用 Arch Linux / yay。
-# 更新 Ubuntu 软件包索引并准备 aptitude。
-sudo apt-get update
-sudo apt-get install -y aptitude
-# 安装 linuxdeploy / appimagetool 打包所需的最小基础工具。
-sudo aptitude install -y build-essential git wget curl jq binutils patchelf file appstream-util desktop-file-utils zsync ca-certificates
+# 安装 aptitude 以及 linuxdeploy / appimagetool 打包所需的最小基础工具。
+"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+  aptitude build-essential git wget curl jq binutils patchelf file \
+  appstream-util desktop-file-utils zsync ca-certificates
 
 # 从 MediaArea 官方仓库页面动态取得当前 releases 仓库安装包。
 MEDIAAREA_REPOS_PAGE="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 \

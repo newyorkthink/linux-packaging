@@ -2,6 +2,9 @@
 # 从 siduck/st 默认分支的当前提交构建独立的 st AppImage。
 set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 ROOT="$(dirname -- "$SCRIPT_DIR")"
 cd "$SCRIPT_DIR"
 source "$SCRIPT_DIR/font-config.sh"

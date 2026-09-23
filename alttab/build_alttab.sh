@@ -4,6 +4,9 @@ set -euo pipefail
 # 定位同目录的补丁应用脚本。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+
 # 稳定基线说明：
 # - 只使用 sagb/alttab 官方最新稳定 GitHub Release 源码，不依赖 AUR 的 alttab/alttab-git 包。
 # - 每次构建先读取 releases/latest，再把发布 tag 解析到具体 commit SHA，并按该 commit 下载源码。
@@ -210,5 +213,4 @@ test -s ./dist/alttab.AppImage
 ###### 输出版本元数据 ######
 # AppImage 内部 VERSION 保持纯上游版本；更新清单额外携带构建指纹，区分同上游版本下的补丁变化。
 printf '%s\n' "$ALTTAB_UPDATE_VERSION" > ./dist/version.txt
-
 

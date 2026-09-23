@@ -8,6 +8,9 @@ trap 'rc=$?; echo "::error file=Keyviz/build_keyviz.sh,line=${LINENO}::命令失
 #   仓库根目录/Keyviz/version.conf    -> 上游版本与 tao 固定版本
 #   仓库根目录/Keyviz/patches/        -> 各项源码修补，彼此独立
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PATCH_DIR="$SCRIPT_DIR/patches"
 

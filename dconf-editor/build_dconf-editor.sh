@@ -52,8 +52,7 @@ rm -f "$SMOKE_LOG"
 mkdir -p "$APPDIR" "$OUTDIR" "$TOOLDIR"
 
 # 安装 dconf Editor、dconf CLI、简体中文语言包、Fcitx5 GTK3 模块以及静态检查/打包所需工具。
-sudo apt-get update
-sudo apt-get install -y --no-install-recommends \
+"$SCRIPT_DIR/../common/apt/install_packages.sh" \
   binutils \
   ca-certificates \
   curl \

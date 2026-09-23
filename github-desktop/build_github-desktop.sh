@@ -11,6 +11,8 @@ if [[ "$ARCH" != "x86_64" ]]; then
 fi
 export ARCH=x86_64
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 ROOT_DIR="$PWD"
 SOURCE_DIR="$ROOT_DIR/source"
 TOOLS_DIR="$ROOT_DIR/tools"
@@ -23,8 +25,7 @@ mkdir -p "$TOOLS_DIR" "$DIST_DIR"
 # GitHub Actions 固定使用 Ubuntu 22.04 作为 Linux ABI 兼容基线。
 # 保留 Arch 本地调试入口，但正式 workflow 不再使用 rolling Arch 构建 native module。
 if command -v apt-get >/dev/null 2>&1; then
-  sudo apt-get update
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  "$SCRIPT_DIR/../common/apt/install_packages.sh" \
     build-essential git curl xz-utils python3 pkgconf patchelf file ca-certificates \
     libsecret-1-dev libgtk-3-0 libnss3 libasound2 libcups2 libxkbcommon0 libxrandr2 libgl1 \
     fontconfig xdg-utils xvfb xauth x11-utils xdotool

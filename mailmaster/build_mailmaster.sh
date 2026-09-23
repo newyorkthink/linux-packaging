@@ -2,6 +2,9 @@
 set -Eeuo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 cd "$SCRIPT_DIR"
 
 # 每次只清理 MailMaster 自己的构建目录和产物，避免旧文件混入新 AppImage。

@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+
 SOURCE_DIR="$PWD/moderncsv-source"
 COMPAT_DIR="/tmp/moderncsv-qt6-compat"
 MODERNCSV_VERSION="2.4.3"

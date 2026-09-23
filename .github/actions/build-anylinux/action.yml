@@ -45,12 +45,6 @@ runs:
         printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
         chmod +x /usr/local/bin/yay
 
-    - name: Install GitHub CLI
-      shell: bash
-      run: |
-        set -euo pipefail
-        sudo pacman -Syu --noconfirm github-cli jq || yay -S --noconfirm github-cli jq
-
     - name: Build and publish AppImage
       shell: bash
       env:

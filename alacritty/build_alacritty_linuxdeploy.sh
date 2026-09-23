@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 # 切换到脚本所在目录。
-cd "$(dirname "$0")"
+cd "$SCRIPT_DIR"
 
 # 安装 Alacritty 官方要求的编译依赖，以及 XKB/X11 运行时和下载源码所需工具。
-sudo apt-get update
-sudo apt-get install -y build-essential ca-certificates cmake curl git libfontconfig1-dev libx11-data libxcb-xfixes0-dev libxkbcommon-dev libxkbcommon-x11-0 pkg-config python3 xkb-data
+"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+  build-essential ca-certificates cmake curl git libfontconfig1-dev \
+  libx11-data libxcb-xfixes0-dev libxkbcommon-dev libxkbcommon-x11-0 \
+  pkg-config python3 xkb-data
 
 # 安装 Rust 工具链。
 curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal
