@@ -294,3 +294,13 @@ PY_OUTER_PATCH
 
 chmod +x "$WRAPPED"
 bash "$WRAPPED" "$@"
+
+# 以本次实际生成的主程序名发布，主版本升级后不沿用旧资产名。
+shopt -s nullglob
+artifacts=(dist/mediacenter[0-9]*.AppImage)
+shopt -u nullglob
+if (( ${#artifacts[@]} != 1 )); then
+  echo "错误：JRiver 应只生成一个 mediacenterN.AppImage，实际为 ${#artifacts[@]} 个。" >&2
+  exit 1
+fi
+printf '%s\n' "${artifacts[0]##*/}" > dist/release-name.txt

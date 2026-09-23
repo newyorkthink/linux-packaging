@@ -695,7 +695,7 @@
       "key": "jriver",
       "kind": "special",
       "name": "JRiver",
-      "script": "jriver/build_jriver.sh",
+      "script": "jriver/build_jriver_anylinux_sharun.sh",
       "dir": "jriver"
     },
     {

@@ -1,8 +1,20 @@
+# JRiver AnyLinux + RunImage 修复记录
+
+本文件保留 RunImage + quick-sharun 路线第 1～10 节的完整构建与运行历史。历史段落中的 `build_jriver.sh` 和“当前”表示**当时**的入口及状态。2026-09-23 起脚本改名为 `build_jriver_anylinux_runimage.sh`，不再由 Build JRiver Job 调用；当前入口见 [README.md](./README.md)，旧路线历史见 [REPAIR_HISTORY_ANYLINUX_SHARUN.md](./REPAIR_HISTORY_ANYLINUX_SHARUN.md)。
+
+2026-09-18 该路线曾确认终端 GUI、简体中文和文件选择器；Rofi run 无窗口的完整实机证据和停手边界在第 10 节。切换 CI 入口不等于该问题已解决，也不授权修改 `rofi/` 或重复既有失败的包装实验。
+
+---
+
+## 历史导言（2026-09-18 原文）
+
+以下保留迁移前的状态说明；其中“当前 CI”和旧文件名仅指当时。
+
 # JRiver RunImage + quick-sharun 路线
 
-本文件专门记录 `jriver/build_jriver.sh` 的 RunImage + quick-sharun 新路线、GitHub Actions 失败证据与对应修复。本目录文件清单、当前用法和旧入口对照见 [README.md 目录说明](./README.md)。
+本文件专门记录 `jriver/build_jriver.sh` 的 RunImage + quick-sharun 新路线、GitHub Actions 失败证据与对应修复。本目录文件清单、当前用法和旧入口对照见 [README.md 目录说明](./REPAIR_HISTORY_ANYLINUX_SHARUN.md)。
 
-> 旧版稳定路线、实机验证历史、CEF、网页音频、Fcitx5、glibc 和路径兼容链记录继续保留在 [README.md](./README.md)，不在本文件重复展开。
+> 旧版稳定路线、实机验证历史、CEF、网页音频、Fcitx5、glibc 和路径兼容链记录继续保留在 [README.md](./REPAIR_HISTORY_ANYLINUX_SHARUN.md)，不在本文件重复展开。
 
 > **当前状态：** 2026-09-18 已确认 `mediacenter36.AppImage` 从终端启动时 JRiver Media Center 36 GUI 和简体中文界面正常。通过仓库 `rofi.AppImage` 启动没有 JRiver 窗口。Rofi 本身和其他 AppImage 经同一 Rofi 启动均正常，**不改 `rofi/`**。Rofi 无 GUI 已按第 10 节停止继续改 JRiver 包装。Fcitx5 实际中文输入、网页音频和影院模式鼠标操作仍未验证。详细记录见第 6～10 节。
 
@@ -519,4 +531,12 @@ chmod +x ./mediacenter36.AppImage
 - 中文 locale / Fcitx5 环境变量：终端 GUI 简体中文已确认；Fcitx5 实际输入仍未验证。
 - `RIM_SHARE_FONTS=1`（以及图标、主题、宿主 `xdg-open`）：关字体那次失败后回退到共享。
 
-旧版稳定路线（CEF preload、网页音频闭包、glibc 隔离、pathmap）仍只在 [README.md](./README.md) 第 1～13 节，不并进本路线，也不为 Rofi 无窗重新启用。
+旧版稳定路线（CEF preload、网页音频闭包、glibc 隔离、pathmap）仍只在 [README.md](./REPAIR_HISTORY_ANYLINUX_SHARUN.md) 第 1～13 节，不并进本路线，也不为 Rofi 无窗重新启用。
+
+---
+
+## 11. 2026-09-23：保留 RunImage 脚本，停止作为正式 CI 入口
+
+- 原 `build_jriver.sh` 逐字节保留为 `build_jriver_anylinux_runimage.sh`；该路线的第 1～10 节故障、修复与实机结果全部保留。
+- 正式 Build JRiver Job 和手动下拉现选择 AnyLinux + quick-sharun 旧入口，两个入口不会在同一次 JRiver Job 中重复构建。独立 `runimage/jriver-media-center/` 的 workflow 未修改。
+- 该入口 2026-09-18 的终端 GUI、中文、文件选择器结果只适用于当时产物；Rofi run 无窗仍未解决。此次没有新构建或新实机验证，不恢复已经失败的环境清理、字体或外层 AppRun 包装。

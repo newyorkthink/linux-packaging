@@ -57,11 +57,9 @@
 
 ## jriver
 
-- 2026-09-18 终端 GUI、简体中文界面和文件选择器已确认。
-- Rofi run 无窗口已停止改包装：**禁止改 `rofi/`，禁止再做 AppRun 包装或 Sharun / GVFS / D-Bus / `LD_PRELOAD` 环境清理。** 没有新的直接证据前，不得重新开启这些已经失败的方向。
-- 原因见 [jriver/README_runimage_quick.md 第 10 节](./jriver/README_runimage_quick.md)。
-- 旧 CEF / appimagetool 入口仍为 `jriver/build_jriver_legacy_20260913.sh`，CI 不跑。
-- Fcitx5 实际中文输入、网页音频和影院模式仍未验证；没有新证据前不作为后续改包装任务。
+- 2026-09-23 正式 CI 已切回 `jriver/build_jriver_anylinux_sharun.sh`。这条历史旧路线实际使用 quick-sharun、appimagetool 和私有 CEF / 音频 / glibc 隔离修复，不是 linuxdeploy；最后一次旧产物实机记录为 2026-09-12 GUI 正常、影院模式鼠标点击卡住。本次新产物的构建与实机结果尚未确认，详见 [旧路线完整记录](./jriver/REPAIR_HISTORY_ANYLINUX_SHARUN.md)。
+- `jriver/build_jriver_anylinux_runimage.sh` 保留但 CI 不调用。该路线 2026-09-18 曾确认终端 GUI、简体中文界面和文件选择器，Rofi run 无窗口已停止改包装：**禁止改 `rofi/`，禁止再做 AppRun 包装或 Sharun / GVFS / D-Bus / `LD_PRELOAD` 环境清理。** 没有新的直接证据前，不得重新开启这些已经失败的方向；详见 [RunImage 完整记录第 10 节](./jriver/REPAIR_HISTORY_ANYLINUX_RUNIMAGE.md)。
+- Fcitx5 实际中文输入、网页音频和影院模式需要按新产物分别确认；旧路线与 RunImage 路线的实机结论不能互相替代。
 
 ## 公共代码与公共函数
 
