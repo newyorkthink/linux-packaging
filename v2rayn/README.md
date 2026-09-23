@@ -31,3 +31,11 @@ v2rayN Linux 客户端使用 .NET/Avalonia。构建脚本校验官方 Release SH
 - 修改文件：`v2rayn/build_v2rayn.sh`、本 README。
 - 修复：继续优先使用官方 `browser_download_url`；如果该直链下载失败，则使用同一 Release asset 的 GitHub API asset ID，并通过 workflow 已提供的 `GH_TOKEN` 以 `application/octet-stream` 方式下载。两条路径最终仍使用 GitHub Release 返回的同一个 SHA-256 digest 校验。
 - 已知结果：本次仅修复下载入口；完整构建结果以对应 Actions Job 为准。
+
+### 2026-09-23：恢复既有打包环境并延后安装统一基础包
+
+- 故障现象：AppImage 已生成，但在现有 Xvfb 启动检查中出现 `free(): invalid pointer` 并提前退出。
+- 根因范围：最近新增的统一 Arch 基础包调用位于构建脚本开头，改变了此前稳定的依赖收集与启动检查环境。
+- 修改文件：`v2rayn/build_v2rayn.sh`、本 README。
+- 修复内容：将统一基础包调用移动到 AppImage 完成现有检查之后，使打包阶段继续使用原有应用依赖集合，同时在脚本返回前补齐后续发布需要的基础命令。
+- 已知结果：脚本执行顺序已恢复原有打包环境；实际构建和运行结果以下一次 Actions 为准。

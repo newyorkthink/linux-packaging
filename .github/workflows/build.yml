@@ -880,6 +880,27 @@ jobs:
           fetch-depth: 0
       - name: Preparing AnyLinux Container
         uses: pkgforge-dev/anylinux-setup-action@0964f2258d6c93d1391359978dde081fd8b3c6af
+      - name: Setup Yay for Root execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          useradd -m -G wheel builduser || true
+          echo 'builduser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          for attempt in 1 2 3; do
+            rm -rf /tmp/yay-bin
+            if su - builduser -c "git -c http.version=HTTP/1.1 clone --depth=1 https://aur.archlinux.org/yay-bin.git /tmp/yay-bin"; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo '无法克隆 yay-bin。' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          test -f /tmp/yay-bin/PKGBUILD
+          su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
+          printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+          chmod +x /usr/local/bin/yay
       - name: Build and Verify OBS Studio AppImage
         working-directory: obs-studio
         shell: bash

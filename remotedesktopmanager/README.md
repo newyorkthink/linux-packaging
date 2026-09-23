@@ -115,3 +115,11 @@ AppImage 不内置 Fcitx5 守护进程或输入方案。
 以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
 
 - `remotedesktopmanager`：libc 泄漏已实机修好。IME 钩子已加载（启动日志已打印注册成功），Linux 实机仍确认 Fcitx5 选词键泄漏进 LocalTerm PTY。包装层修不了，停止再改打包脚本。不得回退 ICU、glycin-ng、WebView、`GTK_IM_MODULE=fcitx` 或重新写入 `LD_LIBRARY_PATH`。
+
+### 2026-09-23：修正 glycin-ng 与统一基础包的安装顺序
+
+- 故障现象：统一基础包先安装官方 `glycin` 后，再安装 `glycin-ng` 会触发包冲突；非交互构建拒绝替换并退出。
+- 根因：`glycin-ng` 的既有前置安装约束被统一基础包调用放到了后面。
+- 修改文件：`remotedesktopmanager/build_remotedesktopmanager.sh`、本 README。
+- 修复内容：恢复先安装 `glycin-ng`，再调用统一 Arch 基础包入口；其余 RDM 依赖、IME、WebView 和运行时处理保持不变。
+- 已知结果：静态执行顺序已避免统一基础包抢先安装 `glycin`；实际构建结果以下一次 Actions 为准。

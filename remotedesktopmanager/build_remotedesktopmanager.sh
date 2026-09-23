@@ -3,9 +3,6 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 安装统一的 Arch AppImage 基础包
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-
 rm -rf AppDir || true
 
 ARCH="$(uname -m)"
@@ -18,6 +15,9 @@ export OUTNAME="remotedesktopmanager.AppImage"
 # 必须在其他依赖之前安装 glycin-ng。它提供并替换 glycin；如果先安装官方 glycin，
 # yay 在非交互模式下不会确认冲突替换，构建会直接失败。
 yay -S --noconfirm glycin-ng
+
+# 安装统一的 Arch AppImage 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 
 # 基本依赖
 yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux zsync jq

@@ -6,6 +6,9 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
+# 复用仓库统一的 GitHub API 认证与重试逻辑。
+source "$SCRIPT_DIR/../common/github/github_api.sh"
+
 # 安装统一的 Arch AppImage 基础包
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 readonly SCRIPT_DIR
@@ -73,15 +76,7 @@ for command_name in \
 done
 
 log "解析 Folo 最新稳定 Desktop Linux x64 Release"
-curl -fL \
-  --retry 5 \
-  --retry-all-errors \
-  --retry-delay 2 \
-  --connect-timeout 20 \
-  -H 'Accept: application/vnd.github+json' \
-  -H 'X-GitHub-Api-Version: 2022-11-28' \
-  "$RELEASES_API" \
-  -o "$RELEASES_JSON"
+github_api_get "$RELEASES_API" "$RELEASES_JSON"
 [[ -s "$RELEASES_JSON" ]] || die "Folo Releases API 返回为空。"
 
 mapfile -t release_meta < <(

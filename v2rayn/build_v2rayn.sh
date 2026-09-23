@@ -3,8 +3,6 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-# 安装统一的 Arch AppImage 基础包
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 APPDIR="$SCRIPT_DIR/AppDir"
 DIST_DIR="$SCRIPT_DIR/dist"
 SOURCE_DIR="$SCRIPT_DIR/source"
@@ -200,6 +198,9 @@ if grep -Eqi \
   fail "fatal runtime error detected during smoke test"
 fi
 [[ "$SMOKE_RC" -eq 124 ]] || fail "GUI did not remain running for the 20-second smoke test (exit=$SMOKE_RC)"
+
+# 安装统一的 Arch AppImage 基础包，供后续发布步骤使用。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 
 # 最终 AppImage 完成现有检查后输出统一的软件版本元数据。
 printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"

@@ -41,3 +41,11 @@ obs-studio/build_obs-studio.sh
 - 修改文件：`.github/workflows/build.yml`、本 README。
 - 复用既有 `dist/version.txt`，不修改 OBS Studio 构建脚本、运行时逻辑和 Release 资产名。
 - 成功构建后由统一汇总流程增量更新 `software_versions.json`；提交后不主动监控 Actions，实际新记录以下一次成功构建为准。
+
+### 2026-09-23：补齐 OBS 独立 Job 的 yay 引导
+
+- 故障现象：OBS Studio 独立 Job 进入构建脚本后报告 Arch 构建环境缺少 `yay`，统一基础包入口无法执行。
+- 根因：该独立 Job 使用 AnyLinux v2 准备容器，但没有像同类特例 Job 一样先为 root 构建流程安装 `yay`。
+- 修改文件：`.github/workflows/build.yml`、本 README。
+- 修复内容：在 OBS Studio 构建步骤之前复用现有的 `yay-bin` 引导步骤；不额外安装 `jq`、`github-cli` 或其他基础包，后续仍由构建脚本调用统一 Arch 基础包入口。
+- 已知结果：workflow 结构与同类 Arch 特例 Job 对齐；实际构建结果以下一次 Actions 为准。

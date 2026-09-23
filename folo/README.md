@@ -23,3 +23,11 @@ Folo 为 Electron 桌面应用。构建脚本通过官方 GitHub Releases 动态
 ### 2026-09-16：接入统一软件版本元数据
 
 仅增加 `dist/version.txt` 与 workflow 清单接入，不改变现有 Folo Electron 运行目录、音频依赖、输入法或启动逻辑。
+
+### 2026-09-23：为 GitHub Releases API 接入统一认证
+
+- 故障现象：构建读取 Folo Releases API 时收到 HTTP 403，在下载官方 AppImage 前退出。
+- 根因：应用脚本直接发起未认证的 GitHub API 请求，容易触发匿名请求限额。
+- 修改文件：`folo/build_folo.sh`、本 README。
+- 修复内容：改用仓库现有 `common/github/github_api.sh` 请求 Release 元数据，自动使用 workflow 提供的 `GH_TOKEN`，并保留原有稳定版筛选、资产 URL 与摘要校验逻辑。
+- 已知结果：API 请求已接入统一认证与重试入口；实际构建结果以下一次 Actions 为准。
