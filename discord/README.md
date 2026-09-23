@@ -19,3 +19,7 @@
 用户运行已成功构建的 Release 成品后，程序显示 `1.0.158`，并要求下载 `1.0.159`。解开同一 Release 的 `discord.AppImage`，其中 `bin/resources/build_info.json` 的实际版本确为 `1.0.158`；官方下载器返回的目录名却是 `app-1.0.159`，原脚本错误地把目录名记录成成品版本。官网当时的 `1.0.159` Linux tar.gz 和 DEB 都只有约 2 MB，需要该官方下载器另行获取完整程序；上游更新清单的 full.distro 也声明 `1.0.159`。现增加实际版本一致性检查：两者不一致时立即停止构建，禁止把旧程序作为最新版本继续发布。此时上游完整程序来源待修复，用户桌面仍会出现更新提示。
 
 经与本仓库 `mpv`、`smplayer` 以及 quick-sharun 自带默认 `AppRun.sh` 核对，Discord 原来的手写 `AppRun.sh` 只重复指定启动程序和工作目录，没有证据表明需要保留；现交由 quick-sharun 生成默认入口。用户桌面效果尚待新成品确认。
+
+## 2026-09-23：同名 Release 资产导致上传失败
+
+Actions 运行 35846090462 已生成 `discord.AppImage`，但上传 `latest` 时因已有 `discord.AppImage`，`gh release upload --clobber` 连续返回 HTTP 422 `ReleaseAsset.name already exists`，重试八次仍失败。现仅在 Discord 的完整程序封装完成后，若 CI 中的 Release 已存在同名资产，先明确删除旧资产，再由现有共享步骤上传新资产；删除失败则停止发布。新一轮上传结果及桌面运行效果待确认。

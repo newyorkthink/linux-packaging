@@ -58,3 +58,10 @@ quick-sharun --make-appimage
 # 只有完整程序封装成功后，才写入 Release 所用的动态版本。
 [[ -s "$DIST/discord.AppImage" ]] || { echo 'Discord AppImage 未生成。' >&2; exit 1; }
 printf '%s\n' "$VERSION" > "$DIST/version.txt"
+
+# CI 发布前移除同名旧资产；共享上传步骤的 --clobber 遇到已有资产时返回 422。
+if [[ -n "${GH_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
+  if gh release view latest --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq 'discord.AppImage'; then
+    gh release delete-asset latest discord.AppImage --repo "$GITHUB_REPOSITORY" --yes
+  fi
+fi
