@@ -35,7 +35,7 @@ install -Dm0644 "$PACKAGE/opt/wemeet/icons/hicolor/256x256/mimetypes/wemeetapp.p
 install -Dm0644 "$PACKAGE/usr/share/applications/wemeetapp.desktop" "$SOURCE/wemeet.desktop"
 
 # 桌面入口指向 AppImage 内的主程序，图标使用官方 DEB 自带的 PNG。
-sed -i -e 's|^Exec=.*|Exec=wemeet %u|' -e 's|^Icon=.*|Icon=wemeet|' "$SOURCE/wemeet.desktop"
+sed -i -e 's|^Exec=.*|Exec=wemeetapp %u|' -e 's|^Icon=.*|Icon=wemeet|' "$SOURCE/wemeet.desktop"
 
 # 官方启动器依赖 /opt 绝对路径；便携入口只设置同等目录和插件环境。
 cat > "$APPDIR/AppRun.sh" <<'APPRUN'
@@ -59,7 +59,7 @@ chmod 0755 "$APPDIR/AppRun.sh"
 
 ###### 封装正式资产 ######
 # quick-sharun 按主程序 ELF 收集外部运行库，保留腾讯自带的 Qt 库和资源布局。
-export ARCH=x86_64 VERSION APPNAME='Tencent Meeting' MAIN_BIN=wemeet
+export ARCH=x86_64 VERSION APPNAME='Tencent Meeting' MAIN_BIN=wemeetapp
 export ICON="$SOURCE/wemeet.png" DESKTOP="$SOURCE/wemeet.desktop"
 export OUTPATH="$DIST" OUTNAME=wemeet.AppImage NO_STRIP=1
 export DEPLOY_OPENGL=1 DEPLOY_PIPEWIRE=1

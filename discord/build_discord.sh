@@ -36,7 +36,7 @@ VERSION="${APP_DIR#app-}"
 # 保留官方 Electron 可执行文件、资源和 helper 程序的相对位置。
 cp -a -- "$DOWNLOAD/$APP_DIR"/. "$APPDIR/bin/"
 install -Dm0644 "$SOURCE/Discord/discord.desktop" "$SOURCE/discord.desktop"
-sed -i -e 's|^Exec=.*|Exec=discord %U|' -e 's|^Icon=.*|Icon=discord|' "$SOURCE/discord.desktop"
+sed -i -e 's|^Exec=.*|Exec=Discord %U|' -e 's|^Icon=.*|Icon=discord|' "$SOURCE/discord.desktop"
 
 # 使用官方完整主程序作为便携入口，保持运行时资源和参数的相对路径。
 cat > "$APPDIR/AppRun.sh" <<'APPRUN'
@@ -50,7 +50,7 @@ chmod 0755 "$APPDIR/AppRun.sh"
 
 ###### 封装正式资产 ######
 # quick-sharun 部署官方 Electron 主程序直接依赖并封装完整运行目录。
-export ARCH=x86_64 VERSION APPNAME=Discord MAIN_BIN=discord
+export ARCH=x86_64 VERSION APPNAME=Discord MAIN_BIN=Discord
 export ICON="$SOURCE/Discord/discord.png" DESKTOP="$SOURCE/discord.desktop"
 export OUTPATH="$DIST" OUTNAME=discord.AppImage NO_STRIP=1 DEPLOY_OPENGL=1
 quick-sharun "$APPDIR/bin/Discord"

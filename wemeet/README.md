@@ -13,3 +13,5 @@
 ## 2026-09-23：首次 CI 构建失败
 
 首次 CI 在 DEB 包身份校验时报 `dpkg-deb: command not found`。Arch 构建容器没有预装 `dpkg`；构建脚本现通过公共 Arch 安装入口安装 `dpkg`，再使用原有公共下载和解包入口。后续构建结果待确认。
+
+第二轮 CI 已进入 quick-sharun 封装阶段；图标路径在 AppDir 内导致重复复制而退出，现改为从 AppDir 外提供图标与 desktop。第三轮 CI 提示 `Main binary is set to 'wemeet', but this file is NOT present`，官方下载的实际程序名为 `wemeetapp`；现已同步修正 `MAIN_BIN` 和桌面入口，后续构建待确认。

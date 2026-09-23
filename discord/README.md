@@ -11,3 +11,5 @@
 官方安装器已成功下载完整 stable 程序，但返回的是目录名 `app-1.0.159`，原脚本误认为必须是纯版本号而退出。现在把 `app-` 前缀留在实际文件目录路径中，只从目录名提取软件版本写入 `dist/version.txt`；后续构建结果待确认。
 
 第二轮 CI 已下载完整程序；quick-sharun 在复制图标时发现源文件和 AppDir 内目标是同一个文件而退出。图标与 desktop 现在从 AppDir 之外的官方源目录传给封装工具，下一轮结果待确认。
+
+第三轮 CI 运行到封装主程序时提示 `Main binary is set to 'discord', but this file is NOT present`：官方下载的真实可执行文件名为 `Discord`。现已同步修正 `MAIN_BIN` 和桌面入口，后续构建待确认。
