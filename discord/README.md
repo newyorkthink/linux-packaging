@@ -27,3 +27,7 @@ Actions 运行 35846090462 已生成 `discord.AppImage`，但上传 `latest` 时
 ## 2026-09-23：补充中文输入和中文环境
 
 用户截图显示仍在运行 `1.0.158`，且提示 `1.0.159` 可用；上一次构建虽通过包内版本一致性检查，却在上传 Release 时失败，因此该截图不能证明新构建已替换旧资产。保留已有版本检查与同名资产上传修复，本次只调整 `build_discord.sh`：应用级安装 Arch 的 `ibus`、`fcitx5-gtk`，将两个 GTK3 输入模块明确交给 quick-sharun；生成包内 `zh_CN.UTF-8` locale 并写入 `LANG`、`LANGUAGE`、`LOCPATH`。不覆盖宿主会话选择的输入法，也不更改 Discord 官方资源或启动入口。新产物的版本、中文界面和中文输入仍待实际构建与运行确认。
+
+## 2026-09-23：更新提示与 Release 资产核对
+
+用户在 18:34 的启动日志中看到程序自身版本 `1.0.158`，Discord 提示 `1.0.159` 可下载。核对仓库 `main` 的构建脚本、已有 Build Discord 运行 35848533399 和 `latest` Release：该 Job 于 18:30 成功结束，现有脚本在封装前检查官方安装目录版本与 `resources/build_info.json` 的真实程序版本一致；Release 的 `discord.AppImage` 资产 ID 583540613 于 18:29 上传，SHA-256 为 `bb4aec9bf420b463efb549722c81b466d49bd6110ca69fb0796fadeeb5df3f2e`。截图中的 `1.0.158` 进程不能证明新发布资产仍为旧版，现有证据指向本地启动入口仍指向旧 AppImage。建议从本仓库 `latest` Release 取得新资产，替换原先运行的 AppImage，再启动；不应通过伪造版本或关闭更新检查掩盖旧程序。此次仅为已有日志、代码和 Release 元数据的静态核对，未下载解包新资产、未执行桌面实机验证；没有修改构建脚本，也不额外触发测试构建。
