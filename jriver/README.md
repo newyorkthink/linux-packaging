@@ -35,3 +35,15 @@ chmod +x ./mediacenter36.AppImage
 - 原因：用户要求保留 RunImage 脚本并切回此前记录过 CEF、网页音频和隔离修复的旧路线。历史核查发现旧路线为 quick-sharun，没有 linuxdeploy 版本。
 - 修改范围：两个脚本和两份修复记录按真实路线重命名；更新 `.github/appimage-apps.json`、`.github/workflows/build.yml` 的 JRiver 唯一选择项与独立 Job 入口；旧入口生成 `release-name.txt`，避免主版本变更后发布名仍沿用 36。独立 `runimage/jriver-media-center/`、Rofi 和其他应用不变。
 - 检查：核对历史脚本、CEF/音频补丁的来源和构建链，进行 Shell、JSON、workflow 及选择逻辑静态检查；未对本次构建产物或实机功能作成功判定。
+
+## 2026-09-23 自根目录原样迁入
+
+以下原文来自当时根目录 `PENDING_AI_TASKS.md` 和 `README.md` 的「当前待处理」，未改写。
+
+- 2026-09-23 正式 CI 已切回 `jriver/build_jriver_anylinux_sharun.sh`。这条历史旧路线实际使用 quick-sharun、appimagetool 和私有 CEF / 音频 / glibc 隔离修复，不是 linuxdeploy；最后一次旧产物实机记录为 2026-09-12 GUI 正常、影院模式鼠标点击卡住。本次新产物的构建与实机结果尚未确认，详见 [旧路线完整记录](./REPAIR_HISTORY_ANYLINUX_SHARUN.md)。
+- `jriver/build_jriver_anylinux_runimage.sh` 保留但 CI 不调用。该路线 2026-09-18 曾确认终端 GUI、简体中文界面和文件选择器，Rofi run 无窗口已停止改包装：**禁止改 `rofi/`，禁止再做 AppRun 包装或 Sharun / GVFS / D-Bus / `LD_PRELOAD` 环境清理。** 没有新的直接证据前，不得重新开启这些已经失败的方向；详见 [RunImage 完整记录第 10 节](./REPAIR_HISTORY_ANYLINUX_RUNIMAGE.md)。
+- Fcitx5 实际中文输入、网页音频和影院模式需要按新产物分别确认；旧路线与 RunImage 路线的实机结论不能互相替代。
+
+- `jriver`：2026-09-23 的正式 Build JRiver 入口切回 [AnyLinux + quick-sharun 旧路线](./REPAIR_HISTORY_ANYLINUX_SHARUN.md)，脚本为 `jriver/build_jriver_anylinux_sharun.sh`；历史里没有 JRiver linuxdeploy 版本。旧路线 2026-09-12 曾确认 GUI，但影院模式鼠标点击卡住，本次新产物尚未构建及实机验证。保留的 [RunImage 路线](./REPAIR_HISTORY_ANYLINUX_RUNIMAGE.md) 2026-09-18 曾确认终端 GUI、中文和文件选择器，Rofi run 无窗口仍未解决；禁止改 `rofi/` 或重复已失败的 AppRun、字体、Sharun/GVFS/D-Bus/`LD_PRELOAD` 环境清理。两条路线的验证结果不得混用。
+
+后续处理原则原文第 4 条：JRiver 两条路线继续严格按各自现有停手边界执行，没有新证据不重复已经失败的包装实验。

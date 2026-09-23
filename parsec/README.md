@@ -148,3 +148,9 @@ Parsec 官方 Linux 依赖列表没有要求 Qt / GTK 输入上下文插件，�
 - 版本来自本次实际安装的 `parsec-bin`，去掉仅属于 Arch 打包的 epoch / pkgrel。
 - workflow 接入 `SOFTWARE_KEY=parsec` 与统一 `software_versions.json`。
 - 不改变现有 FFmpeg 4.4、libjpeg v8、VA-API、locale 和 quick-sharun 兼容基线。
+
+## 2026-09-23 自根目录原样迁入
+
+以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
+
+- `parsec`：当前 AppImage 已确认 GUI 可正常启动，`libjpeg8` 缺失问题已修复，`Decoder` 已恢复为可用的 `Software`；硬件 Decoder 仍未恢复，VA-API / VDPAU 兼容问题后续继续处理。

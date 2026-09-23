@@ -36,3 +36,9 @@ Linux 实机反馈邮件编辑框只能输入英文。检查此前 AppImage 的 
 ## 2026-09-23：同名 Release 资产上传失败
 
 Build BlueMail（run `35844883809`）已生成 AppImage，日志也显示两个 GTK3 输入模块进入 AppDir；发布时 `gh release upload --clobber` 对已有 `bluemail.AppImage` 连续返回 HTTP 422 `ReleaseAsset.name already exists`。共享 `.github/actions/build-anylinux/action.yml` 改为分页查找并只删除该同名旧资产，再上传新资产；提交后的构建、发布和中文输入尚未验证。
+
+## 2026-09-23 自根目录原样迁入
+
+以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
+
+- `bluemail` / `tradingview`：2026-09-23 实机反馈中文无法输入；旧产物缺 IBus/Fcitx5 GTK3 模块，构建脚本已补模块包。新产物中文输入仍待实机确认，详见 [BlueMail](../bluemail/README.md) 和 [TradingView](../tradingview/README.md)。

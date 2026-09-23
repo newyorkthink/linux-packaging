@@ -19,3 +19,9 @@
 ## 2026-09-23：运行时缺少 libwemeet.so
 
 Linux 实机运行报 `libwemeet.so: cannot open shared object file`。已检查官网当前 DEB，`libwemeet.so` 位于 `opt/wemeet/lib/`，原脚本也保留该目录；问题在于自写 `AppRun.sh` 最后直接执行 `opt/wemeet/bin/wemeetapp`，绕过 sharun 的库加载器。`build_wemeet.sh` 删除自写入口，改由 quick-sharun 原生 `AppRun` 启动包装器，并通过 `.env` 提供私有库、工作目录及 Qt 插件路径。新构建及实机启动尚未验证。
+
+## 2026-09-23 自根目录原样迁入
+
+以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
+
+- `rustdesk` / `wemeet`：2026-09-23 实机分别报告 `APPRUN ERROR: Unable to open file: (null)` 和缺少 `libwemeet.so`。启动入口已按实际打包方式调整，新产物运行待确认，详见 [RustDesk](../rustdesk/README.md) 和 [腾讯会议](../wemeet/README.md)。

@@ -78,3 +78,13 @@ RunImage
 - 不因为当前 RunImage 故障去修改已经长期正常的 Rofi、nwg-drawer、宿主 `/usr/local/bin/mediacenter36` 软链接或宿主系统环境。
 - 后续定位必须同时比较“实际二进制/构建产物”和源码，不能只依据 Git 回退判断是否恢复。
 - 问题现象、验证结果、失败尝试和后续定位范围统一更新到 `TEST_ISSUE.md`。
+
+## 2026-09-23 自根目录原样迁入
+
+以下原文来自当时根目录 `PENDING_AI_TASKS.md` 和 `README.md` 的「当前待处理」，未改写。
+
+- JRiver RunImage 当前仍未解决。Rofi 启动 `mediacenter36` 时存在后台进程但 GUI 不显示；回退到文件选择器实验前的旧构建逻辑后仍然复现，因此不能把根因简单归到 GVFS、`dbus-run-session`、`LD_PRELOAD` 或 launcher 中的单一改动。
+- 当前 RunImage 不作为日常使用基线。后续应从此前实际可用产物与当前产物、RunImage 版本、挂载环境、父进程环境、残留进程 / 会话状态等方向做对照。
+- 详见 [README.md](./README.md) 与 [TEST_ISSUE.md](./TEST_ISSUE.md)。
+
+- `runimage/jriver-media-center`：JRiver RunImage 当前仍未解决。Rofi 启动 `mediacenter36` 时存在后台进程但 GUI 不显示；回退到文件选择器实验前的旧构建逻辑后仍然复现，因此不能把根因简单归到 GVFS、`dbus-run-session`、`LD_PRELOAD` 或 launcher 中的单一改动。当前 RunImage 不作为日常使用基线。后续应从此前实际可用产物与当前产物、RunImage 版本、挂载环境、父进程环境、残留进程 / 会话状态等方向做对照。

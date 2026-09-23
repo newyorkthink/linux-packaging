@@ -109,3 +109,9 @@ AppImage 不内置 Fcitx5 守护进程或输入方案。
 - 已确认：补 `TextInputMethodClient` 不能拦住 TermControl 把候选键编成 VT。包装层（环境变量、GTK 模块、启动钩子）修不了这个问题。
 - 建议：停止继续改打包脚本。不再尝试环境变量、GTK 模块、启动钩子或其它包装层。不得回退 ICU、glycin-ng、WebView、`GTK_IM_MODULE=fcitx` 或重新写入 `LD_LIBRARY_PATH`。该泄漏需上游 `Devolutions.TerminalControl` 在 composing 时不要把方向键写成 VT。
 
+
+## 2026-09-23 自根目录原样迁入
+
+以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
+
+- `remotedesktopmanager`：libc 泄漏已实机修好。IME 钩子已加载（启动日志已打印注册成功），Linux 实机仍确认 Fcitx5 选词键泄漏进 LocalTerm PTY。包装层修不了，停止再改打包脚本。不得回退 ICU、glycin-ng、WebView、`GTK_IM_MODULE=fcitx` 或重新写入 `LD_LIBRARY_PATH`。

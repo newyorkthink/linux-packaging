@@ -258,3 +258,9 @@ dist/gemini.AppImage
 
 - 故障现象：全量构建时 `software_versions.json` 没有 `gemini` 对象，回退路径 12 次重试后失败；`latest` 上的 `gemini.AppImage` 仍在。
 - 处理：清单缺条目时改为校验并复用已发布 AppImage，用 AppImage 自带的 `--appimage-extract '*.desktop'` 读取 `X-AppImage-Version`（uruntime / DwarFS 不能靠 `strings`），再写回清单。仍不发布当前含 Windows PE `.node` 的 1.11.4。
+
+## 2026-09-23 自根目录原样迁入
+
+以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
+
+- `gemini`：2026-09-17 Google Omaha `prod` channel 的 Gemini 1.11.4 已包含 Windows PE 原生 Node 模块 `resources/app.asar.unpacked/src/gemini_native.node`，现有“Windows Electron 产品层 + 官方 Linux Electron runtime”路径不能安全直接移植该模块。当前构建保留原生模块检测，不删除或绕过，并在遇到此类上游版本时通过 Release 资产 ID、Release digest、`software_versions.json` 和实际文件 SHA-256 校验后继续保留最后一次成功构建的 Linux 兼容 `gemini.AppImage`，版本清单仍记录真实兼容版本。1.11.4 的原生模块 Linux 实现仍未解决；在没有来源可靠、ABI 匹配的 Linux 对应实现前不得强行发布。

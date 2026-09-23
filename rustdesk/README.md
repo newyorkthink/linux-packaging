@@ -19,3 +19,9 @@
 ## 2026-09-23：恢复官方 ELF AppRun
 
 Linux 实机运行重封装产物报 `APPRUN ERROR: Unable to open file: (null)`。先前把官方 ELF `AppRun` 移到 `AppRun.official` 并以 shell 脚本转发的方案已被实机否定；ELF 也不能像 shell 脚本一样直接插入环境变量语句。`build_rustdesk.sh` 现原样保留官方 `AppRun`，只重封装官方目录。原来的 tty 误判仍需单独核对；新构建和实机运行尚未验证。
+
+## 2026-09-23 自根目录原样迁入
+
+以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
+
+- `rustdesk` / `wemeet`：2026-09-23 实机分别报告 `APPRUN ERROR: Unable to open file: (null)` 和缺少 `libwemeet.so`。启动入口已按实际打包方式调整，新产物运行待确认，详见 [RustDesk](../rustdesk/README.md) 和 [腾讯会议](../wemeet/README.md)。

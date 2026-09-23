@@ -199,3 +199,55 @@ wine/dist/version.txt
 - **2026-09-21：修复包内 FreeType 已存在但 Wine 仍反复报告找不到 FreeType。** `wineserver` 修复后的实机反馈确认 `winecfg` 已能正常打开，同时终端反复出现 `Wine cannot find the FreeType font library`。对应构建日志确认 `libfreetype6`、`libpng16-16`、`libbrotli1` 和 `zlib1g` 均已同时部署 amd64/i386，因此不是漏装 FreeType。进一步核对 AppImageBuilder v2 源码确认其会把 `libz.so*` 归入 glibc compat runtime；较新的宿主选择 system runtime 后不会把 compat 库目录加入正常搜索路径，而 Wine 的 FreeType 后端通过 `dlopen()` 加载 `libfreetype.so.6`，其 32 位依赖链因此会在 zlib 处失败。现在由 `wine-staging.yml` 的 `after_runtime` 只把已打包的 32/64 位 zlib 恢复到正常 multiarch 库目录，同时保留 compat 中原文件；不复制旧 glibc、不修改 `WINEPREFIX`，也不要求宿主安装额外 32 位字体库。修改依据实机日志、当前成功构建日志和 AppImageBuilder/Wine 源码交叉核对；新成品仍需正常构建后由实机确认该提示消失。
 - **2026-09-21：修复 `wine: could not exec wineserver`。** 用户实机运行当前 `wine.AppImage` 时，Wine 主程序能够启动但内部 `wineserver` 启动失败。Wine 当前源码在 `dlls/ntdll/unix/loader.c` 中通过 `posix_spawn()` 启动 server，而 AppRun v2 的 hook 只覆盖 `exec*` 路径；AppImageBuilder v2 同时会为包内 ELF 设置依赖 runtime 工作目录的相对解释器，因此 Wine 直接 spawn 真实 `wineserver` 时绕过了 AppRun 的运行时切换。现在新增绝对 `/bin/sh` 的 `wineserver-launcher`，由 `after_runtime` 在 AppImageBuilder 完成后放入 AppDir，并由 wrapper 通过 `WINESERVER` 指向它；launcher 随后用正常 `exec` 启动真实 server，使执行重新进入 AppRun hook。未改动默认 `~/.wine`、用户自定义 `WINEPREFIX`、WineHQ 双架构包、Mono/Gecko 或 GPU 驱动策略。源码与配置已按上游 Wine/AppRun 执行路径核对；提交后不监控 Actions，新的构建产物及实机运行结果仍需由本次正常构建确认。
 - **2026-09-20：修复 AppImageBuilder 间接带入 Mesa 驱动后导致构建中止。** 在提交 `5a14f62` 的 Actions 构建中，Wine 11.18、amd64/i386、Mono 11.3.0 和 Gecko 2.47.4 均已下载并通过校验，但 AppImageBuilder 解析 Jammy 通用 GL/Vulkan 装载器的替代依赖时仍部署了 Mesa vendor 文件，最终被封装前的 GPU 驱动检查拦截。`build_wine.sh` 现在会在 AppImageBuilder 完成后精确移除 DRI、特定 VDPAU 驱动、Vulkan ICD、NVIDIA 库及 Mesa EGL/GLX vendor 库，并继续用原检查阻止残留文件进入产物；通用 OpenGL/Vulkan 装载器仍保留。修复已依据该失败日志和脚本静态检查确认，后续 Actions 构建及实机运行尚未验证。
+
+## 2026-09-23 自根目录原样迁入
+
+以下原文来自当时根目录 `PENDING_AI_TASKS.md` 和 `README.md` 的「当前待处理」，未改写。
+
+## Wine
+
+### 当前实机基线
+
+截至 2026-09-21，用户已经用当前发布的 `wine.AppImage` 实机确认：
+
+- `winecfg` 可以正常打开，GUI 可用；
+- `winecfg` 已显示**简体中文**，中文环境修复完成；
+- 早期的 `wine: could not exec wineserver` 已不再出现；
+- 早期反复出现的 `Wine cannot find the FreeType font library` 已不再出现；
+- 后续出现过的 `setlocale: LC_MESSAGES/LC_ALL: cannot change locale` 已不再出现在最新实机结果中；
+- 早期截图中的 `wgl:internal_context_create Failed to create internal global context` 在最新实机结果中也已不再出现；
+- 默认 Prefix 行为仍保持 Wine 官方语义：wrapper 不设置 `WINEPREFIX`，默认继续使用 `~/.wine`，用户显式传入的 Prefix 原样生效。
+
+### 当前唯一明确遗留问题
+
+- 从终端执行 `./wine.AppImage` 到 `winecfg` 窗口真正出现，实机仍需要约 **30 秒**。
+- 这不是期望的日常启动速度。当前已经停止继续叠加猜测性修复，**暂不再改 Wine 包装代码**。
+- 该问题不能再简单归因于中文 locale、FreeType、`wineserver`、此前的 EGL 报错或“第一次创建 Prefix”；这些方向已经分别处理过，最新实机仍保留约 30 秒延迟。
+
+### 后续重新处理时的固定方法
+
+后续只有在 AI coding 额度和上下文都足够时再继续。开始前必须重新完整阅读 `AGENTS.md`、本文件、`wine/build_wine.sh`、`wine/wine-staging.yml`、`wine/wrapper`、Wine workflow 以及当前上游 Wine/AppRun/AppImageBuilder 行为。
+
+第一步**不是继续改代码**，而是对同一个现有 Prefix 做可重复的分段计时和系统调用/进程时间线采样，至少区分：
+
+1. uruntime / DwarFS 挂载耗时；
+2. AppRun 初始化、runtime 选择和 hook 注入耗时；
+3. wrapper 自身耗时；
+4. `wineserver` / `wineboot` / services 启动与等待耗时；
+5. `winecfg` 进程创建到窗口可见的耗时。
+
+优先使用 `time`、时间戳日志、`strace -f -tt -T`、进程树和必要的 Wine debug channel 做一次完整采样，再根据最长阻塞点决定是否需要处理 AppRun v2、Wine 11.x、Prefix service、DwarFS 或其他具体组件。
+
+**禁止重复的方向：**
+
+- 不得为了启动速度删除或重建用户 `~/.wine`；
+- 不得把宿主 NVIDIA/Mesa 驱动或 ICD 打进 AppImage；
+- 不得重新加入启动前 `wine reg add`、`localedef` 或其他会额外启动 Wine/增加启动阶段工作的逻辑；
+- 不得回退已经实机确认有效的中文 UI、`wineserver-launcher`、FreeType/zlib 修复和 Prefix 语义；
+- 在没有分段计时证据前，不得再把 30 秒延迟归因于某一个组件并直接修改。
+
+根目录待办原文：
+
+- `wine`：2026-09-21 当前实机基线为：`wine.AppImage` 可以正常启动 `winecfg`，简体中文界面已经确认；此前的 `wine: could not exec wineserver`、FreeType/zlib 加载失败、locale 警告和实机截图中的 `wgl:internal_context_create` 报错均已不再出现。**唯一明确保留的问题是启动仍需约 30 秒，当前暂不继续试错。** 后续有充足 AI coding 额度时，必须先按阶段计时并用 `strace`/进程时间线区分 uruntime 挂载、AppRun、wrapper、wineserver/wineboot、winecfg 各阶段耗时，再根据证据修复；不得继续通过修改 locale、GPU 驱动打包、删除 Prefix 或叠加启动前 Wine 命令来猜测。已确认中文、wineserver、FreeType 和 Prefix 行为不得回退。
+
+后续处理原则原文第 3 条：Wine 的后续修复必须以真实构建产物和实机功能验证为准；构建成功、静态检查通过或代码看起来合理都不能替代实机结论。
