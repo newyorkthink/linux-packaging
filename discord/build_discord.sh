@@ -33,23 +33,22 @@ APP_DIR="$("$SOURCE/Discord/updater_bootstrap" --no-zenity "$DOWNLOAD" stable ht
 VERSION="${APP_DIR#app-}"
 [[ -x "$DOWNLOAD/$APP_DIR/Discord" ]] || { echo '官方安装器没有下载完整 Discord 程序。' >&2; exit 1; }
 
+# 官方安装目录名与程序资源内声明的版本可能不同；只有真实程序版本一致才发布。
+BUILD_INFO="$DOWNLOAD/$APP_DIR/resources/build_info.json"
+[[ -f "$BUILD_INFO" ]] || { echo '官方下载内容缺少 build_info.json。' >&2; exit 1; }
+ACTUAL_VERSION="$(jq -er '.version' "$BUILD_INFO")"
+[[ "$ACTUAL_VERSION" == "$VERSION" ]] || {
+  echo "官方更新目录为 $APP_DIR，但包内程序版本是 $ACTUAL_VERSION；停止发布旧版程序。" >&2
+  exit 1
+}
+
 # 保留官方 Electron 可执行文件、资源和 helper 程序的相对位置。
 cp -a -- "$DOWNLOAD/$APP_DIR"/. "$APPDIR/bin/"
 install -Dm0644 "$SOURCE/Discord/discord.desktop" "$SOURCE/discord.desktop"
 sed -i -e 's|^Exec=.*|Exec=Discord %U|' -e 's|^Icon=.*|Icon=discord|' "$SOURCE/discord.desktop"
 
-# 使用官方完整主程序作为便携入口，保持运行时资源和参数的相对路径。
-cat > "$APPDIR/AppRun.sh" <<'APPRUN'
-#!/bin/sh
-set -e
-export SHARUN_WORKING_DIR="$APPDIR/bin"
-cd "$APPDIR/bin"
-exec "$APPDIR/bin/Discord" "$@"
-APPRUN
-chmod 0755 "$APPDIR/AppRun.sh"
-
 ###### 封装正式资产 ######
-# quick-sharun 部署官方 Electron 主程序直接依赖并封装完整运行目录。
+# quick-sharun 自动生成标准 AppRun；Discord 的主程序无需额外启动脚本。
 export ARCH=x86_64 VERSION APPNAME=Discord MAIN_BIN=Discord
 export ICON="$SOURCE/Discord/discord.png" DESKTOP="$SOURCE/discord.desktop"
 export OUTPATH="$DIST" OUTNAME=discord.AppImage NO_STRIP=1 DEPLOY_OPENGL=1

@@ -13,3 +13,9 @@
 第二轮 CI 已下载完整程序；quick-sharun 在复制图标时发现源文件和 AppDir 内目标是同一个文件而退出。图标与 desktop 现在从 AppDir 之外的官方源目录传给封装工具，下一轮结果待确认。
 
 第三轮 CI 运行到封装主程序时提示 `Main binary is set to 'discord', but this file is NOT present`：官方下载的真实可执行文件名为 `Discord`。现已同步修正 `MAIN_BIN` 和桌面入口，后续构建待确认。
+
+## 2026-09-23：Release 成品版本与官方下载器目录不一致
+
+用户运行已成功构建的 Release 成品后，程序显示 `1.0.158`，并要求下载 `1.0.159`。解开同一 Release 的 `discord.AppImage`，其中 `bin/resources/build_info.json` 的实际版本确为 `1.0.158`；官方下载器返回的目录名却是 `app-1.0.159`，原脚本错误地把目录名记录成成品版本。官网当时的 `1.0.159` Linux tar.gz 和 DEB 都只有约 2 MB，需要该官方下载器另行获取完整程序；上游更新清单的 full.distro 也声明 `1.0.159`。现增加实际版本一致性检查：两者不一致时立即停止构建，禁止把旧程序作为最新版本继续发布。此时上游完整程序来源待修复，用户桌面仍会出现更新提示。
+
+经与本仓库 `mpv`、`smplayer` 以及 quick-sharun 自带默认 `AppRun.sh` 核对，Discord 原来的手写 `AppRun.sh` 只重复指定启动程序和工作目录，没有证据表明需要保留；现交由 quick-sharun 生成默认入口。用户桌面效果尚待新成品确认。
