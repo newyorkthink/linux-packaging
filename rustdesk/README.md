@@ -29,3 +29,9 @@ Linux 实机运行重封装产物报 `APPRUN ERROR: Unable to open file: (null)`
 ## 2026-09-23：在官方 AppRun.env 中设置 X11 会话
 
 新截图仍显示“当前显示服务器 tty 不支持，请切换到 x11”；此前记录的 `export XDG_SESSION_TYPE=x11` 是该 X11 桌面会话的处理方式。上游 AppImage 的 ELF `AppRun` 读取 `AppRun.env` 并启动程序；因此 `build_rustdesk.sh` 保留 ELF 文件及其原有环境配置，仅替换 `AppRun.env` 中的 `XDG_SESSION_TYPE` 条目为 `x11`，不再移动或包装 ELF 入口，也不修改宿主会话。这个封装产物面向 X11；Wayland 会话不应使用该强制设置。此次按要求不进行构建、测试或实机验证，实际效果待用户后续运行反馈。
+
+## 2026-09-23：X11 主机端实机确认
+
+用户使用当前 RustDesk AppImage 后确认：启动时不再出现“当前显示服务器 tty 不支持，请切换到 x11”，手机可以连接电脑。此前 `AppRun.env` 设置 X11 会话类型的修改据此作为当前 X11 主机端稳定基线，打包问题结束；此前失败方案和待验证记录保留为当时的历史状态。
+
+电脑主动连接另一设备时另见公共服务器要求登录，以及 `Failed to secure tcp: deadline has elapsed` 连接超时；这不影响上述手机连接电脑的已确认结果，也不据此修改打包代码。终端的 `org.freedesktop.ScreenSaver` D-Bus 警告尚无证据表明与连接超时有关。
