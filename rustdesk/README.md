@@ -2,7 +2,7 @@
 
 ## 来源和构建
 
-`build_rustdesk.sh` 从 [RustDesk 官方正式 Release](https://github.com/rustdesk/rustdesk/releases)动态取得 x86_64 AppImage 及其发布摘要；保留官方运行目录和原来的 ELF `AppRun`，使用官方 appimagetool 封装为 `dist/rustdesk.AppImage`。构建脚本在 Arch CI 容器运行，最终软件版本写入 `dist/version.txt`。
+`build_rustdesk.sh` 从 [RustDesk 官方正式 Release](https://github.com/rustdesk/rustdesk/releases)动态取得 x86_64 AppImage 及其发布摘要；保留官方运行目录和原来的 ELF `AppRun`，在 `AppRun.env` 中设置 X11 会话类型，使用官方 appimagetool 封装为 `dist/rustdesk.AppImage`。构建脚本在 Arch CI 容器运行，最终软件版本写入 `dist/version.txt`。
 
 ## 2026-09-23：tty 显示服务器误判
 
@@ -25,3 +25,7 @@ Linux 实机运行重封装产物报 `APPRUN ERROR: Unable to open file: (null)`
 以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
 
 - `rustdesk` / `wemeet`：2026-09-23 实机分别报告 `APPRUN ERROR: Unable to open file: (null)` 和缺少 `libwemeet.so`。启动入口已按实际打包方式调整，新产物运行待确认，详见 [RustDesk](../rustdesk/README.md) 和 [腾讯会议](../wemeet/README.md)。
+
+## 2026-09-23：在官方 AppRun.env 中设置 X11 会话
+
+新截图仍显示“当前显示服务器 tty 不支持，请切换到 x11”；此前记录的 `export XDG_SESSION_TYPE=x11` 是该 X11 桌面会话的处理方式。上游 AppImage 的 ELF `AppRun` 读取 `AppRun.env` 并启动程序；因此 `build_rustdesk.sh` 保留 ELF 文件及其原有环境配置，仅替换 `AppRun.env` 中的 `XDG_SESSION_TYPE` 条目为 `x11`，不再移动或包装 ELF 入口，也不修改宿主会话。这个封装产物面向 X11；Wayland 会话不应使用该强制设置。此次按要求不进行构建、测试或实机验证，实际效果待用户后续运行反馈。

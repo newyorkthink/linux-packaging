@@ -32,6 +32,11 @@ VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh
 "$SCRIPT_DIR/../common/archive/extract_appimage.sh" "$IMAGE" "$SOURCE/unpacked"
 mv -- "$SOURCE/unpacked/squashfs-root" "$APPDIR"
 
+# 保留官方 ELF AppRun，只在它读取的环境文件中设置 X11 会话类型。
+sed -i '/^XDG_SESSION_TYPE=/d' "$APPDIR/AppRun.env"
+# 此设置只写入 RustDesk AppImage，不修改宿主的桌面会话环境。
+printf '%s\n' 'XDG_SESSION_TYPE=x11' >> "$APPDIR/AppRun.env"
+
 ###### 封装正式资产 ######
 # 重新封装完整官方目录，并在成功生成后写入动态软件版本。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$TOOLS/appimagetool-x86_64.AppImage" "$APPDIR" "$DIST/rustdesk.AppImage" "$TOOLS/runtime-x86_64" "$VERSION"
