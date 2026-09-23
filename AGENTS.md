@@ -115,7 +115,7 @@ Plan 的选择规则：
 | 第 6 节 | AppImage 内容、AppRun、libunionpreload、打包路线、linuxdeploy、Qt 与 quick-sharun |
 | 第 7～9 节 | GitHub Actions、Release、允许与禁止的检查方式 |
 | 第 10～12 节 | 安全审计、AI 工作方式、用户指令优先级与提交撤销 |
-| 第 13 节 | AppImage 最小构建环境、quick-sharun 默认流程与按证据补依赖 |
+| 第 13 节 | AppImage 统一基础环境、quick-sharun 默认流程与按证据补依赖 |
 
 ## 永久规则：修复记录只增不删，过长只能完整迁移（不可豁免）
 
@@ -960,44 +960,38 @@ AI 应根据当前任务和修改风险选择最小且有效的检查，不需�
 - 实际操作必须先核对远端提交链，再以最小范围重写指定分支，并在完成后确认目标提交和反向提交均不属于该分支。
 - 不得为了说明历史删除结果、补写记录或触发构建而另外创建 commit。
 
-## 13. AppImage 构建最小基础环境与 quick-sharun 默认流程
+## 13. AppImage 统一基础环境与 quick-sharun 默认流程
 
 先按第 6 节确定当前项目的路线。quick-sharun 的完整做法、mpv 这类短写法和“非必要不写 AppRun.sh”以根目录 `anylinux_projects.md` 为准；本节只保留最短链路。官方 AppImage 原样同步不套用本节的依赖收集和封装命令，选择 linuxdeploy 的项目仍执行其专属流程。已有稳定实现保持原样。
 
-本节是需要构建、迁移后适配或重做 AppImage 打包方案时的**强制最小依赖基线**：先使用最小依赖和最短打包链路完成正式构建，只有出现明确、可定位的构建或运行时缺失后，才允许增加应用级依赖、复制额外库 / plugin 或加入特殊兼容处理。
+**以后所有新建或本次修改涉及的基础包统一按 [`docs/appimage-build-dependency-list.md`](./docs/appimage-build-dependency-list.md) 执行。** Arch 和 Ubuntu 使用各自系统中一一对应的精确包名，不得混用。Arch 应用通过 `common/arch/install_packages.sh --base` 安装完整的 95 项基础包，后续参数只用于追加当前应用的软件包；Ubuntu 应用通过 `common/apt/install_packages.sh` 自动追加完整的 Ubuntu 对应包。
 
-已经验证稳定的现有项目如果确实包含必要的特殊处理，应继续保留，不得为了套用模板而删除；但不得把某个应用的特殊依赖反向扩充成所有项目的通用基础环境。
-
-### 通用基础包必须保持最小
-
-通用基础包只安装构建、下载、ELF 处理、desktop 元数据和 AppImage 打包本身需要的基础工具。**GTK、Qt、Fcitx、Mesa / OpenGL、Wayland、音频、多媒体、打印、主题等桌面或应用运行时组件一律不得预装进通用基础包。**
-
-Arch Linux / quick-sharun 默认基础包：
+Arch Linux 统一基础包命令如下：
 
 ```bash
-# 安装 quick-sharun / AppImage 打包所需的最小基础工具
-yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
-  grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
-  desktop-file-utils zsync ca-certificates
+# 安装 Arch Linux AppImage 构建、发布、归档、桌面集成和通用运行时基础包
+yay -S --noconfirm base-devel archlinux-keyring gcc make pkgconf patch autoconf \
+  automake binutils bison debugedit fakeroot file findutils flex gawk gettext \
+  grep groff gzip libtool m4 pacman sed sudo texinfo which git wget curl jq \
+  github-cli patchelf coreutils tar bzip2 xz zstd lz4 unzip zip 7zip rsync \
+  util-linux appstream-glib desktop-file-utils shared-mime-info \
+  hicolor-icon-theme xdg-utils zsync ca-certificates ca-certificates-utils \
+  cmake ninja meson python perl squashfs-tools libarchive cpio elfutils \
+  pax-utils chrpath openssl openssh gnupg dbus at-spi2-core nspr nss \
+  nss-mdns avahi xdg-desktop-portal ibus xterm xclip xsel xorg-xrdb \
+  wqy-microhei wqy-zenhei noto-fonts-emoji polkit glib2 pango gdk-pixbuf2 \
+  libdrm libxkbcommon fontconfig xdotool openal lsb-release socat nginx \
+  boost-libs inetutils
 ```
 
-Ubuntu / linuxdeploy 默认基础包：
+Ubuntu 22.04 和 24.04 使用上述文档列出的对应包；其中 GLib 在 Ubuntu 22.04 使用 `libglib2.0-0`，在 Ubuntu 24.04 使用 `libglib2.0-0t64`。`base-devel` 对应 `build-essential` 并显式补 `g++`，`github-cli` 对应 `gh`，`7zip` 对应 `p7zip-full`，`squashfs-tools` 与 `libarchive-tools` 继续保留。
 
-```bash
-# 更新软件包索引并准备 aptitude
-sudo apt-get update
-sudo apt-get install -y aptitude
+这套统一基础环境覆盖构建、发布、下载、压缩、ELF 检查、桌面集成、基础服务和用户明确要求的通用运行时，但不代替当前应用本身的依赖。GTK、Qt、Fcitx、Mesa / OpenGL、Wayland、音频、多媒体、打印等应用级依赖仍由当前应用的包管理器依赖链拉入，或在基础命令之后使用独立命令精确追加。`ibus` 只负责基础的 D-Bus 输入上下文兼容，不代表预装完整输入法方案。
 
-# 安装 linuxdeploy / appimagetool 打包所需的最小基础工具
-sudo aptitude install -y build-essential git wget binutils patchelf file appstream-util desktop-file-utils zsync ca-certificates
-```
+**个别应用缺包或出现兼容问题时，只能在该应用的构建脚本和 README 中精确补充，不得修改统一基础包。** 只有用户明确要求调整统一基础环境时，才同时修改依赖清单和两个公共安装入口，并保持 Arch / Ubuntu 对应关系。应用级依赖必须使用核实后的精确包名；禁止使用宽泛通配安装来碰运气，不得执行 `upgrade` / `dist-upgrade` 升级整个临时 runner，也不得复制整个 `/usr/lib` 或完整 plugin 树。
 
 要求：
 
-- 不得在上述基础命令中加入 `gtk3` / `gtk4`、`qt5-*` / `qt6-*`、`fcitx5-*`、Mesa、Wayland、PulseAudio、ALSA、GStreamer 等应用或桌面运行时包。
-- 应用包本身通过包管理器依赖链自动拉入 GTK、Qt、Fcitx、Mesa 等真实依赖是正常行为；禁止的是 AI 为了“保险”把这些组件预先塞进所有项目的基础包。
-- 当前应用确实还需要额外软件包时，必须在基础命令下面使用**独立的一条应用级安装命令**，不得回填到通用基础包。
-- 不得把其他项目的依赖列表整段复制过来，也不得因为某个项目曾缺过一个库，就把该库永久加入所有应用的基础环境。
 - 应用级依赖必须使用核实后的精确包名；禁止使用 `qml*`、`qt5*`、`qt6*`、`libqt*`、`libgtk*`、`gstreamer*` 等宽泛通配安装来碰运气，也不得在正式打包中执行 `upgrade` / `dist-upgrade` 升级整个临时 runner。
 - 下载的打包工具、插件和脚本只赋予实际需要的执行权限，优先使用 `chmod +x` 或 `install -m 0755`；禁止使用 `chmod 777` 扩大无关写权限。
 
@@ -1006,6 +1000,9 @@ sudo aptitude install -y build-essential git wget binutils patchelf file appstre
 已经选择 quick-sharun 路线，且能够通过 Arch 官方仓库 / AUR 正常安装、存在可用 `/usr/bin/<主程序>` 的应用，默认结构固定为：
 
 ```bash
+# 定位当前应用脚本所在目录，供公共安装入口使用
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 # 设置当前应用实际需要的 quick-sharun / AppImage 元数据
 export ARCH="$(uname -m)"
 export STARTUPWMCLASS="<StartupWMClass>"
@@ -1014,10 +1011,8 @@ export DESKTOP="<desktop 文件实际路径>"
 export OUTPATH="./dist"
 export OUTNAME="<应用名>.AppImage"
 
-# 安装通用最小基础包
-yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
-  grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
-  desktop-file-utils zsync ca-certificates
+# 通过公共入口安装上文的完整 Arch 基础包
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 
 # 单独安装当前应用；让包管理器按该应用真实依赖关系拉入运行时
 yay -S --noconfirm <应用包>
@@ -1061,9 +1056,9 @@ quick-sharun --make-appimage
 - 上游应用依赖固定相对目录时必须保持其内部布局，不得为了“目录看起来整齐”擅自扁平化。
 - 如果 AUR 包虽然主要内容位于 `/opt`，但已经提供正常且经过验证的 `/usr/bin` launcher，应优先按实际 launcher 结构判断，不得机械重复复制。
 
-### 只有最小打包明确失败后才允许额外补包或复制
+### 只有统一基础环境下明确失败后才允许额外补包或复制
 
-**不得在第一次正式打包之前预防性地加入大批兼容包、Qt / GTK / Fcitx plugin、OpenGL / Mesa 组件、额外 runtime、整套 `/usr/lib` 或其他项目的 workaround。** 默认先执行上面的最小流程。
+**不得因个别应用预防性地继续扩大统一基础包、额外预装大批兼容包、Qt / GTK / Fcitx plugin、OpenGL / Mesa 组件、额外 runtime、整套 `/usr/lib` 或其他项目的 workaround。** 先使用上面的统一基础环境和当前应用自身依赖。
 
 只有出现下列有证据的问题时，才允许偏离最小流程：
 
@@ -1076,9 +1071,9 @@ quick-sharun --make-appimage
 发生上述情况后：
 
 - 先根据日志、ELF 依赖、上游包元数据和已有真实运行结果定位根因，再一次性补当前根因所需的**最小集合**。
-- 缺软件包时，优先新增独立的应用级 `yay -S --noconfirm <缺失包>` / `sudo aptitude install -y <缺失包>`，不得修改通用基础包。
+- 缺软件包时，优先新增独立的应用级 `yay -S --noconfirm <缺失包>` / `sudo aptitude install -y <缺失包>`，不得修改统一基础包。
 - 只有包管理器安装仍不能正确进入产物，或上游特殊布局确实要求时，才手工复制明确需要的 library、plugin、runtime 或目录。
 - 手工复制必须精确到当前应用需要的内容；禁止复制整个 `/usr/lib`、整个 Qt / GTK plugin 树或大批“可能有用”的库。
 - 上游已经自带 Qt、GTK、Electron / Chromium 或其他 runtime 时，默认优先保持上游 runtime；不得因为构建环境安装了更新版本，就无证据覆盖上游整套 runtime。
 - Qt runtime / plugin 的额外处理继续严格遵守本文件的 Qt 主版本与 ABI 一致性规则。
-- 所有偏离最小流程的特殊处理都必须能说明“原始最小流程报什么错、根因是什么、为什么只补这些内容”，并同步记录到对应应用 README；不得把临时试错残留变成永久模板。
+- 所有特殊处理都必须能说明“统一基础环境下报什么错、根因是什么、为什么只补这些内容”，并同步记录到对应应用 README；不得把临时试错残留变成永久模板。

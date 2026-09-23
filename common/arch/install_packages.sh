@@ -8,9 +8,18 @@ if [[ "${1:-}" == --base ]]; then
     exit 1
   }
   PACKAGES=(
-    base-devel git wget curl jq binutils patchelf file coreutils findutils
-    grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib
-    desktop-file-utils zsync ca-certificates
+    base-devel archlinux-keyring gcc make pkgconf patch autoconf
+    automake binutils bison debugedit fakeroot file findutils flex gawk gettext
+    grep groff gzip libtool m4 pacman sed sudo texinfo which git wget curl jq
+    github-cli patchelf coreutils tar bzip2 xz zstd lz4 unzip zip 7zip rsync
+    util-linux appstream-glib desktop-file-utils shared-mime-info
+    hicolor-icon-theme xdg-utils zsync ca-certificates ca-certificates-utils
+    cmake ninja meson python perl squashfs-tools libarchive cpio elfutils
+    pax-utils chrpath openssl openssh gnupg dbus at-spi2-core nspr nss
+    nss-mdns avahi xdg-desktop-portal ibus xterm xclip xsel xorg-xrdb
+    wqy-microhei wqy-zenhei noto-fonts-emoji polkit glib2 pango gdk-pixbuf2
+    libdrm libxkbcommon fontconfig xdotool openal lsb-release socat nginx
+    boost-libs inetutils
   )
 else
   (( $# > 0 )) || {
