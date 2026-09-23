@@ -10,7 +10,7 @@
 - `common/archive/extract_archive.sh` 解包 Snap。构建脚本保留 BlueMail 自带的 Electron/Chromium 程序、相邻库和资源，去掉 Snap 专用宿主运行时目录。
 - Arch Linux 容器中的 quick-sharun 收集主程序依赖并生成 AppImage。入口保留官方 Snap 使用的 `--ozone-platform=x11 --no-sandbox` 参数，桌面图标与 desktop 文件来自同一 Snap。
 - 将 ICU、PAK、`locales` 和 `resources` 以包内链接接到启动包装器旁，保持 Electron 按可执行文件目录查找资源的行为。
-- 官方 Snap 自带 Electron/Chromium 运行时，本脚本保留其程序文件和资源，没有另外下载或打包独立的 Chromium 浏览器。构建环境安装 IBus 与 Fcitx5 的 GTK3 输入模块；本次 CI 日志确认 `DEPLOY_GTK=1` 收集了 `im-ibus.so` 和 `im-fcitx5.so`。启动入口不覆盖宿主输入法变量；中文输入效果仍待实机确认。
+- 官方 Snap 自带 Electron/Chromium 运行时，本脚本保留其程序文件和资源，没有另外下载或打包独立的 Chromium 浏览器。构建环境安装 IBus 与 Fcitx5 的 GTK3 输入模块；本次 CI 日志确认 `DEPLOY_GTK=1` 收集了 `im-ibus.so` 和 `im-fcitx5.so`。启动入口不覆盖宿主输入法变量；2026-09-23 Linux 实机已确认邮件编辑框能够正常显示 IBus/Fcitx5 候选框并输入中文。
 
 ## 运行
 
@@ -27,11 +27,15 @@
 
 ## 维护说明
 
-上游 BlueMail 为专有软件，使用和再分发应遵守其许可条款。构建脚本不固定应用或打包工具版本。GUI 启动和邮件阅读已有 Linux 实机截图；邮件发送仍需单独核对。
+上游 BlueMail 为专有软件，使用和再分发应遵守其许可条款。构建脚本不固定应用或打包工具版本。GUI 启动、邮件阅读和中文输入已有 Linux 实机截图确认；邮件发送仍需单独核对。
 
 ## 2026-09-23：中文输入修复待实机验证
 
 Linux 实机反馈邮件编辑框只能输入英文。检查此前 AppImage 的 GTK3 输入模块目录，未找到 `im-ibus.so` 和 `im-fcitx5.so`。本次仅在 `build_bluemail.sh` 的应用级依赖加入 `ibus` 与 `fcitx5-gtk`，保留已能启动的 Electron 入口；新产物中文输入尚待实机验证。
+
+## 2026-09-23：中文输入实机确认
+
+用户在 Linux 实机运行最新 `bluemail.AppImage`，BlueMail 邮件编辑框能够正常唤起中文输入法候选框，并将中文候选词上屏。现有 `quick-sharun` 打包方式、`AppRun.sh`、`DEPLOY_GTK=1` 收集的 IBus/Fcitx5 GTK3 输入模块、宿主输入法环境透传及 `--ozone-platform=x11 --no-sandbox` 启动参数共同作为已验证稳定基线；没有新的失败证据时不得改动。
 
 ## 2026-09-23：同名 Release 资产上传失败
 
