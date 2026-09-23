@@ -8,6 +8,7 @@ cd "$SCRIPT_DIR"
 
 APPDIR="$SCRIPT_DIR/AppDir"
 DIST="$SCRIPT_DIR/dist"
+SOURCE="$SCRIPT_DIR/source"
 OFFICE="$APPDIR/bin/office6"
 
 ###### 准备个人构建环境 ######
@@ -19,8 +20,8 @@ OFFICE="$APPDIR/bin/office6"
 "$SCRIPT_DIR/../common/arch/install_packages.sh" wps-office-cn wps-office-mui-zh-cn
 
 # 只删除本应用上次的本地打包目录，不删除系统里安装的 AUR 软件。
-rm -rf -- "$APPDIR" "$DIST"
-mkdir -p "$APPDIR/bin" "$DIST"
+rm -rf -- "$APPDIR" "$DIST" "$SOURCE"
+mkdir -p "$APPDIR/bin" "$DIST" "$SOURCE"
 
 ###### 保留国产 WPS 和官方入口 ######
 # AUR 的 office6 已按当前 Arch 运行库调整，完整保留中文资源和子程序目录。
@@ -34,11 +35,11 @@ for launcher in wps et wpp wpspdf; do
 done
 
 # 选用已安装的官方桌面文件和图标，保持版本与当前 AUR 包一致。
-install -Dm0644 /usr/share/applications/wps-office-wps.desktop "$APPDIR/wps-office-cn.desktop"
+install -Dm0644 /usr/share/applications/wps-office-wps.desktop "$SOURCE/wps-office-cn.desktop"
 mapfile -t ICONS < <(find /usr/share/icons/hicolor -type f -path '*/apps/*wpsmain.png' | sort -V)
 (( ${#ICONS[@]} > 0 )) || { echo 'WPS 官方图标不存在。' >&2; exit 1; }
-install -Dm0644 "${ICONS[-1]}" "$APPDIR/wps-office-cn.png"
-sed -i -e 's|^Exec=.*|Exec=wps %F|' -e 's|^Icon=.*|Icon=wps-office-cn|' "$APPDIR/wps-office-cn.desktop"
+install -Dm0644 "${ICONS[-1]}" "$SOURCE/wps-office-cn.png"
+sed -i -e 's|^Exec=.*|Exec=wps %F|' -e 's|^Icon=.*|Icon=wps-office-cn|' "$SOURCE/wps-office-cn.desktop"
 
 # 保留 WPS 原生启动脚本，以便它自行选择文字处理或多组件入口。
 cat > "$APPDIR/AppRun.sh" <<'APPRUN'
@@ -60,7 +61,7 @@ PACKAGE_VERSION="$(pacman -Q wps-office-cn | awk '{print $2}')"
 VERSION="${PACKAGE_VERSION%-*}"
 [[ -n "$VERSION" ]] || { echo '无法读取 WPS 包版本。' >&2; exit 1; }
 export ARCH=x86_64 VERSION APPNAME='WPS Office CN' MAIN_BIN=wps
-export ICON="$APPDIR/wps-office-cn.png" DESKTOP="$APPDIR/wps-office-cn.desktop"
+export ICON="$SOURCE/wps-office-cn.png" DESKTOP="$SOURCE/wps-office-cn.desktop"
 export OUTPATH="$DIST" OUTNAME=wps-office-cn.AppImage NO_STRIP=1
 LD_LIBRARY_PATH="$OFFICE${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun "$OFFICE/wps" "$OFFICE/et" "$OFFICE/wpp" "$OFFICE/wpspdf" "$OFFICE/qt/plugins/platforms/libqxcb.so"
 quick-sharun --make-appimage

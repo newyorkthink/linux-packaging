@@ -31,11 +31,11 @@ VERSION="$("$SCRIPT_DIR/../common/download/download_json_deb_asset.sh" "$OFFICIA
 "$SCRIPT_DIR/../common/archive/extract_archive.sh" "$DEB" "$PACKAGE"
 [[ -x "$PACKAGE/opt/wemeet/bin/wemeetapp" ]] || { echo '官方包缺少会议主程序。' >&2; exit 1; }
 cp -a -- "$PACKAGE/opt/wemeet" "$APPDIR/opt/wemeet"
-install -Dm0644 "$PACKAGE/opt/wemeet/icons/hicolor/256x256/mimetypes/wemeetapp.png" "$APPDIR/wemeet.png"
-install -Dm0644 "$PACKAGE/usr/share/applications/wemeetapp.desktop" "$APPDIR/wemeet.desktop"
+install -Dm0644 "$PACKAGE/opt/wemeet/icons/hicolor/256x256/mimetypes/wemeetapp.png" "$SOURCE/wemeet.png"
+install -Dm0644 "$PACKAGE/usr/share/applications/wemeetapp.desktop" "$SOURCE/wemeet.desktop"
 
 # 桌面入口指向 AppImage 内的主程序，图标使用官方 DEB 自带的 PNG。
-sed -i -e 's|^Exec=.*|Exec=wemeet %u|' -e 's|^Icon=.*|Icon=wemeet|' "$APPDIR/wemeet.desktop"
+sed -i -e 's|^Exec=.*|Exec=wemeet %u|' -e 's|^Icon=.*|Icon=wemeet|' "$SOURCE/wemeet.desktop"
 
 # 官方启动器依赖 /opt 绝对路径；便携入口只设置同等目录和插件环境。
 cat > "$APPDIR/AppRun.sh" <<'APPRUN'
@@ -60,7 +60,7 @@ chmod 0755 "$APPDIR/AppRun.sh"
 ###### 封装正式资产 ######
 # quick-sharun 按主程序 ELF 收集外部运行库，保留腾讯自带的 Qt 库和资源布局。
 export ARCH=x86_64 VERSION APPNAME='Tencent Meeting' MAIN_BIN=wemeet
-export ICON="$APPDIR/wemeet.png" DESKTOP="$APPDIR/wemeet.desktop"
+export ICON="$SOURCE/wemeet.png" DESKTOP="$SOURCE/wemeet.desktop"
 export OUTPATH="$DIST" OUTNAME=wemeet.AppImage NO_STRIP=1
 export DEPLOY_OPENGL=1 DEPLOY_PIPEWIRE=1
 LD_LIBRARY_PATH="$APPDIR/opt/wemeet/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun "$APPDIR/opt/wemeet/bin/wemeetapp"
