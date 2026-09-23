@@ -19,7 +19,7 @@ MODULES="$WORKDIR/modules"
   ibus fcitx5-gtk xdg-utils brotli
 
 rm -rf -- "$WORKDIR" AppDir dist
-mkdir -p "$APP" "$MODULES" dist
+mkdir -p "$APP" "$MODULES" dist AppDir/bin
 
 "$DOWNLOAD" \
   'https://updates.discord.com/distributions/app/manifests/latest?channel=stable&platform=linux&arch=x64' \
@@ -60,6 +60,14 @@ done < <(jq -er '.modules | to_entries[] | [.key, .value.full.url, .value.full.p
 jq -c '.modules | with_entries(.value = {installedVersion: .value.full.module_version})' \
   "$WORKDIR/manifest.json" > "$MODULES/installed.json"
 mkdir -p "$MODULES/discord_krisp/KMS/logs"
+cp -a "$APP"/. AppDir/bin/
+cp -a "$MODULES"/. AppDir/share/discord-modules/
+mkdir -p AppDir/share
+mv AppDir/share/discord-modules "$WORKDIR/discord-modules"
+mkdir -p AppDir/share
+# modules are copied after quick-sharun so the launcher wrapper is left intact
+mkdir -p "$WORKDIR/staged-modules"
+cp -a "$MODULES"/. "$WORKDIR/staged-modules/"
 
 cat > "$WORKDIR/discord.desktop" <<'EOF'
 [Desktop Entry]
@@ -77,8 +85,9 @@ export ARCH=x86_64 VERSION
 export ICON="$APP/discord.png" DESKTOP="$WORKDIR/discord.desktop"
 export OUTPATH="$SCRIPT_DIR/dist" OUTNAME=discord.AppImage
 export DEPLOY_OPENGL=1 NO_STRIP=1
-quick-sharun "$APP/Discord" \
-  "$APP/libffmpeg.so" "$APP/libEGL.so" "$APP/libGLESv2.so" "$APP/libvulkan.so.1" "$APP/libvk_swiftshader.so" \
+quick-sharun AppDir/bin/Discord \
+  AppDir/bin/libffmpeg.so AppDir/bin/libEGL.so AppDir/bin/libGLESv2.so \
+  AppDir/bin/libvulkan.so.1 AppDir/bin/libvk_swiftshader.so \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so \
   /usr/lib/libappindicator3.so* \
@@ -89,8 +98,7 @@ quick-sharun "$APP/Discord" \
   /usr/lib/libasound.so* \
   /usr/lib/libwayland-client.so*
 
-mkdir -p AppDir/bin AppDir/share/discord-modules
-cp -a "$APP"/. AppDir/bin/
+mkdir -p AppDir/share/discord-modules AppDir/bin
 cp -a "$MODULES"/. AppDir/share/discord-modules/
 cat > AppDir/bin/stage-discord-modules.src.hook <<EOF
 #!/bin/false
