@@ -99,7 +99,7 @@ Plan 的选择规则：
 
 | 范围 | 主要内容 |
 | --- | --- |
-| 文首永久规则 | 修复记录只增不删、GitHub 提交步骤、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、测试代码边界与必要验证、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入 |
+| 文首永久规则 | 修复记录只增不删、GitHub 提交步骤、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、命令行不加中文而 GUI 默认带中文环境和中文输入、测试代码边界与必要验证、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入 |
 | 第 1～2 节 | 仓库目标、最小修改、应用 README、检查记录、迁移完整性 |
 | 第 3～5 节 | 宿主安全、Shell 与中文说明、上游来源、授权、动态版本和版本元数据 |
 | 第 6 节 | AppImage 内容、AppRun、libunionpreload、打包路线、linuxdeploy、Qt 与 quick-sharun |
@@ -153,6 +153,14 @@ Plan 的选择规则：
 - 调用 `linuxdeploy` 的项目继续只遵守 `linuxdeploy_projects.md`，不得改成 quick-sharun，也不得两套混用。
 - 已验证稳定的现有脚本保持原样。不得为了套用 `anylinux_projects.md` 的示例去批量改写它们。
 - 后续修改这条路线时，必须同时保持本文件与 `anylinux_projects.md` 的强制关系，不得把链接弱化成“可参考”。
+
+## 永久规则：命令行不加中文，GUI 默认带中文环境和中文输入（不可豁免）
+
+**用户不用每次再提。** 只在终端运行、没有窗口和输入框的程序，不加简体中文 locale，不装 IBus / Fcitx，不改 `LANG`。有窗口的程序默认同时带上 AppImage 内的 `zh_CN.UTF-8`，以及与该 GUI 版本匹配的 IBus 和 Fcitx5 输入模块。
+
+- quick-sharun 的命令以 [`anylinux_projects.md`](./anylinux_projects.md) 的「命令行不加中文，GUI 默认要」为准。linuxdeploy 的 GUI 同样要做这两件事，仍遵守 `linuxdeploy_projects.md`，不得因此改路线。
+- 新做、迁移或本次本来就要改的 GUI 构建必须带上。已有稳定脚本不要为了补中文去批量重写或重新发布。
+- 某一套输入模块实机会弄坏该应用时，只在该应用 README 写明并去掉那一套；中文环境仍保留。
 
 ## 永久规则：禁止手工创建 linuxdeploy hook 或伪造 AppRun.wrapped（不可豁免）
 

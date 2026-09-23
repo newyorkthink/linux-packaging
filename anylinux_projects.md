@@ -76,6 +76,51 @@ printf '%s\n' "$version" > dist/version.txt
 
 旧脚本里的 `yay -S` 和直接 `wget` 保持不动。新脚本，以及这次修改已经碰到的安装或下载，改成 `common/arch/install_packages.sh` 和 `common/download/download_file.sh`。
 
+## 命令行不加中文，GUI 默认要
+
+不用再等用户提醒。新做、迁移或这次本来就要改的构建，按程序有没有窗口决定：
+
+| 程序 | 中文环境 | 中文输入 |
+| --- | --- | --- |
+| 只在终端运行，没有窗口和输入框，例如 htop、newsboat | 不加 | 不加 |
+| 有窗口，包括 GTK、Qt、Electron、播放器界面 | 要 | 要 |
+
+已经验证稳定的脚本不要为了补上本节去批量重写。某个应用实机证明某一套输入模块会弄坏它时，在该应用 README 写明并只去掉那一套；中文环境仍保留。
+
+中文环境不依赖用户机器是否生成过 `zh_CN.UTF-8`。第一次 `quick-sharun` 生成 AppDir 之后、`--make-appimage` 之前写入：
+
+```bash
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'EOF'
+LANG=zh_CN.UTF-8
+LANGUAGE=zh_CN:zh
+LC_MESSAGES=zh_CN.UTF-8
+LOCPATH=${SHARUN_DIR}/lib/locale
+EOF
+```
+
+不要设置 `LC_ALL`。个别程序还要 `LC_NUMERIC=C` 时，写在这四行后面，不要改掉 `LANG`。
+
+中文输入只装和这个程序实际 GUI 版本匹配的一套，和主程序放在同一次 `quick-sharun` 里。不要写 `AppRun.sh` 去设置输入法。
+
+GTK 3 和用 GTK 3 的 Electron，安装 `ibus`、`fcitx5-gtk`：
+
+```bash
+quick-sharun /usr/bin/<主程序> \
+  /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so \
+  /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
+```
+
+Qt 6 安装 `ibus`、`fcitx5-qt`，把这两个插件一并传入：
+
+```text
+/usr/lib/qt6/plugins/platforminputcontexts/libibusplatforminputcontextplugin.so
+/usr/lib/qt6/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so
+```
+
+GTK 4、Qt 5 也安装对应的 `fcitx5-gtk` 或 `fcitx5-qt`，再把安装后真实存在的 IBus 和 Fcitx5 模块传进去。文件不存在就停止构建，不要悄悄省掉中文输入，也不要把 GTK 3 的模块塞进 GTK 4 或 Qt 程序。
+
 ## 非必要不要自己写 AppRun.sh
 
 quick-sharun 生成的 `AppRun` 就是启动入口。一般情况禁止再创建或覆盖：
@@ -96,7 +141,7 @@ quick-sharun 生成的 `AppRun` 就是启动入口。一般情况禁止再创建
 
 - 程序在 `/usr/bin`，只是想包一层“更好启动”；
 - 官方给的是下载器或更新器，真正的程序要另外取得。入口必须是能直接打开的程序，不能是安装器；
-- 为了保险复制 `/usr/lib`，或预先装一套用不到的 GTK / Qt / 输入法；
+- 为了保险复制 `/usr/lib`。命令行程序不要预装输入法；GUI 只装和它自己的 GTK / Qt 版本匹配的那一套；
 - 双击时要补默认参数。这用 hook 改 `"$@"`，mpv 的 GUI hook 就是这种写法。
 
 ## 仅当没有 /usr/bin 入口时
