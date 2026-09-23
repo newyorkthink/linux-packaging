@@ -2,6 +2,42 @@
   "description": "AppImage 构建清单。kind=standard 由 build.yml 的 matrix Job 调度；kind=special 必须在 build.yml 保留独立 Job。不要把特例塞进 matrix。",
   "apps": [
     {
+      "key": "discord",
+      "kind": "standard",
+      "name": "Discord",
+      "script": "discord/build_discord.sh",
+      "dir": "discord",
+      "artifact_dir": "discord/dist",
+      "release_name": "discord.AppImage",
+      "software_key": "discord",
+      "timeout_minutes": 90,
+      "run_from_root": "false"
+    },
+    {
+      "key": "rustdesk",
+      "kind": "standard",
+      "name": "RustDesk",
+      "script": "rustdesk/build_rustdesk.sh",
+      "dir": "rustdesk",
+      "artifact_dir": "rustdesk/dist",
+      "release_name": "rustdesk.AppImage",
+      "software_key": "rustdesk",
+      "timeout_minutes": 60,
+      "run_from_root": "false"
+    },
+    {
+      "key": "wemeet",
+      "kind": "standard",
+      "name": "腾讯会议",
+      "script": "wemeet/build_wemeet.sh",
+      "dir": "wemeet",
+      "artifact_dir": "wemeet/dist",
+      "release_name": "wemeet.AppImage",
+      "software_key": "wemeet",
+      "timeout_minutes": 90,
+      "run_from_root": "false"
+    },
+    {
       "key": "antigravity_ide",
       "kind": "standard",
       "name": "Antigravity IDE",

@@ -45,6 +45,7 @@ on:
           - deepseek-harness/build_deepseek-harness.sh
           - deskflow/build_deskflow.sh
           - dingtalk/build_dingtalk.sh
+          - discord/build_discord.sh
           - escrcpy/build_escrcpy.sh
           - feishu/build_feishu.sh
           - flameshot/build_flameshot.sh
@@ -87,6 +88,7 @@ on:
           - remotedesktopmanager/build_remotedesktopmanager.sh
           - ripdrag/build_ripdrag.sh
           - rofi/build_rofi.sh
+          - rustdesk/build_rustdesk.sh
           - simplescreenrecorder/build_simplescreenrecorder.sh
           - smplayer/build_smplayer.sh
           - st/build_st.sh
@@ -103,6 +105,7 @@ on:
           - vscode/build_vscode.sh
           - webcamoid/build_webcamoid.sh
           - wechat/build_wechat.sh
+          - wemeet/build_wemeet.sh
           - wine/build_wine.sh
           - winpodx/build_winpodx_release.sh
           - workbuddy/build_workbuddy.sh
