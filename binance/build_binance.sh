@@ -66,8 +66,8 @@ LIBNOTIFY_LIB="/usr/lib/$MULTIARCH/libnotify.so"
 
 ###### 核心打包 ######
 
-# 目录尚未由成品确认，先写入包含基础路径的完整根 AppRun，再由公共脚本按最终 AppDir 整理。
-# GTK linuxdeploy 若生成 hook，会把这份 AppRun 保存为 AppRun.wrapped。
+# 最终 AppImage 已解包确认。直接写入核对过的根 AppRun。
+# GTK linuxdeploy 会把它保存为 AppRun.wrapped，并生成加载 GTK hook 的顶层 AppRun。
 cat > "$APPDIR/AppRun" <<'APPRUN'
 #!/usr/bin/env bash
 set -Eeuo pipefail
@@ -76,7 +76,7 @@ HERE="$(dirname "$(readlink -f "${0}")")"
 
 # 保留三个 linuxdeploy 基础目录，并仅把 Binance 的真实程序目录加入对应变量。
 export PATH="$HERE/opt/Binance:$HERE/usr/bin${PATH:+:$PATH}"
-export LD_LIBRARY_PATH="$HERE/opt/Binance:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="$HERE/opt/Binance:$HERE/usr/lib:$HERE/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
@@ -99,9 +99,6 @@ export ARCH=x86_64; linuxdeploy \
   -l "$LIBNOTIFY_LIB" \
   --plugin gtk \
   --output appimage
-
-# 成品目录尚未确认，只整理现有路径型 export，不改 exec 或补 hook。
-"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
 
 ###### 整理产物 ######
 
