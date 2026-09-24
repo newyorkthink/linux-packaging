@@ -20,3 +20,6 @@
 - `bash -n` 通过。
 
 这次核对没有改 Discord 脚本。
+
+随后按用户要求去掉 `DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0`。这两个开关是用来挡构建机 Mesa 的，不是删库代码。`NO_STRIP=1` 仍保留。红字决定不变。
+

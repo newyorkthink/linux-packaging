@@ -73,3 +73,7 @@ Build Discord 运行 35960141408 虽然构建成功，但日志明确显示构�
 用户要求去掉上述删除。`WARNING: Detected the bundled libgallium links to libLLVM.so!` 是 quick-sharun 在收进 `libgallium` → `libLLVM` 时自己打印的，删除发生在这行之后，所以删库从来不能让构建日志不标红。仓库里没有关闭这行警告的开关；把日志滤掉只是遮住，不是没发生。
 
 因此默认保留红色警告，并去掉 `find ... -delete` 和随后只为重建清单而调用的 `sharun -g`。`DEPLOY_OPENGL=0` 与 `DEPLOY_VULKAN=0` 仍保留。新成品会重新带上扫描收进的 `libgallium*`、`libGLX_mesa*` 和 `libLLVM*`；体积和实机图形结果尚未验证。
+
+## 2026-09-24：去掉专门挡 Mesa 的开关
+
+上一节留下的 `DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0` 就是为了不把构建机 Mesa 驱动打进包。用户要求删掉这两个开关，不是再删 `libLLVM`。`NO_STRIP=1` 保留。红色警告仍会在 quick-sharun 收进 `libgallium` → `libLLVM` 时出现，继续不当成构建失败。新成品尚未验证。

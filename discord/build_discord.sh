@@ -193,8 +193,7 @@ export ARCH=x86_64 VERSION
 export APPNAME=Discord MAIN_BIN=Discord STARTUPWMCLASS=discord
 export ICON="$OFFICIAL_ICON" DESKTOP="$OFFICIAL_DESKTOP"
 export OUTPATH="$SCRIPT_DIR/dist" OUTNAME=discord.AppImage
-# Discord 已自带 Electron 图形运行库；不要让 quick-sharun 自动打入宿主 Mesa 驱动。
-export DEPLOY_OPENGL=0 DEPLOY_VULKAN=0 NO_STRIP=1
+export NO_STRIP=1
 
 # 收集真实主程序、Discord 自带的 Chromium 库、中文输入模块及动态加载的运行库。
 LD_LIBRARY_PATH="$APP_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
