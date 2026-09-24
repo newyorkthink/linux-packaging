@@ -140,7 +140,12 @@ actions = [
 if len(actions) != 1 or not actions[0].get('run'):
     raise SystemExit('Omaha response does not contain exactly one install action')
 installer_name = actions[0].get('run', '')
-if not re.fullmatch(r'GeminiSetup-[0-9]+(?:\.[0-9]+){2,3}\.exe', installer_name):
+# Omaha 现在可能下发压缩或未压缩安装包，文件名必须和 manifest 版本一致。
+expected_names = (
+    f'GeminiSetup-{version}.exe',
+    f'GeminiSetup-{version}_uncompressed.exe',
+)
+if installer_name not in expected_names:
     raise SystemExit(f'unexpected Gemini installer name: {installer_name!r}')
 
 packages = [node for node in manifest.iter() if local_name(node.tag) == 'package']
