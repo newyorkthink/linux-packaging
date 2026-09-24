@@ -102,6 +102,11 @@ Rofi 用的是桌面文件。原文件若有 `TryExec=wps` 或 `DBusActivatable=
 
 钩子用的 `SHARUN_DIR` 可能还是 i3 传下来的。这样会把 WPS 自己的 `.mount_` 库路径当成外来路径丢掉，Qt 插件就加载不了。终端里没有这个变量，所以能开。现改到四个入口脚本里，按脚本自己的路径计算本包目录，并在执行 `office6` 程序的那一行之前清路径。
 
+## 2026-09-24：xcb 插件缺 libxkbcommon-x11
+
+从 i3 加 `QT_DEBUG_PLUGINS=1` 启动后，日志是 `libqxcb.so` 打不开 `libxkbcommon-x11.so.0`。终端能开，是因为系统动态链接器还能找到这套库。i3 把库搜索范围换掉以后就找不到。构建时把 `libxkbcommon-x11.so.0`、`libxkbcommon.so.0`、`libxcb-xkb.so.1` 放进 `office6`。`office6` 已经在启动前的库路径里。缺任何一个，构建直接停。
+
+
 ## 2026-09-24：存在性检查被改坏
 
 Actions Run `36004656067` 的图形检查失败，日志是 `wpsoffice does not exist!`。上一节把 `${gInstallPath}/office6/${gApp}` 全部加上了 `_wps_fix_env`，包含 `[ -x ... ]` 这种检查。检查变成了一个不存在的文件名，脚本就报程序不存在并退出。现只改不含 `[` 的启动行。

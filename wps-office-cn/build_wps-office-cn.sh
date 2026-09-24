@@ -75,6 +75,19 @@ cp -a -- "$OFFICE_SRC" "$OFFICE"
 cmp -s "$OFFICE_SRC/wps" "$OFFICE/wps" || { echo 'office6/wps 没有原样进入成品。' >&2; exit 1; }
 [[ -d "$OFFICE/mui/zh_CN" ]] || { echo '成品缺少简体中文界面。' >&2; exit 1; }
 
+# 从 i3 启动时，系统库路径不在搜索范围里。libqxcb 因此找不到 libxkbcommon-x11.so.0。
+# 终端能开，是因为系统动态链接器还能搜到这套库。把缺的库放进 office6，启动脚本已经会搜这个目录。
+for _soname in libxkbcommon-x11.so.0 libxkbcommon.so.0 libxcb-xkb.so.1; do
+  if find "$OFFICE" -name "$_soname" -print -quit | grep -q .; then
+    continue
+  fi
+  _src=$(find /usr/lib /usr/lib64 -name "$_soname" -print -quit 2>/dev/null || true)
+  [[ -n "$_src" ]] || { echo "构建机没有 ${_soname}，无法打进 WPS。" >&2; exit 1; }
+  find "$(dirname -- "$_src")" -maxdepth 1 -name "${_soname%%.so*}.so*" -exec cp -a {} "$OFFICE/" \;
+  find "$OFFICE" -name "$_soname" -print -quit | grep -q . || { echo "未能放入 ${_soname}。" >&2; exit 1; }
+done
+unset _soname _src
+
 # 官方脚本把安装目录写死，并把程序输出丢掉。改到包内 office6，失败信息留在终端。
 for launcher in wps et wpp wpspdf; do
   install -Dm0755 "/usr/bin/$launcher" "$APPDIR/bin/$launcher"
