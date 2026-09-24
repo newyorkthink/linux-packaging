@@ -46,6 +46,13 @@ Actions Run `35978165252` 已经打出 AppImage。图形检查里解包到 100% 
 
 现改为先用 `/usr/lib/office6` 收集依赖，再把没被改过的整份 `office6` 复制到 `AppDir/opt/office6`，官方入口改指向这里。`cmp` 确认 `wps` 与安装包里的原文件一致。是否还能马上退出，以下一次图形检查为准。
 
+## 2026-09-24：按 ivan-hc 的目录关系放 office6
+
+对照 [ivan-hc/WPS-Office-appimage](https://github.com/ivan-hc/WPS-Office-appimage) 的 `wps-office.sh`。那边用 pkg2appimage 解开国际版 DEB，`office6` 留在 `opt/kingsoft/wps-office/office6`，再把 `/usr/bin` 启动脚本的 `gInstallPath` 改成相对路径 `$currdir/../../opt/kingsoft/wps-office/`。不把主程序交给 sharun 挪走。
+
+本仓库仍用 AUR `wps-office-cn` 的国内版，不用它的国际版来源、额外语言包和 pkg2appimage。AUR 配方把脚本里的 `/opt/kingsoft/wps-office` 换成了 `/usr/lib`。成品里改回 `AppDir/opt/kingsoft/wps-office/office6`。启动脚本在 `bin`，相对路径少一层，是 `../opt/kingsoft/wps-office`。quick-sharun 只收集依赖；随后用官方脚本盖住 `bin/wps`，让生成的 `AppRun.sh` 执行这个脚本。不隐藏标准错误。
+
+
 
 
 

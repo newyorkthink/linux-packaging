@@ -10,7 +10,8 @@ APPDIR="$SCRIPT_DIR/AppDir"
 DIST="$SCRIPT_DIR/dist"
 SOURCE="$SCRIPT_DIR/source"
 OFFICE_SRC=/usr/lib/office6
-OFFICE="$APPDIR/opt/office6"
+# 与官方 DEB、ivan-hc 相同：office6 留在 opt/kingsoft/wps-office 下面，不放进 bin。
+OFFICE="$APPDIR/opt/kingsoft/wps-office/office6"
 
 ###### 准备个人构建环境 ######
 
@@ -51,8 +52,12 @@ VERSION="${PACKAGE_VERSION%-*}"
 export ARCH=x86_64 VERSION APPNAME='WPS Office CN' MAIN_BIN=wps
 export ICON="$SOURCE/wps-office-cn.png" DESKTOP="$SOURCE/wps-office-cn.desktop"
 export OUTPATH="$DIST" OUTNAME=wps.AppImage NO_STRIP=1
-# 程序内部仍查找 /usr/lib/office6。映射到包内这份，而不是宿主上的安装目录。
-export PATH_MAPPING='/usr/lib/office6:${SHARUN_DIR}/opt/office6'
+# AUR 把脚本里的 /opt/kingsoft/wps-office 改成了 /usr/lib。这里改回包内相对路径。
+# 启动脚本在 bin，比 ivan-hc 的 usr/bin 少一层，所以是 ../opt/kingsoft/wps-office。
+export PATH_MAPPING='
+/usr/lib/office6:${SHARUN_DIR}/opt/kingsoft/wps-office/office6
+/opt/kingsoft/wps-office/office6:${SHARUN_DIR}/opt/kingsoft/wps-office/office6
+'
 LD_LIBRARY_PATH="$OFFICE_SRC${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun \
   "$OFFICE_SRC/wps" "$OFFICE_SRC/et" "$OFFICE_SRC/wpp" "$OFFICE_SRC/wpspdf" \
   "$OFFICE_SRC/qt/plugins/platforms/libqxcb.so" \
@@ -68,9 +73,9 @@ for launcher in wps et wpp wpspdf; do
   install -Dm0755 "/usr/bin/$launcher" "$APPDIR/bin/$launcher"
   head -n 1 "$APPDIR/bin/$launcher" | grep -q 'sh' || { echo "官方入口不是脚本：$launcher" >&2; exit 1; }
   if grep -Fq '${gInstallPath}/office6/' "$APPDIR/bin/$launcher"; then
-    office_rel='../opt'
+    office_rel='../opt/kingsoft/wps-office'
   else
-    office_rel='../opt/office6'
+    office_rel='../opt/kingsoft/wps-office/office6'
   fi
   sed -i \
     -e 's| >/dev/null 2>&1||g' \
@@ -97,11 +102,11 @@ done
 
 # 保留 quick-sharun 已写入的环境，只追加 WPS 自己的库目录、工作目录和 Qt 插件。
 cat >> "$APPDIR/.env" <<'ENV'
-SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/opt/office6:${SHARUN_EXTRA_LIBRARY_PATH}
-SHARUN_WORKING_DIR=${SHARUN_DIR}/opt/office6
+SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/opt/kingsoft/wps-office/office6:${SHARUN_EXTRA_LIBRARY_PATH}
+SHARUN_WORKING_DIR=${SHARUN_DIR}/opt/kingsoft/wps-office/office6
 SHARUN_ALLOW_QT_PLUGIN_PATH=1
-QT_PLUGIN_PATH=${SHARUN_DIR}/opt/office6/qt/plugins
-QT_QPA_PLATFORM_PLUGIN_PATH=${SHARUN_DIR}/opt/office6/qt/plugins/platforms
+QT_PLUGIN_PATH=${SHARUN_DIR}/opt/kingsoft/wps-office/office6/qt/plugins
+QT_QPA_PLATFORM_PLUGIN_PATH=${SHARUN_DIR}/opt/kingsoft/wps-office/office6/qt/plugins/platforms
 ENV
 
 # 启动时把包内符号字体加进字体搜索，同时继续使用宿主字体配置。
