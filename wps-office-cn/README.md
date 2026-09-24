@@ -86,6 +86,13 @@ Rofi 用的是桌面文件。原文件若有 `TryExec=wps` 或 `DBusActivatable=
 
 `fa7090f` 去掉 `TryExec` 之后，Rofi 还是起不来，终端可以。Rofi 和文件管理器会设置 `GIO_LAUNCHED_DESKTOP_FILE`。WPS 12 见到这个变量会马上退出，终端启动没有这个变量。`15-wps-language.hook` 和四个入口现在都执行 `unset GIO_LAUNCHED_DESKTOP_FILE`。不改窗口管理模式。
 
+## 2026-09-24：从 i3 启动时 Qt 的 xcb 插件加载失败
+
+用 i3 执行 `/home/user/Appimages/GeneralSoftwares/wps.AppImage` 时，日志是 `Could not load the Qt platform plugin "xcb"`，随后 `bin/wps` 第 161 行启动 `office6` 程序段错误。终端直接运行没有这段报错。i3 自己也是 AppImage，传下来的库路径让 WPS 这套自己编译的 Qt 找到了 xcb 插件但加载不了。其他 quick 包不用这套 Qt，所以不受影响。
+
+`10-wps-runtime.hook` 去掉路径里其他 `.mount_` 挂载，并把 Qt 插件目录固定到本包的 `office6/qt/plugins`。从 i3 能否留下窗口，以下一次实机为准。
+
+
 
 
 

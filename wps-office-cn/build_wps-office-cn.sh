@@ -143,6 +143,27 @@ fi
 HOOK
 
 # 已经打开过的配置可能记住英文。只改语言项，不覆盖最近文件和其他设置。
+# i3 这类上级 AppImage 会把 Qt 插件和库路径传下来。WPS 自己的 xcb 插件能被找到但加载失败，然后段错误。
+cat > "$APPDIR/bin/10-wps-runtime.hook" <<'HOOK'
+if [ -n "$SHARUN_DIR" ]; then
+  _clean=""
+  _oldifs=$IFS
+  IFS=:
+  for _dir in $LD_LIBRARY_PATH; do
+    case "$_dir" in
+      "$SHARUN_DIR"|"$SHARUN_DIR"/*) _clean="${_clean:+$_clean:}$_dir" ;;
+      *".mount_"*) ;;
+      "") ;;
+      *) _clean="${_clean:+$_clean:}$_dir" ;;
+    esac
+  done
+  IFS=$_oldifs
+  export LD_LIBRARY_PATH="${SHARUN_DIR}/opt/kingsoft/wps-office/office6:${SHARUN_DIR}/lib${_clean:+:$_clean}"
+  export QT_PLUGIN_PATH="${SHARUN_DIR}/opt/kingsoft/wps-office/office6/qt/plugins"
+  export QT_QPA_PLATFORM_PLUGIN_PATH="${SHARUN_DIR}/opt/kingsoft/wps-office/office6/qt/plugins/platforms"
+  unset _clean _oldifs _dir
+fi
+HOOK
 cat > "$APPDIR/bin/15-wps-language.hook" <<'HOOK'
 export LANGUAGE=zh_CN
 unset GIO_LAUNCHED_DESKTOP_FILE
