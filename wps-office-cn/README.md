@@ -18,5 +18,10 @@ WPS 使用自带 Qt 的 xcb 平台插件，不是 GTK，也不使用 ibus。构�
 
 用户确认可以公开发布。参照已有的 [ivan-hc/WPS-Office-appimage](https://github.com/ivan-hc/WPS-Office-appimage) Release，那份是国际版；本仓库仍用 AUR `wps-office-cn` 打国内版，不改用它的来源。`wps-office-cn` 已加入 `.github/appimage-apps.json` 和手动构建列表，成品名是 `wps-office-cn.AppImage`。上方关于个人许可、当时未接入发布的记录保持原样。
 
+## 2026-09-24：修正 Qt 库名识别
+
+Actions Run `35973581804` 的 WPS Job 在安装 `wps-office-cn 12.1.2.28080-1` 后退出，提示未识别 Qt 版本。包内实际文件是 `libQt5CoreKso.so.5.12.12`，上一节按 `libQt5Core.so` 查找因此落空。现改为匹配 `libQt5Core*.so*` 和 `libQt6Core*.so*`，Qt5 仍使用 Arch 的 fcitx5 Qt5 输入模块。这次只改识别条件，构建结果以下一次 Actions 为准。
+
+
 
 
