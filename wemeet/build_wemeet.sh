@@ -45,8 +45,8 @@ export OUTPATH="$DIST" OUTNAME=wemeet.AppImage NO_STRIP=1
 export DEPLOY_OPENGL=1 DEPLOY_PIPEWIRE=1
 LD_LIBRARY_PATH="$APPDIR/opt/wemeet/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun "$APPDIR/opt/wemeet/bin/wemeetapp"
 
-# 由 sharun 原生 AppRun 启动包装器；私有库和 Qt 插件保持官方 DEB 的相对目录。
-cat > "$APPDIR/.env" <<'ENV'
+# 保留 quick-sharun 已写入的运行时环境，再追加官方私有库、工作目录和 Qt 插件路径。
+cat >> "$APPDIR/.env" <<'ENV'
 SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/opt/wemeet/lib
 SHARUN_WORKING_DIR=${SHARUN_DIR}/opt/wemeet
 SHARUN_ALLOW_QT_PLUGIN_PATH=1

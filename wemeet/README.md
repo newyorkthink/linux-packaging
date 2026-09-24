@@ -25,3 +25,11 @@ Linux 实机运行报 `libwemeet.so: cannot open shared object file`。已检查
 以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
 
 - `rustdesk` / `wemeet`：2026-09-23 实机分别报告 `APPRUN ERROR: Unable to open file: (null)` 和缺少 `libwemeet.so`。启动入口已按实际打包方式调整，新产物运行待确认，详见 [RustDesk](../rustdesk/README.md) 和 [腾讯会议](../wemeet/README.md)。
+
+## 2026-09-24：最新版启动后立即退出
+
+Linux 实机运行当前 Release 的 `wemeet.AppImage` 时，仅打印 `wemeet:WemeetSatrt` 随即返回，未出现 GUI。该行是腾讯会议的启动日志，单独不能定位退出原因。本次核对的官网 DEB 为 `3.26.10.401`，其中官方 `wemeetapp.sh` 会设置程序目录、私有库、Qt 插件、语言和时区；当前 AppImage 使用 quick-sharun 的 `AppRun` 启动 `wemeetapp`，没有直接执行该脚本。
+
+解包当前 Release 后发现 `AppDir/.env` 只剩构建脚本写入的五行，而产物含有 `cross-libc-dlopen.so`；quick-sharun 源码在部署该库时会向已有 `.env` 追加 `CROSS_LIBC_DLOPEN_ROOT=${SHARUN_DIR}`。原因是 `build_wemeet.sh` 在第一次 quick-sharun 调用后用 `cat >` 覆盖了 `.env`。本次改为 `cat >>`，保留 quick-sharun 生成的环境，并维持已有私有库、工作目录及 Qt 插件配置。当前仓库没有可对照的旧版 linuxdeploy 构建记录，本次不切换打包路线。
+
+已通过官方 DEB 与现有 Release 的静态检查确认上述覆盖问题；修改后的 GitHub Actions 构建和 Linux 实机启动尚未验证。若新产物仍直接退出，再结合其完整运行日志核对官方启动脚本中的其余环境和 Qt 资源路径，不把 `WemeetSatrt` 当作根因。
