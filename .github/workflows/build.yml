@@ -96,6 +96,7 @@ on:
           - stacher/build_stacher.sh
           - sunshine/build_sunshine.sh
           - tencent-docs/build_tencent-docs.sh
+          - todesk/build_todesk.sh
           - tradingview/build_tradingview.sh
           - trae-work/build_trae-work.sh
           - trae/build_trae.sh

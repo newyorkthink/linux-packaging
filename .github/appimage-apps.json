@@ -680,6 +680,18 @@
       "run_from_root": "false"
     },
     {
+      "key": "todesk",
+      "kind": "standard",
+      "name": "ToDesk",
+      "script": "todesk/build_todesk.sh",
+      "dir": "todesk",
+      "artifact_dir": "todesk/dist",
+      "release_name": "todesk.AppImage",
+      "software_key": "todesk",
+      "timeout_minutes": 60,
+      "run_from_root": "false"
+    },
+    {
       "key": "tradingview",
       "kind": "standard",
       "name": "TradingView",
