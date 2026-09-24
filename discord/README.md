@@ -61,3 +61,9 @@ Discord 官方程序已经自带 Electron 的 `libEGL`、`libGLESv2`、Vulkan �
 `mesa` 是其他应用按实际 OpenGL 或渲染需求选装的包，不属于统一基础包；不能因为 Discord 删除了它，就从确实需要 Mesa 的应用中删除。对 Discord 额外安装并收集构建机的 Mesa 驱动，会把与构建环境绑定的驱动及可能依赖的 `libLLVM.so` 带进产物，增加体积，还可能在其他 GPU 或较旧内核上产生兼容问题。Discord 此处只排除构建机驱动收集，不保证所有图形功能在所有宿主环境中均已验证。
 
 随后提供的 Linux 实机启动日志显示 Discord 主程序已启动，未再出现此前的 Krisp `-3` / `KRISP_INIT_ERROR_UNSIGNED` 和 `libgallium` / LLVM 警告。这仅是该次启动日志的结果；Krisp 麦克风降噪的实际效果，以及本次文档提交触发的 Actions 构建结果，仍需分别验证。
+
+## 2026-09-24：修正仍被收集的 Mesa 驱动
+
+Build Discord 运行 35960141408 虽然构建成功，但日志明确显示构建环境间接安装了 `mesa`、`llvm-libs`，quick-sharun 的动态库扫描又把 `libgallium`、`libGLX_mesa` 和 `libLLVM.so.22.1` 复制到 Discord 的 AppDir，并报告 LLVM 警告。上一节仅依据实机启动日志未出现该警告就推断打包时没有带入 LLVM，结论错误；`DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0` 只关闭图形驱动的主动部署，不会排除动态扫描所得库。
+
+构建脚本现在于依赖收集后、最终封装前，只从 Discord 的 AppDir 删除 `libgallium*.so*`、`libGLX_mesa.so*` 和 `libLLVM.so*`，并重建 sharun 的 `lib.path`；不删除构建环境中的包，也不修改 Discord 官方自带的 Electron 图形库。quick-sharun 在删除之前可能仍打印针对临时 AppDir 的红色警告；是否已从最终成品排除这些库，以及图形兼容性，仍待新构建和实机确认。

@@ -220,6 +220,13 @@ cmp -s "$HOST_DIR/files/Discord" "$APP_ROOT/Discord" || {
   exit 1
 }
 
+# 构建容器中 Mesa 可能被间接安装；动态库扫描仍会带入驱动及其 LLVM 依赖。
+# 只从 Discord 的 AppDir 移除这组构建机驱动，保留官方 Electron 图形库。
+find "$APPDIR/lib" -maxdepth 1 \( -name 'libgallium*.so*' -o -name 'libLLVM.so*' \
+  -o -name 'libGLX_mesa.so*' \) -delete
+# quick-sharun 已生成 lib.path；移除库后同步重建 sharun 的实际搜索清单。
+"$APPDIR/sharun" -g
+
 ###### 配置 Discord 模块和运行环境 ######
 
 # 把已校验并完成 Krisp 兼容处理的模块作为只读模板带入包内，启动时再同步到用户配置目录。
