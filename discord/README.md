@@ -67,3 +67,9 @@ Discord 官方程序已经自带 Electron 的 `libEGL`、`libGLESv2`、Vulkan �
 Build Discord 运行 35960141408 虽然构建成功，但日志明确显示构建环境间接安装了 `mesa`、`llvm-libs`，quick-sharun 的动态库扫描又把 `libgallium`、`libGLX_mesa` 和 `libLLVM.so.22.1` 复制到 Discord 的 AppDir，并报告 LLVM 警告。上一节仅依据实机启动日志未出现该警告就推断打包时没有带入 LLVM，结论错误；`DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0` 只关闭图形驱动的主动部署，不会排除动态扫描所得库。
 
 构建脚本现在于依赖收集后、最终封装前，只从 Discord 的 AppDir 删除 `libgallium*.so*`、`libGLX_mesa.so*` 和 `libLLVM.so*`，并重建 sharun 的 `lib.path`；不删除构建环境中的包，也不修改 Discord 官方自带的 Electron 图形库。quick-sharun 在删除之前可能仍打印针对临时 AppDir 的红色警告；是否已从最终成品排除这些库，以及图形兼容性，仍待新构建和实机确认。
+
+## 2026-09-24：不再删除 libLLVM，红色警告保留
+
+用户要求去掉上述删除。`WARNING: Detected the bundled libgallium links to libLLVM.so!` 是 quick-sharun 在收进 `libgallium` → `libLLVM` 时自己打印的，删除发生在这行之后，所以删库从来不能让构建日志不标红。仓库里没有关闭这行警告的开关；把日志滤掉只是遮住，不是没发生。
+
+因此默认保留红色警告，并去掉 `find ... -delete` 和随后只为重建清单而调用的 `sharun -g`。`DEPLOY_OPENGL=0` 与 `DEPLOY_VULKAN=0` 仍保留。新成品会重新带上扫描收进的 `libgallium*`、`libGLX_mesa*` 和 `libLLVM*`；体积和实机图形结果尚未验证。

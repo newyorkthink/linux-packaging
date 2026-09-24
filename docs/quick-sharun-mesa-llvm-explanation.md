@@ -64,3 +64,10 @@ Discord 的当前脚本在 quick-sharun 之后执行 `find "$APPDIR/lib" ... -de
 - [Discord 构建 Job 107510358634](https://github.com/newyorkthink/linux-packaging/actions/runs/35961327032/job/107510358634)：复制三项并打印警告；脚本随后删除指定三项，Job 成功。
 - [mpv 构建 Job 107508606529](https://github.com/newyorkthink/linux-packaging/actions/runs/35960745514/job/107508606529)：该次没有 Mesa/LLVM 三项的复制记录或对应警告，Job 成功。
 - [mpv 构建脚本](https://github.com/newyorkthink/linux-packaging/blob/main/mpv/build_mpv.sh)、[Discord 构建脚本](https://github.com/newyorkthink/linux-packaging/blob/main/discord/build_discord.sh)、[v2rayN 构建脚本](https://github.com/newyorkthink/linux-packaging/blob/main/v2rayn/build_v2rayn.sh)。
+
+## 2026-09-24：Discord 不再删除这三项
+
+上文描述的是当时的脚本。用户要求去掉 Discord 在 quick-sharun 之后删除 `libgallium*`、`libLLVM*`、`libGLX_mesa*` 的代码。红色警告来自 quick-sharun 本身，发生在删除之前，没有开关可以在库仍被收进包内时关掉它。过滤日志不能当成“没有警告”。
+
+当前选择是默认保留这行红色警告，成品也保留扫描收进的这三项。不能再按上文声称 Discord 成品没有它们。新成品仍需解包核对。
+
