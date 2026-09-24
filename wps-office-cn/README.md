@@ -96,6 +96,13 @@ Rofi 用的是桌面文件。原文件若有 `TryExec=wps` 或 `DBusActivatable=
 
 上一节的钩子把 `AppDir/lib` 加进 `LD_LIBRARY_PATH`。从 i3 启动后，系统的 `grep` 和 `/bin/bash` 加载了包内 `libc.so.6`，报 `__pointer_chk_guard`。包内 libc 不能给系统程序用。现只去掉其他 `.mount_` 路径，并固定 Qt 插件目录，不再把 `AppDir/lib` 加进去。
 
+## 2026-09-24：i3 的 SHARUN_DIR 不能当成 WPS 的目录
+
+`1fce34f` 之后从 i3 启动仍然是 `xcb` 插件找到了但加载失败，然后第 161 行段错误。前面还有 `awk: cannot open "1830"`，程序是在这行之前就继续往下跑的，不是这次退出的原因。
+
+钩子用的 `SHARUN_DIR` 可能还是 i3 传下来的。这样会把 WPS 自己的 `.mount_` 库路径当成外来路径丢掉，Qt 插件就加载不了。终端里没有这个变量，所以能开。现改到四个入口脚本里，按脚本自己的路径计算本包目录，并在执行 `office6` 程序的那一行之前清路径。
+
+
 
 
 

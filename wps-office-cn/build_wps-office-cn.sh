@@ -91,9 +91,32 @@ for launcher in wps et wpp wpspdf; do
   grep -Fq "$office_rel" "$APPDIR/bin/$launcher" || { echo "未能改写安装目录：$launcher" >&2; exit 1; }
   # WPS 12 在英文系统上认 LANGUAGE，不认 LANG。
   # Rofi 会带上 GIO_LAUNCHED_DESKTOP_FILE，WPS 见到就马上退出。
+  # 从 i3 启动时，上级的 SHARUN_DIR 还在。钩子若拿它当本包目录，会把 WPS 自己的库丢掉。
+  # 这里按脚本自己的路径算本包目录，并在真正启动前清掉其他 AppImage 的库路径。
   sed -i '1a export LANGUAGE=zh_CN\
-unset GIO_LAUNCHED_DESKTOP_FILE' "$APPDIR/bin/$launcher"
+unset GIO_LAUNCHED_DESKTOP_FILE\
+_wps_fix_env() {\
+  _root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd) || return 0\
+  _clean=""\
+  _oldifs=$IFS\
+  IFS=:\
+  for _dir in $LD_LIBRARY_PATH; do\
+    case "$_dir" in\
+      "") ;;\
+      "$_root"|"$_root"/*) _clean="${_clean:+$_clean:}$_dir" ;;\
+      *".mount_"*) ;;\
+      *) _clean="${_clean:+$_clean:}$_dir" ;;\
+    esac\
+  done\
+  IFS=$_oldifs\
+  export LD_LIBRARY_PATH="$_root/opt/kingsoft/wps-office/office6${_clean:+:$_clean}"\
+  export QT_PLUGIN_PATH="$_root/opt/kingsoft/wps-office/office6/qt/plugins"\
+  export QT_QPA_PLATFORM_PLUGIN_PATH="$_root/opt/kingsoft/wps-office/office6/qt/plugins/platforms"\
+  unset _clean _oldifs _dir _root\
+}' "$APPDIR/bin/$launcher"
+  sed -i 's|\${gInstallPath}/office6/\${gApp}|_wps_fix_env; ${gInstallPath}/office6/${gApp}|g' "$APPDIR/bin/$launcher"
   grep -Fq 'export LANGUAGE=zh_CN' "$APPDIR/bin/$launcher" || { echo "未能写入界面语言：$launcher" >&2; exit 1; }
+  grep -Fq '_wps_fix_env; ${gInstallPath}/office6/${gApp}' "$APPDIR/bin/$launcher" || { echo "未能在启动前修正库路径：$launcher" >&2; exit 1; }
   grep -Fq 'unset GIO_LAUNCHED_DESKTOP_FILE' "$APPDIR/bin/$launcher" || { echo "未能去掉桌面启动标记：$launcher" >&2; exit 1; }
   # mawk 会把 awk -F= 里的 -F= 当成文件名。改成 gawk 和 mawk 都能认的写法。
   sed -i 's/awk -F=/awk -F "="/g' "$APPDIR/bin/$launcher"
@@ -143,27 +166,6 @@ fi
 HOOK
 
 # 已经打开过的配置可能记住英文。只改语言项，不覆盖最近文件和其他设置。
-# i3 这类上级 AppImage 会把 Qt 插件和库路径传下来。WPS 自己的 xcb 插件能被找到但加载失败，然后段错误。
-cat > "$APPDIR/bin/10-wps-runtime.hook" <<'HOOK'
-if [ -n "$SHARUN_DIR" ]; then
-  _clean=""
-  _oldifs=$IFS
-  IFS=:
-  for _dir in $LD_LIBRARY_PATH; do
-    case "$_dir" in
-      "") ;;
-      "$SHARUN_DIR"|"$SHARUN_DIR"/*) _clean="${_clean:+$_clean:}$_dir" ;;
-      *".mount_"*) ;;
-      *) _clean="${_clean:+$_clean:}$_dir" ;;
-    esac
-  done
-  IFS=$_oldifs
-  export LD_LIBRARY_PATH="${SHARUN_DIR}/opt/kingsoft/wps-office/office6${_clean:+:$_clean}"
-  export QT_PLUGIN_PATH="${SHARUN_DIR}/opt/kingsoft/wps-office/office6/qt/plugins"
-  export QT_QPA_PLATFORM_PLUGIN_PATH="${SHARUN_DIR}/opt/kingsoft/wps-office/office6/qt/plugins/platforms"
-  unset _clean _oldifs _dir
-fi
-HOOK
 cat > "$APPDIR/bin/15-wps-language.hook" <<'HOOK'
 export LANGUAGE=zh_CN
 unset GIO_LAUNCHED_DESKTOP_FILE
