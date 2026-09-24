@@ -58,3 +58,10 @@ v2rayN Linux 客户端使用 .NET/Avalonia。构建脚本校验官方 Release SH
 - 原有的产物非空/可执行判断和 `sha256sum | tee` 写文件合并到 `common/build/check_appimage_artifact.sh`，调用位置仍在 20 秒图形检查之前。版本文件和成功提示仍由独立的 `common/build/finish_appimage_build.sh` 在图形检查后处理。
 - 此前为避免 `free(): invalid pointer`，将整套 Arch 基础包移至图形检查之后；但此时 AppImage 已生成，它不再改变产物。现在删除该末尾安装，只在开始的精确依赖列表中补 `github-cli` 供同一容器的 Release 发布步骤使用，保留已有 `jq`。上方记录描述当时的顺序，已由本节替代。
 - 仅完成静态检查；修复后的正式构建、图形检查与实机结果尚未验证。
+
+### 2026-09-24：实机确认界面、中文输入和代理
+
+Linux 实机运行当时的 `v2rayn.AppImage`。日志显示进程来自 `/tmp/.mount_v2ray*`，版本 `V7.24.9 - X64`，核心 `Xray 26.3.27`。主界面可以打开，拼音输入时出现中文候选框。节点延迟测试完成，一条结果为 280 ms。浏览器通过 `PROXY 127.0.0.1:10808` 打开了 Google。
+
+同一次日志里的 `10808 bind: address already in use` 是本地端口已被占用。未加密和 `AllowInsecure` 提示来自节点配置。这两项都不作为打包故障。
+
