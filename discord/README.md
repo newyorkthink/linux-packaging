@@ -2,7 +2,7 @@
 
 ## 来源与构建
 
-`build_discord.sh` 从 [Discord 官网](https://discord.com/download)动态下载 stable Linux tar.gz，只提取官方 `discord.desktop` 和 `discord.png`。官网归档中的程序入口是 bootstrap，不作为 AppImage 主程序；完整 stable 主程序及模块从 Discord 官方更新清单对应的 `full.distro` 动态取得。脚本核对清单版本与完整包内 `resources/build_info.json` 一致后，再使用 quick-sharun 封装 `dist/discord.AppImage` 和 `dist/version.txt`。
+`build_discord.sh` 从 [Discord 官网](https://discord.com/download)动态下载 stable Linux tar.gz，只提取官方 `discord.desktop` 和 `discord.png`。官网归档中的程序入口是 bootstrap，不作为 AppImage 主程序；完整 stable 主程序及模块从 Discord 官方更新清单对应的 `full.distro` 动态取得，并统一通过 `common/archive/extract_archive.sh` 解包。脚本核对清单版本与完整包内 `resources/build_info.json` 一致后，把真实程序树放入 `AppDir/shared/bin` 保持 Electron 相邻资源布局，再使用 quick-sharun 封装 `dist/discord.AppImage` 和 `dist/version.txt`。
 
 不运行官方 `postinst.sh` 或 bootstrap，不修改宿主机 AppArmor、服务或用户配置。官方完整程序下载需要访问 `updates.discord.com`；构建环境无法连接时构建会失败，不会发布只有安装器的假 AppImage。实际桌面运行状态以本 README 后续记录为准。
 
@@ -35,3 +35,9 @@ Actions 运行 35846090462 已生成 `discord.AppImage`，但上传 `latest` 时
 ## 2026-09-24：改用官方 desktop 和图标
 
 构建脚本不再手写 `discord.desktop`。现在从 Discord 官网动态 stable tar.gz 提取官方 `Discord/discord.desktop` 和 `Discord/discord.png`，直接交给 quick-sharun；完整主程序及模块仍由官方 stable manifest 的 `full.distro` 提供。软件版本继续取 manifest 的 `full.host_version`，并与完整包内 `resources/build_info.json` 强制比对，两者不一致时停止发布，因此 desktop 来源不会改变或回退实际程序版本。此次只完成静态检查，实际新构建与桌面运行结果以下一次 Actions 和实机反馈为准。
+
+## 2026-09-24：统一非标准程序布局和 distro 解包
+
+完整 Discord 程序不再放入 quick-sharun 的 launcher 目录 `AppDir/bin`，改为保留在 `AppDir/shared/bin`；运行时通过 `.env` 设置相邻库搜索路径和工作目录，并在 `AppDir/bin` 建立 Electron 查找 ICU、PAK、locales 与 resources 所需的包内软链接。主程序和模块的 `.distro` 不再由应用脚本直接执行 `brotli | tar`，统一交给公共归档入口解包，再按官方 `files/` 布局分别整理到程序目录和模块目录。
+
+官方 desktop、图标、stable manifest、SHA-256 校验、清单与包内版本一致性检查、可写模块部署 hook、GTK3 中文输入模块和中文 locale 均保持原有逻辑；中文环境按仓库规范补齐 `LC_MESSAGES=zh_CN.UTF-8`。构建脚本同时增加中文分段注释，明确每个下载、校验、整理和封装阶段的用途。此次已完成脚本静态检查；公共 `.distro` 实际解包、AppImage 构建和桌面运行结果仍以下一次 Actions 与实机反馈为准。

@@ -31,6 +31,17 @@ case "$ARCHIVE" in
     }
     unsquashfs -no-progress -d "$OUTPUT_DIR" "$ARCHIVE"
     ;;
+  *.distro)
+    command -v brotli >/dev/null 2>&1 || {
+      echo "错误：解包 distro 需要 brotli。" >&2
+      exit 1
+    }
+    command -v tar >/dev/null 2>&1 || {
+      echo "错误：解包 distro 需要 tar。" >&2
+      exit 1
+    }
+    brotli -dc "$ARCHIVE" | tar -x -C "$OUTPUT_DIR"
+    ;;
   *.tar | *.tar.gz | *.tgz | *.tar.xz | *.txz | *.tar.bz2 | *.tbz2)
     command -v tar >/dev/null 2>&1 || {
       echo "错误：解包 tar 归档需要 tar。" >&2
