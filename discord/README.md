@@ -49,3 +49,11 @@ Linux 实机运行 `1.0.159` 新成品，Discord 主窗口、联网、贴纸与�
 解包已发布的 `discord.AppImage`，并与同一 stable manifest 对应的官方主程序和 `discord_krisp` 完整包逐字节比较：包内 `discord_krisp.node` 与官方模块完全一致，且保留调试信息、没有被 strip；包内 `Discord` 主程序则被 quick-sharun 的硬编码路径处理改写了 174 个字节，把文件内的 `/usr/lib`、`/usr/share` 路径替换成运行时 `/tmp` 映射。Krisp 会校验 Discord 主程序本身，因此即使 Krisp 模块未被改动，仍会因主程序不是官方原始字节而拒绝初始化。
 
 构建脚本继续让 quick-sharun 使用真实主程序收集依赖并生成官方入口；依赖收集完成后，再从已通过官方 SHA-256 与包内版本检查的 `full.distro` 恢复原始 `Discord` 文件，并用 `cmp` 强制确认 AppDir 中的主程序与官方来源逐字节一致。模块部署、中文环境、输入法、desktop、图标和 quick-sharun 入口均不改变。Krisp 实际恢复结果以下一次新成品实机语音设置验证为准。
+
+## 2026-09-24：修正 Krisp UNSIGNED 根因并移除 Mesa 驱动
+
+上一轮修复后的新成品仍在实机日志中报告 `Failed to setup Krisp module, error code: -3` 和 `KRISP_INIT_ERROR_UNSIGNED`。重新下载同一 stable manifest 的官方 `full.distro` 与 `discord_krisp` 模块核对后，成品内 `Discord` 和 `discord_krisp.node` 均与官方文件逐字节一致，说明上一节把问题归因于主程序字节被改写并不完整。
+
+反汇编当前官方 Krisp 模块确认，初始化代码先通过 `/proc/<pid>/exe` 取得当前进程文件，再调用 `IsSignedByDiscord`；quick-sharun 为了使用 AppImage 自带的动态加载器和 glibc，实际进程文件是 sharun 加载器而不是官方 `Discord`，因此官方模块仍会返回未签名。直接改用宿主动态加载器会破坏 AnyLinux 兼容方式，本次保留 quick-sharun，只在构建时定位 `DoKrispInitialize` 中签名检查之后的条件跳转并替换为同长度 NOP；若上游符号、指令类型或文件偏移变化，构建会明确失败，不会盲目修改未知字节。补丁后的 SHA-256 写入模块目录，启动 hook 同时比较该标记，确保同一 Discord 版本的旧模块也会被新成品替换。除这条条件跳转外，Krisp 模块内容仍来自官方且完整保留，实际降噪结果待新成品实机验证。
+
+Discord 官方程序已经自带 Electron 的 `libEGL`、`libGLESv2`、Vulkan 和 SwiftShader 运行库，应用依赖列表不再安装 `mesa`。由于 quick-sharun 会对 Electron 自动开启图形驱动收集，脚本显式设置 `DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0`，防止把构建机的 `libgallium`、DRI、GBM 和 Vulkan 驱动打进 AppImage；没有启用实验性的宿主驱动选项。

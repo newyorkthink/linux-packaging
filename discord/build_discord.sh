@@ -23,7 +23,7 @@ OFFICIAL_DIR="$WORKDIR/official"
 
 # Discord 本体链接这些库；输入法、托盘和打开链接是额外要带走的。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" \
-  gtk3 nss alsa-lib mesa systemd-libs wayland \
+  gtk3 nss alsa-lib systemd-libs wayland \
   libappindicator-gtk3 libpulse libnotify libxss cups \
   ibus fcitx5-gtk xdg-utils brotli
 
@@ -112,6 +112,79 @@ done < <(jq -er '.modules | to_entries[] | [.key, .value.full.url, .value.full.p
 # 生成 Discord 识别的已安装模块清单，并预建 Krisp 运行时日志目录。
 jq -c '.modules | with_entries(.value = {installedVersion: .value.full.module_version})' \
   "$WORKDIR/manifest.json" > "$MODULES/installed.json"
+
+# quick-sharun 以自带加载器运行 Discord，/proc/<pid>/exe 因而不是官方主程序；
+# Krisp 会把这个加载器判为未签名。只把签名失败后的条件跳转替换成 NOP，
+# 保留官方模块的其余内容，并在上游指令布局变化时明确停止构建。
+KRISP_MODULE="$MODULES/discord_krisp/discord_krisp.node"
+[[ -f "$KRISP_MODULE" ]] || { echo '缺少 discord_krisp.node。' >&2; exit 1; }
+KRISP_OFFICIAL_SHA="$(sha256sum "$KRISP_MODULE" | awk '{print $1}')"
+KRISP_INIT_SYMBOL="$(readelf -Ws --wide "$KRISP_MODULE" \
+  | awk '$4 == "FUNC" && $8 ~ /DoKrispInitializeEv$/ && !found { print $8; found=1 }')"
+KRISP_SIGN_SYMBOL="$(readelf -Ws --wide "$KRISP_MODULE" \
+  | awk '$4 == "FUNC" && $8 ~ /IsSignedByDiscord/ && !found { print $8; found=1 }')"
+[[ -n "$KRISP_INIT_SYMBOL" && -n "$KRISP_SIGN_SYMBOL" ]] || {
+  echo '无法定位 Krisp 主程序签名检查函数。' >&2
+  exit 1
+}
+
+KRISP_PATCH_RECORD="$(objdump -d --disassemble="$KRISP_INIT_SYMBOL" "$KRISP_MODULE" \
+  | awk -v target="<$KRISP_SIGN_SYMBOL>" '
+      index($0, target) { seen_call=1; next }
+      seen_call && /test[[:space:]]+%al,%al/ { seen_test=1; next }
+      seen_test && /je[[:space:]]/ && !found {
+        address=$1
+        sub(/:$/, "", address)
+        bytes=""
+        for (i=2; i<=NF && $i ~ /^[[:xdigit:]]{2}$/; i++) bytes=bytes $i
+        print address, bytes
+        found=1
+      }
+    ')"
+read -r KRISP_PATCH_VADDR KRISP_PATCH_HEX <<< "$KRISP_PATCH_RECORD"
+[[ "$KRISP_PATCH_HEX" == 74?? || "$KRISP_PATCH_HEX" == 0f84???????? ]] || {
+  echo "Krisp 签名失败分支不是预期的 JE 指令：${KRISP_PATCH_HEX:-未找到}" >&2
+  exit 1
+}
+
+read -r KRISP_TEXT_VADDR KRISP_TEXT_OFFSET <<< "$(
+  objdump -h "$KRISP_MODULE" | awk '$2 == ".text" && !found { print $4, $6; found=1 }'
+)"
+[[ -n "$KRISP_TEXT_VADDR" && -n "$KRISP_TEXT_OFFSET" ]] || {
+  echo '无法定位 discord_krisp.node 的 .text 段。' >&2
+  exit 1
+}
+KRISP_PATCH_OFFSET=$((
+  16#$KRISP_PATCH_VADDR - 16#$KRISP_TEXT_VADDR + 16#$KRISP_TEXT_OFFSET
+))
+
+python3 - "$KRISP_MODULE" "$KRISP_PATCH_OFFSET" "$KRISP_PATCH_HEX" <<'PY'
+import pathlib
+import sys
+
+module = pathlib.Path(sys.argv[1])
+offset = int(sys.argv[2])
+expected = bytes.fromhex(sys.argv[3])
+data = bytearray(module.read_bytes())
+actual = bytes(data[offset:offset + len(expected)])
+if actual != expected:
+    raise SystemExit(
+        f"Krisp 补丁位置内容变化：预期 {expected.hex()}，实际 {actual.hex()}"
+    )
+data[offset:offset + len(expected)] = b"\x90" * len(expected)
+module.write_bytes(data)
+PY
+
+KRISP_PATCHED_SHA="$(sha256sum "$KRISP_MODULE" | awk '{print $1}')"
+[[ "$KRISP_PATCHED_SHA" != "$KRISP_OFFICIAL_SHA" ]] || {
+  echo 'Krisp 签名检查补丁没有改变模块。' >&2
+  exit 1
+}
+# 同一 Discord 版本重新构建时，运行时 hook 也据此替换旧的未修复模块。
+printf '%s\n' "$KRISP_PATCHED_SHA" \
+  > "$MODULES/discord_krisp/.appimage-patch.sha256"
+echo "Krisp 模块补丁：$KRISP_OFFICIAL_SHA -> $KRISP_PATCHED_SHA"
+
 mkdir -p "$MODULES/discord_krisp/KMS/logs"
 
 ###### 构建 AppImage ######
@@ -120,7 +193,8 @@ export ARCH=x86_64 VERSION
 export APPNAME=Discord MAIN_BIN=Discord STARTUPWMCLASS=discord
 export ICON="$OFFICIAL_ICON" DESKTOP="$OFFICIAL_DESKTOP"
 export OUTPATH="$SCRIPT_DIR/dist" OUTNAME=discord.AppImage
-export DEPLOY_OPENGL=1 NO_STRIP=1
+# Discord 已自带 Electron 图形运行库；不要让 quick-sharun 自动打入宿主 Mesa 驱动。
+export DEPLOY_OPENGL=0 DEPLOY_VULKAN=0 NO_STRIP=1
 
 # 收集真实主程序、Discord 自带的 Chromium 库、中文输入模块及动态加载的运行库。
 LD_LIBRARY_PATH="$APP_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
@@ -148,7 +222,7 @@ cmp -s "$HOST_DIR/files/Discord" "$APP_ROOT/Discord" || {
 
 ###### 配置 Discord 模块和运行环境 ######
 
-# 把官方模块作为只读模板带入包内，启动时再同步到当前用户可写配置目录。
+# 把已校验并完成 Krisp 兼容处理的模块作为只读模板带入包内，启动时再同步到用户配置目录。
 mkdir -p "$APPDIR/share/discord-modules"
 cp -a "$MODULES"/. "$APPDIR/share/discord-modules"/
 
@@ -157,7 +231,9 @@ cat > "$APPDIR/bin/stage-discord-modules.src.hook" <<EOF
 #!/bin/false
 mod_src="\${SHARUN_DIR}/share/discord-modules"
 mod_dest="\${XDG_CONFIG_HOME:-\$HOME/.config}/discord/${VERSION}/modules"
-if [ ! -f "\$mod_dest/installed.json" ] || ! cmp -s "\$mod_src/installed.json" "\$mod_dest/installed.json"; then
+if [ ! -f "\$mod_dest/installed.json" ] \\
+  || ! cmp -s "\$mod_src/installed.json" "\$mod_dest/installed.json" \\
+  || ! cmp -s "\$mod_src/discord_krisp/.appimage-patch.sha256" "\$mod_dest/discord_krisp/.appimage-patch.sha256"; then
   rm -rf "\$mod_dest"
   mkdir -p "\$mod_dest"
   cp -a "\$mod_src"/. "\$mod_dest"/
