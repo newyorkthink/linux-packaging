@@ -28,6 +28,8 @@ OFFICIAL='https://meeting.tencent.com/web-service/query-download-info?q=%5B%7B%2
 
 # 腾讯会议使用 Qt5；Qt 插件必须调用同一主版本的真实 qmake。
 QT5_BIN_DIR=/usr/lib/qt5/bin
+MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
+XTST_LIB="/usr/lib/$MULTIARCH/libXtst.so.6"
 
 ###### 下载打包工具 ######
 
@@ -67,8 +69,10 @@ VERSION="$("$SCRIPT_DIR/../common/download/download_json_deb_asset.sh" \
   exit 1
 }
 
-# desktop 使用可由 linuxdeploy 从已安装官方 DEB 解析的真实程序名；官方图标复制为匹配的 AppImage 图标名。
+# 官方图标复制为 desktop 中匹配的 AppImage 图标名。
 install -Dm0644 "$OFFICIAL_ICON_FILE" "$ICON_FILE"
+
+# desktop 保留 AppImage 可识别的程序名。
 sed -i \
   -e 's|^Exec=.*|Exec=wemeetapp %u|' \
   -e 's|^Icon=.*|Icon=wemeet|' \
@@ -83,6 +87,10 @@ export QT_SELECT=qt5
 export PATH="$APP_ROOT/bin:/opt/wemeet/bin:$QT5_BIN_DIR:$PATH"
 export QMAKE="$QT5_BIN_DIR/qmake"
 export LD_LIBRARY_PATH="$APP_ROOT/lib:/opt/wemeet/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export NO_STRIP=1
+
+# 官方 Qt 库位于 /opt，Qt 插件不会把它们计入标准 usr/lib 扫描；显式声明最小模块以运行官方插件和 hook。
+export EXTRA_QT_MODULES=core
 
 # 应用文件进入 AppDir 后，在第二次 linuxdeploy 前写入完整根 AppRun。
 # Qt 插件若生成 hook，会自动把本入口保存为 AppRun.wrapped。
@@ -122,6 +130,7 @@ export ARCH=x86_64; linuxdeploy \
   --appdir AppDir \
   --desktop-file "$DESKTOP_FILE" \
   --icon-file "$ICON_FILE" \
+  -l "$XTST_LIB" \
   --plugin qt \
   --output appimage
 

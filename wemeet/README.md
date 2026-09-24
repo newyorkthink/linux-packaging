@@ -41,3 +41,9 @@ Linux 实机运行当前 Release 的 `wemeet.AppImage` 时，仅打印 `wemeet:W
 本次不再继续修补 quick-sharun 路线，改为仓库统一的两阶段 linuxdeploy 流程：Ubuntu 24.04 首次初始化空 AppDir，安装并解包同一官方 DEB，第二次使用 Qt5 插件扫描，最后由 appimagetool 和官方 Type 2 runtime 封装正式资产。Wemeet 同步从 Arch 标准 matrix 改为 Ubuntu 24.04 独立 Job，避免混用发行版工具链。
 
 新的根 `AppRun` 不调用上游使用 `$*` 传参的二级包装脚本，而是按其有效逻辑设置 `LC_ALL`、`TZ`、`PATH`、`LD_LIBRARY_PATH`、`QT_PLUGIN_PATH` 及 Wayland 回退，再用 `"$@"` 直接执行真实主程序。首次成品仍保留公共路径整理调用；待用户确认 GUI、登录、音视频和中文输入正常后，再依据最终 Release 解包结果固化 AppRun 路径。
+
+## 2026-09-24：修正 linuxdeploy Qt 扫描入口
+
+首次 linuxdeploy 正式构建 run `35944356047` 在 Qt 插件阶段失败，日志显示 `Found Qt modules` 为空并报 `Could not find Qt modules to deploy`。官方 DEB 只在 `opt/wemeet/bin` 提供真实 ELF，`usr/bin` 没有入口；仅把 desktop 改为 `Exec=wemeetapp %u` 并把官方目录加入构建时 `PATH`，不足以让 linuxdeploy 把该 ELF 纳入现有 AppDir 文件扫描。
+
+官方 Qt 库保留在 `opt/wemeet/lib`，不会为了迎合标准目录而复制主程序或 Qt 库到 `usr/bin`、`usr/lib`。构建脚本改用 Qt 插件官方支持的 `EXTRA_QT_MODULES=core` 声明最小 Qt5 模块，使插件完成翻译处理和官方 hook 生成；应用继续优先使用自带 Qt 5.15.8 运行库及完整插件。主程序实际 `ldd` 同时确认 `libXtst.so.6` 是唯一缺失的直接依赖，因此第二次 linuxdeploy 通过精确 `-l` 参数补入该库，不复制其他项目的依赖清单。该失败发生在最终封装前，没有发布新的 Release 资产。
