@@ -27,15 +27,12 @@
     },
     {
       "key": "wemeet",
-      "kind": "standard",
+      "kind": "special",
       "name": "腾讯会议",
       "script": "wemeet/build_wemeet.sh",
       "dir": "wemeet",
-      "artifact_dir": "wemeet/dist",
       "release_name": "wemeet.AppImage",
-      "software_key": "wemeet",
-      "timeout_minutes": 90,
-      "run_from_root": "false"
+      "software_key": "wemeet"
     },
     {
       "key": "antigravity_ide",

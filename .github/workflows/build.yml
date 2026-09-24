@@ -1232,6 +1232,50 @@ jobs:
     steps: *arch_steps
 
 
+  build_wemeet:
+    name: Build Tencent Meeting
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).wemeet == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Build Tencent Meeting AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n wemeet/build_wemeet.sh
+          chmod +x wemeet/build_wemeet.sh
+          ./wemeet/build_wemeet.sh
+          test -s wemeet/dist/wemeet.AppImage
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-wemeet
+          path: wemeet/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest wemeet/dist/wemeet.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'wemeet'
+          version_file: 'wemeet/dist/version.txt'
+          asset_name: 'wemeet.AppImage'
+          artifact_dir: 'wemeet/dist'
+          github_token: ${{ github.token }}
+
+
   build_wine:
     name: Build Wine Staging
     needs: plan
