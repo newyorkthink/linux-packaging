@@ -62,7 +62,7 @@ ${XDG_DATA_HOME:-$HOME/.local/share}/todesk-appimage/runtime
 ${XDG_DATA_HOME:-$HOME/.local/share}/todesk-appimage/logs
 ```
 
-`/opt/todesk` 和 `/var/log/todesk` 的访问通过 path mapping 重定向到上述用户目录；`/etc/todesk` 同时映射到状态目录下的 `etc/`，用于持久化 ToDesk 会写入的 `reg.conf`。更新 AppImage 后，程序文件会按新版本刷新，但原有 `config/` 和 `etc/` 状态会保留，避免无条件重置设备配置。
+`/opt/todesk` 与 `/etc/todesk` 通过 path mapping 尝试重定向到上述用户状态目录，其中 `/etc/todesk` 用于持久化 ToDesk 会写入的 `reg.conf`。构建脚本也为 `/var/log/todesk` 配置了用户目录映射，但 2026-09-24 实机运行 `ToDesk_Service` 时仍观察到它直接尝试访问宿主 `/var/log/todesk` 并因普通用户权限不足失败，说明该日志路径并没有被当前映射机制完全拦截。更新 AppImage 后程序文件会按新版本刷新，原有 `config/` 和 `etc/` 状态会保留。
 
 普通便携使用建议让 `ToDesk_Service` 和 GUI 以同一个用户运行，使两者共享同一份运行目录和配置。若用 `sudo` 单独启动服务，`HOME / XDG_DATA_HOME` 通常会切换到 root 环境，从而产生另一份状态目录，因此本项目不把 `sudo` 作为默认启动方式。
 
@@ -105,8 +105,8 @@ ln -sfn todesk.AppImage CrashReport
 
 这个 AppImage 面向便携的用户会话运行方式：
 
-- 不向宿主 `/opt/todesk` 写文件。
-- 不向宿主 `/var/log/todesk` 写日志。
+- 不主动向宿主 `/opt/todesk` 安装程序文件。
+- 不主动创建宿主 `/var/log/todesk`；但 ToDesk_Service 自身仍可能直接尝试访问该路径，普通用户运行时会看到权限相关日志。
 - 不创建或修改 `/etc/systemd/system/todeskd.service`。
 - 不执行 `systemctl enable/start/restart`。
 - 不修改宿主显卡驱动、VA-API 配置、网络、防火墙或其他系统设置。
@@ -115,14 +115,22 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 
 ## 当前验证状态
 
-2026-09-24 新增 ToDesk AppImage 打包实现时，已依据以下内容完成静态设计核对：
+2026-09-24 已完成构建和实机核心远控验证：
 
-- 当前 AUR `todesk-bin` 的包布局和 `!strip` 规则。
-- ToDesk 官方 Linux 文档中的 `/opt/todesk/config/config.ini`、服务日志位置和 X11 要求。
-- 本仓库 `anylinux_projects.md` 的 quick-sharun 多入口、非标准 `/opt` 布局、GTK3 中文输入和 locale 规则。
-- 私有仓库 EasyConnect 已有“单 AppImage 多入口 + 可写后台运行目录 + 固定路径映射”的实现经验。
+- GitHub Actions run `35981621428` 的 `Build ToDesk` 已成功完成，`todesk.AppImage` 已生成并发布到 `latest` Release。
+- 实机启动 ToDesk 4.9.6.0 GUI 正常，设备代码正常显示，界面进入“已准备好连接”状态。
+- `ToDesk_Service` 与 GUI 均可启动。
+- 已使用手机端实际连接该设备并完成远程控制，因此 **核心远程控制链路已实机验证通过**。
 
-本条只表示构建脚本和路径设计已经静态核对；首次 GitHub Actions 正式构建、最终 AppImage 启动、服务与 GUI 通信、真实远程连接仍需以之后实际产物结果为准，不提前标记为已验证。
+仍未标记为已验证的功能：
+
+- **音频**：GUI 启动日志出现 `pulseaudio: not found`，当前没有据此修改打包依赖；远程音频功能尚未验证。
+- **远程打印**：日志出现 `open Todesk_Printer failed`、FUSE 相关提示；当前仅记录为远程打印功能未验证，不为此扩大打包范围。
+- **系统特权操作**：出现 `org.freedesktop.DBus.Error.InteractiveAuthorizationRequired`，说明某些需要 Polkit 交互授权的操作在当前普通用户便携运行方式下被拒绝；已验证的核心远控未因此中断。
+- **后台服务日志路径**：`ToDesk_Service` 仍会尝试访问宿主 `/var/log/todesk`，普通用户下出现权限不足和日志文件创建失败提示；这没有阻断本次核心远控，但说明当前 path mapping 对该路径不完全生效。
+- **官方 systemd/root 语义**：AppImage 没有安装官方 `todeskd.service`，因此开机自启、系统级无人值守和官方 root 后台服务语义仍不属于当前验证范围。
+
+启动阶段还观察到 `/tmp/service...` IPC 连接失败提示，但随后 GUI 正常显示、设备在线并且手机端可以完成远程控制，因此当前只记录为启动阶段提示，不把它定性为核心功能故障。
 
 
 ## 修复记录
@@ -161,3 +169,11 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 修复：构建环境显式补 `xcb-util`、`xcb-util-keysyms`、`xcb-util-wm`；同时补齐同一 Qt/XCB 运行族的 `xcb-util-image`、`xcb-util-renderutil`、`xcb-util-cursor`，避免下一步只因同族库继续中断。Arch 官方包文件列表确认：`xcb-util` 提供 `libxcb-util.so.1`，`xcb-util-keysyms` 提供 `libxcb-keysyms.so.1`，`xcb-util-wm` 提供 `libxcb-icccm.so.4`。
 - 防止反复构建：在 quick-sharun 前新增四入口 `ldd` 汇总检查，一次列出 `ToDesk / ToDesk_Service / ToDesk_Session / CrashReport` 仍缺的直接动态库；如果还有缺库，单次 Actions 日志即可看到完整列表。
 - 范围：只增加构建环境中的 XCB 运行库和依赖预检，不修改下载回退、SHA-256、安全边界、`/opt/todesk`/`/etc/todesk` 持久化或多入口逻辑。
+
+
+### 2026-09-24：实机远控验证
+
+- 验证结果：ToDesk 4.9.6.0 GUI 正常启动并显示设备代码，手机端已经实际连接并完成远程控制，核心远控功能确认可用。
+- 运行日志：`ToDesk_Service` 仍会直接尝试访问 `/var/log/todesk` 并出现普通用户权限不足；当前日志路径映射不能描述成“已经完全重定向”。
+- 非阻断提示：`pulseaudio: not found`、`InteractiveAuthorizationRequired`、`Todesk_Printer`/FUSE 以及启动阶段 `/tmp/service...` IPC 提示均未阻断本次远控。
+- 验证边界：音频、远程打印、官方 systemd/root 后台服务语义尚未验证；在这些功能有明确需求前，不为消除日志提示继续扩大 AppImage 依赖或修改宿主系统。
