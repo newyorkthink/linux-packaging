@@ -11,3 +11,8 @@
 ## 运行和构建
 
 图形会话运行 dist/st.AppImage；需要打开文件时可以显式执行 st.AppImage -e nvim /path/to/file，和原有 Rofi 搜索脚本互不依赖。构建脚本由仓库的标准 AppImage 工作流在 Arch 环境调用，使用 quick-sharun 打包，并包含 st-256color 的 terminfo。上游复制输出、处理 URL 的快捷键还会调用宿主机的 dmenu、xclip 等工具，使用这些快捷键前需要在宿主机安装相应程序。上游项目地址：https://github.com/siduck/st 。
+
+## 2026-09-24：实机确认能打开并输入
+
+Linux 图形会话运行当时的 `st.AppImage`，终端窗口可以打开，shell 提示符正常，能输入。拼音输入时出现了中文候选框。这次没有核对终端缓冲区内的中文字形，也没有核对文泉驿字体是否已安装。
+
