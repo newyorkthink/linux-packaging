@@ -110,6 +110,13 @@ Rofi 用的是桌面文件。原文件若有 `TryExec=wps` 或 `DBusActivatable=
 
 实机确认 Rofi 现在能启动 WPS。终端直接运行也可以。i3 用 `i3-msg exec` 去跑同一个 AppImage 仍是另一件事，不要和 Rofi 混在一起。
 
+## 2026-09-24：当前结论
+
+终端直接运行可以。`44ea0d4` 这版 Rofi 也可以，用户确认下的就是这个提交。Release 里的 `wps.AppImage` 已下载核对，`office6/libxkbcommon-x11.so.0` 和 `lib/libxkbcommon-x11.so.0` 都在。
+
+从 i3wm 这个 AppImage 里有时直接调不起来。日志、原因，以及别的程序碰到同类情况时怎么看，写在 [docs/known-risks/i3wm-appimage-child-launch.md](../docs/known-risks/i3wm-appimage-child-launch.md)。这条不再改 WPS 的构建脚本。
+
+
 
 
 ## 2026-09-24：存在性检查被改坏
