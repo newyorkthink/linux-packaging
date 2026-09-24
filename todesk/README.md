@@ -128,6 +128,7 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - **远程打印**：日志出现 `open Todesk_Printer failed`、FUSE 相关提示；当前仅记录为远程打印功能未验证，不为此扩大打包范围。
 - **系统特权操作**：出现 `org.freedesktop.DBus.Error.InteractiveAuthorizationRequired`，说明某些需要 Polkit 交互授权的操作在当前普通用户便携运行方式下被拒绝；已验证的核心远控未因此中断。
 - **后台服务日志路径**：`ToDesk_Service` 仍会尝试访问宿主 `/var/log/todesk`，普通用户下出现权限不足和日志文件创建失败提示；这没有阻断本次核心远控，但说明当前 path mapping 对该路径不完全生效。
+- **系统托盘图标**：核心远控实机验证通过后，i3/X11 桌面没有出现 ToDesk 托盘小图标。成功构建日志确认构建环境安装了 `libappindicator`，但 quick-sharun 收集日志没有看到 `libappindicator3.so.1`、`libdbusmenu-glib.so.4`、`libdbusmenu-gtk3.so.4`；当前构建脚本已改为显式收集这三项，新的托盘显示结果仍需以后续产物实机验证。
 - **官方 systemd/root 语义**：AppImage 没有安装官方 `todeskd.service`，因此开机自启、系统级无人值守和官方 root 后台服务语义仍不属于当前验证范围。
 
 启动阶段还观察到 `/tmp/service...` IPC 连接失败提示，但随后 GUI 正常显示、设备在线并且手机端可以完成远程控制，因此当前只记录为启动阶段提示，不把它定性为核心功能故障。
@@ -177,3 +178,11 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 运行日志：`ToDesk_Service` 仍会直接尝试访问 `/var/log/todesk` 并出现普通用户权限不足；当前日志路径映射不能描述成“已经完全重定向”。
 - 非阻断提示：`pulseaudio: not found`、`InteractiveAuthorizationRequired`、`Todesk_Printer`/FUSE 以及启动阶段 `/tmp/service...` IPC 提示均未阻断本次远控。
 - 验证边界：音频、远程打印、官方 systemd/root 后台服务语义尚未验证；在这些功能有明确需求前，不为消除日志提示继续扩大 AppImage 依赖或修改宿主系统。
+
+
+### 2026-09-24：补齐 AppIndicator 托盘运行库
+
+- 现象：ToDesk 4.9.6.0 GUI、设备代码、手机连接和实际远程控制均正常，但 i3/X11 桌面没有出现 ToDesk 托盘小图标。
+- 核对：AUR `todesk-bin` 已声明 `libappindicator-gtk3`；成功构建日志也确认 Arch 构建环境安装了 `libappindicator`，但 quick-sharun 的实际收集日志没有看到 `libappindicator3.so.1`、`libdbusmenu-glib.so.4`、`libdbusmenu-gtk3.so.4` 被收入 AppImage。
+- 修复：保持现有 AUR 依赖不变，在同一次 quick-sharun 调用中显式加入 `/usr/lib/libappindicator3.so.1`、`/usr/lib/libdbusmenu-glib.so.4`、`/usr/lib/libdbusmenu-gtk3.so.4`，并在收集前检查文件存在，避免库名变化时静默生成缺托盘支持的包。
+- 边界：本次只修 AppImage 内的托盘运行库收集，不修改 i3 配置。若新产物仍不显示托盘，再单独核对 i3 当前 bar 是否提供 AppIndicator/StatusNotifier 托盘宿主。

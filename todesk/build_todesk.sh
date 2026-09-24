@@ -219,6 +219,17 @@ fi
 
 # ToDesk 四个入口必须在同一次 quick-sharun 调用中处理。
 # quick-sharun 生成的 AppRun 会根据 AppImage/软链接文件名自动选择同名入口。
+#
+# AUR 已声明 libappindicator-gtk3，但 2026-09-24 成功构建日志没有看到 AppIndicator/
+# libdbusmenu 运行库被 quick-sharun 收入；实机随后也没有出现托盘小图标。
+# 因此显式把整条 GTK3 AppIndicator 运行链加入同一次依赖收集。
+for tray_library in \
+    /usr/lib/libappindicator3.so.1 \
+    /usr/lib/libdbusmenu-glib.so.4 \
+    /usr/lib/libdbusmenu-gtk3.so.4; do
+    [[ -e "$tray_library" ]] || die "缺少 ToDesk 托盘运行库：$tray_library"
+done
+
 LD_LIBRARY_PATH="$APP_ROOT/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
 quick-sharun \
     "$APP_ROOT/bin/ToDesk" \
@@ -226,7 +237,10 @@ quick-sharun \
     "$APP_ROOT/bin/ToDesk_Session" \
     "$APP_ROOT/bin/CrashReport" \
     /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so \
-    /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
+    /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so \
+    /usr/lib/libappindicator3.so.1 \
+    /usr/lib/libdbusmenu-glib.so.4 \
+    /usr/lib/libdbusmenu-gtk3.so.4
 
 ###### 中文环境 ######
 
