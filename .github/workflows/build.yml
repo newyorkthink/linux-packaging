@@ -109,6 +109,7 @@ on:
           - wine/build_wine.sh
           - winpodx/build_winpodx_release.sh
           - workbuddy/build_workbuddy.sh
+          - wps-office-cn/build_wps-office-cn.sh
           - xmind/build_xmind.sh
           - xnconvert/build_xnconvert.sh
           - xnviewmp/build_xnviewmp.sh

@@ -716,6 +716,18 @@
       "run_from_root": "false"
     },
     {
+      "key": "wps-office-cn",
+      "kind": "standard",
+      "name": "WPS Office CN",
+      "script": "wps-office-cn/build_wps-office-cn.sh",
+      "dir": "wps-office-cn",
+      "artifact_dir": "wps-office-cn/dist",
+      "release_name": "wps-office-cn.AppImage",
+      "software_key": "wps-office-cn",
+      "timeout_minutes": 90,
+      "run_from_root": "false"
+    },
+    {
       "key": "folo",
       "kind": "standard",
       "name": "Folo",
