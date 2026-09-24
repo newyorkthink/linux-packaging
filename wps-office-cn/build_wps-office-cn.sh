@@ -151,14 +151,14 @@ if [ -n "$SHARUN_DIR" ]; then
   IFS=:
   for _dir in $LD_LIBRARY_PATH; do
     case "$_dir" in
+      "") ;;
       "$SHARUN_DIR"|"$SHARUN_DIR"/*) _clean="${_clean:+$_clean:}$_dir" ;;
       *".mount_"*) ;;
-      "") ;;
       *) _clean="${_clean:+$_clean:}$_dir" ;;
     esac
   done
   IFS=$_oldifs
-  export LD_LIBRARY_PATH="${SHARUN_DIR}/opt/kingsoft/wps-office/office6:${SHARUN_DIR}/lib${_clean:+:$_clean}"
+  export LD_LIBRARY_PATH="${SHARUN_DIR}/opt/kingsoft/wps-office/office6${_clean:+:$_clean}"
   export QT_PLUGIN_PATH="${SHARUN_DIR}/opt/kingsoft/wps-office/office6/qt/plugins"
   export QT_QPA_PLATFORM_PLUGIN_PATH="${SHARUN_DIR}/opt/kingsoft/wps-office/office6/qt/plugins/platforms"
   unset _clean _oldifs _dir

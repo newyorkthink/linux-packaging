@@ -92,6 +92,11 @@ Rofi 用的是桌面文件。原文件若有 `TryExec=wps` 或 `DBusActivatable=
 
 `10-wps-runtime.hook` 去掉路径里其他 `.mount_` 挂载，并把 Qt 插件目录固定到本包的 `office6/qt/plugins`。从 i3 能否留下窗口，以下一次实机为准。
 
+## 2026-09-24：不能把包内 libc 放进库路径
+
+上一节的钩子把 `AppDir/lib` 加进 `LD_LIBRARY_PATH`。从 i3 启动后，系统的 `grep` 和 `/bin/bash` 加载了包内 `libc.so.6`，报 `__pointer_chk_guard`。包内 libc 不能给系统程序用。现只去掉其他 `.mount_` 路径，并固定 Qt 插件目录，不再把 `AppDir/lib` 加进去。
+
+
 
 
 
