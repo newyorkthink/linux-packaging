@@ -21,10 +21,10 @@ fail() {
   "$SCRIPT_DIR" --skip-create AppDir dist source verify work
 cd "$SCRIPT_DIR"
 
-# 安装官方自包含 Avalonia 程序所需的构建与运行库，以及短时图形启动检查所需的虚拟显示组件。
-# 统一基础包必须等图形检查结束后再安装，避免改变依赖收集和启动环境。
+# 安装官方自包含 Avalonia 程序、短时图形检查及后续发布所需的精确依赖。
+# 以前提前安装整套统一基础包会使图形检查出现 free(): invalid pointer。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" \
-  bash curl jq dpkg file patchelf coreutils desktop-file-utils xdg-utils \
+  bash curl jq github-cli dpkg file patchelf coreutils desktop-file-utils xdg-utils \
   glibc gcc-libs zlib fontconfig freetype2 \
   libx11 libxext libxrender libxrandr libxi libxcb libxfixes libxinerama \
   libxcomposite libxcursor libxdamage libxkbcommon dbus \
@@ -67,10 +67,12 @@ export OUTPATH="$DIST_DIR"
 export OUTNAME="v2rayn.AppImage"
 
 # 把真实图形主程序放在首位，避免 quick-sharun 误选其他 ELF 作为入口。
+# 上游 DEB 也不扫描可选追踪库 libcoreclrtraceptprovider.so 的依赖；文件仍按原目录复制。
 # 其余动态链接的 ELF 一起交给 quick-sharun 收集依赖。
 ELF_INPUTS=("$MAIN_SOURCE")
 while IFS= read -r -d '' candidate; do
   [[ "$candidate" == "$MAIN_SOURCE" ]] && continue
+  [[ "$candidate" == "$APP_ROOT/libcoreclrtraceptprovider.so" ]] && continue
   description="$(file -Lb "$candidate")"
   if [[ "$description" == ELF* && ( "$description" == *"dynamically linked"* || "$description" == *"shared object"* ) ]]; then
     ELF_INPUTS+=("$candidate")
@@ -95,11 +97,11 @@ if ! grep -Fxq 'PATH=${SHARUN_DIR}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:
 fi
 printf '%s\n' 'v2rayN' > "$APPDIR/.app"
 
-# 生成最终 AppImage，只保留产物非空判断和发布所需的 SHA-256 文件。
+# 生成最终 AppImage；公共入口核对产物并写出发布用的 SHA-256 文件。
 quick-sharun --make-appimage
 APPIMAGE="$DIST_DIR/v2rayn.AppImage"
-[[ -x "$APPIMAGE" && -s "$APPIMAGE" ]] || fail "AppImage was not created"
-sha256sum "$APPIMAGE" | tee "$DIST_DIR/v2rayn.AppImage.sha256"
+"$SCRIPT_DIR/../common/build/check_appimage_artifact.sh" \
+  "$APPIMAGE" "$DIST_DIR/v2rayn.AppImage.sha256"
 
 # 仅由需要的应用显式调用公共图形检查；保留原来的 20 秒、会话顺序与致命日志特征。
 # 不检查窗口标题，成功条件仍是进程持续运行到 timeout 返回 124。
@@ -107,9 +109,6 @@ sha256sum "$APPIMAGE" | tee "$DIST_DIR/v2rayn.AppImage.sha256"
   "$APPIMAGE" 20 "$VERIFY_DIR" timeout-dbus-xvfb timeout-only \
   'Unhandled exception|DllNotFoundException|error while loading shared libraries|cannot open shared object file|symbol lookup error|invalid ELF header|Segmentation fault|core dumped|Exec format error|wrong ELF class' \
   ''
-
-# 安装统一的 Arch AppImage 基础包，供后续发布步骤使用。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 
 # 检查完成后统一写入版本文件并输出原有成功提示。
 "$SCRIPT_DIR/../common/build/finish_appimage_build.sh" \

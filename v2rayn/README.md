@@ -51,3 +51,10 @@ v2rayN Linux 客户端使用 .NET/Avalonia。构建脚本校验官方 Release SH
 - 本次改从最新稳定 Release 的 `v2rayN-linux-64.deb` 解包。该包自带 `/opt/v2rayN` 程序、`v2rayn.desktop` 和 hicolor 图标；复制上游 desktop 后只将 `Exec=v2rayn` 改为 AppImage 内的真实入口 `Exec=v2rayN`，并补上窗口类与本次版本。此前手写 desktop 的实现由此替代。
 - `common/github/download_latest_stable_named_asset.sh` 统一选择固定资产名、验证官方 SHA-256 和 DEB 包名及 amd64 架构；直链失败仍按同一资产 ID 使用认证 API 回退。`common/archive/extract_archive.sh` 解包 DEB，`common/arch/install_packages.sh` 安装应用依赖，`common/build/prepare_x86_64_workspace.sh` 限定架构并清理本项目目录。
 - 保留原先的 ELF 收集、相邻文件布局、20 秒可选图形检查及其后安装统一基础包的顺序。此次仅做静态检查；DEB 重新封装、图形启动及实机结果尚未验证。上面关于 ZIP 下载和手写 desktop 的旧记录描述的是当时实现，现由本节替代。
+
+### 2026-09-24：修复 DEB 追踪库扫描并整理产物收尾
+
+- Actions Run `35956804794` 的 v2rayN Job `107496795652` 成功下载和校验官方 DEB，随后 `quick-sharun` 扫描 `libcoreclrtraceptprovider.so` 时因缺少 `liblttng-ust.so.0` 退出。上游 `package-debian.sh` 也将该可选追踪库排除在依赖扫描之外；本脚本只从 quick-sharun 的 ELF 输入中排除它，原样复制官方程序目录时仍保留该文件。不安装当前仅提供 `.so.1` 的 Arch `lttng-ust`，也不把旧兼容库加入所有应用的基础包。
+- 原有的产物非空/可执行判断和 `sha256sum | tee` 写文件合并到 `common/build/check_appimage_artifact.sh`，调用位置仍在 20 秒图形检查之前。版本文件和成功提示仍由独立的 `common/build/finish_appimage_build.sh` 在图形检查后处理。
+- 此前为避免 `free(): invalid pointer`，将整套 Arch 基础包移至图形检查之后；但此时 AppImage 已生成，它不再改变产物。现在删除该末尾安装，只在开始的精确依赖列表中补 `github-cli` 供同一容器的 Release 发布步骤使用，保留已有 `jq`。上方记录描述当时的顺序，已由本节替代。
+- 仅完成静态检查；修复后的正式构建、图形检查与实机结果尚未验证。

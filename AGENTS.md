@@ -978,6 +978,8 @@ AI 应根据当前任务和修改风险选择最小且有效的检查，不需�
 
 **以后所有新建或本次修改涉及的基础包统一按 [`docs/appimage-build-dependency-list.md`](./docs/appimage-build-dependency-list.md) 执行。** Arch 和 Ubuntu 使用各自系统中一一对应的精确包名，不得混用。Arch 应用通过 `common/arch/install_packages.sh --base` 安装完整的 95 项基础包，后续参数只用于追加当前应用的软件包；Ubuntu 应用通过 `common/apt/install_packages.sh` 自动追加完整的 Ubuntu 对应包。
 
+**v2rayN 是有故障记录的特例：** 提前安装整套 Arch 基础包曾使其图形检查出现 `free(): invalid pointer`；改在产物与图形检查之后安装又不参与打包。因此 `v2rayn/build_v2rayn.sh` 只在打包前安装该应用已核实的精确依赖及发布所需的 `github-cli`，不调用末尾的 `--base`。此特例不改变统一基础包清单，也不适用于其他应用；原因和未验证状态见 `v2rayn/README.md`。
+
 Arch Linux 统一基础包命令如下：
 
 ```bash

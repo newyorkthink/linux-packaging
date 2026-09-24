@@ -10,6 +10,8 @@
 
 GitHub Actions 的 Arch Linux 构建容器使用同一套基础包。应用脚本以 `common/arch/install_packages.sh --base` 安装以下全部 95 个包；需要安装当前应用的额外依赖时，另以包名为参数调用同一个入口。`base-devel` 覆盖的工具仍显式列出，`jq` 和 `github-cli` 都包含在基础包内。以下命令中的反斜杠必须紧贴行尾：
 
+v2rayN 因提前安装整套基础包曾在图形检查中出现 `free(): invalid pointer`，按 `AGENTS.md` 的应用特例使用精确依赖列表，并在打包前包含发布步骤需要的 `github-cli`；不在 AppImage 生成后再安装整套基础包。此例外不改变其他应用的基础包要求。
+
 ```bash
 # 在 GitHub Actions 的 Arch Linux 构建容器中安装统一基础环境
 yay -S --noconfirm base-devel archlinux-keyring gcc make pkgconf patch autoconf \
@@ -41,6 +43,7 @@ Qt 主版本由实际 ELF 依赖或上游自带运行库决定；GUI 按仓库 `
 ### 标准矩阵 Job 的发布工具
 
 标准矩阵 Job 的发布步骤使用 `gh` 和 `jq`；Arch 基础包已显式包含 `github-cli jq`。这两个命令属于构建和发布环境，不会仅因安装在容器里就进入 AppImage。
+v2rayN 的精确依赖列表也分别安装了 `github-cli` 与 `jq`，供同一 Job 的下载和发布使用。
 
 ## Ubuntu：linuxdeploy + appimagetool
 
