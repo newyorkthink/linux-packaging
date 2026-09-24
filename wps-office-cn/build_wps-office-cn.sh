@@ -43,6 +43,16 @@ for launcher in wps et wpp wpspdf; do
   install -Dm0755 "/usr/bin/$launcher" "$APPDIR/bin/$launcher"
 done
 
+# 官方脚本把安装目录写死，并把程序输出丢掉。改成脚本旁边的 office6，失败信息要留在终端。
+for launcher in "$APPDIR/bin/wps" "$APPDIR/bin/et" "$APPDIR/bin/wpp" "$APPDIR/bin/wpspdf"; do
+  [[ -f "$launcher" ]] || continue
+  head -n 1 "$launcher" | grep -q 'sh' || continue
+  sed -i \
+    -e 's| >/dev/null 2>&1||g' \
+    -e 's|^gInstallPath=.*|gInstallPath="$(CDPATH= cd -- "$(dirname -- "$0")" \&\& pwd)"|' \
+    "$launcher"
+done
+
 # 选用已安装的官方桌面文件和图标，保持版本与当前 AUR 包一致。
 install -Dm0644 /usr/share/applications/wps-office-wps.desktop "$SOURCE/wps-office-cn.desktop"
 mapfile -t ICONS < <(find /usr/share/icons/hicolor -type f -path '*/apps/*wpsmain.png' | sort -V)
@@ -58,7 +68,9 @@ VERSION="${PACKAGE_VERSION%-*}"
 [[ -n "$VERSION" ]] || { echo '无法读取 WPS 包版本。' >&2; exit 1; }
 export ARCH=x86_64 VERSION APPNAME='WPS Office CN' MAIN_BIN=wps
 export ICON="$SOURCE/wps-office-cn.png" DESKTOP="$SOURCE/wps-office-cn.desktop"
-export OUTPATH="$DIST" OUTNAME=wps-office-cn.AppImage NO_STRIP=1
+export OUTPATH="$DIST" OUTNAME=wps.AppImage NO_STRIP=1
+# 程序内部仍查找 /usr/lib/office6。映射到包内这份，而不是宿主上的安装目录。
+export PATH_MAPPING='/usr/lib/office6:${SHARUN_DIR}/bin/office6'
 LD_LIBRARY_PATH="$OFFICE${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun \
   "$OFFICE/wps" "$OFFICE/et" "$OFFICE/wpp" "$OFFICE/wpspdf" \
   "$OFFICE/qt/plugins/platforms/libqxcb.so" \
@@ -109,4 +121,4 @@ HOOK
 quick-sharun --make-appimage
 
 "$ROOT/common/build/save_appimage_version.sh" \
-  "$DIST/wps-office-cn.AppImage" "$VERSION" "$DIST/version.txt"
+  "$DIST/wps.AppImage" "$VERSION" "$DIST/version.txt"

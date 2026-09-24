@@ -41,7 +41,7 @@
 | `STRACE_MODE` | quick-sharun 是否用 strace 扫依赖。0 是不用。 | 12 个脚本，例如 aionui、bluemail、chatgpt |
 | `STRACE_BINARY` | quick-sharun 用 strace 跟踪哪个程序来找动态库。只在构建容器里用。 | 3 个脚本，例如 adspower-global、chromium、deepseek-harness |
 | `STRACE_FLAGS` | 上面那个 strace 的附加参数，例如 --no-sandbox。不写进运行入口。 | 3 个脚本，例如 adspower-global、chromium、deepseek-harness |
-| `PATH_MAPPING` | AnyLinux 把宿主路径映射到包内路径。 | 3 个脚本，例如 freerdp、i3wm、parsec |
+| `PATH_MAPPING` | AnyLinux 把宿主路径映射到包内路径。 | 4 个脚本，例如 freerdp、i3wm、parsec、wps-office-cn |
 | `PATH_MAPPING_HARDCODED` | AnyLinux 按文件名固定做路径映射，不靠自动扫描。 | obs-studio |
 | `DWARFS_COMP` | dwarfs 压缩方式和级别。 | antigravity-ide |
 | `CSC_IDENTITY_AUTO_DISCOVERY` | electron-builder 不自动找签名证书。这里只打 Linux 包，避免它去找 macOS 证书。 | hermes-desktop |

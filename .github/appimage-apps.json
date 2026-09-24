@@ -734,7 +734,7 @@
       "script": "wps-office-cn/build_wps-office-cn.sh",
       "dir": "wps-office-cn",
       "artifact_dir": "wps-office-cn/dist",
-      "release_name": "wps-office-cn.AppImage",
+      "release_name": "wps.AppImage",
       "software_key": "wps-office-cn",
       "timeout_minutes": 90,
       "run_from_root": "false"
