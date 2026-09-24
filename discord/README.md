@@ -57,3 +57,7 @@ Linux 实机运行 `1.0.159` 新成品，Discord 主窗口、联网、贴纸与�
 反汇编当前官方 Krisp 模块确认，初始化代码先通过 `/proc/<pid>/exe` 取得当前进程文件，再调用 `IsSignedByDiscord`；quick-sharun 为了使用 AppImage 自带的动态加载器和 glibc，实际进程文件是 sharun 加载器而不是官方 `Discord`，因此官方模块仍会返回未签名。直接改用宿主动态加载器会破坏 AnyLinux 兼容方式，本次保留 quick-sharun，只在构建时定位 `DoKrispInitialize` 中签名检查之后的条件跳转并替换为同长度 NOP；若上游符号、指令类型或文件偏移变化，构建会明确失败，不会盲目修改未知字节。补丁后的 SHA-256 写入模块目录，启动 hook 同时比较该标记，确保同一 Discord 版本的旧模块也会被新成品替换。除这条条件跳转外，Krisp 模块内容仍来自官方且完整保留，实际降噪结果待新成品实机验证。
 
 Discord 官方程序已经自带 Electron 的 `libEGL`、`libGLESv2`、Vulkan 和 SwiftShader 运行库，应用依赖列表不再安装 `mesa`。由于 quick-sharun 会对 Electron 自动开启图形驱动收集，脚本显式设置 `DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0`，防止把构建机的 `libgallium`、DRI、GBM 和 Vulkan 驱动打进 AppImage；没有启用实验性的宿主驱动选项。
+
+`mesa` 是其他应用按实际 OpenGL 或渲染需求选装的包，不属于统一基础包；不能因为 Discord 删除了它，就从确实需要 Mesa 的应用中删除。对 Discord 额外安装并收集构建机的 Mesa 驱动，会把与构建环境绑定的驱动及可能依赖的 `libLLVM.so` 带进产物，增加体积，还可能在其他 GPU 或较旧内核上产生兼容问题。Discord 此处只排除构建机驱动收集，不保证所有图形功能在所有宿主环境中均已验证。
+
+随后提供的 Linux 实机启动日志显示 Discord 主程序已启动，未再出现此前的 Krisp `-3` / `KRISP_INIT_ERROR_UNSIGNED` 和 `libgallium` / LLVM 警告。这仅是该次启动日志的结果；Krisp 麦克风降噪的实际效果，以及本次文档提交触发的 Actions 构建结果，仍需分别验证。
