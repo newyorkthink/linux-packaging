@@ -48,6 +48,7 @@
 - `v2026.9.24` 的 About 更新 `ListRow` 增加了 `id={settingElementId(SETTING_IDS.about.automaticUpdates)}`，旧锚点无法唯一定位，构建在隐藏源码自更新入口前停止。
 - 补丁同时接受带 `id` 的新写法和原来的写法，仍然把整块更新控件藏起来，并保留版本旁的 Release Notes。
 - 同一版本恢复了仅处理 macOS locale 的 `scripts/after-pack.mjs`。Linux AppImage hook 先调用它，再设置内置 `libsecret` 的 RUNPATH，不覆盖上游逻辑。
+- `src/main.tsx` 现在使用只接受 `children` 的 `ProfileI18nProvider`。补丁不再给它加 `initialLocale`，界面语言继续走上游已有的系统语言回退。Chromium `zh-CN` 映射仍保留。
 
 ## 构建文件
 

@@ -137,9 +137,14 @@ main_path.write_text(main_text, encoding="utf-8")
 
 renderer_path = root / "apps/desktop/src/main.tsx"
 renderer_text = renderer_path.read_text(encoding="utf-8")
-locale_open = "<I18nProvider>"
 locale_fixed = "<I18nProvider initialLocale={navigator.language}>"
-if locale_fixed not in renderer_text:
+profile_provider_import = "ProfileI18nProvider as I18nProvider"
+if locale_fixed in renderer_text or profile_provider_import in renderer_text:
+    # ProfileI18nProvider 只接受 children。系统语言回退在 i18n context 内完成，
+    # 再传入 initialLocale 会让 tsc 失败。
+    pass
+else:
+    locale_open = "<I18nProvider>"
     if renderer_text.count(locale_open) != 1:
         die("无法唯一定位 I18nProvider，停止构建，避免错误修改上游源码。")
     renderer_text = renderer_text.replace(locale_open, locale_fixed, 1)
@@ -333,7 +338,6 @@ checks = [
     (main_path, "Hermes standalone Linux AppImage: detect the Secret Service/KWallet backend directly"),
     (main_path, "Hermes standalone Linux AppImage: map a Chinese system locale to Chromium zh-CN"),
     (main_path, "HERMES_DESKTOP_SAFE_STORAGE_SMOKE_TEST"),
-    (renderer_path, "<I18nProvider initialLocale={navigator.language}>"),
     (context_path, native_locale_fallback),
     (preload_path, "Hermes standalone Linux AppImage: disable source-checkout desktop self-update"),
     (about_path, "Hermes standalone Linux AppImage: hide source-checkout desktop update controls"),
@@ -345,6 +349,13 @@ checks = [
 for path, marker in checks:
     if marker not in path.read_text(encoding="utf-8"):
         die(f"补丁校验失败：{path} 缺少 {marker}")
+
+renderer_final = renderer_path.read_text(encoding="utf-8")
+if (
+    "<I18nProvider initialLocale={navigator.language}>" not in renderer_final
+    and "ProfileI18nProvider as I18nProvider" not in renderer_final
+):
+    die("补丁校验失败：无法确认 Desktop 初始语言来源。")
 
 if chain_upstream_after_pack:
     hook_text = after_pack_path.read_text(encoding="utf-8")
