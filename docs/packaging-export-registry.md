@@ -83,7 +83,7 @@
 | `DEPLOY_DATADIR` | quick-sharun 是否把数据目录打进包。0 是不打。 | deepseek-harness |
 | `SHARUN_WORKING_DIR` | quick-sharun 的工作目录，一般是主程序所在目录。 | 12 个脚本，例如 aionui、chatgpt、feishu |
 | `SHARUN_EXTRA_LIBRARY_PATH` | quick-sharun 额外扫描这些目录里的库。 | 12 个脚本，例如 aionui、chatgpt、feishu |
-| `SHARUN_ALLOW_QT_PLUGIN_PATH` | 允许 quick-sharun 保留应用自己设的 QT_PLUGIN_PATH，不把它清掉。 | 2 个脚本，例如 mailmaster、wps-office-cn |
+| `SHARUN_ALLOW_QT_PLUGIN_PATH` | 允许 quick-sharun 保留应用自己设的 QT_PLUGIN_PATH，不把它清掉。 | mailmaster。wps-office-cn 改在 AppDir/.env 里设置，构建脚本不再 export 它。 |
 | `NO_AT_BRIDGE` | 不连接无障碍总线，避免启动时卡住或刷警告。 | 3 个脚本，例如 joplin、peazip、ventoy |
 
 ## 启动路径
@@ -96,7 +96,7 @@
 | `XDG_CONFIG_DIRS` | 配置文件搜索目录。包内目录放前面。 | kde-suite |
 | `APPDIR` | AppImage 解包后的根目录。运行时用来拼包内路径。 | 8 个脚本，例如 dconf-editor、kitty、mission-center |
 | `LD_PRELOAD` | 程序启动前先加载指定的 so。 | 3 个脚本，例如 dingtalk、peazip、runimage |
-| `FONTCONFIG_FILE` | 用包里的字体配置，避免宿主旧字体缓存影响启动。 | 2 个脚本，例如 github-desktop、keepass |
+| `FONTCONFIG_FILE` | 用包里的字体配置，避免宿主旧字体缓存影响启动。 | 3 个脚本，例如 github-desktop、keepass、wps-office-cn |
 | `FONTCONFIG_PATH` | 字体配置的搜索目录。 | github-desktop |
 
 ## Qt
