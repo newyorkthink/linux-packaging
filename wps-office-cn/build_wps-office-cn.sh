@@ -79,8 +79,8 @@ for launcher in wps et wpp wpspdf; do
     office_rel='../opt/kingsoft/wps-office/office6'
   fi
   sed -i \
-    -e 's| >/dev/null 2>&1||g' \
-    -e "s|^gInstallPath=.*|gInstallPath=\"\$(CDPATH= cd -- \"\$(dirname -- \"\$0\")/$office_rel\" \\&\\& pwd)\"|" \
+    -e 's| *> */dev/null 2>&1||g' \
+    -e "s|^[[:space:]]*gInstallPath=.*|gInstallPath=\"\$(CDPATH= cd -- \"\$(dirname -- \"\$0\")/$office_rel\" \\&\\& pwd)\"|" \
     "$APPDIR/bin/$launcher"
   grep -Fq "$office_rel" "$APPDIR/bin/$launcher" || { echo "未能改写安装目录：$launcher" >&2; exit 1; }
 done
