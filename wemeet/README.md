@@ -69,3 +69,14 @@ Kali Linux i3wm 实机截图显示，最新成品启动时不再报告 `zh_CN.UT
 ## 2026-09-24：让 Qt 插件自动识别模块并部署 usr/plugins
 
 上一轮 `EXTRA_QT_MODULES=core` 绕过了 Qt 插件未扫描到模块的错误，却只部署 core 资源，成品没有 `usr/plugins`。官方 DEB 的 QtGui 位于 `opt/wemeet/lib`，linuxdeploy Qt 插件只检查 AppDir 的 `usr/lib`；本次删除手工指定模块，通过第二次 linuxdeploy 的精确 `-l "$APP_ROOT/lib/libQt5Gui.so.5"` 收集官方同版 QtGui，由插件自动识别 Qt 模块并部署 `usr/plugins`。根 AppRun 在官方 `opt/wemeet/plugins` 后追加 `usr/plugins`，平台插件路径也保留官方优先并追加 `usr/plugins/platforms`。官方 Qt 库和插件仍优先使用；原有音视频、中文、启动入口和最终 appimagetool 封装保持不变。新构建和 Kali 实机尚未验证，需从实际成品核对新增插件的文件、Qt 版本及依赖。
+
+## 2026-09-24：实机确认最新成品能开会
+
+以后核对腾讯会议，在终端用这条命令保存全部输出：
+
+```bash
+./wemeet.AppImage 2>&1 | tee "wemeet-$(date +%Y%m%d-%H%M%S).log"
+```
+
+本次日志是 `wemeet-20260924-154249.log`。程序打印 `wemeet:WemeetSatrt` 后进入界面，结束时打印 `wemeet:WemeetStop`，没有再出现启动后立即退出。主界面为中文。设置里 USB 摄像头有预览；扬声器和麦克风测试都出现电平，设备为 `Built-in Audio Analog Stereo`。虚拟背景在预览和会议画面中都生效。会议中发出了中文聊天，输入时出现中文候选；屏幕共享曾处于进行中，界面有「结束共享」。日志里 `xnnlowlight` 的 `model_load_err_code=0`。`Error in received packet` 和 `libpng warning: tRNS` 没有打断会议，不作为这次的打包故障。没有核对对方是否听得到。
+
