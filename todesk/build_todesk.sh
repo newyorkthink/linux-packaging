@@ -22,7 +22,6 @@ readonly DIST="$SCRIPT_DIR/dist"
 readonly WORKDIR="$SCRIPT_DIR/.build"
 readonly AUR_DIR="$WORKDIR/todesk-bin"
 readonly DEB_ROOT="$WORKDIR/deb-root"
-readonly DEB_PARTS="$WORKDIR/deb-parts"
 readonly DEB_FILE="$WORKDIR/todesk.deb"
 readonly SOURCE_ROOT="$DEB_ROOT/opt/todesk"
 readonly APP_ROOT="$APPDIR/shared/bin/todesk"
@@ -85,9 +84,12 @@ mapfile -t AUR_DEPENDENCIES < <(
 # AUR 当前只声明 gtk3 / libappindicator-gtk3 / noto-fonts-cjk，但 ToDesk 4.9.6.0 的主 ELF 还直接需要一组 XCB helper ABI。
 # 2026-09-24 Actions 已实际报缺 libxcb-util.so.1 / libxcb-keysyms.so.1 / libxcb-icccm.so.4。
 # 同时把 Qt/XCB 同族的 image / render-util / cursor 一并安装，避免只补前三个后再次因同一依赖族中断；这些都是 Arch 官方 Extra 包。
+# 公共 DEB 解包入口需要 dpkg-deb；ToDesk 自身会调用 pulseaudio 命令启动音频服务。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" \
     "${AUR_DEPENDENCIES[@]}" \
     fcitx5-gtk \
+    dpkg \
+    pulseaudio \
     xcb-util \
     xcb-util-keysyms \
     xcb-util-wm \
@@ -137,15 +139,7 @@ printf '%s  %s\n' "$EXPECTED_SHA256" "$DEB_FILE" | sha256sum -c - >/dev/null
 
 ###### 解包官方 DEB ######
 
-mkdir -p "$DEB_ROOT" "$DEB_PARTS"
-(
-    cd "$DEB_PARTS"
-    ar x "$DEB_FILE"
-)
-
-DATA_ARCHIVE="$(find "$DEB_PARTS" -maxdepth 1 -type f -name 'data.tar.*' -print -quit)"
-[[ -f "$DATA_ARCHIVE" ]] || die "ToDesk DEB 中没有 data.tar.*。"
-tar -xf "$DATA_ARCHIVE" -C "$DEB_ROOT"
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$DEB_FILE" "$DEB_ROOT"
 
 ###### 核对上游包布局 ######
 
@@ -219,6 +213,7 @@ fi
 
 # ToDesk 四个入口必须在同一次 quick-sharun 调用中处理。
 # quick-sharun 生成的 AppRun 会根据 AppImage/软链接文件名自动选择同名入口。
+# ToDesk 会调用 pulseaudio --start；现有产物有 libpulse，但缺少这个可执行程序。
 #
 # AUR 已声明 libappindicator-gtk3，但 2026-09-24 成功构建日志没有看到 AppIndicator/
 # libdbusmenu 运行库被 quick-sharun 收入；实机随后也没有出现托盘小图标。
@@ -236,6 +231,7 @@ quick-sharun \
     "$APP_ROOT/bin/ToDesk_Service" \
     "$APP_ROOT/bin/ToDesk_Session" \
     "$APP_ROOT/bin/CrashReport" \
+    /usr/bin/pulseaudio \
     /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so \
     /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so \
     /usr/lib/libappindicator3.so.1 \

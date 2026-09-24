@@ -23,11 +23,11 @@ ToDesk 采用 **Arch Linux + quick-sharun**，不使用 linuxdeploy，也不安�
 
 1. 通过仓库统一 Arch 基础环境安装构建依赖。
 2. 浅克隆 AUR `todesk-bin` 元数据，并从当前 `.SRCINFO` 动态读取 `pkgver / pkgrel / source_x86_64 / sha256sums_x86_64 / depends`。
-3. 按当前 `.SRCINFO` 安装 ToDesk 声明的 Arch 运行依赖，再补 Fcitx5 GTK3 中文输入模块以及 ToDesk 4.9.6.0 实际 ELF 所需的 XCB helper 运行库；IBus 来自统一基础环境。
+3. 按当前 `.SRCINFO` 安装 ToDesk 声明的 Arch 运行依赖，再补 Fcitx5 GTK3 中文输入模块、ToDesk 4.9.6.0 实际 ELF 所需的 XCB helper 运行库、公共 DEB 解包入口所需的 `dpkg` 和上游程序会调用的 `pulseaudio`；IBus 来自统一基础环境。
 4. 优先通过公共下载入口取得当前 AUR 指向的 ToDesk 官方 DEB，并在落盘前强制校验当前 AUR SHA-256。
 5. 如果官方 CDN 返回 HTML 或其他错误内容，不跳过校验、不降低版本；改查同一个官方 URL 的 Internet Archive 快照，只接受 SHA-256 与当前 AUR 完全一致的那一份。
-6. 直接解包已经校验通过的官方 DEB，完整复制其中 `/opt/todesk` 到 `AppDir/shared/bin/todesk/`，保持官方 `bin / res / config` 相对布局。
-7. 在同一次 `quick-sharun` 调用中收集 `ToDesk`、`ToDesk_Service`、`ToDesk_Session`、`CrashReport` 和 GTK3 IBus/Fcitx5 输入模块。
+6. 通过仓库公共 DEB 解包入口解包已经校验通过的官方 DEB，完整复制其中 `/opt/todesk` 到 `AppDir/shared/bin/todesk/`，保持官方 `bin / res / config` 相对布局。
+7. 在同一次 `quick-sharun` 调用中收集 `ToDesk`、`ToDesk_Service`、`ToDesk_Session`、`CrashReport`、`/usr/bin/pulseaudio` 和 GTK3 IBus/Fcitx5 输入模块。
 8. 不自制 `AppRun`。使用 quick-sharun 默认入口按 AppImage/软链接文件名选择 `AppDir/bin/` 中的同名程序。
 9. 加入独立 `zh_CN.UTF-8` locale，并通过 quick-sharun hook 处理固定 `/opt/todesk`、可写 `config` 和服务日志路径。
 10. 最终由 `quick-sharun --make-appimage` 生成一个 `todesk.AppImage`。
@@ -124,7 +124,7 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 
 仍未标记为已验证的功能：
 
-- **音频**：GUI 启动日志出现 `pulseaudio: not found`，当前没有据此修改打包依赖；远程音频功能尚未验证。
+- **音频**：实机 GUI 启动日志曾出现 `pulseaudio: not found`。提交 `3b7e5e3` 对应的旧产物已有 `libpulse.so.0`，但没有 `pulseaudio` 可执行程序；当前构建脚本已将该程序加入打包输入。新产物的命令查找和远程音频功能仍未验证。
 - **远程打印**：日志出现 `open Todesk_Printer failed`、FUSE 相关提示；当前仅记录为远程打印功能未验证，不为此扩大打包范围。
 - **系统特权操作**：出现 `org.freedesktop.DBus.Error.InteractiveAuthorizationRequired`，说明某些需要 Polkit 交互授权的操作在当前普通用户便携运行方式下被拒绝；已验证的核心远控未因此中断。
 - **后台服务日志路径**：`ToDesk_Service` 仍会尝试访问宿主 `/var/log/todesk`，普通用户下出现权限不足和日志文件创建失败提示；这没有阻断本次核心远控，但说明当前 path mapping 对该路径不完全生效。
@@ -186,3 +186,11 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 核对：AUR `todesk-bin` 已声明 `libappindicator-gtk3`；成功构建日志也确认 Arch 构建环境安装了 `libappindicator`，但 quick-sharun 的实际收集日志没有看到 `libappindicator3.so.1`、`libdbusmenu-glib.so.4`、`libdbusmenu-gtk3.so.4` 被收入 AppImage。
 - 修复：保持现有 AUR 依赖不变，在同一次 quick-sharun 调用中显式加入 `/usr/lib/libappindicator3.so.1`、`/usr/lib/libdbusmenu-glib.so.4`、`/usr/lib/libdbusmenu-gtk3.so.4`，并在收集前检查文件存在，避免库名变化时静默生成缺托盘支持的包。
 - 边界：本次只修 AppImage 内的托盘运行库收集，不修改 i3 配置。若新产物仍不显示托盘，再单独核对 i3 当前 bar 是否提供 AppIndicator/StatusNotifier 托盘宿主。
+
+
+### 2026-09-24：补入 PulseAudio 命令并复用公共 DEB 解包
+
+- 现象：此前实机启动时出现 `pulseaudio: not found`；只靠构建日志中已安装 `libpulse`，不能确认 AppImage 是否包含同名服务命令。
+- 产物核对：下载并解包提交 `3b7e5e3` 对应的 `latest` 资产 `todesk.AppImage`，SHA-256 为 `b7d3fa02150f95a9a19e7e533fd4ecda2fa1f902bc4d65552bd4dd9181b4e32f`，与 Release 和成功构建 run `35987119142` 日志一致。产物内有 `libpulse.so.0`、`libpulse-simple.so.0`，但没有 `pulseaudio` 可执行文件；ToDesk 程序包含 `pulseaudio --start --log-target=syslog` 字符串，生成的 `AppRun.sh` 会把包内 `bin` 置于 `PATH` 前面。
+- 修改：`todesk/build_todesk.sh` 显式安装 Arch `pulseaudio`，并把 `/usr/bin/pulseaudio` 加入现有的同一次 `quick-sharun` 调用，让上游命令能从包内 `bin` 查找。同时安装 `dpkg`，将手工 `ar` / `tar` 解包替换为现有的 `common/archive/extract_archive.sh`；官方 DEB 下载与 SHA-256 校验保持原样。
+- 验证边界：本次产物检查确认旧包缺少该命令；脚本改动仅完成静态检查。新 AppImage 是否实际包含可用的 `pulseaudio`、是否能连接宿主音频会话以及远程音频是否正常，均需以后续产物和实机结果为准。该修改不代表音频功能已通过验收。
