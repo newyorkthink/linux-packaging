@@ -35,10 +35,13 @@ VERSION="$("$SCRIPT_DIR/../common/snap/download_stable_snap.sh" \
 
 ###### 整理 BlueMail 目录 ######
 
-# 保存官方 desktop 和图标；把 Snap 专用绝对图标路径换成 AppImage 内名称。
+# 保存官方 desktop 和图标；修正 AppImage 图标及浏览器 OAuth 回调参数。
 cp -a -- "$APP_ROOT/meta/gui/bluemail.desktop" "$SOURCE_DIR/bluemail.desktop"
 cp -a -- "$APP_ROOT/meta/gui/icon.png" "$SOURCE_DIR/bluemail.png"
 sed -i 's|^Icon=.*|Icon=bluemail|' "$SOURCE_DIR/bluemail.desktop"
+sed -i 's|^Exec=.*|Exec=bluemail %U|' "$SOURCE_DIR/bluemail.desktop"
+sed -i 's|^MimeType=.*|MimeType=x-scheme-handler/me.blueone.linux;x-scheme-handler/mailto;|' \
+  "$SOURCE_DIR/bluemail.desktop"
 
 # 去掉 Snap 宿主运行时目录；保留应用自身 Chromium 库和资源。
 rm -rf -- "${APP_ROOT:?}/data-dir" "${APP_ROOT:?}/gnome-platform" \

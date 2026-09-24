@@ -49,6 +49,12 @@ Build BlueMail（run `35844883809`）已生成 AppImage，日志也显示两个 
 
 Linux 实机运行入口迁移后的 `bluemail.AppImage`，程序能够启动并加载邮件列表和编辑界面；编辑框能够显示 IBus/Fcitx5 中文候选并正常上屏。启动日志明确显示实际参数包含 `--ozone-platform=x11 --no-sandbox`，证明 `90-bluemail-arguments.hook` 已通过 quick-sharun 生成入口生效；挂载路径中的 `shared/bin/resources` 也被正常加载，证明 `.env` 中的相邻库目录和工作目录配置保持了官方 Snap 的 Electron 资源布局。日志中的 `latest-linux.yml` HTTP 404 来自 BlueMail 自身的自动更新检查地址，出现时主界面和已确认功能仍正常；本仓库继续通过官方 Snap 稳定通道构建更新，不为该上游更新地址改动当前打包入口。邮件发送未在本次截图范围内验证。
 
+## 2026-09-24：修正 Google OAuth 浏览器回调
+
+Linux 实机添加 Gmail 账户时，BlueMail 正常调用外部浏览器完成 Google 授权；使用外部浏览器是 Google OAuth 的正常流程，不应改为 Electron 内嵌登录。授权完成后，浏览器取得 `me.blueone.linux://linux/google/oauth2redirect?...` 回调，但没有返回 BlueMail，应用一直停留在登录等待界面。核对上游 desktop 及 Flathub `net.blix.BlueMail` 的同类问题后确认，`Exec=bluemail %F` 中的 `%F` 只接收本地文件，无法把自定义协议 URI 交给程序；应使用能够接收 URI 的 `%U`。
+
+构建脚本现将官方 desktop 的入口规范为 `Exec=bluemail %U`，并把协议声明规范为 `MimeType=x-scheme-handler/me.blueone.linux;x-scheme-handler/mailto;`，使完成桌面集成后的 AppImage 能接收浏览器 OAuth 回调。此前 Outlook 账户从 BlueMail 发往 Gmail 的邮件已在 Outlook 网页版“已发送邮件”和 Gmail 垃圾邮件中确认实际送达，证明 AppImage 的基础发信链路正常；Gmail 账户此前仍报 `unresponsive-server`，修正 OAuth 回调后的 Gmail 重新授权和发信尚待新产物实机确认。
+
 ## 2026-09-23 自根目录原样迁入
 
 以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
