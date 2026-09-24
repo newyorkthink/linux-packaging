@@ -106,6 +106,11 @@ Rofi 用的是桌面文件。原文件若有 `TryExec=wps` 或 `DBusActivatable=
 
 从 i3 加 `QT_DEBUG_PLUGINS=1` 启动后，日志是 `libqxcb.so` 打不开 `libxkbcommon-x11.so.0`。终端能开，是因为系统动态链接器还能找到这套库。i3 把库搜索范围换掉以后就找不到。构建时把 `libxkbcommon-x11.so.0`、`libxkbcommon.so.0`、`libxcb-xkb.so.1` 放进 `office6`。`office6` 已经在启动前的库路径里。缺任何一个，构建直接停。
 
+## 2026-09-24：Rofi 可以打开
+
+实机确认 Rofi 现在能启动 WPS。终端直接运行也可以。i3 用 `i3-msg exec` 去跑同一个 AppImage 仍是另一件事，不要和 Rofi 混在一起。
+
+
 
 ## 2026-09-24：存在性检查被改坏
 
