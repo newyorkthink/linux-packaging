@@ -81,3 +81,16 @@ Build Discord 运行 35960141408 虽然构建成功，但日志明确显示构�
 ## 2026-09-24：挡 Mesa 的开关改回去
 
 上一节理解错了。用户要去掉的是删除 `libLLVM` 的代码，那一段在更早的修改里已经去掉，脚本里已经没有 `find ... libLLVM ... -delete`。`DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0` 恢复。红色警告仍然保留。
+
+## 2026-09-24：实机确认 1.0.159 能打开并输入
+
+以后核对 Discord 实机，在终端用这条命令，把全部输出留在带时间的文件里：
+
+```bash
+./discord.AppImage 2>&1 | tee "discord-$(date +%Y%m%d-%H%M%S).log"
+```
+
+本次日志是 `discord-20260924-154007.log`，时间 2026-09-24 15:40（GMT+8）。进程来自 `/tmp/.mount_discor*/shared/bin`，版本 `1.0.159`。主界面、私信、表情选择和资料卡都能打开。输入框拼音出现中文候选，并写入了中文。日志有 `legacyModuleUpdater: installed-module discord_krisp 1 1 true`，没有 `Failed to setup Krisp module`，也没有 `KRISP_INIT_ERROR_UNSIGNED`。没有进入语音，不能据此说降噪有效。
+
+同一次日志里的 Fontconfig 缓存版本不一致、`Glycin running without sandbox`、`vaInitialize failed`、`Failed to connect to Wayland display` 和 `gtk_widget_add_accelerator` 都没有阻止启动。这些不作为这次的打包故障。
+
