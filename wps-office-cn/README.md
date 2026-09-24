@@ -116,6 +116,11 @@ Rofi 用的是桌面文件。原文件若有 `TryExec=wps` 或 `DBusActivatable=
 
 从 i3wm 这个 AppImage 里有时直接调不起来。日志、原因，以及别的程序碰到同类情况时怎么看，写在 [docs/known-risks/i3wm-appimage-child-launch.md](../docs/known-risks/i3wm-appimage-child-launch.md)。这条不再改 WPS 的构建脚本。
 
+## 2026-09-25：版本清单条目名是 wps
+
+`software_update` 按配置名 `wps` 查 `software_versions.json`。之前写入的键是 `wps-office-cn`，所以报“缺少对应条目”。成品文件名仍是 `wps.AppImage`。`software_key` 改为 `wps`。当前 Release 的清单同时补上 `wps` 这一条，版本和 SHA256 与原来的 `wps-office-cn` 相同。
+
+
 
 
 

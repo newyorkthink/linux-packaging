@@ -735,7 +735,7 @@
       "dir": "wps-office-cn",
       "artifact_dir": "wps-office-cn/dist",
       "release_name": "wps.AppImage",
-      "software_key": "wps-office-cn",
+      "software_key": "wps",
       "timeout_minutes": 90,
       "run_from_root": "false"
     },
