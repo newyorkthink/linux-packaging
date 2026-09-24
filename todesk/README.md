@@ -124,7 +124,7 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 
 仍未标记为已验证的功能：
 
-- **音频**：实机 GUI 启动日志曾出现 `pulseaudio: not found`。提交 `3b7e5e3` 对应的旧产物已有 `libpulse.so.0`，但没有 `pulseaudio` 可执行程序；当前构建脚本已将该程序加入打包输入。新产物的命令查找和远程音频功能仍未验证。
+- **音频**：已下载并解包提交 `381d343` 对应的 AppImage。包内有 `pulseaudio` 命令和 `libpulse.so.0`，启动脚本会把包内 `bin` 加入 `PATH`；本次截图也未再出现 `pulseaudio: not found`。执行包内命令查询版本时仍出现 `Couldn't canonicalize binary path, cannot self execute` 警告；包内未发现 `module-*.so`。远程音频尚未实测，不能仅凭这些日志判断音频功能正常或故障。
 - **远程打印**：日志出现 `open Todesk_Printer failed`、FUSE 相关提示；当前仅记录为远程打印功能未验证，不为此扩大打包范围。
 - **系统特权操作**：出现 `org.freedesktop.DBus.Error.InteractiveAuthorizationRequired`，说明某些需要 Polkit 交互授权的操作在当前普通用户便携运行方式下被拒绝；已验证的核心远控未因此中断。
 - **后台服务日志路径**：`ToDesk_Service` 仍会尝试访问宿主 `/var/log/todesk`，普通用户下出现权限不足和日志文件创建失败提示；这没有阻断本次核心远控，但说明当前 path mapping 对该路径不完全生效。
@@ -194,3 +194,10 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 产物核对：下载并解包提交 `3b7e5e3` 对应的 `latest` 资产 `todesk.AppImage`，SHA-256 为 `b7d3fa02150f95a9a19e7e533fd4ecda2fa1f902bc4d65552bd4dd9181b4e32f`，与 Release 和成功构建 run `35987119142` 日志一致。产物内有 `libpulse.so.0`、`libpulse-simple.so.0`，但没有 `pulseaudio` 可执行文件；ToDesk 程序包含 `pulseaudio --start --log-target=syslog` 字符串，生成的 `AppRun.sh` 会把包内 `bin` 置于 `PATH` 前面。
 - 修改：`todesk/build_todesk.sh` 显式安装 Arch `pulseaudio`，并把 `/usr/bin/pulseaudio` 加入现有的同一次 `quick-sharun` 调用，让上游命令能从包内 `bin` 查找。同时安装 `dpkg`，将手工 `ar` / `tar` 解包替换为现有的 `common/archive/extract_archive.sh`；官方 DEB 下载与 SHA-256 校验保持原样。
 - 验证边界：本次产物检查确认旧包缺少该命令；脚本改动仅完成静态检查。新 AppImage 是否实际包含可用的 `pulseaudio`、是否能连接宿主音频会话以及远程音频是否正常，均需以后续产物和实机结果为准。该修改不代表音频功能已通过验收。
+
+
+### 2026-09-24：新版 AppImage 产物与启动日志复核
+
+- 产物：下载的 `todesk.AppImage` SHA-256 为 `bc77e0217c5db7054942e20594475f064c10b4ca5f2866c9ecc8e19046c6cda8`，与 Release 标注的校验值一致；包内已包含 `pulseaudio`。
+- 实机截图：GUI 能打开；`ToDesk_Service` 仍提示无法写入 `/var/log/todesk`，启动时仍有 `/tmp/service...` 连接失败、`Todesk_Printer` 和 FUSE 提示。截图未显示这些提示阻断 GUI。
+- 验证边界：此前核心远控实测针对旧产物；这份新产物尚无远程控制和远程音频实测结果。当前先记录提示，暂不据此修改打包脚本或宣称相关功能已验证。
