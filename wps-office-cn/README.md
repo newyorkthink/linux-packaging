@@ -40,6 +40,13 @@ Actions Run `35974681502` 在 `quick-sharun` 退出：放进成品的 `libfcitx5
 
 用户要求下次构建就能知道会不会启动。仓库里已有公共入口 `common/gui/check_appimage_gui.sh`，WPS 在生成 `wps.AppImage` 后调用它：虚拟显示里运行 20 秒，进程提前退出即构建失败，并保留 `source/gui-smoke/smoke.log`。不新写第二套冒烟测试。空窗口标题只表示进程还活着，不表示实机窗口、中文输入或文档功能正常。
 
+## 2026-09-24：office6 不能被 quick-sharun 挪走
+
+Actions Run `35978165252` 已经打出 AppImage。图形检查里解包到 100% 后只打印 `UNICODEMAP_JP is cp932`，退出码 255。日志写明 quick-sharun 把 `AppDir/bin/office6/wps` 移到 `shared/bin/wps`，再包一层 sharun。WPS 要在原来的 `office6` 目录里找资源和自编译 Qt，主程序被挪走后就会马上退出。libgallium 的红色提示这次没有中断构建。
+
+现改为先用 `/usr/lib/office6` 收集依赖，再把没被改过的整份 `office6` 复制到 `AppDir/opt/office6`，官方入口改指向这里。`cmp` 确认 `wps` 与安装包里的原文件一致。是否还能马上退出，以下一次图形检查为准。
+
+
 
 
 

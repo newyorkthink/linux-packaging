@@ -9,7 +9,8 @@ cd "$SCRIPT_DIR"
 APPDIR="$SCRIPT_DIR/AppDir"
 DIST="$SCRIPT_DIR/dist"
 SOURCE="$SCRIPT_DIR/source"
-OFFICE="$APPDIR/bin/office6"
+OFFICE_SRC=/usr/lib/office6
+OFFICE="$APPDIR/opt/office6"
 
 ###### 准备个人构建环境 ######
 
@@ -24,34 +25,15 @@ OFFICE="$APPDIR/bin/office6"
 # AUR 配方动态解析金山国内官网当前正式包并安装原版简体中文界面。
 "$ROOT/common/arch/install_packages.sh" wps-office-cn wps-office-mui-zh-cn
 
-mkdir -p "$APPDIR/bin"
-
 ###### 保留国产 WPS 和官方入口 ######
 
-# AUR 的 office6 已按当前 Arch 运行库调整，完整保留中文资源和子程序目录。
-[[ -x /usr/lib/office6/wps ]] || { echo '未安装 wps-office-cn 主程序。' >&2; exit 1; }
-[[ -d /usr/lib/office6/mui/zh_CN ]] || { echo '未安装简体中文 MUI。' >&2; exit 1; }
-cp -a -- /usr/lib/office6 "$OFFICE"
+# AUR 的 office6 已按当前 Arch 运行库调整。先不放进 AppDir/bin，避免 quick-sharun 把主程序挪走。
+[[ -x "$OFFICE_SRC/wps" ]] || { echo '未安装 wps-office-cn 主程序。' >&2; exit 1; }
+[[ -d "$OFFICE_SRC/mui/zh_CN" ]] || { echo '未安装简体中文 MUI。' >&2; exit 1; }
 
-# WPS 自己编译 Qt，库名带 Kso。发行版 fcitx5 插件链的是普通 Qt，放进来会缺库。
-# 包内已有对着这套 Qt 编译的输入模块，不用 ibus，也不改宿主的 QT_IM_MODULE。
-FCITX_PLUGIN="$OFFICE/qt/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.so"
+# WPS 自己编译 Qt，库名带 Kso。只用包内已经对着这套 Qt 编译的输入模块。
+FCITX_PLUGIN="$OFFICE_SRC/qt/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.so"
 [[ -s "$FCITX_PLUGIN" ]] || { echo 'WPS 自带的 fcitx 输入模块不存在。' >&2; exit 1; }
-
-# 官方启动脚本会优先寻找自身旁边的 office6；按原路径关系保留所有入口。
-for launcher in wps et wpp wpspdf; do
-  install -Dm0755 "/usr/bin/$launcher" "$APPDIR/bin/$launcher"
-done
-
-# 官方脚本把安装目录写死，并把程序输出丢掉。改成脚本旁边的 office6，失败信息要留在终端。
-for launcher in "$APPDIR/bin/wps" "$APPDIR/bin/et" "$APPDIR/bin/wpp" "$APPDIR/bin/wpspdf"; do
-  [[ -f "$launcher" ]] || continue
-  head -n 1 "$launcher" | grep -q 'sh' || continue
-  sed -i \
-    -e 's| >/dev/null 2>&1||g' \
-    -e 's|^gInstallPath=.*|gInstallPath="$(CDPATH= cd -- "$(dirname -- "$0")" \&\& pwd)"|' \
-    "$launcher"
-done
 
 # 选用已安装的官方桌面文件和图标，保持版本与当前 AUR 包一致。
 install -Dm0644 /usr/share/applications/wps-office-wps.desktop "$SOURCE/wps-office-cn.desktop"
@@ -70,11 +52,32 @@ export ARCH=x86_64 VERSION APPNAME='WPS Office CN' MAIN_BIN=wps
 export ICON="$SOURCE/wps-office-cn.png" DESKTOP="$SOURCE/wps-office-cn.desktop"
 export OUTPATH="$DIST" OUTNAME=wps.AppImage NO_STRIP=1
 # 程序内部仍查找 /usr/lib/office6。映射到包内这份，而不是宿主上的安装目录。
-export PATH_MAPPING='/usr/lib/office6:${SHARUN_DIR}/bin/office6'
-LD_LIBRARY_PATH="$OFFICE${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun \
-  "$OFFICE/wps" "$OFFICE/et" "$OFFICE/wpp" "$OFFICE/wpspdf" \
-  "$OFFICE/qt/plugins/platforms/libqxcb.so" \
+export PATH_MAPPING='/usr/lib/office6:${SHARUN_DIR}/opt/office6'
+LD_LIBRARY_PATH="$OFFICE_SRC${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun \
+  "$OFFICE_SRC/wps" "$OFFICE_SRC/et" "$OFFICE_SRC/wpp" "$OFFICE_SRC/wpspdf" \
+  "$OFFICE_SRC/qt/plugins/platforms/libqxcb.so" \
   "$FCITX_PLUGIN"
+
+# quick-sharun 会把 AppDir/bin 里的程序换成自己的入口。office6 放在 bin 外面，并在这之后整目录复制。
+rm -rf -- "$OFFICE"
+cp -a -- "$OFFICE_SRC" "$OFFICE"
+cmp -s "$OFFICE_SRC/wps" "$OFFICE/wps" || { echo 'office6/wps 没有原样进入成品。' >&2; exit 1; }
+
+# 官方脚本把安装目录写死，并把程序输出丢掉。改到包内 office6，失败信息留在终端。
+for launcher in wps et wpp wpspdf; do
+  install -Dm0755 "/usr/bin/$launcher" "$APPDIR/bin/$launcher"
+  head -n 1 "$APPDIR/bin/$launcher" | grep -q 'sh' || { echo "官方入口不是脚本：$launcher" >&2; exit 1; }
+  if grep -Fq '${gInstallPath}/office6/' "$APPDIR/bin/$launcher"; then
+    office_rel='../opt'
+  else
+    office_rel='../opt/office6'
+  fi
+  sed -i \
+    -e 's| >/dev/null 2>&1||g' \
+    -e "s|^gInstallPath=.*|gInstallPath=\"\$(CDPATH= cd -- \"\$(dirname -- \"\$0\")/$office_rel\" \\&\\& pwd)\"|" \
+    "$APPDIR/bin/$launcher"
+  grep -Fq "$office_rel" "$APPDIR/bin/$launcher" || { echo "未能改写安装目录：$launcher" >&2; exit 1; }
+done
 
 ###### 补上 WPS 一直提示缺失的符号字体 ######
 
@@ -94,11 +97,11 @@ done
 
 # 保留 quick-sharun 已写入的环境，只追加 WPS 自己的库目录、工作目录和 Qt 插件。
 cat >> "$APPDIR/.env" <<'ENV'
-SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/bin/office6:${SHARUN_EXTRA_LIBRARY_PATH}
-SHARUN_WORKING_DIR=${SHARUN_DIR}/bin/office6
+SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/opt/office6:${SHARUN_EXTRA_LIBRARY_PATH}
+SHARUN_WORKING_DIR=${SHARUN_DIR}/opt/office6
 SHARUN_ALLOW_QT_PLUGIN_PATH=1
-QT_PLUGIN_PATH=${SHARUN_DIR}/bin/office6/qt/plugins
-QT_QPA_PLATFORM_PLUGIN_PATH=${SHARUN_DIR}/bin/office6/qt/plugins/platforms
+QT_PLUGIN_PATH=${SHARUN_DIR}/opt/office6/qt/plugins
+QT_QPA_PLATFORM_PLUGIN_PATH=${SHARUN_DIR}/opt/office6/qt/plugins/platforms
 ENV
 
 # 启动时把包内符号字体加进字体搜索，同时继续使用宿主字体配置。
