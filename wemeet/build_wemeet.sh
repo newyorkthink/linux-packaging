@@ -118,9 +118,16 @@ if [[ "${XDG_SESSION_TYPE:-}" == wayland ]]; then
   fi
 fi
 
-# 保留官方语言、时区、私有库和 Qt 插件环境，并加入 linuxdeploy 三个基础目录。
+# 优先使用 AppImage 内的中文 locale；宿主 glibc 无法读取时使用 UTF-8 回退并保留中文界面语言。
 export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
-export LC_ALL=zh_CN.UTF-8
+if [[ "$(env LC_ALL=zh_CN.UTF-8 locale charmap 2>&1)" == UTF-8 ]]; then
+  export LC_ALL=zh_CN.UTF-8
+else
+  export LC_ALL=C.UTF-8
+  export LANGUAGE=zh_CN:zh
+fi
+
+# 保留官方时区、私有库和 Qt 插件环境，并加入 linuxdeploy 三个基础目录。
 export TZ=Asia/Shanghai
 export PATH="$HERE/opt/wemeet/bin:$HERE/usr/bin${PATH:+:$PATH}"
 export LD_LIBRARY_PATH="$HERE/opt/wemeet/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
