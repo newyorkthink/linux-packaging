@@ -81,7 +81,19 @@ mapfile -t AUR_DEPENDENCIES < <(
         sort -u
 )
 (( ${#AUR_DEPENDENCIES[@]} > 0 )) || die "AUR todesk-bin 没有解析到运行依赖。"
-"$SCRIPT_DIR/../common/arch/install_packages.sh" "${AUR_DEPENDENCIES[@]}" fcitx5-gtk
+
+# AUR 当前只声明 gtk3 / libappindicator-gtk3 / noto-fonts-cjk，但 ToDesk 4.9.6.0 的主 ELF 还直接需要一组 XCB helper ABI。
+# 2026-09-24 Actions 已实际报缺 libxcb-util.so.1 / libxcb-keysyms.so.1 / libxcb-icccm.so.4。
+# 同时把 Qt/XCB 同族的 image / render-util / cursor 一并安装，避免只补前三个后再次因同一依赖族中断；这些都是 Arch 官方 Extra 包。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" \
+    "${AUR_DEPENDENCIES[@]}" \
+    fcitx5-gtk \
+    xcb-util \
+    xcb-util-keysyms \
+    xcb-util-wm \
+    xcb-util-image \
+    xcb-util-renderutil \
+    xcb-util-cursor
 
 ###### 下载并校验 ToDesk 官方 DEB ######
 
@@ -191,6 +203,19 @@ export NO_STRIP=1
 export PATH_MAPPING='/opt/todesk:${SHARUN_DIR}/shared/bin/todesk'
 
 ###### quick-sharun 依赖收集 ######
+
+# 在 quick-sharun 前一次性检查四个入口的直接动态库，避免只看到第一个 ELF 的缺库信息后反复触发 Actions。
+MISSING_SHARED_LIBS="$(
+    for binary in ToDesk ToDesk_Service ToDesk_Session CrashReport; do
+        LD_LIBRARY_PATH="$APP_ROOT/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+            ldd "$APP_ROOT/bin/$binary" 2>/dev/null |
+            awk -v binary="$binary" '/=> not found/ {print binary ": " $1}'
+    done | sort -u
+)"
+if [[ -n "$MISSING_SHARED_LIBS" ]]; then
+    printf 'ToDesk 仍缺少直接动态库：\n%s\n' "$MISSING_SHARED_LIBS" >&2
+    die "ToDesk 直接动态库依赖不完整，停止 quick-sharun。"
+fi
 
 # ToDesk 四个入口必须在同一次 quick-sharun 调用中处理。
 # quick-sharun 生成的 AppRun 会根据 AppImage/软链接文件名自动选择同名入口。

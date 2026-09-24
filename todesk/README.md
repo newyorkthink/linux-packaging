@@ -23,7 +23,7 @@ ToDesk 采用 **Arch Linux + quick-sharun**，不使用 linuxdeploy，也不安�
 
 1. 通过仓库统一 Arch 基础环境安装构建依赖。
 2. 浅克隆 AUR `todesk-bin` 元数据，并从当前 `.SRCINFO` 动态读取 `pkgver / pkgrel / source_x86_64 / sha256sums_x86_64 / depends`。
-3. 按当前 `.SRCINFO` 安装 ToDesk 声明的 Arch 运行依赖，再补 Fcitx5 GTK3 中文输入模块；IBus 来自统一基础环境。
+3. 按当前 `.SRCINFO` 安装 ToDesk 声明的 Arch 运行依赖，再补 Fcitx5 GTK3 中文输入模块以及 ToDesk 4.9.6.0 实际 ELF 所需的 XCB helper 运行库；IBus 来自统一基础环境。
 4. 优先通过公共下载入口取得当前 AUR 指向的 ToDesk 官方 DEB，并在落盘前强制校验当前 AUR SHA-256。
 5. 如果官方 CDN 返回 HTML 或其他错误内容，不跳过校验、不降低版本；改查同一个官方 URL 的 Internet Archive 快照，只接受 SHA-256 与当前 AUR 完全一致的那一份。
 6. 直接解包已经校验通过的官方 DEB，完整复制其中 `/opt/todesk` 到 `AppDir/shared/bin/todesk/`，保持官方 `bin / res / config` 相对布局。
@@ -151,4 +151,13 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 根因：官方 DEB 本身不包含这个空目录。当前 AUR `todesk-bin` 的 PKGBUILD 启用 `emptydirs`，并在 `package()` 中显式创建 `/opt/todesk/config`；之前直接解包 DEB 后错误地把该空目录当成官方 DEB 必须自带的内容。
 - 修复：解包并确认 `/opt/todesk` 存在后，按 AUR 的实际打包行为显式创建空的 `/opt/todesk/config`，再继续四个入口、资源与 quick-sharun 校验。没有新增下载包，也没有放宽 SHA-256 校验。
 - 运行状态补全：现有 Flatpak/Nix 打包实现都表明 ToDesk 服务会持久化 `/etc/todesk/reg.conf`；本 AppImage 默认不写宿主 `/etc`，因此把 `/etc/todesk` 一并映射到用户状态目录的 `etc/`。
-- 依赖核对：本次 Actions 已确认当前 AUR 依赖 `gtk3`、`libappindicator-gtk3`、`noto-fonts-cjk` 以及本项目额外的 `fcitx5-gtk` 均能正常安装，因此本次不再增加其他 Arch 软件包。
+- 依赖核对：本次 Actions 只确认 AUR 声明的 `gtk3`、`libappindicator-gtk3`、`noto-fonts-cjk` 以及本项目额外的 `fcitx5-gtk` 能正常安装；随后 run `35980957997` 进入 quick-sharun 后又暴露出 AUR 未声明的 XCB helper 直接依赖，因此这里不再把“无需其他软件包”作为结论。
+
+
+### 2026-09-24：补齐 ToDesk XCB helper 运行库
+
+- 现象：正式构建 run `35980957997` 已完成 AUR 元数据解析、官方 DEB 归档回退、SHA-256 校验、DEB 解包和 AppDir 元数据准备；进入 quick-sharun 后，`ToDesk` 主程序直接报缺 `libxcb-util.so.1`、`libxcb-keysyms.so.1`、`libxcb-icccm.so.4`。
+- 根因：当前 AUR `todesk-bin` 只声明 `gtk3`、`libappindicator-gtk3`、`noto-fonts-cjk`，没有把 ToDesk 闭源 ELF 实际依赖的 XCB helper 库列进 `depends`。这不是 quick-sharun 自身错误。
+- 修复：构建环境显式补 `xcb-util`、`xcb-util-keysyms`、`xcb-util-wm`；同时补齐同一 Qt/XCB 运行族的 `xcb-util-image`、`xcb-util-renderutil`、`xcb-util-cursor`，避免下一步只因同族库继续中断。Arch 官方包文件列表确认：`xcb-util` 提供 `libxcb-util.so.1`，`xcb-util-keysyms` 提供 `libxcb-keysyms.so.1`，`xcb-util-wm` 提供 `libxcb-icccm.so.4`。
+- 防止反复构建：在 quick-sharun 前新增四入口 `ldd` 汇总检查，一次列出 `ToDesk / ToDesk_Service / ToDesk_Session / CrashReport` 仍缺的直接动态库；如果还有缺库，单次 Actions 日志即可看到完整列表。
+- 范围：只增加构建环境中的 XCB 运行库和依赖预检，不修改下载回退、SHA-256、安全边界、`/opt/todesk`/`/etc/todesk` 持久化或多入口逻辑。
