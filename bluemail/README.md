@@ -73,6 +73,8 @@ Linux 实机添加 Gmail 账户时，BlueMail 正常调用外部浏览器完成 
 
 Linux 实机使用当时的 `bluemail.AppImage` 添加 Gmail 账户。日志仍出现 `Decoded URL param: null`，账户随后出现并进入完成设置，该行不代表登录失败。打开登录页用的是系统默认网页浏览器。协议注册改由 `common/desktop/write_scheme_hook.sh` 生成 `20-bluemail-protocol.hook`，注册的仍是 `me.blueone.linux`，不改 `mailto` 的现有默认程序。单斜杠补齐仍留在 `90-bluemail-arguments.hook`。
 
+随后删掉全部邮箱并重新添加，登录回调仍能回到程序，账户可以再次加回。
+
 ## 2026-09-23 自根目录原样迁入
 
 以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
