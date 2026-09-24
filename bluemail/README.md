@@ -9,6 +9,7 @@
 - `common/snap/download_stable_snap.sh` 从 Snap Store 读取当前稳定版，核对发布者、架构和官方 SHA3-384，再下载 Snap。
 - `common/archive/extract_archive.sh` 解包 Snap。构建脚本保留 BlueMail 自带的 Electron/Chromium 程序、相邻库和资源，去掉 Snap 专用宿主运行时目录。
 - Arch Linux 容器中的 quick-sharun 收集主程序依赖并生成默认入口。构建脚本把需要保持相邻关系的官方 Snap 程序、库和 Electron 资源解包到自己创建的 `AppDir/shared/bin/`，因此通过 `AppDir/.env` 把该目录设为额外库目录和工作目录；这不是所有 Snap 的固定路径。`90-bluemail-arguments.hook` 通过 quick-sharun 通用 hook 机制保留官方 Snap 使用的 `--ozone-platform=x11 --no-sandbox` 参数。桌面图标与 desktop 文件来自同一 Snap。
+- `20-bluemail-protocol.hook` 在每次启动时，把本次实际的 AppImage 路径写成 `~/.local/share/applications/bluemail.desktop`（`Exec` 使用 `%U`），并在 `~/.config/mimeapps.list` 的 `[Default Applications]` 中把 `x-scheme-handler/me.blueone.linux` 指到该文件。不修改 `mailto` 的现有默认程序。quick-sharun 使用的 DWARFS AppImage 不能靠 appimagelauncher 完成这项注册。
 - 将 ICU、PAK、`locales` 和 `resources` 以包内链接接到启动包装器旁，保持 Electron 按可执行文件目录查找资源的行为。
 - 官方 Snap 自带 Electron/Chromium 运行时，本脚本保留其程序文件和资源，没有另外下载或打包独立的 Chromium 浏览器。构建环境安装 IBus 与 Fcitx5 的 GTK3 输入模块；本次 CI 日志确认 `DEPLOY_GTK=1` 收集了 `im-ibus.so` 和 `im-fcitx5.so`。启动入口不覆盖宿主输入法变量；2026-09-23 Linux 实机已确认邮件编辑框能够正常显示 IBus/Fcitx5 候选框并输入中文。
 
@@ -54,6 +55,12 @@ Linux 实机运行入口迁移后的 `bluemail.AppImage`，程序能够启动并
 Linux 实机添加 Gmail 账户时，BlueMail 正常调用外部浏览器完成 Google 授权；使用外部浏览器是 Google OAuth 的正常流程，不应改为 Electron 内嵌登录。授权完成后，浏览器取得 `me.blueone.linux://linux/google/oauth2redirect?...` 回调，但没有返回 BlueMail，应用一直停留在登录等待界面。核对上游 desktop 及 Flathub `net.blix.BlueMail` 的同类问题后确认，`Exec=bluemail %F` 中的 `%F` 只接收本地文件，无法把自定义协议 URI 交给程序；应使用能够接收 URI 的 `%U`。
 
 构建脚本现将官方 desktop 的入口规范为 `Exec=bluemail %U`，并把协议声明规范为 `MimeType=x-scheme-handler/me.blueone.linux;x-scheme-handler/mailto;`，使完成桌面集成后的 AppImage 能接收浏览器 OAuth 回调。此前 Outlook 账户从 BlueMail 发往 Gmail 的邮件已在 Outlook 网页版“已发送邮件”和 Gmail 垃圾邮件中确认实际送达，证明 AppImage 的基础发信链路正常；Gmail 账户此前仍报 `unresponsive-server`，修正 OAuth 回调后的 Gmail 重新授权和发信尚待新产物实机确认。
+
+## 2026-09-24：OAuth 回调仍被浏览器当成搜索
+
+上一节只改了打进 AppImage 的 desktop。直接运行 AppImage 时，这个文件不会出现在宿主的 `applications` 目录里，系统仍然没有 `me.blueone.linux` 的处理程序。实机现象是授权页弹出“要打开 xdg-open 吗？”——Chromium 在查不到协议处理程序时就用这个名字——随后地址栏把 `me.blueone.linux:/linux/google/oauth2redirect?...` 当成搜索。这不是 BlueMail 自己打开了浏览器搜索，而是回调协议没有注册。Kali 默认的 XFCE 上，`xdg-mime default` 还会报 `default-url-scheme-handler not implemented for xfce`，所以不能只靠那条命令。
+
+构建脚本现在另外写入 `20-bluemail-protocol.hook`。AppRun 在 `set -e` 下 source 它，因此 hook 在子 shell 里 `set +e`，失败不阻止启动，也不改 `"$@"`。它只在 `APPIMAGE` 指向真实文件时，把该绝对路径写入用户级 `bluemail.desktop`，并只强制 `x-scheme-handler/me.blueone.linux` 的默认程序；`mailto` 保持用户原来的客户端。同时导出 `CHROME_DESKTOP=bluemail.desktop`，让 Electron 的 `setAsDefaultProtocolClient` 指向同一文件，而不是挂载目录里的临时路径。已有授权码不能重复使用。新产物的 Gmail 重新授权和发信仍待实机确认。
 
 ## 2026-09-23 自根目录原样迁入
 
