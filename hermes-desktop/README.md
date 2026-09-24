@@ -43,6 +43,12 @@
 - 当前修复不改动上游 `afterExtract`：补丁脚本改为生成独立的 `scripts/after-pack-appimage.mjs`，通过 electron-builder 的 `afterPack` 配置只负责 Linux Electron RUNPATH 处理，继续保留内置 `libsecret-1.so.0` 方案。
 - 已对 `v2026.9.21` 实际源码执行完整补丁，补丁锚点校验、Python 语法检查、生成的 Node.js hook 语法检查及 diff whitespace 检查均通过；提交时尚未通过新的 GitHub Actions 完整构建和最终 AppImage 运行验证。
 
+## 上游兼容修复记录（2026-09-24）
+
+- `v2026.9.24` 的 About 更新 `ListRow` 增加了 `id={settingElementId(SETTING_IDS.about.automaticUpdates)}`，旧锚点无法唯一定位，构建在隐藏源码自更新入口前停止。
+- 补丁同时接受带 `id` 的新写法和原来的写法，仍然把整块更新控件藏起来，并保留版本旁的 Release Notes。
+- 同一版本恢复了仅处理 macOS locale 的 `scripts/after-pack.mjs`。Linux AppImage hook 先调用它，再设置内置 `libsecret` 的 RUNPATH，不覆盖上游逻辑。
+
 ## 构建文件
 
 ```text

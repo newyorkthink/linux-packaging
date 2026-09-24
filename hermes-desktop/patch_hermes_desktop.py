@@ -224,15 +224,29 @@ if about_marker not in about_text:
     about_text = about_text.replace(version_anchor, version_anchor + release_notes_button, 1)
 
     updates_open = '        <SectionHeading icon={RefreshCw} title={a.updates} />\n'
-    updates_close = (
-        '        <ListRow\n'
-        '          description={a.automaticUpdatesDesc}\n'
-        "          hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}\n"
-        '          title={a.automaticUpdates}\n'
-        '        />\n'
+    updates_close_candidates = (
+        (
+            '        <ListRow\n'
+            '          description={a.automaticUpdatesDesc}\n'
+            "          hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}\n"
+            '          id={settingElementId(SETTING_IDS.about.automaticUpdates)}\n'
+            '          title={a.automaticUpdates}\n'
+            '        />\n'
+        ),
+        (
+            '        <ListRow\n'
+            '          description={a.automaticUpdatesDesc}\n'
+            "          hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}\n"
+            '          title={a.automaticUpdates}\n'
+            '        />\n'
+        ),
     )
-    if about_text.count(updates_open) != 1 or about_text.count(updates_close) != 1:
+    matching_updates_close = [
+        candidate for candidate in updates_close_candidates if about_text.count(candidate) == 1
+    ]
+    if about_text.count(updates_open) != 1 or len(matching_updates_close) != 1:
         die("无法唯一定位 About 更新区域，停止构建，避免错误修改上游源码。")
+    updates_close = matching_updates_close[0]
     update_wrapper_open = (
         '        {/* Hermes standalone Linux AppImage: hide source-checkout desktop update controls. */}\n'
         '        <div className="hidden">\n'
@@ -246,8 +260,17 @@ package_data = json.loads(package_path.read_text(encoding="utf-8"))
 build_config = package_data.setdefault("build", {})
 build_config["publish"] = None
 after_pack_hook = "scripts/after-pack-appimage.mjs"
+upstream_after_pack = "scripts/after-pack.mjs"
 existing_after_pack_hook = build_config.get("afterPack")
-if existing_after_pack_hook not in (None, after_pack_hook):
+upstream_after_pack_path = root / "apps/desktop" / upstream_after_pack
+chain_upstream_after_pack = False
+if existing_after_pack_hook in (None, after_pack_hook):
+    pass
+elif existing_after_pack_hook == upstream_after_pack and upstream_after_pack_path.is_file():
+    # v2026.9.24 恢复了 macOS locale 用的 after-pack.mjs，Linux 上它会直接返回。
+    # 保留调用，避免覆盖上游逻辑，再追加 AppImage 的 libsecret RUNPATH。
+    chain_upstream_after_pack = True
+else:
     die(f"上游已配置未知 afterPack hook：{existing_after_pack_hook}，停止构建，避免覆盖上游逻辑。")
 build_config["afterPack"] = after_pack_hook
 extra_resources = build_config.setdefault("extraResources", [])
@@ -260,12 +283,29 @@ if libsecret_resource not in extra_resources:
 package_path.write_text(json.dumps(package_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 after_pack_path = root / "apps/desktop/scripts/after-pack-appimage.mjs"
-after_pack_text = r'''import { execFile } from 'node:child_process'
-import path from 'node:path'
-import { promisify } from 'node:util'
-
-export default async function afterPack(context) {
-  // Hermes standalone Linux AppImage: add the bundled libsecret directory to Electron RUNPATH.
+upstream_prelude = ""
+if chain_upstream_after_pack:
+    upstream_prelude = (
+        "import upstreamAfterPack from './after-pack.mjs'\n"
+        "\n"
+    )
+upstream_call = ""
+if chain_upstream_after_pack:
+    upstream_call = (
+        "  if (typeof upstreamAfterPack === 'function') {\n"
+        "    await upstreamAfterPack(context)\n"
+        "  }\n"
+        "\n"
+    )
+after_pack_text = (
+    "import { execFile } from 'node:child_process'\n"
+    "import path from 'node:path'\n"
+    "import { promisify } from 'node:util'\n"
+    f"{upstream_prelude}"
+    "\n"
+    "export default async function afterPack(context) {\n"
+    f"{upstream_call}"
+    r'''  // Hermes standalone Linux AppImage: add the bundled libsecret directory to Electron RUNPATH.
   // Chromium loads libsecret with dlopen("libsecret-1.so.0"), so selecting
   // gnome-libsecret alone is insufficient on hosts where the client library is absent.
   if (context.electronPlatformName === 'linux') {
@@ -286,6 +326,7 @@ export default async function afterPack(context) {
   }
 }
 '''
+)
 after_pack_path.write_text(after_pack_text, encoding="utf-8")
 
 checks = [
@@ -304,6 +345,13 @@ checks = [
 for path, marker in checks:
     if marker not in path.read_text(encoding="utf-8"):
         die(f"补丁校验失败：{path} 缺少 {marker}")
+
+if chain_upstream_after_pack:
+    hook_text = after_pack_path.read_text(encoding="utf-8")
+    if "import upstreamAfterPack from './after-pack.mjs'" not in hook_text:
+        die("补丁校验失败：未保留上游 afterPack hook。")
+    if "await upstreamAfterPack(context)" not in hook_text:
+        die("补丁校验失败：未调用上游 afterPack hook。")
 
 preload_final = preload_path.read_text(encoding="utf-8")
 for forbidden in (
