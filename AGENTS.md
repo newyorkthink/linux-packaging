@@ -83,8 +83,20 @@ Plan 的选择规则：
 因此：
 
 - **任何情况下、任何提交都禁止在提交标题、正文或 trailer 中写入任何跳过 CI 的标记。** 包括 `[skip ci]`、`[ci skip]`、`[no ci]`、`[skip actions]`、`[actions skip]`、`skip-checks: true` 及其他等效写法；代码、workflow、应用目录 README、根目录 Markdown、纯文档提交均无例外。即使用户要求跳过 CI，也不得添加此类标记。
-- 推送到 `main` 后按现有 workflow 触发条件正常处理；应用目录中的 README 修改也可能触发该应用构建。不得为规避构建而添加 skip 标记，也不要再手动 `workflow_dispatch` 重复触发。
+- 推送到 `main` 后按现有 workflow 触发条件正常处理；应用目录中的 README 修改也可能触发该应用构建。不得为规避构建而添加 skip 标记。本次 push 已经按路径选中了要构建的应用时，不要再手动 `workflow_dispatch` 把同一次构建重复跑一遍。
 - 同一任务同时修改文档和打包代码时，只做一个 commit，正常使用现有触发规则。
+
+### 手动只跑指定应用：禁止默认全量（不可豁免）
+
+用户要求重跑、补跑或单独构建某几个应用时，只能触发这几个应用。**禁止**把 `script_to_build` 设为 `all`，禁止省略选择项从而落到默认的 `all`，也禁止用「保险起见全量跑一遍」代替指定构建。只有用户明确说出「全量」「全部应用」或 `all` 时，才允许选 `all`。
+
+手动入口是 `.github/workflows/build.yml` 的 `workflow_dispatch`。调用前必须先读 `.github/appimage-apps.json`，只用清单里的字段，不得凭目录名或显示名猜测。
+
+- **只跑一个应用：** `release_integrity_repair` 保持 false，`script_search` 留空，`script_to_build` 填该应用清单里的完整 `script` 路径，例如 `wine/build_wine.sh`。下拉是单选，填一个脚本不会带上别的应用。
+- **一次跑多个指定应用：** 下拉不能多选。必须设 `release_integrity_repair` 为 true，并把 `release_integrity_keys` 设成 JSON 数组。数组元素必须是清单里的 `key`，不是目录名，也不是 `software_key`。例如只跑 GitHub Desktop 和 Wine：`["github_desktop","wine"]`。目录名 `github-desktop` 是错的，对应 key 是 `github_desktop`。此时仍要给 `script_to_build` 一个合法选项，但自愈模式不会再按这个下拉额外选中应用。
+- **`script_search` 只能唯一匹配一个应用。** 匹配到零个或多个都会让 Plan 失败。禁止用模糊词一次捞一批应用，也禁止匹配失败后改成 `all`。
+- 这种运行里，其他 Job 显示为 skipped 是正常的。只看实际处于 `in_progress`、`success` 或 `failure` 的 Job。不要因为列表里出现其他应用名，就再开一次全量。
+- 改 `.github/actions/build-anylinux/` 会在 push 时构建全部应用。没有明确任务要改共享构建入口时，禁止碰这个目录来顺便触发构建。
 
 ### 记录写在哪
 
@@ -109,7 +121,7 @@ Plan 的选择规则：
 
 | 范围 | 主要内容 |
 | --- | --- |
-| 文首永久规则 | 修复记录只增不删、GitHub 提交步骤、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、命令行不加中文而 GUI 默认带中文环境和中文输入、测试代码边界与必要验证、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入 |
+| 文首永久规则 | 修复记录只增不删、GitHub 提交步骤、手动只跑指定应用时禁止默认全量、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、命令行不加中文而 GUI 默认带中文环境和中文输入、测试代码边界与必要验证、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入 |
 | 第 1～2 节 | 仓库目标、最小修改、应用 README、检查记录、迁移完整性 |
 | 第 3～5 节 | 宿主安全、Shell 与中文说明、上游来源、授权、动态版本和版本元数据 |
 | 第 6 节 | AppImage 内容、AppRun、libunionpreload、打包路线、linuxdeploy、Qt 与 quick-sharun |
@@ -805,7 +817,7 @@ linuxdeploy 额外规则：
 - 标准 Arch 应用：只在 `.github/appimage-apps.json` 增加一条 `kind: standard` 记录（按应用目录名不区分大小写 A→Z 插入）。不要再手写 `KEYS` / `SCRIPTS` / `DIRS`，也不要再复制一份标准 Job YAML。
 - 清单字段至少包含：`key`、`kind`、`name`、`script`、`dir`；标准应用还要有 `artifact_dir`、`release_name`、`software_key`、`timeout_minutes`、`run_from_root`。
 - 特例应用：清单里加 `kind: special`，并在 `build.yml` 新增独立 Job。特例 Job 按显示名称（去掉 `Build ` 前缀）不区分大小写 A→Z 排列；`Plan` 固定最前，matrix 标准 Job 紧随其后，非 `Build ...` 的附属 Job 仍放在全部 Build Job 之后。
-- 手动运行入口 `script_to_build` 必须保留 `choice` 下拉：`all` 固定在第一项，其余选项必须与 `.github/appimage-apps.json` 的全部 `script` 一一对应，并按路径不区分大小写 A→Z 排列。新增、删除或重命名应用脚本时必须同步更新下拉选项。`script_search` 可选填应用名 / 脚本名称做模糊匹配，填写时优先于下拉选择。
+- 手动运行入口 `script_to_build` 必须保留 `choice` 下拉：`all` 固定在第一项，其余选项必须与 `.github/appimage-apps.json` 的全部 `script` 一一对应，并按路径不区分大小写 A→Z 排列。新增、删除或重命名应用脚本时必须同步更新下拉选项。`script_search` 可选填应用名 / 脚本名称做模糊匹配，填写时优先于下拉选择，且只能唯一匹配一个应用。用户要求只跑指定应用时，必须遵守文首「手动只跑指定应用：禁止默认全量」；不得把 `all` 当作未指明范围时的默认运行方式。
 - 提交前核对清单无重复、无遗漏，`script` / `dir` 与仓库路径一致；特例的独立 Job、`if: fromJSON(needs.plan.outputs.builds).<key>` 与清单 `key` 一致。
 - 本规则不授权顺手重排其他 workflow，也不得为了排序新增测试代码、测试 Job 或测试 Step。
 
