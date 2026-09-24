@@ -90,8 +90,11 @@ for launcher in wps et wpp wpspdf; do
     "$APPDIR/bin/$launcher"
   grep -Fq "$office_rel" "$APPDIR/bin/$launcher" || { echo "未能改写安装目录：$launcher" >&2; exit 1; }
   # WPS 12 在英文系统上认 LANGUAGE，不认 LANG。
-  sed -i '1a export LANGUAGE=zh_CN' "$APPDIR/bin/$launcher"
+  # Rofi 会带上 GIO_LAUNCHED_DESKTOP_FILE，WPS 见到就马上退出。
+  sed -i '1a export LANGUAGE=zh_CN\
+unset GIO_LAUNCHED_DESKTOP_FILE' "$APPDIR/bin/$launcher"
   grep -Fq 'export LANGUAGE=zh_CN' "$APPDIR/bin/$launcher" || { echo "未能写入界面语言：$launcher" >&2; exit 1; }
+  grep -Fq 'unset GIO_LAUNCHED_DESKTOP_FILE' "$APPDIR/bin/$launcher" || { echo "未能去掉桌面启动标记：$launcher" >&2; exit 1; }
   # mawk 会把 awk -F= 里的 -F= 当成文件名。改成 gawk 和 mawk 都能认的写法。
   sed -i 's/awk -F=/awk -F "="/g' "$APPDIR/bin/$launcher"
 done
@@ -142,6 +145,7 @@ HOOK
 # 已经打开过的配置可能记住英文。只改语言项，不覆盖最近文件和其他设置。
 cat > "$APPDIR/bin/15-wps-language.hook" <<'HOOK'
 export LANGUAGE=zh_CN
+unset GIO_LAUNCHED_DESKTOP_FILE
 _conf="${XDG_CONFIG_HOME:-$HOME/.config}/Kingsoft/Office.conf"
 mkdir -p "${_conf%/*}" 2>/dev/null || true
 if [ ! -f "$_conf" ]; then

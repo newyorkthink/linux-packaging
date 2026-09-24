@@ -82,6 +82,11 @@ WPS 12 在英文系统上认启动脚本里的 `LANGUAGE=zh_CN`。四个入口�
 
 Rofi 用的是桌面文件。原文件若有 `TryExec=wps` 或 `DBusActivatable=true`，系统里没有 `wps` 命令时 Rofi 不会启动，终端直接跑 AppImage 不受影响。这两行已从桌面文件去掉。已安装过的旧入口还在 `~/.local/share/applications/`，要删掉里面的 WPS 项，再用新的 `wps.AppImage` 从终端启动一次，让它重新登记。
 
+## 2026-09-24：Rofi 仍起不来
+
+`fa7090f` 去掉 `TryExec` 之后，Rofi 还是起不来，终端可以。Rofi 和文件管理器会设置 `GIO_LAUNCHED_DESKTOP_FILE`。WPS 12 见到这个变量会马上退出，终端启动没有这个变量。`15-wps-language.hook` 和四个入口现在都执行 `unset GIO_LAUNCHED_DESKTOP_FILE`。不改窗口管理模式。
+
+
 
 
 
