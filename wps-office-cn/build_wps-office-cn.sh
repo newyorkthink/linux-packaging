@@ -33,7 +33,7 @@ mkdir -p "$APPDIR/bin"
 [[ -d /usr/lib/office6/mui/zh_CN ]] || { echo '未安装简体中文 MUI。' >&2; exit 1; }
 cp -a -- /usr/lib/office6 "$OFFICE"
 
-# WPS 用自带 Qt 的 xcb。库名是 libQt5CoreKso.so，不是 libQt5Core.so。
+# WPS 自己编译 Qt，库名加了 Kso，例如 libQt5CoreKso.so，不是发行版的 libQt5Core.so。
 # 中文输入走 fcitx5 的 Qt 模块，不用 ibus，也不改宿主的 QT_IM_MODULE。
 if [[ -n "$(find "$OFFICE" -name 'libQt5Core*.so*' -print -quit)" ]]; then
   FCITX_PLUGIN=/usr/lib/qt/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so

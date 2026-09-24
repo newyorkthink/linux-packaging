@@ -22,6 +22,11 @@ WPS 使用自带 Qt 的 xcb 平台插件，不是 GTK，也不使用 ibus。构�
 
 Actions Run `35973581804` 的 WPS Job 在安装 `wps-office-cn 12.1.2.28080-1` 后退出，提示未识别 Qt 版本。包内实际文件是 `libQt5CoreKso.so.5.12.12`，上一节按 `libQt5Core.so` 查找因此落空。现改为匹配 `libQt5Core*.so*` 和 `libQt6Core*.so*`，Qt5 仍使用 Arch 的 fcitx5 Qt5 输入模块。这次只改识别条件，构建结果以下一次 Actions 为准。
 
+## 2026-09-24：Kso 后缀是 WPS 自己编译的 Qt
+
+用户说明：WPS 的 Qt 是自己编译的，所以库名加了 `Kso`，例如 `libQt5CoreKso.so.5.12.12`，不是发行版的 `libQt5Core.so`。以后在这个目录里认 Qt、选插件或对库名，都要按带 `Kso` 的文件，不能按 Arch 或 Debian 的普通 Qt 文件名。发行版的 fcitx5 Qt 插件是对着普通 Qt 编的，和这套自己编译的 Qt 不是同一个产物。
+
+
 
 
 
