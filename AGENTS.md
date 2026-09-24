@@ -127,7 +127,7 @@ Plan 的选择规则：
 
 | 范围 | 主要内容 |
 | --- | --- |
-| 文首永久规则 | 修复记录只增不删、GitHub 提交步骤、手动只跑指定应用时禁止默认全量、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、命令行不加中文而 GUI 默认带中文环境和中文输入、测试代码边界与必要验证、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入 |
+| 文首永久规则 | 修复记录只增不删、GitHub 提交步骤、手动只跑指定应用时禁止默认全量、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、命令行不加中文而 GUI 默认带中文环境和中文输入、打包 export 必须先登记、测试代码边界与必要验证、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入 |
 | 第 1～2 节 | 仓库目标、最小修改、应用 README、检查记录、迁移完整性 |
 | 第 3～5 节 | 宿主安全、Shell 与中文说明、上游来源、授权、动态版本和版本元数据 |
 | 第 6 节 | AppImage 内容、AppRun、libunionpreload、打包路线、linuxdeploy、Qt 与 quick-sharun |
@@ -182,6 +182,16 @@ Plan 的选择规则：
 - 调用 `linuxdeploy` 的项目继续只遵守 `linuxdeploy_projects.md`，不得改成 quick-sharun，也不得两套混用。
 - 已验证稳定的现有脚本保持原样。不得为了套用 `anylinux_projects.md` 的示例去批量改写它们。
 - 后续修改这条路线时，必须同时保持本文件与 `anylinux_projects.md` 的强制关系，不得把链接弱化成“可参考”。
+
+## 永久规则：打包 export 必须先登记（不可豁免）
+
+**构建脚本、AppRun、hook、`.env` 和 workflow 里新增或修改的 `export`，必须已经写在 [`docs/packaging-export-registry.md`](./docs/packaging-export-registry.md)。表里没有的变量不准用。**
+
+- 登记表说明当前 `.sh` 里每个环境变量干什么、哪里在用。新增变量必须在同一次提交里补进登记表，写清用途和用在哪个程序。
+- 禁止设置 `EXTRA_QT_MODULES`，包括 `core` 和 `gui`。不得用手工指定 Qt 模块绕过插件扫描。
+- 不要求每个程序把表里的变量全部设置一遍。用不到的不准为了凑齐硬加。
+- 已有脚本里的 `export` 保持原样。本规则不授权为了对照登记表批量改写稳定脚本。
+- `export -f` 导出的是函数，不是环境变量，不进登记表。
 
 ## 永久规则：命令行不加中文，GUI 默认带中文环境和中文输入（不可豁免）
 
