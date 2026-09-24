@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# 为 PySide6 Qt xcb 平台插件补齐 Kali Rolling 运行库；这些库仅供 Qt 使用。
+# 为 PySide6 Qt xcb 平台插件补齐私有 XCB 运行库；这些库仅供 Qt 使用。
+# 从 Ubuntu 构建机的软件源下载对应 DEB 并解出 .so，不安装到系统，也不再拉取 Kali 镜像。
 set -Eeuo pipefail
 
 readonly APPDIR="${1:?用法：$0 <AppDir>}"
@@ -14,7 +15,6 @@ die() {
 }
 
 [[ "$(uname -m)" == "x86_64" ]] || die "当前仅支持 x86_64。"
-command -v docker >/dev/null 2>&1 || die "构建环境缺少 docker。"
 [[ -d "$APPDIR" ]] || die "找不到 AppDir：$APPDIR"
 
 mapfile -t qt_roots < <(find "$APPDIR/opt/python/lib" \
@@ -48,45 +48,52 @@ find "$APPDIR/usr/lib" -maxdepth 1 \( \
   -name 'libxkbcommon-x11.so*' \
 \) -delete 2>/dev/null || true
 
-log "从 Kali Rolling 提取 Qt 私有 XCB 运行库"
-docker run --rm \
-  -v "$APPDIR:/AppDir" \
-  kalilinux/kali-rolling bash -lc '
-    set -Eeuo pipefail
-    export DEBIAN_FRONTEND=noninteractive
-
-    apt-get update >/dev/null
-    apt-get install -y --no-install-recommends \
-      libxcb-cursor0 \
-      libxcb-icccm4 \
-      libxcb-image0 \
-      libxcb-keysyms1 \
-      libxcb-render-util0 \
-      libxcb-util1 \
-      libxcb-xkb1 \
-      libxkbcommon-x11-0 >/dev/null
-
-    QT_ROOT="$(find /AppDir/opt/python/lib \
-      -path "*/site-packages/PySide6/Qt" -type d -print -quit)"
-    [[ -n "$QT_ROOT" ]]
-    mkdir -p "$QT_ROOT/lib"
-
-    for library in \
-      /usr/lib/x86_64-linux-gnu/libxcb-cursor.so.0 \
-      /usr/lib/x86_64-linux-gnu/libxcb-icccm.so.4 \
-      /usr/lib/x86_64-linux-gnu/libxcb-image.so.0 \
-      /usr/lib/x86_64-linux-gnu/libxcb-keysyms.so.1 \
-      /usr/lib/x86_64-linux-gnu/libxcb-render-util.so.0 \
-      /usr/lib/x86_64-linux-gnu/libxcb-util.so.1 \
-      /usr/lib/x86_64-linux-gnu/libxcb-xkb.so.1 \
-      /usr/lib/x86_64-linux-gnu/libxkbcommon-x11.so.0; do
-      [[ -f "$library" ]] || {
-        echo "缺少 Qt/XCB 运行库：$library" >&2
-        exit 1
-      }
-      cp -Lf "$library" "$QT_ROOT/lib/$(basename "$library")"
-    done
-  '
+log "从 Ubuntu 软件源提取 Qt 私有 XCB 运行库"
+if (( EUID == 0 )); then
+  APT=(apt-get)
+else
+  command -v sudo >/dev/null 2>&1 || die "提取 XCB 运行库需要 root 或 sudo。"
+  APT=(sudo apt-get)
+fi
+"${APT[@]}" update
+stage="$(mktemp -d)"
+cleanup_stage() {
+  rm -rf "$stage"
+}
+trap cleanup_stage EXIT
+(
+  cd "$stage"
+  apt-get download \
+    libxcb-cursor0 \
+    libxcb-icccm4 \
+    libxcb-image0 \
+    libxcb-keysyms1 \
+    libxcb-render-util0 \
+    libxcb-util1 \
+    libxcb-xkb1 \
+    libxkbcommon-x11-0
+)
+mapfile -t debs < <(find "$stage" -maxdepth 1 -type f -name '*.deb' -print)
+[[ ${#debs[@]} -eq 8 ]] || die "应下载 8 个 XCB DEB，实际为 ${#debs[@]}。"
+for deb in "${debs[@]}"; do
+  dpkg-deb -x "$deb" "$stage/root"
+done
+mkdir -p "$QT_LIB_DIR"
+for library in \
+  libxcb-cursor.so.0 \
+  libxcb-icccm.so.4 \
+  libxcb-image.so.0 \
+  libxcb-keysyms.so.1 \
+  libxcb-render-util.so.0 \
+  libxcb-util.so.1 \
+  libxcb-xkb.so.1 \
+  libxkbcommon-x11.so.0; do
+  mapfile -t matches < <(find "$stage/root/usr/lib" -name "$library" \( -type f -o -type l \) -print)
+  [[ ${#matches[@]} -eq 1 ]] || die "无法唯一定位 $library，实际为 ${#matches[@]}。"
+  cp -Lf "${matches[0]}" "$QT_LIB_DIR/$library"
+done
+trap - EXIT
+cleanup_stage
 
 for required_library in \
   libxcb-cursor.so.0 \

@@ -19,7 +19,7 @@ die() {
 }
 
 [[ "$(uname -m)" == "x86_64" ]] || die "当前仅支持 x86_64。"
-for command_name in appimagetool docker gh ldd python3 sha256sum; do
+for command_name in appimagetool gh ldd python3 sha256sum; do
   command -v "$command_name" >/dev/null 2>&1 || die "构建环境缺少 $command_name。"
 done
 
