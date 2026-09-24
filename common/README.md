@@ -4,7 +4,7 @@
 
 ## 公共代码与公共函数
 
-- `common/` 当前包含 `apt/`、`archive/`、`desktop/`、`download/`、`github/`、`linuxdeploy/`。本项只是标记为**需要后续重新完整审计**，不是认定这些公共实现当前一定有错误。
+- `common/` 当前包含 `apt/`、`archive/`、`build/`、`desktop/`、`download/`、`github/`、`gui/`、`linuxdeploy/` 等目录。本项只是标记为**需要后续重新完整审计**，不是认定这些公共实现当前一定有错误。
 - 后续 AI 需要从调用方和公共实现两端一起检查，不能只看某一个 helper：确认职责边界是否正确、是否存在重复通用逻辑、参数语义是否一致、错误处理与返回码是否可靠、下载 / 校验 / DEB 元数据 / 解包 / linuxdeploy 初始化与最终封装是否由正确层负责。
 - 重点检查近期从 PeaZip 等项目下沉到公共函数的逻辑，确认没有把应用专用规则错误公共化，也没有让应用脚本重复做公共入口已经负责的检查。
 - 已经由用户明确确认有效的命令、调用顺序、AppRun 行为和打包基线必须逐字保留；公共化不能成为顺手重写这些稳定内容的理由。
@@ -12,6 +12,11 @@
 - `archive/extract_archive.sh` 统一支持 DEB、Snap、tar 系列归档和 Brotli 压缩的 `.distro` tar 包；应用脚本只传入归档文件与输出目录，应用专用的文件定位和目录调整仍留在应用脚本。
 
 - `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../docs/appimage-scheme-handler.md)。
+
+### 可选的最终产物检查与收尾
+
+- `gui/check_appimage_gui.sh` 仅由确有需要的应用显式调用，不是所有 AppImage 的默认步骤。参数依次是最终 AppImage 路径、1～20 秒上限、隔离工作目录、会话顺序（`timeout-dbus-xvfb`、`xvfb-dbus-timeout` 或 `timeout-xvfb`）、成功规则（`timeout-only` 或 `timeout-or-zero`）、调用方的致命日志正则、可选窗口标题正则，以及 `--` 后的应用参数。空窗口标题只检查进程存活和日志，不声称确认了可见窗口；非空标题还要求 Xvfb 中找到存活的可见窗口。调用方可在命令前设置应用专属环境变量，公共入口不添加 `--disable-gpu` 等应用参数。该检查不验证登录、代理、中文输入或实机功能。
+- `build/finish_appimage_build.sh` 在调用方完成所有检查后接收版本号、`version.txt` 路径和原成功提示，按顺序写入版本文件并输出提示；不负责打包、图形检查或发布。已有 `common/linuxdeploy/package_appimage.sh` 同时承担封装和版本写入，使用该入口的应用不需要重复调用收尾函数。
 
 ## 2026-09-23 自根目录原样迁入
 

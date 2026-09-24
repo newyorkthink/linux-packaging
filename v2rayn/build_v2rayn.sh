@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# 只在当前项目目录内准备构建目录，避免清理命令误删其他路径。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 APPDIR="$SCRIPT_DIR/AppDir"
@@ -24,8 +25,8 @@ clean_project_dir() {
   esac
 }
 
+# 官方资产与打包目标均为 x86_64；构建前先拒绝其他架构。
 [[ "$(uname -m)" == "x86_64" ]] || fail "only x86_64 is supported"
-command -v quick-sharun >/dev/null 2>&1 || fail "quick-sharun is not available"
 
 cd "$SCRIPT_DIR"
 for target in "$APPDIR" "$DIST_DIR" "$SOURCE_DIR" "$VERIFY_DIR" "$WORK_DIR"; do
@@ -33,8 +34,8 @@ for target in "$APPDIR" "$DIST_DIR" "$SOURCE_DIR" "$VERIFY_DIR" "$WORK_DIR"; do
 done
 mkdir -p "$DIST_DIR" "$SOURCE_DIR" "$VERIFY_DIR" "$WORK_DIR"
 
-# Build/runtime libraries required by the official self-contained Avalonia Linux package,
-# plus isolated X11/DBus smoke-test tooling.
+# 安装官方自包含 Avalonia 程序所需的构建与运行库，以及短时图形启动检查所需的虚拟显示组件。
+# 统一基础包必须等图形检查结束后再安装，避免改变依赖收集和启动环境。
 yay -S --noconfirm --needed \
   bash curl jq unzip file patchelf coreutils desktop-file-utils xdg-utils \
   glibc gcc-libs zlib fontconfig freetype2 \
@@ -42,12 +43,14 @@ yay -S --noconfirm --needed \
   libxcomposite libxcursor libxdamage libxkbcommon dbus \
   xorg-server-xvfb xorg-xauth
 
+# 读取官方最新稳定 Release，取得版本、资产地址和官方 SHA-256。
 curl --fail --silent --show-error --location \
   --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 120 \
   https://api.github.com/repos/2dust/v2rayN/releases/latest \
   -o "$RELEASE_JSON"
 
 TAG="$(jq -er 'select(.draft == false and .prerelease == false) | .tag_name' "$RELEASE_JSON")"
+# 只接受稳定版标签和指定的 Linux x64 资产，不固定目标应用版本。
 [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$ ]] || fail "unexpected stable release tag: $TAG"
 VERSION="${TAG#v}"
 ASSET_NAME="v2rayN-linux-64.zip"
@@ -61,6 +64,7 @@ case "$ASSET_URL" in
 esac
 [[ "$ASSET_DIGEST" =~ ^sha256:[0-9a-fA-F]{64}$ ]] || fail "missing or invalid GitHub release SHA-256 digest"
 
+# 优先下载官方资产直链；遇到直链 403 等失败时，使用同一资产 ID 和 GH_TOKEN 回退。
 if ! curl --fail --show-error --location \
   --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 900 \
   "$ASSET_URL" -o "$ARCHIVE"; then
@@ -75,11 +79,13 @@ if ! curl --fail --show-error --location \
     -o "$ARCHIVE"
 fi
 
+# 下载完成后必须核对官方摘要，不能把损坏或不匹配的归档用于打包。
 EXPECTED_SHA256="${ASSET_DIGEST#sha256:}"
 ACTUAL_SHA256="$(sha256sum "$ARCHIVE" | cut -d' ' -f1)"
 [[ "${ACTUAL_SHA256,,}" == "${EXPECTED_SHA256,,}" ]] || fail "release archive SHA-256 mismatch"
 printf 'v2rayN version: %s\nsource sha256: %s\n' "$VERSION" "$ACTUAL_SHA256"
 
+# 解压官方自包含包，定位真实的 x86_64 图形程序及相邻运行目录。
 unzip -q "$ARCHIVE" -d "$SOURCE_DIR"
 MAIN_SOURCE="$(find "$SOURCE_DIR" -type f -name 'v2rayN' -print -quit)"
 [[ -n "$MAIN_SOURCE" && -f "$MAIN_SOURCE" ]] || fail "v2rayN executable not found in official archive"
@@ -90,11 +96,12 @@ MAIN_FILE_INFO="$(file -Lb "$MAIN_SOURCE")"
 [[ -d "$APP_ROOT/bin" ]] || fail "official runtime bin directory is missing"
 ICON_SOURCE="$APP_ROOT/v2rayN.png"
 [[ -s "$ICON_SOURCE" ]] || fail "official v2rayN.png icon is missing"
+
 # 统一为 desktop 中的 Icon=v2rayn，避免大小写不一致导致菜单图标丢失。
 PACKAGING_ICON="$WORK_DIR/v2rayn.png"
 cp -a "$ICON_SOURCE" "$PACKAGING_ICON"
-[[ -s "$PACKAGING_ICON" ]] || fail "normalized v2rayN icon is missing"
 
+# 写入 AppImage 的桌面入口；版本与本次官方 Release 保持一致。
 DESKTOP_FILE="$WORK_DIR/v2rayn.desktop"
 cat > "$DESKTOP_FILE" <<'DESKTOP'
 [Desktop Entry]
@@ -110,6 +117,7 @@ DESKTOP
 printf 'X-AppImage-Version=%s\n' "$VERSION" >> "$DESKTOP_FILE"
 desktop-file-validate "$DESKTOP_FILE"
 
+# quick-sharun 使用这些变量生成桌面文件、图标关联及指定名称的最终 AppImage。
 export ARCH=x86_64
 export VERSION
 export APPNAME="v2rayN"
@@ -119,7 +127,8 @@ export DESKTOP="$DESKTOP_FILE"
 export OUTPATH="$DIST_DIR"
 export OUTNAME="v2rayn.AppImage"
 
-# Put the real GUI executable first so quick-sharun selects the intended AppImage entrypoint.
+# 把真实图形主程序放在首位，避免 quick-sharun 误选其他 ELF 作为入口。
+# 其余动态链接的 ELF 一起交给 quick-sharun 收集依赖。
 ELF_INPUTS=("$MAIN_SOURCE")
 while IFS= read -r -d '' candidate; do
   [[ "$candidate" == "$MAIN_SOURCE" ]] && continue
@@ -130,15 +139,14 @@ while IFS= read -r -d '' candidate; do
 done < <(find "$APP_ROOT" -type f -print0)
 
 quick-sharun "${ELF_INPUTS[@]}"
-[[ -x "$APPDIR/AppRun" ]] || fail "quick-sharun did not create AppRun"
 
-# Preserve the official self-contained directory exactly. shared/bin holds the real files;
-# bin also gets the data tree because sharun launches through its bin hardlinks.
+# 保留官方自包含目录的相对布局；真实文件进入 shared/bin。
+# bin 也需要同一数据目录，因为 sharun 通过其中的硬链接启动主程序。
 mkdir -p "$APPDIR/bin" "$APPDIR/shared/bin"
 cp -an "$APP_ROOT"/. "$APPDIR/bin"/
 cp -an "$APP_ROOT"/. "$APPDIR/shared/bin"/
 
-# The upstream Debian launcher changes into /opt/v2rayN before exec; keep the same semantics.
+# 官方 Debian 启动器先进入 /opt/v2rayN；在 AppImage 中保持同等工作目录和 PATH。
 touch "$APPDIR/.env"
 if ! grep -Fxq 'SHARUN_WORKING_DIR=${SHARUN_DIR}/bin' "$APPDIR/.env"; then
   printf '%s\n' 'SHARUN_WORKING_DIR=${SHARUN_DIR}/bin' >> "$APPDIR/.env"
@@ -148,61 +156,22 @@ if ! grep -Fxq 'PATH=${SHARUN_DIR}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:
 fi
 printf '%s\n' 'v2rayN' > "$APPDIR/.app"
 
-[[ -x "$APPDIR/shared/bin/v2rayN" ]] || fail "packaged v2rayN executable is missing"
-[[ -d "$APPDIR/shared/bin/bin" ]] || fail "packaged v2rayN core/data directory is missing"
-[[ -s "$APPDIR/bin/v2rayN.png" ]] || fail "packaged icon source is missing"
-
+# 生成最终 AppImage，只保留产物非空判断和发布所需的 SHA-256 文件。
 quick-sharun --make-appimage
 APPIMAGE="$DIST_DIR/v2rayn.AppImage"
 [[ -x "$APPIMAGE" && -s "$APPIMAGE" ]] || fail "AppImage was not created"
-file "$APPIMAGE"
 sha256sum "$APPIMAGE" | tee "$DIST_DIR/v2rayn.AppImage.sha256"
 
-EXTRACT_DIR="$VERIFY_DIR/extract"
-mkdir -p "$EXTRACT_DIR"
-(
-  cd "$EXTRACT_DIR"
-  "$APPIMAGE" --appimage-extract >/dev/null
-)
-EXTRACTED="$EXTRACT_DIR/squashfs-root"
-[[ -x "$EXTRACTED/AppRun" ]] || fail "extracted AppRun is missing"
-[[ -f "$EXTRACTED/v2rayn.desktop" ]] || fail "extracted desktop file is missing"
-[[ -s "$EXTRACTED/v2rayn.png" ]] || fail "extracted desktop icon is missing"
-[[ -x "$EXTRACTED/shared/bin/v2rayN" ]] || fail "extracted v2rayN executable is missing"
-[[ -d "$EXTRACTED/shared/bin/bin" ]] || fail "extracted core/data directory is missing"
-desktop-file-validate "$EXTRACTED/v2rayn.desktop"
-grep -Fxq 'Icon=v2rayn' "$EXTRACTED/v2rayn.desktop" || fail "desktop icon name is inconsistent"
-
-# The extracted executable is launched through sharun; the isolated GUI smoke test below
-# is the authoritative runtime dependency check for the bundled loader/library path.
-SMOKE_HOME="$VERIFY_DIR/smoke-home"
-SMOKE_RUNTIME="$VERIFY_DIR/smoke-runtime"
-SMOKE_LOG="$VERIFY_DIR/smoke.log"
-mkdir -p "$SMOKE_HOME/config" "$SMOKE_HOME/cache" "$SMOKE_HOME/data" "$SMOKE_RUNTIME"
-chmod 0700 "$SMOKE_RUNTIME"
-set +e
-HOME="$SMOKE_HOME" \
-XDG_CONFIG_HOME="$SMOKE_HOME/config" \
-XDG_CACHE_HOME="$SMOKE_HOME/cache" \
-XDG_DATA_HOME="$SMOKE_HOME/data" \
-XDG_RUNTIME_DIR="$SMOKE_RUNTIME" \
-APPIMAGE_EXTRACT_AND_RUN=1 \
-timeout 20s dbus-run-session -- xvfb-run -a "$APPIMAGE" >"$SMOKE_LOG" 2>&1
-SMOKE_RC=$?
-set -e
-
-cat "$SMOKE_LOG"
-if grep -Eqi \
+# 仅由需要的应用显式调用公共图形检查；保留原来的 20 秒、会话顺序与致命日志特征。
+# 不检查窗口标题，成功条件仍是进程持续运行到 timeout 返回 124。
+"$SCRIPT_DIR/../common/gui/check_appimage_gui.sh" \
+  "$APPIMAGE" 20 "$VERIFY_DIR" timeout-dbus-xvfb timeout-only \
   'Unhandled exception|DllNotFoundException|error while loading shared libraries|cannot open shared object file|symbol lookup error|invalid ELF header|Segmentation fault|core dumped|Exec format error|wrong ELF class' \
-  "$SMOKE_LOG"; then
-  fail "fatal runtime error detected during smoke test"
-fi
-[[ "$SMOKE_RC" -eq 124 ]] || fail "GUI did not remain running for the 20-second smoke test (exit=$SMOKE_RC)"
+  ''
 
 # 安装统一的 Arch AppImage 基础包，供后续发布步骤使用。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 
-# 最终 AppImage 完成现有检查后输出统一的软件版本元数据。
-printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
-
-echo "v2rayN AppImage build and smoke test passed."
+# 检查完成后统一写入版本文件并输出原有成功提示。
+"$SCRIPT_DIR/../common/build/finish_appimage_build.sh" \
+  "$VERSION" "$DIST_DIR/version.txt" "v2rayN AppImage build and smoke test passed."
