@@ -77,3 +77,7 @@ Build Discord 运行 35960141408 虽然构建成功，但日志明确显示构�
 ## 2026-09-24：去掉专门挡 Mesa 的开关
 
 上一节留下的 `DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0` 就是为了不把构建机 Mesa 驱动打进包。用户要求删掉这两个开关，不是再删 `libLLVM`。`NO_STRIP=1` 保留。红色警告仍会在 quick-sharun 收进 `libgallium` → `libLLVM` 时出现，继续不当成构建失败。新成品尚未验证。
+
+## 2026-09-24：挡 Mesa 的开关改回去
+
+上一节理解错了。用户要去掉的是删除 `libLLVM` 的代码，那一段在更早的修改里已经去掉，脚本里已经没有 `find ... libLLVM ... -delete`。`DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0` 恢复。红色警告仍然保留。

@@ -23,3 +23,6 @@
 
 随后按用户要求去掉 `DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0`。这两个开关是用来挡构建机 Mesa 的，不是删库代码。`NO_STRIP=1` 仍保留。红字决定不变。
 
+更正：上面这句理解错了。要去掉的是删除 `libLLVM` 的代码，Discord 脚本里已经没有。`DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0` 已恢复。
+
+
