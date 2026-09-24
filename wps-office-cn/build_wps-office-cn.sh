@@ -24,7 +24,7 @@ OFFICE="$APPDIR/bin/office6"
 # AUR 配方动态解析金山国内官网当前正式包并安装原版简体中文界面。
 "$ROOT/common/arch/install_packages.sh" wps-office-cn wps-office-mui-zh-cn
 
-mkdir -p "$APPDIR/bin" "$APPDIR/share/fonts/wps"
+mkdir -p "$APPDIR/bin"
 
 ###### 保留国产 WPS 和官方入口 ######
 
@@ -45,18 +45,6 @@ mapfile -t ICONS < <(find /usr/share/icons/hicolor -type f -path '*/apps/*wpsmai
 install -Dm0644 "${ICONS[-1]}" "$SOURCE/wps-office-cn.png"
 sed -i -e 's|^Exec=.*|Exec=wps %F|' -e 's|^Icon=.*|Icon=wps-office-cn|' "$SOURCE/wps-office-cn.desktop"
 
-###### 补上 WPS 一直提示缺失的符号字体 ######
-
-# 只取这个仓库里的符号字体，不下载整套 Windows 字体，也不把字体文件提交进 Git。
-"$ROOT/common/github/download_default_branch_source.sh" \
-  iykrichie/wps-office-19-missing-fonts-on-Linux "$SOURCE/wps-fonts.tar.gz" >/dev/null
-"$ROOT/common/archive/extract_archive.sh" "$SOURCE/wps-fonts.tar.gz" "$SOURCE/wps-fonts"
-for font in symbol.ttf wingding.ttf WINGDNG2.ttf WINGDNG3.ttf WEBDINGS.TTF mtextra.ttf; do
-  found="$(find "$SOURCE/wps-fonts" -type f -name "$font" -print -quit)"
-  [[ -n "$found" && -s "$found" ]] || { echo "缺少 WPS 符号字体：$font" >&2; exit 1; }
-  install -Dm0644 "$found" "$APPDIR/share/fonts/wps/$font"
-done
-
 ###### 生成个人使用的 AppImage ######
 
 # 从已安装的 AUR 包读取软件版本，不把 AUR 修订号硬编码在脚本里。
@@ -67,6 +55,22 @@ export ARCH=x86_64 VERSION APPNAME='WPS Office CN' MAIN_BIN=wps
 export ICON="$SOURCE/wps-office-cn.png" DESKTOP="$SOURCE/wps-office-cn.desktop"
 export OUTPATH="$DIST" OUTNAME=wps-office-cn.AppImage NO_STRIP=1
 LD_LIBRARY_PATH="$OFFICE${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun "$OFFICE/wps" "$OFFICE/et" "$OFFICE/wpp" "$OFFICE/wpspdf" "$OFFICE/qt/plugins/platforms/libqxcb.so"
+
+###### 补上 WPS 一直提示缺失的符号字体 ######
+
+# 放在 quick-sharun 之后，避免部署阶段清掉 AppDir。只取符号字体，不下载整套 Windows 字体，也不提交进 Git。
+"$ROOT/common/github/download_default_branch_source.sh" \
+  iykrichie/wps-office-19-missing-fonts-on-Linux "$SOURCE/wps-fonts.tar.gz" >/dev/null
+"$ROOT/common/archive/extract_archive.sh" "$SOURCE/wps-fonts.tar.gz" "$SOURCE/wps-fonts"
+mkdir -p "$APPDIR/share/fonts/wps"
+for font in symbol.ttf wingding.ttf WINGDNG2.ttf WINGDNG3.ttf WEBDINGS.TTF mtextra.ttf; do
+  found="$(find "$SOURCE/wps-fonts" -type f -name "$font" -print -quit)"
+  [[ -n "$found" && -s "$found" ]] || { echo "缺少 WPS 符号字体：$font" >&2; exit 1; }
+  install -Dm0644 "$found" "$APPDIR/share/fonts/wps/$font"
+done
+for font in symbol.ttf wingding.ttf WINGDNG2.ttf WINGDNG3.ttf WEBDINGS.TTF mtextra.ttf; do
+  [[ -s "$APPDIR/share/fonts/wps/$font" ]] || { echo "符号字体没有进入 AppDir：$font" >&2; exit 1; }
+done
 
 # 保留 quick-sharun 已写入的环境，只追加 WPS 自己的库目录、工作目录和 Qt 插件。
 cat >> "$APPDIR/.env" <<'ENV'
