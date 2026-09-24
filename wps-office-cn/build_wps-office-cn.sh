@@ -41,7 +41,12 @@ install -Dm0644 /usr/share/applications/wps-office-wps.desktop "$SOURCE/wps-offi
 mapfile -t ICONS < <(find /usr/share/icons/hicolor -type f -path '*/apps/*wpsmain.png' | sort -V)
 (( ${#ICONS[@]} > 0 )) || { echo 'WPS 官方图标不存在。' >&2; exit 1; }
 install -Dm0644 "${ICONS[-1]}" "$SOURCE/wps-office-cn.png"
-sed -i -e 's|^Exec=.*|Exec=wps %F|' -e 's|^Icon=.*|Icon=wps-office-cn|' "$SOURCE/wps-office-cn.desktop"
+sed -i \
+  -e 's|^Exec=.*|Exec=wps %F|' \
+  -e 's|^Icon=.*|Icon=wps-office-cn|' \
+  -e '/^TryExec=/d' \
+  -e '/^DBusActivatable=/d' \
+  "$SOURCE/wps-office-cn.desktop"
 
 ###### 生成个人使用的 AppImage ######
 
@@ -87,6 +92,8 @@ for launcher in wps et wpp wpspdf; do
   # WPS 12 在英文系统上认 LANGUAGE，不认 LANG。
   sed -i '1a export LANGUAGE=zh_CN' "$APPDIR/bin/$launcher"
   grep -Fq 'export LANGUAGE=zh_CN' "$APPDIR/bin/$launcher" || { echo "未能写入界面语言：$launcher" >&2; exit 1; }
+  # mawk 会把 awk -F= 里的 -F= 当成文件名。改成 gawk 和 mawk 都能认的写法。
+  sed -i 's/awk -F=/awk -F "="/g' "$APPDIR/bin/$launcher"
 done
 
 ###### 补上 WPS 一直提示缺失的符号字体 ######

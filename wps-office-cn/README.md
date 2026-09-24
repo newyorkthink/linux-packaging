@@ -76,6 +76,13 @@ WPS 12 在英文系统上认启动脚本里的 `LANGUAGE=zh_CN`。四个入口�
 
 用户在本机运行 `wps.AppImage`。主页、文字、演示、个人中心都是中文。文字稿和幻灯片里都能打中文，候选栏在。账号页能打开。终端里的 `QObject` 槽警告、`IBUS-WARNING` 和 `UNICODEMAP_JP is cp932` 没有让窗口退出。这次核对结束。
 
+## 2026-09-24：Rofi 调不起，终端有一行 awk
+
+实机从终端运行 `wps.AppImage` 能打开。终端第一行是 `awk: cannot open "-F=" (No such file or directory)`。这是 mawk 把 `awk -F=` 当成文件名。四个官方入口改成 `awk -F "="`。
+
+Rofi 用的是桌面文件。原文件若有 `TryExec=wps` 或 `DBusActivatable=true`，系统里没有 `wps` 命令时 Rofi 不会启动，终端直接跑 AppImage 不受影响。这两行已从桌面文件去掉。已安装过的旧入口还在 `~/.local/share/applications/`，要删掉里面的 WPS 项，再用新的 `wps.AppImage` 从终端启动一次，让它重新登记。
+
+
 
 
 
