@@ -52,6 +52,11 @@ Actions Run `35978165252` 已经打出 AppImage。图形检查里解包到 100% 
 
 本仓库仍用 AUR `wps-office-cn` 的国内版，不用它的国际版来源、额外语言包和 pkg2appimage。AUR 配方把脚本里的 `/opt/kingsoft/wps-office` 换成了 `/usr/lib`。成品里改回 `AppDir/opt/kingsoft/wps-office/office6`。启动脚本在 `bin`，相对路径少一层，是 `../opt/kingsoft/wps-office`。quick-sharun 只收集依赖；随后用官方脚本盖住 `bin/wps`，让生成的 `AppRun.sh` 执行这个脚本。不隐藏标准错误。
 
+## 2026-09-24：补上 office6 的上级目录
+
+Actions Run `35980290938` 在 `cp` 退出：`AppDir/opt/kingsoft/wps-office/office6` 的上级目录不存在。复制前先创建 `opt/kingsoft/wps-office`。
+
+
 
 
 

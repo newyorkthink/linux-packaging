@@ -65,6 +65,7 @@ LD_LIBRARY_PATH="$OFFICE_SRC${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun 
 
 # quick-sharun 会把 AppDir/bin 里的程序换成自己的入口。office6 放在 bin 外面，并在这之后整目录复制。
 rm -rf -- "$OFFICE"
+mkdir -p -- "$(dirname -- "$OFFICE")"
 cp -a -- "$OFFICE_SRC" "$OFFICE"
 cmp -s "$OFFICE_SRC/wps" "$OFFICE/wps" || { echo 'office6/wps 没有原样进入成品。' >&2; exit 1; }
 
