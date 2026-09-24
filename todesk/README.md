@@ -22,10 +22,10 @@ ToDesk 采用 **Arch Linux + quick-sharun**，不使用 linuxdeploy，也不安�
 构建过程：
 
 1. 通过仓库统一 Arch 基础环境安装构建依赖。
-2. 浅克隆 AUR `todesk-bin` 元数据，并从当前 `.SRCINFO` 动态读取 `pkgver / pkgrel / source_x86_64 / sha256sums_x86_64 / depends`。
+2. 调用公共 AUR 来源入口浅克隆 `todesk-bin`，从当前 `.SRCINFO` 动态读取并校验 `pkgver / pkgrel / source_x86_64 / sha256sums_x86_64 / depends`。
 3. 按当前 `.SRCINFO` 安装 ToDesk 声明的 Arch 运行依赖，再补 Fcitx5 GTK3 中文输入模块、ToDesk 4.9.6.0 实际 ELF 所需的 XCB helper 运行库、公共 DEB 解包入口所需的 `dpkg` 和上游程序会调用的 `pulseaudio`；IBus 来自统一基础环境。
-4. 优先通过公共下载入口取得当前 AUR 指向的 ToDesk 官方 DEB，并在落盘前强制校验当前 AUR SHA-256。
-5. 如果官方 CDN 返回 HTML 或其他错误内容，不跳过校验、不降低版本；改查同一个官方 URL 的 Internet Archive 快照，只接受 SHA-256 与当前 AUR 完全一致的那一份。
+4. 通过公共已校验下载入口优先取得当前 AUR 指向的 ToDesk 官方 DEB，并在落盘前强制校验当前 AUR SHA-256。
+5. 如果官方 CDN 返回 HTML 或其他错误内容，公共下载入口不跳过校验、不降低版本；只查同一个官方 URL 的 Internet Archive 快照，且仅接受 SHA-256 与当前 AUR 完全一致的那一份。
 6. 通过仓库公共 DEB 解包入口解包已经校验通过的官方 DEB，完整复制其中 `/opt/todesk` 到 `AppDir/shared/bin/todesk/`，保持官方 `bin / res / config` 相对布局。
 7. 在同一次 `quick-sharun` 调用中收集 `ToDesk`、`ToDesk_Service`、`ToDesk_Session`、`CrashReport`、`/usr/bin/pulseaudio` 和 GTK3 IBus/Fcitx5 输入模块。
 8. 不自制 `AppRun`。使用 quick-sharun 默认入口按 AppImage/软链接文件名选择 `AppDir/bin/` 中的同名程序。
@@ -201,3 +201,11 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 产物：下载的 `todesk.AppImage` SHA-256 为 `bc77e0217c5db7054942e20594475f064c10b4ca5f2866c9ecc8e19046c6cda8`，与 Release 标注的校验值一致；包内已包含 `pulseaudio`。
 - 实机截图：GUI 能打开；`ToDesk_Service` 仍提示无法写入 `/var/log/todesk`，启动时仍有 `/tmp/service...` 连接失败、`Todesk_Printer` 和 FUSE 提示。截图未显示这些提示阻断 GUI。
 - 验证边界：此前核心远控实测针对旧产物；这份新产物尚无远程控制和远程音频实测结果。当前先记录提示，暂不据此修改打包脚本或宣称相关功能已验证。
+
+
+### 2026-09-24：AUR 来源与归档回退复用公共入口
+
+- 现象：`build_todesk.sh` 虽已调用公共单文件下载与 DEB 解包入口，仍自行克隆 AUR、解析 `.SRCINFO`、查询 Internet Archive 并遍历快照；来源选择和摘要回退逻辑没有在公共入口复用。这是代码职责重复，不是已确认的实机故障。
+- 修改：新增 `common/aur/resolve_deb_source.sh` 统一获取并解析 AUR 当前架构专用 DEB 来源、摘要和依赖；新增 `common/download/download_verified_with_wayback.sh` 复用既有 `download_file.sh`，只对同一官方 URL 的历史快照使用原 AUR SHA-256 严格校验。`build_todesk.sh` 保持原有安装、下载、解包顺序，改为单行调用上述两个入口；公共接口同步写入公共 README 和维护指南。
+- 提交前核对：三个涉及的 Bash 脚本通过 `bash -n`；仓库外临时样例已覆盖 AUR 元数据解析、官方直连、同 URL 归档回退、错误摘要拒绝和非 DEB 拒绝。ShellCheck 仅报告原脚本已有的两处 SC2155 和一处 SC2016；未进行新脚本的正式 Actions 构建或新产物实机运行。
+- 验证边界：本次仅复用下载流程，不据此宣称音频、打印、托盘或新产物远控功能已经通过实测。

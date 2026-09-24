@@ -20,13 +20,15 @@ readonly ARCH="$(uname -m)"
 readonly APPDIR="$SCRIPT_DIR/AppDir"
 readonly DIST="$SCRIPT_DIR/dist"
 readonly WORKDIR="$SCRIPT_DIR/.build"
-readonly AUR_DIR="$WORKDIR/todesk-bin"
+readonly AUR_METADATA="$WORKDIR/aur-source.env"
+readonly AUR_DEPENDENCIES_FILE="$WORKDIR/aur-dependencies.txt"
 readonly DEB_ROOT="$WORKDIR/deb-root"
 readonly DEB_FILE="$WORKDIR/todesk.deb"
 readonly SOURCE_ROOT="$DEB_ROOT/opt/todesk"
 readonly APP_ROOT="$APPDIR/shared/bin/todesk"
 readonly OUTFILE="$DIST/todesk.AppImage"
-readonly DOWNLOAD_FILE="$SCRIPT_DIR/../common/download/download_file.sh"
+readonly AUR_RESOLVER="$SCRIPT_DIR/../common/aur/resolve_deb_source.sh"
+readonly VERIFIED_DOWNLOAD="$SCRIPT_DIR/../common/download/download_verified_with_wayback.sh"
 
 ###### 准备 Arch Linux 构建环境 ######
 
@@ -38,48 +40,19 @@ readonly DOWNLOAD_FILE="$SCRIPT_DIR/../common/download/download_file.sh"
 rm -rf -- "$APPDIR" "$DIST" "$WORKDIR"
 mkdir -p "$DIST" "$WORKDIR"
 
-# AUR 元数据只用于确定当前稳定版本、官方 x86_64 DEB URL 与对应 SHA-256；不固定 Version / Tag / Commit。
-for attempt in 1 2 3; do
-    rm -rf -- "$AUR_DIR"
-    if git -c http.version=HTTP/1.1 clone --depth=1 \
-        https://aur.archlinux.org/todesk-bin.git \
-        "$AUR_DIR"; then
-        break
-    fi
-    [[ "$attempt" -lt 3 ]] || die "连续 3 次无法读取 AUR todesk-bin 元数据。"
-    sleep $((attempt * 2))
-done
-
-readonly SRCINFO="$AUR_DIR/.SRCINFO"
-[[ -f "$SRCINFO" ]] || die "AUR todesk-bin 缺少 .SRCINFO。"
-
-PACKAGE_VERSION="$(awk -F ' = ' '/^[[:space:]]*pkgver = / {print $2; exit}' "$SRCINFO")"
-PACKAGE_REL="$(awk -F ' = ' '/^[[:space:]]*pkgrel = / {print $2; exit}' "$SRCINFO")"
-SOURCE_URL="$(awk -F ' = ' '/^[[:space:]]*source_x86_64 = / {print $2; exit}' "$SRCINFO")"
-EXPECTED_SHA256="$(awk -F ' = ' '/^[[:space:]]*sha256sums_x86_64 = / {print $2; exit}' "$SRCINFO")"
-
-[[ -n "$PACKAGE_VERSION" ]] || die "无法从 AUR .SRCINFO 解析 ToDesk 版本。"
-[[ -n "$PACKAGE_REL" ]] || die "无法从 AUR .SRCINFO 解析 ToDesk pkgrel。"
-[[ -n "$SOURCE_URL" ]] || die "无法从 AUR .SRCINFO 解析 x86_64 官方来源。"
-[[ -n "$EXPECTED_SHA256" ]] || die "无法从 AUR .SRCINFO 解析 x86_64 SHA-256。"
-
-# .SRCINFO 允许 filename::URL 形式；下载时只使用真实 HTTPS URL。
-SOURCE_URL="${SOURCE_URL#*::}"
-[[ "$SOURCE_URL" == https://* ]] || die "AUR x86_64 来源不是 HTTPS：$SOURCE_URL"
-[[ "$EXPECTED_SHA256" =~ ^[[:xdigit:]]{64}$ ]] || die "AUR x86_64 SHA-256 无效：$EXPECTED_SHA256"
+# AUR 元数据只用于确定当前稳定版本、官方 x86_64 DEB URL、对应 SHA-256 和运行依赖。
+# 公共入口负责浅克隆、解析与校验；此处只加载其已规范化的结果，不固定 Version / Tag / Commit。
+"$AUR_RESOLVER" todesk-bin "$ARCH" "$WORKDIR" "$AUR_METADATA" "$AUR_DEPENDENCIES_FILE"
+# 元数据文件由上面的公共入口用 Bash %q 安全生成。
+# shellcheck disable=SC1090
+source "$AUR_METADATA"
 
 readonly SOFTWARE_VERSION="$PACKAGE_VERSION"
 readonly PACKAGE_BUILD_VERSION="$PACKAGE_VERSION-$PACKAGE_REL"
 
-# 按当前 AUR .SRCINFO 安装 ToDesk 声明的运行依赖；去掉版本比较符后交给 Arch 包管理器解析当前仓库版本。
+# 按当前 AUR .SRCINFO 安装声明的运行依赖；公共入口已去掉版本比较符并排序。
 # Fcitx5 GTK3 是本 AppImage 的中文输入补充；IBus 已包含在统一基础环境中。
-mapfile -t AUR_DEPENDENCIES < <(
-    awk -F ' = ' '/^[[:space:]]*depends(_x86_64)? = / {print $2}' "$SRCINFO" |
-        sed -E 's/[<>=].*$//' |
-        awk 'NF' |
-        sort -u
-)
-(( ${#AUR_DEPENDENCIES[@]} > 0 )) || die "AUR todesk-bin 没有解析到运行依赖。"
+mapfile -t AUR_DEPENDENCIES < "$AUR_DEPENDENCIES_FILE"
 
 # AUR 当前只声明 gtk3 / libappindicator-gtk3 / noto-fonts-cjk，但 ToDesk 4.9.6.0 的主 ELF 还直接需要一组 XCB helper ABI。
 # 2026-09-24 Actions 已实际报缺 libxcb-util.so.1 / libxcb-keysyms.so.1 / libxcb-icccm.so.4。
@@ -99,43 +72,9 @@ mapfile -t AUR_DEPENDENCIES < <(
 
 ###### 下载并校验 ToDesk 官方 DEB ######
 
-# 优先直接取 AUR 当前指向的 ToDesk 官方文件；公共下载入口会在落盘前强制校验 AUR SHA-256。
-if "$DOWNLOAD_FILE" "$SOURCE_URL" "$DEB_FILE" "$EXPECTED_SHA256"; then
-    log "已从 ToDesk 官方来源取得并校验 $PACKAGE_BUILD_VERSION。"
-else
-    # 2026-09-24 的正式 Actions 中，官方 URL 对 CI 返回 29181 字节 text/html，AUR 因 SHA-256 不匹配失败。
-    # 这里不跳过校验、不降级版本；仅从 Internet Archive 查找“同一个官方 URL”的历史响应，
-    # 并且仍要求内容与当前 AUR 的 SHA-256 完全一致，否则拒绝使用。
-    log "ToDesk 官方来源未返回 AUR 校验对应文件，尝试同一官方 URL 的 Internet Archive 快照。"
-    rm -f -- "$DEB_FILE"
-
-    SOURCE_URL_ENCODED="$(jq -rn --arg value "$SOURCE_URL" '$value|@uri')"
-    [[ -n "$SOURCE_URL_ENCODED" ]] || die "无法编码 ToDesk 官方 URL，不能查询 Internet Archive。"
-    CDX_URL="https://web.archive.org/cdx/search/cdx?url=${SOURCE_URL_ENCODED}&output=json&fl=timestamp,original,statuscode,mimetype,digest&filter=statuscode:200&limit=20&sort=reverse"
-    CDX_JSON="$WORKDIR/wayback-cdx.json"
-    "$DOWNLOAD_FILE" "$CDX_URL" "$CDX_JSON"
-
-    mapfile -t WAYBACK_TIMESTAMPS < <(jq -r '.[1:][]? | .[0] // empty' "$CDX_JSON")
-    (( ${#WAYBACK_TIMESTAMPS[@]} > 0 )) || die "Internet Archive 中没有找到当前 ToDesk 官方 URL 的可用快照。"
-
-    ARCHIVE_MATCHED=false
-    for timestamp in "${WAYBACK_TIMESTAMPS[@]}"; do
-        [[ "$timestamp" =~ ^[0-9]{14}$ ]] || continue
-        ARCHIVE_URL="https://web.archive.org/web/${timestamp}id_/${SOURCE_URL}"
-        if "$DOWNLOAD_FILE" "$ARCHIVE_URL" "$DEB_FILE" "$EXPECTED_SHA256"; then
-            ARCHIVE_MATCHED=true
-            log "已从 Internet Archive 取得与 AUR SHA-256 完全一致的 ToDesk 官方 DEB：$timestamp"
-            break
-        fi
-        rm -f -- "$DEB_FILE"
-    done
-
-    [[ "$ARCHIVE_MATCHED" == true ]] || die "Internet Archive 快照均未通过当前 AUR SHA-256 校验。"
-fi
-
-[[ -s "$DEB_FILE" ]] || die "ToDesk DEB 不存在或为空。"
-file "$DEB_FILE" | grep -qi 'Debian binary package' || die "下载内容不是有效的 Debian 软件包。"
-printf '%s  %s\n' "$EXPECTED_SHA256" "$DEB_FILE" | sha256sum -c - >/dev/null
+# 公共入口先尝试 AUR 当前官方 URL；失败时只接受同一 URL 且通过原 SHA-256 的归档快照。
+"$VERIFIED_DOWNLOAD" "$SOURCE_URL" "$DEB_FILE" "$EXPECTED_SHA256" --deb
+log "已取得并校验 ToDesk $PACKAGE_BUILD_VERSION 官方 DEB。"
 
 ###### 解包官方 DEB ######
 
