@@ -10,3 +10,8 @@
 
 WPS 启动时提示缺失的是符号字体，不是整套 Windows 字体。构建时从 [iykrichie/wps-office-19-missing-fonts-on-Linux](https://github.com/iykrichie/wps-office-19-missing-fonts-on-Linux) 只取这 6 个文件：`symbol.ttf`、`wingding.ttf`、`WINGDNG2.ttf`、`WINGDNG3.ttf`、`WEBDINGS.TTF`、`mtextra.ttf`。字体不提交进 Git。`20-wps-fonts.hook` 在启动时把它们加进字体搜索，并继续包含宿主的 `/etc/fonts/fonts.conf`。构建和桌面启动仍未验证。符号字体在第一次 `quick-sharun` 之后才复制进 `AppDir/share/fonts/wps`，封装前会再确认这 6 个文件都在。
 
+## 2026-09-24：中文输入改为 fcitx5 的 Qt 模块
+
+WPS 使用自带 Qt 的 xcb 平台插件，不是 GTK，也不使用 ibus。构建依赖里的 `ibus` 改为 `fcitx5-qt`。按成品里的 `libQt5Core` 或 `libQt6Core` 选择对应的 `libfcitx5platforminputcontextplugin.so`，放进 `office6/qt/plugins/platforminputcontexts/`，并交给同一次 `quick-sharun` 收集依赖。不设置 `QT_IM_MODULE`，继续用宿主会话里的输入法。
+
+

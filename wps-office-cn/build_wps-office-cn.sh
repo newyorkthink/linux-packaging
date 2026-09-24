@@ -19,7 +19,7 @@ OFFICE="$APPDIR/bin/office6"
 
 # 安装 quick-sharun 基础工具和 WPS 的常规图形、声音、打印依赖。
 "$ROOT/common/arch/install_packages.sh" --base
-"$ROOT/common/arch/install_packages.sh" fontconfig freetype2 libxrender libxext libx11 libxcb libxkbcommon libxkbcommon-x11 glu sdl2 libpulse libxss libxslt libjpeg-turbo desktop-file-utils shared-mime-info xdg-utils cups gtk3 nss ibus
+"$ROOT/common/arch/install_packages.sh" fontconfig freetype2 libxrender libxext libx11 libxcb libxkbcommon libxkbcommon-x11 glu sdl2 libpulse libxss libxslt libjpeg-turbo desktop-file-utils shared-mime-info xdg-utils cups gtk3 nss fcitx5-qt
 
 # AUR 配方动态解析金山国内官网当前正式包并安装原版简体中文界面。
 "$ROOT/common/arch/install_packages.sh" wps-office-cn wps-office-mui-zh-cn
@@ -32,6 +32,18 @@ mkdir -p "$APPDIR/bin"
 [[ -x /usr/lib/office6/wps ]] || { echo '未安装 wps-office-cn 主程序。' >&2; exit 1; }
 [[ -d /usr/lib/office6/mui/zh_CN ]] || { echo '未安装简体中文 MUI。' >&2; exit 1; }
 cp -a -- /usr/lib/office6 "$OFFICE"
+
+# WPS 用自带 Qt 的 xcb。中文输入走 fcitx5 的 Qt 模块，不用 ibus，也不改宿主的 QT_IM_MODULE。
+if [[ -n "$(find "$OFFICE" -name 'libQt5Core.so*' -print -quit)" ]]; then
+  FCITX_PLUGIN=/usr/lib/qt/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so
+elif [[ -n "$(find "$OFFICE" -name 'libQt6Core.so*' -print -quit)" ]]; then
+  FCITX_PLUGIN=/usr/lib/qt6/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so
+else
+  echo '未识别 WPS 自带的 Qt 版本，无法选择 fcitx5 输入模块。' >&2
+  exit 1
+fi
+[[ -s "$FCITX_PLUGIN" ]] || { echo "未找到 fcitx5 Qt 输入模块：$FCITX_PLUGIN" >&2; exit 1; }
+install -Dm0755 "$FCITX_PLUGIN" "$OFFICE/qt/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so"
 
 # 官方启动脚本会优先寻找自身旁边的 office6；按原路径关系保留所有入口。
 for launcher in wps et wpp wpspdf; do
@@ -54,7 +66,10 @@ VERSION="${PACKAGE_VERSION%-*}"
 export ARCH=x86_64 VERSION APPNAME='WPS Office CN' MAIN_BIN=wps
 export ICON="$SOURCE/wps-office-cn.png" DESKTOP="$SOURCE/wps-office-cn.desktop"
 export OUTPATH="$DIST" OUTNAME=wps-office-cn.AppImage NO_STRIP=1
-LD_LIBRARY_PATH="$OFFICE${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun "$OFFICE/wps" "$OFFICE/et" "$OFFICE/wpp" "$OFFICE/wpspdf" "$OFFICE/qt/plugins/platforms/libqxcb.so"
+LD_LIBRARY_PATH="$OFFICE${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun \
+  "$OFFICE/wps" "$OFFICE/et" "$OFFICE/wpp" "$OFFICE/wpspdf" \
+  "$OFFICE/qt/plugins/platforms/libqxcb.so" \
+  "$OFFICE/qt/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so"
 
 ###### 补上 WPS 一直提示缺失的符号字体 ######
 
