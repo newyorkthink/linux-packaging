@@ -68,6 +68,7 @@ rm -rf -- "$OFFICE"
 mkdir -p -- "$(dirname -- "$OFFICE")"
 cp -a -- "$OFFICE_SRC" "$OFFICE"
 cmp -s "$OFFICE_SRC/wps" "$OFFICE/wps" || { echo 'office6/wps 没有原样进入成品。' >&2; exit 1; }
+[[ -d "$OFFICE/mui/zh_CN" ]] || { echo '成品缺少简体中文界面。' >&2; exit 1; }
 
 # 官方脚本把安装目录写死，并把程序输出丢掉。改到包内 office6，失败信息留在终端。
 for launcher in wps et wpp wpspdf; do
@@ -101,14 +102,24 @@ for font in symbol.ttf wingding.ttf WINGDNG2.ttf WINGDNG3.ttf WEBDINGS.TTF mtext
   [[ -s "$APPDIR/share/fonts/wps/$font" ]] || { echo "符号字体没有进入 AppDir：$font" >&2; exit 1; }
 done
 
-# 保留 quick-sharun 已写入的环境，只追加 WPS 自己的库目录、工作目录和 Qt 插件。
+# 保留 quick-sharun 已写入的环境。界面语言不跟宿主的英文会话。
 cat >> "$APPDIR/.env" <<'ENV'
 SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/opt/kingsoft/wps-office/office6:${SHARUN_EXTRA_LIBRARY_PATH}
 SHARUN_WORKING_DIR=${SHARUN_DIR}/opt/kingsoft/wps-office/office6
 SHARUN_ALLOW_QT_PLUGIN_PATH=1
 QT_PLUGIN_PATH=${SHARUN_DIR}/opt/kingsoft/wps-office/office6/qt/plugins
 QT_QPA_PLATFORM_PLUGIN_PATH=${SHARUN_DIR}/opt/kingsoft/wps-office/office6/qt/plugins/platforms
+LANG=zh_CN.UTF-8
+LC_ALL=zh_CN.UTF-8
+LOCPATH=${SHARUN_DIR}/usr/lib/locale
 ENV
+
+# 宿主会话是英文时，WPS 会显示英文菜单。包内自带简体中文 locale，不改宿主语言。
+localedef --prefix "$APPDIR" --no-archive -i zh_CN -f UTF-8 zh_CN.UTF-8
+[[ -d "$APPDIR/usr/lib/locale/zh_CN.utf8" || -d "$APPDIR/usr/lib/locale/zh_CN.UTF-8" ]] || {
+  echo '简体中文 locale 没有进入成品。' >&2
+  exit 1
+}
 
 # 启动时把包内符号字体加进字体搜索，同时继续使用宿主字体配置。
 # hook 被 AppRun source。失败只跳过字体配置，不能 exit，否则会直接结束 WPS。

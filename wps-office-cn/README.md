@@ -56,6 +56,13 @@ Actions Run `35978165252` 已经打出 AppImage。图形检查里解包到 100% 
 
 Actions Run `35981343485` 在改写 `wps` 后退出，提示未能改写安装目录。官方脚本是 `if/else`，`gInstallPath=/usr/lib` 行首有空白，上一版只匹配行首的 `gInstallPath=`。现连同缩进行一起替换。同时去掉 `> /dev/null 2>&1`，这个写法中间有空格，上一版没有匹配到。
 
+## 2026-09-24：实机能打开，界面仍是英文
+
+用户运行 `wps.AppImage` 后窗口留下，文档里打进了中文，候选栏也在。菜单是 File、Home、Insert，不是中文。终端会话语言是 `en`，WPS 跟着宿主显示英文。
+
+现确认成品里有 `mui/zh_CN`，并在 `.env` 里固定 `LANG=zh_CN.UTF-8` 和 `LC_ALL=zh_CN.UTF-8`。用 `localedef` 把简体中文 locale 放进 `usr/lib/locale`，`LOCPATH` 指向这里，不改宿主语言。中文菜单是否出现，以下一次实机为准。
+
+
 
 ## 2026-09-24：补上 office6 的上级目录
 
