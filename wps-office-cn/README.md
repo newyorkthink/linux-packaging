@@ -62,6 +62,11 @@ Actions Run `35981343485` 在改写 `wps` 后退出，提示未能改写安装�
 
 现确认成品里有 `mui/zh_CN`，并在 `.env` 里固定 `LANG=zh_CN.UTF-8` 和 `LC_ALL=zh_CN.UTF-8`。用 `localedef` 把简体中文 locale 放进 `usr/lib/locale`，`LOCPATH` 指向这里，不改宿主语言。中文菜单是否出现，以下一次实机为准。
 
+## 2026-09-24：locale 输出目录要先建
+
+Actions Run `35985805447` 里 `localedef` 退出码 4：`cannot write output files to zh_CN.UTF-8: No such file or directory`。`usr/lib/locale` 还不存在。现先建这个目录再生成 locale。
+
+
 
 
 ## 2026-09-24：补上 office6 的上级目录

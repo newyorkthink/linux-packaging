@@ -115,7 +115,8 @@ LOCPATH=${SHARUN_DIR}/usr/lib/locale
 ENV
 
 # 宿主会话是英文时，WPS 会显示英文菜单。包内自带简体中文 locale，不改宿主语言。
-localedef --prefix "$APPDIR" --no-archive -i zh_CN -f UTF-8 zh_CN.UTF-8
+mkdir -p -- "$APPDIR/usr/lib/locale"
+localedef --prefix "$APPDIR" --no-archive -c -i zh_CN -f UTF-8 zh_CN.UTF-8
 [[ -d "$APPDIR/usr/lib/locale/zh_CN.utf8" || -d "$APPDIR/usr/lib/locale/zh_CN.UTF-8" ]] || {
   echo '简体中文 locale 没有进入成品。' >&2
   exit 1
