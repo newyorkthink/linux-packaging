@@ -72,6 +72,11 @@ Actions Run `35985805447` 里 `localedef` 退出码 4：`cannot write output fil
 
 WPS 12 在英文系统上认启动脚本里的 `LANGUAGE=zh_CN`。四个入口都写上这个变量。`15-wps-language.hook` 只把 `~/.config/Kingsoft/Office.conf` 的 `languages` 设为 `zh_CN`、`UILanguage` 设为 `2052`，不删除已有配置。中文菜单是否出现，以下一次实机为准。
 
+## 2026-09-24：实机核对结束
+
+用户在本机运行 `wps.AppImage`。主页、文字、演示、个人中心都是中文。文字稿和幻灯片里都能打中文，候选栏在。账号页能打开。终端里的 `QObject` 槽警告、`IBUS-WARNING` 和 `UNICODEMAP_JP is cp932` 没有让窗口退出。这次核对结束。
+
+
 
 
 
