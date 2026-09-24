@@ -84,6 +84,9 @@ for launcher in wps et wpp wpspdf; do
     -e "s|^[[:space:]]*gInstallPath=.*|gInstallPath=\"\$(CDPATH= cd -- \"\$(dirname -- \"\$0\")/$office_rel\" \\&\\& pwd)\"|" \
     "$APPDIR/bin/$launcher"
   grep -Fq "$office_rel" "$APPDIR/bin/$launcher" || { echo "未能改写安装目录：$launcher" >&2; exit 1; }
+  # WPS 12 在英文系统上认 LANGUAGE，不认 LANG。
+  sed -i '1a export LANGUAGE=zh_CN' "$APPDIR/bin/$launcher"
+  grep -Fq 'export LANGUAGE=zh_CN' "$APPDIR/bin/$launcher" || { echo "未能写入界面语言：$launcher" >&2; exit 1; }
 done
 
 ###### 补上 WPS 一直提示缺失的符号字体 ######
@@ -102,25 +105,15 @@ for font in symbol.ttf wingding.ttf WINGDNG2.ttf WINGDNG3.ttf WEBDINGS.TTF mtext
   [[ -s "$APPDIR/share/fonts/wps/$font" ]] || { echo "符号字体没有进入 AppDir：$font" >&2; exit 1; }
 done
 
-# 保留 quick-sharun 已写入的环境。界面语言不跟宿主的英文会话。
+# 保留 quick-sharun 已写入的环境。界面语言用 LANGUAGE，不改宿主 LANG，也不设 LOCPATH。
 cat >> "$APPDIR/.env" <<'ENV'
 SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/opt/kingsoft/wps-office/office6:${SHARUN_EXTRA_LIBRARY_PATH}
 SHARUN_WORKING_DIR=${SHARUN_DIR}/opt/kingsoft/wps-office/office6
 SHARUN_ALLOW_QT_PLUGIN_PATH=1
 QT_PLUGIN_PATH=${SHARUN_DIR}/opt/kingsoft/wps-office/office6/qt/plugins
 QT_QPA_PLATFORM_PLUGIN_PATH=${SHARUN_DIR}/opt/kingsoft/wps-office/office6/qt/plugins/platforms
-LANG=zh_CN.UTF-8
-LC_ALL=zh_CN.UTF-8
-LOCPATH=${SHARUN_DIR}/usr/lib/locale
+LANGUAGE=zh_CN
 ENV
-
-# 宿主会话是英文时，WPS 会显示英文菜单。包内自带简体中文 locale，不改宿主语言。
-mkdir -p -- "$APPDIR/usr/lib/locale"
-localedef --prefix "$APPDIR" --no-archive -c -i zh_CN -f UTF-8 zh_CN.UTF-8
-[[ -d "$APPDIR/usr/lib/locale/zh_CN.utf8" || -d "$APPDIR/usr/lib/locale/zh_CN.UTF-8" ]] || {
-  echo '简体中文 locale 没有进入成品。' >&2
-  exit 1
-}
 
 # 启动时把包内符号字体加进字体搜索，同时继续使用宿主字体配置。
 # hook 被 AppRun source。失败只跳过字体配置，不能 exit，否则会直接结束 WPS。
@@ -136,6 +129,30 @@ if mkdir -p "${_conf%/*}" 2>/dev/null && cat > "$_conf" <<EOF
 EOF
 then
   export FONTCONFIG_FILE="$_conf"
+fi
+HOOK
+
+# 已经打开过的配置可能记住英文。只改语言项，不覆盖最近文件和其他设置。
+cat > "$APPDIR/bin/15-wps-language.hook" <<'HOOK'
+export LANGUAGE=zh_CN
+_conf="${XDG_CONFIG_HOME:-$HOME/.config}/Kingsoft/Office.conf"
+mkdir -p "${_conf%/*}" 2>/dev/null || true
+if [ ! -f "$_conf" ]; then
+  cat > "$_conf" <<'EOF'
+[General]
+languages=zh_CN
+
+[6.0]
+common\DefaultLanguage=2052
+common\Local\UILanguage=2052
+EOF
+else
+  grep -q '^languages=' "$_conf" \
+    && sed -i 's/^languages=.*/languages=zh_CN/' "$_conf" \
+    || printf '\n[General]\nlanguages=zh_CN\n' >> "$_conf"
+  grep -q '\\UILanguage=' "$_conf" \
+    && sed -i 's/\\UILanguage=.*/\\UILanguage=2052/' "$_conf" \
+    || printf '[6.0]\ncommon\\DefaultLanguage=2052\ncommon\\Local\\UILanguage=2052\n' >> "$_conf"
 fi
 HOOK
 

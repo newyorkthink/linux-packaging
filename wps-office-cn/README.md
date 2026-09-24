@@ -66,6 +66,13 @@ Actions Run `35981343485` 在改写 `wps` 后退出，提示未能改写安装�
 
 Actions Run `35985805447` 里 `localedef` 退出码 4：`cannot write output files to zh_CN.UTF-8: No such file or directory`。`usr/lib/locale` 还不存在。现先建这个目录再生成 locale。
 
+## 2026-09-24：界面仍是英文，改用 LANGUAGE
+
+10:34 UTC 的 `wps.AppImage` 在实机上仍是英文主页：New file、Recent、Documents。文档名是中文，菜单不是。之前备注过国内版要中文界面。`LANG`、`LC_ALL` 和 `LOCPATH` 没有切换 WPS 12 的界面，`LOCPATH` 还会挡住宿主自己的语言，这三项已去掉。
+
+WPS 12 在英文系统上认启动脚本里的 `LANGUAGE=zh_CN`。四个入口都写上这个变量。`15-wps-language.hook` 只把 `~/.config/Kingsoft/Office.conf` 的 `languages` 设为 `zh_CN`、`UILanguage` 设为 `2052`，不删除已有配置。中文菜单是否出现，以下一次实机为准。
+
+
 
 
 
