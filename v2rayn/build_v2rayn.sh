@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# 只在当前项目目录内准备构建目录，避免清理命令误删其他路径。
+# 当前项目目录与产物路径。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 APPDIR="$SCRIPT_DIR/AppDir"
@@ -9,111 +9,50 @@ DIST_DIR="$SCRIPT_DIR/dist"
 SOURCE_DIR="$SCRIPT_DIR/source"
 VERIFY_DIR="$SCRIPT_DIR/verify"
 WORK_DIR="$SCRIPT_DIR/work"
-ARCHIVE="$WORK_DIR/v2rayN-linux-64.zip"
-RELEASE_JSON="$WORK_DIR/release.json"
+ARCHIVE="$WORK_DIR/v2rayN-linux-64.deb"
 
 fail() {
   echo "v2rayN build error: $*" >&2
   exit 1
 }
 
-clean_project_dir() {
-  local target="$1"
-  case "$target" in
-    "$SCRIPT_DIR"/*) rm -rf -- "$target" ;;
-    *) fail "refusing to remove path outside project: $target" ;;
-  esac
-}
-
-# 官方资产与打包目标均为 x86_64；构建前先拒绝其他架构。
-[[ "$(uname -m)" == "x86_64" ]] || fail "only x86_64 is supported"
-
+# 只清理本项目的构建目录；AppDir 留给 quick-sharun 创建。
+"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" \
+  "$SCRIPT_DIR" --skip-create AppDir dist source verify work
 cd "$SCRIPT_DIR"
-for target in "$APPDIR" "$DIST_DIR" "$SOURCE_DIR" "$VERIFY_DIR" "$WORK_DIR"; do
-  clean_project_dir "$target"
-done
-mkdir -p "$DIST_DIR" "$SOURCE_DIR" "$VERIFY_DIR" "$WORK_DIR"
 
 # 安装官方自包含 Avalonia 程序所需的构建与运行库，以及短时图形启动检查所需的虚拟显示组件。
 # 统一基础包必须等图形检查结束后再安装，避免改变依赖收集和启动环境。
-yay -S --noconfirm --needed \
-  bash curl jq unzip file patchelf coreutils desktop-file-utils xdg-utils \
+"$SCRIPT_DIR/../common/arch/install_packages.sh" \
+  bash curl jq dpkg file patchelf coreutils desktop-file-utils xdg-utils \
   glibc gcc-libs zlib fontconfig freetype2 \
   libx11 libxext libxrender libxrandr libxi libxcb libxfixes libxinerama \
   libxcomposite libxcursor libxdamage libxkbcommon dbus \
   xorg-server-xvfb xorg-xauth
 
-# 读取官方最新稳定 Release，取得版本、资产地址和官方 SHA-256。
-curl --fail --silent --show-error --location \
-  --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 120 \
-  https://api.github.com/repos/2dust/v2rayN/releases/latest \
-  -o "$RELEASE_JSON"
-
-TAG="$(jq -er 'select(.draft == false and .prerelease == false) | .tag_name' "$RELEASE_JSON")"
-# 只接受稳定版标签和指定的 Linux x64 资产，不固定目标应用版本。
-[[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+)*$ ]] || fail "unexpected stable release tag: $TAG"
-VERSION="${TAG#v}"
-ASSET_NAME="v2rayN-linux-64.zip"
-ASSET_URL="$(jq -er --arg name "$ASSET_NAME" '.assets[] | select(.name == $name) | .browser_download_url' "$RELEASE_JSON")"
-ASSET_ID="$(jq -er --arg name "$ASSET_NAME" '.assets[] | select(.name == $name) | .id' "$RELEASE_JSON")"
-ASSET_DIGEST="$(jq -er --arg name "$ASSET_NAME" '.assets[] | select(.name == $name) | .digest' "$RELEASE_JSON")"
-
-case "$ASSET_URL" in
-  https://github.com/2dust/v2rayN/releases/download/*/v2rayN-linux-64.zip) ;;
-  *) fail "unexpected release asset URL: $ASSET_URL" ;;
-esac
-[[ "$ASSET_DIGEST" =~ ^sha256:[0-9a-fA-F]{64}$ ]] || fail "missing or invalid GitHub release SHA-256 digest"
-
-# 优先下载官方资产直链；遇到直链 403 等失败时，使用同一资产 ID 和 GH_TOKEN 回退。
-if ! curl --fail --show-error --location \
-  --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 900 \
-  "$ASSET_URL" -o "$ARCHIVE"; then
-  rm -f "$ARCHIVE"
-  [[ -n "${GH_TOKEN:-}" ]] || fail "official release asset download failed and GH_TOKEN is unavailable"
-  curl --fail --show-error --location \
-    --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 900 \
-    -H 'Accept: application/octet-stream' \
-    -H "Authorization: Bearer $GH_TOKEN" \
-    -H 'X-GitHub-Api-Version: 2022-11-28' \
-    "https://api.github.com/repos/2dust/v2rayN/releases/assets/$ASSET_ID" \
-    -o "$ARCHIVE"
-fi
-
-# 下载完成后必须核对官方摘要，不能把损坏或不匹配的归档用于打包。
-EXPECTED_SHA256="${ASSET_DIGEST#sha256:}"
-ACTUAL_SHA256="$(sha256sum "$ARCHIVE" | cut -d' ' -f1)"
-[[ "${ACTUAL_SHA256,,}" == "${EXPECTED_SHA256,,}" ]] || fail "release archive SHA-256 mismatch"
-printf 'v2rayN version: %s\nsource sha256: %s\n' "$VERSION" "$ACTUAL_SHA256"
-
-# 解压官方自包含包，定位真实的 x86_64 图形程序及相邻运行目录。
-unzip -q "$ARCHIVE" -d "$SOURCE_DIR"
-MAIN_SOURCE="$(find "$SOURCE_DIR" -type f -name 'v2rayN' -print -quit)"
+# 固定名称的官方 DEB 提供程序、desktop 和图标；公共入口核对版本、SHA-256 与包身份。
+VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_named_asset.sh" \
+  2dust/v2rayN v2rayN-linux-64.deb "$ARCHIVE" v2rayn amd64)"
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$ARCHIVE" "$SOURCE_DIR"
+APP_ROOT="$SOURCE_DIR/opt/v2rayN"
+MAIN_SOURCE="$APP_ROOT/v2rayN"
 [[ -n "$MAIN_SOURCE" && -f "$MAIN_SOURCE" ]] || fail "v2rayN executable not found in official archive"
 chmod +x "$MAIN_SOURCE"
-APP_ROOT="$(dirname -- "$MAIN_SOURCE")"
 MAIN_FILE_INFO="$(file -Lb "$MAIN_SOURCE")"
 [[ "$MAIN_FILE_INFO" == *"ELF 64-bit"* && "$MAIN_FILE_INFO" == *"x86-64"* ]] || fail "unexpected v2rayN executable type: $MAIN_FILE_INFO"
 [[ -d "$APP_ROOT/bin" ]] || fail "official runtime bin directory is missing"
-ICON_SOURCE="$APP_ROOT/v2rayN.png"
-[[ -s "$ICON_SOURCE" ]] || fail "official v2rayN.png icon is missing"
+PACKAGING_ICON="$SOURCE_DIR/usr/share/icons/hicolor/256x256/apps/v2rayn.png"
+[[ -s "$PACKAGING_ICON" ]] || fail "official DEB icon is missing"
 
-# 统一为 desktop 中的 Icon=v2rayn，避免大小写不一致导致菜单图标丢失。
-PACKAGING_ICON="$WORK_DIR/v2rayn.png"
-cp -a "$ICON_SOURCE" "$PACKAGING_ICON"
-
-# 写入 AppImage 的桌面入口；版本与本次官方 Release 保持一致。
+# 沿用上游 desktop；只把 DEB 专用启动器改为 AppImage 真实入口，并写入版本和窗口类。
 DESKTOP_FILE="$WORK_DIR/v2rayn.desktop"
-cat > "$DESKTOP_FILE" <<'DESKTOP'
-[Desktop Entry]
-Type=Application
-Name=v2rayN
-Comment=v2rayN for Linux
-Exec=v2rayN
-Icon=v2rayn
-Terminal=false
-Categories=Network;
-StartupWMClass=v2rayN
-DESKTOP
+[[ -s "$SOURCE_DIR/usr/share/applications/v2rayn.desktop" ]] || fail "official DEB desktop is missing"
+cp -a "$SOURCE_DIR/usr/share/applications/v2rayn.desktop" "$DESKTOP_FILE"
+grep -Fxq 'Exec=v2rayn' "$DESKTOP_FILE" || fail "unexpected official DEB desktop entry"
+sed -i 's/^Exec=v2rayn$/Exec=v2rayN/' "$DESKTOP_FILE"
+if ! grep -q '^StartupWMClass=' "$DESKTOP_FILE"; then
+  printf 'StartupWMClass=v2rayN\n' >> "$DESKTOP_FILE"
+fi
 printf 'X-AppImage-Version=%s\n' "$VERSION" >> "$DESKTOP_FILE"
 desktop-file-validate "$DESKTOP_FILE"
 
@@ -146,7 +85,7 @@ mkdir -p "$APPDIR/bin" "$APPDIR/shared/bin"
 cp -an "$APP_ROOT"/. "$APPDIR/bin"/
 cp -an "$APP_ROOT"/. "$APPDIR/shared/bin"/
 
-# 官方 Debian 启动器先进入 /opt/v2rayN；在 AppImage 中保持同等工作目录和 PATH。
+# 官方 DEB 启动器先进入 /opt/v2rayN；AppImage 保持同等工作目录和 PATH。
 touch "$APPDIR/.env"
 if ! grep -Fxq 'SHARUN_WORKING_DIR=${SHARUN_DIR}/bin' "$APPDIR/.env"; then
   printf '%s\n' 'SHARUN_WORKING_DIR=${SHARUN_DIR}/bin' >> "$APPDIR/.env"

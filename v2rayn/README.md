@@ -2,11 +2,11 @@
 
 ## 用途与产物
 
-本目录从 v2rayN 官方 GitHub 最新稳定 Release 下载 Linux x64 自包含包，并重新封装为 `v2rayn.AppImage`。
+本目录从 v2rayN 官方 GitHub 最新稳定 Release 下载 Linux x64 DEB，并重新封装为 `v2rayn.AppImage`。
 
 ## 技术栈与打包方式
 
-v2rayN Linux 客户端使用 .NET/Avalonia。构建脚本校验官方 Release SHA-256，保留自包含运行目录，通过 quick-sharun 处理 ELF 和桌面集成。
+v2rayN Linux 客户端使用 .NET/Avalonia。构建脚本校验官方 Release SHA-256，保留 DEB 内的自包含运行目录，复用 DEB 的 desktop 和图标，通过 quick-sharun 处理 ELF 和桌面集成。
 
 ## 版本元数据
 
@@ -45,3 +45,9 @@ v2rayN Linux 客户端使用 .NET/Avalonia。构建脚本校验官方 Release SH
 - 构建脚本的流程注释改为中文，移除最终 AppImage 再解包、逐项核对 AppRun、desktop、图标和程序目录的重复检查；仍保留官方资产 SHA-256、架构与入口判断、desktop 校验和最终产物非空判断。
 - 只有本应用显式调用 `common/gui/check_appimage_gui.sh`；保留原有 20 秒上限、`timeout → dbus-run-session → xvfb-run` 顺序、退出码 `124` 及既有致命日志特征，不检查窗口标题。通过后仍先安装统一基础包，再由 `common/build/finish_appimage_build.sh` 写入 `dist/version.txt` 并输出原成功提示。
 - 官方 Release 直链失败时使用同一资产 ID 与 `GH_TOKEN` 回退的逻辑，以及官方 SHA-256 校验均未改变。本次只完成静态检查，构建、图形启动及实机结果尚未验证。
+
+### 2026-09-24：复用官方 DEB 桌面资源与公共构建入口
+
+- 本次改从最新稳定 Release 的 `v2rayN-linux-64.deb` 解包。该包自带 `/opt/v2rayN` 程序、`v2rayn.desktop` 和 hicolor 图标；复制上游 desktop 后只将 `Exec=v2rayn` 改为 AppImage 内的真实入口 `Exec=v2rayN`，并补上窗口类与本次版本。此前手写 desktop 的实现由此替代。
+- `common/github/download_latest_stable_named_asset.sh` 统一选择固定资产名、验证官方 SHA-256 和 DEB 包名及 amd64 架构；直链失败仍按同一资产 ID 使用认证 API 回退。`common/archive/extract_archive.sh` 解包 DEB，`common/arch/install_packages.sh` 安装应用依赖，`common/build/prepare_x86_64_workspace.sh` 限定架构并清理本项目目录。
+- 保留原先的 ELF 收集、相邻文件布局、20 秒可选图形检查及其后安装统一基础包的顺序。此次仅做静态检查；DEB 重新封装、图形启动及实机结果尚未验证。上面关于 ZIP 下载和手写 desktop 的旧记录描述的是当时实现，现由本节替代。
