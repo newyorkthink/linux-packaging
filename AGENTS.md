@@ -167,6 +167,7 @@ Plan 的选择规则：
 - 禁止选择性执行、删减、调换或自行解释上述步骤；尤其不得把核心启动逻辑移到 `AppDir/usr/bin/<程序名>` 后让根 `AppRun` 只做转发，不得发布 linuxdeploy 中间 AppImage，也不得省略最终 appimagetool + Type 2 runtime 封装。
 - 判断 `AppDir/usr/bin/<程序名>` 是否属于应用真实入口时，必须追溯上游 DEB、归档或源码安装结果的原始文件布局，不能只看当前构建脚本最终造出了什么文件。构建脚本自己通过 `cat > "$APPDIR/usr/bin/<程序名>"`、复制、拼接或其他方式生成的转发 wrapper，不属于“上游真实提供的 launcher”，不得作为保留根 `AppRun` 二次转发结构的依据。
 - `linuxdeploy_projects.md` 中关于 Qt `QMAKE`、GTK `DEPLOY_GTK_VERSION`、插件选择、额外 `-l`、工具动态下载、中文说明、检查边界和正式资产位置的规则必须全部按当前应用真实情况执行，不得只挑方便的部分。
+- 所有 Qt linuxdeploy 项目禁止设置 `EXTRA_QT_MODULES` 手工指定模块，包括 `core` 和 `gui`；必须由 Qt 插件从 AppDir 中真实部署的 Qt 库自动识别。上游 Qt 库只在 `/opt` 而无法识别时，按当前应用实际库路径通过允许的精确 `-l` 收集必要库，再检查 Qt 插件的真实产物和兼容性；禁止用手工指定模块掩盖扫描失败。
 - 如果目标项目现有脚本、README、workflow 或历史做法与 `linuxdeploy_projects.md` 冲突，处理该 linuxdeploy 项目时必须以本永久规则和 `linuxdeploy_projects.md` 为准完成最小必要修正；不得引用“旧实现已经这样写”继续保留冲突。
 - 后续修改 linuxdeploy 总体规范时，必须同步保持本文件与 `linuxdeploy_projects.md` 的强制关系和语义一致；不得删除链接、弱化为“可参考”，或把遵守范围缩小到新项目。
 

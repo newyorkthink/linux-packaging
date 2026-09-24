@@ -258,6 +258,8 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 
 Qt 运行库、qmake、plugins、输入上下文和 QML 必须保持同一主版本。能够唯一、正确自动识别 qmake 时可以不设置 `QMAKE`；否则必须使用 `command -v qmake6` 或 `command -v qmake` 核实真实路径。
 
+所有 Qt 项目禁止设置 `EXTRA_QT_MODULES` 手工指定模块（包括 `core`、`gui`）。Qt 插件必须从 AppDir 中实际部署的 Qt 库自动识别模块；上游 Qt 库仅位于 `/opt` 导致无法识别时，只能按当前应用实际路径以精确的 `-l` 收集必要 Qt 库，并核对插件生成目录及 Qt 运行库兼容性，不能通过手工指定模块绕过扫描失败。
+
 动态加载库确实无法自动发现时，只能逐个使用 `-l` 精确补入。用户已经验证的 GTK NSS 命令原样保留：
 
 ```bash

@@ -65,3 +65,7 @@ Kali Linux i3wm 实机截图显示，最新成品启动时不再报告 `zh_CN.UT
 ## 2026-09-24：修正 Qt 主题目录误判为插件目录
 
 上条记录只确认路径存在，误称 `QT_PLUGIN_PATH` 中的目录用途全部匹配。解包成品可见 `usr/plugins` 不存在，真正的 Qt 插件位于 `opt/wemeet/plugins`，其中 `platforms/libqxcb.so` 等是实际插件；`opt/wemeet/bin/themes/dark/styles` 与 `themes/default/styles` 仅包含 JSON 主题文件，不是 Qt 插件。公共路径整理脚本先前只凭目录名 `styles` 就把两个主题根目录追加到 `QT_PLUGIN_PATH`；本次要求候选分类目录内实际存在 `.so`，同时过滤已有 export 与新发现的路径。腾讯会议已不调用该公共整理脚本，其根 AppRun 直接移除两个误入的主题目录，仅保留 `opt/wemeet/plugins`，已验证的其他入口、音视频依赖和语言设置不变。最终封装仍通过 `package_appimage.sh` 调用 appimagetool；新成品及 Kali 实机结果待确认。
+
+## 2026-09-24：让 Qt 插件自动识别模块并部署 usr/plugins
+
+上一轮 `EXTRA_QT_MODULES=core` 绕过了 Qt 插件未扫描到模块的错误，却只部署 core 资源，成品没有 `usr/plugins`。官方 DEB 的 QtGui 位于 `opt/wemeet/lib`，linuxdeploy Qt 插件只检查 AppDir 的 `usr/lib`；本次删除手工指定模块，通过第二次 linuxdeploy 的精确 `-l "$APP_ROOT/lib/libQt5Gui.so.5"` 收集官方同版 QtGui，由插件自动识别 Qt 模块并部署 `usr/plugins`。根 AppRun 在官方 `opt/wemeet/plugins` 后追加 `usr/plugins`，平台插件路径也保留官方优先并追加 `usr/plugins/platforms`。官方 Qt 库和插件仍优先使用；原有音视频、中文、启动入口和最终 appimagetool 封装保持不变。新构建和 Kali 实机尚未验证，需从实际成品核对新增插件的文件、Qt 版本及依赖。

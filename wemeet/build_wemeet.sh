@@ -95,9 +95,6 @@ export QMAKE="$QT5_BIN_DIR/qmake"
 export LD_LIBRARY_PATH="$APP_ROOT/lib:/opt/wemeet/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export NO_STRIP=1
 
-# 官方 Qt 库位于 /opt，Qt 插件不会把它们计入标准 usr/lib 扫描；显式声明最小模块以运行官方插件和 hook。
-export EXTRA_QT_MODULES=core
-
 # 应用文件进入 AppDir 后，在第二次 linuxdeploy 前写入完整根 AppRun。
 # Qt 插件若生成 hook，会自动把本入口保存为 AppRun.wrapped。
 cat > "$APPDIR/AppRun" <<'EOF_APPRUN'
@@ -127,19 +124,19 @@ else
   export LANGUAGE=zh_CN:zh
 fi
 
-# 保留官方时区、私有库和 Qt 插件环境；路径按已确认的 Release 成品固化。
+# 保留官方时区、私有库和 Qt 插件环境；优先使用官方插件，同时包含 linuxdeploy 部署的插件。
 export TZ=Asia/Shanghai
 export PATH="$HERE/opt/wemeet/bin:$HERE/usr/bin:$HERE/opt/wemeet${PATH:+:$PATH}"
 export LD_LIBRARY_PATH="$HERE/opt/wemeet/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
-export QT_PLUGIN_PATH="$HERE/opt/wemeet/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
-export QT_QPA_PLATFORM_PLUGIN_PATH="$HERE/opt/wemeet/plugins/platforms${QT_QPA_PLATFORM_PLUGIN_PATH:+:$QT_QPA_PLATFORM_PLUGIN_PATH}"
+export QT_PLUGIN_PATH="$HERE/opt/wemeet/plugins:$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
+export QT_QPA_PLATFORM_PLUGIN_PATH="$HERE/opt/wemeet/plugins/platforms:$HERE/usr/plugins/platforms${QT_QPA_PLATFORM_PLUGIN_PATH:+:$QT_QPA_PLATFORM_PLUGIN_PATH}"
 
 exec "$HERE/opt/wemeet/bin/wemeetapp" "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/AppRun"
 
-# 第二次 linuxdeploy 显式补入 /opt 主程序的 X11、PulseAudio 依赖及其私有库。
+# 第二次 linuxdeploy 补入 /opt 主程序依赖和官方 QtGui，使 Qt 插件从 usr/lib 自动识别模块。
 export ARCH=x86_64; linuxdeploy \
   --appdir AppDir \
   --desktop-file "$DESKTOP_FILE" \
@@ -147,6 +144,7 @@ export ARCH=x86_64; linuxdeploy \
   -l "$XTST_LIB" \
   -l "$PULSE_LIB" \
   -l "${PULSE_COMMON_LIB[0]}" \
+  -l "$APP_ROOT/lib/libQt5Gui.so.5" \
   --plugin qt \
   --output appimage
 
