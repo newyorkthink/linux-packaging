@@ -115,6 +115,5 @@ HOOK
 
 quick-sharun --make-appimage
 
-# 只在本机成品生成成功后保存实际版本，不把商业软件二进制加入 Git。
 "$ROOT/common/build/save_appimage_version.sh" \
   "$DIST/wps-office-cn.AppImage" "$VERSION" "$DIST/version.txt"
