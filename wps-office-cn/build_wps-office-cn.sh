@@ -114,7 +114,8 @@ _wps_fix_env() {\
   export QT_QPA_PLATFORM_PLUGIN_PATH="$_root/opt/kingsoft/wps-office/office6/qt/plugins/platforms"\
   unset _clean _oldifs _dir _root\
 }' "$APPDIR/bin/$launcher"
-  sed -i 's|\${gInstallPath}/office6/\${gApp}|_wps_fix_env; ${gInstallPath}/office6/${gApp}|g' "$APPDIR/bin/$launcher"
+  # 只加在真正启动的那一行。存在性检查里的同一段路径不能改，否则会误报 wpsoffice 不存在。
+  sed -i '/\[/! s|\${gInstallPath}/office6/\${gApp}|_wps_fix_env; ${gInstallPath}/office6/${gApp}|g' "$APPDIR/bin/$launcher"
   grep -Fq 'export LANGUAGE=zh_CN' "$APPDIR/bin/$launcher" || { echo "未能写入界面语言：$launcher" >&2; exit 1; }
   grep -Fq '_wps_fix_env; ${gInstallPath}/office6/${gApp}' "$APPDIR/bin/$launcher" || { echo "未能在启动前修正库路径：$launcher" >&2; exit 1; }
   grep -Fq 'unset GIO_LAUNCHED_DESKTOP_FILE' "$APPDIR/bin/$launcher" || { echo "未能去掉桌面启动标记：$launcher" >&2; exit 1; }
