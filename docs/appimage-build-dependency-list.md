@@ -190,6 +190,8 @@ Arch 列逐项对应上面的 95 包；Ubuntu 列为功能对应包名，不表�
 
 这些是**选包目录**，不是让 AI 把整行追加进所有脚本。已安装的软件包不一定被 quick-sharun 或 linuxdeploy 自动带入最终 AppImage；`dlopen` 库、Qt / GTK 输入模块、GIO / GStreamer 插件和资源目录必须以应用实际加载方式及现有产物证据单独核对。不要为补一个缺失库复制整套 `/usr/lib`，也不要把用户主机的包当作 CI 构建依赖。
 
+**PulseAudio 缺库核对：** 仅在应用真实依赖 `libpulse.so.0` 时，由该应用脚本安装构建环境的 Arch `libpulse` 或 Ubuntu `libpulse0`，并检查最终 AppImage 是否实际包含 `libpulse.so.0`、同包的 `libpulsecommon-*.so` 及所需的间接依赖。程序位于 `/opt` 或经 `dlopen` 加载时，工具可能没有自动发现这些库；按该应用的实际 ELF 依赖显式部署，并核对最终成品，不能只在已安装 `libpulse` 的构建机上运行 `ldd` 就认定跨发行版可用。此项不加入统一基础包，也不批量改动其他应用。
+
 ## 应用专用缺包处理与当前构建入口
 
 以后基础包统一以本文件和 `common/arch/install_packages.sh`、`common/apt/install_packages.sh` 为准。个别应用缺包、与某包不兼容或仅该应用需要特殊功能时，只在该应用的 `build_*.sh` 增补或处理，并在同目录 README 写明原因；不得因此修改统一基础包。既有脚本若未调用公共安装入口，不能仅凭本文件声称它已安装这套基础包。

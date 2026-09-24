@@ -22,7 +22,7 @@ OFFICIAL='https://meeting.tencent.com/web-service/query-download-info?q=%5B%7B%2
   libqt5svg5 qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 \
   fcitx5-frontend-qt5 libfcitx5-qt1 \
   libnss3 libx11-6 libpulse0 libgcrypt20 libdbus-1-3 libsystemd0 libudev1 \
-  libxtst6 \
+  libxtst6 locales \
   libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
   libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
 
@@ -30,6 +30,8 @@ OFFICIAL='https://meeting.tencent.com/web-service/query-download-info?q=%5B%7B%2
 QT5_BIN_DIR=/usr/lib/qt5/bin
 MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
 XTST_LIB="/usr/lib/$MULTIARCH/libXtst.so.6"
+PULSE_LIB="/usr/lib/$MULTIARCH/libpulse.so.0"
+PULSE_COMMON_LIB=("/usr/lib/$MULTIARCH/pulseaudio/"libpulsecommon-*.so)
 
 ###### 下载打包工具 ######
 
@@ -78,6 +80,10 @@ sed -i \
   -e 's|^Icon=.*|Icon=wemeet|' \
   "$DESKTOP_FILE"
 
+# 中文 locale 随成品提供，避免依赖宿主机是否生成 zh_CN.UTF-8。
+mkdir -p "$APPDIR/usr/lib/locale"
+localedef --no-archive -i zh_CN -f UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
+
 ###### 核心打包 ######
 
 # 公共入口配置 linuxdeploy 通用环境；Qt5 工具和腾讯会议私有库仅在当前项目追加。
@@ -113,6 +119,7 @@ if [[ "${XDG_SESSION_TYPE:-}" == wayland ]]; then
 fi
 
 # 保留官方语言、时区、私有库和 Qt 插件环境，并加入 linuxdeploy 三个基础目录。
+export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
 export LC_ALL=zh_CN.UTF-8
 export TZ=Asia/Shanghai
 export PATH="$HERE/opt/wemeet/bin:$HERE/usr/bin${PATH:+:$PATH}"
@@ -125,12 +132,14 @@ exec "$HERE/opt/wemeet/bin/wemeetapp" "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/AppRun"
 
-# 第二次 linuxdeploy 使用 Qt5 插件扫描官方程序与资源，并保留中间 AppImage 供流程内部使用。
+# 第二次 linuxdeploy 显式补入 /opt 主程序的 X11、PulseAudio 依赖及其私有库。
 export ARCH=x86_64; linuxdeploy \
   --appdir AppDir \
   --desktop-file "$DESKTOP_FILE" \
   --icon-file "$ICON_FILE" \
   -l "$XTST_LIB" \
+  -l "$PULSE_LIB" \
+  -l "${PULSE_COMMON_LIB[0]}" \
   --plugin qt \
   --output appimage
 
