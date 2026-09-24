@@ -137,6 +137,15 @@ quick-sharun "$APP_ROOT/Discord" \
   /usr/lib/libasound.so* \
   /usr/lib/libwayland-client.so*
 
+# Krisp 会校验 Discord 主程序本身；恢复 quick-sharun 路径扫描前的官方原始文件。
+cp -a -- "$HOST_DIR/files/Discord" "$APP_ROOT/Discord"
+
+# 主程序必须与已校验的官方 full.distro 逐字节一致，禁止发布被路径替换改写的文件。
+cmp -s "$HOST_DIR/files/Discord" "$APP_ROOT/Discord" || {
+  echo '恢复后的 Discord 主程序与官方完整包不一致。' >&2
+  exit 1
+}
+
 ###### 配置 Discord 模块和运行环境 ######
 
 # 把官方模块作为只读模板带入包内，启动时再同步到当前用户可写配置目录。

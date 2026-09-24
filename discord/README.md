@@ -41,3 +41,11 @@ Actions 运行 35846090462 已生成 `discord.AppImage`，但上传 `latest` 时
 完整 Discord 程序不再放入 quick-sharun 的 launcher 目录 `AppDir/bin`，改为保留在 `AppDir/shared/bin`；运行时通过 `.env` 设置相邻库搜索路径和工作目录，并在 `AppDir/bin` 建立 Electron 查找 ICU、PAK、locales 与 resources 所需的包内软链接。主程序和模块的 `.distro` 不再由应用脚本直接执行 `brotli | tar`，统一交给公共归档入口解包，再按官方 `files/` 布局分别整理到程序目录和模块目录。
 
 官方 desktop、图标、stable manifest、SHA-256 校验、清单与包内版本一致性检查、可写模块部署 hook、GTK3 中文输入模块和中文 locale 均保持原有逻辑；中文环境按仓库规范补齐 `LC_MESSAGES=zh_CN.UTF-8`。构建脚本同时增加中文分段注释，明确每个下载、校验、整理和封装阶段的用途。此次已完成脚本静态检查；公共 `.distro` 实际解包、AppImage 构建和桌面运行结果仍以下一次 Actions 与实机反馈为准。
+
+## 2026-09-24：修复 Krisp 主程序完整性校验
+
+Linux 实机运行 `1.0.159` 新成品，Discord 主窗口、联网、贴纸与应用搜索均正常，中文候选能够显示并正常上屏；启动日志显示 host 已是最新版本且官方模块没有可用更新。日志同时明确报告 `Failed to setup Krisp module, error code: -3`，因此此前成品不能认定 Krisp 麦克风降噪功能正常。
+
+解包已发布的 `discord.AppImage`，并与同一 stable manifest 对应的官方主程序和 `discord_krisp` 完整包逐字节比较：包内 `discord_krisp.node` 与官方模块完全一致，且保留调试信息、没有被 strip；包内 `Discord` 主程序则被 quick-sharun 的硬编码路径处理改写了 174 个字节，把文件内的 `/usr/lib`、`/usr/share` 路径替换成运行时 `/tmp` 映射。Krisp 会校验 Discord 主程序本身，因此即使 Krisp 模块未被改动，仍会因主程序不是官方原始字节而拒绝初始化。
+
+构建脚本继续让 quick-sharun 使用真实主程序收集依赖并生成官方入口；依赖收集完成后，再从已通过官方 SHA-256 与包内版本检查的 `full.distro` 恢复原始 `Discord` 文件，并用 `cmp` 强制确认 AppDir 中的主程序与官方来源逐字节一致。模块部署、中文环境、输入法、desktop、图标和 quick-sharun 入口均不改变。Krisp 实际恢复结果以下一次新成品实机语音设置验证为准。
