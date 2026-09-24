@@ -36,6 +36,11 @@ Actions Run `35974681502` 在 `quick-sharun` 退出：放进成品的 `libfcitx5
 
 官方 `/usr/bin/wps` 一类脚本把 `gInstallPath` 写死，并用 `>/dev/null 2>&1` 丢掉报错。现把安装目录改成启动脚本所在目录，使旁边的 `office6` 能被找到，并去掉这层丢弃。`PATH_MAPPING` 再把程序内部的 `/usr/lib/office6` 指到包内的 `bin/office6`。实机是否能打开窗口，以下一次成品为准。
 
+## 2026-09-24：构建时检查会不会马上退出
+
+用户要求下次构建就能知道会不会启动。仓库里已有公共入口 `common/gui/check_appimage_gui.sh`，WPS 在生成 `wps.AppImage` 后调用它：虚拟显示里运行 20 秒，进程提前退出即构建失败，并保留 `source/gui-smoke/smoke.log`。不新写第二套冒烟测试。空窗口标题只表示进程还活着，不表示实机窗口、中文输入或文档功能正常。
+
+
 
 
 

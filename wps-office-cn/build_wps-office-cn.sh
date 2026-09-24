@@ -19,7 +19,7 @@ OFFICE="$APPDIR/bin/office6"
 
 # 安装 quick-sharun 基础工具和 WPS 的常规图形、声音、打印依赖。
 "$ROOT/common/arch/install_packages.sh" --base
-"$ROOT/common/arch/install_packages.sh" fontconfig freetype2 libxrender libxext libx11 libxcb libxkbcommon libxkbcommon-x11 glu sdl2 libpulse libxss libxslt libjpeg-turbo desktop-file-utils shared-mime-info xdg-utils cups gtk3 nss
+"$ROOT/common/arch/install_packages.sh" fontconfig freetype2 libxrender libxext libx11 libxcb libxkbcommon libxkbcommon-x11 glu sdl2 libpulse libxss libxslt libjpeg-turbo desktop-file-utils shared-mime-info xdg-utils cups gtk3 nss xorg-server-xvfb xorg-xauth
 
 # AUR 配方动态解析金山国内官网当前正式包并安装原版简体中文界面。
 "$ROOT/common/arch/install_packages.sh" wps-office-cn wps-office-mui-zh-cn
@@ -119,6 +119,13 @@ fi
 HOOK
 
 quick-sharun --make-appimage
+
+# 公共图形检查：进程要撑过 20 秒。提前退出就是这次这种打一行就回到提示符。
+chmod 0755 "$DIST/wps.AppImage"
+"$ROOT/common/gui/check_appimage_gui.sh" \
+  "$DIST/wps.AppImage" 20 "$SOURCE/gui-smoke" timeout-dbus-xvfb timeout-only \
+  'error while loading shared libraries|cannot open shared object file|symbol lookup error|Could not load the Qt platform plugin|Segmentation fault|core dumped|does not exist' \
+  ''
 
 "$ROOT/common/build/save_appimage_version.sh" \
   "$DIST/wps.AppImage" "$VERSION" "$DIST/version.txt"
