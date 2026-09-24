@@ -56,9 +56,3 @@ Linux 实机运行入口迁移后的 `tradingview.AppImage`，程序能够启动
 Linux 实机重新登录。浏览器打开 `tradingview://browser-auth/?token=...`，并提示使用 TradingView 打开该链接。确认后程序进入已登录界面，图表加载到 `cn.tradingview.com/chart/`。中间仍会先到系统默认浏览器再点一次打开，这不表示回调失败。本次确认登录回调可以回到程序；交易和观点发布仍未在本次范围内验证。
 
 另一台虚拟机同样完成登录并加载图表。交易和观点发布仍未验证。
-
-## 2026-09-23 自根目录原样迁入
-
-以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
-
-- `bluemail` / `tradingview`：2026-09-23 实机反馈中文无法输入；旧产物缺 IBus/Fcitx5 GTK3 模块，构建脚本已补模块包。新产物中文输入仍待实机确认，详见 [BlueMail](../bluemail/README.md) 和 [TradingView](../tradingview/README.md)。
