@@ -103,120 +103,17 @@ else
 fi
 HOOK
 
-# 启动时注册 OAuth 回调协议。包内 desktop 不会进入宿主 applications 目录；
-# Kali/XFCE 的 xdg-mime 也经常不能设置自定义协议，所以直接写 mimeapps.list。
-cat > "$APPDIR/bin/20-bluemail-protocol.hook" <<'HOOK'
-# 把当前 AppImage 注册为 me.blueone.linux 的处理程序。
-# AppRun 会在 set -e 下 source 本文件：不得修改 "$@"，失败也不得阻止启动。
-export CHROME_DESKTOP="${CHROME_DESKTOP:-bluemail.desktop}"
-(
-	set +e
-	[ -n "$APPIMAGE" ] || exit 0
-	[ -n "$HOME" ] || exit 0
-	case $APPIMAGE in
-		*[[:cntrl:]]*) exit 0 ;;
-	esac
-	if command -v readlink >/dev/null 2>&1; then
-		_abs=$(readlink -f "$APPIMAGE" 2>/dev/null) || _abs=""
-		if [ -n "$_abs" ]; then
-			APPIMAGE=$_abs
-		fi
-	fi
-	[ -f "$APPIMAGE" ] || exit 0
-
-	data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}
-	config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
-	app_dir=$data_home/applications
-	desktop=$app_dir/bluemail.desktop
-	mimeapps=$config_home/mimeapps.list
-	scheme=x-scheme-handler/me.blueone.linux
-	mkdir -p "$app_dir" "$config_home" "$data_home/icons/hicolor/256x256/apps" || exit 0
-
-	icon_line="Icon=bluemail"
-	for _icon in \
-		"${APPDIR:-}/bluemail.png" \
-		"${APPDIR:-}/.DirIcon"
-	do
-		if [ -f "$_icon" ]; then
-			_icon_dst=$data_home/icons/hicolor/256x256/apps/bluemail.png
-			if [ ! -f "$_icon_dst" ] || ! cmp -s "$_icon" "$_icon_dst"; then
-				cp -f "$_icon" "$_icon_dst" 2>/dev/null || icon_line="Icon=bluemail"
-			fi
-			break
-		fi
-	done
-
-	exec_escaped=$(printf '%s' "$APPIMAGE" | sed 's/\\/\\\\/g; s/"/\\"/g; s/%/%%/g') || exit 0
-	tmp=$desktop.tmp.$$
-	{
-		printf '%s\n' \
-			'[Desktop Entry]' \
-			'Version=1.0' \
-			'Type=Application' \
-			'Name=BlueMail' \
-			'Comment=BlueMail email client'
-		printf 'Exec="%s" %%U\n' "$exec_escaped"
-		printf '%s\n' \
-			"$icon_line" \
-			'Terminal=false' \
-			'StartupWMClass=BlueMail' \
-			'Categories=Office;Network;Email;' \
-			"MimeType=${scheme};x-scheme-handler/mailto;"
-	} >"$tmp" || {
-		rm -f "$tmp"
-		exit 0
-	}
-	if [ -f "$desktop" ] && cmp -s "$tmp" "$desktop"; then
-		rm -f "$tmp"
-	else
-		mv -f "$tmp" "$desktop" || rm -f "$tmp"
-	fi
-
-	line="${scheme}=bluemail.desktop"
-	if [ -f "$mimeapps" ]; then
-		tmpm=$mimeapps.tmp.$$
-		awk -v line="$line" -v key="${scheme}=" '
-			BEGIN { in_def=0; seen_def=0; done=0 }
-			/^\[Default Applications\][[:space:]]*$/ {
-				print
-				in_def=1
-				seen_def=1
-				next
-			}
-			/^\[/ {
-				if (in_def && !done) { print line; done=1 }
-				in_def=0
-				print
-				next
-			}
-				in_def && index($0, key)==1 {
-				if (!done) { print line; done=1 }
-				next
-			}
-			{ print }
-			END {
-				if (!seen_def) {
-					print ""
-					print "[Default Applications]"
-					print line
-				} else if (!done) {
-					print line
-				}
-			}
-		' "$mimeapps" >"$tmpm" && mv -f "$tmpm" "$mimeapps" || rm -f "$tmpm"
-	else
-		printf '%s\n' '[Default Applications]' "$line" >"$mimeapps" || exit 0
-	fi
-
-	if command -v update-desktop-database >/dev/null 2>&1; then
-		update-desktop-database "$app_dir" >/dev/null 2>&1
-	fi
-	if command -v xdg-mime >/dev/null 2>&1; then
-		xdg-mime default bluemail.desktop "$scheme" >/dev/null 2>&1
-	fi
-	exit 0
-) || true
-HOOK
+# 启动时注册 OAuth 回调协议。直接运行 AppImage 时包内 desktop 不会进入宿主。
+bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
+  --output "$APPDIR/bin/20-bluemail-protocol.hook" \
+  --desktop-file bluemail.desktop \
+  --name BlueMail \
+  --comment "BlueMail email client" \
+  --icon bluemail \
+  --wm-class BlueMail \
+  --categories "Office;Network;Email;" \
+  --scheme me.blueone.linux \
+  --mime-extra x-scheme-handler/mailto
 
 # Electron 从包装器所在目录寻找 ICU、PAK、locales 和 resources；用包内链接保留原文件。
 for item in "$APP_ROOT"/*; do

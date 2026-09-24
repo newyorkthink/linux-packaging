@@ -38,6 +38,12 @@ VERSION="$("$SCRIPT_DIR/../common/snap/download_stable_snap.sh" \
 cp -a -- "$APP_ROOT/meta/gui/tradingview.desktop" "$SOURCE_DIR/tradingview.desktop"
 cp -a -- "$APP_ROOT/meta/gui/icon.png" "$SOURCE_DIR/tradingview.png"
 sed -i 's|^Icon=.*|Icon=tradingview|' "$SOURCE_DIR/tradingview.desktop"
+sed -i 's|^Exec=.*|Exec=tradingview %U|' "$SOURCE_DIR/tradingview.desktop"
+if grep -q '^MimeType=' "$SOURCE_DIR/tradingview.desktop"; then
+  sed -i 's|^MimeType=.*|MimeType=x-scheme-handler/tradingview;|' "$SOURCE_DIR/tradingview.desktop"
+else
+  printf '%s\n' 'MimeType=x-scheme-handler/tradingview;' >> "$SOURCE_DIR/tradingview.desktop"
+fi
 
 # 仅移除 Snap 宿主运行时目录，保留程序自己的 Electron 和原生模块。
 rm -rf -- "${APP_ROOT:?}/data-dir" "${APP_ROOT:?}/gnome-platform" \
@@ -77,6 +83,17 @@ ENV
 cat > "$APPDIR/bin/90-tradingview-arguments.hook" <<'HOOK'
 set -- --no-sandbox "$@"
 HOOK
+
+# 启动时注册 tradingview://。包内 desktop 不会进入宿主 applications 目录。
+bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
+  --output "$APPDIR/bin/20-tradingview-protocol.hook" \
+  --desktop-file tradingview.desktop \
+  --name TradingView \
+  --comment "TradingView Desktop" \
+  --icon tradingview \
+  --wm-class TradingView \
+  --categories "Finance;Office;" \
+  --scheme tradingview
 
 # Electron 从包装器所在目录寻找 ICU、PAK、locales 和 resources；用包内链接保留原文件。
 for item in "$APP_ROOT"/*; do

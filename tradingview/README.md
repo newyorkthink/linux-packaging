@@ -45,6 +45,11 @@ Build TradingView（run `35844883809`）已生成 AppImage，日志也显示两�
 
 Linux 实机运行入口迁移后的 `tradingview.AppImage`，程序能够启动并进入 `cn.tradingview.com/chart/`，图表、自选列表和指标正常加载；观点编辑框与商品代码搜索框能够显示 IBus/Fcitx5 中文候选并正常上屏，视频观点预览界面也能够打开。运行日志显示 Electron 从挂载目录的 `bin/resources` 加载应用资源并成功恢复图表布局，证明 quick-sharun 生成入口、`.env` 运行环境和包内资源链接能够共同保持官方 Snap 的相对资源布局。本次确认未覆盖账号重新登录、真实交易或观点实际发布，不把这些功能写成已验证。
 
+
+## 2026-09-24：注册 tradingview:// 登录回调
+
+登录会打开系统默认网页浏览器。官方 desktop 使用 `tradingview://`，`Exec` 必须带 `%U` 才能把回调交回程序。直接运行 AppImage 时，包内 desktop 不会进入宿主的 `applications` 目录。构建脚本现将入口规范为 `Exec=tradingview %U`，并用 `common/desktop/write_scheme_hook.sh` 在启动时把当前 AppImage 注册为 `x-scheme-handler/tradingview` 的处理程序。登录回调是否回到程序尚待实机确认。
+
 ## 2026-09-23 自根目录原样迁入
 
 以下原文来自当时根目录 `README.md` 的「当前待处理」，未改写。
