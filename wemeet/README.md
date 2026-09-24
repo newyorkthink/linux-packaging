@@ -55,3 +55,9 @@ Linux 实机运行当前 Release 的 `wemeet.AppImage` 时，仅打印 `wemeet:W
 ## 2026-09-24：保留实机功能并消除中文 locale 启动警告
 
 新 Release 在 Kali Linux i3wm 实机已确认能启动、显示中文、进入会议，摄像头、扬声器、麦克风、聊天及屏幕共享均正常；但 `AppRun.wrapped` 设置 `LC_ALL=zh_CN.UTF-8` 时仍报告宿主无法读取该 locale。打包成功只说明构建机生成了 locale，不能据此断言不同 glibc 的宿主也能加载。本次只调整腾讯会议的根 AppRun：先通过宿主 `locale charmap` 核对 AppImage 内的 locale；可用时继续设置 `LC_ALL=zh_CN.UTF-8`，不可用时改用 `LC_ALL=C.UTF-8` 并用 Qt5 支持的 `LANGUAGE=zh_CN:zh` 保留中文界面语言。已验证的音视频依赖、Qt 打包和启动入口保持原样；新的 AppImage 仍待 Kali 实机确认警告是否消失、中文及会议功能是否保持正常。
+
+## 2026-09-24：实机确认后固化 AppRun 路径
+
+Kali Linux i3wm 实机截图显示，最新成品启动时不再报告 `zh_CN.UTF-8` 警告，中文界面正常，麦克风测试有输入；该截图没有重新覆盖会议内的全部功能。下载当前 Release 的 `wemeet.AppImage`（SHA-256：`83ccc726b22be4d8b527fa0269ca168b659e4ab5271c32ca0a6dea32d3048e38`）并解包核对：顶层 `AppRun` 加载官方 Qt hook 后执行 `AppRun.wrapped`；其中 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、`QT_PLUGIN_PATH` 和 `QT_QPA_PLATFORM_PLUGIN_PATH` 指向的目录均实际存在，Qt 插件目录用途匹配，主程序使用成品库路径检查没有缺失依赖。
+
+已将这五条路径型 `export` 按成品原样固化到构建脚本生成的根 `AppRun`，并移除该项目的 `normalize_apprun_paths.sh` 临时调用；公共整理脚本不改。新构建仍需确认成品及 Kali 实机结果。

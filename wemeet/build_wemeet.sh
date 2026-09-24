@@ -127,13 +127,13 @@ else
   export LANGUAGE=zh_CN:zh
 fi
 
-# 保留官方时区、私有库和 Qt 插件环境，并加入 linuxdeploy 三个基础目录。
+# 保留官方时区、私有库和 Qt 插件环境；路径按已确认的 Release 成品固化。
 export TZ=Asia/Shanghai
-export PATH="$HERE/opt/wemeet/bin:$HERE/usr/bin${PATH:+:$PATH}"
+export PATH="$HERE/opt/wemeet/bin:$HERE/usr/bin:$HERE/opt/wemeet${PATH:+:$PATH}"
 export LD_LIBRARY_PATH="$HERE/opt/wemeet/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
-export QT_PLUGIN_PATH="$HERE/opt/wemeet/plugins:$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
-export QT_QPA_PLATFORM_PLUGIN_PATH="$HERE/opt/wemeet/plugins/platforms:$HERE/usr/plugins/platforms${QT_QPA_PLATFORM_PLUGIN_PATH:+:$QT_QPA_PLATFORM_PLUGIN_PATH}"
+export QT_PLUGIN_PATH="$HERE/opt/wemeet/plugins:$HERE/opt/wemeet/bin/themes/dark:$HERE/opt/wemeet/bin/themes/default${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
+export QT_QPA_PLATFORM_PLUGIN_PATH="$HERE/opt/wemeet/plugins/platforms${QT_QPA_PLATFORM_PLUGIN_PATH:+:$QT_QPA_PLATFORM_PLUGIN_PATH}"
 
 exec "$HERE/opt/wemeet/bin/wemeetapp" "$@"
 EOF_APPRUN
@@ -151,9 +151,6 @@ export ARCH=x86_64; linuxdeploy \
   --output appimage
 
 ###### 整理产物 ######
-
-# 首次 linuxdeploy 成品尚未实机确认，按最终 AppDir 整理入口中已经声明的路径型变量。
-"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
 
 # 忽略 linuxdeploy 中间产物，由 appimagetool 和官方 Type 2 runtime 封装唯一正式资产。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
