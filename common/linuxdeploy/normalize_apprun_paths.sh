@@ -123,7 +123,10 @@ is_semantic_dir() {
 
     QT_PLUGIN_PATH)
       for child in platforms platforminputcontexts imageformats xcbglintegrations platformthemes styles sqldrivers; do
-        [[ -d "$dir/$child" ]] && return 0
+        if [[ -d "$dir/$child" ]] &&
+          [[ -n "$(find "$dir/$child" -maxdepth 1 \( -type f -o -type l \) -name '*.so' -print -quit 2>/dev/null)" ]]; then
+          return 0
+        fi
       done
       return 1
       ;;
@@ -221,6 +224,7 @@ add_discovered_dirs() {
       while IFS= read -r dir; do
         parent="${dir%/*}"
         rel="${parent#"$APPDIR"/}"
+        is_semantic_dir "$var" "$rel" || continue
         add_rel_dir "$rel"
       done < <(
         find "$APPDIR" -mindepth 2 -maxdepth 8 -type d \

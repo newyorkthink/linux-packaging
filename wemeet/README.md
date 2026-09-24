@@ -61,3 +61,7 @@ Linux 实机运行当前 Release 的 `wemeet.AppImage` 时，仅打印 `wemeet:W
 Kali Linux i3wm 实机截图显示，最新成品启动时不再报告 `zh_CN.UTF-8` 警告，中文界面正常，麦克风测试有输入；该截图没有重新覆盖会议内的全部功能。下载当前 Release 的 `wemeet.AppImage`（SHA-256：`83ccc726b22be4d8b527fa0269ca168b659e4ab5271c32ca0a6dea32d3048e38`）并解包核对：顶层 `AppRun` 加载官方 Qt hook 后执行 `AppRun.wrapped`；其中 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、`QT_PLUGIN_PATH` 和 `QT_QPA_PLATFORM_PLUGIN_PATH` 指向的目录均实际存在，Qt 插件目录用途匹配，主程序使用成品库路径检查没有缺失依赖。
 
 已将这五条路径型 `export` 按成品原样固化到构建脚本生成的根 `AppRun`，并移除该项目的 `normalize_apprun_paths.sh` 临时调用；公共整理脚本不改。新构建仍需确认成品及 Kali 实机结果。
+
+## 2026-09-24：修正 Qt 主题目录误判为插件目录
+
+上条记录只确认路径存在，误称 `QT_PLUGIN_PATH` 中的目录用途全部匹配。解包成品可见 `usr/plugins` 不存在，真正的 Qt 插件位于 `opt/wemeet/plugins`，其中 `platforms/libqxcb.so` 等是实际插件；`opt/wemeet/bin/themes/dark/styles` 与 `themes/default/styles` 仅包含 JSON 主题文件，不是 Qt 插件。公共路径整理脚本先前只凭目录名 `styles` 就把两个主题根目录追加到 `QT_PLUGIN_PATH`；本次要求候选分类目录内实际存在 `.so`，同时过滤已有 export 与新发现的路径。腾讯会议已不调用该公共整理脚本，其根 AppRun 直接移除两个误入的主题目录，仅保留 `opt/wemeet/plugins`，已验证的其他入口、音视频依赖和语言设置不变。最终封装仍通过 `package_appimage.sh` 调用 appimagetool；新成品及 Kali 实机结果待确认。

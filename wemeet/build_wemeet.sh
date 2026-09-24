@@ -132,7 +132,7 @@ export TZ=Asia/Shanghai
 export PATH="$HERE/opt/wemeet/bin:$HERE/usr/bin:$HERE/opt/wemeet${PATH:+:$PATH}"
 export LD_LIBRARY_PATH="$HERE/opt/wemeet/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
-export QT_PLUGIN_PATH="$HERE/opt/wemeet/plugins:$HERE/opt/wemeet/bin/themes/dark:$HERE/opt/wemeet/bin/themes/default${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
+export QT_PLUGIN_PATH="$HERE/opt/wemeet/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
 export QT_QPA_PLATFORM_PLUGIN_PATH="$HERE/opt/wemeet/plugins/platforms${QT_QPA_PLATFORM_PLUGIN_PATH:+:$QT_QPA_PLATFORM_PLUGIN_PATH}"
 
 exec "$HERE/opt/wemeet/bin/wemeetapp" "$@"
