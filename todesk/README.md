@@ -5,12 +5,13 @@
 本目录把 ToDesk Linux x86_64 客户端重新封装为单一 AppImage。
 
 - 上游程序：ToDesk 官方 Linux 客户端。
-- 软件包来源：AUR `todesk-bin`；AUR 当前从 ToDesk 官方 `dl.todesk.com` 下载 x86_64 DEB。
+- 版本与校验元数据：AUR `todesk-bin` 的当前 `.SRCINFO`。
+- 程序文件：优先从 `.SRCINFO` 当前指向的 ToDesk 官方 HTTPS x86_64 DEB 获取；如果官方 CDN 返回的内容无法通过 AUR SHA-256，则只允许从 Internet Archive 取得同一个官方 URL 的历史响应，并继续要求 SHA-256 完全一致。
 - 构建环境：Arch Linux AnyLinux 容器。
 - 打包工具：`quick-sharun`。
 - 最终产物：`dist/todesk.AppImage`。
 - Release 资产名：`todesk.AppImage`。
-- 构建版本不写死；每次从本次实际安装的 `todesk-bin` 读取，并在成功生成 AppImage 后写入 `dist/version.txt`。
+- 构建版本、官方 URL、pkgrel 和 SHA-256 都从本次 AUR `.SRCINFO` 动态读取，不写死 Version / Tag / Commit；成功生成 AppImage 后把软件版本写入 `dist/version.txt`。
 
 AUR 当前包保留 ToDesk 官方 `/opt/todesk` 布局，主要运行组件包括 `ToDesk`、`ToDesk_Service`、`ToDesk_Session`、`CrashReport`、`bin/*.so*`、`res/` 和 `config/`。AUR 同时明确使用 `!strip`，因此本项目也保持官方闭源二进制和私有库不 strip。
 
@@ -21,13 +22,15 @@ ToDesk 采用 **Arch Linux + quick-sharun**，不使用 linuxdeploy，也不安�
 构建过程：
 
 1. 通过仓库统一 Arch 基础环境安装构建依赖。
-2. 动态安装当前 AUR `todesk-bin`，同时安装与 ToDesk GTK3 技术栈匹配的 Fcitx5 GTK3 输入模块；IBus 来自统一基础环境。
-3. 完整复制 `/opt/todesk` 到 `AppDir/shared/bin/todesk/`，保持官方 `bin / res / config` 相对布局。
-4. 在同一次 `quick-sharun` 调用中收集 `ToDesk`、`ToDesk_Service`、`ToDesk_Session`、`CrashReport` 和 GTK3 IBus/Fcitx5 输入模块。
-5. 不自制 `AppRun`。使用 quick-sharun 默认入口按 AppImage/软链接文件名选择 `AppDir/bin/` 中的同名程序。
-6. 加入独立 `zh_CN.UTF-8` locale。
-7. 通过 quick-sharun hook 处理 ToDesk 固定 `/opt/todesk` 路径、可写 `config` 和服务日志路径。
-8. 最终由 `quick-sharun --make-appimage` 生成一个 `todesk.AppImage`。
+2. 浅克隆 AUR `todesk-bin` 元数据，并从当前 `.SRCINFO` 动态读取 `pkgver / pkgrel / source_x86_64 / sha256sums_x86_64 / depends`。
+3. 按当前 `.SRCINFO` 安装 ToDesk 声明的 Arch 运行依赖，再补 Fcitx5 GTK3 中文输入模块；IBus 来自统一基础环境。
+4. 优先通过公共下载入口取得当前 AUR 指向的 ToDesk 官方 DEB，并在落盘前强制校验当前 AUR SHA-256。
+5. 如果官方 CDN 返回 HTML 或其他错误内容，不跳过校验、不降低版本；改查同一个官方 URL 的 Internet Archive 快照，只接受 SHA-256 与当前 AUR 完全一致的那一份。
+6. 直接解包已经校验通过的官方 DEB，完整复制其中 `/opt/todesk` 到 `AppDir/shared/bin/todesk/`，保持官方 `bin / res / config` 相对布局。
+7. 在同一次 `quick-sharun` 调用中收集 `ToDesk`、`ToDesk_Service`、`ToDesk_Session`、`CrashReport` 和 GTK3 IBus/Fcitx5 输入模块。
+8. 不自制 `AppRun`。使用 quick-sharun 默认入口按 AppImage/软链接文件名选择 `AppDir/bin/` 中的同名程序。
+9. 加入独立 `zh_CN.UTF-8` locale，并通过 quick-sharun hook 处理固定 `/opt/todesk`、可写 `config` 和服务日志路径。
+10. 最终由 `quick-sharun --make-appimage` 生成一个 `todesk.AppImage`。
 
 不固定封装 Intel、NVIDIA 或 AMD 的宿主 GPU 驱动，也不强制设置 `LIBVA_DRIVER_NAME=iHD`。ToDesk 官方随包提供的私有编码相关 `.so` 保持原样，实际硬件加速继续取决于宿主显卡与驱动环境。
 
@@ -120,3 +123,14 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 私有仓库 EasyConnect 已有“单 AppImage 多入口 + 可写后台运行目录 + 固定路径映射”的实现经验。
 
 本条只表示构建脚本和路径设计已经静态核对；首次 GitHub Actions 正式构建、最终 AppImage 启动、服务与 GUI 通信、真实远程连接仍需以之后实际产物结果为准，不提前标记为已验证。
+
+
+## 修复记录
+
+### 2026-09-24：首次 Actions 在 AUR 源文件校验阶段失败
+
+- 现象：首次正式构建 run `35977062621` 的 `Build ToDesk` 在安装 `todesk-bin 4.9.6.0-1` 时失败；日志显示官方 `https://dl.todesk.com/linux/todesk-v4.9.6.0-amd64.deb` 实际返回 29181 字节 `text/html`，随后 AUR SHA-256 校验失败。失败发生在 quick-sharun 执行之前。
+- 根因：AUR 元数据中的版本、官方 URL 和 SHA-256 本身完整，但 ToDesk 官方 CDN 对该次 GitHub Actions 请求没有返回对应 DEB；单纯增加浏览器 User-Agent 不能解决，因为当前 AUR 本身已经使用 `wget -U 'Mozilla'`。
+- 修复：`build_todesk.sh` 不再直接 `yay -S todesk-bin`。脚本改为读取当前 AUR `.SRCINFO`，动态取得版本、pkgrel、x86_64 官方 URL、SHA-256 和运行依赖；优先下载官方 DEB，失败后查询同一官方 URL 的 Internet Archive 历史响应，并逐个使用当前 AUR SHA-256 校验，只有完全一致的文件才允许继续解包。当前 Gentoo gentoo-zh 的 ToDesk 4.9.6.0 ebuild 也使用该官方 DEB 的 Internet Archive 快照作为来源，作为这一回退方向的独立参考。
+- 安全边界：没有使用 `SKIP`、没有修改 AUR 校验值、没有固定 ToDesk 版本，也没有把第三方内容当成“等价包”；归档回退必须与当前 AUR 记录的官方文件 SHA-256 完全一致。
+- 提交前检查：已对修改后的 Bash 执行 `bash -n`，并核对 AUR 元数据解析、依赖安装、官方直连、归档回退、DEB 类型/SHA-256 二次校验和原有 quick-sharun 多入口流程。新的 GitHub Actions 构建和实际远控功能仍以提交后的正式产物为准。

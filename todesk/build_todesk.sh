@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ToDesk AppImage：从 AUR todesk-bin 取得当前稳定包，并用 quick-sharun 封装为单一多入口 AppImage。
+# ToDesk AppImage：从 AUR todesk-bin 元数据解析当前稳定版本与校验值，再用 quick-sharun 封装为单一多入口 AppImage。
 set -Eeuo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,21 +20,123 @@ readonly ARCH="$(uname -m)"
 readonly APPDIR="$SCRIPT_DIR/AppDir"
 readonly DIST="$SCRIPT_DIR/dist"
 readonly WORKDIR="$SCRIPT_DIR/.build"
-readonly SOURCE_ROOT="/opt/todesk"
+readonly AUR_DIR="$WORKDIR/todesk-bin"
+readonly DEB_ROOT="$WORKDIR/deb-root"
+readonly DEB_PARTS="$WORKDIR/deb-parts"
+readonly DEB_FILE="$WORKDIR/todesk.deb"
+readonly SOURCE_ROOT="$DEB_ROOT/opt/todesk"
 readonly APP_ROOT="$APPDIR/shared/bin/todesk"
 readonly OUTFILE="$DIST/todesk.AppImage"
+readonly DOWNLOAD_FILE="$SCRIPT_DIR/../common/download/download_file.sh"
 
 ###### 准备 Arch Linux 构建环境 ######
 
 # 安装仓库统一的 Arch AppImage 基础环境。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 
-# 安装当前 AUR ToDesk 包和 GTK3 Fcitx5 输入模块；IBus 已包含在统一基础环境中。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" todesk-bin fcitx5-gtk
+###### 动态取得 AUR 当前版本、官方来源与校验值 ######
+
+rm -rf -- "$APPDIR" "$DIST" "$WORKDIR"
+mkdir -p "$DIST" "$WORKDIR"
+
+# AUR 元数据只用于确定当前稳定版本、官方 x86_64 DEB URL 与对应 SHA-256；不固定 Version / Tag / Commit。
+for attempt in 1 2 3; do
+    rm -rf -- "$AUR_DIR"
+    if git -c http.version=HTTP/1.1 clone --depth=1 \
+        https://aur.archlinux.org/todesk-bin.git \
+        "$AUR_DIR"; then
+        break
+    fi
+    [[ "$attempt" -lt 3 ]] || die "连续 3 次无法读取 AUR todesk-bin 元数据。"
+    sleep $((attempt * 2))
+done
+
+readonly SRCINFO="$AUR_DIR/.SRCINFO"
+[[ -f "$SRCINFO" ]] || die "AUR todesk-bin 缺少 .SRCINFO。"
+
+PACKAGE_VERSION="$(awk -F ' = ' '/^[[:space:]]*pkgver = / {print $2; exit}' "$SRCINFO")"
+PACKAGE_REL="$(awk -F ' = ' '/^[[:space:]]*pkgrel = / {print $2; exit}' "$SRCINFO")"
+SOURCE_URL="$(awk -F ' = ' '/^[[:space:]]*source_x86_64 = / {print $2; exit}' "$SRCINFO")"
+EXPECTED_SHA256="$(awk -F ' = ' '/^[[:space:]]*sha256sums_x86_64 = / {print $2; exit}' "$SRCINFO")"
+
+[[ -n "$PACKAGE_VERSION" ]] || die "无法从 AUR .SRCINFO 解析 ToDesk 版本。"
+[[ -n "$PACKAGE_REL" ]] || die "无法从 AUR .SRCINFO 解析 ToDesk pkgrel。"
+[[ -n "$SOURCE_URL" ]] || die "无法从 AUR .SRCINFO 解析 x86_64 官方来源。"
+[[ -n "$EXPECTED_SHA256" ]] || die "无法从 AUR .SRCINFO 解析 x86_64 SHA-256。"
+
+# .SRCINFO 允许 filename::URL 形式；下载时只使用真实 HTTPS URL。
+SOURCE_URL="${SOURCE_URL#*::}"
+[[ "$SOURCE_URL" == https://* ]] || die "AUR x86_64 来源不是 HTTPS：$SOURCE_URL"
+[[ "$EXPECTED_SHA256" =~ ^[[:xdigit:]]{64}$ ]] || die "AUR x86_64 SHA-256 无效：$EXPECTED_SHA256"
+
+readonly SOFTWARE_VERSION="$PACKAGE_VERSION"
+readonly PACKAGE_BUILD_VERSION="$PACKAGE_VERSION-$PACKAGE_REL"
+
+# 按当前 AUR .SRCINFO 安装 ToDesk 声明的运行依赖；去掉版本比较符后交给 Arch 包管理器解析当前仓库版本。
+# Fcitx5 GTK3 是本 AppImage 的中文输入补充；IBus 已包含在统一基础环境中。
+mapfile -t AUR_DEPENDENCIES < <(
+    awk -F ' = ' '/^[[:space:]]*depends(_x86_64)? = / {print $2}' "$SRCINFO" |
+        sed -E 's/[<>=].*$//' |
+        awk 'NF' |
+        sort -u
+)
+(( ${#AUR_DEPENDENCIES[@]} > 0 )) || die "AUR todesk-bin 没有解析到运行依赖。"
+"$SCRIPT_DIR/../common/arch/install_packages.sh" "${AUR_DEPENDENCIES[@]}" fcitx5-gtk
+
+###### 下载并校验 ToDesk 官方 DEB ######
+
+# 优先直接取 AUR 当前指向的 ToDesk 官方文件；公共下载入口会在落盘前强制校验 AUR SHA-256。
+if "$DOWNLOAD_FILE" "$SOURCE_URL" "$DEB_FILE" "$EXPECTED_SHA256"; then
+    log "已从 ToDesk 官方来源取得并校验 $PACKAGE_BUILD_VERSION。"
+else
+    # 2026-09-24 的正式 Actions 中，官方 URL 对 CI 返回 29181 字节 text/html，AUR 因 SHA-256 不匹配失败。
+    # 这里不跳过校验、不降级版本；仅从 Internet Archive 查找“同一个官方 URL”的历史响应，
+    # 并且仍要求内容与当前 AUR 的 SHA-256 完全一致，否则拒绝使用。
+    log "ToDesk 官方来源未返回 AUR 校验对应文件，尝试同一官方 URL 的 Internet Archive 快照。"
+    rm -f -- "$DEB_FILE"
+
+    SOURCE_URL_ENCODD="$(jq -rn --arg value "$SOURCE_URL" '$value|@uri')"
+    CDX_URL="https://web.archive.org/cdx/search/cdx?url=${SOURCE_URL_ENCODED}&output=json&fl=timestamp,original,statuscode,mimetype,digest&filter=statuscode:200&limit=20&sort=reverse"
+    CDX_JSON="$WORKDIR/wayback-cdx.json"
+    "$DOWNLOAD_FILE" "$CDX_URL" "$CDX_JSON"
+
+    mapfile -t WAYBACK_TIMESTAMPS < <(jq -r '.[1:][]? | .[0] // empty' "$CDX_JSON")
+    (( ${#WAYBACK_TIMESTAMPS[@]} > 0 )) || die "Internet Archive 中没有找到当前 ToDesk 官方 URL 的可用快照。"
+
+    ARCHIVE_MATCHED=false
+    for timestamp in "${WAYBACK_TIMESTAMPS[@]}"; do
+        [[ "$timestamp" =~ ^[0-9]{14}$ ]] || continue
+        ARCHIVE_URL="https://web.archive.org/web/${timestamp}id_/${SOURCE_URL}"
+        if "$DOWNLOAD_FILE" "$ARCHIVE_URL" "$DEB_FILE" "$EXPECTED_SHA256"; then
+            ARCHIVE_MATCHED=true
+            log "已从 Internet Archive 取得与 AUR SHA-256 完全一致的 ToDesk 官方 DEB：$timestamp"
+            break
+        fi
+        rm -f -- "$DEB_FILE"
+    done
+
+    [[ "$ARCHIVE_MATCHED" == true ]] || die "Internet Archive 快照均未通过当前 AUR SHA-256 校验。"
+fi
+
+[[ -s "$DEB_FILE" ]] || die "ToDesk DEB 不存在或为空。"
+file "$DEB_FILE" | grep -qi 'Debian binary package' || die "下载内容不是有效的 Debian 软件包。"
+printf '%s  %s\n' "$EXPECTED_SHA256" "$DEB_FILE" | sha256sum -c - >/dev/null
+
+###### 解包官方 DEB ######
+
+mkdir -p "$DEB_ROOT" "$DEB_PARTS"
+(
+    cd "$DEB_PARTS"
+    ar x "$DEB_FILE"
+)
+
+DATA_ARCHIVE="$(find "$DEB_PARTS" -maxdepth 1 -type f -name 'data.tar.*' -print -quit)"
+[[ -f "$DATA_ARCHIVE" ]] || die "ToDesk DEB 中没有 data.tar.*。"
+tar -xf "$DATA_ARCHIVE" -C "$DEB_ROOT"
 
 ###### 核对上游包布局 ######
 
-[[ -d "$SOURCE_ROOT" ]] || die "未找到 ToDesk 安装目录：$SOURCE_ROOT"
+[[ -d "$SOURCE_ROOT" ]] || die "官方 DEB 中未找到 ToDesk 目录：$SOURCE_ROOT"
 
 for binary in ToDesk ToDesk_Service ToDesk_Session CrashReport; do
     [[ -x "$SOURCE_ROOT/bin/$binary" ]] || die "缺少 ToDesk 运行组件：$SOURCE_ROOT/bin/$binary"
@@ -42,35 +144,30 @@ done
 
 [[ -d "$SOURCE_ROOT/res" ]] || die "缺少 ToDesk 资源目录：$SOURCE_ROOT/res"
 [[ -d "$SOURCE_ROOT/config" ]] || die "缺少 ToDesk 配置目录：$SOURCE_ROOT/config"
-[[ -f /usr/share/applications/todesk.desktop ]] || die "缺少 ToDesk desktop 文件。"
+
+DESKTOP_SOURCE="$DEB_ROOT/usr/share/applications/todesk.desktop"
+[[ -f "$DESKTOP_SOURCE" ]] || die "官方 DEB 中缺少 ToDesk desktop 文件。"
 [[ -f /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so ]] || die "缺少 GTK3 IBus 输入模块。"
 [[ -f /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so ]] || die "缺少 GTK3 Fcitx5 输入模块。"
 
-PACKAGE_VERSION="$(pacman -Q todesk-bin | awk '{print $2; exit}')"
-[[ -n "$PACKAGE_VERSION" ]] || die "无法读取 todesk-bin 软件包版本。"
-SOFTWARE_VERSION="${PACKAGE_VERSION#*:}"
-SOFTWARE_VERSION="${SOFTWARE_VERSION%-*}"
-[[ -n "$SOFTWARE_VERSION" ]] || die "无法解析 ToDesk 软件版本。"
-
 ICON="$(
-    pacman -Ql todesk-bin |
-        awk '$2 ~ /^\/usr\/share\/icons\/.*\/(todesk|ToDesk)\.(png|svg)$/ {print $2}' |
+    find "$DEB_ROOT/usr/share/icons" -type f \
+        \( -iname 'todesk.png' -o -iname 'todesk.svg' \) -print 2>/dev/null |
         sort -V |
         tail -n 1
 )"
-[[ -f "$ICON" ]] || die "未找到 ToDesk 图标。"
+[[ -f "$ICON" ]] || die "官方 DEB 中未找到 ToDesk 图标。"
 
 ###### 准备 AppDir ######
 
-rm -rf -- "$APPDIR" "$DIST" "$WORKDIR"
-mkdir -p "$APP_ROOT" "$DIST" "$WORKDIR"
+mkdir -p "$APP_ROOT"
 
 # ToDesk 是 /opt 布局；完整保留官方应用目录，避免拆散 bin、res、config 和私有编码库。
 cp -a "$SOURCE_ROOT/." "$APP_ROOT/"
 
-# 使用上游 desktop 作为元数据，只把启动命令改成 AppImage 内实际主入口。
+# 使用官方 desktop 作为元数据，只把启动命令改成 AppImage 内实际主入口。
 DESKTOP="$WORKDIR/todesk.desktop"
-cp -a /usr/share/applications/todesk.desktop "$DESKTOP"
+cp -a "$DESKTOP_SOURCE" "$DESKTOP"
 sed -i -E 's|^Exec=[^[:space:]]+|Exec=ToDesk|' "$DESKTOP"
 sed -i -E 's|^TryExec=.*|TryExec=ToDesk|' "$DESKTOP"
 
@@ -112,16 +209,16 @@ localedef --no-archive \
 
 cat >> "$APPDIR/.env" <<'EOF_LOCALE'
 LANG=zh_CN.UTF-8
-LANGUAGE=zh_CNzh
+LANGUAGE=zh_CN:zh
 LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
 EOF_LOCALE
 
 ###### 可写运行目录与固定路径映射 ######
 
-# 保存本次实际打包版本，运行时据此只在版本变化时刷新程序副本，并保留已有 config。
+# 保存本次实际 AUR 包版本（含 pkgrel），运行时据此只在包版本变化时刷新程序副本，并保留已有 config。
 mkdir -p "$APPDIR/share/todesk-appimage"
-printf '%s\n' "$SOFTWARE_VERSION" > "$APPDIR/share/todesk-appimage/package-version"
+printf '%s\n' "$PACKAGE_BUILD_VERSION" > "$APPDIR/share/todesk-appimage/package-version"
 
 # ToDesk 官方布局固定使用 /opt/todesk，服务日志还可能写 /var/log/todesk。
 # AppImage 本体只读，因此运行时把官方目录复制到当前用户数据目录；
