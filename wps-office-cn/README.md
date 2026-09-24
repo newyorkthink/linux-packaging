@@ -26,6 +26,11 @@ Actions Run `35973581804` 的 WPS Job 在安装 `wps-office-cn 12.1.2.28080-1` �
 
 用户说明：WPS 的 Qt 是自己编译的，所以库名加了 `Kso`，例如 `libQt5CoreKso.so.5.12.12`，不是发行版的 `libQt5Core.so`。以后在这个目录里认 Qt、选插件或对库名，都要按带 `Kso` 的文件，不能按 Arch 或 Debian 的普通 Qt 文件名。发行版的 fcitx5 Qt 插件是对着普通 Qt 编的，和这套自己编译的 Qt 不是同一个产物。
 
+## 2026-09-24：不再放入发行版 fcitx5 插件
+
+Actions Run `35974681502` 在 `quick-sharun` 退出：放进成品的 `libfcitx5platforminputcontextplugin.so` 缺少库。该文件来自 Arch `fcitx5-qt`，链接的是发行版 Qt，不是 WPS 的 `Kso` Qt。同一包里已经有 `office6/qt/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.so`，这是对着 WPS 自己的 Qt 编译的输入模块。现去掉 `fcitx5-qt` 依赖，不再覆盖这个文件，并把包内原模块交给 `quick-sharun`。不设置 `QT_IM_MODULE`。这次构建结果以下一次 Actions 为准。
+
+
 
 
 
