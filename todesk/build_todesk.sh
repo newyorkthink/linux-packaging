@@ -95,7 +95,8 @@ else
     log "ToDesk 官方来源未返回 AUR 校验对应文件，尝试同一官方 URL 的 Internet Archive 快照。"
     rm -f -- "$DEB_FILE"
 
-    SOURCE_URL_ENCODD="$(jq -rn --arg value "$SOURCE_URL" '$value|@uri')"
+    SOURCE_URL_ENCODED="$(jq -rn --arg value "$SOURCE_URL" '$value|@uri')"
+    [[ -n "$SOURCE_URL_ENCODED" ]] || die "无法编码 ToDesk 官方 URL，不能查询 Internet Archive。"
     CDX_URL="https://web.archive.org/cdx/search/cdx?url=${SOURCE_URL_ENCODED}&output=json&fl=timestamp,original,statuscode,mimetype,digest&filter=statuscode:200&limit=20&sort=reverse"
     CDX_JSON="$WORKDIR/wayback-cdx.json"
     "$DOWNLOAD_FILE" "$CDX_URL" "$CDX_JSON"
