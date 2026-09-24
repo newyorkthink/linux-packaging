@@ -11,6 +11,7 @@ AI 修改或提交本仓库前，先读 [AGENTS.md](./AGENTS.md)。怎么提交�
 - linuxdeploy：[linuxdeploy_projects.md](./linuxdeploy_projects.md)
 - Anylinux / quick-sharun：[anylinux_projects.md](./anylinux_projects.md)
 - 发布机制的历史说明：[docs/release-history.md](./docs/release-history.md)
+- AppImage 直接运行时自定义协议不会登记：[docs/appimage-scheme-handler.md](./docs/appimage-scheme-handler.md)
 - 某个软件的状态、故障和修复：只写在该软件目录的 `README.md` 或同目录历史文件。不要写回本文件，也不要在根目录再新建待办文件。
 
 ## 手动构建
