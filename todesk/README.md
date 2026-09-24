@@ -13,7 +13,7 @@
 - Release 资产名：`todesk.AppImage`。
 - 构建版本、官方 URL、pkgrel 和 SHA-256 都从本次 AUR `.SRCINFO` 动态读取，不写死 Version / Tag / Commit；成功生成 AppImage 后把软件版本写入 `dist/version.txt`。
 
-AUR 当前包保留 ToDesk 官方 `/opt/todesk` 布局，主要运行组件包括 `ToDesk`、`ToDesk_Service`、`ToDesk_Session`、`CrashReport`、`bin/*.so*`、`res/` 和 `config/`。AUR 同时明确使用 `!strip`，因此本项目也保持官方闭源二进制和私有库不 strip。
+AUR 当前包保留 ToDesk 官方 `/opt/todesk` 布局，主要运行组件包括 `ToDesk`、`ToDesk_Service`、`ToDesk_Session`、`CrashReport`、`bin/*.so*` 和 `res/`。当前官方 DEB 本身不带空的 `/opt/todesk/config`；AUR 通过 `emptydirs` 并在 `package()` 中显式创建该目录，因此本项目直接解包官方 DEB 后也按同样方式补回。AUR 同时明确使用 `!strip`，因此本项目也保持官方闭源二进制和私有库不 strip。
 
 ## 打包方式
 
@@ -62,7 +62,7 @@ ${XDG_DATA_HOME:-$HOME/.local/share}/todesk-appimage/runtime
 ${XDG_DATA_HOME:-$HOME/.local/share}/todesk-appimage/logs
 ```
 
-`/opt/todesk` 和 `/var/log/todesk` 的访问通过 path mapping 重定向到上述用户目录。更新 AppImage 后，程序文件会按新版本刷新，但原有 `config/` 会保留，避免无条件重置设备配置。
+`/opt/todesk` 和 `/var/log/todesk` 的访问通过 path mapping 重定向到上述用户目录；`/etc/todesk` 同时映射到状态目录下的 `etc/`，用于持久化 ToDesk 会写入的 `reg.conf`。更新 AppImage 后，程序文件会按新版本刷新，但原有 `config/` 和 `etc/` 状态会保留，避免无条件重置设备配置。
 
 普通便携使用建议让 `ToDesk_Service` 和 GUI 以同一个用户运行，使两者共享同一份运行目录和配置。若用 `sudo` 单独启动服务，`HOME / XDG_DATA_HOME` 通常会切换到 root 环境，从而产生另一份状态目录，因此本项目不把 `sudo` 作为默认启动方式。
 
@@ -143,3 +143,12 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 修复：统一变量名为 `SOURCE_URL_ENCODED`，并在生成 CDX 查询 URL 前增加非空检查。AUR 运行依赖和下载方案不需要继续扩大：日志已经确认 `gtk3`、`libappindicator-gtk3`、`noto-fonts-cjk` 与额外的 `fcitx5-gtk` 均能正常安装。
 - 核对：重新检查了当前 AUR `todesk-bin 4.9.6.0-1` 的 x86_64 官方 URL 与 SHA-256；Gentoo gentoo-zh 当前 `todesk-4.9.6.0` ebuild 也使用同一官方 DEB 的 Wayback 快照 `20260908130616`，因此继续采用“同一官方 URL + AUR SHA-256 强校验”的归档回退，不新增其他第三方安装包，也不跳过校验。
 - 验证边界：本次根据失败日志和脚本逐项静态核对变量、依赖、官方直连、CDX 查询与 SHA-256 回退链路；新的 Actions 构建及最终 AppImage 运行结果仍以提交后的正式构建为准。
+
+
+### 2026-09-24：官方 DEB 不包含空 config 目录
+
+- 现象：正式构建 run `35979645432` 已成功从 Internet Archive 下载 114.2 MiB 的官方 ToDesk 4.9.6.0 DEB，并通过当前 AUR SHA-256；解包后在布局检查阶段报 `缺少 ToDesk 配置目录：.../opt/todesk/config`。
+- 根因：官方 DEB 本身不包含这个空目录。当前 AUR `todesk-bin` 的 PKGBUILD 启用 `emptydirs`，并在 `package()` 中显式创建 `/opt/todesk/config`；之前直接解包 DEB 后错误地把该空目录当成官方 DEB 必须自带的内容。
+- 修复：解包并确认 `/opt/todesk` 存在后，按 AUR 的实际打包行为显式创建空的 `/opt/todesk/config`，再继续四个入口、资源与 quick-sharun 校验。没有新增下载包，也没有放宽 SHA-256 校验。
+- 运行状态补全：现有 Flatpak/Nix 打包实现都表明 ToDesk 服务会持久化 `/etc/todesk/reg.conf`；本 AppImage 默认不写宿主 `/etc`，因此把 `/etc/todesk` 一并映射到用户状态目录的 `etc/`。
+- 依赖核对：本次 Actions 已确认当前 AUR 依赖 `gtk3`、`libappindicator-gtk3`、`noto-fonts-cjk` 以及本项目额外的 `fcitx5-gtk` 均能正常安装，因此本次不再增加其他 Arch 软件包。

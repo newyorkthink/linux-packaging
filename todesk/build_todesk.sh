@@ -139,6 +139,10 @@ tar -xf "$DATA_ARCHIVE" -C "$DEB_ROOT"
 
 [[ -d "$SOURCE_ROOT" ]] || die "官方 DEB 中未找到 ToDesk 目录：$SOURCE_ROOT"
 
+# 当前 AUR PKGBUILD 启用 emptydirs，并在 package() 中显式创建 /opt/todesk/config。
+# 官方 DEB 本身不包含这个空目录；直接解包时按 AUR 的实际安装布局补回。
+mkdir -p "$SOURCE_ROOT/config"
+
 for binary in ToDesk ToDesk_Service ToDesk_Session CrashReport; do
     [[ -x "$SOURCE_ROOT/bin/$binary" ]] || die "缺少 ToDesk 运行组件：$SOURCE_ROOT/bin/$binary"
 done
@@ -240,9 +244,10 @@ fi
 
 TODESK_RUNTIME_ROOT="$TODESK_STATE_ROOT/runtime"
 TODESK_LOG_ROOT="$TODESK_STATE_ROOT/logs"
+TODESK_ETC_ROOT="$TODESK_STATE_ROOT/etc"
 TODESK_VERSION_FILE="$TODESK_STATE_ROOT/.package-version"
 
-mkdir -p "$TODESK_STATE_ROOT" "$TODESK_LOG_ROOT"
+mkdir -p "$TODESK_STATE_ROOT" "$TODESK_LOG_ROOT" "$TODESK_ETC_ROOT"
 
 if [ ! -f "$TODESK_VERSION_FILE" ] || [ "$(cat "$TODESK_VERSION_FILE" 2>/dev/null || true)" != "$TODESK_PACKAGE_VERSION" ]; then
     TODESK_TEMP_ROOT="$TODESK_STATE_ROOT/.runtime.$$"
@@ -261,19 +266,19 @@ if [ ! -f "$TODESK_VERSION_FILE" ] || [ "$(cat "$TODESK_VERSION_FILE" 2>/dev/nul
     printf '%s\n' "$TODESK_PACKAGE_VERSION" > "$TODESK_VERSION_FILE"
 fi
 
-mkdir -p "$TODESK_RUNTIME_ROOT/config" "$TODESK_LOG_ROOT"
-chmod -R u+rwX "$TODESK_RUNTIME_ROOT/config" "$TODESK_LOG_ROOT" 2>/dev/null || :
+mkdir -p "$TODESK_RUNTIME_ROOT/config" "$TODESK_LOG_ROOT" "$TODESK_ETC_ROOT"
+chmod -R u+rwX "$TODESK_RUNTIME_ROOT/config" "$TODESK_LOG_ROOT" "$TODESK_ETC_ROOT" 2>/dev/null || :
 
 # 对显式程序入口优先映射回 sharun wrapper，保证 ToDesk 自行拉起 Session/CrashReport 时仍使用包内运行库。
-# 其他 /opt/todesk 资源映射到当前用户的可写运行副本；服务日志也不写宿主 /var/log。
-export PATH_MAPPING="/opt/todesk/bin/ToDesk:${APPDIR}/bin/ToDesk,/opt/todesk/bin/ToDesk_Service:${APPDIR}/bin/ToDesk_Service,/opt/todesk/bin/ToDesk_Session:${APPDIR}/bin/ToDesk_Session,/opt/todesk/bin/CrashReport:${APPDIR}/bin/CrashReport,/opt/todesk/config:${TODESK_RUNTIME_ROOT}/config,/opt/todesk/res:${TODESK_RUNTIME_ROOT}/res,/opt/todesk/bin:${TODESK_RUNTIME_ROOT}/bin,/opt/todesk:${TODESK_RUNTIME_ROOT},/var/log/todesk:${TODESK_LOG_ROOT}"
+# 其他 /opt/todesk 资源映射到当前用户的可写运行副本；/etc/todesk 用于持久化 reg.conf，服务日志也不写宿主 /var/log。
+export PATH_MAPPING="/opt/todesk/bin/ToDesk:${APPDIR}/bin/ToDesk,/opt/todesk/bin/ToDesk_Service:${APPDIR}/bin/ToDesk_Service,/opt/todesk/bin/ToDesk_Session:${APPDIR}/bin/ToDesk_Session,/opt/todesk/bin/CrashReport:${APPDIR}/bin/CrashReport,/opt/todesk/config:${TODESK_RUNTIME_ROOT}/config,/opt/todesk/res:${TODESK_RUNTIME_ROOT}/res,/opt/todesk/bin:${TODESK_RUNTIME_ROOT}/bin,/opt/todesk:${TODESK_RUNTIME_ROOT},/etc/todesk:${TODESK_ETC_ROOT},/var/log/todesk:${TODESK_LOG_ROOT}"
 
 # ToDesk 的官方程序与私有编码库位于同一 bin 目录；固定工作目录保持官方相对路径语义。
 export SHARUN_WORKING_DIR="$TODESK_RUNTIME_ROOT/bin"
 export SHARUN_EXTRA_LIBRARY_PATH="$TODESK_RUNTIME_ROOT/bin${SHARUN_EXTRA_LIBRARY_PATH:+:$SHARUN_EXTRA_LIBRARY_PATH}"
 
 unset TODESK_SOURCE_ROOT TODESK_PACKAGE_VERSION TODESK_STATE_ROOT TODESK_RUNTIME_ROOT
-unset TODESK_LOG_ROOT TODESK_VERSION_FILE TODESK_TEMP_ROOT
+unset TODESK_LOG_ROOT TODESK_ETC_ROOT TODESK_VERSION_FILE TODESK_TEMP_ROOT
 EOF_HOOK
 
 chmod +x "$APPDIR/bin/90-todesk-runtime.hook"
