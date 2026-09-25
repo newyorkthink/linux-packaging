@@ -40,6 +40,19 @@ XCURSOR_SIZE=24
 
 这次只改光标主题，没有改文件选择器、D-Bus、GVFS 或 launcher，也不改变 Rofi 启动无 GUI 这个未解决问题。终端里的 fontconfig `xsi:nil` 警告和 WebGL software fallback 仍会出现，与光标无关。
 
+### 2026-09-25：i3 / Rofi 启动无窗口（遗留，未解决）
+
+终端里直接运行可以出窗口。`i3-msg exec mediacenter36` 只返回 `success`，进程在，没有窗口。Rofi 启动是同一类现象。先从终端打开，不要为此修改 Rofi、i3 或宿主配置。
+
+这次实机看到的范围：
+
+- 标准输出和标准错误已经接到日志文件，文件一直是 0 字节。
+- 外层 shell 和 `mediacenter36` 停在 `do_wait`。`dwarfs` 已经挂上镜像。
+- 包内出现两个 `Run.sh`。包里的 `mediacenter36` 主程序没有出现。
+- 一个 `Run.sh` 长时间停在 `anon_pipe_read`。另一个握着这根管道的写入端，之后变成运行状态，下面没有子进程，也没有写出日志。
+
+根因还没有确认。不能写成缺包、光标主题或文件选择器实验导致的。
+
 ### 测试版
 
 测试文件都在 `test/`，不进正式构建：
