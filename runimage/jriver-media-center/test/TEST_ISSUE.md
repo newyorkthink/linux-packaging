@@ -1,5 +1,7 @@
 # JRiver 测试版问题记录
 
+2026-09-25 起本文件位于 `test/`。正式构建仍是上一级的 `setup_jriver.sh`。
+
 ## 状态
 
 当前 RunImage 问题：**未解决。**
@@ -158,12 +160,12 @@ RunImage
 
 若以后重新定位 RunImage，应从“此前确实能由 Rofi 正常启动的实际二进制/构建产物”开始做对照，而不只比较 Git 源码。需要同时记录：构建所用 RunImage 版本、最终产物哈希、启动入口、父进程环境、挂载路径、残留进程以及重启前后差异。
 
-实验代码继续保留：
+实验代码继续保留在本目录：
 
 ```text
-setup_jriver_test.sh
-filechooser-empty-path_test.c
-jriver-filechooser-launch_test.sh
+test/setup_jriver_test.sh
+test/filechooser-empty-path_test.c
+test/jriver-filechooser-launch_test.sh
 ```
 
-`setup_jriver_test.sh` 仅用于后续定位，不应覆盖当前日常使用的 AppImage 方案。
+`test/setup_jriver_test.sh` 仅用于后续定位，不应覆盖当前日常使用的 AppImage 方案。

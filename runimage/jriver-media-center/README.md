@@ -25,13 +25,30 @@ runimage/jriver-media-center/setup_jriver.sh
 
 当前默认使用 `setup_jriver.sh` 构建的 **JRiver RunImage**。`jriver/` 目录下的两种 AppImage 打包方案暂时不作为日常使用版本，原因是实机启动速度较慢；相关脚本和修复记录继续保留，后续需要时再处理。RunImage 既有问题记录继续保留，不再为了这些历史故障修改原本正常的 Rofi、nwg-drawer 或宿主系统配置。
 
+### 2026-09-25：鼠标指针左右镜像
+
+实机现象：指针进入 JRiver 窗口后，箭头从朝左变成朝右。这是光标图被换成了镜像，鼠标移动方向没有反。
+
+确认修复：启动时设置
+
+```bash
+XCURSOR_THEME=Adwaita
+XCURSOR_SIZE=24
+```
+
+已写入正式构建 `setup_jriver.sh` 的 `/var/RunDir/config/Run.rcfg`。RunImage 加载该文件时会自动导出，重新打包后的 `mediacenter36` 不用再手动加环境变量。已经打好的旧包没有这两行，要等这次构建产物。测试构建 `test/setup_jriver_test.sh` 同样写入这两项，避免测试包把镜像光标带回来。
+
+这次只改光标主题，没有改文件选择器、D-Bus、GVFS 或 launcher，也不改变 Rofi 启动无 GUI 这个未解决问题。终端里的 fontconfig `xsi:nil` 警告和 WebGL software fallback 仍会出现，与光标无关。
+
 ### 测试版
 
-- 构建脚本：`setup_jriver_test.sh`
+测试文件都在 `test/`，不进正式构建：
+
+- 构建脚本：`test/setup_jriver_test.sh`
 - 测试产物：`mediacenter36_test`
-- Patch：`filechooser-empty-path_test.c`
-- launcher：`jriver-filechooser-launch_test.sh`
-- 问题记录：`TEST_ISSUE.md`
+- Patch：`test/filechooser-empty-path_test.c`
+- launcher：`test/jriver-filechooser-launch_test.sh`
+- 问题记录：`test/TEST_ISSUE.md`
 
 测试版保留 2026-09-10 对 GTK/GIO 文件选择器、GVFS、独立 session D-Bus 和 `LD_PRELOAD` Patch 的实验性修复链。它曾修复“打开媒体文件”时的空目录 / `Operation not supported` 弹窗，但同时观察到 Rofi 启动 JRiver 时“有后台进程、GUI 不显示”的严重回归。
 
@@ -42,11 +59,12 @@ runimage/jriver-media-center/setup_jriver.sh
 ```text
 jriver-media-center/
 ├── README.md
-├── TEST_ISSUE.md
 ├── setup_jriver.sh
-├── setup_jriver_test.sh
-├── filechooser-empty-path_test.c
-└── jriver-filechooser-launch_test.sh
+└── test/
+    ├── TEST_ISSUE.md
+    ├── setup_jriver_test.sh
+    ├── filechooser-empty-path_test.c
+    └── jriver-filechooser-launch_test.sh
 ```
 
 ## 回退版启动链
@@ -57,7 +75,7 @@ RunImage
 → /usr/bin/mediacenter36
 ```
 
-没有额外 `dbus-run-session`、launcher 或 `LD_PRELOAD` 包装。
+没有额外 `dbus-run-session`、launcher 或 `LD_PRELOAD` 包装。光标由 `Run.rcfg` 里的 `XCURSOR_THEME` / `XCURSOR_SIZE` 决定。
 
 ## 测试版启动链
 
@@ -69,15 +87,15 @@ RunImage
 → /usr/bin/mediacenter36
 ```
 
-`setup_jriver_test.sh` 最后先用真实入口 `rim-build mediacenter36` 构建，再将产物改名为 `mediacenter36_test`，避免与回退版混淆。
+`test/setup_jriver_test.sh` 最后先用真实入口 `rim-build mediacenter36` 构建，再将产物改名为 `mediacenter36_test`，避免与回退版混淆。
 
 ## 维护规则
 
-- `setup_jriver.sh` 当前只代表文件选择器实验前的代码回退线，不代表已经恢复实机稳定。
-- 所有未确认的文件选择器、D-Bus、GVFS、`LD_PRELOAD` 兼容修改统一放在 `_test` 文件中。
+- `setup_jriver.sh` 当前只代表文件选择器实验前的代码回退线，加上已实机确认的光标主题修复，不代表已经恢复实机稳定。
+- 所有未确认的文件选择器、D-Bus、GVFS、`LD_PRELOAD` 兼容修改统一放在 `test/`。
 - 不因为当前 RunImage 故障去修改已经长期正常的 Rofi、nwg-drawer、宿主 `/usr/local/bin/mediacenter36` 软链接或宿主系统环境。
 - 后续定位必须同时比较“实际二进制/构建产物”和源码，不能只依据 Git 回退判断是否恢复。
-- 问题现象、验证结果、失败尝试和后续定位范围统一更新到 `TEST_ISSUE.md`。
+- 问题现象、验证结果、失败尝试和后续定位范围统一更新到 `test/TEST_ISSUE.md`。
 
 ## 2026-09-23 自根目录原样迁入
 
@@ -85,6 +103,6 @@ RunImage
 
 - JRiver RunImage 当前仍未解决。Rofi 启动 `mediacenter36` 时存在后台进程但 GUI 不显示；回退到文件选择器实验前的旧构建逻辑后仍然复现，因此不能把根因简单归到 GVFS、`dbus-run-session`、`LD_PRELOAD` 或 launcher 中的单一改动。
 - 当前 RunImage 不作为日常使用基线。后续应从此前实际可用产物与当前产物、RunImage 版本、挂载环境、父进程环境、残留进程 / 会话状态等方向做对照。
-- 详见 [README.md](./README.md) 与 [TEST_ISSUE.md](./TEST_ISSUE.md)。
+- 详见 [README.md](./README.md) 与 [TEST_ISSUE.md](./test/TEST_ISSUE.md)。
 
 - `runimage/jriver-media-center`：JRiver RunImage 当前仍未解决。Rofi 启动 `mediacenter36` 时存在后台进程但 GUI 不显示；回退到文件选择器实验前的旧构建逻辑后仍然复现，因此不能把根因简单归到 GVFS、`dbus-run-session`、`LD_PRELOAD` 或 launcher 中的单一改动。当前 RunImage 不作为日常使用基线。后续应从此前实际可用产物与当前产物、RunImage 版本、挂载环境、父进程环境、残留进程 / 会话状态等方向做对照。

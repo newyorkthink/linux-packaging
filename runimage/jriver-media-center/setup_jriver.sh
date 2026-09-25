@@ -49,6 +49,8 @@ mkdir -p /var/RunDir/config/
   echo 'RIM_SHARE_THEMES=1'
   echo 'RIM_SHARE_ICONS=1'
   echo 'RIM_QUIET_MODE=1'
+  echo 'XCURSOR_THEME=Adwaita'
+  echo 'XCURSOR_SIZE=24'
 } >> /var/RunDir/config/Run.rcfg
 
 # 7. 瘦身并打包
