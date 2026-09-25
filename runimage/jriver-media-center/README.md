@@ -19,11 +19,11 @@ GitHub Actions 仍只使用：
 runimage/jriver-media-center/setup_jriver.sh
 ```
 
-正常自动构建和 Latest Release 生成的是回退版 `mediacenter36`，不会把 `_test` 线覆盖到正式资产。但在问题解决前，该 RunImage 不作为当前日常使用基线。
+正常自动构建和 Latest Release 生成的是回退版 `mediacenter36`，不会把 `_test` 线覆盖到正式资产。**当前日常默认使用该 RunImage。**
 
-### 当前可用方案
+### 当前使用方案
 
-目前已暂时换回 **JRiver AppImage 版本** 使用。RunImage 相关问题继续保留记录，不再为了该故障修改原本正常的 Rofi、nwg-drawer 或宿主系统配置。
+当前默认使用 `setup_jriver.sh` 构建的 **JRiver RunImage**。`jriver/` 目录下的两种 AppImage 打包方案暂时不作为日常使用版本，原因是实机启动速度较慢；相关脚本和修复记录继续保留，后续需要时再处理。RunImage 既有问题记录继续保留，不再为了这些历史故障修改原本正常的 Rofi、nwg-drawer 或宿主系统配置。
 
 ### 测试版
 

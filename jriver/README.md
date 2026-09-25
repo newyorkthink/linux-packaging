@@ -2,6 +2,10 @@
 
 本目录构建 x86_64 JRiver Media Center。上游应用来自当前 AUR `jriver-media-center` 配方指向的官方 Linux DEB；主程序是原生 C/C++ 与 GTK3，另有 JRWeb/CEF、WebKitGTK 和音频运行库。正式构建由 [Build AppImages](../.github/workflows/build.yml) 的独立 `Build JRiver` Job 执行，产物位于 `jriver/dist/`，Release 名称随实际主程序为 `mediacenterN.AppImage`。
 
+## 当前使用建议
+
+`jriver/` 目录下保留的两种 AppImage 打包方案目前均暂不作为日常使用版本。实机使用中两种 AppImage 都存在启动速度较慢的问题，因此当前默认使用 `runimage/jriver-media-center/setup_jriver.sh` 构建的 JRiver RunImage。AppImage 相关脚本和修复记录继续保留，后续需要时再处理。
+
 ## 当前入口与修复记录
 
 | 文件 | 用途 |
