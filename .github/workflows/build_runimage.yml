@@ -203,7 +203,12 @@ jobs:
 
           pushd "$SCRIPT_DIR" >/dev/null
           RIM_NO_NVIDIA_CHECK=1 RIM_OVERFS_MODE=1 "$RUNIMAGE_BIN" "./$SCRIPT_FILE"
-          OUTPUT_NAME="$(awk '/^[[:space:]]*rim-build[[:space:]]+/ {print $NF}' "$SCRIPT_FILE" | tail -n 1)"
+          # 版本号会变的项目把实际产物名写到 runimage-release-name.txt。没有该文件时仍从脚本里的 rim-build 读取。
+          if [[ -s runimage-release-name.txt ]]; then
+            OUTPUT_NAME="$(tr -d '[:space:]' < runimage-release-name.txt)"
+          else
+            OUTPUT_NAME="$(awk '/^[[:space:]]*rim-build[[:space:]]+/ {print $NF}' "$SCRIPT_FILE" | tail -n 1)"
+          fi
           popd >/dev/null
 
           if [[ -z "$OUTPUT_NAME" ]]; then

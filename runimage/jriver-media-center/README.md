@@ -7,7 +7,7 @@
 ### 回退版 RunImage
 
 - 构建脚本：`setup_jriver.sh`
-- 发布产物：`mediacenter36`
+- 发布产物：跟随包内 `/usr/bin/mediacenterN`。当前 AUR 是 `mediacenter36`，大版本升级后自动变成 `mediacenter37` 等，不再手改脚本。
 - 基线来源：提交 `d54b5702a820d5c779eb1216b05bdd8a0f779da2` 中、2026-09-10 文件选择器实验开始之前的 `runimage/setup_jriver.sh`。
 - 该版本显式安装 `bash` 和 `gvfs`。`bash` 保证瘦身后仍有解释器。`gvfs` 提供 GTK/GIO 的最近使用、回收站后端。仍不包含 GTK 文件选择器 schema override、`GIO_USE_VOLUME_MONITOR=unix`、`dbus-run-session`、`LD_PRELOAD` Patch 或额外 JRiver launcher。
 

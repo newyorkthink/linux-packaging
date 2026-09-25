@@ -79,5 +79,12 @@ mkdir -p /var/RunDir/config/
 # 7. 瘦身并打包
 rim-shrink --all
 
-# 注意：mediacenter36 中的 36 为版本号，后续版本更新时需同步检查并修改。
-rim-build mediacenter36
+# JRiver 大版本每年加一，入口从 mediacenter36 变成 mediacenter37。
+# 只接受 /usr/bin 下唯一的 mediacenter 加数字，不使用 mc36 这类短名。
+mapfile -t JRIVER_BINS < <(find /usr/bin -maxdepth 1 -regextype posix-extended -regex '/usr/bin/mediacenter[0-9]+' -printf '%f\n' | sort)
+if [[ ${#JRIVER_BINS[@]} -ne 1 ]]; then
+  echo "错误：无法确定唯一的 JRiver 入口：${JRIVER_BINS[*]:-无}" >&2
+  exit 1
+fi
+printf '%s\n' "${JRIVER_BINS[0]}" > runimage-release-name.txt
+rim-build "${JRIVER_BINS[0]}"
