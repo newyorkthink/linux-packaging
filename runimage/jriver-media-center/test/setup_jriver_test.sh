@@ -89,6 +89,7 @@ mkdir -p /var/RunDir/config/
   # 测试版仍保留独立 session D-Bus 与专用启动器，问题尚未解决，不作为正式发布基线。
   echo 'RIM_AUTORUN=("dbus-run-session" "--" "/usr/local/bin/jriver-filechooser-launch_test")'
   echo 'RIM_QUIET_MODE=1'
+  # 固定 Adwaita 光标，避免进入 JRiver 后指针左右镜像。
   echo 'XCURSOR_THEME=Adwaita'
   echo 'XCURSOR_SIZE=24'
 } >> /var/RunDir/config/Run.rcfg

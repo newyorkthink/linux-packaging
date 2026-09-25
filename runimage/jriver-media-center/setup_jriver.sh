@@ -49,6 +49,7 @@ mkdir -p /var/RunDir/config/
   echo 'RIM_SHARE_THEMES=1'
   echo 'RIM_SHARE_ICONS=1'
   echo 'RIM_QUIET_MODE=1'
+  # 固定 Adwaita 光标，避免进入 JRiver 后指针左右镜像。
   echo 'XCURSOR_THEME=Adwaita'
   echo 'XCURSOR_SIZE=24'
 } >> /var/RunDir/config/Run.rcfg
