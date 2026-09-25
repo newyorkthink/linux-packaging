@@ -53,6 +53,16 @@ XCURSOR_SIZE=24
 
 根因还没有确认。不能写成缺包、光标主题或文件选择器实验导致的。
 
+### 2026-09-25：影院模式鼠标点击卡住（遗留，未解决）
+
+终端可以进入影院模式，界面能画出来。鼠标点击后界面卡住。键盘仍能退出影院模式，所以进程没有死。
+
+这是 JRiver 自己的全屏。把 i3 里 `JRiver Theater View OpenGL Class` 的 `fullscreen enable` 和 `sticky enable` 注释掉之后，影院模式仍然铺满屏幕。进了影院之后，切换工作区或其他软件会被挡住。
+
+旧 AppImage 在 2026-09-12 有过同样的鼠标点击卡住。这次是在当前 RunImage 上复现。Fontconfig 警告和 WebGL software fallback 不能当成原因。先别为此改构建脚本或 i3 规则。
+
+卡住时不用重启。Ctrl+Alt+F3 进入文字界面，执行 `pkill -x mediacenter36`，再 Ctrl+Alt+F1 回桌面。
+
 ### 测试版
 
 测试文件都在 `test/`，不进正式构建：
