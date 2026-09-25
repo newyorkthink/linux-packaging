@@ -41,16 +41,35 @@ yay -S --noconfirm jriver-media-center gnome-themes-extra adwaita-icon-theme adw
 # 6. 写入运行时持久化配置 (Run.rcfg)
 mkdir -p /var/RunDir/config/
 {
+  # 禁用 RunImage 的 NVIDIA 驱动版本检查；避免自动检测、匹配、生成或下载 NVIDIA 驱动镜像
+  # 该参数只关闭 RunImage 的 NVIDIA 驱动处理机制，不等于禁用 NVIDIA 显卡或程序 GPU 加速
   echo 'RIM_NO_NVIDIA_CHECK=1'
+
+  # 指定 RunImage 缓存目录，统一保存运行时缓存数据
   echo 'RIM_CACHEDIR=~/.cache/runimage'
+
+  # 允许容器通过 hostexec 调用宿主机命令
   echo 'RIM_ENABLE_HOSTEXEC=1'
+
+  # 外部链接和文件使用宿主机的 xdg-open 打开
   echo 'RIM_HOST_XDG_OPEN=1'
+
+  # 将宿主机字体目录共享给 RunImage，保持字体显示一致
   echo 'RIM_SHARE_FONTS=1'
+
+  # 将宿主机 GTK 等主题共享给 RunImage，保持界面主题一致
   echo 'RIM_SHARE_THEMES=1'
+
+  # 将宿主机图标目录共享给 RunImage，避免程序图标或主题图标缺失
   echo 'RIM_SHARE_ICONS=1'
+
+  # 关闭 RunImage 的普通信息输出，仅保留错误等必要信息，减少启动时终端输出
   echo 'RIM_QUIET_MODE=1'
-  # 固定 Adwaita 光标，避免进入 JRiver 后指针左右镜像。
+
+  # 固定光标主题为 Adwaita，避免进入 JRiver 后指针左右镜像
   echo 'XCURSOR_THEME=Adwaita'
+
+  # 固定光标大小为 24
   echo 'XCURSOR_SIZE=24'
 } >> /var/RunDir/config/Run.rcfg
 
