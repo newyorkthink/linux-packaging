@@ -1,6 +1,16 @@
+# 已归档
+
+2026-09-25 起本目录不再使用，已从 `jriver/` 移到 `archive/jriver/`。
+
+停用原因：AppImage 启动慢，而且 bug 多。不再构建，Release 里的 `mediacenter36.AppImage` 已删除。
+
+当前使用 [JRiver RunImage](../../runimage/jriver-media-center/README.md)，产物是 `mediacenter36`。
+
+下面原文保留，只作历史记录。
+
 # JRiver Media Center AppImage
 
-本目录构建 x86_64 JRiver Media Center。上游应用来自当前 AUR `jriver-media-center` 配方指向的官方 Linux DEB；主程序是原生 C/C++ 与 GTK3，另有 JRWeb/CEF、WebKitGTK 和音频运行库。正式构建由 [Build AppImages](../.github/workflows/build.yml) 的独立 `Build JRiver` Job 执行，产物位于 `jriver/dist/`，Release 名称随实际主程序为 `mediacenterN.AppImage`。
+本目录构建 x86_64 JRiver Media Center。上游应用来自当前 AUR `jriver-media-center` 配方指向的官方 Linux DEB；主程序是原生 C/C++ 与 GTK3，另有 JRWeb/CEF、WebKitGTK 和音频运行库。正式构建由 [Build AppImages](../../.github/workflows/build.yml) 的独立 `Build JRiver` Job 执行，产物位于 `jriver/dist/`，Release 名称随实际主程序为 `mediacenterN.AppImage`。
 
 ## 当前使用建议
 

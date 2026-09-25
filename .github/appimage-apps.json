@@ -773,13 +773,6 @@
       "software_key": "joplin"
     },
     {
-      "key": "jriver",
-      "kind": "special",
-      "name": "JRiver",
-      "script": "jriver/build_jriver_anylinux_sharun.sh",
-      "dir": "jriver"
-    },
-    {
       "key": "chatgpt",
       "kind": "special",
       "name": "ChatGPT",

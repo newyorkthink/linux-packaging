@@ -23,7 +23,7 @@ runimage/jriver-media-center/setup_jriver.sh
 
 ### 当前使用方案
 
-当前默认使用 `setup_jriver.sh` 构建的 **JRiver RunImage**。`jriver/` 目录下的两种 AppImage 打包方案暂时不作为日常使用版本，原因是实机启动速度较慢；相关脚本和修复记录继续保留，后续需要时再处理。RunImage 既有问题记录继续保留，不再为了这些历史故障修改原本正常的 Rofi、nwg-drawer 或宿主系统配置。
+当前默认使用 `setup_jriver.sh` 构建的 **JRiver RunImage**。两种 AppImage 方案已于 2026-09-25 归档到 [`archive/jriver/`](../../archive/jriver/README.md)，原因是启动慢、bug 多，不再构建，也不再发布。RunImage 既有问题记录继续保留，不再为了这些历史故障修改原本正常的 Rofi、nwg-drawer 或宿主系统配置。
 
 ### 2026-09-25：鼠标指针左右镜像
 

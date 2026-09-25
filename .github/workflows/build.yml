@@ -60,7 +60,6 @@ on:
           - htop/build_htop.sh
           - i3wm/build_i3wm.sh
           - joplin/build_joplin.sh
-          - jriver/build_jriver_anylinux_sharun.sh
           - kde-suite/build_kde_suite.sh
           - keepass/build_keepass.sh
           - keepassxc/build_keepassxc.sh
@@ -676,20 +675,6 @@ jobs:
           asset_name: 'joplin.AppImage'
           artifact_dir: 'joplin/dist'
           github_token: ${{ github.token }}
-
-
-  build_jriver:
-    name: Build JRiver
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).jriver == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 90
-    container:
-      image: ghcr.io/pkgforge-dev/archlinux:latest
-      options: --privileged --device /dev/fuse
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'jriver/build_jriver_anylinux_sharun.sh', ARTIFACT_DIR: 'jriver/dist', RELEASE_NAME: 'mediacenter36.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
 
 
   build_keyviz:
