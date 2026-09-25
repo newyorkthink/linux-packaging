@@ -9,7 +9,7 @@
 - 构建脚本：`setup_jriver.sh`
 - 发布产物：`mediacenter36`
 - 基线来源：提交 `d54b5702a820d5c779eb1216b05bdd8a0f779da2` 中、2026-09-10 文件选择器实验开始之前的 `runimage/setup_jriver.sh`。
-- 该版本不包含 `gvfs`、GTK 文件选择器 schema override、`GIO_USE_VOLUME_MONITOR=unix`、`dbus-run-session`、`LD_PRELOAD` Patch 或额外 JRiver launcher。
+- 该版本显式安装 `bash` 和 `gvfs`。`bash` 保证瘦身后仍有解释器。`gvfs` 提供 GTK/GIO 的最近使用、回收站后端。仍不包含 GTK 文件选择器 schema override、`GIO_USE_VOLUME_MONITOR=unix`、`dbus-run-session`、`LD_PRELOAD` Patch 或额外 JRiver launcher。
 
 重要：**该版本只能称为“代码回退版”，不能再称为“已验证稳定版”。** 用户实机确认，换回这份旧 RunImage 逻辑后，Rofi 启动 `mediacenter36` 仍然存在无 GUI 的问题。因此代码回退没有恢复此前实际可用的运行状态，根因仍未确认。
 
@@ -23,7 +23,7 @@ runimage/jriver-media-center/setup_jriver.sh
 
 ### 当前使用方案
 
-当前默认使用 `setup_jriver.sh` 构建的 **JRiver RunImage**。两种 AppImage 方案已于 2026-09-25 归档到 [`archive/jriver/`](../../archive/jriver/README.md)，原因是启动慢、bug 多，不再构建，也不再发布。RunImage 既有问题记录继续保留，不再为了这些历史故障修改原本正常的 Rofi、nwg-drawer 或宿主系统配置。
+当前默认使用 `setup_jriver.sh` 构建的 **JRiver RunImage**。构建依赖里显式包含 `bash` 和 `gvfs`。两种 AppImage 方案已于 2026-09-25 归档到 [`archive/jriver/`](../../archive/jriver/README.md)，原因是启动慢、bug 多，不再构建，也不再发布。RunImage 既有问题记录继续保留，不再为了这些历史故障修改原本正常的 Rofi、nwg-drawer 或宿主系统配置。
 
 ### 2026-09-25：鼠标指针左右镜像
 

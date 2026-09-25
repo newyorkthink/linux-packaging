@@ -35,7 +35,10 @@ pac -S --noconfirm yay
 yay -S --noconfirm jriver-media-center gnome-themes-extra adwaita-icon-theme adwaita-cursors desktop-file-utils zlib tar nss nspr libva ibus gtk3 libsoup3 python libepoxy gst-libav \
   coreutils glibc libuvc libusb mesa ffmpeg base-devel polkit dbus webkit2gtk-4.1 vorbis-tools alsa-lib ca-certificates gcc-libs libx11 pango fribidi fontconfig gst-plugins-ugly \
   libxau libxcb libxdmcp libxext util-linux musepack-tools pulseaudio-alsa freetype2 harfbuzz xdg-utils lcms2 vulkan-icd-loader vulkan-intel gstreamer cairo libxss libxtst \
-  libxcrypt-compat hicolor-icon-theme
+  libxcrypt-compat hicolor-icon-theme bash gvfs
+
+# bash：保证打包和运行时都有 bash，避免瘦身后启动脚本找不到解释器。
+# gvfs：提供 GTK/GIO 的最近使用、回收站等虚拟文件系统后端。
 
 
 # 6. 写入运行时持久化配置 (Run.rcfg)
