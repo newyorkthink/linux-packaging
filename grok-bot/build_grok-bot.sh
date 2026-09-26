@@ -12,10 +12,11 @@ cd "$SCRIPT_DIR"
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 
 # 安装 Grok Bot 官方 DEB 依赖、GTK3 中文输入模块和音频客户端运行库。
+# im-ibus.so 属于 ibus，不随 gtk3 安装；缺文件时 quick-sharun 会退出。
 # libpulse 与 PipeWire 这里只用于客户端兼容；最终 AppImage 不启动 PulseAudio / PipeWire daemon。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" \
   dpkg gtk3 nss nspr alsa-lib libpulse pipewire pipewire-audio libnotify libsecret \
-  libxss libxtst mesa libayatana-appindicator fcitx5-gtk cups
+  libxss libxtst mesa libayatana-appindicator ibus fcitx5-gtk cups
 
 # 只清理当前 Grok Bot 项目的构建目录和旧产物。
 rm -rf -- "$SCRIPT_DIR/source" "$SCRIPT_DIR/AppDir" "$SCRIPT_DIR/dist"
@@ -38,7 +39,7 @@ VERSION="$("$SCRIPT_DIR/../common/download/download_json_deb_asset.sh" \
   'https://api2.cursor.sh/updates/api/download/stable/linux-x64/sand' \
   '.version' \
   '.debUrl' \
-  '^https://downloads\.cursor\.com/grokbot/stable/[0-9a-f]{40}/linux/x64/grok-bot_[0-9]+([.][0-9]+)+_amd64[.]deb$' \
+  '^https://downloads\\.cursor\\.com/grokbot/stable/[0-9a-f]{40}/linux/x64/grok-bot_[0-9]+([.][0-9]+)+_amd64[.]deb$' \
   'grok-bot_{version}_amd64.deb' \
   'grok-bot' \
   'amd64' \

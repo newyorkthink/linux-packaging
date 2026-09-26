@@ -50,7 +50,7 @@ Grok Bot 官方文档确认桌面端支持 voice chat 与可播放的 voice memo
 
 - AppImage 不安装官方 DEB 的系统级 postinst，也不向 `/etc` 写 AppArmor 配置。
 - `chrome-sandbox` 在 AppImage 内保持普通执行权限，启动参数使用 `--no-sandbox`；不会要求用户为 AppImage 设置 setuid root。
-- GTK3 同时携带 IBus 与 Fcitx5 输入模块，并在包内提供 `zh_CN.UTF-8` locale。
+- GTK3 同时携带 IBus 与 Fcitx5 输入模块，并在包内提供 `zh_CN.UTF-8` locale。IBus 模块来自 `ibus` 包，不来自 `gtk3`。
 - `grokbot://` 与 `sand://` 的桌面协议注册只写入当前用户的 XDG desktop / MIME 配置，不修改系统级默认配置。
 - 音频客户端库进入 AppImage 后仍依赖宿主存在可用的用户音频会话与实际输出设备。
 
@@ -61,3 +61,10 @@ Grok Bot 官方文档确认桌面端支持 voice chat 与可播放的 voice memo
 - **处理：** 新增 `build_grok-bot.sh`，改从官方 stable DEB 动态重打包；显式携带 ALSA、libpulse 与 PipeWire 客户端运行库，同时保留宿主音频 daemon，不在 AppImage 内启动 PulseAudio 或 PipeWire 服务。
 - **接入：** 新增标准 matrix 清单项和手动构建下拉项，最终资产为 `grok-bot.AppImage`，版本元数据写入 `software_versions.json` 的 `grok-bot` 条目。
 - **验证状态：** 提交前只完成脚本语法、清单和 workflow 静态检查；按仓库规则提交后不监控 GitHub Actions。新的 AppImage 构建结果以及真实音频播放仍待本次正式构建产物验证。
+
+## 2026-09-26：补上 IBus 包
+
+- **现象：** 构建把 `/usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so` 交给 quick-sharun，但安装列表只有 `fcitx5-gtk`。
+- **核查：** Arch 上该文件属于 `ibus`，不在 `gtk3` 依赖里。quick-sharun 遇到不存在的路径会报错并退出。
+- **处理：** 安装列表补上 `ibus`，与 Discord 的 GTK3 输入模块来源一致。
+- **验证状态：** 只完成包来源和缺失路径会中止构建的静态核对；提交后不监控 GitHub Actions。
