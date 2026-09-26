@@ -74,6 +74,7 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - RPM 可正常打开并解出 CPIO payload 以及 `etc/`、`usr/`、`var/` 等内容。
 - 当前最终包不依赖旧版 PeaZip AppImage；旧包仅作为历史回归对照样本，不参与构建或运行。
 - 设置页左侧导航只能点击文字附近属于上游界面源码行为：`peach.lfm` 中每一行由 `TPanel` 承载，但只有 `LabelTitleOptions1..8` 绑定 `OnClick`；这不是当前 AppImage 打包回归。
+- DwarFS AppImage 解不开，而且打包改不了。`.appimage` 在官方程序里写死走 `res/bin/7z/7z`。`res/bin/zstd/zstd` 只处理 `.zst`。不要新造 `res/bin/appimage/`，也不要用脚本换掉 `7z`。详见 2026-09-26 记录。
 
 以下历史检查、故障、失败方案与修复记录**必须保留**。它们用于约束后续维护和 AI 修改，禁止因“精简文档”“整理历史”或“已经解决”而删除；后续修改前应先阅读这些记录，避免重复已经失败的方案或回退已验证基线。
 
@@ -87,6 +88,16 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - **许可证：** 上游仓库标示 LGPL-3.0，官方 DEB 附带 GPL-3+ 版权说明，允许按对应许可证再分发。
 
 ## 修复记录
+
+### 2026-09-26：DwarFS AppImage 不能改走 7z 以外的程序
+
+- **故障现象：** 用当前 PeaZip 解压 DwarFS 的 `beyond_compare_5.AppImage` 时，自带 7-Zip 26.03 报 `Type = zstd`，以及档案结束后还有数据。
+- **根因：** PeaZip 11.3 的 `list_utils.pas` 里，`testext` 把 `.appimage` 标为 131。`testinput` 看到这个编号就把它当成 7z 档案。这是编译进官方 `peazip` 的，打包改不到。
+- **不是 zstd 程序：** `res/bin/zstd/zstd` 在包里，大约 915KB，只在遇到 `.zst` 时才会被调用。上面的 `Type = zstd` 是 7z 自己认错。
+- **不能新造目录：** 额外程序只能放在已经写死的 `res/bin/7z`、`arc`、`brotli`、`lpaq`、`paq`、`quad`、`upx`、`zpaq`、`zstd`。没有 `res/bin/appimage/`，PeaZip 也不会去读。
+- **禁止再包脚本：** 不得用脚本替换 `res/bin/7z/7z` 来拦截 AppImage。
+- **决定：** 不重编译 PeaZip。构建脚本保持不动。
+- **修改文件：** 只更新本 README。
 
 ### 2026-09-21：修复 PeaZip 解压 AppImage 时的危险符号链接错误
 
