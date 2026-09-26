@@ -119,6 +119,18 @@
       "run_from_root": "false"
     },
     {
+      "key": "grok_bot",
+      "kind": "standard",
+      "name": "Grok Bot",
+      "script": "grok-bot/build_grok-bot.sh",
+      "dir": "grok-bot",
+      "artifact_dir": "grok-bot/dist",
+      "release_name": "grok-bot.AppImage",
+      "software_key": "grok-bot",
+      "timeout_minutes": 90,
+      "run_from_root": "false"
+    },
+    {
       "key": "htop",
       "kind": "standard",
       "name": "htop",
