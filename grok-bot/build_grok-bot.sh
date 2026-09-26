@@ -39,7 +39,7 @@ VERSION="$("$SCRIPT_DIR/../common/download/download_json_deb_asset.sh" \
   'https://api2.cursor.sh/updates/api/download/stable/linux-x64/sand' \
   '.version' \
   '.debUrl' \
-  '^https://downloads\\.cursor\\.com/grokbot/stable/[0-9a-f]{40}/linux/x64/grok-bot_[0-9]+([.][0-9]+)+_amd64[.]deb$' \
+  '^https://downloads\.cursor\.com/grokbot/stable/[0-9a-f]{40}/linux/x64/grok-bot_[0-9]+([.][0-9]+)+_amd64[.]deb$' \
   'grok-bot_{version}_amd64.deb' \
   'grok-bot' \
   'amd64' \
