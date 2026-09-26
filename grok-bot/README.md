@@ -46,6 +46,8 @@ Grok Bot Linux 桌面端是 Electron / Chromium 应用。官方 DEB 的主要程
 
 Grok Bot 官方文档确认桌面端支持 voice chat 与可播放的 voice memo，因此语音播放属于应用正常功能；本项目的处理只补齐 Linux 便携包运行时依赖，不改变应用语音功能本身。
 
+2026-09-26 实机对比：官方 `grok-bot.AppImage` 无法发出声音；本目录重打包并补齐上述客户端库后的 `grok-bot.AppImage` 可以发出声音。
+
 ## 运行与兼容说明
 
 - AppImage 不安装官方 DEB 的系统级 postinst，也不向 `/etc` 写 AppArmor 配置。
@@ -60,7 +62,7 @@ Grok Bot 官方文档确认桌面端支持 voice chat 与可播放的 voice memo
 - **核查：** 官方文档确认 Linux 桌面端和 voice chat / voice memo 功能；官方 DEB 直接声明 ALSA 等 Linux 依赖，现有 Linux 封装资料同时显示 Electron 运行时可能动态加载 PulseAudio / PipeWire 客户端库。
 - **处理：** 新增 `build_grok-bot.sh`，改从官方 stable DEB 动态重打包；显式携带 ALSA、libpulse 与 PipeWire 客户端运行库，同时保留宿主音频 daemon，不在 AppImage 内启动 PulseAudio 或 PipeWire 服务。
 - **接入：** 新增标准 matrix 清单项和手动构建下拉项，最终资产为 `grok-bot.AppImage`，版本元数据写入 `software_versions.json` 的 `grok-bot` 条目。
-- **验证状态：** 提交前只完成脚本语法、清单和 workflow 静态检查；按仓库规则提交后不监控 GitHub Actions。新的 AppImage 构建结果以及真实音频播放仍待本次正式构建产物验证。
+- **验证状态：** 构建脚本、清单和 workflow 已接入。音频输出的实机结果见同日「实机确认可以出声」。
 
 ## 2026-09-26：补上 IBus 包
 
@@ -68,3 +70,9 @@ Grok Bot 官方文档确认桌面端支持 voice chat 与可播放的 voice memo
 - **核查：** Arch 上该文件属于 `ibus`，不在 `gtk3` 依赖里。quick-sharun 遇到不存在的路径会报错并退出。
 - **处理：** 安装列表补上 `ibus`，与 Discord 的 GTK3 输入模块来源一致。
 - **验证状态：** 只完成包来源和缺失路径会中止构建的静态核对；提交后不监控 GitHub Actions。
+
+## 2026-09-26：实机确认可以出声
+
+- **对比：** 同一环境中，官方 Grok Bot AppImage 可以运行，但不能发出声音。
+- **结果：** 本仓库从官方 DEB 重打包，并补齐 ALSA、libpulse 与 PipeWire 客户端库之后，`grok-bot.AppImage` 可以发出声音。
+- **范围：** 这次确认的是音频输出恢复。应用自身的 voice chat / voice memo 逻辑没有改动，播放仍依赖宿主已有的用户音频会话和输出设备。
