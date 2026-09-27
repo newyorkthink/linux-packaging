@@ -15,11 +15,11 @@
 | 打包方式 | 仓库现有 `quick-sharun` AppImage 流程 |
 | 支持架构 | `x86_64` |
 | Release 产物 | `gemini.AppImage` |
-| 不兼容 stable | 若当前正式版包含 Windows PE 原生 `.node`，不把该版本伪装成 Linux 可用版本；保留 `latest` Release 中最后一次成功构建并通过版本清单与 SHA-256 校验的 Linux 兼容产物 |
+| Windows 原生模块 | 只移除已确认属于 Speak to Window 的 PE 格式 `gemini_native.node`；移除前必须确认当前产品层仍声明缺失模块时使用安全回退 |
 
 Gemini 应用版本、Google CDN 安装包地址、安装包校验值以及 Electron runtime 版本均不写死在仓库中。上游发布新 stable 版本后，下一次正式构建会重新读取当前元数据。
 
-动态读取最新 stable 不等于强制发布每一个 Windows stable。若上游新增无法在 Linux Electron 中加载的 Windows 原生模块，构建会拒绝发布该上游版本，并继续保留最后一个已经成功构建的 Linux 兼容 AppImage；版本清单也继续记录实际保留的兼容版本，不会把未移植成功的上游版本写成已发布。
+Windows PE 原生模块不能由 Linux Electron 加载，因此不会进入最终产品层。当前 Gemini 产品层把 `gemini_native.node` 限定在 Speak to Window 的 Windows 前台窗口、光标和文本注入能力，并在加载失败时明确使用安全回退；Linux 启动入口也不启用对应功能。构建只删除这个已确认模块并核对回退标记仍然存在；若发现其他 PE `.node` 或上游取消安全回退则停止构建，不会静默发布不兼容产品层。
 
 ## 下载与运行
 
@@ -58,8 +58,8 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 2. 验证返回的版本格式、`dl.google.com` 下载域名、Google DeepMind release 路径、完整安装包大小与 SHA-256。
 3. 下载官方完整 NSIS 安装包并使用 `7z` 解包。
 4. 定位唯一的 `resources/app.asar` 与对应 `Gemini.exe`。
-5. 检查 `resources` 中是否存在 Windows PE 格式的原生 `.node` 模块；若存在，不继续把当前 Windows 产品层装入 Linux Electron，而是通过 GitHub Release 的资产 ID 读取并校验 `software_versions.json` 与现有 `gemini.AppImage` 的 SHA-256，保留最后一个成功构建的 Linux 兼容版本。
-6. 当前产品层不存在 Windows PE 原生 `.node` 时，动态确定 Gemini 实际使用的 Electron 精确版本。
+5. 动态确定 Gemini 实际使用的 Electron 精确版本。
+6. 复制官方产品层时删除 Windows `.exe`、`.dll` 和已确认可安全回退的 PE 格式 `gemini_native.node`；发现其他 PE `.node` 时停止构建，并核对当前 `app.asar` 仍声明缺失模块时使用 Speak to Window 安全回退。
 7. 从 Electron 官方 Release 下载对应 `electron-v<版本>-linux-x64.zip`，并按官方 `SHASUMS256.txt` 校验。
 8. 以 Linux Electron runtime 为外壳，替换为 Gemini 官方 Electron 产品资源；Windows `.exe` / `.dll` 资源不进入最终 Linux 产品层。
 9. 从官方 `Gemini.exe` 提取应用图标，生成 Linux desktop entry。
@@ -81,6 +81,10 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 上述确认范围只代表当前 Linux 移植层已经实际运行通过，不代表 Google 官方支持 Linux，也不代表所有 Windows 桌面原生功能已经移植。
 
 ### 当前上游兼容状态
+
+2026-09-27，Google Omaha `prod` channel 已返回 Gemini `1.12.3`。静态解包官方安装包后确认 `gemini_native.node` 仍是 Windows PE x86-64 模块，但当前 `main.js` 使用 `try/catch` 加载它，加载失败会明确记录 `STC will use safe fallbacks`；所有调用点均先处理模块不可用的情况，Speak to Window 还受 `GEMINI_ENABLE_SPEAK_TO_WINDOW=true` 控制，Linux 启动入口没有启用该开关。
+
+因此，下面 2026-09-17 将 `gemini_native.node` 的存在直接视为整个产品层不可移植的判断，已被 1.12.3 产品层的实际代码证据替代。旧记录继续保留作为当时的故障历史；当前构建会只删除这个已确认模块、确认安全回退标记仍存在，再继续打包当前动态解析到的正式版。Speak to Window 的 Windows 原生窗口定位与文本注入能力仍不属于 Linux 移植范围。
 
 2026-09-17，Google Omaha `prod` channel 已返回 Gemini `1.11.4`。该正式包的 `resources/app.asar.unpacked/src/gemini_native.node` 是 Windows PE 原生 Node 模块，不能直接由 Linux Electron 加载。
 
@@ -132,7 +136,7 @@ for_window [class="^gemini$"] floating enable, sticky disable
 
 当前产品层仍会尝试连接 Windows named pipe `\\\\.\\pipe\\Google.Gemini.AppLauncher`。Linux 中不存在该 helper，因此终端可能持续出现 `helper_ipc` 重连日志；目前已确认这不会阻止主界面启动、登录和聊天。
 
-从 Gemini 1.11.4 开始，官方 Windows 产品层已经实际包含 `gemini_native.node`。这与此前仅存在 launcher / named pipe 的非致命边界不同：原生 `.node` 会由 Electron/Node 直接加载，因此在没有对应 Linux 二进制或可验证替代实现前，不能继续沿用“复制产品层 + Linux Electron runtime”的旧路径强行发布新版本。
+从 Gemini 1.11.4 开始，官方 Windows 产品层已经包含 `gemini_native.node`。该模块本身不能由 Linux Electron 加载，因此构建只删除实际识别为 PE 的这个模块；当前产品层会捕获加载失败并让 Speak to Window 使用安全回退，主窗口、登录和聊天不依赖该 Windows 模块。Linux 不提供该模块负责的 Windows 前台窗口、光标、辅助功能树和文本注入能力；未来出现其他 PE `.node` 时不会套用这一结论。
 
 实际运行中还可能看到以下非致命日志：
 
@@ -156,8 +160,8 @@ Gemini 接入仓库统一正式 workflow：
 - `gemini/**` 推送到 `main` 时选择 Gemini 构建任务；
 - `workflow_dispatch` 可以选择 `gemini/build_gemini.sh`；
 - `workflow_dispatch` 选择 `all` 或每日计划构建时包含 Gemini；
-- 当前 stable 可直接移植时，构建成功后覆盖 `latest` Release 中的 `gemini.AppImage` 并写入实际上游版本；
-- 当前 stable 因 Windows 原生 `.node` 不可移植时，构建只重新发布已经按资产 ID、Release digest、版本清单和实际文件 SHA-256 校验一致的最后兼容 AppImage，并继续写回该兼容版本，不会把当前不兼容 stable 写入版本清单。
+- 构建成功后覆盖 `latest` Release 中的 `gemini.AppImage`，并把本次动态取得且实际打包的上游版本写入版本清单；
+- 已确认的 PE 格式 `gemini_native.node` 不进入最终 AppImage；出现其他 PE `.node` 或当前产品层的安全回退标记发生变化时构建会停止，不再回退或重新发布旧版资产。
 
 本项目不新增独立 test workflow、smoke Job 或运行时测试 Step。
 
@@ -258,6 +262,14 @@ dist/gemini.AppImage
 
 - 故障现象：全量构建时 `software_versions.json` 没有 `gemini` 对象，回退路径 12 次重试后失败；`latest` 上的 `gemini.AppImage` 仍在。
 - 处理：清单缺条目时改为校验并复用已发布 AppImage，用 AppImage 自带的 `--appimage-extract '*.desktop'` 读取 `X-AppImage-Version`（uruntime / DwarFS 不能靠 `strings`），再写回清单。仍不发布当前含 Windows PE `.node` 的 1.11.4。
+
+### 2026-09-27：恢复打包当前 Gemini 正式版
+
+- 故障现象：Actions run `36309432672` 的 Gemini Job 已正确解析、下载并校验官方 `1.12.3`，但发现 `gemini_native.node` 后转入旧版资产回退；`latest` Release 已没有 `gemini.AppImage`，12 次读取均得到 `expected exactly one 'gemini.AppImage' asset, got 0`，最终构建失败。
+- 根因：旧逻辑只根据 PE `.node` 的存在就判定整个产品层不可移植，没有检查当前产品层怎样加载该模块。对官方 `1.12.3` 的 `app.asar` 静态解包确认，模块加载位于 `try/catch` 中，缺失时明确进入 Speak to Window 安全回退；相关调用点均处理模块不可用，且该功能默认未在 Linux 启动入口启用。
+- 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
+- 修复：删除依赖旧 Release 资产的整段回退逻辑；继续动态取得当前官方 stable 和匹配的 Linux Electron runtime，只从复制后的产品层移除实际识别为 Windows PE 的 `gemini_native.node`，其他 PE `.node` 一律停止构建。重新打包 `app.asar` 前必须确认当前上游仍包含安全回退日志与 Speak to Window 功能开关，标记消失时立即停止，避免以后无条件删除变成静默破坏。
+- 兼容边界：Linux AppImage 不提供该 Windows 模块负责的前台窗口、光标、辅助功能树和文本注入能力；本次没有伪造替代模块、锁定版本或修改 Google Web 功能。已完成官方安装包与产品层静态检查，正式 Actions 构建和真实 Linux 运行结果仍待验证。
 
 ## 2026-09-23 自根目录原样迁入
 

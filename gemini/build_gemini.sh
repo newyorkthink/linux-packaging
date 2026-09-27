@@ -222,224 +222,6 @@ readonly WINDOWS_APP_ROOT="$(dirname "$WINDOWS_RESOURCES")"
 readonly WINDOWS_EXE="$WINDOWS_APP_ROOT/Gemini.exe"
 [[ -f "$WINDOWS_EXE" ]] || die "未找到与 app.asar 对应的 Gemini.exe。"
 
-reuse_last_compatible_release() {
-  local release_repository="${GITHUB_REPOSITORY:-newyorkthink/linux-packaging}"
-  local release_json="$WORK_DIR/latest-release.json"
-  local manifest="$WORK_DIR/software_versions.json"
-  local candidate="$WORK_DIR/gemini-last-compatible.AppImage"
-  local manifest_id manifest_sha app_id app_sha actual_sha fallback_version attempt
-  local restored=false
-  local -a auth_header=() release_meta=() fallback_meta=()
-
-  if [[ -n "${GH_TOKEN:-}" ]]; then
-    auth_header=(-H "Authorization: Bearer $GH_TOKEN")
-  fi
-
-  log "当前 Gemini $VERSION 含 Windows 原生 Node 模块，保留 latest Release 中最后一个已成功构建的 Linux 兼容版本"
-
-  for attempt in $(seq 1 12); do
-    rm -f -- "$release_json" "$manifest" "$candidate"
-
-    if ! curl -fL \
-      --retry 3 \
-      --retry-all-errors \
-      --retry-delay 2 \
-      -H 'Accept: application/vnd.github+json' \
-      "${auth_header[@]}" \
-      "https://api.github.com/repos/$release_repository/releases/tags/latest" \
-      -o "$release_json"; then
-      sleep 5
-      continue
-    fi
-
-    mapfile -t release_meta < <(
-      python3 - "$release_json" <<'PY'
-import json
-import re
-import sys
-
-with open(sys.argv[1], encoding='utf-8') as fh:
-    data = json.load(fh)
-assets = data.get('assets')
-if not isinstance(assets, list):
-    raise SystemExit('latest release assets is not a list')
-
-
-def read_asset(name: str):
-    rows = [item for item in assets if item.get('name') == name]
-    if len(rows) != 1:
-        raise SystemExit(f'expected exactly one {name!r} asset, got {len(rows)}')
-    item = rows[0]
-    asset_id = item.get('id')
-    digest = item.get('digest') or ''
-    if not isinstance(asset_id, int) or asset_id <= 0:
-        raise SystemExit(f'invalid asset id for {name!r}')
-    if not re.fullmatch(r'sha256:[0-9A-Fa-f]{64}', digest):
-        raise SystemExit(f'invalid asset digest for {name!r}: {digest!r}')
-    return str(asset_id), digest.split(':', 1)[1].lower()
-
-
-manifest_id, manifest_sha = read_asset('software_versions.json')
-app_id, app_sha = read_asset('gemini.AppImage')
-print(manifest_id)
-print(manifest_sha)
-print(app_id)
-print(app_sha)
-PY
-    )
-    if (( ${#release_meta[@]} != 4 )); then
-      sleep 5
-      continue
-    fi
-
-    manifest_id="${release_meta[0]}"
-    manifest_sha="${release_meta[1]}"
-    app_id="${release_meta[2]}"
-    app_sha="${release_meta[3]}"
-
-    if ! curl -fL \
-      --retry 3 \
-      --retry-all-errors \
-      --retry-delay 2 \
-      -H 'Accept: application/octet-stream' \
-      "${auth_header[@]}" \
-      "https://api.github.com/repos/$release_repository/releases/assets/$manifest_id" \
-      -o "$manifest"; then
-      sleep 5
-      continue
-    fi
-
-    actual_sha="$(sha256sum "$manifest" | awk '{print tolower($1)}')"
-    if [[ "$actual_sha" != "$manifest_sha" ]]; then
-      sleep 5
-      continue
-    fi
-
-    mapfile -t fallback_meta < <(
-      python3 - "$manifest" "$app_sha" <<'PY'
-import json
-import re
-import sys
-
-with open(sys.argv[1], encoding='utf-8') as fh:
-    data = json.load(fh)
-entry = data.get('gemini') if isinstance(data, dict) else None
-if not isinstance(entry, dict):
-    print('')
-    print('')
-    raise SystemExit(0)
-
-version = entry.get('version', '')
-asset = entry.get('asset', '')
-sha256 = str(entry.get('sha256', '')).lower()
-expected_sha256 = sys.argv[2].lower()
-
-if not re.fullmatch(r'[0-9]+(?:\.[0-9]+){2,3}', version):
-    raise SystemExit(f'invalid fallback Gemini version: {version!r}')
-if asset != 'gemini.AppImage':
-    raise SystemExit(f'unexpected fallback Gemini asset: {asset!r}')
-if not re.fullmatch(r'[0-9a-f]{64}', sha256):
-    raise SystemExit(f'invalid fallback Gemini SHA-256: {sha256!r}')
-if sha256 != expected_sha256:
-    raise SystemExit('software_versions.json Gemini SHA-256 does not match the Release asset digest')
-
-print(version)
-print(sha256)
-PY
-    )
-    if (( ${#fallback_meta[@]} != 2 )); then
-      sleep 5
-      continue
-    fi
-
-    json_version="${fallback_meta[0]}"
-    json_sha="${fallback_meta[1]}"
-
-    if ! curl -fL \
-      --retry 3 \
-      --retry-all-errors \
-      --retry-delay 2 \
-      -H 'Accept: application/octet-stream' \
-      "${auth_header[@]}" \
-      "https://api.github.com/repos/$release_repository/releases/assets/$app_id" \
-      -o "$candidate"; then
-      sleep 5
-      continue
-    fi
-
-    actual_sha="$(sha256sum "$candidate" | awk '{print tolower($1)}')"
-    if [[ "$actual_sha" != "$app_sha" ]]; then
-      sleep 5
-      continue
-    fi
-
-    if [[ -n "$json_version" ]]; then
-      [[ "$json_sha" == "$app_sha" ]] || {
-        sleep 5
-        continue
-      }
-      fallback_version="$json_version"
-    else
-      log "software_versions.json 没有 gemini 条目，改为从已发布 AppImage 读取兼容版本"
-      chmod +x "$candidate"
-      extract_dir="$WORK_DIR/last-appimage-meta"
-      rm -rf -- "$extract_dir"
-      mkdir -p "$extract_dir"
-      (
-        cd "$extract_dir"
-        APPIMAGE_EXTRACT_AND_RUN=1 "$candidate" --appimage-extract '*.desktop' >/dev/null
-      )
-      desktop_file="$(find "$extract_dir" -type f -name '*.desktop' -print -quit)"
-      [[ -n "$desktop_file" && -s "$desktop_file" ]] || {
-        sleep 5
-        continue
-      }
-      fallback_version="$(
-        awk -F= '/^X-AppImage-Version=/{print $2; exit}' "$desktop_file"
-      )"
-      rm -rf -- "$extract_dir"
-      if [[ ! "$fallback_version" =~ ^[0-9]+(\.[0-9]+){2,3}$ ]]; then
-        sleep 5
-        continue
-      fi
-      if [[ "$fallback_version" == "$VERSION" ]]; then
-        sleep 5
-        continue
-      fi
-      log "从已发布 AppImage 读到兼容版本：$fallback_version"
-    fi
-
-    mv -f -- "$candidate" "$OUTFILE"
-    chmod +x "$OUTFILE"
-    restored=true
-    break
-  done
-
-  [[ "$restored" == true ]] || \
-    die "当前 Gemini $VERSION 含 Windows 原生 Node 模块，且无法取得并校验最后一个已发布的 Linux 兼容版本。"
-
-  printf '%s\n' "$fallback_version" > ~/version
-  printf '%s\n' "$fallback_version" > "$DIST_DIR/version.txt"
-  log "已保留 Linux 兼容版本：$fallback_version；未将当前不兼容的 Gemini $VERSION 标记为已发布。"
-}
-
-# 原生 Node 模块无法从 Windows PE 直接搬到 Linux；发现 Windows .node 时不发布当前上游版本，
-# 而是复用并严格校验 latest Release 中最后一次成功构建的 Linux 兼容产物。
-mapfile -t windows_node_modules < <(
-  find "$WINDOWS_RESOURCES" -type f -name '*.node' -print0 \
-    | while IFS= read -r -d '' node_file; do
-        if file -b "$node_file" | grep -q '^PE32'; then
-          printf '%s\n' "$node_file"
-        fi
-      done
-)
-if (( ${#windows_node_modules[@]} > 0 )); then
-  printf '发现 Windows 原生 Node 模块，当前版本不能直接移植到 Linux：\n' >&2
-  printf '  %s\n' "${windows_node_modules[@]}" >&2
-  reuse_last_compatible_release
-  exit 0
-fi
-
 # 优先从 Gemini.exe 内嵌的 Electron 标识读取精确版本；若上游隐藏该字符串，再从 app.asar 的 package.json 元数据读取。
 ELECTRON_VERSION="$(
   {
@@ -568,6 +350,19 @@ cp -a "$WINDOWS_RESOURCES"/. "$APP_ROOT/resources/"
 # Windows 更新器和 launcher 不是 Linux Electron 产品层的一部分，不随 AppImage 分发。
 find "$APP_ROOT/resources" -type f \( -iname '*.exe' -o -iname '*.dll' \) -delete
 
+# Gemini 的 Windows 原生 Node 模块只用于 Speak to Window；产品层在模块缺失时有明确的安全回退。
+# 删除复制到 Linux 产品层中的 PE 模块，并在解包 app.asar 后确认当前上游仍保留该回退逻辑。
+WINDOWS_NATIVE_ADDON_REMOVED=false
+while IFS= read -r -d '' node_file; do
+  if file -b "$node_file" | grep -q '^PE32'; then
+    [[ "${node_file##*/}" == gemini_native.node ]] || \
+      die "发现未识别的 Windows 原生 Node 模块：${node_file#"$APP_ROOT/resources/"}"
+    log "移除 Windows 原生 Node 模块：${node_file#"$APP_ROOT/resources/"}"
+    rm -f -- "$node_file"
+    WINDOWS_NATIVE_ADDON_REMOVED=true
+  fi
+done < <(find "$APP_ROOT/resources" -type f -name '*.node' -print0)
+
 # Windows 原版会把 Gemini 主窗口设为 visible-on-all-workspaces；Linux/i3 中会映射为 sticky，
 # 且应用会在窗口创建后再次设置，导致 i3 的一次性 for_window 规则被覆盖。
 # 这里只对当前官方产品层中的显式 true / !0 调用做最小改写；如果上游结构变化则停止构建，
@@ -578,14 +373,16 @@ rm -rf "$LINUX_ASAR_DIR"
 mkdir -p "$LINUX_ASAR_DIR"
 asar extract "$LINUX_ASAR" "$LINUX_ASAR_DIR"
 
-python3 - "$LINUX_ASAR_DIR" <<'PY'
+python3 - "$LINUX_ASAR_DIR" "$WINDOWS_NATIVE_ADDON_REMOVED" <<'PY'
 import re
 import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
+native_addon_removed = sys.argv[2] == 'true'
 pattern = re.compile(r'setVisibleOnAllWorkspaces\(\s*(?:true|!0)(?=\s*[,\)])')
 patched = []
+native_fallback_found = False
 
 for path in root.rglob('*'):
     if not path.is_file() or path.suffix not in {'.js', '.cjs', '.mjs'}:
@@ -595,6 +392,12 @@ for path in root.rglob('*'):
     except UnicodeDecodeError:
         continue
 
+    if (
+        'gemini_native addon unavailable; STC will use safe fallbacks' in text
+        and 'GEMINI_ENABLE_SPEAK_TO_WINDOW' in text
+    ):
+        native_fallback_found = True
+
     new_text, count = pattern.subn('setVisibleOnAllWorkspaces(false', text)
     if count:
         path.write_text(new_text, encoding='utf-8')
@@ -602,6 +405,8 @@ for path in root.rglob('*'):
 
 if not patched:
     raise SystemExit('Gemini product layer no longer contains a recognized setVisibleOnAllWorkspaces(true/!0) call')
+if native_addon_removed and not native_fallback_found:
+    raise SystemExit('Gemini product layer no longer declares the safe fallback for the optional Windows native addon')
 
 total = sum(count for _, count in patched)
 print(f'Patched Gemini visible-on-all-workspaces calls: {total}')
