@@ -39,6 +39,16 @@ chmod +x gemini.AppImage
 ./gemini.AppImage
 ```
 
+### 配置目录
+
+Gemini 沿用 Electron 标准 `userData` 目录，Linux 默认保存在：
+
+```text
+~/.config/Gemini
+```
+
+如果系统设置了 `XDG_CONFIG_HOME`，则目录为 `$XDG_CONFIG_HOME/Gemini`。替换或更新 `gemini.AppImage` 不会删除这里保存的登录状态、站点数据、权限和应用设置。
+
 ## 技术栈
 
 Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装还包含 Windows 专用的 launcher / 系统集成组件；本项目不通过 Wine 运行这些 Windows 可执行文件，而是仅迁移 Electron 产品层到官方 Linux Electron runtime。
