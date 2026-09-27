@@ -30,7 +30,7 @@ export ARCH="$(uname -m)"
 export ICON=/usr/share/icons/Adwaita/symbolic/devices/video-display-symbolic.svg
 export DESKTOP="$desktop_dir/Xephyr.desktop"
 export OUTPATH="$SCRIPT_DIR/dist"
-export OUTNAME=xephyr.AppImage
+export OUTNAME=Xephyr.AppImage
 # CI 没有外层 X display，不能通过 strace 启动 Xephyr 扫描动态库。
 export STRACE_MODE=0
 # X server 编译时使用的 xkbcomp 和 XKB 路径映射到 AppImage 内。
@@ -49,9 +49,9 @@ for package in xorg-server-xephyr xorg-xkbcomp xkeyboard-config; do
 done
 
 quick-sharun --make-appimage
-test -s dist/xephyr.AppImage
 
 version="$(pacman -Q xorg-server-xephyr | awk '{print $2}')"
 version="${version#*:}"
 version="${version%-*}"
-printf '%s\n' "$version" > dist/version.txt
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" \
+  dist/Xephyr.AppImage "$version" dist/version.txt

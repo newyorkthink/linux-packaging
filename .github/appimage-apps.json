@@ -812,7 +812,7 @@
       "script": "xephyr/build_xephyr.sh",
       "dir": "xephyr",
       "artifact_dir": "xephyr/dist",
-      "release_name": "xephyr.AppImage",
+      "release_name": "Xephyr.AppImage",
       "software_key": "xephyr",
       "timeout_minutes": 60,
       "run_from_root": "false"
