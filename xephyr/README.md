@@ -29,7 +29,7 @@ DISPLAY=:99 i3
 - 技术栈为 X.Org 的 C 语言 X11 server；工作流使用 x86_64 Arch 容器，键盘映射由 `xorg-xkbcomp` 和 `xkeyboard-config` 提供。
 - 构建脚本 [`build_xephyr.sh`](./build_xephyr.sh) 用 quick-sharun 打包 `/usr/bin/Xephyr`、`/usr/bin/xkbcomp` 和 XKB 键盘规则；将 X server 编译时的系统路径映射至包内，使用 quick-sharun 生成的 `AppRun` 原样透传命令行参数。无需另写启动 hook 或 i3 配置。
 - 上游包没有 desktop 和图标；构建时生成临时 desktop，并使用 Arch Adwaita 主题中的通用显示器图标。Xephyr 是 X server，不需要为自身添加中文 locale 或 GTK / Qt 输入模块。
-- 统一工作流 [`.github/workflows/build.yml`](../.github/workflows/build.yml) 使用清单 [`.github/appimage-apps.json`](../.github/appimage-apps.json) 的 `xephyr` 项构建和发布 `Xephyr.AppImage`。产物目录 `dist/`；从本次安装的 Arch 包读取版本，再由公共入口 [`save_appimage_version.sh`](../common/build/save_appimage_version.sh) 检查产物并写入 `version.txt`。
+- 统一工作流 [`.github/workflows/build.yml`](../.github/workflows/build.yml) 使用清单 [`.github/appimage-apps.json`](../.github/appimage-apps.json) 的 `xephyr` 项构建和发布 `Xephyr.AppImage`。产物目录 `dist/`；公共入口 [`get_package_version.sh`](../common/arch/get_package_version.sh) 从本次安装的 Arch 包读取上游版本，再由 [`save_appimage_version.sh`](../common/build/save_appimage_version.sh) 检查产物并写入 `version.txt`。
 
 ## 验证状态
 
@@ -42,3 +42,5 @@ DISPLAY=:99 i3
 2026-09-27：提交 `56334e5` 仍在 Xephyr 脚本中重复检查产物并直接写入 `version.txt`，没有复用现有公共入口。修正 `build_xephyr.sh` 和本 README：保留 Arch 包版本解析，改用 `common/build/save_appimage_version.sh` 检查最终 AppImage 并保存版本；静态检查完成，CI 构建及实机运行仍待验证。
 
 2026-09-27：初次产物命名为小写 `xephyr.AppImage`，不符合上游程序 `Xephyr` 的大小写。修正 `build_xephyr.sh`、`README.md` 和 `.github/appimage-apps.json`：统一使用 `Xephyr.AppImage`；静态检查完成，CI 构建仍待验证。
+
+2026-09-27：前次修正只复用了版本保存入口，`build_xephyr.sh` 仍自行解析 `pacman -Q` 返回的 epoch 与 `pkgrel`。新增 `common/arch/get_package_version.sh` 统一读取已安装 Arch 包的上游版本，Xephyr 构建改为调用该入口；原有产物检查和版本保存入口不变。静态检查完成，CI 构建仍待验证。

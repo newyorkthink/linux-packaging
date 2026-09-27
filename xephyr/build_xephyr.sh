@@ -50,8 +50,6 @@ done
 
 quick-sharun --make-appimage
 
-version="$(pacman -Q xorg-server-xephyr | awk '{print $2}')"
-version="${version#*:}"
-version="${version%-*}"
+version="$("$SCRIPT_DIR/../common/arch/get_package_version.sh" xorg-server-xephyr)"
 "$SCRIPT_DIR/../common/build/save_appimage_version.sh" \
   dist/Xephyr.AppImage "$version" dist/version.txt
