@@ -350,19 +350,6 @@ cp -a "$WINDOWS_RESOURCES"/. "$APP_ROOT/resources/"
 # Windows 更新器和 launcher 不是 Linux Electron 产品层的一部分，不随 AppImage 分发。
 find "$APP_ROOT/resources" -type f \( -iname '*.exe' -o -iname '*.dll' \) -delete
 
-# Gemini 的 Windows 原生 Node 模块只用于 Speak to Window；产品层在模块缺失时有明确的安全回退。
-# 删除复制到 Linux 产品层中的 PE 模块，并在解包 app.asar 后确认当前上游仍保留该回退逻辑。
-WINDOWS_NATIVE_ADDON_REMOVED=false
-while IFS= read -r -d '' node_file; do
-  if file -b "$node_file" | grep -q '^PE32'; then
-    [[ "${node_file##*/}" == gemini_native.node ]] || \
-      die "发现未识别的 Windows 原生 Node 模块：${node_file#"$APP_ROOT/resources/"}"
-    log "移除 Windows 原生 Node 模块：${node_file#"$APP_ROOT/resources/"}"
-    rm -f -- "$node_file"
-    WINDOWS_NATIVE_ADDON_REMOVED=true
-  fi
-done < <(find "$APP_ROOT/resources" -type f -name '*.node' -print0)
-
 # Windows 原版会把 Gemini 主窗口设为 visible-on-all-workspaces；Linux/i3 中会映射为 sticky，
 # 且应用会在窗口创建后再次设置，导致 i3 的一次性 for_window 规则被覆盖。
 # 这里只对当前官方产品层中的显式 true / !0 调用做最小改写；如果上游结构变化则停止构建，
@@ -372,6 +359,27 @@ LINUX_ASAR_DIR="$WORK_DIR/app-asar-linux"
 rm -rf "$LINUX_ASAR_DIR"
 mkdir -p "$LINUX_ASAR_DIR"
 asar extract "$LINUX_ASAR" "$LINUX_ASAR_DIR"
+
+# ASAR 索引把 unpacked 文件记录为外置内容，必须在完整提取后才能删除对应文件。
+# Gemini 的 Windows 原生 Node 模块只用于 Speak to Window；产品层在模块缺失时有明确的安全回退。
+WINDOWS_NATIVE_ADDON_REMOVED=false
+while IFS= read -r -d '' node_file; do
+  if file -b "$node_file" | grep -q '^PE32'; then
+    [[ "${node_file##*/}" == gemini_native.node ]] || \
+      die "发现未识别的 Windows 原生 Node 模块：${node_file#"$APP_ROOT/resources/"}"
+    [[ "$node_file" == "$APP_ROOT/resources/app.asar.unpacked/"* ]] || \
+      die "已确认的 Windows 原生 Node 模块位于未识别路径：${node_file#"$APP_ROOT/resources/"}"
+
+    unpacked_relative="${node_file#"$APP_ROOT/resources/app.asar.unpacked/"}"
+    extracted_node="$LINUX_ASAR_DIR/$unpacked_relative"
+    [[ -f "$extracted_node" ]] || \
+      die "ASAR 提取目录缺少对应的 Windows 原生 Node 模块：$unpacked_relative"
+
+    log "移除 Windows 原生 Node 模块：${node_file#"$APP_ROOT/resources/"}"
+    rm -f -- "$node_file" "$extracted_node"
+    WINDOWS_NATIVE_ADDON_REMOVED=true
+  fi
+done < <(find "$APP_ROOT/resources" -type f -name '*.node' -print0)
 
 python3 - "$LINUX_ASAR_DIR" "$WINDOWS_NATIVE_ADDON_REMOVED" <<'PY'
 import re

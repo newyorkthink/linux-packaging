@@ -15,11 +15,11 @@
 | 打包方式 | 仓库现有 `quick-sharun` AppImage 流程 |
 | 支持架构 | `x86_64` |
 | Release 产物 | `gemini.AppImage` |
-| Windows 原生模块 | 只移除已确认属于 Speak to Window 的 PE 格式 `gemini_native.node`；移除前必须确认当前产品层仍声明缺失模块时使用安全回退 |
+| Windows 原生模块 | 完整提取 ASAR 后，只移除已确认属于 Speak to Window 的 PE 格式 `gemini_native.node`；重新打包前必须确认当前产品层仍声明缺失模块时使用安全回退 |
 
 Gemini 应用版本、Google CDN 安装包地址、安装包校验值以及 Electron runtime 版本均不写死在仓库中。上游发布新 stable 版本后，下一次正式构建会重新读取当前元数据。
 
-Windows PE 原生模块不能由 Linux Electron 加载，因此不会进入最终产品层。当前 Gemini 产品层把 `gemini_native.node` 限定在 Speak to Window 的 Windows 前台窗口、光标和文本注入能力，并在加载失败时明确使用安全回退；Linux 启动入口也不启用对应功能。构建只删除这个已确认模块并核对回退标记仍然存在；若发现其他 PE `.node` 或上游取消安全回退则停止构建，不会静默发布不兼容产品层。
+Windows PE 原生模块不能由 Linux Electron 加载，因此不会进入最终产品层。当前 Gemini 产品层把 `gemini_native.node` 限定在 Speak to Window 的 Windows 前台窗口、光标和文本注入能力，并在加载失败时明确使用安全回退；Linux 启动入口也不启用对应功能。构建先在外置文件仍存在时完整提取 ASAR，再同时删除外置副本和提取目录中的副本并核对回退标记；若发现其他 PE `.node`、模块位于未识别路径或上游取消安全回退则停止构建，不会静默发布不兼容产品层。
 
 ## 下载与运行
 
@@ -59,9 +59,9 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 3. 下载官方完整 NSIS 安装包并使用 `7z` 解包。
 4. 定位唯一的 `resources/app.asar` 与对应 `Gemini.exe`。
 5. 动态确定 Gemini 实际使用的 Electron 精确版本。
-6. 复制官方产品层时删除 Windows `.exe`、`.dll` 和已确认可安全回退的 PE 格式 `gemini_native.node`；发现其他 PE `.node` 时停止构建，并核对当前 `app.asar` 仍声明缺失模块时使用 Speak to Window 安全回退。
-7. 从 Electron 官方 Release 下载对应 `electron-v<版本>-linux-x64.zip`，并按官方 `SHASUMS256.txt` 校验。
-8. 以 Linux Electron runtime 为外壳，替换为 Gemini 官方 Electron 产品资源；Windows `.exe` / `.dll` 资源不进入最终 Linux 产品层。
+6. 从 Electron 官方 Release 下载对应 `electron-v<版本>-linux-x64.zip`，并按官方 `SHASUMS256.txt` 校验。
+7. 以 Linux Electron runtime 为外壳，复制 Gemini 官方产品资源；Windows `.exe` / `.dll` 资源不进入最终 Linux 产品层。
+8. 完整提取 `app.asar` 后，从外置资源和提取目录同时删除已确认可安全回退的 PE 格式 `gemini_native.node`；发现其他 PE `.node` 或路径变化时停止构建，并在重新打包前核对 Speak to Window 安全回退仍然存在。
 9. 从官方 `Gemini.exe` 提取应用图标，生成 Linux desktop entry。
 10. 使用仓库当前 `quick-sharun` 打包并输出 `dist/gemini.AppImage`。
 
@@ -270,6 +270,14 @@ dist/gemini.AppImage
 - 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
 - 修复：删除依赖旧 Release 资产的整段回退逻辑；继续动态取得当前官方 stable 和匹配的 Linux Electron runtime，只从复制后的产品层移除实际识别为 Windows PE 的 `gemini_native.node`，其他 PE `.node` 一律停止构建。重新打包 `app.asar` 前必须确认当前上游仍包含安全回退日志与 Speak to Window 功能开关，标记消失时立即停止，避免以后无条件删除变成静默破坏。
 - 兼容边界：Linux AppImage 不提供该 Windows 模块负责的前台窗口、光标、辅助功能树和文本注入能力；本次没有伪造替代模块、锁定版本或修改 Google Web 功能。已完成官方安装包与产品层静态检查，正式 Actions 构建和真实 Linux 运行结果仍待验证。
+
+### 2026-09-27：修复 ASAR 外置模块删除顺序
+
+- 故障现象：Actions run `36315245489` 已进入当前正式版直接移植路径，但脚本先删除 `app.asar.unpacked/src/gemini_native.node`，随后执行 `asar extract` 时因 ASAR 索引仍引用该外置文件而报 `ENOENT`。
+- 根因：ASAR 的 unpacked 文件内容保存在 `app.asar.unpacked` 中；完整提取归档时，外置文件必须仍然存在。前一次修复正确识别了应移除的 Windows 模块，但删除时机早于归档提取。
+- 修改文件：`gemini/build_gemini.sh`、`gemini/README.md`。
+- 修复：先完整提取 `app.asar`，再确认模块名称和外置路径均符合预期，同时删除 `app.asar.unpacked` 中的 Windows PE 副本及提取目录中将被重新打包的副本；安全回退标记、Speak to Window 开关及未知 PE 模块停止构建的保护保持不变。
+- 验证边界：本次应完成官方 1.12.3 产品层的解包、模块移除、回退校验和 ASAR 重新打包；正式 Actions 构建和真实 Linux 运行结果仍以提交后的独立结果为准。
 
 ## 2026-09-23 自根目录原样迁入
 
