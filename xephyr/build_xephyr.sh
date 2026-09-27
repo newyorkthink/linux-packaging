@@ -33,8 +33,11 @@ export OUTPATH="$SCRIPT_DIR/dist"
 export OUTNAME=xephyr.AppImage
 # CI 没有外层 X display，不能通过 strace 启动 Xephyr 扫描动态库。
 export STRACE_MODE=0
-# X server 编译时指定了系统 xkbcomp 的绝对路径；改用 AppImage 中的程序。
-export PATH_MAPPING='/usr/bin/xkbcomp:${SHARUN_DIR}/bin/xkbcomp'
+# X server 编译时使用的 xkbcomp 和 XKB 路径映射到 AppImage 内。
+export PATH_MAPPING='
+/usr/bin/xkbcomp:${SHARUN_DIR}/bin/xkbcomp
+/usr/share/X11/xkb:${SHARUN_DIR}/share/X11/xkb
+'
 
 quick-sharun /usr/bin/Xephyr /usr/bin/xkbcomp
 
@@ -44,27 +47,6 @@ cp -aL -- /usr/share/X11/xkb/. AppDir/share/X11/xkb/
 for package in xorg-server-xephyr xorg-xkbcomp xkeyboard-config; do
   cp -a -- "/usr/share/licenses/$package" "AppDir/share/licenses/$package"
 done
-
-mkdir -p AppDir/lib/locale
-localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
-cat >> AppDir/.env <<'ENVIRONMENT'
-LANG=zh_CN.UTF-8
-LANGUAGE=zh_CN:zh
-LC_MESSAGES=zh_CN.UTF-8
-LOCPATH=${SHARUN_DIR}/lib/locale
-ENVIRONMENT
-
-# 无参数时打开 :99；用户传参时保留其 display、尺寸等选项。
-# -no-host-grab 避免独占宿主键盘和鼠标，-xkbdir 使用包内键盘规则。
-cat > AppDir/bin/90-xephyr-arguments.hook <<'HOOK'
-if [ "$#" -eq 0 ]; then
-  set -- :99 -screen 1600x900
-fi
-case "${1:-}" in
-  :*) display="$1"; shift; set -- "$display" -xkbdir "${SHARUN_DIR}/share/X11/xkb" -nolisten tcp -no-host-grab "$@" ;;
-  *) set -- -xkbdir "${SHARUN_DIR}/share/X11/xkb" -nolisten tcp -no-host-grab "$@" ;;
-esac
-HOOK
 
 quick-sharun --make-appimage
 test -s dist/xephyr.AppImage
