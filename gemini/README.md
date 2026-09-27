@@ -44,10 +44,10 @@ chmod +x gemini.AppImage
 Gemini 沿用 Electron 标准 `userData` 目录，Linux 默认保存在：
 
 ```text
-~/.config/Gemini
+~/.config/gemini
 ```
 
-如果系统设置了 `XDG_CONFIG_HOME`，则目录为 `$XDG_CONFIG_HOME/Gemini`。替换或更新 `gemini.AppImage` 不会删除这里保存的登录状态、站点数据、权限和应用设置。
+如果系统设置了 `XDG_CONFIG_HOME`，则目录为 `$XDG_CONFIG_HOME/gemini`。替换或更新 `gemini.AppImage` 不会删除这里保存的登录状态、站点数据、权限和应用设置。
 
 ## 技术栈
 
