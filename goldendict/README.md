@@ -24,3 +24,5 @@
 - 按用户要求切换官方 DEB 路线，核对 Shell 语法、包内路径和完整差异。未监控 Actions；新的构建及实机运行结果未验证。
 
 - 官方 DEB 路线首次构建失败在 Qt 插件的 `qmlimportscanner`：改用 DEB 时漏装 `qtdeclarative5-dev-tools`，且未指定 `QT_SELECT=qt5`。现补齐 Ubuntu 官方扫描工具并显式选择 Qt5；这些工具只用于依赖扫描，不编译应用或依赖。修复后仅做静态检查，未监控后续 Actions，构建结果待验证。
+- 2026-09-28：Kali Linux + i3wm 实机排查确认，外层 AppImage 遗留的 `GCONV_PATH` 指向其临时挂载目录中的 `lib/gconv`，使系统 `/usr/bin/iconv` 报告不支持 UTF-16，并导致 GoldenDict 词典正文无法显示。用户在独立子 Shell 中清除外层环境后重新启动同一 `goldendict.AppImage`，正文恢复正常，证明词典文件和索引本身可用。
+- 当前修复只在 GoldenDict 的根 `AppRun` 中清除 `GCONV_PATH`，不改动现有 `LD_LIBRARY_PATH`、`LD_PRELOAD` 或其他启动环境。已核对 Shell 语法和完整差异；新构建产物及其实际运行结果仍待验证。

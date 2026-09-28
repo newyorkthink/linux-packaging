@@ -57,6 +57,8 @@ FONTS
 cat > "$APPDIR/AppRun" <<'APPRUN'
 #!/usr/bin/env bash
 set -e
+# 清除外层 AppImage 遗留的 gconv 搜索路径，避免 UTF-16 转换模块无法加载。
+unset GCONV_PATH
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # 优先使用包内可执行文件。
 export PATH="$HERE/usr/bin${PATH:+:$PATH}"
