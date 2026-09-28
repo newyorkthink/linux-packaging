@@ -56,6 +56,7 @@ on:
           - github-desktop/build_github-desktop.sh
           - gitkraken/build_gitkraken.sh
           - goldendict-ng/build_goldendict-ng.sh
+          - goldendict/build_goldendict.sh
           - grok-bot/build_grok-bot.sh
           - hermes-desktop/build_hermes-desktop.sh
           - htop/build_htop.sh
@@ -566,6 +567,50 @@ jobs:
           version_file: 'github-desktop/dist/version.txt'
           asset_name: 'github-desktop.AppImage'
           artifact_dir: 'github-desktop/dist'
+          github_token: ${{ github.token }}
+
+
+  build_goldendict:
+    name: Build GoldenDict
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).goldendict == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build GoldenDict AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: bash goldendict/build_goldendict.sh
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-goldendict
+          path: goldendict/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish latest AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest goldendict/dist/goldendict.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'goldendict'
+          version_file: 'goldendict/dist/version.txt'
+          asset_name: 'goldendict.AppImage'
+          artifact_dir: 'goldendict/dist'
           github_token: ${{ github.token }}
 
 

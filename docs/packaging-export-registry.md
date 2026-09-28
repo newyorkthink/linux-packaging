@@ -17,6 +17,7 @@
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
 | `ARCH` | 告诉 linuxdeploy 和 appimagetool 打 x86_64。 | 80 个脚本，例如 Keyviz、adspower-global、aionui |
+| `GIT_CEILING_DIRECTORIES` | 阻止上游源码的 git describe 向外找到打包仓库，避免版本串混入本仓库标签。 | goldendict |
 | `QMAKE` | 告诉 linuxdeploy 的 Qt 插件用哪个 qmake。Qt5 和 Qt6 不能混。 | 4 个脚本，例如 peazip、wemeet、xnconvert |
 | `QT_SELECT` | 构建机上有多套 Qt 时，指定用 qt5 还是 qt6。 | 3 个脚本，例如 wemeet、xnconvert、xnviewmp |
 | `DEPLOY_GTK_VERSION` | linuxdeploy 的 GTK 插件打哪一代。现有脚本都是 3。 | 6 个脚本，例如 baidunetdisk、binance、joplin |
@@ -140,6 +141,7 @@
 | `IBUS_ADDRESS` | 这次启动要连的 IBus 套接字，不用外部环境里可能失效的地址。 | kitty |
 | `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 5 个脚本，例如 gitkraken、obs-studio、tencent-docs |
 | `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 9 个脚本，例如 gemini、gitkraken、kde-suite |
+| `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | goldendict |
 | `LC_ALL` | 强制整套 locale。有的构建用 C；图形程序要中文时才用 zh_CN.UTF-8。 | 6 个脚本，例如 chatgpt、gemini、gitkraken |
 | `LOCPATH` | locale 档案目录。腾讯会议用它读包内的 zh_CN.UTF-8。 | wemeet |
 | `TZ` | 时区。腾讯会议按官方脚本设成 Asia/Shanghai。 | wemeet |
@@ -149,6 +151,7 @@
 
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
+| `GOLDENDICT_AO_PLUGIN_PATH` | 由随包 libao 的路径补丁读取，从包内加载音频输出插件。 | goldendict |
 | `CANBERRA_DRIVER` | libcanberra 用哪个声音后端。这里选 Pulse，兼容 PulseAudio 和 PipeWire。 | rainlendar2 |
 | `PIPEWIRE_MODULE_DIR` | PipeWire 模块目录。 | kde-suite |
 | `SPA_PLUGIN_DIR` | PipeWire SPA 插件目录。 | kde-suite |

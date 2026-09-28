@@ -17,6 +17,7 @@
 
 | 项目 | 构建脚本 | 使用方式 |
 | --- | --- | --- |
+| GoldenDict | `goldendict/build_goldendict.sh` | Ubuntu 24.04 源码编译，linuxdeploy + Qt / GStreamer 插件 |
 | Alacritty | `alacritty/build_alacritty_linuxdeploy.sh` | linuxdeploy |
 | MediaInfo | `mediainfo/build_mediainfo_linuxdeploy.sh` | linuxdeploy |
 | PeaZip | `peazip/build_peazip.sh` | linuxdeploy + Qt 插件 |
