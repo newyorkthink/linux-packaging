@@ -84,6 +84,9 @@ runs:
         rm -rf "$workdir"
         mkdir -p "$workdir"
         printf '%s\n' "run=$GITHUB_RUN_ID job=$GITHUB_JOB attempt=$GITHUB_RUN_ATTEMPT" > "$lock_file"
+        # matrix 共用 GITHUB_JOB，额外加入软件键和本次随机标识，不能把另一软件的锁当作自己的。
+        printf '%s\n' "key=$SOFTWARE_KEY nonce=$(date +%s%N)-$$-$RANDOM" >> "$lock_file"
+        lock_sha256="$(sha256sum "$lock_file" | awk '{print tolower($1)}')"
 
         release_id="$(python3 - "$release_json" <<'PY'
         import json, sys
@@ -113,7 +116,7 @@ runs:
             for visibility_attempt in $(seq 1 15); do
               mapfile -t lock_ids < <(
                 gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" --paginate \
-                  --jq ".[] | select(.name == \"$lock_name\") | .id"
+                  --jq ".[] | select(.name == \"$lock_name\" and .digest == \"sha256:$lock_sha256\") | .id"
               )
               if (( ${#lock_ids[@]} == 1 )); then
                 lock_asset_id="${lock_ids[0]}"
@@ -165,24 +168,65 @@ runs:
           exit 1
         }
 
-        # 取得锁后立即读取 latest Release 中的最新清单，只合并当前软件条目并写回。
-        # 不等待任何 Job / Action，也不等待 all。
-        mapfile -t manifest_rows < <(
-          gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" --paginate \
-            --jq ".[] | select(.name == \"$manifest_name\") | [.id, (.digest // \"\")] | @tsv"
-        )
-        if (( ${#manifest_rows[@]} == 0 )); then
-          printf '{}\n' > "$manifest"
-        elif (( ${#manifest_rows[@]} == 1 )); then
-          manifest_asset_id="${manifest_rows[0]%%$'\t'*}"
-          gh api \
-            -H 'Accept: application/octet-stream' \
-            "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id" \
-            > "$manifest"
-        else
-          echo "latest Release 中存在多个 $manifest_name，禁止覆盖。" >&2
+        # 每次读取独立快照并传递 API 失败，禁止把失败或短暂缺失误认为可以从空清单开始。
+        read_manifest_row() {
+          local rows
+          rows="$(gh api -H 'Cache-Control: no-cache' \
+            "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
+            --paginate --jq ".[] | select(.name == \"$manifest_name\") | [.id, (.digest // \"\")] | @tsv")" || return 1
+          if [[ -z "$rows" && "${1:-false}" == true ]]; then
+            return 0
+          fi
+          [[ -n "$rows" && "$rows" != *$'\n'* ]] || {
+            echo "$manifest_name 不存在或不唯一，禁止覆盖已有清单。" >&2
+            return 1
+          }
+          printf '%s\n' "$rows"
+        }
+
+        # 复核锁资产内容属于本次写入，防止失去锁的旧写入者继续覆盖新清单。
+        require_own_lock() {
+          local row digest created_epoch now_epoch remaining
+          row="$(gh api -H 'Cache-Control: no-cache' \
+            "repos/$GITHUB_REPOSITORY/releases/assets/$lock_asset_id?publication_read=$(date +%s%N)" \
+            --jq '[.digest, .created_at] | @tsv')" || return 1
+          digest="${row%%$'\t'*}"
+          [[ "$digest" == "sha256:$lock_sha256" ]] || {
+            echo '清单写锁已变化，禁止继续写入。' >&2
+            return 1
+          }
+          # 保留原有 300 秒过期锁回收；本次上传必须在该期限前结束，避免旧写入者越过锁期限。
+          created_epoch="$(date -u -d "${row#*$'\t'}" +%s)" || return 1
+          now_epoch="$(date -u +%s)"
+          remaining=$((created_epoch + 290 - now_epoch))
+          (( remaining > 0 )) || {
+            echo '清单写锁即将到期，停止旧快照写入。' >&2
+            return 1
+          }
+          upload_timeout=$((remaining < 120 ? remaining : 120))
+        }
+
+        # 取得锁后按唯一资产 ID 下载，并在合并前核对原清单摘要及快照是否仍有效。
+        require_own_lock
+        base_row="$(read_manifest_row)"
+        manifest_asset_id="${base_row%%$'\t'*}"
+        base_digest="${base_row#*$'\t'}"
+        [[ "$base_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+          echo '原版本清单缺少有效 SHA-256，禁止合并。' >&2
           exit 1
-        fi
+        }
+        gh api -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' \
+          "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
+          > "$manifest"
+        [[ "sha256:$(sha256sum "$manifest" | awk '{print tolower($1)}')" == "$base_digest" ]] || {
+          echo '原版本清单内容与资产摘要不一致，禁止用旧内容覆盖。' >&2
+          exit 1
+        }
+        [[ "$(read_manifest_row)" == "$base_row" ]] || {
+          echo '原版本清单在读取期间已变化，禁止覆盖。' >&2
+          exit 1
+        }
+        echo "$SOFTWARE_KEY 合并清单：base_asset=$manifest_asset_id base_digest=$base_digest lock_asset=$lock_asset_id"
 
         python3 - "$manifest" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
         import json, sys
@@ -200,7 +244,22 @@ runs:
         manifest_sha256="$(sha256sum "$manifest" | awk '{print tolower($1)}')"
         uploaded=false
         for attempt in $(seq 1 8); do
-          if timeout 120 gh release upload latest "$manifest" --repo "$GITHUB_REPOSITORY" --clobber; then
+          # 重试时允许本次 clobber 已删除旧清单，但仍拒绝覆盖其他写入者的新清单。
+          allow_missing=false
+          if (( attempt > 1 )); then
+            allow_missing=true
+          fi
+          current_row="$(read_manifest_row "$allow_missing")"
+          if [[ -n "$current_row" && "${current_row#*$'\t'}" == "sha256:$manifest_sha256" ]]; then
+            uploaded=true
+            break
+          fi
+          if [[ "$current_row" != "$base_row" && ( -n "$current_row" || "$allow_missing" != true ) ]]; then
+            echo '清单写入前远端已变化，停止旧快照上传；交由完整性监督处理。' >&2
+            exit 1
+          fi
+          require_own_lock
+          if timeout "$upload_timeout" gh release upload latest "$manifest" --repo "$GITHUB_REPOSITORY" --clobber; then
             uploaded=true
             break
           fi
@@ -214,18 +273,16 @@ runs:
         # 重新取得刚写入的唯一 Release 资产 ID，并校验 digest、内容和当前软件条目。
         verified=false
         for attempt in $(seq 1 12); do
-          mapfile -t manifest_rows < <(
-            gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" --paginate \
-              --jq ".[] | select(.name == \"$manifest_name\") | [.id, (.digest // \"\")] | @tsv"
-          )
+          manifest_row="$(read_manifest_row)"
+          mapfile -t manifest_rows <<< "$manifest_row"
           if (( ${#manifest_rows[@]} == 1 )); then
             manifest_asset_id="${manifest_rows[0]%%$'\t'*}"
             manifest_digest="${manifest_rows[0]#*$'\t'}"
             if [[ "$manifest_digest" == "sha256:$manifest_sha256" ]]; then
               rm -f "$verified_manifest"
-              if gh api \
+              if gh api -H 'Cache-Control: no-cache' \
                 -H 'Accept: application/octet-stream' \
-                "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id" \
+                "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
                 > "$verified_manifest"; then
                 if [[ "$(sha256sum "$verified_manifest" | awk '{print tolower($1)}')" == "$manifest_sha256" ]] && \
                   python3 - "$verified_manifest" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
@@ -248,6 +305,8 @@ runs:
           echo "$SOFTWARE_KEY 写入 latest Release/$manifest_name 后校验失败。" >&2
           exit 1
         }
+
+        echo "$SOFTWARE_KEY 清单校验完成：asset=$manifest_asset_id sha256=$manifest_sha256"
 
         gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$lock_asset_id" >/dev/null
         lock_owned=false

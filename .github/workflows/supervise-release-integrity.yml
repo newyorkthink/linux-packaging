@@ -50,9 +50,21 @@ jobs:
         run: |
           set -Eeuo pipefail
           jobs_json="$RUNNER_TEMP/source-run-jobs.json"
-          gh api --paginate --slurp \
-            "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/jobs?per_page=100" \
-            > "$jobs_json"
+          jobs_error="$RUNNER_TEMP/source-run-jobs.error"
+          # 只重试读取时的临时服务错误；每次清空部分响应，认证失败不重试，POST 不重复提交。
+          for request_attempt in 1 2 3 4; do
+            if gh api --paginate --slurp \
+              "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/jobs?per_page=100" \
+              > "$jobs_json" 2> "$jobs_error"; then
+              break
+            fi
+            cat "$jobs_error" >&2
+            if (( request_attempt == 4 )) || ! grep -Eq 'HTTP (500|502|503|504)' "$jobs_error"; then
+              exit 1
+            fi
+            echo "读取构建 Job 遇到临时服务错误，重试 $request_attempt/3。" >&2
+            sleep $((request_attempt * 2))
+          done
           should_supervise="$(python3 - "$jobs_json" "$IS_REPAIR_RUN" <<'PY'
           import json, sys
 
