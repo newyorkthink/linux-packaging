@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # 只重建本项目的 source、AppDir 和 dist 构建目录。
 source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" goldendict
 # 安装 Ubuntu 官方仓库的原版 GoldenDict DEB 和所需运行组件，不编译主程序或依赖。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" goldendict qt5-qmake qttranslations5-l10n fcitx5-frontend-qt5 locales gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
+"$SCRIPT_DIR/../common/apt/install_packages.sh" goldendict qt5-qmake qtdeclarative5-dev-tools qttranslations5-l10n fcitx5-frontend-qt5 locales gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
 # 从本次实际安装的官方包读取版本，保留发行版修订号，不锁版本。
 VERSION="$(dpkg-query -W -f='${Version}' goldendict)"
 # 准备官方 linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime。
@@ -22,6 +22,8 @@ install -m755 "$SOURCE_DIR"/gstreamer-plugin/*/linuxdeploy-plugin-gstreamer.sh "
 source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" "$TOOLS_DIR" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 # 明确使用 Ubuntu 的 Qt5 qmake，避免混用 Qt6。
 export QMAKE=/usr/lib/qt5/bin/qmake
+# 让 qtchooser 的 qmlimportscanner 入口选择 Qt5，仅用于打包扫描。
+export QT_SELECT=qt5
 # 第一次 linuxdeploy 只初始化空 AppDir。
 "$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 # 解包同版本官方 DEB，完整保留主程序、翻译、帮助、图标及许可证。
@@ -39,7 +41,7 @@ localedef --no-archive -i zh_CN -f UTF-8 "$APPDIR/usr/lib/locale/zh_CN.utf8"
 QT_PLUGINS="$("$QMAKE" -query QT_INSTALL_PLUGINS)"
 # 带入 Qt5 的 compose、IBus 和 Fcitx5 输入接口，由 linuxdeploy 扫描依赖。
 cp -a "$QT_PLUGINS/platforminputcontexts/libcomposeplatforminputcontextplugin.so" "$QT_PLUGINS/platforminputcontexts/libibusplatforminputcontextplugin.so" "$QT_PLUGINS/platforminputcontexts/libfcitx5platforminputcontextplugin.so" "$APPDIR/usr/plugins/platforminputcontexts/"
-# 带入 Qt 自身的中文翻译，应用翻译已由 make install 安装。
+# 带入 Qt 自身的中文翻译，应用翻译已从官方 DEB 解包。
 cp -a /usr/share/qt5/translations/*zh_CN.qm "$APPDIR/usr/translations/"
 # 字体配置同时读取系统字体和包内中文字体。
 cat > "$APPDIR/usr/etc/fonts/fonts.conf" <<'FONTS'
