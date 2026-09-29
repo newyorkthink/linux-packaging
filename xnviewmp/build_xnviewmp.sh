@@ -152,10 +152,14 @@ export QML2_IMPORT_PATH="$HERE/opt/XnView/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_P
 export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_TRANSLATIONS_PATH}"
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
-# XnView 在 X11 下继续使用 XCB。其自带 IBus 输入插件与 Qt 6.10 私有 ABI 一致，
-# 通过 Fcitx5 的 IBus 前端接入宿主输入法，避免加载 Ubuntu Qt 6.4 的 Fcitx5 插件。
+# XnView 在 X11 下继续使用 XCB。官方包只带与 Qt 6.10 私有 ABI 一致的 IBus 插件。
+# 未设置 IBUS_USE_PORTAL 且 PATH 中没有 ibus-daemon 时，该插件会直接停用。
+# Fcitx5 的 IBus 前端提供 org.freedesktop.portal.IBus。Qt 6.10 先读 QT_IM_MODULES，
+# 必须把它和 QT_IM_MODULE 一起固定为 ibus，避免宿主的 wayland;fcitx 盖掉这次选择。
 export QT_QPA_PLATFORM=xcb
 export QT_IM_MODULE=ibus
+export QT_IM_MODULES=ibus
+export IBUS_USE_PORTAL=1
 # 禁用 Qt Multimedia 的 GPU 纹理转换，避免 EGL 集成失败时部分视频只显示黑屏。
 export QT_DISABLE_HW_TEXTURES_CONVERSION=1
 export QT_FONT_DPI=96

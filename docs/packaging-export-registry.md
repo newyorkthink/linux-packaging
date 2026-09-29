@@ -108,6 +108,7 @@
 | `QT_QPA_PLATFORM` | Qt 用哪个平台插件。xcb 是 X11，wayland 是 Wayland。 | 9 个脚本，例如 dingtalk、mailmaster、obs-studio |
 | `QT_QPA_PLATFORMTHEME` | Qt 平台主题，用来跟桌面外观。例如 qt6ct。 | 2 个脚本，例如 kde-suite、peazip |
 | `QT_IM_MODULE` | Qt 输入法模块，常见是 fcitx 或 ibus。 | 5 个脚本，例如 dingtalk、kde-suite、mailmaster、xnviewmp |
+| `QT_IM_MODULES` | Qt 6.7 及更新版本的输入法模块列表，分号分隔，优先于 QT_IM_MODULE。XnView 固定为 ibus，避免宿主的 wayland;fcitx 盖掉自带 IBus 插件。 | xnviewmp |
 | `QT_TRANSLATIONS_PATH` | Qt 翻译文件目录。 | 3 个脚本，例如 peazip、xnconvert、xnviewmp |
 | `QML_IMPORT_PATH` | QML 模块目录。 | 3 个脚本，例如 kde-suite、xnviewmp |
 | `QML2_IMPORT_PATH` | Qt5 的 QML 模块目录。 | 3 个脚本，例如 kde-suite、xnviewmp |
@@ -139,6 +140,7 @@
 | `XMODIFIERS` | X11 输入法开关，例如 @im=ibus 或 @im=fcitx。 | 11 个脚本，例如 aionui、dingtalk、kde-suite |
 | `GLFW_IM_MODULE` | kitty 的 GLFW 用哪个输入法模块。这里是 ibus。 | kitty |
 | `IBUS_ADDRESS` | 这次启动要连的 IBus 套接字，不用外部环境里可能失效的地址。 | kitty |
+| `IBUS_USE_PORTAL` | 让 Qt 自带 IBus 插件走会话总线上的 org.freedesktop.portal.IBus。Fcitx5 的 IBus 前端提供这个名字，因此不要求宿主安装 ibus-daemon。 | xnviewmp |
 | `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 5 个脚本，例如 gitkraken、obs-studio、tencent-docs |
 | `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 9 个脚本，例如 gemini、gitkraken、kde-suite |
 | `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | goldendict |

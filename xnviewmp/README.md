@@ -44,7 +44,7 @@ AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/X
 
 截至 2026-09-29，最新成品在真实 Linux 环境中仍存在“部分 H.264 / AAC 视频可以正常播放，部分视频有进度和媒体信息但画面始终为黑色”的问题。该问题尚未修复，不能把当前构建描述为视频播放正常。
 
-已经尝试的处理是：移除旧版 AppRun 强制设置的 `QT_XCB_GL_INTEGRATION=xcb_egl`，增加 `QT_DISABLE_HW_TEXTURES_CONVERSION=1`，并为 Fcitx5 增加 `QT_IM_MODULE=fcitx`。新成品的 `Xcb EGL gl-integration initialize failed` 报错已经消失，但相同视频仍然黑屏，因此此前把 EGL / GPU 纹理转换视为根因的判断已被真实运行结果否定。Fcitx5 中文输入是否恢复尚未取得新的实机确认，不能与视频结果一起宣称已经修复。
+已经尝试的处理是：移除旧版 AppRun 强制设置的 `QT_XCB_GL_INTEGRATION=xcb_egl`，增加 `QT_DISABLE_HW_TEXTURES_CONVERSION=1`，并为 Fcitx5 增加 `QT_IM_MODULE=fcitx`。新成品的 `Xcb EGL gl-integration initialize failed` 报错已经消失，但相同视频仍然黑屏，因此此前把 EGL / GPU 纹理转换视为根因的判断已被真实运行结果否定。仅设置 `QT_IM_MODULE=ibus` 的成品已由真实运行确认仍然无法输入中文；下面变更记录中的 Portal 修改尚未实机验证，不能宣称中文输入已经修复。视频黑屏与中文输入是两件独立的事，不能互相代替。
 
 目前完成的只读核查如下：
 
@@ -58,6 +58,14 @@ AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/X
 本节是供后续维护者和 AI 接手的临时当前状态，不属于永久修复记录。后续 XnView / Qt 版本更新后该问题自然消失，或其他 AI 完成修复并获得上述视频的真实播放确认时，应删除本节，并在下面的变更记录中追加新的正式修复记录，写清最终根因、修改内容和实机验证结果；下面已经存在的历史记录继续保留，不得随本节一起删除。
 
 ## 变更记录
+
+### 2026-09-29：用 IBus Portal 接上 Fcitx5，替代只设置 QT_IM_MODULE=ibus
+
+真实运行确认，提交 `b889719` 只把 `QT_IM_MODULE` 改成 `ibus` 之后，Fcitx5 下仍然无法输入中文。上一方案已被这次实机结果否定，不能再把它当作有效修复。
+
+官方 1.12.1 DEB 的 `opt/XnView/lib/platforminputcontexts/` 只有 `libcomposeplatforminputcontextplugin.so` 和 `libibusplatforminputcontextplugin.so`，主程序使用 Qt 6.10.3，`qt.conf` 把插件目录指到 `lib`。该 IBus 插件不链接 `libibus`，只通过 Qt DBus 连接；字符串中同时包含 `ibus-daemon` 和 `IBUS_USE_PORTAL`。对照同一版本 Qt 源码，插件在未启用 Portal、且 `PATH` 里找不到 `ibus-daemon` 时会把自身标为无效并直接返回，不会向会话总线发出请求。Fcitx5 桌面通常没有 `ibus-daemon`，因此只设置 `QT_IM_MODULE=ibus` 时输入上下文不会建立。Qt 6.10.3 还会先读取 `QT_IM_MODULES`，它优先于 `QT_IM_MODULE`；宿主若已设置 `wayland;fcitx` 之类的列表，上次的 `QT_IM_MODULE=ibus` 根本不会生效。Ubuntu 24.04 的 `fcitx5-frontend-qt6` 按 Qt 6.4 构建，不能装回这个 Qt 6.10 程序。Fcitx5 的 IBus 前端会申请 `org.freedesktop.portal.IBus`，这是自带插件在 `IBUS_USE_PORTAL=1` 时实际连接的服务。
+
+`xnviewmp/build_xnviewmp.sh` 的根 AppRun 现保留 `QT_QPA_PLATFORM=xcb` 和 `QT_IM_MODULE=ibus`，并新增 `QT_IM_MODULES=ibus` 与 `IBUS_USE_PORTAL=1`。不改 Qt 部署、媒体库、linuxdeploy 参数或视频相关变量。`docs/packaging-export-registry.md` 同步登记这两个新变量。本次只完成脚本语法和 diff 核对；提交后不监控 Actions，新的构建结果和中文输入实机效果尚未验证。Fcitx5 需启用自带的 IBus Frontend，这是发行版默认状态。视频黑屏仍未修复。
 
 ### 2026-09-29：处理 Qt6 部分视频黑屏与 Fcitx5 中文输入失效
 
