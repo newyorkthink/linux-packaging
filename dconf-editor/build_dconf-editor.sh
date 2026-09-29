@@ -8,7 +8,7 @@ set -Eeuo pipefail
 # 4. XDG_DATA_DIRS 同时保留 AppImage 与宿主目录，使 dconf Editor 能读取自身和宿主 GSettings schemas。
 # 5. 内置简体中文翻译和 zh_CN.UTF-8 locale 数据，并固定界面使用简体中文，避免依赖宿主语言包或宿主语言设置。
 # 6. 内置 Fcitx5 GTK3 输入法模块并生成独立模块缓存，避免 GTK 加载宿主 IBus 模块导致 GLib ABI 冲突。
-# 7. linuxdeploy、appimagetool 与 Type 2 runtime 均固定版本/摘要，避免后续构建工具静默漂移。
+# 7. linuxdeploy、appimagetool 与 Type 2 runtime 均通过公共脚本从官方 continuous Release 动态取得，并按当前 Release digest 校验。
 # 8. 同一个 AppImage 同时内置 dconf Editor GUI 和 dconf CLI；外部软链接名为 dconf 时由 Type 2 runtime 的 ARGV0 直接分派到 CLI。
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,13 +26,6 @@ readonly SMOKE_LOG="$SCRIPT_DIR/.dconf-editor-smoke.log"
 
 readonly EXPECTED_DCONF_EDITOR_VERSION="45.0.1"
 readonly MAX_ALLOWED_GLIBC_VERSION="2.39"
-
-readonly LINUXDEPLOY_URL="https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage"
-readonly LINUXDEPLOY_SHA256="c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d"
-readonly APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage"
-readonly APPIMAGETOOL_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
-readonly RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
-readonly RUNTIME_SHA256="1cc49bcf1e2ccd593c379adb17c9f85a36d619088296504de95b1d06215aebbf"
 
 die() {
   echo "错误：$*" >&2
@@ -123,26 +116,8 @@ readonly DCONF_EDITOR_ZH_CN_MO="$ZH_CN_LANGPACK_DIR/LC_MESSAGES/dconf-editor.mo"
 [[ -f "$DCONF_EDITOR_ZH_CN_MO" ]] || \
   die "简体中文语言包中缺少 dconf-editor.mo。"
 
-# 下载固定版本 linuxdeploy。
-curl -fL --retry 3 --retry-all-errors "$LINUXDEPLOY_URL" -o "$LINUXDEPLOY"
-
-# 校验 linuxdeploy 摘要，避免下载内容变化后继续构建。
-printf '%s  %s\n' "$LINUXDEPLOY_SHA256" "$LINUXDEPLOY" | sha256sum -c -
-
-# 下载固定版本 appimagetool。
-curl -fL --retry 3 --retry-all-errors "$APPIMAGETOOL_URL" -o "$APPIMAGETOOL"
-
-# 校验 appimagetool 摘要。
-printf '%s  %s\n' "$APPIMAGETOOL_SHA256" "$APPIMAGETOOL" | sha256sum -c -
-
-# 下载固定摘要的 Type 2 runtime；若 continuous 资产发生变化，摘要检查会直接终止而不是静默换版本。
-curl -fL --retry 3 --retry-all-errors "$RUNTIME_URL" -o "$RUNTIME"
-
-# 校验 Type 2 runtime 摘要。
-printf '%s  %s\n' "$RUNTIME_SHA256" "$RUNTIME" | sha256sum -c -
-
-# 赋予两个 AppImage 构建工具执行权限。
-chmod +x "$LINUXDEPLOY" "$APPIMAGETOOL"
+# 通过公共脚本动态取得官方 linuxdeploy、appimagetool 和 Type 2 runtime，并按当前 Release digest 校验。
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLDIR"
 
 # 复制 dconf Editor 软件包自带的 /usr/share 数据，包括 schema、图标、AppStream、D-Bus service 等资源。
 while IFS= read -r file; do
@@ -360,7 +335,7 @@ if find "$APPDIR" \( -name 'libc.so.6' -o -name 'ld-linux-x86-64.so.2' \) -print
   die "AppDir 不应包含 glibc 本体或动态加载器。"
 fi
 
-# 使用固定 Type 2 runtime 生成最终 dconf-editor.AppImage；保留 AppStream 元数据，仅跳过新版校验器对 45.0.1 历史元数据的警告检查。
+# 使用本次动态取得并校验的 Type 2 runtime 生成最终 dconf-editor.AppImage；保留 AppStream 元数据，仅跳过新版校验器对 45.0.1 历史元数据的警告检查。
 ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
   "$APPIMAGETOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$OUTPUT_FILE"
 

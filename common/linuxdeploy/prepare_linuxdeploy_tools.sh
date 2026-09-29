@@ -39,18 +39,29 @@ TOOLS_DIR="$(cd -- "$TOOLS_DIR" && pwd)"
 source "$GITHUB_API"
 
 # 从官方 continuous Release 解析指定资产及摘要，再交给公共下载脚本取得文件。
+# 若上游正在替换 continuous 资产，重新获取 Release 元数据后整体重试，避免旧摘要与新资产短暂错配。
 download_release_asset() {
-  local repo="$1" asset="$2" output="$3" metadata url digest
+  local repo="$1" asset="$2" output="$3"
+  local metadata="" url="" digest="" attempt
+  local max_attempts=3
 
-  metadata="$(github_api_get "https://api.github.com/repos/$repo/releases/tags/continuous")"
-  url="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .browser_download_url' <<< "$metadata")"
-  digest="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .digest' <<< "$metadata")"
-  [[ "$digest" =~ ^sha256:[[:xdigit:]]{64}$ ]] || {
-    echo "错误：官方资产没有有效的 SHA-256：$repo/$asset" >&2
-    exit 1
-  }
+  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+    if metadata="$(github_api_get "https://api.github.com/repos/$repo/releases/tags/continuous")" &&
+       url="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .browser_download_url' <<< "$metadata")" &&
+       digest="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .digest' <<< "$metadata")" &&
+       [[ "$digest" =~ ^sha256:[[:xdigit:]]{64}$ ]] &&
+       "$DOWNLOAD_FILE" "$url" "$output" "$digest"; then
+      return 0
+    fi
 
-  "$DOWNLOAD_FILE" "$url" "$output" "$digest"
+    if (( attempt < max_attempts )); then
+      echo "警告：取得或校验官方资产失败，将重新获取 continuous Release 元数据后重试：$repo/$asset（$attempt/$max_attempts）。" >&2
+      sleep 2
+    fi
+  done
+
+  echo "错误：连续 $max_attempts 次无法取得并校验官方 continuous Release 资产：$repo/$asset" >&2
+  return 1
 }
 
 # 动态取得 linuxdeploy、最终封装工具和官方 Type 2 runtime。
