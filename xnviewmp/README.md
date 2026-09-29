@@ -40,11 +40,11 @@ AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/X
 ./xnviewmp.AppImage
 ```
 
-## 当前未解决状态（确认修复后删除本节）
+## 当前未解决状态（视频黑屏确认修复后删除本节）
 
 截至 2026-09-29，最新成品在真实 Linux 环境中仍存在“部分 H.264 / AAC 视频可以正常播放，部分视频有进度和媒体信息但画面始终为黑色”的问题。该问题尚未修复，不能把当前构建描述为视频播放正常。
 
-已经尝试的处理是：移除旧版 AppRun 强制设置的 `QT_XCB_GL_INTEGRATION=xcb_egl`，增加 `QT_DISABLE_HW_TEXTURES_CONVERSION=1`，并为 Fcitx5 增加 `QT_IM_MODULE=fcitx`。新成品的 `Xcb EGL gl-integration initialize failed` 报错已经消失，但相同视频仍然黑屏，因此此前把 EGL / GPU 纹理转换视为根因的判断已被真实运行结果否定。仅设置 `QT_IM_MODULE=ibus` 的成品已由真实运行确认仍然无法输入中文；下面变更记录中的 Portal 修改尚未实机验证，不能宣称中文输入已经修复。视频黑屏与中文输入是两件独立的事，不能互相代替。
+已经尝试的处理是：移除旧版 AppRun 强制设置的 `QT_XCB_GL_INTEGRATION=xcb_egl`，并增加 `QT_DISABLE_HW_TEXTURES_CONVERSION=1`。新成品的 `Xcb EGL gl-integration initialize failed` 报错已经消失，但相同视频仍然黑屏，因此此前把 EGL / GPU 纹理转换视为根因的判断已被真实运行结果否定。Fcitx5 中文输入已经通过下面记录的 IBus Portal 方案完成实机确认，不再属于本节未解决范围。
 
 目前完成的只读核查如下：
 
@@ -65,7 +65,7 @@ AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/X
 
 官方 1.12.1 DEB 的 `opt/XnView/lib/platforminputcontexts/` 只有 `libcomposeplatforminputcontextplugin.so` 和 `libibusplatforminputcontextplugin.so`，主程序使用 Qt 6.10.3，`qt.conf` 把插件目录指到 `lib`。该 IBus 插件不链接 `libibus`，只通过 Qt DBus 连接；字符串中同时包含 `ibus-daemon` 和 `IBUS_USE_PORTAL`。对照同一版本 Qt 源码，插件在未启用 Portal、且 `PATH` 里找不到 `ibus-daemon` 时会把自身标为无效并直接返回，不会向会话总线发出请求。Fcitx5 桌面通常没有 `ibus-daemon`，因此只设置 `QT_IM_MODULE=ibus` 时输入上下文不会建立。Qt 6.10.3 还会先读取 `QT_IM_MODULES`，它优先于 `QT_IM_MODULE`；宿主若已设置 `wayland;fcitx` 之类的列表，上次的 `QT_IM_MODULE=ibus` 根本不会生效。Ubuntu 24.04 的 `fcitx5-frontend-qt6` 按 Qt 6.4 构建，不能装回这个 Qt 6.10 程序。Fcitx5 的 IBus 前端会申请 `org.freedesktop.portal.IBus`，这是自带插件在 `IBUS_USE_PORTAL=1` 时实际连接的服务。
 
-`xnviewmp/build_xnviewmp.sh` 的根 AppRun 现保留 `QT_QPA_PLATFORM=xcb` 和 `QT_IM_MODULE=ibus`，并新增 `QT_IM_MODULES=ibus` 与 `IBUS_USE_PORTAL=1`。不改 Qt 部署、媒体库、linuxdeploy 参数或视频相关变量。`docs/packaging-export-registry.md` 同步登记这两个新变量。本次只完成脚本语法和 diff 核对；提交后不监控 Actions，新的构建结果和中文输入实机效果尚未验证。Fcitx5 需启用自带的 IBus Frontend，这是发行版默认状态。视频黑屏仍未修复。
+`xnviewmp/build_xnviewmp.sh` 的根 AppRun 现保留 `QT_QPA_PLATFORM=xcb` 和 `QT_IM_MODULE=ibus`，并新增 `QT_IM_MODULES=ibus` 与 `IBUS_USE_PORTAL=1`。不改 Qt 部署、媒体库、linuxdeploy 参数或视频相关变量。`docs/packaging-export-registry.md` 同步登记这两个新变量。新成品已在真实 Linux 环境中确认可以正常切换并输入中文；`QT_IM_MODULE=ibus`、`QT_IM_MODULES=ibus` 与 `IBUS_USE_PORTAL=1` 的组合现作为已验证稳定基线保留，后续不得删除、改回单独设置 `QT_IM_MODULE=ibus`，也不得重新打入 Ubuntu Qt 6.4 的 Fcitx5 插件。Fcitx5 需启用自带的 IBus Frontend，这是发行版默认状态。视频黑屏仍未修复。
 
 ### 2026-09-29：处理 Qt6 部分视频黑屏与 Fcitx5 中文输入失效
 
