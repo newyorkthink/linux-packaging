@@ -73,8 +73,8 @@ nginx libboost-all-dev inetutils-tools
 
 | 应用类别 | Ubuntu 版本及起始包组 | 仅在实际使用时追加 |
 | --- | --- | --- |
-| Qt 5 GUI | 22.04：`qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools libqt5svg5 qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 ibus fcitx5-frontend-qt5 libfcitx5-qt1 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1` | QML、Multimedia、GStreamer 模块按应用真实依赖追加；现有 XnView MP 有更完整且已验证的专用清单 |
-| Qt 6 GUI | 24.04：`qmake6 qt6-base-dev qt6-base-dev-tools qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n ibus fcitx5-frontend-qt6 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1` | `adwaita-qt6`、Qt Multimedia / QML 等只按上游实际使用情况追加 |
+| Qt 5 GUI | 22.04：`qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools libqt5svg5 qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 ibus fcitx5-frontend-qt5 libfcitx5-qt1 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1` | QML、Multimedia、GStreamer 模块按应用真实依赖追加 |
+| Qt 6 GUI | 24.04：`qmake6 qt6-base-dev qt6-base-dev-tools qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n ibus fcitx5-frontend-qt6 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1` | `adwaita-qt6`、Qt Multimedia / QML 等只按上游实际使用情况追加；XnView MP 当前另需 `qt6-declarative-dev qt6-declarative-dev-tools qt6-wayland` 和媒体运行库 |
 | GTK 3 GUI | 22.04：`libgtk-3-0 ibus ibus-gtk3 fcitx5-frontend-gtk3`；24.04：`libgtk-3-0t64 ibus ibus-gtk3 fcitx5-frontend-gtk3` | WebKit、GIO、GStreamer 模块按应用实际使用情况追加 |
 | GTK 4 GUI | 24.04：`libgtk-4-1 ibus ibus-gtk4 fcitx5-frontend-gtk4` | 使用 libadwaita 时加 `libadwaita-1-0`；其余插件按实际使用情况追加 |
 

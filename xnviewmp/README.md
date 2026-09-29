@@ -12,17 +12,17 @@
 
 ## 兼容环境
 
-XnView MP 是 Qt5 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions 外层 runner 使用 Ubuntu 24.04，但脚本会进入 Ubuntu 22.04 Jammy 容器完成打包，以保持已验证的 PulseAudio、GStreamer、VA-API、Wayland 和 XCB 运行时组合。应用主体继续放在 `AppDir/opt/XnView`，且启动时优先使用其自带库。
+XnView MP 当前稳定版是 Qt6 应用，并自带 Qt、MDK 和 FFmpeg 组件。GitHub Actions 外层 runner 与实际打包容器均使用 Ubuntu 24.04，确保 qmake、Qt plugin、QML 扫描工具和输入法插件全部使用 Qt6。应用主体继续放在 `AppDir/opt/XnView`，且启动时优先使用其自带 Qt6 运行库。
 
 ## linuxdeploy 规范流程
 
 1. 单行加载 `common/linuxdeploy/prepare_build_workspace.sh`，统一建立并清理标准 `source`、`AppDir`、`dist` 与 `source/tools` 工作区；APT 依赖和 linuxdeploy 工具也分别交给对应公共入口准备。
 2. 单行调用 `common/linuxdeploy/initialize_appdir.sh`；公共入口在空目录执行原始普通 linuxdeploy 命令，只创建基础目录。随后由 `common/download/download_latest_checksum_asset.sh` 从官方校验清单选择最新版、验证 SHA-256 并返回实际版本。
-3. 第一次初始化完成后下载同一份 XnView 官方 DEB，将它安装到 Ubuntu 22.04 隔离构建环境供依赖扫描，并由 `common/archive/extract_archive.sh` 按官方布局解包到 AppDir；上游 `opt/XnView` 与 `usr/bin/xnview` 原样保留，desktop 只把绝对图标路径改为 AppImage 可发现的图标名称。
+3. 第一次初始化完成后下载同一份 XnView 官方 DEB，将它安装到 Ubuntu 24.04 隔离构建环境供依赖扫描，并由 `common/archive/extract_archive.sh` 按官方布局解包到 AppDir；上游 `opt/XnView` 与 `usr/bin/xnview` 原样保留，desktop 只把绝对图标路径改为 AppImage 可发现的图标名称。
 4. 写入已经按最终 AppImage 核对过的完整根 `AppDir/AppRun`。无论主程序位于 `/opt`，仍固定保留 `usr/bin`、`usr/lib`、`usr/share`，分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`；Qt plugin 只使用 `opt/XnView/lib` 与 `usr/plugins`，QML 只使用 `opt/XnView/qml`，翻译使用 `usr/translations`。
-5. 加载 `common/linuxdeploy/configure_environment.sh` 设置通用 linuxdeploy 环境，项目自身只追加 Qt5 的 `QT_SELECT`、`QMAKE` 和工具路径，再执行第二次 linuxdeploy；只追加允许的 `--desktop-file` 与 `--icon-file`。
-6. 第二次 linuxdeploy 把完整根 AppRun 保存为 `AppRun.wrapped`，并生成加载 Qt hook 的顶层 AppRun。
-7. XnView 最终目录已经通过实际 Release AppImage 解包确认，因此构建脚本直接保留准确 AppRun，不再调用公共路径整理脚本。
+5. 加载 `common/linuxdeploy/configure_environment.sh` 设置通用 linuxdeploy 环境，项目自身只追加 Qt6 的 `QT_SELECT` 与 `QMAKE`，再执行第二次 linuxdeploy；只追加允许的 `--desktop-file` 与 `--icon-file`。
+6. Qt6 插件是否生成 hook 以当前官方工具实际产物为准；没有 hook 时完整根 AppRun 继续作为顶层入口，不人工补 `AppRun.wrapped`。
+7. Qt 主版本变化后最终目录尚未重新确认，因此第二次 linuxdeploy 后恢复调用公共路径整理脚本；新成品确认后再固化最终路径并移除该调用。
 8. XnView 打包永久禁止 `--executable`，不生成、不依赖 `AppDir/usr/bin/XnView` 副本。
 9. linuxdeploy 输出只作为中间结果，最终由 `common/linuxdeploy/package_appimage.sh` 使用官方 appimagetool 和官方 Type 2 runtime 封装 `dist/xnviewmp.AppImage`；正式 AppImage 成功生成后再原子写入 `dist/version.txt`。
 
@@ -41,6 +41,14 @@ AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/X
 ```
 
 ## 变更记录
+
+### 2026-09-29：随官方 1.12.0 从 Qt5 迁移到 Qt6
+
+官方 1.12.0 DEB 的主程序已经依赖 `libQt6*.so.6`，包内运行库升级为 Qt 6.10.3，并提供 `libQt6XcbQpa.so.6.10.3`、Qt6 plugin 与 QML 目录；原脚本继续复制 `libQt5XcbQpa.so*`，导致 Actions Job `109289404064` 在该文件不存在时退出。
+
+构建脚本现把实际打包容器改为 Ubuntu 24.04，Qt 构建与输入法依赖、qmake、翻译目录、XCB 平台库和 linuxdeploy 环境全部迁移到 Qt6；原有 GStreamer、PulseAudio、VA-API、Wayland、udev、AppRun 和最终 appimagetool + Type 2 runtime 封装流程继续保留。Qt6 官方插件不再假定必然生成 hook；Qt 主版本变化后重新启用公共 AppRun 路径整理，等待新成品确认后再固化。
+
+本次已核对官方 DEB 的包元数据、主程序 ELF 依赖、RPATH、Qt6 运行库、plugin、QML 和输入上下文目录，并完成 Shell 语法与完整 diff 静态检查。提交后不监控 Actions，新的构建结果和实际运行效果尚未验证。
 
 ### 2026-09-21：改用官方 DEB 并修复版本元数据权限
 

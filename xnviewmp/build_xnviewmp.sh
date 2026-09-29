@@ -3,17 +3,16 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-# XnView MP 自带较旧的 Qt 和媒体运行库，因此在 Ubuntu 22.04 中完成实际打包，
-# 避免 linuxdeploy 混入 Ubuntu 24.04 的媒体库。
-if [[ "${GITHUB_ACTIONS:-}" == "true" && "${XNVIEWMP_JAMMY_INNER:-0}" != "1" ]]; then
+# XnView MP 自带 Qt6 和媒体运行库，因此在仓库规定的 Ubuntu 24.04 Qt6 环境中完成实际打包。
+if [[ "${GITHUB_ACTIONS:-}" == "true" && "${XNVIEWMP_NOBLE_INNER:-0}" != "1" ]]; then
   REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
   exec docker run --rm \
-    -e XNVIEWMP_JAMMY_INNER=1 \
+    -e XNVIEWMP_NOBLE_INNER=1 \
     -e CI=1 \
     -e GH_TOKEN="${GH_TOKEN:-}" \
     -v "$REPO_ROOT:/workspace" \
     -w /workspace/xnviewmp \
-    ubuntu:22.04 \
+    ubuntu:24.04 \
     bash ./build_xnviewmp.sh
 fi
 
@@ -32,17 +31,12 @@ die() {
 
 ###### 准备构建环境 ######
 
-# 通过公共 APT 入口安装 Qt5 插件部署和媒体运行库收集所需依赖。
+# 通过公共 APT 入口安装 Qt6 插件部署、QML 扫描和媒体运行库收集所需依赖。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" \
-  dpkg qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools qttools5-dev-tools \
-  qtdeclarative5-dev qtdeclarative5-dev-tools \
-  qml-module-qtqml qml-module-qtqml-models2 \
-  qml-module-qtquick2 qml-module-qtquick-window2 qml-module-qtquick-layouts \
-  qml-module-qtquick-controls qml-module-qtquick-controls2 qml-module-qtquick-templates2 \
-  qml-module-qtgraphicaleffects qml-module-qt-labs-platform qml-module-qt-labs-settings \
-  libqt5svg5 qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 \
-  fcitx5-frontend-qt5 libfcitx5-qt1 \
-  libqt5multimedia5 libqt5multimedia5-plugins libqt5multimediagsttools5 \
+  dpkg qmake6 qt6-base-dev qt6-base-dev-tools \
+  qt6-declarative-dev qt6-declarative-dev-tools \
+  qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n qt6-wayland \
+  fcitx5-frontend-qt6 \
   libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 \
   gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
   libpulse0 libpulse-mainloop-glib0 \
@@ -51,8 +45,8 @@ die() {
   libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
   libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
 
-# Qt 插件必须直接使用 Qt5 的真实工具，不能落到没有选中版本的 qtchooser wrapper。
-QT5_BIN_DIR=/usr/lib/qt5/bin
+# 从 Qt6 qmake 读取当前构建环境的翻译目录，避免写死发行版内部路径。
+QT6_TRANSLATIONS_DIR="$(qmake6 -query QT_INSTALL_TRANSLATIONS)"
 
 ###### 下载打包工具 ######
 
@@ -85,12 +79,12 @@ sed -i \
 
 ###### 准备兼容运行库 ######
 
-# 复制 Qt5 翻译和 XCB 平台库，继续优先使用 XnView 自带 Qt。
+# 复制 Qt6 翻译和 XCB 平台库，继续优先使用 XnView 自带 Qt6。
 mkdir -p "$APPDIR/usr/lib" "$APPDIR/usr/translations"
-cp -a /usr/share/qt5/translations/. "$APPDIR/usr/translations/"
-cp -a "$APPDIR/opt/XnView/lib"/libQt5XcbQpa.so* "$APPDIR/usr/lib/"
+cp -a "$QT6_TRANSLATIONS_DIR/." "$APPDIR/usr/translations/"
+cp -a "$APPDIR/opt/XnView/lib"/libQt6XcbQpa.so* "$APPDIR/usr/lib/"
 
-# 按明确的库名模式复制当前应用需要的 Jammy 运行库。
+# 按明确的库名模式复制当前应用需要的 Ubuntu 24.04 运行库。
 copy_runtime_glob() {
   local pattern="$1"
   local files=()
@@ -99,7 +93,7 @@ copy_runtime_glob() {
   cp -a "${files[@]}" "$APPDIR/usr/lib/"
 }
 
-# 补入已有兼容基线所需的 GStreamer、PulseAudio、VA-API、Wayland 和 udev 库。
+# 补入 Ubuntu 24.04 中当前应用所需的 GStreamer、PulseAudio、VA-API、Wayland 和 udev 库。
 for runtime_lib in \
   libgstreamer-1.0.so.0 libgstapp-1.0.so.0 libgstbase-1.0.so.0 libgstaudio-1.0.so.0 \
   libgstvideo-1.0.so.0 libgstpbutils-1.0.so.0 libgsttag-1.0.so.0 libgstallocators-1.0.so.0 \
@@ -113,19 +107,18 @@ copy_runtime_glob "/usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-*.so"
 
 ###### 核心打包 ######
 
-# 公共入口配置 linuxdeploy 通用环境；Qt5 只在当前 Qt 项目中追加。
+# 公共入口配置 linuxdeploy 通用环境；Qt6 只在当前 Qt 项目中追加。
 source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" \
   "$TOOLS_DIR" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
-export QT_SELECT=qt5
-export PATH="$QT5_BIN_DIR:$PATH"
-export QMAKE="$QT5_BIN_DIR/qmake"
+export QT_SELECT=qt6
+export QMAKE=qmake6
 export NO_STRIP=1
 
 # 第二次 linuxdeploy 扫描上游 /opt 布局时，优先使用 XnView 自带运行库并保留 AppDir/usr/lib。
 export LD_LIBRARY_PATH="$APPDIR/opt/XnView:$APPDIR/opt/XnView/lib:$APPDIR/opt/XnView/Plugins:$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # 应用文件进入 AppDir 后，在第二次 linuxdeploy 前写入完整根 AppRun。
-# Qt linuxdeploy 会自动把它保存为 AppRun.wrapped，并生成加载 Qt hook 的顶层 AppRun。
+# Qt6 插件是否生成 hook 以当前官方工具实际产物为准，不人工补 AppRun.wrapped。
 cat > "$APPDIR/AppRun" <<'EOF_APPRUN'
 #!/usr/bin/env bash
 set -Eeuo pipefail
@@ -160,10 +153,13 @@ exec "$HERE/opt/XnView/XnView" "$@"
 EOF_APPRUN
 chmod +x "$APPDIR/AppRun"
 
-# XnView MP 使用 Qt5；第二次 linuxdeploy 部署 Qt 资源并完成 AppRun 包装。
+# XnView MP 使用 Qt6；第二次 linuxdeploy 部署 Qt6 资源并生成中间 AppImage。
 export ARCH=x86_64; linuxdeploy \
   --appdir AppDir --desktop-file "$DESKTOP_FILE" --icon-file "$ICON_FILE" \
   --plugin qt --output appimage
+
+# Qt 主版本变化后最终目录尚未确认，按实际 AppDir 整理现有 AppRun 中的路径型变量。
+"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
 
 ###### 整理产物 ######
 
