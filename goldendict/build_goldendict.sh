@@ -7,7 +7,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # 只重建本项目的 source、AppDir 和 dist 构建目录。
 source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" goldendict
 # 安装 Ubuntu 官方仓库的原版 GoldenDict DEB 和所需运行组件，不编译主程序或依赖。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" goldendict qt5-qmake qtdeclarative5-dev-tools qttranslations5-l10n fcitx5-frontend-qt5 locales gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
+"$SCRIPT_DIR/../common/apt/install_packages.sh" goldendict qt5-qmake qtdeclarative5-dev-tools qttranslations5-l10n fcitx5-frontend-qt5 locales libao4 \
+  gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
 # 从本次实际安装的官方包读取版本，保留发行版修订号，不锁版本。
 VERSION="$(dpkg-query -W -f='${Version}' goldendict)"
 # 准备官方 linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime。
@@ -60,6 +61,8 @@ set -e
 # 清除外层 AppImage 遗留的 gconv 搜索路径，避免 UTF-16 转换模块无法加载。
 unset GCONV_PATH
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# 保留 AppDir 的目录描述符，让 libao 能通过稳定的包内绝对路径加载输出模块。
+exec 9<"$HERE"
 # 优先使用包内可执行文件。
 export PATH="$HERE/usr/bin${PATH:+:$PATH}"
 # 优先使用包内运行库。
@@ -89,6 +92,24 @@ chmod +x "$APPDIR/AppRun"
 cd "$SCRIPT_DIR"
 # Qt 与 GStreamer 官方插件负责递归封装运行库、多媒体插件和启动 hook。
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --plugin gstreamer --output appimage --desktop-file "$APPDIR/usr/share/applications/org.goldendict.GoldenDict.desktop" --icon-file "$APPDIR/usr/share/pixmaps/goldendict.png"
+# 只带入 FFmpeg+libao 实际需要的 PulseAudio、ALSA 输出模块及 ALSA 运行库。
+DEB_MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
+mkdir -p "$APPDIR/usr/lib/ao/plugins-4"
+install -m755 "/usr/lib/$DEB_MULTIARCH/ao/plugins-4/libpulse.so" "$APPDIR/usr/lib/ao/plugins-4/libpulse.so"
+install -m755 "/usr/lib/$DEB_MULTIARCH/ao/plugins-4/libalsa.so" "$APPDIR/usr/lib/ao/plugins-4/libalsa.so"
+install -m755 "/usr/lib/$DEB_MULTIARCH/libasound.so.2" "$APPDIR/usr/lib/libasound.so.2"
+# 将官方 libao 写死的宿主插件目录等长替换为 AppRun 保留的包内目录描述符路径。
+LIBAO_SYSTEM_PLUGIN_DIR="/usr/lib/$DEB_MULTIARCH/ao/plugins-4" \
+LIBAO_APPDIR_PLUGIN_DIR=/proc/self/fd/9/usr/lib/ao/plugins-4 \
+perl -0777 -pi -e '
+  BEGIN {
+    $old = $ENV{LIBAO_SYSTEM_PLUGIN_DIR};
+    $new = $ENV{LIBAO_APPDIR_PLUGIN_DIR};
+    die "libao 包内插件路径长于原路径。\n" if length($new) > length($old);
+  }
+  $count += s/\Q$old\E/$new . ("\0" x (length($old) - length($new)))/ge;
+  END { die "未能唯一重定位 libao 插件路径。\n" unless $count == 1; }
+' "$APPDIR/usr/lib/libao.so.4"
 # 第二次 linuxdeploy 完成后统一整理生成入口的包内路径。
 "$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
 # 使用官方 appimagetool 正式封装，并在成功后写入 dist/version.txt。
