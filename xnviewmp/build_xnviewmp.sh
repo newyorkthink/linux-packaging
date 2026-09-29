@@ -134,7 +134,7 @@ set -Eeuo pipefail
 
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-# 保留中文界面环境；输入法仍由 Qt 插件和宿主桌面负责。
+# 保留中文界面环境；Qt 输入法模块在下方明确选择 Fcitx5。
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
 
@@ -153,9 +153,11 @@ export QML2_IMPORT_PATH="$HERE/opt/XnView/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_P
 export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_TRANSLATIONS_PATH}"
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
-# XnView 官方针对视频播放时的 XCB OpenGL 上下文问题建议使用 EGL 集成。
+# XnView 在 X11 下继续使用 XCB，并明确加载 Fcitx5 的 Qt 输入上下文。
 export QT_QPA_PLATFORM=xcb
-export QT_XCB_GL_INTEGRATION=xcb_egl
+export QT_IM_MODULE=fcitx
+# 禁用 Qt Multimedia 的 GPU 纹理转换，避免 EGL 集成失败时部分视频只显示黑屏。
+export QT_DISABLE_HW_TEXTURES_CONVERSION=1
 export QT_FONT_DPI=96
 
 exec "$HERE/opt/XnView/XnView" "$@"

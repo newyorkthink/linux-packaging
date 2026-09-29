@@ -107,7 +107,7 @@
 | `QT_QPA_PLATFORM_PLUGIN_PATH` | 只放平台插件的目录，比 QT_PLUGIN_PATH 更窄。官方目录放前面。 | 6 个脚本，例如 dingtalk、mailmaster、wemeet |
 | `QT_QPA_PLATFORM` | Qt 用哪个平台插件。xcb 是 X11，wayland 是 Wayland。 | 9 个脚本，例如 dingtalk、mailmaster、obs-studio |
 | `QT_QPA_PLATFORMTHEME` | Qt 平台主题，用来跟桌面外观。例如 qt6ct。 | 2 个脚本，例如 kde-suite、peazip |
-| `QT_IM_MODULE` | Qt 输入法模块，常见是 fcitx 或 ibus。 | 4 个脚本，例如 dingtalk、kde-suite、mailmaster |
+| `QT_IM_MODULE` | Qt 输入法模块，常见是 fcitx 或 ibus。 | 5 个脚本，例如 dingtalk、kde-suite、mailmaster、xnviewmp |
 | `QT_TRANSLATIONS_PATH` | Qt 翻译文件目录。 | 3 个脚本，例如 peazip、xnconvert、xnviewmp |
 | `QML_IMPORT_PATH` | QML 模块目录。 | 3 个脚本，例如 kde-suite、xnviewmp |
 | `QML2_IMPORT_PATH` | Qt5 的 QML 模块目录。 | 3 个脚本，例如 kde-suite、xnviewmp |
@@ -117,7 +117,8 @@
 | `QT_AUTO_SCREEN_SCALE_FACTOR` | 让 Qt 按屏幕缩放界面。 | 4 个脚本，例如 dingtalk、peazip、wechat |
 | `QT_SCALE_FACTOR` | Qt 界面缩放倍数。 | peazip |
 | `QT_FONT_DPI` | 固定 Qt 字体 DPI。 | 2 个脚本，例如 peazip、xnviewmp |
-| `QT_XCB_GL_INTEGRATION` | XCB 下用哪种 OpenGL 集成，例如 xcb_egl。 | 2 个脚本，例如 mailmaster、xnviewmp |
+| `QT_XCB_GL_INTEGRATION` | XCB 下用哪种 OpenGL 集成，例如 xcb_egl。 | mailmaster |
+| `QT_DISABLE_HW_TEXTURES_CONVERSION` | 禁用 Qt Multimedia 的 GPU 纹理转换，避免部分视频渲染黑屏。 | xnviewmp |
 
 ## GTK、语言和输入法
 
