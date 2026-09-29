@@ -36,7 +36,6 @@ die() {
   dpkg qmake6 qt6-base-dev qt6-base-dev-tools \
   qt6-declarative-dev qt6-declarative-dev-tools \
   qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n qt6-wayland \
-  fcitx5-frontend-qt6 \
   libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0 \
   gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
   libpulse0 libpulse-mainloop-glib0 \
@@ -134,7 +133,7 @@ set -Eeuo pipefail
 
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-# 保留中文界面环境；Qt 输入法模块在下方明确选择 Fcitx5。
+# 保留中文界面环境；Qt 输入法模块在下方使用 XnView 自带的 IBus 插件接入 Fcitx5。
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
 
@@ -153,9 +152,10 @@ export QML2_IMPORT_PATH="$HERE/opt/XnView/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_P
 export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_TRANSLATIONS_PATH}"
 
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
-# XnView 在 X11 下继续使用 XCB，并明确加载 Fcitx5 的 Qt 输入上下文。
+# XnView 在 X11 下继续使用 XCB。其自带 IBus 输入插件与 Qt 6.10 私有 ABI 一致，
+# 通过 Fcitx5 的 IBus 前端接入宿主输入法，避免加载 Ubuntu Qt 6.4 的 Fcitx5 插件。
 export QT_QPA_PLATFORM=xcb
-export QT_IM_MODULE=fcitx
+export QT_IM_MODULE=ibus
 # 禁用 Qt Multimedia 的 GPU 纹理转换，避免 EGL 集成失败时部分视频只显示黑屏。
 export QT_DISABLE_HW_TEXTURES_CONVERSION=1
 export QT_FONT_DPI=96
