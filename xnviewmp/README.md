@@ -42,6 +42,12 @@ AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/X
 
 ## 变更记录
 
+### 2026-09-29：隔离系统 qmake6 与 XnView 自带 Qt 运行库
+
+Actions Job `109297829710` 在第二次 linuxdeploy 的 Qt 插件阶段调用 `/usr/bin/qmake6` 时，错误加载了 `AppDir/opt/XnView/lib` 中的 Qt 6.10.3 运行库，出现 `undefined symbol: qtconfManualPath, version Qt_6_PRIVATE_API` 并退出。根因是依赖扫描所需的 `LD_LIBRARY_PATH` 同时传给了系统 qmake，造成 Ubuntu 24.04 的 qmake 与 XnView 自带 Qt 私有 ABI 混用，不是网络、下载或 SHA-256 校验故障。
+
+构建脚本现于工具目录生成 `qmake6` 隔离入口，仅在执行系统 `/usr/bin/qmake6` 前清除 `LD_LIBRARY_PATH`；linuxdeploy 本身仍保留原有 XnView 库搜索路径，现有 Qt6、媒体运行库、AppRun、动态版本和最终封装流程均未改动。本次完成 Shell 语法与完整 diff 静态检查；提交后不监控 Actions，新的构建结果和实际运行效果尚未验证。
+
 ### 2026-09-29：随官方 1.12.0 从 Qt5 迁移到 Qt6
 
 官方 1.12.0 DEB 的主程序已经依赖 `libQt6*.so.6`，包内运行库升级为 Qt 6.10.3，并提供 `libQt6XcbQpa.so.6.10.3`、Qt6 plugin 与 QML 目录；原脚本继续复制 `libQt5XcbQpa.so*`，导致 Actions Job `109289404064` 在该文件不存在时退出。

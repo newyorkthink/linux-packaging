@@ -110,6 +110,15 @@ copy_runtime_glob "/usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-*.so"
 # 公共入口配置 linuxdeploy 通用环境；Qt6 只在当前 Qt 项目中追加。
 source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" \
   "$TOOLS_DIR" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
+
+# 为 Qt 插件提供隔离的 qmake6 入口，避免 XnView 自带 Qt 库污染系统 qmake。
+cat > "$TOOLS_DIR/qmake6" <<'EOF_QMAKE'
+#!/usr/bin/env bash
+unset LD_LIBRARY_PATH
+exec /usr/bin/qmake6 "$@"
+EOF_QMAKE
+chmod +x "$TOOLS_DIR/qmake6"
+
 export QT_SELECT=qt6
 export QMAKE=qmake6
 export NO_STRIP=1
