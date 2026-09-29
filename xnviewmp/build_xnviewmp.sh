@@ -37,7 +37,7 @@ die() {
   qt6-declarative-dev qt6-declarative-dev-tools \
   qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n qt6-wayland \
   fcitx5-frontend-qt6 \
-  libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 \
+  libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0 \
   gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
   libpulse0 libpulse-mainloop-glib0 \
   libva2 libva-drm2 libva-x11-2 \
