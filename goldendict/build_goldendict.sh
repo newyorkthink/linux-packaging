@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # 只重建本项目的 source、AppDir 和 dist 构建目录。
 source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" goldendict
 # 安装 Ubuntu 官方仓库的原版 GoldenDict DEB 和所需运行组件，不编译主程序或依赖。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" goldendict qt5-qmake qtdeclarative5-dev-tools qttranslations5-l10n fcitx5-frontend-qt5 locales libao4 \
+"$SCRIPT_DIR/../common/apt/install_packages.sh" goldendict qt5-qmake qtdeclarative5-dev-tools qttranslations5-l10n fcitx5-frontend-qt5 locales libao4 libpulse0 \
   gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
 # 从本次实际安装的官方包读取版本，保留发行版修订号，不锁版本。
 VERSION="$(dpkg-query -W -f='${Version}' goldendict)"
@@ -92,11 +92,12 @@ chmod +x "$APPDIR/AppRun"
 cd "$SCRIPT_DIR"
 # Qt 与 GStreamer 官方插件负责递归封装运行库、多媒体插件和启动 hook。
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --plugin gstreamer --output appimage --desktop-file "$APPDIR/usr/share/applications/org.goldendict.GoldenDict.desktop" --icon-file "$APPDIR/usr/share/pixmaps/goldendict.png"
-# 只带入 FFmpeg+libao 实际需要的 PulseAudio、ALSA 输出模块及 ALSA 运行库。
+# 只带入 FFmpeg+libao 实际需要的 PulseAudio、ALSA 输出模块及其运行库。
 DEB_MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
 mkdir -p "$APPDIR/usr/lib/ao/plugins-4"
 install -m755 "/usr/lib/$DEB_MULTIARCH/ao/plugins-4/libpulse.so" "$APPDIR/usr/lib/ao/plugins-4/libpulse.so"
 install -m755 "/usr/lib/$DEB_MULTIARCH/ao/plugins-4/libalsa.so" "$APPDIR/usr/lib/ao/plugins-4/libalsa.so"
+install -m755 "/usr/lib/$DEB_MULTIARCH/libpulse-simple.so.0" "$APPDIR/usr/lib/libpulse-simple.so.0"
 install -m755 "/usr/lib/$DEB_MULTIARCH/libasound.so.2" "$APPDIR/usr/lib/libasound.so.2"
 # 将官方 libao 写死的宿主插件目录等长替换为 AppRun 保留的包内目录描述符路径。
 LIBAO_SYSTEM_PLUGIN_DIR="/usr/lib/$DEB_MULTIARCH/ao/plugins-4" \
