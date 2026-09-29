@@ -40,6 +40,23 @@ AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/X
 ./xnviewmp.AppImage
 ```
 
+## 当前未解决状态（确认修复后删除本节）
+
+截至 2026-09-29，最新成品在真实 Linux 环境中仍存在“部分 H.264 / AAC 视频可以正常播放，部分视频有进度和媒体信息但画面始终为黑色”的问题。该问题尚未修复，不能把当前构建描述为视频播放正常。
+
+已经尝试的处理是：移除旧版 AppRun 强制设置的 `QT_XCB_GL_INTEGRATION=xcb_egl`，增加 `QT_DISABLE_HW_TEXTURES_CONVERSION=1`，并为 Fcitx5 增加 `QT_IM_MODULE=fcitx`。新成品的 `Xcb EGL gl-integration initialize failed` 报错已经消失，但相同视频仍然黑屏，因此此前把 EGL / GPU 纹理转换视为根因的判断已被真实运行结果否定。Fcitx5 中文输入是否恢复尚未取得新的实机确认，不能与视频结果一起宣称已经修复。
+
+目前完成的只读核查如下：
+
+- 最新 Release AppImage 中 `opt/XnView` 的 900 个普通文件与官方 1.12.1 DEB 逐项 SHA-256 一致，包括 XnView 主程序、Qt 6.10.3、Qt Multimedia、FFmpeg 7.1.5 库和 `libffmpegmediaplugin.so`；没有发现打包过程替换或遗漏 XnView 自带的核心解码组件。
+- 官方 1.12.1 AppImage 中的 XnView 主程序和 Qt Multimedia FFmpeg plugin 与当前 DEB / 本仓库成品具有相同 Build ID；官方 AppImage 不强制 XCB、`xcb_egl` 或 `QT_DISABLE_HW_TEXTURES_CONVERSION`，但尚未用同一批黑屏视频完成实机对照，因此不能据此直接认定显示后端就是根因。
+- 黑屏视频的日志表明 Qt Multimedia 已使用内置 FFmpeg 7.1.5 打开 H.264 视频流；`No HW decoder found` 只说明没有选中硬件解码器，通常会继续使用软件解码，单独出现该信息不能证明缺少 H.264 解码能力。
+- `Couldn't load pipewire-0.3 library` 属于 PipeWire 集成警告，现有证据不足以把它与本地 MP4 文件黑屏直接关联。额外打包或调用外部 `ffmpeg`、`ffplay`、`ffprobe` 也不是当前已证实的修复方向，因为 XnView 播放时使用的是自带 FFmpeg 动态库，不会调用这些命令行程序。
+
+后续继续处理前，必须先取得同一环境中“一段能够正常显示的视频”和“一段稳定黑屏的视频”原文件，使用 `ffprobe` 对比完整流参数，并用 `ffmpeg` 实际解码取帧。只有确认文件本身可以正常解码后，才继续区分 XnView / Qt Multimedia 兼容问题、XCB / Wayland 显示路径或 AppImage 运行库问题；在取得这组证据前，不应继续试加显示、OpenGL、VA-API、PipeWire 或 FFmpeg 环境变量，也不得声称某个后端是确定根因。
+
+本节是供后续维护者和 AI 接手的临时当前状态，不属于永久修复记录。后续 XnView / Qt 版本更新后该问题自然消失，或其他 AI 完成修复并获得上述视频的真实播放确认时，应删除本节，并在下面的变更记录中追加新的正式修复记录，写清最终根因、修改内容和实机验证结果；下面已经存在的历史记录继续保留，不得随本节一起删除。
+
 ## 变更记录
 
 ### 2026-09-29：处理 Qt6 部分视频黑屏与 Fcitx5 中文输入失效
