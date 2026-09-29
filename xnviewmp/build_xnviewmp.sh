@@ -42,7 +42,7 @@ die() {
   libpulse0 libpulse-mainloop-glib0 \
   libva2 libva-drm2 libva-x11-2 \
   libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 libudev1 \
-  libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+  libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
   libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
 
 # 从 Qt6 qmake 读取当前构建环境的翻译目录，避免写死发行版内部路径。
