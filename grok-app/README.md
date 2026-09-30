@@ -65,6 +65,10 @@ Grok App Linux 桌面端是 Tauri 2 / wry 程序，链接 GTK 3 与 WebKitGTK 4.
 
 构建目录中的对应文件是 `dist/grok-app.AppImage`。程序仍需要本机的 Grok Build CLI。沙箱、用户命名空间和 WebKit 显示问题沿用官方说明，本目录不改这些行为。
 
+## 托盘图标
+
+Linux 托盘图标由上游编译进 `grok-app`，本目录不替换。深色状态栏上可能看不见，托盘菜单仍可用。不是缺 `libayatana-appindicator`，也不需要 `librsvg`。
+
 ## 2026-09-29：新增重打包并补上中文输入环境
 
 - **现象：** 官方 Linux 包没有中文 locale，也没有与 GTK 3 匹配的 IBus / Fcitx5 输入模块。
@@ -72,3 +76,11 @@ Grok App Linux 桌面端是 Tauri 2 / wry 程序，链接 GTK 3 与 WebKitGTK 4.
 - **处理：** 新增 `grok-app/build_grok-app.sh`，从官方 DEB 动态重打包；打入 WebKitGTK 4.1、OpenGL、GTK 3、两套输入模块、托盘库和包内 `zh_CN.UTF-8`。
 - **接入：** 标准 matrix 清单项和手动构建下拉项，资产名为 `grok-app.AppImage`，版本键为 `grok-app`。
 - **验证状态：** 已做脚本语法、清单 JSON、下拉选项和 export 登记的静态核对。未运行构建，未做实机中文输入验收。
+
+## 2026-09-30：深色状态栏上看不到托盘图标
+
+- **现象：** 中文可以输入，托盘菜单可以打开，深色状态栏上几乎看不到图标。
+- **核查：** 上游 `src-tauri/src/tray.rs` 在 Linux 使用 `include_bytes!("../icons/tray-32.png")`。该图为 32×32，不透明像素全是纯黑。macOS 把图标当模板反色，Windows 有浅色和深色两套，Linux 没有。官方 DEB 没有单独的托盘图文件。`libayatana-appindicator` 已打进包；弃用警告和菜单快捷键警告与图标颜色无关。
+- **处理：** 不改 `build_grok-app.sh`，不补图标库，也不改成自行编译。编译期内嵌的纯黑图标无法在重打包时换掉。
+- **验证状态：** 图标内容和上游分支为静态核对。中文输入和托盘菜单可用来自运行反馈。这次没有改包，也没有新的构建。
+
