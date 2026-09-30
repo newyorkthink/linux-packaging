@@ -54,7 +54,7 @@
 | `ST_FONT_PIXELS` | 编译 st 时的字体像素大小。 | st |
 | `WINE_VERSION` | 把 WineHQ 包版本里的 ~rc 转成上游 tag 用的 -rc。 | wine |
 | `WINPODX_BUNDLE_DIR` | WinPodX 在 CI 里的打包目录。 | .github |
-| `WEBKIT2GTK_DIR` | WebKitGTK 库目录，构建时用来找到要打进包的文件。 | Keyviz |
+| `WEBKIT2GTK_DIR` | WebKitGTK 库目录，构建时用来找到要打进包的文件。 | Keyviz、grok-app |
 | `PYTHONPATH` | Python 模块搜索路径。 | .github |
 | `XDG_DATA_HOME` | 用户数据目录。CI 里指到临时目录，避免写到构建机家目录。 | .github |
 
@@ -62,8 +62,8 @@
 
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
-| `DEPLOY_GTK` | quick-sharun 是否打入 GTK。 | 29 个脚本，例如 Keyviz、aionui、antigravity-ide |
-| `DEPLOY_OPENGL` | quick-sharun 是否打入 OpenGL / Mesa。 | 34 个脚本，例如 Keyviz、aionui、antigravity-ide |
+| `DEPLOY_GTK` | quick-sharun 是否打入 GTK。 | 30 个脚本，例如 Keyviz、aionui、antigravity-ide、grok-app |
+| `DEPLOY_OPENGL` | quick-sharun 是否打入 OpenGL / Mesa。 | 35 个脚本，例如 Keyviz、aionui、antigravity-ide、grok-app |
 | `DEPLOY_VULKAN` | quick-sharun 是否打入 Vulkan。 | 22 个脚本，例如 aionui、antigravity-ide、antigravity |
 | `DEPLOY_PIPEWIRE` | quick-sharun 是否打入 PipeWire。 | 21 个脚本，例如 aionui、chatgpt、cursor |
 | `DEPLOY_PULSE` | quick-sharun 是否打入 PulseAudio。 | webcamoid |
@@ -75,7 +75,7 @@
 | `DEPLOY_GDK` | quick-sharun 是否打入 GDK。 | ripdrag |
 | `DEPLOY_GLYCIN` | quick-sharun 是否打入 glycin 图片加载器。 | ripdrag |
 | `DEPLOY_GSTREAMER` | quick-sharun 是否打入 GStreamer。0 是不打。 | webcamoid |
-| `DEPLOY_WEBKIT2GTK` | quick-sharun 是否打入 WebKitGTK。 | Keyviz |
+| `DEPLOY_WEBKIT2GTK` | quick-sharun 是否打入 WebKitGTK。 | Keyviz、grok-app |
 | `DEPLOY_ELECTRON` | quick-sharun 是否自动扫描 Electron。0 是关掉，避免它改官方 asar。 | chatgpt |
 | `DEPLOY_CHROMIUM` | quick-sharun 是否自动按 Chromium 去扫依赖。0 是关掉。 | chatgpt |
 | `DEPLOY_COMMON_LIBS` | quick-sharun 是否打入一批常见系统库。 | chatgpt |
@@ -141,11 +141,11 @@
 | `GLFW_IM_MODULE` | kitty 的 GLFW 用哪个输入法模块。这里是 ibus。 | kitty |
 | `IBUS_ADDRESS` | 这次启动要连的 IBus 套接字，不用外部环境里可能失效的地址。 | kitty |
 | `IBUS_USE_PORTAL` | 让 Qt 自带 IBus 插件走会话总线上的 org.freedesktop.portal.IBus。Fcitx5 的 IBus 前端提供这个名字，因此不要求宿主安装 ibus-daemon。 | xnviewmp |
-| `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 5 个脚本，例如 gitkraken、obs-studio、tencent-docs |
-| `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 9 个脚本，例如 gemini、gitkraken、kde-suite |
-| `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | goldendict |
+| `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 6 个脚本，例如 gitkraken、obs-studio、tencent-docs、grok-app |
+| `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 10 个脚本，例如 gemini、gitkraken、kde-suite、grok-app |
+| `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | goldendict、grok-app |
 | `LC_ALL` | 强制整套 locale。有的构建用 C；图形程序要中文时才用 zh_CN.UTF-8。 | 6 个脚本，例如 chatgpt、gemini、gitkraken |
-| `LOCPATH` | locale 档案目录。腾讯会议用它读包内的 zh_CN.UTF-8。 | wemeet |
+| `LOCPATH` | locale 档案目录。腾讯会议用它读包内的 zh_CN.UTF-8。 | wemeet、grok-app |
 | `TZ` | 时区。腾讯会议按官方脚本设成 Asia/Shanghai。 | wemeet |
 | `XDG_SESSION_TYPE` | 当前会话类型。Wayland 上回退到 X11 时改成 x11。 | 2 个脚本，例如 jriver、wemeet |
 

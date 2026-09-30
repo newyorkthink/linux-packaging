@@ -57,6 +57,7 @@ on:
           - gitkraken/build_gitkraken.sh
           - goldendict-ng/build_goldendict-ng.sh
           - goldendict/build_goldendict.sh
+          - grok-app/build_grok-app.sh
           - grok-bot/build_grok-bot.sh
           - hermes-desktop/build_hermes-desktop.sh
           - htop/build_htop.sh

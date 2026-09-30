@@ -131,6 +131,18 @@
       "run_from_root": "false"
     },
     {
+      "key": "grok_app",
+      "kind": "standard",
+      "name": "Grok App",
+      "script": "grok-app/build_grok-app.sh",
+      "dir": "grok-app",
+      "artifact_dir": "grok-app/dist",
+      "release_name": "grok-app.AppImage",
+      "software_key": "grok-app",
+      "timeout_minutes": 90,
+      "run_from_root": "false"
+    },
+    {
       "key": "grok_bot",
       "kind": "standard",
       "name": "Grok Bot",
