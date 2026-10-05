@@ -100,7 +100,7 @@ jobs:
             mapfile -t rows < <(
               jq -r '
                 .assets[]
-                | select(.name | test("^rainlendar2-pro_.*_amd64\.deb$"))
+                | select(.name | test("^rainlendar2-pro_.*_amd64[.]deb$"))
                 | [.name, .browser_download_url, (.digest // "")]
                 | @tsv
               ' "$json"
