@@ -23,3 +23,5 @@ GitHub Actions → **Build AppImages** → `script_to_build` 选择 `all` 或具
 ## Releases
 
 产物在 [Releases](https://github.com/newyorkthink/linux-packaging/releases) 的 `latest`。版本写在该 Release 的 `software_versions.json`，不写进 AppImage，也不放进 Git 仓库。
+
+官方原始安装包在 `original-package-archive`，不是 `latest`。GitHub Actions → **Archive Original Packages**，只能手动选择 `rainlendar2-pro`、`moderncsv`、`xnviewmp`、`sunshine` 或 `all`。同一软件只保留这次的文件，旧文件先删除再上传。`sunshine` 固定为 `2025.924.154138` 的 Debian Trixie `.deb` 和 `.pkg.tar.zst`，不跟官方更新版本。

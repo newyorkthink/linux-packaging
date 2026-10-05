@@ -1,0 +1,330 @@
+# 手动归档 rainlendar2-pro、moderncsv、xnviewmp 和固定版本 Sunshine 的官方原始包。
+# 只在 Actions 页面手动选择后运行，不随 push 或定时触发。
+name: Archive Original Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 要下载并归档的软件
+        required: true
+        type: choice
+        options:
+          - rainlendar2-pro
+          - moderncsv
+          - xnviewmp
+          - sunshine
+          - all
+
+permissions:
+  contents: write
+
+jobs:
+  archive:
+    name: Archive ${{ inputs.package }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Download the selected official packages
+        shell: bash
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          set -Eeuo pipefail
+
+          case "$PACKAGE" in
+            rainlendar2-pro|moderncsv|xnviewmp|sunshine|all) ;;
+            *)
+              echo "ERROR: unsupported package: $PACKAGE" >&2
+              exit 1
+              ;;
+          esac
+
+          for command_name in curl grep gzip head jq sha256sum sort; do
+            command -v "$command_name" >/dev/null 2>&1 || {
+              echo "ERROR: required command missing: $command_name" >&2
+              exit 1
+            }
+          done
+
+          ARCHIVE_DIR="$RUNNER_TEMP/original-package-archive"
+          mkdir -p "$ARCHIVE_DIR"
+          : > "$RUNNER_TEMP/archive-files.txt"
+          : > "$RUNNER_TEMP/archive-regexes.txt"
+
+          download_verified() {
+            local url="$1"
+            local output="$2"
+            local sha256="${3:-}"
+            local kind="${4:-gzip}"
+            local attempt
+
+            for attempt in 1 2 3 4 5; do
+              rm -f -- "$output"
+              curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
+                -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36' \
+                "$url" -o "$output"
+              if [[ -n "$sha256" ]]; then
+                if printf '%s  %s\n' "$sha256" "$output" | sha256sum -c -; then
+                  return 0
+                fi
+              elif [[ "$kind" == gzip ]] && gzip -t "$output" 2>/dev/null; then
+                return 0
+              elif [[ "$kind" == deb && "$(head -c 7 -- "$output")" == '!<arch>' ]]; then
+                return 0
+              fi
+              echo "下载结果无效（第 ${attempt}/5 次）：$url" >&2
+              sleep $((attempt * 3))
+            done
+
+            echo "ERROR: unable to download a valid file: $url" >&2
+            exit 1
+          }
+
+          note_file() {
+            local path="$1"
+            local regex="$2"
+            printf '%s\n' "$path" >> "$RUNNER_TEMP/archive-files.txt"
+            printf '%s\n' "$regex" >> "$RUNNER_TEMP/archive-regexes.txt"
+            sha256sum "$path"
+          }
+
+          archive_rainlendar() {
+            ###### Rainlendar2 Pro：官方 latest 里唯一的 amd64 deb ######
+            local json="$RUNNER_TEMP/rainlendar-latest.json"
+            curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
+              -H 'Accept: application/vnd.github+json' \
+              'https://api.github.com/repos/rainlendar/Rainlendar-Resources/releases/latest' \
+              -o "$json"
+            mapfile -t rows < <(
+              jq -r '
+                .assets[]
+                | select(.name | test("^rainlendar2-pro_.*_amd64\.deb$"))
+                | [.name, .browser_download_url, (.digest // "")]
+                | @tsv
+              ' "$json"
+            )
+            if (( ${#rows[@]} != 1 )); then
+              echo "ERROR: expected one Rainlendar2 Pro amd64 deb, found ${#rows[@]}" >&2
+              printf '%s\n' "${rows[@]}" >&2
+              exit 1
+            fi
+            local name url digest sha256=""
+            IFS=$'\t' read -r name url digest <<<"${rows[0]}"
+            [[ -n "$name" && -n "$url" && "$name" != */* && "$name" != *..* ]] || {
+              echo "ERROR: unsafe Rainlendar2 asset: $name" >&2
+              exit 1
+            }
+            if [[ "$digest" == sha256:* ]]; then
+              sha256="${digest#sha256:}"
+            fi
+            download_verified "$url" "$ARCHIVE_DIR/$name" "$sha256" deb
+            note_file "$ARCHIVE_DIR/$name" '^rainlendar2-pro_.*_amd64\.deb$'
+            printf 'Resolved Rainlendar2 Pro: %s\n' "$name"
+          }
+
+          archive_moderncsv() {
+            ###### Modern CSV：官网目录里版本号最高的 Linux tar.gz ######
+            local index="$RUNNER_TEMP/moderncsv-index.html"
+            local index_ok=0 attempt
+            for attempt in 1 2 3 4 5; do
+              rm -f -- "$index"
+              curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
+                -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36' \
+                'https://www.moderncsv.com/release/' -o "$index"
+              if grep -q 'ModernCSV-Linux-v' "$index"; then
+                index_ok=1
+                break
+              fi
+              echo "Modern CSV 目录页不是文件列表（第 ${attempt}/5 次）。" >&2
+              sleep $((attempt * 3))
+            done
+            [[ "$index_ok" -eq 1 ]]
+            local -a names=()
+            mapfile -t names < <(
+              grep -oE 'ModernCSV-Linux-v[0-9]+(\.[0-9]+)*\.tar\.gz' "$index" | sort -u | sort -V
+            )
+            ((${#names[@]} > 0)) || {
+              echo 'ERROR: no Modern CSV Linux tarball found' >&2
+              exit 1
+            }
+            local file="${names[-1]}"
+            [[ "$file" != */* && "$file" != *..* ]] || {
+              echo "ERROR: unsafe Modern CSV filename: $file" >&2
+              exit 1
+            }
+            download_verified "https://www.moderncsv.com/release/${file}" "$ARCHIVE_DIR/$file" "" gzip
+            note_file "$ARCHIVE_DIR/$file" '^ModernCSV-Linux-v[0-9]+(\.[0-9]+)*\.tar\.gz$'
+            printf 'Resolved Modern CSV: %s\n' "$file"
+          }
+
+          archive_xnview() {
+            ###### XnView MP：校验清单里版本号最高的 linux-x64 deb 和 tgz ######
+            local checksum="$RUNNER_TEMP/XnView_MP-CHECKSUMS.txt"
+            curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
+              'https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt' \
+              -o "$checksum"
+            pick_latest_asset() {
+              local asset_regex="$1"
+              local candidate
+              candidate="$(
+                while read -r digest name _; do
+                  name="${name#\*}"
+                  name="${name%$'\r'}"
+                  [[ "$digest" =~ ^[[:xdigit:]]{64}$ ]] || continue
+                  [[ "$name" =~ $asset_regex ]] || continue
+                  printf '%s\t%s\n' "$name" "$digest"
+                done < "$checksum" | sort -t $'\t' -k1,1V | tail -n 1
+              )"
+              [[ -n "$candidate" ]] || {
+                echo "ERROR: checksum list has no asset for: $asset_regex" >&2
+                exit 1
+              }
+              printf '%s\n' "$candidate"
+            }
+            local deb_file deb_sha tgz_file tgz_sha deb_version tgz_version
+            IFS=$'\t' read -r deb_file deb_sha < <(pick_latest_asset '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.deb$')
+            IFS=$'\t' read -r tgz_file tgz_sha < <(pick_latest_asset '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.tgz$')
+            deb_version="$(grep -oE '[0-9]+(\.[0-9]+)+' <<<"$deb_file" | head -n 1)"
+            tgz_version="$(grep -oE '[0-9]+(\.[0-9]+)+' <<<"$tgz_file" | head -n 1)"
+            [[ -n "$deb_version" && "$deb_version" == "$tgz_version" ]] || {
+              echo "ERROR: XnView deb/tgz versions differ: $deb_file vs $tgz_file" >&2
+              exit 1
+            }
+            download_verified \
+              "https://download.xnview.com/versions/XnView_MP/${deb_file}" \
+              "$ARCHIVE_DIR/$deb_file" "$deb_sha" deb
+            download_verified \
+              "https://download.xnview.com/versions/XnView_MP/${tgz_file}" \
+              "$ARCHIVE_DIR/$tgz_file" "$tgz_sha" gzip
+            note_file "$ARCHIVE_DIR/$deb_file" '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.(deb|tgz)$'
+            note_file "$ARCHIVE_DIR/$tgz_file" '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.(deb|tgz)$'
+            printf 'Resolved XnView MP: %s\n' "$deb_version"
+          }
+
+          archive_sunshine() {
+            ###### Sunshine：固定 2025.924.154138，不跟官方更新版本 ######
+            local version='2025.924.154138'
+            local deb_name="sunshine-${version}-debian-trixie-amd64.deb"
+            local zst_name="sunshine-${version}.pkg.tar.zst"
+            local deb_sha='eb74caedb8c03215b6897a4a9e0d24efeb02d13a917c86c4ac5180693d39bad0'
+            local zst_sha='2d7be01ffde6fb346c86f102edb5158b513db5f194c0481cd5e782cadafd9c3c'
+            local base="https://github.com/LizardByte/Sunshine/releases/download/v${version}"
+            download_verified "$base/sunshine-debian-trixie-amd64.deb" "$ARCHIVE_DIR/$deb_name" "$deb_sha" deb
+            download_verified "$base/sunshine.pkg.tar.zst" "$ARCHIVE_DIR/$zst_name" "$zst_sha" gzip
+            note_file "$ARCHIVE_DIR/$deb_name" '^sunshine-.+\.(deb|pkg\.tar\.zst)$'
+            note_file "$ARCHIVE_DIR/$zst_name" '^sunshine-.+\.(deb|pkg\.tar\.zst)$'
+            printf 'Resolved Sunshine: %s\n' "$version"
+          }
+
+          case "$PACKAGE" in
+            rainlendar2-pro) archive_rainlendar ;;
+            moderncsv) archive_moderncsv ;;
+            xnviewmp) archive_xnview ;;
+            sunshine) archive_sunshine ;;
+            all)
+              archive_rainlendar
+              archive_moderncsv
+              archive_xnview
+              archive_sunshine
+              ;;
+          esac
+
+      - name: Replace old assets and upload
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+
+          for command_name in gh jq; do
+            command -v "$command_name" >/dev/null 2>&1 || {
+              echo "ERROR: required command missing: $command_name" >&2
+              exit 1
+            }
+          done
+
+          gh release view original-package-archive \
+            --repo "$GITHUB_REPOSITORY" \
+            --json tagName,isDraft,isPrerelease \
+            > "$RUNNER_TEMP/archive-release.json"
+          jq -e '
+            .tagName == "original-package-archive"
+            and .isDraft == false
+            and .isPrerelease == false
+          ' "$RUNNER_TEMP/archive-release.json" >/dev/null
+
+          gh release list \
+            --repo "$GITHUB_REPOSITORY" \
+            --limit 100 \
+            --json tagName,isLatest \
+            > "$RUNNER_TEMP/release-list.json"
+          jq -e '
+            any(.[]; .tagName == "original-package-archive" and .isLatest == false)
+            and any(.[]; .tagName == "latest" and .isLatest == true)
+          ' "$RUNNER_TEMP/release-list.json" >/dev/null
+
+          mapfile -t archive_files < "$RUNNER_TEMP/archive-files.txt"
+          mapfile -t archive_regexes < "$RUNNER_TEMP/archive-regexes.txt"
+          ((${#archive_files[@]} > 0 && ${#archive_regexes[@]} > 0)) || {
+            echo 'ERROR: no downloaded archive files' >&2
+            exit 1
+          }
+
+          : > "$RUNNER_TEMP/archive-keep.txt"
+          for file_path in "${archive_files[@]}"; do
+            [[ -s "$file_path" ]] || {
+              echo "ERROR: downloaded file is empty: $file_path" >&2
+              exit 1
+            }
+            printf '%s\n' "$(basename "$file_path")" >> "$RUNNER_TEMP/archive-keep.txt"
+          done
+
+          while IFS=$'\t' read -r asset_id asset_name; do
+            [[ -n "$asset_id" && -n "$asset_name" ]] || continue
+            [[ "$asset_id" =~ ^[0-9]+$ ]] || {
+              echo "ERROR: release asset id is not numeric: $asset_id ($asset_name)" >&2
+              exit 1
+            }
+            matched=0
+            for asset_regex in "${archive_regexes[@]}"; do
+              if [[ "$asset_name" =~ $asset_regex ]]; then
+                matched=1
+                break
+              fi
+            done
+            [[ "$matched" -eq 1 ]] || continue
+            if grep -Fxq -- "$asset_name" "$RUNNER_TEMP/archive-keep.txt"; then
+              continue
+            fi
+            echo "Deleting old asset: $asset_name"
+            gh api --method DELETE \
+              "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}" >/dev/null
+          done < <(
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/original-package-archive" \
+              --jq '.assets[]? | [.id, .name] | @tsv'
+          )
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/original-package-archive" \
+            > "$RUNNER_TEMP/archive-release-after-delete.json"
+
+          upload_files=()
+          while IFS= read -r file_path; do
+            asset_name="$(basename "$file_path")"
+            if jq -e --arg name "$asset_name" '.assets[]? | select(.name == $name)' \
+              "$RUNNER_TEMP/archive-release-after-delete.json" >/dev/null; then
+              echo "Current asset already present: $asset_name"
+              continue
+            fi
+            upload_files+=("$file_path")
+          done < "$RUNNER_TEMP/archive-files.txt"
+
+          if ((${#upload_files[@]} == 0)); then
+            echo 'No new archive file to upload.'
+            exit 0
+          fi
+
+          gh release upload original-package-archive \
+            "${upload_files[@]}" \
+            --repo "$GITHUB_REPOSITORY"
