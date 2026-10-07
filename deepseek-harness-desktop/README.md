@@ -53,3 +53,11 @@ chmod +x deepseek-harness-desktop.AppImage
 - 在临时目录下载该版本上游锁定的 CPython 运行时并通过 SHA256 校验；已复现修复前的两项缺库，加入私有库路径后 `_tkinter` 的全部 `ldd` 依赖均可解析。
 - Bash 语法检查通过；使用临时入口执行脚本的实际调用片段，确认 `LD_LIBRARY_PATH` 未设置、为空及已有值时均可解析，后续 `--make-appimage` 调用保留原环境。
 - 本次未进行完整 Arch 容器构建和 AppImage 封装，也未验证 AppImage 的图形启动、中文输入、Office 功能或跨发行版运行；本地依赖检查不代表最终 AppImage 已构建成功。
+
+### 2026-10-07：补齐 _crypt 的 Arch 兼容库
+
+- [后续 CI 构建](https://github.com/newyorkthink/linux-packaging/actions/runs/37615016607/job/112771213988) 仍在依赖扫描阶段中止：内置 CPython 的 `_crypt` 扩展需要 `libcrypt.so.1`，而当前基础安装项没有提供该兼容库；上轮本地检查仅覆盖 `_tkinter`，未核对其余扩展在 Arch 中的依赖。
+- 修改 `deepseek-harness-desktop/build_deepseek-harness-desktop.sh`，通过公共安装入口独立追加 `libxcrypt-compat`，由该 [Arch 官方包](https://archlinux.org/packages/core/x86_64/libxcrypt-compat/files/) 提供 `libcrypt.so.1`；原有 AUR 编译命令和 Python 私有库路径处理保持原样。本文件同步记录此次修复。
+- 在临时目录按该应用版本的上游锁定摘要校验并组装 Python、全部 wheel 和 Node；Arch 运行库按当前官方仓库数据库的摘要校验。使用 Arch 动态加载器关闭宿主库缓存，并核对每项解析路径都位于临时运行时或 Arch 库目录。
+- 共检查 114 个 x86_64 ELF：CPython 13 个、原生 wheel 100 个、Node 1 个。基线仅 `_crypt` 缺少 `libcrypt.so.1`；加入 `libxcrypt-compat` 后全部依赖解析通过，Bash 语法检查通过。
+- 本次检查针对上述同版运行时；尚未完成 Electron 主程序及其原生模块的完整 AppImage 封装，也未验证图形启动、中文输入、Office 功能和跨发行版运行。最终构建及运行结果仍未验证。

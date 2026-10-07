@@ -19,6 +19,9 @@ cd "$SCRIPT_DIR"
 # makepkg 校验配方提供的补丁摘要；应用内置运行时由上游下载器校验锁定的摘要。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" deepseek-harness-desktop fcitx5-gtk
 
+# 内置 CPython 的 _crypt 扩展依赖 libcrypt.so.1，安装对应的 Arch 兼容库供打包使用。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" libxcrypt-compat
+
 # 使用 AUR 安装的真实 Electron ELF；/usr/bin/deepseek-harness-desktop 只是 shell 包装。
 readonly APP_ROOT=/usr/lib/deepseek-harness-desktop
 readonly APP_EXEC="$APP_ROOT/deepseek-harness"
