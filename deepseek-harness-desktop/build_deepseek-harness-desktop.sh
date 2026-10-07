@@ -62,6 +62,8 @@ done < <(
 )
 
 # 一次收集应用自身依赖和 GTK 3 的 IBus / Fcitx5 模块，由工具生成启动入口。
+# 仅为本次扫描提供内置 Python 的私有库路径，让 Tcl/Tk 等库按包内位置解析。
+LD_LIBRARY_PATH="$APP_ROOT/resources/runtime/primary-runtime/dependencies/python/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
 quick-sharun \
   "${NATIVE_FILES[@]}" \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so \

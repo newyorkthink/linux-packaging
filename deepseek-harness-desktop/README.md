@@ -4,7 +4,7 @@
 
 ## 定位与来源
 
-- 这是社区 Linux 预览版，不是 DeepSeek 官方发布的 Linux 安装包；构建与运行结果尚未验证。
+- 这是社区 Linux 预览版，不是 DeepSeek 官方发布的 Linux 安装包；AppImage 构建与运行结果尚未验证。
 - 官方桌面应用采用 Electron，并内置完整 dsh 运行时。它与仓库已有的 [deepseek-harness 浏览器版](../deepseek-harness/README.md) 分别构建、分别发布。
 - 每次构建读取当前 AUR 配方和实际安装版本，本仓库不写死应用版本；AUR 当前渠道可能是 alpha，版本元数据保留该标识。
 - [PKGBUILD](https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=deepseek-harness-desktop) 从官方 Git tag 获取源码，并应用社区 [linux-desktop.patch](https://aur.archlinux.org/cgit/aur.git/plain/linux-desktop.patch?h=deepseek-harness-desktop)。Linux 目标、更新配置、原生模块和 Office 运行时存在社区适配。
@@ -45,3 +45,11 @@ chmod +x deepseek-harness-desktop.AppImage
 - Bash 语法、JSON/YAML 解析、手动选项排序、公共入口路径和既有配置保留检查通过；已使用现有 Plan 脚本核对本次 push 仅选择新增桌面版，桌面版与浏览器版的手动入口分别选择对应项目。
 - 尚未取得正式 CI 构建产物，也未进行图形启动、中文输入、Office 功能或跨发行版运行验证。
 - 社区补丁和第三方原生依赖会随 AUR 配方更新；当前来源核对不代表后续版本或运行稳定性已经通过验证。
+
+### 2026-10-07：修复内置 Python 的依赖扫描
+
+- [首次 CI 构建](https://github.com/newyorkthink/linux-packaging/actions/runs/37611755057/job/112760445289) 已完成 `deepseek-harness-desktop 0.2.1alpha.1-1` 的 AUR 源码编译，并通过上游内置运行时与 Office 检查；随后 quick-sharun 扫描 `_tkinter` 时找不到 `libtcl9tk9.0.so` 和 `libtcl9.0.so`，构建中止，未生成 AppImage。
+- 两项库位于内置 Python 的 `lib` 目录。仅为首次 quick-sharun 调用设置临时 `LD_LIBRARY_PATH`，加入该目录并保留已有路径，让依赖扫描按包内位置解析 Tcl/Tk。
+- 在临时目录下载该版本上游锁定的 CPython 运行时并通过 SHA256 校验；已复现修复前的两项缺库，加入私有库路径后 `_tkinter` 的全部 `ldd` 依赖均可解析。
+- Bash 语法检查通过；使用临时入口执行脚本的实际调用片段，确认 `LD_LIBRARY_PATH` 未设置、为空及已有值时均可解析，后续 `--make-appimage` 调用保留原环境。
+- 本次未进行完整 Arch 容器构建和 AppImage 封装，也未验证 AppImage 的图形启动、中文输入、Office 功能或跨发行版运行；本地依赖检查不代表最终 AppImage 已构建成功。
