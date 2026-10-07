@@ -74,12 +74,20 @@ quick-sharun \
 mkdir -p "$APPDIR/lib/locale"
 localedef --no-archive -i zh_CN -f UTF-8 "$APPDIR/lib/locale/zh_CN.utf8"
 cat >> "$APPDIR/.env" <<'ENV'
-
 LANG=zh_CN.UTF-8
 LANGUAGE=zh_CN:zh
 LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
 ENV
+
+# Grok CLI 用 PATH 上的第一个 bwrap。quick-sharun 把包内 bin 放在最前时，
+# 打包工具带入的 bwrap 会把 --proc 当成 capability：bwrap: unknown cap: --proc。
+# 不覆盖 AppRun。宿主没有 /usr/bin/bwrap 时保持原 PATH。
+cat > "$APPDIR/bin/15-grok-host-bwrap.hook" <<'HOOK'
+if [ -x /usr/bin/bwrap ]; then
+  export PATH="/usr/bin:/bin${HOSTPATH:+:$HOSTPATH}:$APPDIR/bin"
+fi
+HOOK
 
 # 启动时把 grok:// 和官方皮肤 MIME 指到当前 AppImage。
 bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \

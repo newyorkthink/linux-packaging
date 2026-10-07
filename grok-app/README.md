@@ -35,9 +35,10 @@ Grok App Linux 桌面端是 Tauri 2 / wry 程序，链接 GTK 3 与 WebKitGTK 4.
 3. 公共下载入口取得官方 DEB，公共归档入口按原始布局解包。
 4. 沿用官方 desktop，把 `Exec` 改为 `grok-app %U`，补上 `Categories=Development;`。图标使用官方 `128x128` 的 `grok-app.png`。
 5. quick-sharun 收集主程序、`libayatana-appindicator3.so.1`、GTK 3 的 `im-ibus.so` 与 `im-fcitx5.so`。`DEPLOY_GTK`、`DEPLOY_OPENGL` 和 `DEPLOY_WEBKIT2GTK` 打开，`WEBKIT2GTK_DIR` 指向 `/usr/lib/webkit2gtk-4.1`。
-6. 在 quick-sharun 生成的 `.env` 末尾写入包内 `zh_CN.UTF-8`。不写 `LC_ALL`，不写 `GTK_IM_MODULE`，不覆盖 `AppRun`。
-7. 公共协议 hook 注册 `grok://` 和官方 `application/vnd.grok.skin`。
-8. `quick-sharun --make-appimage` 生成 `dist/grok-app.AppImage`，成功后由 `common/build/save_appimage_version.sh` 写入 `dist/version.txt`。
+6. 在 quick-sharun 生成的 `.env` 末尾写入包内 `zh_CN.UTF-8`。不写 `LC_ALL`，不写 `GTK_IM_MODULE`，不覆盖 `AppRun`。`.env` 追加内容从 `LANG=` 开始，前面不留空行。
+7. `AppDir/bin/15-grok-host-bwrap.hook` 在宿主存在 `/usr/bin/bwrap` 时，把 `/usr/bin` 和 `/bin` 放到 PATH 最前，包内 bin 留在最后。不删除包内 `bwrap`，也不覆盖 `AppRun`。
+8. 公共协议 hook 注册 `grok://` 和官方 `application/vnd.grok.skin`。
+9. `quick-sharun --make-appimage` 生成 `dist/grok-app.AppImage`，成功后由 `common/build/save_appimage_version.sh` 写入 `dist/version.txt`。
 
 统一 workflow 中按标准 matrix 项构建，本项目不使用独立 Job。
 
@@ -63,7 +64,7 @@ Grok App Linux 桌面端是 Tauri 2 / wry 程序，链接 GTK 3 与 WebKitGTK 4.
 ./grok-app.AppImage
 ```
 
-构建目录中的对应文件是 `dist/grok-app.AppImage`。程序仍需要本机的 Grok Build CLI。沙箱、用户命名空间和 WebKit 显示问题沿用官方说明，本目录不改这些行为。
+构建目录中的对应文件是 `dist/grok-app.AppImage`。程序仍需要本机的 Grok Build CLI，以及发行版安装的 `bubblewrap`（`/usr/bin/bwrap`）。沙箱策略仍由 Grok CLI 决定，本目录不把沙箱关掉。用户命名空间和 WebKit 显示问题沿用官方说明。
 
 ## 托盘图标
 
@@ -84,3 +85,9 @@ Linux 托盘图标由上游编译进 `grok-app`，本目录不替换。深色状
 - **处理：** 不改 `build_grok-app.sh`，不补图标库，也不改成自行编译。编译期内嵌的纯黑图标无法在重打包时换掉。
 - **验证状态：** 图标内容和上游分支为静态核对。中文输入和托盘菜单可用来自运行反馈。这次没有改包，也没有新的构建。
 
+## 2026-10-07：Agent 进程结束，`bwrap: unknown cap: --proc`
+
+- **现象：** 界面能打开，发消息后显示「Agent 进程已结束」。日志为 `SANDBOX_BLOCKED`，stderr 是 `bwrap: unknown cap: --proc`。
+- **核查：** 与 `chatgpt/` 2026-08-31 的 Codex 沙盒故障相同。quick-sharun 把包内 bin 放在 PATH 最前，Grok CLI 用到打包工具带入的 `bwrap`，而不是宿主 `/usr/bin/bwrap`。不是登录 401，也不是把沙箱关掉。
+- **处理：** 增加 `AppDir/bin/15-grok-host-bwrap.hook`。宿主有 `/usr/bin/bwrap` 时，PATH 为 `/usr/bin`、`/bin`、原宿主 PATH、包内 bin。不覆盖 AppRun。同时删掉 `.env` 里 `LANG=` 前面的空行。
+- **验证状态：** 对照 ChatGPT 同一错误字符串和 hook 机制做了静态核对。未重打 AppImage，未做实机沙盒验收。
