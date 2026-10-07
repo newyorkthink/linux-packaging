@@ -51,11 +51,16 @@ export OUTNAME=deepseek-harness-desktop.AppImage
 export STRACE_MODE=0
 
 # 内置 Node、CPython 和原生模块也有动态依赖，不能只扫描 Electron 主程序。
-# 只选择当前 x86_64 ELF；不把其他架构文件和 setuid sandbox helper 纳入依赖扫描。
+# 只选择当前 x86_64 的 glibc 兼容 ELF；不把 musl 备用文件、其他架构文件和 setuid sandbox helper 纳入依赖扫描。
 NATIVE_FILES=("$APP_EXEC")
 while IFS= read -r -d '' native_file; do
   native_type="$(file -b -- "$native_file")"
   if [[ "$native_type" == ELF* && "$native_type" == *x86-64* ]]; then
+    # 读取解释器和动态依赖，识别与当前 glibc 运行时不匹配的 musl 备用文件。
+    native_linkage="$(readelf -l -d -- "$native_file")"
+    if [[ "$native_linkage" == *libc.musl-* || "$native_linkage" == *ld-musl-* ]]; then
+      continue
+    fi
     NATIVE_FILES+=("$native_file")
   fi
 done < <(

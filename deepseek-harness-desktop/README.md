@@ -61,3 +61,11 @@ chmod +x deepseek-harness-desktop.AppImage
 - 在临时目录按该应用版本的上游锁定摘要校验并组装 Python、全部 wheel 和 Node；Arch 运行库按当前官方仓库数据库的摘要校验。使用 Arch 动态加载器关闭宿主库缓存，并核对每项解析路径都位于临时运行时或 Arch 库目录。
 - 共检查 114 个 x86_64 ELF：CPython 13 个、原生 wheel 100 个、Node 1 个。基线仅 `_crypt` 缺少 `libcrypt.so.1`；加入 `libxcrypt-compat` 后全部依赖解析通过，Bash 语法检查通过。
 - 本次检查针对上述同版运行时；尚未完成 Electron 主程序及其原生模块的完整 AppImage 封装，也未验证图形启动、中文输入、Office 功能和跨发行版运行。最终构建及运行结果仍未验证。
+
+### 2026-10-07：按 libc ABI 筛选原生依赖
+
+- [后续 CI 构建](https://github.com/newyorkthink/linux-packaging/actions/runs/37618143431/job/112781458432) 已完成 AUR 编译及其运行时检查；quick-sharun 随后扫描 Koffi 的 musl 备用模块，因缺少 `libc.musl-x86_64.so.1` 中止。原筛选只区分 CPU 架构，未区分 libc ABI。
+- 修改 `deepseek-harness-desktop/build_deepseek-harness-desktop.sh`，通过 `readelf` 读取 x86_64 ELF 的解释器和动态依赖，仅从依赖扫描输入中排除声明 musl 的文件。原始资源完整保留，既有安装命令和 quick-sharun 调用保持原样；本文件记录此次修复。
+- 已按 npm SHA512 摘要校验失败构建使用的 Koffi 3.1.1 原生包，并直接执行修改前后的筛选片段。临时运行时样本的输入由 114 项减为 113 项，唯一排除项是 musl Koffi 模块；使用 Arch 动态加载器关闭宿主库缓存后，保留项均可解析依赖，原生包在保留 musl 文件时成功加载 GNU 模块。两个原生模块的文件摘要保持不变。
+- Bash 语法、既有命令逐字保留和完整 diff 检查通过；本次只修改上述脚本和本文件。
+- 完整 Arch 试构建停在临时测试环境的软件包初始化下载，尚未执行应用构建脚本，未取得 AppImage。整包构建、图形启动、中文输入、Office 功能和跨发行版运行仍未验证。
