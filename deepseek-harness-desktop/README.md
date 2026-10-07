@@ -4,7 +4,7 @@
 
 ## 定位与来源
 
-- 这是社区 Linux 预览版，不是 DeepSeek 官方发布的 Linux 安装包；AppImage 构建与运行结果尚未验证。
+- 这是社区 Linux 预览版，不是 DeepSeek 官方发布的 Linux 安装包；用户实测已确认 AppImage 桌面启动和基础中文对话，其他功能及跨发行版兼容性尚未验证。
 - 官方桌面应用采用 Electron，并内置完整 dsh 运行时。它与仓库已有的 [deepseek-harness 浏览器版](../deepseek-harness/README.md) 分别构建、分别发布。
 - 每次构建读取当前 AUR 配方和实际安装版本，本仓库不写死应用版本；AUR 当前渠道可能是 alpha，版本元数据保留该标识。
 - [PKGBUILD](https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=deepseek-harness-desktop) 从官方 Git tag 获取源码，并应用社区 [linux-desktop.patch](https://aur.archlinux.org/cgit/aur.git/plain/linux-desktop.patch?h=deepseek-harness-desktop)。Linux 目标、更新配置、原生模块和 Office 运行时存在社区适配。
@@ -69,3 +69,10 @@ chmod +x deepseek-harness-desktop.AppImage
 - 已按 npm SHA512 摘要校验失败构建使用的 Koffi 3.1.1 原生包，并直接执行修改前后的筛选片段。临时运行时样本的输入由 114 项减为 113 项，唯一排除项是 musl Koffi 模块；使用 Arch 动态加载器关闭宿主库缓存后，保留项均可解析依赖，原生包在保留 musl 文件时成功加载 GNU 模块。两个原生模块的文件摘要保持不变。
 - Bash 语法、既有命令逐字保留和完整 diff 检查通过；本次只修改上述脚本和本文件。
 - 完整 Arch 试构建停在临时测试环境的软件包初始化下载，尚未执行应用构建脚本，未取得 AppImage。整包构建、图形启动、中文输入、Office 功能和跨发行版运行仍未验证。
+
+### 2026-10-07：完整脚本检查与实测反馈
+
+- 检查对象为 [e614503](https://github.com/newyorkthink/linux-packaging/commit/e61450335142c5397aabf7a94b8a819db2fbef7e) 的桌面版构建脚本、三个公共入口和 `build-anylinux` Action。已完整阅读并核对路径、参数、引号、执行顺序、软件包安装、原生依赖筛选、资源复制与相对路径、locale、产物及版本记录。四个脚本的 Bash 语法、共享 Action 的 YAML 与 Bash 片段检查通过；未发现需要继续修改脚本的明确问题，既有命令保持原样。
+- 实测证据为用户提供的 AppImage 启动界面、终端输出及对话截图：桌面成功打开，账户接口返回 HTTP 200；使用 `gemma-4-31b-it` 发送中文消息后收到中文回复。本次未重新构建 AppImage，也未读取本次 CI 结果；实测产物与代码提交的对应关系未核对。
+- 终端中的 Fontconfig 字体缓存版本警告没有阻止本次启动。首次对话显示“API 密钥无效”（AUTH），后续 Gemma 模型回复成功；首次失败请求的具体配置原因未核实。
+- 当前已确认的运行范围为桌面启动及上述模型的基础中文对话。中文输入法候选词行为、Office 功能、其他模型及跨发行版兼容性尚未验证；保留既有构建脚本和公共流程。
