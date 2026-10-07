@@ -20,16 +20,16 @@ farch=x64
 
 echo "Getting binary..."
 BASE_URL="https://antigravity.google"
-link=$(curl -sSfL --compressed "$BASE_URL/download" | grep -oP "https://edgedl\.me\.gvt1\.com[^\"']+linux-${farch}/Antigravity%20IDE\.tar\.gz" | head -1)
+link=$(curl -sSfL --compressed "$BASE_URL/download" | grep -oP "https://edgedl\\.me\\.gvt1\\.com/edgedl/release2/[^\\\"'[:space:]]+/stable/[0-9]+(?:\\.[0-9]+)+-[0-9]+/linux-${farch}/Antigravity%20IDE\\.tar\\.gz" | head -1)
 
 if [[ -z "$link" ]]; then
   echo "Error: failed to find the Antigravity IDE Linux ${farch} download URL." >&2
   exit 1
 fi
 
-VERSION="$(sed -nE 's#.*?/stable/([0-9]+(\.[0-9]+)+)-[^/]+/linux-x64/Antigravity%20IDE\.tar\.gz#\1#p' <<< "$link")"
+VERSION="$(sed -nE "s#.*/stable/([0-9]+(\\.[0-9]+)+)-[0-9]+/linux-${farch}/Antigravity%20IDE\\.tar\\.gz#\\1#p" <<< "$link")"
 if [[ -z "$VERSION" ]]; then
-  echo "Error: failed to resolve the Antigravity IDE version from the official download URL." >&2
+  echo "Error: failed to resolve the Antigravity IDE version from: $link" >&2
   exit 1
 fi
 
