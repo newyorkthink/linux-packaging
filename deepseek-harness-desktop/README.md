@@ -1,0 +1,47 @@
+# DeepSeek Harness 桌面版 AppImage
+
+将 DeepSeek 官方 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 的桌面源码，通过 [AUR deepseek-harness-desktop](https://aur.archlinux.org/packages/deepseek-harness-desktop) 社区 Linux 配方编译，再封装为独立的 x86_64 AppImage。
+
+## 定位与来源
+
+- 这是社区 Linux 预览版，不是 DeepSeek 官方发布的 Linux 安装包；构建与运行结果尚未验证。
+- 官方桌面应用采用 Electron，并内置完整 dsh 运行时。它与仓库已有的 [deepseek-harness 浏览器版](../deepseek-harness/README.md) 分别构建、分别发布。
+- 每次构建读取当前 AUR 配方和实际安装版本，本仓库不写死应用版本；AUR 当前渠道可能是 alpha，版本元数据保留该标识。
+- [PKGBUILD](https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=deepseek-harness-desktop) 从官方 Git tag 获取源码，并应用社区 [linux-desktop.patch](https://aur.archlinux.org/cgit/aur.git/plain/linux-desktop.patch?h=deepseek-harness-desktop)。Linux 目标、更新配置、原生模块和 Office 运行时存在社区适配。
+- 核对时的补丁使用第三方 `@janhapke/sharp-electron` 修复 Linux 图像处理崩溃，因此不能称为官方源码原样封装。补丁摘要由 makepkg 校验，补丁中的下载和上游运行时下载使用各自提供的摘要校验。
+
+## 使用方法
+
+从本仓库 [latest Release](https://github.com/newyorkthink/linux-packaging/releases/tag/latest) 下载构建成功后发布的 `deepseek-harness-desktop.AppImage`。在文件所在目录打开 Linux 终端：
+
+```bash
+# 赋予 AppImage 执行权限。
+chmod +x deepseek-harness-desktop.AppImage
+
+# 启动 DeepSeek Harness 桌面界面。
+./deepseek-harness-desktop.AppImage
+```
+
+- AppImage 包含 Electron、dsh 资源及 AUR 构建出的 Node、pnpm、CPython 和 Office 组件，保留原有目录关系。
+- 包内生成 `zh_CN.UTF-8`，并收集 GTK 3 的 IBus / Fcitx5 输入模块；宿主仍需正常运行并配置对应输入法。
+- 保留 Chromium 默认沙箱行为，不在启动入口强制加入 `--no-sandbox`。宿主是否支持用户命名空间及实际运行兼容性仍需确认。
+- Linux 更新采用本仓库重新构建的 AppImage，不使用官方 Windows / macOS 安装更新通道。
+- 应用数据沿用上游行为；本项目不添加配置迁移、系统服务、自启动或启动时安装软件的逻辑。
+
+## 构建与产物
+
+- 正式构建复用现有标准 Arch Linux matrix 和 `build-anylinux` Action，不在用户真实主机安装 AUR 包。
+- 构建脚本通过 `common/arch/install_packages.sh` 安装当前 AUR 包和 GTK 3 输入模块；打包复用容器中已有的 quick-sharun。
+- `/usr/bin/deepseek-harness-desktop` 是 shell 包装，实际打包入口为 `/usr/lib/deepseek-harness-desktop/deepseek-harness`。脚本同时收集内置原生组件的动态依赖，再补齐相邻资源和许可证。
+- AUR 源码构建会下载工具链、Electron 和内置运行时，耗时与空间需求高于直接重打包现成二进制；构建任务设置 90 分钟超时。
+- 唯一发布产物为 `dist/deepseek-harness-desktop.AppImage`。成功生成后写入 `dist/version.txt`，由现有流程立即发布版本信息。
+- 手动构建时选择 `deepseek-harness-desktop/build_deepseek-harness-desktop.sh`；正常提交和每日构建沿用现有调度规则。
+
+## 检查记录
+
+### 2026-10-07：首次接入
+
+- 已核对当前 AUR 配方、Linux 补丁、上游桌面说明和仓库已有 Electron 打包布局；本次仅新增独立桌面版。
+- Bash 语法、JSON/YAML 解析、手动选项排序、公共入口路径和既有配置保留检查通过；已使用现有 Plan 脚本核对本次 push 仅选择新增桌面版，桌面版与浏览器版的手动入口分别选择对应项目。
+- 尚未取得正式 CI 构建产物，也未进行图形启动、中文输入、Office 功能或跨发行版运行验证。
+- 社区补丁和第三方原生依赖会随 AUR 配方更新；当前来源核对不代表后续版本或运行稳定性已经通过验证。

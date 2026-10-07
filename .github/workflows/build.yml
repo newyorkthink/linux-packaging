@@ -42,6 +42,7 @@ on:
           - copyq/build_copyq.sh
           - cursor/build_cursor.sh
           - dconf-editor/build_dconf-editor.sh
+          - deepseek-harness-desktop/build_deepseek-harness-desktop.sh
           - deepseek-harness/build_deepseek-harness.sh
           - deskflow/build_deskflow.sh
           - dingtalk/build_dingtalk.sh
