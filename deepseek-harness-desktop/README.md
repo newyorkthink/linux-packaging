@@ -4,7 +4,9 @@
 
 ## 定位与来源
 
-- 这是社区 Linux 预览版，不是 DeepSeek 官方发布的 Linux 安装包；用户实测已确认 AppImage 桌面启动和基础中文对话，其他功能及跨发行版兼容性尚未验证。
+- 应用主体来自 DeepSeek 官方仓库中的 [桌面工程（`apps/desktop`）](https://github.com/deepseek-ai/deepseek-harness/tree/master/apps/desktop)。
+- Linux 构建采用 AUR 社区维护的配方及适配补丁，AppImage 由本仓库封装并发布。
+- 用户实测已确认 AppImage 桌面启动和基础中文对话，其他功能及跨发行版兼容性尚未验证。
 - 官方桌面应用采用 Electron，并内置完整 dsh 运行时。它与仓库已有的 [deepseek-harness 浏览器版](../deepseek-harness/README.md) 分别构建、分别发布。
 - 每次构建读取当前 AUR 配方和实际安装版本，本仓库不写死应用版本；AUR 当前渠道可能是 alpha，版本元数据保留该标识。
 - [PKGBUILD](https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=deepseek-harness-desktop) 从官方 Git tag 获取源码，并应用社区 [linux-desktop.patch](https://aur.archlinux.org/cgit/aur.git/plain/linux-desktop.patch?h=deepseek-harness-desktop)。Linux 目标、更新配置、原生模块和 Office 运行时存在社区适配。
@@ -76,3 +78,8 @@ chmod +x deepseek-harness-desktop.AppImage
 - 实测证据为用户提供的 AppImage 启动界面、终端输出及对话截图：桌面成功打开，账户接口返回 HTTP 200；使用 `gemma-4-31b-it` 发送中文消息后收到中文回复。本次未重新构建 AppImage，也未读取本次 CI 结果；实测产物与代码提交的对应关系未核对。
 - 终端中的 Fontconfig 字体缓存版本警告没有阻止本次启动。首次对话显示“API 密钥无效”（AUTH），后续 Gemma 模型回复成功；首次失败请求的具体配置原因未核实。
 - 当前已确认的运行范围为桌面启动及上述模型的基础中文对话。中文输入法候选词行为、Office 功能、其他模型及跨发行版兼容性尚未验证；保留既有构建脚本和公共流程。
+
+### 2026-10-07：澄清源码与安装包来源
+
+- 本次核对 [d24fdd4](https://github.com/newyorkthink/linux-packaging/commit/d24fdd4b4f9196d72d28713128852d4ef8c6f823) 中的来源表述，参考 DeepSeek 官方 [桌面工程说明](https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/desktop/README.md) 和此前已核对的 AUR 配方。将应用主体、Linux 适配和安装包发布分别说明为官方桌面源码、AUR 社区维护的适配补丁及本仓库的 AppImage 封装发布；补丁和第三方原生依赖的既有说明完整保留。
+- 本次仅修改本文件的来源说明并追加这条文档变更记录，完整 diff 核对通过。构建脚本、使用命令、既有检查与修复历史、已实测及未验证的运行范围保持原样。
