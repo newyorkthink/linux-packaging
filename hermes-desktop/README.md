@@ -56,6 +56,7 @@
 - `v0.21.6` 的 About 页改成 `UpdateStatusCard`。补丁只去掉 Desktop 自己的更新卡片，远程后端更新保留。旧的 `ListRow` 写法仍然接受。
 - `v0.21.6` 的打包脚本在命令行带 `--x64` 时，会把原生依赖写到 `apps/desktop/build/native-deps-linux-x64`，上游自己的输出检查拒绝这个目录。构建不再传 `--x64`，由 x64 构建机使用允许的 `native-deps` 目录。
 - 同一版把 `icon-tool.js` 复制到 `apps/desktop` 下面后，Node 会按 ES 模块执行它，`require` 直接报错。复制后补一个 CommonJS 的 `package.json`。
+- `v0.21.6` 的 electron-builder 读取 `electron-builder.config.cjs`。只改 `package.json` 时，内置 `libsecret` 和 AppImage hook 都不会进包。补丁改这个配置文件。
 
 ## 构建文件
 

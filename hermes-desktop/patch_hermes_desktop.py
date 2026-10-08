@@ -299,6 +299,37 @@ if libsecret_resource not in extra_resources:
     extra_resources.append(libsecret_resource)
 package_path.write_text(json.dumps(package_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
+# electron-builder 实际读取的是 electron-builder.config.cjs，不是 package.json 的 build。
+# v0.21.6 起 afterPack 和 extraResources 都在这个文件里，只改 package.json 不会打进 AppImage。
+config_path = root / "apps/desktop/electron-builder.config.cjs"
+config_text = config_path.read_text(encoding="utf-8")
+cjs_upstream_after_pack = "  afterPack: 'scripts/after-pack.mjs',"
+cjs_appimage_after_pack = "  afterPack: 'scripts/after-pack-appimage.mjs',"
+if cjs_upstream_after_pack in config_text:
+    if config_text.count(cjs_upstream_after_pack) != 1 or not upstream_after_pack_path.is_file():
+        die("无法唯一定位 electron-builder.config.cjs 的 afterPack，停止构建。")
+    chain_upstream_after_pack = True
+    config_text = config_text.replace(cjs_upstream_after_pack, cjs_appimage_after_pack, 1)
+elif cjs_appimage_after_pack not in config_text:
+    die("electron-builder.config.cjs 的 afterPack 不是预期的上游 hook，停止构建。")
+libsecret_resource_cjs = (
+    "    {\n"
+    "      from: 'build/linux-libs/libsecret-1.so.0',\n"
+    "      to: 'linux-libs/libsecret-1.so.0'\n"
+    "    },\n"
+)
+icon_resource_cjs = (
+    "    {\n"
+    "      from: 'assets/icon.ico',\n"
+    "      to: 'icon.ico'\n"
+    "    }\n"
+)
+if "build/linux-libs/libsecret-1.so.0" not in config_text:
+    if config_text.count(icon_resource_cjs) != 1:
+        die("无法唯一定位 electron-builder.config.cjs 的 extraResources，停止构建。")
+    config_text = config_text.replace(icon_resource_cjs, libsecret_resource_cjs + icon_resource_cjs, 1)
+config_path.write_text(config_text, encoding="utf-8")
+
 after_pack_path = root / "apps/desktop/scripts/after-pack-appimage.mjs"
 upstream_prelude = ""
 if chain_upstream_after_pack:
@@ -356,6 +387,8 @@ checks = [
     (package_path, '"publish": null'),
     (package_path, '"afterPack": "scripts/after-pack-appimage.mjs"'),
     (package_path, '"to": "linux-libs/libsecret-1.so.0"'),
+    (config_path, "afterPack: 'scripts/after-pack-appimage.mjs'"),
+    (config_path, "build/linux-libs/libsecret-1.so.0"),
     (after_pack_path, "Hermes standalone Linux AppImage: add the bundled libsecret directory to Electron RUNPATH"),
 ]
 for path, marker in checks:
