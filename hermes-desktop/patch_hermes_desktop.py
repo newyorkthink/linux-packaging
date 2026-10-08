@@ -386,4 +386,27 @@ for forbidden in (
     if forbidden in preload_final:
         die(f"补丁校验失败：preload 仍包含源码自更新 IPC：{forbidden}")
 
+
+builder_path = root / "apps/desktop/scripts/run-electron-builder.mjs"
+builder_text = builder_path.read_text(encoding="utf-8")
+icon_tool_marker = "Hermes standalone Linux AppImage: keep copied icon-tool.js in CommonJS"
+copy_anchor = "    fs.cpSync(directory, destination, { recursive: true, verbatimSymlinks: true })\n"
+if icon_tool_marker not in builder_text:
+    if builder_text.count(copy_anchor) != 1:
+        die("无法唯一定位打包工具复制位置，停止构建，避免错误修改上游源码。")
+    builder_text = builder_text.replace(
+        copy_anchor,
+        copy_anchor
+        + "    // Hermes standalone Linux AppImage: keep copied icon-tool.js in CommonJS.\n"
+        + "    // apps/desktop is \"type\": \"module\", so Node treats a nearby .js file as ESM\n"
+        + "    // and the upstream icon tool's require() fails.\n"
+        + "    if (!fs.existsSync(path.join(destination, 'package.json'))) {\n"
+        + "      fs.writeFileSync(path.join(destination, 'package.json'), '{\"type\":\"commonjs\"}\\n')\n"
+        + "    }\n",
+        1,
+    )
+    builder_path.write_text(builder_text, encoding="utf-8")
+if icon_tool_marker not in builder_path.read_text(encoding="utf-8"):
+    die("补丁校验失败：未把 icon-tool 固定为 CommonJS。")
+
 print("Standalone Linux AppImage fixes applied and verified.")
