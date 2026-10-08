@@ -14,7 +14,7 @@
 | Electron 校验 | 使用 Electron 官方 `SHASUMS256.txt` 校验 Linux runtime ZIP |
 | 打包方式 | 仓库现有 `quick-sharun` AppImage 流程 |
 | 支持架构 | `x86_64` |
-| Release 产物 | `gemini.AppImage` |
+| Release 产物 | `Gemini.AppImage`。启动器也叫 `Gemini`，对应 Windows 的 `Gemini.exe`，避免和 Gemini CLI 的 `gemini` 命令冲突 |
 | Windows 原生模块 | 完整提取 ASAR 后，只移除已确认属于 Speak to Window 的 PE 格式 `gemini_native.node`；重新打包前必须确认当前产品层仍声明缺失模块时使用安全回退 |
 
 Gemini 应用版本、Google CDN 安装包地址、安装包校验值以及 Electron runtime 版本均不写死在仓库中。上游发布新 stable 版本后，下一次正式构建会重新读取当前元数据。
@@ -26,17 +26,17 @@ Windows PE 原生模块不能由 Linux Electron 加载，因此不会进入最�
 正式构建成功后，普通用户使用 `latest` Release 中的稳定资产：
 
 ```text
-https://github.com/newyorkthink/linux-packaging/releases/latest/download/gemini.AppImage
+https://github.com/newyorkthink/linux-packaging/releases/latest/download/Gemini.AppImage
 ```
 
 在 Linux x86_64 终端、AppImage 所在目录执行：
 
 ```bash
 # 给 Gemini AppImage 添加执行权限
-chmod +x gemini.AppImage
+chmod +x Gemini.AppImage
 
 # 启动 Gemini
-./gemini.AppImage
+./Gemini.AppImage
 ```
 
 ### 配置目录
@@ -47,7 +47,7 @@ Gemini 沿用 Electron 标准 `userData` 目录，Linux 默认保存在：
 ~/.config/gemini
 ```
 
-如果系统设置了 `XDG_CONFIG_HOME`，则目录为 `$XDG_CONFIG_HOME/gemini`。替换或更新 `gemini.AppImage` 不会删除这里保存的登录状态、站点数据、权限和应用设置。
+如果系统设置了 `XDG_CONFIG_HOME`，则目录为 `$XDG_CONFIG_HOME/gemini`。替换或更新 `Gemini.AppImage` 不会删除这里保存的登录状态、站点数据、权限和应用设置。启动器改名为 `Gemini` 不会改这个目录，配置目录仍由 Electron 产品名决定。
 
 ## 技术栈
 
@@ -71,9 +71,10 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 5. 动态确定 Gemini 实际使用的 Electron 精确版本。
 6. 从 Electron 官方 Release 下载对应 `electron-v<版本>-linux-x64.zip`，并按官方 `SHASUMS256.txt` 校验。
 7. 以 Linux Electron runtime 为外壳，复制 Gemini 官方产品资源；Windows `.exe` / `.dll` 资源不进入最终 Linux 产品层。
-8. 完整提取 `app.asar` 后，从外置资源和提取目录同时删除已确认可安全回退的 PE 格式 `gemini_native.node`；发现其他 PE `.node` 或路径变化时停止构建，并在重新打包前核对 Speak to Window 安全回退仍然存在。
-9. 从官方 `Gemini.exe` 提取应用图标，生成 Linux desktop entry。
-10. 使用仓库当前 `quick-sharun` 打包并输出 `dist/gemini.AppImage`。
+8. 完整提取 `app.asar` 后调用 `patches/remove_windows_native_addon.sh`，从外置资源和提取目录同时删除已确认可安全回退的 PE 格式 `gemini_native.node`；发现其他 PE `.node` 或路径变化时停止构建。
+9. 调用 `patches/disable_visible_on_all_workspaces.py`，在重新打包前取消 sticky 窗口并核对 Speak to Window 安全回退仍然存在。
+10. 从官方 `Gemini.exe` 提取应用图标（`patches/extract_ico_png.py`），生成 `Exec=Gemini` 的 desktop，并用 `patches/Gemini` 作为简体中文启动器。
+11. 使用仓库当前 `quick-sharun` 打包并输出 `dist/Gemini.AppImage`。
 
 构建脚本不固定 `quick-sharun`、sharun 或其他 AppImage 打包工具版本，继续使用统一 AnyLinux 构建环境当前提供的工具链。
 
@@ -170,7 +171,7 @@ Gemini 接入仓库统一正式 workflow：
 - `gemini/**` 推送到 `main` 时选择 Gemini 构建任务；
 - `workflow_dispatch` 可以选择 `gemini/build_gemini.sh`；
 - `workflow_dispatch` 选择 `all` 或每日计划构建时包含 Gemini；
-- 构建成功后覆盖 `latest` Release 中的 `gemini.AppImage`，并把本次动态取得且实际打包的上游版本写入版本清单；
+- 构建成功后覆盖 `latest` Release 中的 `Gemini.AppImage`，并把本次动态取得且实际打包的上游版本写入版本清单；
 - 已确认的 PE 格式 `gemini_native.node` 不进入最终 AppImage；出现其他 PE `.node` 或当前产品层的安全回退标记发生变化时构建会停止，不再回退或重新发布旧版资产。
 
 本项目不新增独立 test workflow、smoke Job 或运行时测试 Step。
@@ -195,10 +196,17 @@ chmod +x build_gemini.sh
 构建成功后的正式产物位于：
 
 ```text
-dist/gemini.AppImage
+dist/Gemini.AppImage
 ```
 
 ## 变更记录
+
+### 2026-10-08：产物和启动器改为 Gemini
+
+- 现象：AppImage 和启动器都叫小写 `gemini`，和 CC Switch 管理的 Gemini CLI 命令 `gemini` 撞名。
+- 处理：对齐 Windows 主程序 `Gemini.exe`。Release 资产、desktop `Exec`/`Icon` 和 AppDir 启动器改为 `Gemini`，版本清单的 `software_key` 仍是 `gemini`。配置目录仍是 `~/.config/gemini`。
+- 构建脚本改为调用已有公共入口清理目录、安装依赖、下载校验和写入 `version.txt`。Linux 专用改动拆到 `gemini/patches/`：去掉 Windows 原生模块、取消 sticky 窗口、提取 ICO 里的 PNG、简体中文启动器。
+- 旧的 `gemini.AppImage` 不会被同名覆盖，下次正式构建成功后 `latest` 上会同时留下旧资产，需要的话再手动删掉。
 
 ### 2026-09-12：新增 Gemini Linux 实验性移植
 

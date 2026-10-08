@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Linux 补丁：桌面壳层固定简体中文。不覆盖宿主机完整 locale。
+set -e
+HERE="$(cd "$(dirname "$0")" && pwd)"
+
+export LANGUAGE=zh_CN:zh
+exec "$HERE/electron" --lang=zh-CN "$@"

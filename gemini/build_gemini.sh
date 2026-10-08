@@ -5,9 +5,6 @@ set -Eeuo pipefail
 export LC_ALL=C
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-
-# 安装统一的 Arch AppImage 基础包
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 readonly SCRIPT_DIR
 cd "$SCRIPT_DIR"
 
@@ -20,11 +17,6 @@ die() {
   exit 1
 }
 
-HOST_ARCH="$(uname -m)"
-readonly HOST_ARCH
-[[ "$HOST_ARCH" == x86_64 ]] || die "当前仅支持 x86_64。"
-command -v yay >/dev/null 2>&1 || die "构建环境缺少命令：yay"
-
 readonly OMAHA_URL='https://update.googleapis.com/service/update2'
 readonly GEMINI_APP_ID='{533dd80c-942a-4464-b6a9-2e59428d784e}'
 readonly WORK_DIR="$SCRIPT_DIR/work"
@@ -35,28 +27,23 @@ readonly ELECTRON_DIR="$WORK_DIR/electron"
 readonly APPDIR="$SCRIPT_DIR/AppDir"
 readonly APP_ROOT="$APPDIR/bin"
 readonly DIST_DIR="$SCRIPT_DIR/dist"
-readonly OUTFILE="$DIST_DIR/gemini.AppImage"
-readonly BUILD_DESKTOP="$SCRIPT_DIR/gemini.desktop"
-readonly BUILD_ICON="$SCRIPT_DIR/gemini.png"
+readonly OUTFILE="$DIST_DIR/Gemini.AppImage"
+readonly BUILD_DESKTOP="$WORK_DIR/Gemini.desktop"
+readonly BUILD_ICON="$WORK_DIR/Gemini.png"
 
-# 每次只清理 Gemini 自己的构建目录、临时元数据和旧产物。
-rm -rf -- "$WORK_DIR" "$APPDIR" "$DIST_DIR"
-rm -f -- "$BUILD_DESKTOP" "$BUILD_ICON"
-mkdir -p "$WORK_DIR" "$EXTRACT_DIR" "$ELECTRON_DIR" "$APP_ROOT" "$DIST_DIR"
+# 只清理本项目目录。cache 仅删除不重建，用来满足公共入口必须有一个 --skip-create 目录。
+"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" \
+  "$SCRIPT_DIR" --skip-create cache work AppDir dist
+rm -f -- "$SCRIPT_DIR/gemini.desktop" "$SCRIPT_DIR/gemini.png" \
+  "$SCRIPT_DIR/Gemini.desktop" "$SCRIPT_DIR/Gemini.png"
+mkdir -p "$EXTRACT_DIR" "$ELECTRON_DIR" "$APP_ROOT"
 
-# 安装仓库规定的 quick-sharun 最小基础工具。
-yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
-  grep sed gawk tar gzip xz unzip rsync inetutils util-linux appstream-glib \
-  desktop-file-utils zsync ca-certificates
-
-# Gemini 当前上游只提供 Windows/macOS 桌面包；这里额外安装 NSIS 解包、ASAR 元数据读取、
-# Windows 图标提取以及官方 Electron Linux runtime 实际依赖所需组件。
-yay -S --noconfirm p7zip asar icoutils python \
-  nss alsa-lib gtk3 at-spi2-core cups libdrm libxss libxtst \
-  libnotify libsecret libpulse mesa xdg-utils
-
-# 补齐 Fcitx5 GTK3 中文输入模块；沿用 quick-sharun 的 GTK3 部署逻辑自动收集输入法模块与客户端库。
-yay -S --noconfirm fcitx5-gtk
+# 基础包走公共入口。这里只补 Gemini 移植额外需要、且不在 --base 里的包。
+# 7z、python3、nss、xdg-utils 已由 --base 提供。fcitx5-gtk 仍交给 quick-sharun 的 GTK3 部署去收集输入法模块。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../common/arch/install_packages.sh" \
+  asar icoutils alsa-lib gtk3 cups libxss libxtst \
+  libnotify libsecret libpulse mesa fcitx5-gtk
 
 for command_name in \
   7z asar awk curl file find grep hostname jq python3 quick-sharun sha256sum sort strings unzip wrestool; do
@@ -193,18 +180,10 @@ readonly INSTALLER_SHA256="${omaha_meta[3]}"
 
 log "Gemini version: $VERSION"
 log "下载 Google 官方 Gemini Windows x64 完整安装包"
-curl -fL \
-  --retry 5 \
-  --retry-all-errors \
-  --retry-delay 2 \
-  --connect-timeout 20 \
-  --max-time 1800 \
-  "$INSTALLER_URL" \
-  -o "$INSTALLER"
-[[ -s "$INSTALLER" ]] || die "Gemini 官方安装包下载为空。"
+"$SCRIPT_DIR/../common/download/download_file.sh" \
+  "$INSTALLER_URL" "$INSTALLER" "$INSTALLER_SHA256"
 [[ "$(stat -c '%s' "$INSTALLER")" == "$INSTALLER_SIZE" ]] || \
   die "Gemini 安装包大小与 Omaha 元数据不一致。"
-printf '%s  %s\n' "$INSTALLER_SHA256" "$INSTALLER" | sha256sum -c -
 file "$INSTALLER" | grep -Eq 'PE32.*Windows' || die "Google 下载文件不是 Windows PE 安装包。"
 
 ###### 提取 Windows Electron 产品层 ######
@@ -322,20 +301,14 @@ readonly ELECTRON_BASE_URL="https://github.com/electron/electron/releases/downlo
 readonly ELECTRON_ZIP="$WORK_DIR/$ELECTRON_ZIP_NAME"
 readonly ELECTRON_SUMS="$WORK_DIR/SHASUMS256.txt"
 
-curl -fL --retry 5 --retry-all-errors "$ELECTRON_BASE_URL/SHASUMS256.txt" -o "$ELECTRON_SUMS"
+"$SCRIPT_DIR/../common/download/download_file.sh" \
+  "$ELECTRON_BASE_URL/SHASUMS256.txt" "$ELECTRON_SUMS"
 ELECTRON_SHA256="$(awk -v name="$ELECTRON_ZIP_NAME" '$2 == name || $2 == "*" name {print $1; exit}' "$ELECTRON_SUMS")"
 [[ "$ELECTRON_SHA256" =~ ^[0-9a-fA-F]{64}$ ]] || \
   die "Electron 官方 SHASUMS256.txt 中缺少 $ELECTRON_ZIP_NAME。"
 
-curl -fL \
-  --retry 5 \
-  --retry-all-errors \
-  --retry-delay 2 \
-  --connect-timeout 20 \
-  --max-time 1800 \
-  "$ELECTRON_BASE_URL/$ELECTRON_ZIP_NAME" \
-  -o "$ELECTRON_ZIP"
-printf '%s  %s\n' "$ELECTRON_SHA256" "$ELECTRON_ZIP" | sha256sum -c -
+"$SCRIPT_DIR/../common/download/download_file.sh" \
+  "$ELECTRON_BASE_URL/$ELECTRON_ZIP_NAME" "$ELECTRON_ZIP" "$ELECTRON_SHA256"
 unzip -q "$ELECTRON_ZIP" -d "$ELECTRON_DIR"
 [[ -x "$ELECTRON_DIR/electron" ]] || die "Electron Linux x64 runtime 缺少主程序。"
 
@@ -350,91 +323,24 @@ cp -a "$WINDOWS_RESOURCES"/. "$APP_ROOT/resources/"
 # Windows 更新器和 launcher 不是 Linux Electron 产品层的一部分，不随 AppImage 分发。
 find "$APP_ROOT/resources" -type f \( -iname '*.exe' -o -iname '*.dll' \) -delete
 
-# Windows 原版会把 Gemini 主窗口设为 visible-on-all-workspaces；Linux/i3 中会映射为 sticky，
-# 且应用会在窗口创建后再次设置，导致 i3 的一次性 for_window 规则被覆盖。
-# 这里只对当前官方产品层中的显式 true / !0 调用做最小改写；如果上游结构变化则停止构建，
-# 不猜测新的产品层逻辑。
+# Linux 专用补丁都在 patches/，这里只按顺序调用。上游结构变化时补丁自己失败，构建不猜测。
 LINUX_ASAR="$APP_ROOT/resources/app.asar"
 LINUX_ASAR_DIR="$WORK_DIR/app-asar-linux"
 rm -rf "$LINUX_ASAR_DIR"
 mkdir -p "$LINUX_ASAR_DIR"
 asar extract "$LINUX_ASAR" "$LINUX_ASAR_DIR"
 
-# ASAR 索引把 unpacked 文件记录为外置内容，必须在完整提取后才能删除对应文件。
-# Gemini 的 Windows 原生 Node 模块只用于 Speak to Window；产品层在模块缺失时有明确的安全回退。
-WINDOWS_NATIVE_ADDON_REMOVED=false
-while IFS= read -r -d '' node_file; do
-  if file -b "$node_file" | grep -q '^PE32'; then
-    [[ "${node_file##*/}" == gemini_native.node ]] || \
-      die "发现未识别的 Windows 原生 Node 模块：${node_file#"$APP_ROOT/resources/"}"
-    [[ "$node_file" == "$APP_ROOT/resources/app.asar.unpacked/"* ]] || \
-      die "已确认的 Windows 原生 Node 模块位于未识别路径：${node_file#"$APP_ROOT/resources/"}"
-
-    unpacked_relative="${node_file#"$APP_ROOT/resources/app.asar.unpacked/"}"
-    extracted_node="$LINUX_ASAR_DIR/$unpacked_relative"
-    [[ -f "$extracted_node" ]] || \
-      die "ASAR 提取目录缺少对应的 Windows 原生 Node 模块：$unpacked_relative"
-
-    log "移除 Windows 原生 Node 模块：${node_file#"$APP_ROOT/resources/"}"
-    rm -f -- "$node_file" "$extracted_node"
-    WINDOWS_NATIVE_ADDON_REMOVED=true
-  fi
-done < <(find "$APP_ROOT/resources" -type f -name '*.node' -print0)
-
-python3 - "$LINUX_ASAR_DIR" "$WINDOWS_NATIVE_ADDON_REMOVED" <<'PY'
-import re
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-native_addon_removed = sys.argv[2] == 'true'
-pattern = re.compile(r'setVisibleOnAllWorkspaces\(\s*(?:true|!0)(?=\s*[,\)])')
-patched = []
-native_fallback_found = False
-
-for path in root.rglob('*'):
-    if not path.is_file() or path.suffix not in {'.js', '.cjs', '.mjs'}:
-        continue
-    try:
-        text = path.read_text(encoding='utf-8')
-    except UnicodeDecodeError:
-        continue
-
-    if (
-        'gemini_native addon unavailable; STC will use safe fallbacks' in text
-        and 'GEMINI_ENABLE_SPEAK_TO_WINDOW' in text
-    ):
-        native_fallback_found = True
-
-    new_text, count = pattern.subn('setVisibleOnAllWorkspaces(false', text)
-    if count:
-        path.write_text(new_text, encoding='utf-8')
-        patched.append((path.relative_to(root), count))
-
-if not patched:
-    raise SystemExit('Gemini product layer no longer contains a recognized setVisibleOnAllWorkspaces(true/!0) call')
-if native_addon_removed and not native_fallback_found:
-    raise SystemExit('Gemini product layer no longer declares the safe fallback for the optional Windows native addon')
-
-total = sum(count for _, count in patched)
-print(f'Patched Gemini visible-on-all-workspaces calls: {total}')
-for path, count in patched:
-    print(f'  {path}: {count}')
-PY
+WINDOWS_NATIVE_ADDON_REMOVED="$(
+  bash "$SCRIPT_DIR/patches/remove_windows_native_addon.sh" "$APP_ROOT" "$LINUX_ASAR_DIR"
+)"
+python3 "$SCRIPT_DIR/patches/disable_visible_on_all_workspaces.py" \
+  "$LINUX_ASAR_DIR" "$WINDOWS_NATIVE_ADDON_REMOVED"
 
 rm -f "$LINUX_ASAR"
 asar pack "$LINUX_ASAR_DIR" "$LINUX_ASAR"
 
-cat > "$APP_ROOT/gemini" <<'EOF_WRAPPER'
-#!/usr/bin/env bash
-set -e
-HERE="$(cd "$(dirname "$0")" && pwd)"
-
-# 固定 Gemini 桌面壳层为简体中文；不覆盖宿主机完整 locale，只指定语言优先级和 Chromium UI 语言。
-export LANGUAGE=zh_CN:zh
-exec "$HERE/electron" --lang=zh-CN "$@"
-EOF_WRAPPER
-chmod +x "$APP_ROOT/gemini" "$APP_ROOT/electron"
+install -m 755 "$SCRIPT_DIR/patches/Gemini" "$APP_ROOT/Gemini"
+chmod +x "$APP_ROOT/electron"
 
 ###### 提取官方应用图标并生成 desktop ######
 
@@ -444,55 +350,7 @@ wrestool -x -t14 -o "$ICO_DIR" "$WINDOWS_EXE"
 ICON_ICO="$(find "$ICO_DIR" -type f -name '*.ico' -print | sort -V | head -n 1)"
 [[ -f "$ICON_ICO" ]] || die "无法从 Gemini.exe 提取官方 ICO 图标。"
 
-# Gemini.exe 当前 ICO 资源包含一个 DIB 条目，其声明 bitmap 大小与实际数据存在差异；
-# icotool 会因此终止整个图标提取。直接解析 ICO 目录，只取官方内嵌的最大 PNG 帧，
-# 不修改图像内容，也不依赖有问题的 DIB 条目。
-python3 - "$ICON_ICO" "$BUILD_ICON" <<'PY'
-import struct
-import sys
-from pathlib import Path
-
-source = Path(sys.argv[1])
-target = Path(sys.argv[2])
-data = source.read_bytes()
-
-if len(data) < 6:
-    raise SystemExit("Gemini ICO header is truncated")
-
-reserved, icon_type, count = struct.unpack_from("<HHH", data, 0)
-if reserved != 0 or icon_type != 1 or count < 1:
-    raise SystemExit("Gemini ICO header is invalid")
-
-png_signature = b"\x89PNG\r\n\x1a\n"
-candidates = []
-
-for index in range(count):
-    entry_offset = 6 + index * 16
-    if entry_offset + 16 > len(data):
-        continue
-
-    bytes_in_resource, image_offset = struct.unpack_from("<II", data, entry_offset + 8)
-    image_end = image_offset + bytes_in_resource
-    if bytes_in_resource < 24 or image_offset < 0 or image_end > len(data):
-        continue
-
-    payload = data[image_offset:image_end]
-    if not payload.startswith(png_signature) or payload[12:16] != b"IHDR":
-        continue
-
-    width, height = struct.unpack_from(">II", payload, 16)
-    if width < 1 or height < 1:
-        continue
-
-    candidates.append((width * height, width, height, bytes_in_resource, index, payload))
-
-if not candidates:
-    raise SystemExit("Gemini ICO does not contain a usable embedded PNG frame")
-
-_, width, height, _, index, payload = max(candidates)
-target.write_bytes(payload)
-print(f"Selected official Gemini ICO PNG frame #{index}: {width}x{height}")
-PY
+python3 "$SCRIPT_DIR/patches/extract_ico_png.py" "$ICON_ICO" "$BUILD_ICON"
 
 [[ -s "$BUILD_ICON" ]] || die "Gemini 官方 ICO 中没有可用 PNG 图标。"
 
@@ -500,16 +358,14 @@ cat > "$BUILD_DESKTOP" <<EOF_DESKTOP
 [Desktop Entry]
 Name=Gemini
 Comment=Google Gemini desktop app
-Exec=gemini %U
-Icon=gemini
+Exec=Gemini %U
+Icon=Gemini
 Terminal=false
 Type=Application
 Categories=Utility;
 StartupWMClass=Gemini
 X-AppImage-Version=$VERSION
 EOF_DESKTOP
-
-echo "$VERSION" > ~/version
 
 ###### quick-sharun 封装 ######
 
@@ -518,7 +374,7 @@ export STARTUPWMCLASS=Gemini
 export ICON="$BUILD_ICON"
 export DESKTOP="$BUILD_DESKTOP"
 export OUTPATH="$DIST_DIR"
-export OUTNAME=gemini.AppImage
+export OUTNAME=Gemini.AppImage
 export NO_STRIP=1
 
 # 保留完整 Electron 相邻资源，只让 quick-sharun 收集其 ELF/系统动态依赖并生成 AppImage 入口。
@@ -531,9 +387,9 @@ quick-sharun \
   /usr/lib/pkcs11/*
 
 quick-sharun --make-appimage
-[[ -s "$OUTFILE" ]] || die "未生成预期文件：$OUTFILE"
 
 # 记录当前上游版本，供构建成功后自动增量更新软件版本清单。
-printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" \
+  "$OUTFILE" "$VERSION" "$DIST_DIR/version.txt"
 
 log "构建完成：$OUTFILE"

@@ -629,7 +629,7 @@
       "script": "gemini/build_gemini.sh",
       "dir": "gemini",
       "artifact_dir": "gemini/dist",
-      "release_name": "gemini.AppImage",
+      "release_name": "Gemini.AppImage",
       "software_key": "gemini",
       "timeout_minutes": 90,
       "run_from_root": "false"
