@@ -42,7 +42,7 @@ mkdir -p "$EXTRACT_DIR" "$ELECTRON_DIR" "$APP_ROOT"
 # 7z、python3、nss、xdg-utils 已由 --base 提供。fcitx5-gtk 仍交给 quick-sharun 的 GTK3 部署去收集输入法模块。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 "$SCRIPT_DIR/../common/arch/install_packages.sh" \
-  asar icoutils alsa-lib gtk3 cups libxss libxtst \
+  asar icoutils alsa-lib gtk3 libx11 cups libxss libxtst \
   libnotify libsecret libpulse mesa fcitx5-gtk
 
 for command_name in \
@@ -345,12 +345,15 @@ ICON_ICO="$(find "$ICO_DIR" -type f -name '*.ico' -print | sort -V | head -n 1)"
 python3 "$SCRIPT_DIR/patches/extract_ico_png.py" "$ICON_ICO" "$BUILD_ICON"
 [[ -s "$BUILD_ICON" ]] || die "Gemini 官方 ICO 中没有可用 PNG 图标。"
 install -m 644 "$BUILD_ICON" "$APP_ROOT/resources/gemini.png"
+python3 "$SCRIPT_DIR/patches/png_to_argb.py" "$BUILD_ICON" "$APP_ROOT/resources/gemini.argb"
 python3 "$SCRIPT_DIR/patches/set_linux_window_icon.py" "$LINUX_ASAR_DIR"
 
 rm -f "$LINUX_ASAR"
 asar pack "$LINUX_ASAR_DIR" "$LINUX_ASAR"
 
 install -m 755 "$SCRIPT_DIR/patches/Gemini" "$APP_ROOT/Gemini"
+gcc -O2 -o "$APP_ROOT/set_gemini_icon" "$SCRIPT_DIR/patches/set_gemini_icon.c" -lX11
+[[ -x "$APP_ROOT/set_gemini_icon" ]] || die "无法编译 Gemini 窗口图标程序。"
 chmod +x "$APP_ROOT/electron"
 
 ###### 生成 desktop ######

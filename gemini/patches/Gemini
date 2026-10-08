@@ -35,6 +35,10 @@ EOF
 }
 install_switcher_icon || true
 
+if [ -n "${APPIMAGE:-}" ] && [ -x "$HERE/set_gemini_icon" ] && [ -f "$HERE/resources/gemini.argb" ]; then
+  "$HERE/set_gemini_icon" "$HERE/resources/gemini.argb" >/dev/null 2>&1 &
+fi
+
 export CHROME_DESKTOP=gemini.desktop
 export LANGUAGE=zh_CN:zh
 exec "$HERE/electron" --lang=zh-CN "$@"

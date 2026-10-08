@@ -136,7 +136,7 @@ for_window [class="^gemini$"] floating enable, sticky disable
 
 构建侧仍保留 all-workspaces 的最小 Linux 兼容修补：仅将上游显式的 `setVisibleOnAllWorkspaces(true)` / `setVisibleOnAllWorkspaces(!0)` 改为 `false`。如果 Google 后续版本修改了这段产品层结构、脚本无法可靠识别，构建会停止，不会猜测性修改。
 
-当前不再对主 `BrowserWindow` 注入背景色、尺寸或其它窗口属性。窗口图标会覆盖成 `resources/gemini.png`。任务切换器认的是 `WM_CLASS=gemini` 对应的 desktop，不认这个窗口属性；启动器会把官方 PNG 写到 `~/.local/share/icons/hicolor/256x256/apps/gemini.png`，并写 `~/.local/share/applications/gemini.desktop`，再设置 `CHROME_DESKTOP=gemini.desktop`。i3 规则仍然匹配 `class="^gemini$"`。
+当前不再对主 `BrowserWindow` 注入背景色、尺寸或其它窗口属性。FastTab 先读窗口的 `_NET_WM_ICON`，Electron 默认放的是原子图，desktop 轮不到。启动器会在打开后把官方 PNG 写进这个属性，同时仍安装 `~/.local/share/applications/gemini.desktop`。i3 规则仍然匹配 `class="^gemini$"`。
 
 ## Windows 专用能力边界
 
@@ -202,6 +202,13 @@ dist/Gemini.AppImage
 ```
 
 ## 变更记录
+
+### 2026-10-08：FastTab 改读窗口上的官方图标
+
+- 现象：装了 `gemini.desktop` 之后，FastTab 里仍是 Electron 原子图。
+- 根因：FastTab 先用 `_NET_WM_ICON`，有这个属性就不再看 desktop。Electron 自己写上了原子图。
+- 处理：启动后把官方 PNG 写进 `WM_CLASS=gemini` 窗口的 `_NET_WM_ICON`。不改窗口尺寸、背景，也不改 `Gemini.AppImage` 这个大写文件名。
+- 修改文件：`gemini/patches/set_gemini_icon.c`、`gemini/patches/png_to_argb.py`、`gemini/patches/Gemini`、`gemini/build_gemini.sh`、`gemini/README.md`。
 
 ### 2026-10-08：任务切换器改认 gemini.desktop
 
