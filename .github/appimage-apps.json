@@ -630,7 +630,7 @@
       "dir": "gemini",
       "artifact_dir": "gemini/dist",
       "release_name": "Gemini.AppImage",
-      "software_key": "gemini",
+      "software_key": "Gemini",
       "timeout_minutes": 90,
       "run_from_root": "false"
     },
@@ -849,7 +849,7 @@
       "dir": "xephyr",
       "artifact_dir": "xephyr/dist",
       "release_name": "Xephyr.AppImage",
-      "software_key": "xephyr",
+      "software_key": "Xephyr",
       "timeout_minutes": 60,
       "run_from_root": "false"
     },
