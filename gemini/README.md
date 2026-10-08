@@ -203,6 +203,13 @@ dist/Gemini.AppImage
 
 ## 变更记录
 
+### 2026-10-08：官方图标要在窗口创建时就写上
+
+- 现象：退出 FastTab / AltTab 后，Gemini 仍是 Electron 原子图。
+- 根因：打包后 Electron 从 `shared/bin` 启动，`process.resourcesPath` 里没有 `gemini.png`，主进程补丁直接跳过。外部写入又会在窗口出现前随父进程退出。
+- 处理：启动器把 PNG 绝对路径交给主进程，窗口一创建就用这张图。外部程序改为无视父进程退出，并把 256 图标缩到 128，避免 X 请求过大。
+- 修改文件：`gemini/patches/Gemini`、`gemini/patches/set_linux_window_icon.py`、`gemini/patches/set_gemini_icon.c`、`gemini/README.md`。
+
 ### 2026-10-08：FastTab 改读窗口上的官方图标
 
 - 现象：装了 `gemini.desktop` 之后，FastTab 里仍是 Electron 原子图。

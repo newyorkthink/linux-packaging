@@ -11,6 +11,51 @@
 #include <string.h>
 #include <unistd.h>
 
+static int ignore_x_error(Display *display, XErrorEvent *event) {
+  (void)display;
+  (void)event;
+  return 0;
+}
+
+static void shrink_icon(long **icon, unsigned long *count) {
+  long *source = *icon;
+  uint32_t width = (uint32_t)source[0];
+  uint32_t height = (uint32_t)source[1];
+  uint32_t target = 128;
+  uint32_t new_width = width;
+  uint32_t new_height = height;
+  unsigned long new_pixels;
+  long *smaller;
+  unsigned long y;
+  unsigned long x;
+
+  if (width <= target && height <= target) return;
+  if (width >= height) {
+    new_width = target;
+    new_height = (uint32_t)(((unsigned long)height * target) / width);
+  } else {
+    new_height = target;
+    new_width = (uint32_t)(((unsigned long)width * target) / height);
+  }
+  if (new_width == 0) new_width = 1;
+  if (new_height == 0) new_height = 1;
+  new_pixels = (unsigned long)new_width * (unsigned long)new_height;
+  smaller = calloc(new_pixels + 2, sizeof(long));
+  if (smaller == NULL) return;
+  smaller[0] = new_width;
+  smaller[1] = new_height;
+  for (y = 0; y < new_height; y++) {
+    uint32_t src_y = (uint32_t)((y * height) / new_height);
+    for (x = 0; x < new_width; x++) {
+      uint32_t src_x = (uint32_t)((x * width) / new_width);
+      smaller[2 + y * new_width + x] = source[2 + (unsigned long)src_y * width + src_x];
+    }
+  }
+  free(source);
+  *icon = smaller;
+  *count = new_pixels + 2;
+}
+
 static int same_gemini(const unsigned char *value, unsigned long available) {
   static const unsigned char name[] = "gemini";
   if (available < sizeof(name) - 1) return 0;
@@ -97,15 +142,18 @@ int main(int argc, char **argv) {
     icon[i + 2] = pixel;
   }
   fclose(file);
+  pixel_count += 2;
+  shrink_icon(&icon, &pixel_count);
 
   display = XOpenDisplay(NULL);
   if (display == NULL) {
     free(icon);
     return 0;
   }
+  XSetErrorHandler(ignore_x_error);
   icon_atom = XInternAtom(display, "_NET_WM_ICON", False);
-  for (round = 0; round < 90 && getppid() != 1; round++) {
-    apply_icon(display, DefaultRootWindow(display), icon_atom, icon, pixel_count + 2);
+  for (round = 0; round < 120; round++) {
+    apply_icon(display, DefaultRootWindow(display), icon_atom, icon, pixel_count);
     XFlush(display);
     usleep(500000);
   }

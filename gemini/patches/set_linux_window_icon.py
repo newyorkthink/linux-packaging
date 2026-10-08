@@ -13,39 +13,45 @@ from pathlib import Path
 MARKER = "linux-packaging-gemini-window-icon"
 SNIPPET = r"""/* linux-packaging-gemini-window-icon */
 ;(() => {
-  const electron = require("electron");
-  const fs = require("fs");
-  const path = require("path");
-  const candidates = [
-    path.join(process.resourcesPath, "gemini.png"),
-    path.join(path.dirname(process.execPath), "resources", "gemini.png"),
-  ];
-  let icon = electron.nativeImage.createEmpty();
-  for (const candidate of candidates) {
-    if (!fs.existsSync(candidate)) continue;
-    const loaded = electron.nativeImage.createFromPath(candidate);
-    if (!loaded.isEmpty()) {
-      icon = loaded;
-      break;
+  try {
+    const electron = require("electron");
+    const fs = require("fs");
+    const path = require("path");
+    const candidates = [];
+    if (process.env.GEMINI_ICON_PATH) candidates.push(process.env.GEMINI_ICON_PATH);
+    candidates.push(
+      path.join(process.resourcesPath, "gemini.png"),
+      path.join(path.dirname(process.execPath), "resources", "gemini.png"),
+      path.join(path.dirname(process.execPath), "..", "bin", "resources", "gemini.png"),
+    );
+    let icon = electron.nativeImage.createEmpty();
+    for (const candidate of candidates) {
+      if (!candidate || !path.isAbsolute(candidate) || !fs.existsSync(candidate)) continue;
+      const loaded = electron.nativeImage.createFromPath(candidate);
+      if (!loaded.isEmpty()) {
+        icon = loaded;
+        break;
+      }
     }
-  }
-  if (icon.isEmpty()) return;
-  const Original = electron.BrowserWindow;
-  function BrowserWindow(options, ...rest) {
-    const opts = options && typeof options === "object" ? { ...options, icon } : { icon };
-    return new Original(opts, ...rest);
-  }
-  BrowserWindow.prototype = Original.prototype;
-  Object.setPrototypeOf(BrowserWindow, Original);
-  for (const key of Object.getOwnPropertyNames(Original)) {
-    if (key === "prototype" || key === "length" || key === "name") continue;
-    const desc = Object.getOwnPropertyDescriptor(Original, key);
-    if (desc) Object.defineProperty(BrowserWindow, key, desc);
-  }
-  electron.BrowserWindow = BrowserWindow;
-  electron.app.on("browser-window-created", (_event, window) => {
-    window.setIcon(icon);
-  });
+    if (icon.isEmpty()) return;
+    const Original = electron.BrowserWindow;
+    function BrowserWindow(options, ...rest) {
+      const opts = options && typeof options === "object" ? { ...options, icon } : { icon };
+      return new Original(opts, ...rest);
+    }
+    BrowserWindow.prototype = Original.prototype;
+    Object.setPrototypeOf(BrowserWindow, Original);
+    for (const key of Object.getOwnPropertyNames(Original)) {
+      if (key === "prototype" || key === "length" || key === "name") continue;
+      const desc = Object.getOwnPropertyDescriptor(Original, key);
+      if (desc) Object.defineProperty(BrowserWindow, key, desc);
+    }
+    electron.BrowserWindow = BrowserWindow;
+    const apply = (window) => {
+      try { window.setIcon(icon); } catch (error) {}
+    };
+    electron.app.on("browser-window-created", (_event, window) => apply(window));
+  } catch (error) {}
 })();
 """
 

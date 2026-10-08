@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Linux 补丁：桌面壳层固定简体中文，并让任务切换器使用官方图标。
-# 切换器按 WM_CLASS=gemini 找 desktop，不看 BrowserWindow 的 icon。
+# FastTab / AltTab 先读 _NET_WM_ICON。Electron 实际资源目录不在 bin/resources，
+# 所以把官方 PNG 的绝对路径交给主进程，并在窗口出现后继续改写该属性。
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
@@ -35,6 +36,7 @@ EOF
 }
 install_switcher_icon || true
 
+export GEMINI_ICON_PATH="$HERE/resources/gemini.png"
 if [ -n "${APPIMAGE:-}" ] && [ -x "$HERE/set_gemini_icon" ] && [ -f "$HERE/resources/gemini.argb" ]; then
   "$HERE/set_gemini_icon" "$HERE/resources/gemini.argb" >/dev/null 2>&1 &
 fi
