@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Linux 补丁：上游没设窗口图标时，用 resources/gemini.png。
+"""Linux 补丁：窗口图标固定为 resources/gemini.png。
 
-只补 BrowserWindow 的 icon。不改尺寸、背景色或其它选项。
-上游结构变成 ESM，或主入口里已经有这份标记时，构建停止，不猜测。
+任务切换器主要认 desktop。这里仍覆盖 BrowserWindow 的 icon，
+避免上游留下的 Windows 图标路径让 _NET_WM_ICON 继续是 Electron 原子图。
+不改尺寸、背景色或其它选项。上游变成 ESM，或主入口已有标记时，构建停止。
 """
 
 import json
@@ -13,15 +14,25 @@ MARKER = "linux-packaging-gemini-window-icon"
 SNIPPET = r"""/* linux-packaging-gemini-window-icon */
 ;(() => {
   const electron = require("electron");
+  const fs = require("fs");
   const path = require("path");
-  const icon = electron.nativeImage.createFromPath(
-    path.join(process.resourcesPath, "gemini.png")
-  );
+  const candidates = [
+    path.join(process.resourcesPath, "gemini.png"),
+    path.join(path.dirname(process.execPath), "resources", "gemini.png"),
+  ];
+  let icon = electron.nativeImage.createEmpty();
+  for (const candidate of candidates) {
+    if (!fs.existsSync(candidate)) continue;
+    const loaded = electron.nativeImage.createFromPath(candidate);
+    if (!loaded.isEmpty()) {
+      icon = loaded;
+      break;
+    }
+  }
   if (icon.isEmpty()) return;
   const Original = electron.BrowserWindow;
   function BrowserWindow(options, ...rest) {
-    const opts = options && typeof options === "object" ? { ...options } : {};
-    if (!opts.icon) opts.icon = icon;
+    const opts = options && typeof options === "object" ? { ...options, icon } : { icon };
     return new Original(opts, ...rest);
   }
   BrowserWindow.prototype = Original.prototype;
@@ -32,6 +43,9 @@ SNIPPET = r"""/* linux-packaging-gemini-window-icon */
     if (desc) Object.defineProperty(BrowserWindow, key, desc);
   }
   electron.BrowserWindow = BrowserWindow;
+  electron.app.on("browser-window-created", (_event, window) => {
+    window.setIcon(icon);
+  });
 })();
 """
 

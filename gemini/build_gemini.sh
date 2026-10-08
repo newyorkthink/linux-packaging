@@ -366,14 +366,14 @@ Icon=Gemini
 Terminal=false
 Type=Application
 Categories=Utility;
-StartupWMClass=Gemini
+StartupWMClass=gemini
 X-AppImage-Version=$VERSION
 EOF_DESKTOP
 
 ###### quick-sharun 封装 ######
 
 export APPNAME=Gemini
-export STARTUPWMCLASS=Gemini
+export STARTUPWMCLASS=gemini
 export ICON="$BUILD_ICON"
 export DESKTOP="$BUILD_DESKTOP"
 export OUTPATH="$DIST_DIR"

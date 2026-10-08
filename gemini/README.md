@@ -136,7 +136,7 @@ for_window [class="^gemini$"] floating enable, sticky disable
 
 构建侧仍保留 all-workspaces 的最小 Linux 兼容修补：仅将上游显式的 `setVisibleOnAllWorkspaces(true)` / `setVisibleOnAllWorkspaces(!0)` 改为 `false`。如果 Google 后续版本修改了这段产品层结构、脚本无法可靠识别，构建会停止，不会猜测性修改。
 
-当前不再对主 `BrowserWindow` 注入背景色、尺寸或其它窗口属性。窗口图标只在上游选项里没有 `icon` 时，用 `resources/gemini.png` 里的官方 PNG 补上。
+当前不再对主 `BrowserWindow` 注入背景色、尺寸或其它窗口属性。窗口图标会覆盖成 `resources/gemini.png`。任务切换器认的是 `WM_CLASS=gemini` 对应的 desktop，不认这个窗口属性；启动器会把官方 PNG 写到 `~/.local/share/icons/hicolor/256x256/apps/gemini.png`，并写 `~/.local/share/applications/gemini.desktop`，再设置 `CHROME_DESKTOP=gemini.desktop`。i3 规则仍然匹配 `class="^gemini$"`。
 
 ## Windows 专用能力边界
 
@@ -202,6 +202,13 @@ dist/Gemini.AppImage
 ```
 
 ## 变更记录
+
+### 2026-10-08：任务切换器改认 gemini.desktop
+
+- 现象：上一包已经把窗口 `icon` 设成官方 PNG，任务切换器仍显示 Electron 原子图。
+- 根因：切换器按 `WM_CLASS=gemini` 找 desktop 图标。包内 desktop 的 `StartupWMClass=Gemini` 对不上，于是回退到 Electron 自带图标。`BrowserWindow.setIcon` 改变不了这个结果。
+- 处理：启动时安装 `~/.local/share/applications/gemini.desktop` 和 hicolor 里的官方 PNG，并设置 `CHROME_DESKTOP=gemini.desktop`。窗口类仍是 `gemini`。窗口属性里的图标也改为始终覆盖，不再只在上游没写 `icon` 时补。
+- 修改文件：`gemini/patches/Gemini`、`gemini/patches/set_linux_window_icon.py`、`gemini/build_gemini.sh`、`gemini/README.md`。
 
 ### 2026-10-08：新版本没有白边
 

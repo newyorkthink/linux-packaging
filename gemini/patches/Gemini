@@ -1,7 +1,40 @@
 #!/usr/bin/env bash
-# Linux 补丁：桌面壳层固定简体中文。不覆盖宿主机完整 locale。
+# Linux 补丁：桌面壳层固定简体中文，并让任务切换器使用官方图标。
+# 切换器按 WM_CLASS=gemini 找 desktop，不看 BrowserWindow 的 icon。
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
+install_switcher_icon() {
+  [ -n "${HOME:-}" ] || return 0
+  icon_src="$HERE/resources/gemini.png"
+  [ -f "$icon_src" ] || return 0
+  data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+  app_dir="$data_home/applications"
+  icon_dir="$data_home/icons/hicolor/256x256/apps"
+  mkdir -p "$app_dir" "$icon_dir" || return 0
+  cp -f "$icon_src" "$icon_dir/gemini.png" || return 0
+  [ -n "${APPIMAGE:-}" ] || return 0
+  case "$APPIMAGE" in
+    *[[:cntrl:]]*) return 0 ;;
+  esac
+  escaped="$(printf '%s' "$APPIMAGE" | sed 's/\\/\\\\/g; s/"/\\"/g')" || return 0
+  tmp="$app_dir/gemini.desktop.tmp.$$"
+  cat > "$tmp" <<EOF || { rm -f "$tmp"; return 0; }
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Gemini
+Comment=Google Gemini desktop app
+Exec="$escaped" %U
+Icon=$icon_dir/gemini.png
+Terminal=false
+StartupWMClass=gemini
+Categories=Utility;
+EOF
+  mv -f "$tmp" "$app_dir/gemini.desktop" || rm -f "$tmp"
+}
+install_switcher_icon || true
+
+export CHROME_DESKTOP=gemini.desktop
 export LANGUAGE=zh_CN:zh
 exec "$HERE/electron" --lang=zh-CN "$@"
