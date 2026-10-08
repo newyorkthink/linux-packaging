@@ -50,6 +50,11 @@
 - 同一版本恢复了仅处理 macOS locale 的 `scripts/after-pack.mjs`。Linux AppImage hook 先调用它，再设置内置 `libsecret` 的 RUNPATH，不覆盖上游逻辑。
 - `src/main.tsx` 现在使用只接受 `children` 的 `ProfileI18nProvider`。补丁不再给它加 `initialLocale`，界面语言继续走上游已有的系统语言回退。Chromium `zh-CN` 映射仍保留。
 
+## 上游兼容修复记录（2026-10-08）
+
+- 上游最新稳定版从日期标签 `v2026.9.24` 改成了 `v0.21.6`。构建不再检查标签是不是 `v年.月.日`，`releases/latest` 返回的稳定 tag 都会打。
+- `v0.21.6` 的 About 页改成 `UpdateStatusCard`。补丁只去掉 Desktop 自己的更新卡片，远程后端更新保留。旧的 `ListRow` 写法仍然接受。
+
 ## 构建文件
 
 ```text

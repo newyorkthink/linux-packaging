@@ -224,41 +224,53 @@ if about_marker not in about_text:
         '            </a>\n'
         '          </Button>\n'
     )
-    if about_text.count(version_anchor) != 1:
-        die("无法唯一定位 About 版本信息，停止构建，避免错误修改上游源码。")
-    about_text = about_text.replace(version_anchor, version_anchor + release_notes_button, 1)
+    client_update_card = '          <UpdateStatusCard target="client" />\n'
+    if about_text.count(version_anchor) == 1:
+        about_text = about_text.replace(version_anchor, version_anchor + release_notes_button, 1)
 
-    updates_open = '        <SectionHeading icon={RefreshCw} title={a.updates} />\n'
-    updates_close_candidates = (
-        (
-            '        <ListRow\n'
-            '          description={a.automaticUpdatesDesc}\n'
-            "          hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}\n"
-            '          id={settingElementId(SETTING_IDS.about.automaticUpdates)}\n'
-            '          title={a.automaticUpdates}\n'
-            '        />\n'
-        ),
-        (
-            '        <ListRow\n'
-            '          description={a.automaticUpdatesDesc}\n'
-            "          hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}\n"
-            '          title={a.automaticUpdates}\n'
-            '        />\n'
-        ),
-    )
-    matching_updates_close = [
-        candidate for candidate in updates_close_candidates if about_text.count(candidate) == 1
-    ]
-    if about_text.count(updates_open) != 1 or len(matching_updates_close) != 1:
-        die("无法唯一定位 About 更新区域，停止构建，避免错误修改上游源码。")
-    updates_close = matching_updates_close[0]
-    update_wrapper_open = (
-        '        {/* Hermes standalone Linux AppImage: hide source-checkout desktop update controls. */}\n'
-        '        <div className="hidden">\n'
-    )
-    about_text = about_text.replace(updates_open, update_wrapper_open + updates_open, 1)
-    about_text = about_text.replace(updates_close, updates_close + '        </div>\n', 1)
-    about_path.write_text(about_text, encoding="utf-8")
+        updates_open = '        <SectionHeading icon={RefreshCw} title={a.updates} />\n'
+        updates_close_candidates = (
+            (
+                '        <ListRow\n'
+                '          description={a.automaticUpdatesDesc}\n'
+                "          hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}\n"
+                '          id={settingElementId(SETTING_IDS.about.automaticUpdates)}\n'
+                '          title={a.automaticUpdates}\n'
+                '        />\n'
+            ),
+            (
+                '        <ListRow\n'
+                '          description={a.automaticUpdatesDesc}\n'
+                "          hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}\n"
+                '          title={a.automaticUpdates}\n'
+                '        />\n'
+            ),
+        )
+        matching_updates_close = [
+            candidate for candidate in updates_close_candidates if about_text.count(candidate) == 1
+        ]
+        if about_text.count(updates_open) != 1 or len(matching_updates_close) != 1:
+            die("无法唯一定位 About 更新区域，停止构建，避免错误修改上游源码。")
+        updates_close = matching_updates_close[0]
+        update_wrapper_open = (
+            '        {/* Hermes standalone Linux AppImage: hide source-checkout desktop update controls. */}\n'
+            '        <div className="hidden">\n'
+        )
+        about_text = about_text.replace(updates_open, update_wrapper_open + updates_open, 1)
+        about_text = about_text.replace(updates_close, updates_close + '        </div>\n', 1)
+        about_path.write_text(about_text, encoding="utf-8")
+    elif about_text.count(client_update_card) == 1:
+        # v0.21.6 起 About 页不再用 ListRow，Desktop 自更新是 UpdateStatusCard。
+        # 只拿掉这一张卡片，远程后端更新保持原样。
+        about_text = about_text.replace(
+            client_update_card,
+            "          {/* Hermes standalone Linux AppImage: hide source-checkout desktop update controls. */}\n"
+            "          {null}\n",
+            1,
+        )
+        about_path.write_text(about_text, encoding="utf-8")
+    else:
+        die("无法唯一定位 About 的 Desktop 更新入口，停止构建，避免错误修改上游源码。")
 
 package_path = root / "apps/desktop/package.json"
 package_data = json.loads(package_path.read_text(encoding="utf-8"))

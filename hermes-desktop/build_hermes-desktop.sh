@@ -73,8 +73,11 @@ release_json="$(curl -fsSL \
   https://api.github.com/repos/NousResearch/hermes-agent/releases/latest)"
 
 readonly UPSTREAM_TAG="$(jq -r '.tag_name // empty' <<<"$release_json")"
-[[ "$UPSTREAM_TAG" =~ ^v[0-9]{4}\.[0-9]+\.[0-9]+$ ]] || \
+# releases/latest 已经是最新非预发布版。不要再限制成 v2026.9.24 这种日期格式，
+# 上游改成 v0.21.6 后，格式检查会让每天的构建直接失败。
+if [[ -z "$UPSTREAM_TAG" || "$UPSTREAM_TAG" == "null" || "$UPSTREAM_TAG" == *"/"* || "$UPSTREAM_TAG" == *".."* || "$UPSTREAM_TAG" == *" "* ]]; then
   die "无法取得有效的 NousResearch/hermes-agent 稳定 Release tag：$UPSTREAM_TAG"
+fi
 
 log "上游稳定版本：$UPSTREAM_TAG"
 
