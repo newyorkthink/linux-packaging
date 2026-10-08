@@ -136,7 +136,7 @@ for_window [class="^gemini$"] floating enable, sticky disable
 
 构建侧仍保留 all-workspaces 的最小 Linux 兼容修补：仅将上游显式的 `setVisibleOnAllWorkspaces(true)` / `setVisibleOnAllWorkspaces(!0)` 改为 `false`。如果 Google 后续版本修改了这段产品层结构、脚本无法可靠识别，构建会停止，不会猜测性修改。
 
-当前不再对主 `BrowserWindow` 注入背景色、尺寸或其它窗口属性。FastTab 先读窗口的 `_NET_WM_ICON`，Electron 默认放的是原子图，desktop 轮不到。启动器会在打开后把官方 PNG 写进这个属性，同时仍安装 `~/.local/share/applications/gemini.desktop`。i3 规则仍然匹配 `class="^gemini$"`。
+当前不再对主 `BrowserWindow` 注入背景色、尺寸或其它窗口属性。任务切换器里的 Electron 原子图没有改掉，相关补丁已删除，见下方 2026-10-08 记录。i3 规则仍然匹配 `class="^gemini$"`。
 
 ## Windows 专用能力边界
 
@@ -203,44 +203,22 @@ dist/Gemini.AppImage
 
 ## 变更记录
 
-### 2026-10-08：主窗口是 BaseWindow
+### 2026-10-08：窗口图标没改掉，补丁已删除
 
-- 现象：新包重启后切换器仍是 Electron 原子图。日志里的 `Path must be absolute` 来自崩溃报告目录，不是图标。
-- 根因：Gemini 主窗口用的是 `BaseWindow`，并且优先加载 asar 里的 `icon.ico`。Linux 读不了这个 ico，就退回原子图。之前只包了 `BrowserWindow`。
-- 处理：同时包住 `BaseWindow`，并每 0.5 秒把包外的官方 PNG 设回窗口。
-- 修改文件：`gemini/patches/set_linux_window_icon.py`、`gemini/README.md`。
-
-### 2026-10-08：官方图标要在窗口创建时就写上
-
-- 现象：退出 FastTab / AltTab 后，Gemini 仍是 Electron 原子图。
-- 根因：打包后 Electron 从 `shared/bin` 启动，`process.resourcesPath` 里没有 `gemini.png`，主进程补丁直接跳过。外部写入又会在窗口出现前随父进程退出。
-- 处理：启动器把 PNG 绝对路径交给主进程，窗口一创建就用这张图。外部程序改为无视父进程退出，并把 256 图标缩到 128，避免 X 请求过大。
-- 修改文件：`gemini/patches/Gemini`、`gemini/patches/set_linux_window_icon.py`、`gemini/patches/set_gemini_icon.c`、`gemini/README.md`。
-
-### 2026-10-08：FastTab 改读窗口上的官方图标
-
-- 现象：装了 `gemini.desktop` 之后，FastTab 里仍是 Electron 原子图。
-- 根因：FastTab 先用 `_NET_WM_ICON`，有这个属性就不再看 desktop。Electron 自己写上了原子图。
-- 处理：启动后把官方 PNG 写进 `WM_CLASS=gemini` 窗口的 `_NET_WM_ICON`。不改窗口尺寸、背景，也不改 `Gemini.AppImage` 这个大写文件名。
-- 修改文件：`gemini/patches/set_gemini_icon.c`、`gemini/patches/png_to_argb.py`、`gemini/patches/Gemini`、`gemini/build_gemini.sh`、`gemini/README.md`。
-
-### 2026-10-08：任务切换器改认 gemini.desktop
-
-- 现象：上一包已经把窗口 `icon` 设成官方 PNG，任务切换器仍显示 Electron 原子图。
-- 根因：切换器按 `WM_CLASS=gemini` 找 desktop 图标。包内 desktop 的 `StartupWMClass=Gemini` 对不上，于是回退到 Electron 自带图标。`BrowserWindow.setIcon` 改变不了这个结果。
-- 处理：启动时安装 `~/.local/share/applications/gemini.desktop` 和 hicolor 里的官方 PNG，并设置 `CHROME_DESKTOP=gemini.desktop`。窗口类仍是 `gemini`。窗口属性里的图标也改为始终覆盖，不再只在上游没写 `icon` 时补。
-- 修改文件：`gemini/patches/Gemini`、`gemini/patches/set_linux_window_icon.py`、`gemini/build_gemini.sh`、`gemini/README.md`。
+- 现象：FastTab 和 AltTab 里 Gemini 仍是 Electron 默认原子图。实机换新包、退出切换器、重启之后都一样。
+- 试过、没有生效、已经从构建里删掉的东西：
+  - 约 490 行。文件是 `patches/set_linux_window_icon.py`、`patches/set_gemini_icon.c`、`patches/png_to_argb.py`，以及 `build_gemini.sh` 和启动器 `patches/Gemini` 里配合它们的调用。
+  - 主进程里给 `BrowserWindow` / `BaseWindow` 补官方 PNG。
+  - 启动时写 `~/.local/share/applications/gemini.desktop` 和 hicolor 图标。
+  - 另外用 X11 把官方 PNG 写进窗口的 `_NET_WM_ICON`。
+- 为啥没效果：切换器先用窗口上已有的 Electron 原子图。上面这些写法没有换成你在切换器里看到的官方星标。不改 FastTab / AltTab 就没能改掉这个结果。
+- 现在：这些补丁不在仓库里，也不会打进下一个 `Gemini.AppImage`。AppImage 自己的 desktop 图标仍从 `Gemini.exe` 提取，那是安装包图标，不是切换器里的窗口图标。
+- 留下的：大写 `Gemini` 文件名和启动器、`software_key`、白边不用再修、i3 的 `class="^gemini$"`。
 
 ### 2026-10-08：新版本没有白边
 
 - 现象：以前记录的首次启动白边 / 白色空白，在当前新版本里没有再出现。
 - 处理：标成不用再修。不要为白边改 `BrowserWindow` 背景、尺寸或产品层。
-
-### 2026-10-08：窗口图标改用官方 PNG
-
-- 现象：任务切换器里 Gemini 窗口仍显示 Electron 默认原子图标。
-- 处理：从 `Gemini.exe` 提取的官方 PNG 放到 `resources/gemini.png`。主入口只在上游 `BrowserWindow` 选项没有 `icon` 时补上它。不改尺寸、背景色或其它窗口属性。
-- 修改文件：`gemini/build_gemini.sh`、`gemini/patches/set_linux_window_icon.py`、`gemini/README.md`。
 
 ### 2026-10-08：产物和启动器改为 Gemini
 
@@ -304,7 +282,7 @@ dist/Gemini.AppImage
 
 - 正式 Actions #401 已成功构建撤回 BrowserWindow 注入后的版本，恢复 Google 上游窗口 resize / 内容自适应逻辑。
 - 当前保留：动态上游版本解析、官方 Electron runtime、Fcitx5、简体中文环境、all-workspaces 最小修补。
-- 当前不再处理：首次启动白边 / 白色空白、任务切换器窗口图标、仅影响视觉或终端日志但不影响核心使用的问题。2026-10-08 补充：新版本已经没有白边，白边不用再修；窗口图标另见同日变更。
+- 当前不再处理：首次启动白边 / 白色空白、任务切换器窗口图标、仅影响视觉或终端日志但不影响核心使用的问题。2026-10-08 补充：新版本已经没有白边，白边不用再修。窗口图标试过约 490 行补丁，切换器里仍是原子图，补丁已删除，不要再按那些写法改。
 - i3wm 最终推荐规则为 `for_window [class="^gemini$"] floating enable, sticky disable`；floating 用于规避当前平铺窗口适配问题，`sticky disable` 确保 Gemini 只存在于当前工作区。
 - 后续策略：每次 Google Gemini Desktop stable 更新仍由构建脚本动态获取；新版本发布后重新观察这些已知问题是否由上游修复，再决定是否调整兼容层。当前版本作为后续排查和升级对比的稳定基线。
 

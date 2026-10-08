@@ -42,7 +42,7 @@ mkdir -p "$EXTRACT_DIR" "$ELECTRON_DIR" "$APP_ROOT"
 # 7z、python3、nss、xdg-utils 已由 --base 提供。fcitx5-gtk 仍交给 quick-sharun 的 GTK3 部署去收集输入法模块。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 "$SCRIPT_DIR/../common/arch/install_packages.sh" \
-  asar icoutils alsa-lib gtk3 libx11 cups libxss libxtst \
+  asar icoutils alsa-lib gtk3 cups libxss libxtst \
   libnotify libsecret libpulse mesa fcitx5-gtk
 
 for command_name in \
@@ -336,7 +336,14 @@ WINDOWS_NATIVE_ADDON_REMOVED="$(
 python3 "$SCRIPT_DIR/patches/disable_visible_on_all_workspaces.py" \
   "$LINUX_ASAR_DIR" "$WINDOWS_NATIVE_ADDON_REMOVED"
 
-# 官方图标要放进 resources，供窗口补丁在运行时读取。不放进 asar。
+rm -f "$LINUX_ASAR"
+asar pack "$LINUX_ASAR_DIR" "$LINUX_ASAR"
+
+install -m 755 "$SCRIPT_DIR/patches/Gemini" "$APP_ROOT/Gemini"
+chmod +x "$APP_ROOT/electron"
+
+###### 提取官方应用图标并生成 desktop ######
+
 ICO_DIR="$WORK_DIR/ico"
 mkdir -p "$ICO_DIR"
 wrestool -x -t14 -o "$ICO_DIR" "$WINDOWS_EXE"
@@ -344,21 +351,6 @@ ICON_ICO="$(find "$ICO_DIR" -type f -name '*.ico' -print | sort -V | head -n 1)"
 [[ -f "$ICON_ICO" ]] || die "无法从 Gemini.exe 提取官方 ICO 图标。"
 python3 "$SCRIPT_DIR/patches/extract_ico_png.py" "$ICON_ICO" "$BUILD_ICON"
 [[ -s "$BUILD_ICON" ]] || die "Gemini 官方 ICO 中没有可用 PNG 图标。"
-install -m 644 "$BUILD_ICON" "$APP_ROOT/resources/gemini.png"
-python3 "$SCRIPT_DIR/patches/png_to_argb.py" "$BUILD_ICON" "$APP_ROOT/resources/gemini.argb"
-python3 "$SCRIPT_DIR/patches/set_linux_window_icon.py" "$LINUX_ASAR_DIR"
-
-rm -f "$LINUX_ASAR"
-asar pack "$LINUX_ASAR_DIR" "$LINUX_ASAR"
-
-install -m 755 "$SCRIPT_DIR/patches/Gemini" "$APP_ROOT/Gemini"
-gcc -O2 -o "$APP_ROOT/set_gemini_icon" "$SCRIPT_DIR/patches/set_gemini_icon.c" -lX11
-[[ -x "$APP_ROOT/set_gemini_icon" ]] || die "无法编译 Gemini 窗口图标程序。"
-chmod +x "$APP_ROOT/electron"
-
-###### 生成 desktop ######
-
-[[ -s "$BUILD_ICON" ]] || die "Gemini 官方图标还没有提取。"
 
 cat > "$BUILD_DESKTOP" <<EOF_DESKTOP
 [Desktop Entry]
@@ -369,14 +361,14 @@ Icon=Gemini
 Terminal=false
 Type=Application
 Categories=Utility;
-StartupWMClass=gemini
+StartupWMClass=Gemini
 X-AppImage-Version=$VERSION
 EOF_DESKTOP
 
 ###### quick-sharun 封装 ######
 
 export APPNAME=Gemini
-export STARTUPWMCLASS=gemini
+export STARTUPWMCLASS=Gemini
 export ICON="$BUILD_ICON"
 export DESKTOP="$BUILD_DESKTOP"
 export OUTPATH="$DIST_DIR"
