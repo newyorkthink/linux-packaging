@@ -109,11 +109,14 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 
 已知但当前不处理的问题：
 
-- 首次启动或窗口初始化阶段可能短暂出现白边 / 白色空白区域；
 - i3 平铺模式下可能出现窗口内容区域未立即完全铺满；当前建议使用 floating 规避；
 - `helper_ipc`、Crashpad、Fontconfig、Glycin 等已记录日志目前均未影响核心使用。
 
-这些问题当前均视为**非致命、可接受边界**。后续 Google Gemini Desktop 发布新 stable 版本后，再重新观察上游 Electron / BrowserWindow 行为；如果新版本自身已修复或窗口结构发生变化，再基于新版本重新评估，不在当前稳定基线上继续强行补丁。
+已确认不用再修：
+
+- 白边 / 白色空白。新版本没有这个问题，不要再为它改窗口背景、尺寸或产品层。
+
+上面「已知但当前不处理」的两项仍是非致命边界。白边已经确认不用再修，后面的版本也不要把它重新加回待修项。
 
 ### i3wm
 
@@ -126,7 +129,7 @@ for_window [class="^gemini$"] floating enable, sticky disable
 
 原因：
 
-- Gemini 在 i3 平铺模式下可能出现首次启动白边 / 空白区域、内容区域未立即铺满等窗口适配现象；
+- Gemini 在 i3 平铺模式下可能出现窗口内容区域未立即完全铺满；当前建议使用 floating 规避。新版本没有白边，不要再按白边处理；
 - 改为 floating 后当前实测使用正常，不影响 Gemini 主界面、登录和聊天；
 - `sticky disable` 明确限制窗口只出现在当前工作区，不在多个工作区重复显示；
 - 该 i3 规则按 `WM_CLASS="gemini"` 匹配，与具体 Gemini 应用版本无关，后续更新 AppImage 通常无需修改。
@@ -200,9 +203,14 @@ dist/Gemini.AppImage
 
 ## 变更记录
 
+### 2026-10-08：新版本没有白边
+
+- 现象：以前记录的首次启动白边 / 白色空白，在当前新版本里没有再出现。
+- 处理：标成不用再修。不要为白边改 `BrowserWindow` 背景、尺寸或产品层。
+
 ### 2026-10-08：窗口图标改用官方 PNG
 
-- 现象：任务切换器里 Gemini 窗口仍显示 Electron 默认原子图标。白边问题当前已经不再出现。
+- 现象：任务切换器里 Gemini 窗口仍显示 Electron 默认原子图标。
 - 处理：从 `Gemini.exe` 提取的官方 PNG 放到 `resources/gemini.png`。主入口只在上游 `BrowserWindow` 选项没有 `icon` 时补上它。不改尺寸、背景色或其它窗口属性。
 - 修改文件：`gemini/build_gemini.sh`、`gemini/patches/set_linux_window_icon.py`、`gemini/README.md`。
 
@@ -268,7 +276,7 @@ dist/Gemini.AppImage
 
 - 正式 Actions #401 已成功构建撤回 BrowserWindow 注入后的版本，恢复 Google 上游窗口 resize / 内容自适应逻辑。
 - 当前保留：动态上游版本解析、官方 Electron runtime、Fcitx5、简体中文环境、all-workspaces 最小修补。
-- 当前不再处理：首次启动白边 / 白色空白、任务切换器窗口图标、仅影响视觉或终端日志但不影响核心使用的问题。
+- 当前不再处理：首次启动白边 / 白色空白、任务切换器窗口图标、仅影响视觉或终端日志但不影响核心使用的问题。2026-10-08 补充：新版本已经没有白边，白边不用再修；窗口图标另见同日变更。
 - i3wm 最终推荐规则为 `for_window [class="^gemini$"] floating enable, sticky disable`；floating 用于规避当前平铺窗口适配问题，`sticky disable` 确保 Gemini 只存在于当前工作区。
 - 后续策略：每次 Google Gemini Desktop stable 更新仍由构建脚本动态获取；新版本发布后重新观察这些已知问题是否由上游修复，再决定是否调整兼容层。当前版本作为后续排查和升级对比的稳定基线。
 
