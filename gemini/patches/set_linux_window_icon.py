@@ -34,23 +34,48 @@ SNIPPET = r"""/* linux-packaging-gemini-window-icon */
       }
     }
     if (icon.isEmpty()) return;
-    const Original = electron.BrowserWindow;
-    function BrowserWindow(options, ...rest) {
-      const opts = options && typeof options === "object" ? { ...options, icon } : { icon };
-      return new Original(opts, ...rest);
-    }
-    BrowserWindow.prototype = Original.prototype;
-    Object.setPrototypeOf(BrowserWindow, Original);
-    for (const key of Object.getOwnPropertyNames(Original)) {
-      if (key === "prototype" || key === "length" || key === "name") continue;
-      const desc = Object.getOwnPropertyDescriptor(Original, key);
-      if (desc) Object.defineProperty(BrowserWindow, key, desc);
-    }
-    electron.BrowserWindow = BrowserWindow;
     const apply = (window) => {
       try { window.setIcon(icon); } catch (error) {}
     };
-    electron.app.on("browser-window-created", (_event, window) => apply(window));
+    const wrap = (name) => {
+      const Original = electron[name];
+      if (typeof Original !== "function") return;
+      function Wrapped(options, ...rest) {
+        const opts = options && typeof options === "object" ? { ...options, icon } : { icon };
+        return new Original(opts, ...rest);
+      }
+      Wrapped.prototype = Original.prototype;
+      Object.setPrototypeOf(Wrapped, Original);
+      for (const key of Object.getOwnPropertyNames(Original)) {
+        if (key === "prototype" || key === "length" || key === "name") continue;
+        const desc = Object.getOwnPropertyDescriptor(Original, key);
+        if (desc) Object.defineProperty(Wrapped, key, desc);
+      }
+      const current = Object.getOwnPropertyDescriptor(electron, name);
+      try {
+        if (current && current.configurable) {
+          Object.defineProperty(electron, name, {
+            configurable: true,
+            enumerable: current.enumerable !== false,
+            get: () => Wrapped,
+          });
+        } else {
+          electron[name] = Wrapped;
+        }
+      } catch (error) {}
+    };
+    wrap("BaseWindow");
+    wrap("BrowserWindow");
+    if (electron.app && typeof electron.app.on === "function") {
+      electron.app.on("browser-window-created", (_event, window) => apply(window));
+    }
+    setInterval(() => {
+      const lists = [electron.BaseWindow, electron.BrowserWindow];
+      for (const ctor of lists) {
+        if (!ctor || typeof ctor.getAllWindows !== "function") continue;
+        for (const window of ctor.getAllWindows()) apply(window);
+      }
+    }, 500);
   } catch (error) {}
 })();
 """
@@ -82,6 +107,11 @@ if entry.suffix.lower() not in {".js", ".cjs"}:
 text = entry.read_text(encoding="utf-8")
 if MARKER in text:
     raise SystemExit("Gemini 主入口已经有窗口图标补丁")
+
+icon_choice = "Su.existsSync(e)?e:t"
+if icon_choice not in text:
+    raise SystemExit("Gemini 主入口没有原来的 icon.ico 选择，不能改成包外 PNG")
+text = text.replace(icon_choice, "process.env.GEMINI_ICON_PATH||t", 1)
 
 entry.write_text(SNIPPET + text, encoding="utf-8")
 print(f"Patched Gemini window icon into {main}")

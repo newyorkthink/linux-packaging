@@ -203,6 +203,13 @@ dist/Gemini.AppImage
 
 ## 变更记录
 
+### 2026-10-08：主窗口是 BaseWindow
+
+- 现象：新包重启后切换器仍是 Electron 原子图。日志里的 `Path must be absolute` 来自崩溃报告目录，不是图标。
+- 根因：Gemini 主窗口用的是 `BaseWindow`，并且优先加载 asar 里的 `icon.ico`。Linux 读不了这个 ico，就退回原子图。之前只包了 `BrowserWindow`。
+- 处理：同时包住 `BaseWindow`，并每 0.5 秒把包外的官方 PNG 设回窗口。
+- 修改文件：`gemini/patches/set_linux_window_icon.py`、`gemini/README.md`。
+
 ### 2026-10-08：官方图标要在窗口创建时就写上
 
 - 现象：退出 FastTab / AltTab 后，Gemini 仍是 Electron 原子图。
