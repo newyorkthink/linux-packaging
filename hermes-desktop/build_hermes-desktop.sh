@@ -125,7 +125,10 @@ log "使用官方 Desktop electron-builder 链生成 AppImage"
   cd "$UPSTREAM_DIR/apps/desktop"
   export CSC_IDENTITY_AUTO_DISCOVERY=false
   npm run build
-  npm run builder -- --linux AppImage --x64 --publish never
+  # 不要再传 --x64。v0.21.6 见到显式架构会把原生依赖写到
+  # apps/desktop/build/native-deps-linux-x64，上游自己的输出检查不认这个目录。
+  # 不传架构时，构建机会按当前 x64 使用允许的 native-deps 目录。
+  npm run builder -- --linux AppImage --publish never
 )
 
 mapfile -t appimages < <(

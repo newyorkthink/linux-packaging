@@ -54,6 +54,7 @@
 
 - 上游最新稳定版从日期标签 `v2026.9.24` 改成了 `v0.21.6`。构建不再检查标签是不是 `v年.月.日`，`releases/latest` 返回的稳定 tag 都会打。
 - `v0.21.6` 的 About 页改成 `UpdateStatusCard`。补丁只去掉 Desktop 自己的更新卡片，远程后端更新保留。旧的 `ListRow` 写法仍然接受。
+- `v0.21.6` 的打包脚本在命令行带 `--x64` 时，会把原生依赖写到 `apps/desktop/build/native-deps-linux-x64`，上游自己的输出检查拒绝这个目录。构建不再传 `--x64`，由 x64 构建机使用允许的 `native-deps` 目录。
 
 ## 构建文件
 
