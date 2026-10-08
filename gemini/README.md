@@ -111,7 +111,6 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 
 - 首次启动或窗口初始化阶段可能短暂出现白边 / 白色空白区域；
 - i3 平铺模式下可能出现窗口内容区域未立即完全铺满；当前建议使用 floating 规避；
-- 任务切换器 / 窗口级 Gemini 图标可能不完全正确；
 - `helper_ipc`、Crashpad、Fontconfig、Glycin 等已记录日志目前均未影响核心使用。
 
 这些问题当前均视为**非致命、可接受边界**。后续 Google Gemini Desktop 发布新 stable 版本后，再重新观察上游 Electron / BrowserWindow 行为；如果新版本自身已修复或窗口结构发生变化，再基于新版本重新评估，不在当前稳定基线上继续强行补丁。
@@ -134,7 +133,7 @@ for_window [class="^gemini$"] floating enable, sticky disable
 
 构建侧仍保留 all-workspaces 的最小 Linux 兼容修补：仅将上游显式的 `setVisibleOnAllWorkspaces(true)` / `setVisibleOnAllWorkspaces(!0)` 改为 `false`。如果 Google 后续版本修改了这段产品层结构、脚本无法可靠识别，构建会停止，不会猜测性修改。
 
-当前不再对主 `BrowserWindow` 强行注入背景色、尺寸、窗口图标或其他窗口属性，避免再次破坏上游 resize / 内容自适应行为。
+当前不再对主 `BrowserWindow` 注入背景色、尺寸或其它窗口属性。窗口图标只在上游选项里没有 `icon` 时，用 `resources/gemini.png` 里的官方 PNG 补上。
 
 ## Windows 专用能力边界
 
@@ -201,10 +200,16 @@ dist/Gemini.AppImage
 
 ## 变更记录
 
+### 2026-10-08：窗口图标改用官方 PNG
+
+- 现象：任务切换器里 Gemini 窗口仍显示 Electron 默认原子图标。白边问题当前已经不再出现。
+- 处理：从 `Gemini.exe` 提取的官方 PNG 放到 `resources/gemini.png`。主入口只在上游 `BrowserWindow` 选项没有 `icon` 时补上它。不改尺寸、背景色或其它窗口属性。
+- 修改文件：`gemini/build_gemini.sh`、`gemini/patches/set_linux_window_icon.py`、`gemini/README.md`。
+
 ### 2026-10-08：产物和启动器改为 Gemini
 
 - 现象：AppImage 和启动器都叫小写 `gemini`，和 CC Switch 管理的 Gemini CLI 命令 `gemini` 撞名。
-- 处理：对齐 Windows 主程序 `Gemini.exe`。Release 资产、desktop `Exec`/`Icon` 和 AppDir 启动器改为 `Gemini`，版本清单的 `software_key` 仍是 `gemini`。配置目录仍是 `~/.config/gemini`。
+- 处理：对齐 Windows 主程序 `Gemini.exe`。Release 资产、desktop `Exec`/`Icon` 和 AppDir 启动器改为 `Gemini`，版本清单的 `software_key` 也是 `Gemini`。配置目录仍是 `~/.config/gemini`。
 - 构建脚本改为调用已有公共入口清理目录、安装依赖、下载校验和写入 `version.txt`。Linux 专用改动拆到 `gemini/patches/`：去掉 Windows 原生模块、取消 sticky 窗口、提取 ICO 里的 PNG、简体中文启动器。
 - 旧的 `gemini.AppImage` 不会被同名覆盖，下次正式构建成功后 `latest` 上会同时留下旧资产，需要的话再手动删掉。
 
