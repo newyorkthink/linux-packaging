@@ -215,6 +215,22 @@ dist/Gemini.AppImage
 - 现在：这些补丁不在仓库里，也不会打进下一个 `Gemini.AppImage`。AppImage 自己的 desktop 图标仍从 `Gemini.exe` 提取，那是安装包图标，不是切换器里的窗口图标。
 - 留下的：大写 `Gemini` 文件名和启动器、`software_key`、白边不用再修、i3 的 `class="^gemini$"`。
 
+### 2026-10-08：切换器原子图，五次都无效，补丁已删除
+
+目标：FastTab 和 AltTab 里 Gemini 窗口显示的是 Electron 默认原子图，要换成官方星标。禁止改 FastTab、AltTab。白边已确认新版本没有，和这次无关，不要再修。大写 `Gemini` 文件名不要改回去。
+
+每次用户都换了当次打出来的包装上实机看，结果都是原子图。下面每一条都无效，不要再试同一写法。
+
+1. 无效。`patches/set_linux_window_icon.py` 在重新打包的 `app.asar` 里，只给没有 `icon` 的 `BrowserWindow` 补上从 `Gemini.exe` 抽出的官方 PNG。切换器仍是原子图。
+2. 无效。启动器 `patches/Gemini` 启动时写入 `~/.local/share/applications/gemini.desktop` 和 hicolor 里的官方 PNG，并设置 `CHROME_DESKTOP=gemini.desktop`、`StartupWMClass=gemini`。桌面文件对上了窗口类，切换器仍是原子图。`BrowserWindow` 的 `icon` 也没改变这个结果。
+3. 无效。新增 `patches/png_to_argb.py`（104 行）和 `patches/set_gemini_icon.c`（163 行）。启动器后台用 X11 把官方 PNG 写进 `WM_CLASS=gemini` 窗口的 `_NET_WM_ICON`。切换器仍是原子图。
+4. 无效。主进程补丁改为窗口一创建就读 `GEMINI_ICON_PATH`。原因是打包后 `process.resourcesPath` 里没有 `gemini.png`，外部进程还会在窗口出现前退出。改完切换器仍是原子图。
+5. 无效。主窗口实际是 `BaseWindow`，不是 `BrowserWindow`，而且会优先用 asar 里的 `icon.ico`。补丁改成包住 `BaseWindow`，并每 0.5 秒把包外官方 PNG 设回去。切换器仍是原子图。
+
+行数：这五次加在一起大约 490 行，主要在上面三个补丁文件，以及 `build_gemini.sh`、`patches/Gemini`、本 README。提交 `208732e` 把补丁从构建里拿掉，该提交删 477 行、加 24 行。三个文件整份删除：`set_gemini_icon.c` 163 行、`set_linux_window_icon.py` 117 行、`png_to_argb.py` 104 行。
+
+结论：只改 Gemini 包没有换成切换器里看到的官方星标。不要把这五次再加回去，也不要改 FastTab 或 AltTab 来硬编码 Gemini。AppImage 自己的图标仍从 `Gemini.exe` 提取，那只是安装包图标。
+
 ### 2026-10-08：新版本没有白边
 
 - 现象：以前记录的首次启动白边 / 白色空白，在当前新版本里没有再出现。
