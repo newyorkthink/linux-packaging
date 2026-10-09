@@ -31,7 +31,7 @@ sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
 第二行如果报 unknown key，这台机器不是靠这个开关限制的。不要当成已经修好。
 
-2026-10-09 只看到上述报错。sysctl 之后这个 AppImage 是否能打开，这次没有实机确认。
+2026-10-09 同一台机器执行上述 sysctl 后，`antigravity.AppImage` 能打开，进入登录页。终端里还有 `libva error` 和 AutoUpdate 报错，没有挡住启动。
 
 ## 不要这样做
 
