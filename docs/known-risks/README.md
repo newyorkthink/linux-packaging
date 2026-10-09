@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | quick-sharun 的 Mesa / LLVM 红字 | 保留 | 原文未改，见 [quick-sharun-mesa-llvm-explanation.md](./quick-sharun-mesa-llvm-explanation.md) |
 | 从 i3wm AppImage 再启动别的程序 | 先不改别的包 | 有时起不来。WPS 上见过，见 [i3wm-appimage-child-launch.md](./i3wm-appimage-child-launch.md) |
+| Ubuntu 上 Electron AppImage 报 chrome-sandbox 权限 | 先不改包 | 宿主限制 user namespace。见 [electron-appimage-userns.md](./electron-appimage-userns.md) |
 
 红字是 `WARNING: Detected the bundled libgallium links to libLLVM.so!`。quick-sharun 收进 `libgallium` → `libLLVM` 时自己打印。没有开关。库留着，这行就在。它不是构建失败，带上这些库也能启动。代价是包变大，而且这是构建机的 Mesa 驱动，换显卡或旧内核可能不兼容。
 
@@ -25,5 +26,4 @@
 随后按用户要求去掉 `DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0`。这两个开关是用来挡构建机 Mesa 的，不是删库代码。`NO_STRIP=1` 仍保留。红字决定不变。
 
 更正：上面这句理解错了。要去掉的是删除 `libLLVM` 的代码，Discord 脚本里已经没有。`DEPLOY_OPENGL=0` 和 `DEPLOY_VULKAN=0` 已恢复。
-
 
