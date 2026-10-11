@@ -160,19 +160,30 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text(encoding="utf-8")
-old = '    export LD_LIBRARY_PATH="${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"\n'
-new = """    QT_ROOT="${APPDIR}/opt/python/lib/python3.11/site-packages/PySide6/Qt"
-    export WINPODX_BUNDLE_DIR="${APPDIR}/opt/python/share/winpodx"
-    export QT_PLUGIN_PATH="${QT_ROOT}/plugins"
-    export QT_QPA_PLATFORM_PLUGIN_PATH="${QT_ROOT}/plugins/platforms"
-    export LD_LIBRARY_PATH="$QT_ROOT/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
-"""
-if text.count(old) != 1:
+appdir_line = 'APPDIR="$(dirname "$(readlink -f "$0")")"\n'
+ld_line = 'export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/opt/python/lib:$LD_LIBRARY_PATH"\n'
+
+if text.count(appdir_line) != 1:
+    raise SystemExit("AppRun 的 APPDIR 定义不是唯一的一处")
+if text.count(ld_line) != 1:
     raise SystemExit("AppRun 的 LD_LIBRARY_PATH 定义已变化")
-path.write_text(text.replace(old, new), encoding="utf-8")
+
+appdir_patch = appdir_line + (
+    'export APPDIR\n'
+    'export WINPODX_BUNDLE_DIR="$APPDIR/opt/python/share/winpodx"\n'
+    'QT_ROOT="$APPDIR/opt/python/lib/python3.11/site-packages/PySide6/Qt"\n'
+    'export QT_PLUGIN_PATH="$QT_ROOT/plugins"\n'
+    'export QT_QPA_PLATFORM_PLUGIN_PATH="$QT_ROOT/plugins/platforms"\n'
+)
+ld_patch = (
+    'export LD_LIBRARY_PATH="$QT_ROOT/lib:$APPDIR/usr/lib:'
+    '$APPDIR/opt/python/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\n'
+)
+text = text.replace(appdir_line, appdir_patch).replace(ld_line, ld_patch)
+path.write_text(text, encoding="utf-8")
 PY
 chmod +x "$APPDIR/AppRun"
-bash -n "$APPDIR/AppRun"
+sh -n "$APPDIR/AppRun"
 
 log "创建 WinPodX 托盘子进程使用的可重定位入口"
 cat > "$APPDIR/usr/bin/winpodx" <<'WINPODX_WRAPPER'
