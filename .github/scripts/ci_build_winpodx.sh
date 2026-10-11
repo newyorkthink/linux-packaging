@@ -82,9 +82,8 @@ QT_ROOT="$(find "$APPDIR/opt/python/lib" \
 BUNDLE_DIR="$APPDIR/opt/python/share/winpodx"
 [[ -n "$QT_ROOT" ]]
 
-[[ -x "$APPDIR/usr/bin/xfreerdp" ]]
-[[ -x "$APPDIR/usr/bin/sdl-freerdp" ]]
-[[ -x "$APPDIR/usr/bin/wlfreerdp" ]]
+[[ -x "$APPDIR/usr/bin/xfreerdp3" ]]
+[[ -x "$APPDIR/usr/bin/wlfreerdp3" ]]
 for library in \
   libfreerdp-client3.so.3 \
   libfreerdp3.so.3 \
@@ -125,7 +124,7 @@ for library in "${private_libraries[@]}"; do
     "$library => $QT_ROOT/lib/$library"
 done
 
-freerdp_dependencies="$(ldd "$APPDIR/usr/bin/xfreerdp")"
+freerdp_dependencies="$(ldd "$APPDIR/usr/bin/xfreerdp3")"
 printf "%s\n" "$freerdp_dependencies"
 if grep -F "not found" <<<"$freerdp_dependencies"; then
   exit 1
@@ -138,7 +137,7 @@ for library in \
     "$library => $APPDIR/usr/lib/$library"
 done
 
-"$APPDIR/usr/bin/xfreerdp" /buildconfig \
+"$APPDIR/usr/bin/xfreerdp3" /buildconfig \
   > /tmp/freerdp-buildconfig.txt 2>&1
 cat /tmp/freerdp-buildconfig.txt
 grep -F "WITH_PULSE=ON" /tmp/freerdp-buildconfig.txt

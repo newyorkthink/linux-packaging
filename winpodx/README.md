@@ -44,6 +44,13 @@ winpodx/fix_winpodx_qt_runtime.sh
 
 ## 变更记录
 
+### 2026-10-11：跟上官方 v0.12.0 的 FreeRDP 文件名
+
+- 官方 AppImage 现只内置 `xfreerdp3` 和 `wlfreerdp3`，不再提供 `xfreerdp` 或 `sdl-freerdp`。
+- 仍只下载运行用的 `winpodx-x86_64.AppImage`，不镜像约 945 MB 的 `winpodx-appimage-sources.tar.gz`。
+- Pulse/ALSA 音频回退和 Qt/XCB 隔离保持不变，不替换官方 FreeRDP。
+
+
 ### 2026-09-16：接入统一软件版本元数据
 
 - 修改文件：`.github/workflows/build.yml`、本 README。

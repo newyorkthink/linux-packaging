@@ -36,7 +36,7 @@ find "$APPDIR/usr/lib" "$QT_LIB_DIR" -maxdepth 1 \( \
   -name 'ld-linux*.so*' \
 \) -delete 2>/dev/null || true
 
-# 清除公共目录中的 Qt 专用副本，避免 xfreerdp 通过全局搜索路径加载它们。
+# 清除公共目录中的 Qt 专用副本，避免 xfreerdp3 通过全局搜索路径加载它们。
 find "$APPDIR/usr/lib" -maxdepth 1 \( \
   -name 'libxcb-cursor.so*' -o \
   -name 'libxcb-icccm.so*' -o \

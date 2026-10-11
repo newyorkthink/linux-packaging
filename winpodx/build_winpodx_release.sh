@@ -75,8 +75,9 @@ readonly BUNDLED_PYTHON="$APPDIR/opt/python/bin/python3"
 readonly BUNDLE_DIR="$APPDIR/opt/python/share/winpodx"
 [[ -x "$APPDIR/AppRun" ]] || die "官方 AppImage 内缺少 AppRun。"
 [[ -x "$BUNDLED_PYTHON" ]] || die "官方 AppImage 内缺少便携 Python。"
-[[ -x "$APPDIR/usr/bin/xfreerdp" ]] || die "官方 AppImage 未内置 xfreerdp。"
-[[ -x "$APPDIR/usr/bin/sdl-freerdp" ]] || die "官方 AppImage 未内置 sdl-freerdp。"
+[[ -x "$APPDIR/usr/bin/xfreerdp3" ]] || die "官方 AppImage 未内置 xfreerdp3。"
+[[ -x "$APPDIR/usr/bin/wlfreerdp3" ]] || die "官方 AppImage 未内置 wlfreerdp3。"
+readonly FREERDP_BIN="$APPDIR/usr/bin/xfreerdp3"
 for marker in scripts config data; do
   [[ -d "$BUNDLE_DIR/$marker" ]] || die "官方 AppImage 缺少资源目录：$marker"
 done
@@ -92,8 +93,10 @@ readonly FREERDP_MANIFEST="$WORK_DIR/official-freerdp.sha256"
     -name 'libwinpr*.so*' \
   \) -print0 | sort -z | xargs -0 sha256sum
 ) > "$FREERDP_MANIFEST"
-grep -F 'usr/bin/xfreerdp' "$FREERDP_MANIFEST" >/dev/null || \
-  die "无法记录官方 xfreerdp 校验值。"
+grep -F 'usr/bin/xfreerdp3' "$FREERDP_MANIFEST" >/dev/null || \
+  die "无法记录官方 xfreerdp3 校验值。"
+grep -F 'usr/bin/wlfreerdp3' "$FREERDP_MANIFEST" >/dev/null || \
+  die "无法记录官方 wlfreerdp3 校验值。"
 grep -F 'usr/lib/libfreerdp3.so.3' "$FREERDP_MANIFEST" >/dev/null || \
   die "无法记录官方 libfreerdp 校验值。"
 grep -F 'usr/lib/libwinpr3.so.3' "$FREERDP_MANIFEST" >/dev/null || \
@@ -157,35 +160,20 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text(encoding="utf-8")
-appdir_line = 'APPDIR="$(dirname "$(readlink -f "$0")")"\n'
-ld_line = 'export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/opt/python/lib:$LD_LIBRARY_PATH"\n'
-
-if text.count(appdir_line) != 1:
-    raise SystemExit("AppRun 的 APPDIR 定义不是唯一的一处")
-if text.count(ld_line) != 1:
+old = '    export LD_LIBRARY_PATH="${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"\n'
+new = """    QT_ROOT="${APPDIR}/opt/python/lib/python3.11/site-packages/PySide6/Qt"
+    export WINPODX_BUNDLE_DIR="${APPDIR}/opt/python/share/winpodx"
+    export QT_PLUGIN_PATH="${QT_ROOT}/plugins"
+    export QT_QPA_PLATFORM_PLUGIN_PATH="${QT_ROOT}/plugins/platforms"
+    export LD_LIBRARY_PATH="$QT_ROOT/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
+"""
+if text.count(old) != 1:
     raise SystemExit("AppRun 的 LD_LIBRARY_PATH 定义已变化")
-
-appdir_patch = appdir_line + (
-    'export APPDIR\n'
-    'export WINPODX_BUNDLE_DIR="$APPDIR/opt/python/share/winpodx"\n'
-    'QT_ROOT="$APPDIR/opt/python/lib/python3.11/site-packages/PySide6/Qt"\n'
-    'export QT_PLUGIN_PATH="$QT_ROOT/plugins"\n'
-    'export QT_QPA_PLATFORM_PLUGIN_PATH="$QT_ROOT/plugins/platforms"\n'
-)
-ld_patch = (
-    'export LD_LIBRARY_PATH="$QT_ROOT/lib:$APPDIR/usr/lib:'
-    '$APPDIR/opt/python/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\n'
-)
-text = text.replace(appdir_line, appdir_patch).replace(ld_line, ld_patch)
-path.write_text(text, encoding="utf-8")
+path.write_text(text.replace(old, new), encoding="utf-8")
 PY
 chmod +x "$APPDIR/AppRun"
-sh -n "$APPDIR/AppRun"
+bash -n "$APPDIR/AppRun"
 
-# Keep the exact relocatable wrapper used by the earlier Ubuntu 24 build.
-# The upstream pip launcher has a build-time /home/runner shebang; GUI tray
-# auto-spawn finds `winpodx` through PATH, so usr/bin must provide this valid
-# entry before opt/python/bin.
 log "创建 WinPodX 托盘子进程使用的可重定位入口"
 cat > "$APPDIR/usr/bin/winpodx" <<'WINPODX_WRAPPER'
 #!/bin/sh
@@ -219,7 +207,7 @@ log "验证官方 FreeRDP 未被替换、音频后端、Qt 和图标"
 )
 
 LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/opt/python/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-  "$APPDIR/usr/bin/xfreerdp" /buildconfig \
+  "$FREERDP_BIN" /buildconfig \
   > "$WORK_DIR/freerdp-buildconfig.txt" 2>&1
 grep -F 'WITH_PULSE=ON' "$WORK_DIR/freerdp-buildconfig.txt" >/dev/null || \
   die "官方内置 FreeRDP 未启用 PulseAudio。"
@@ -253,16 +241,16 @@ fi
 
 freerdp_dependencies="$(
   LD_LIBRARY_PATH="$QT_ROOT/lib:$APPDIR/usr/lib:$APPDIR/opt/python/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-    ldd "$APPDIR/usr/bin/xfreerdp"
+    ldd "$FREERDP_BIN"
 )"
 for official_library in libfreerdp-client3.so.3 libfreerdp3.so.3 libwinpr3.so.3; do
   grep -F "$official_library => $APPDIR/usr/lib/$official_library" \
     <<<"$freerdp_dependencies" >/dev/null || \
-    die "xfreerdp 未加载官方内置 $official_library。"
+    die "xfreerdp3 未加载官方内置 $official_library。"
 done
 if grep -F 'not found' <<<"$freerdp_dependencies" >/dev/null; then
   printf '%s\n' "$freerdp_dependencies" >&2
-  die "官方内置 xfreerdp 仍有缺失依赖。"
+  die "官方内置 xfreerdp3 仍有缺失依赖。"
 fi
 
 WINPODX_BUNDLE_DIR="$BUNDLE_DIR" \
