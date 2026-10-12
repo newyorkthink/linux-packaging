@@ -28,33 +28,18 @@ export STARTUPWMCLASS=deskflow
 export OUTPATH=./dist
 export OUTNAME="deskflow.AppImage"
 
-if [ ! -f /usr/share/deskflow/translations/deskflow_zh_CN.qm ]; then
-  echo "错误：Arch deskflow 包缺少简体中文翻译。" >&2
-  exit 1
-fi
-
-# Deskflow 依次查找 applicationDirPath()/translations 和 ../share/deskflow/translations。
-# 只收集 ELF 时这些 qm 不会进包，语言列表是空的，界面只能停在英文。
+# Deskflow 从主程序旁的 translations 和 ../share/deskflow/translations 加载全部 qm。
+# 只收集 ELF 时语言目录不会进包。
 quick-sharun \
   /usr/bin/deskflow \
   /usr/bin/deskflow-core \
-  /usr/bin/xdotool \
-  /usr/share/deskflow
+  /usr/bin/xdotool
 
-if [ -d AppDir/share/deskflow/translations ]; then
-  mkdir -p AppDir/bin
-  ln -sfn ../share/deskflow/translations AppDir/bin/translations
-  if [ -d AppDir/shared/bin ]; then
-    ln -sfn ../../share/deskflow/translations AppDir/shared/bin/translations
-  fi
-else
-  echo "错误：quick-sharun 未把 Deskflow 翻译目录收集进 AppDir。" >&2
-  exit 1
-fi
-
-if [ ! -f AppDir/share/deskflow/translations/deskflow_zh_CN.qm ]; then
-  echo "错误：AppImage 内缺少 deskflow_zh_CN.qm。" >&2
-  exit 1
+mkdir -p AppDir/share/deskflow AppDir/bin
+cp -a /usr/share/deskflow/translations AppDir/share/deskflow/
+ln -sfn ../share/deskflow/translations AppDir/bin/translations
+if [ -d AppDir/shared/bin ]; then
+  ln -sfn ../../share/deskflow/translations AppDir/shared/bin/translations
 fi
 
 quick-sharun --make-appimage

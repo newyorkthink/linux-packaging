@@ -6,7 +6,7 @@
 
 ## 技术栈与打包方式
 
-Deskflow 是跨平台键鼠共享软件，Linux GUI 使用 Qt6。构建脚本安装 Deskflow 与 X11/Wayland、Qt6、OpenGL 等运行组件，使用 quick-sharun 同时收集 `deskflow`、`deskflow-core`、`xdotool` 和 `/usr/share/deskflow`。翻译文件放到主程序旁的 `translations`，否则语言列表为空，界面只能保持英文。上游自带简体中文 `deskflow_zh_CN.qm`。
+Deskflow 是跨平台键鼠共享软件，Linux GUI 使用 Qt6。构建脚本安装 Deskflow 与 X11/Wayland、Qt6、OpenGL 等运行组件，使用 quick-sharun 收集 `deskflow`、`deskflow-core` 和 `xdotool`，再把 `/usr/share/deskflow/translations` 整目录放进包并链接到主程序旁。该目录里的英文、西班牙语、意大利语、日语、韩语、俄语和简体中文一起进包。
 
 ## 运行
 
@@ -26,4 +26,4 @@ Deskflow 是跨平台键鼠共享软件，Linux GUI 使用 Qt6。构建脚本安
 
 ### 2026-10-12：带上上游翻译
 
-Arch 包里有 `deskflow_zh_CN.qm` 等语言文件。旧 AppImage 只收集了 ELF，Deskflow 找不到 `translations`，设置里的 Language 下拉是空的。现在把 `/usr/share/deskflow` 打进包，并链接到主程序同级的 `translations`。
+Arch 包的 `/usr/share/deskflow/translations` 里是全套 qm，不只简体中文。旧 AppImage 只收集了 ELF，语言列表是空的。现在整目录复制进包，并链接到主程序同级的 `translations`。
