@@ -1,11 +1,129 @@
 #!/usr/bin/env python3
 import json
+import re
 import sys
 from pathlib import Path
 
 
 def die(message: str) -> None:
     raise SystemExit(message)
+
+
+def updates_object_span(preload_text: str) -> tuple[int, int]:
+    check_ipc = "hermes:updates:check"
+    if preload_text.count(check_ipc) != 1:
+        die("无法唯一定位 Desktop update preload bridge，停止构建，避免错误修改上游源码。")
+    ipc_at = preload_text.find(check_ipc)
+    start = preload_text.rfind("updates: {", 0, ipc_at)
+    if start < 0:
+        die("无法唯一定位 Desktop update preload bridge，停止构建，避免错误修改上游源码。")
+    depth = 0
+    for index in range(preload_text.find("{", start), len(preload_text)):
+        char = preload_text[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return start, index + 1
+    die("无法唯一定位 Desktop update preload bridge，停止构建，避免错误修改上游源码。")
+
+
+def method_span(body: str, name: str) -> tuple[str, int, int] | None:
+    matches = list(re.finditer(rf"^([ \t]*){re.escape(name)}: ", body, re.M))
+    if not matches:
+        return None
+    if len(matches) != 1:
+        die(f"无法唯一定位 Desktop update preload 的 {name}，停止构建，避免错误修改上游源码。")
+    start = matches[0].start()
+    indent = matches[0].group(1)
+    depth = 0
+    for index in range(start, len(body)):
+        char = body[index]
+        if char in "{[":
+            depth += 1
+        elif char in "}]":
+            depth -= 1
+            if depth < 0:
+                break
+        elif char == "\n" and depth == 0:
+            chunk = body[start:index]
+            lines = chunk.split("\n")
+            if len(lines) > 1 and re.match(r"[ \t]*[A-Za-z_][A-Za-z0-9_]*: ", lines[-1]):
+                die(f"Desktop update preload 的 {name} 不是独立方法，停止构建，避免错误修改上游源码。")
+            if "ipcRenderer.invoke" in chunk and chunk.rstrip().endswith(","):
+                return indent, start, index
+    die(f"无法安全替换 Desktop update preload 的 {name}，停止构建，避免错误修改上游源码。")
+
+
+def stub_update_method(indent: str, name: str) -> str:
+    if name == "check":
+        return (
+            f"{indent}// Hermes standalone Linux AppImage: disable source-checkout desktop self-update.\n"
+            f"{indent}// AppImage updates are distributed through the packaging repository release.\n"
+            f"{indent}check: _opts => Promise.resolve(null),"
+        )
+    if name == "apply":
+        return (
+            f"{indent}apply: _opts =>\n"
+            f"{indent}  Promise.resolve({{\n"
+            f"{indent}    ok: false,\n"
+            f"{indent}    error: 'unavailable',\n"
+            f"{indent}    message: 'Desktop self-update is disabled for this standalone AppImage.'\n"
+            f"{indent}  }}),"
+        )
+    if name == "getBranch":
+        return f"{indent}getBranch: () => Promise.resolve(null),"
+    if name in ("setBranch", "setChannel"):
+        return f"{indent}{name}: _name => Promise.resolve(null),"
+    die(f"未知的 Desktop update 方法：{name}")
+
+
+def disable_preload_self_update(preload_text: str) -> str:
+    marker = "Hermes standalone Linux AppImage: disable source-checkout desktop self-update"
+    if marker in preload_text:
+        return preload_text
+    start, end = updates_object_span(preload_text)
+    body = preload_text[start:end]
+    replaced_setter = False
+    for name in ("check", "apply", "setChannel", "setBranch", "getBranch"):
+        found = method_span(body, name)
+        if found is None:
+            if name in ("check", "apply"):
+                die(f"无法唯一定位 Desktop update preload 的 {name}，停止构建，避免错误修改上游源码。")
+            continue
+        indent, method_start, method_end = found
+        body = body[:method_start] + stub_update_method(indent, name) + body[method_end:]
+        if name in ("setChannel", "setBranch", "getBranch"):
+            replaced_setter = True
+    if not replaced_setter:
+        die("无法定位 Desktop 更新通道或分支开关，停止构建，避免留下可用的源码自更新。")
+    return preload_text[:start] + body + preload_text[end:]
+
+
+def hide_jsx_line(text: str, pattern: str) -> tuple[str, int]:
+    matches = list(re.finditer(pattern, text, re.M))
+    if len(matches) > 1:
+        die("无法唯一定位 About 的 Desktop 更新入口，停止构建，避免错误修改上游源码。")
+    if not matches:
+        return text, 0
+    indent = re.match(r"[ \t]*", matches[0].group(0)).group(0)
+    return text[: matches[0].start()] + f"{indent}{{null}}" + text[matches[0].end() :], 1
+
+
+def drop_update_channel_import(text: str) -> str:
+    if "<UpdateChannelRow" in text:
+        return text
+    text, _count = re.subn(
+        r"^import\s*\{[^}\n]*\bUpdateChannelRow\b[^}\n]*\}\s*from\s*['\"][^'\"]+['\"]\s*;?\n",
+        "",
+        text,
+        count=1,
+        flags=re.M,
+    )
+    if "UpdateChannelRow" in text:
+        die("已隐藏更新通道开关，但仍有 UpdateChannelRow 引用，停止构建。")
+    return text
 
 
 if len(sys.argv) != 2:
@@ -157,47 +275,8 @@ if context_text.count(native_locale_fallback) != 1:
     die("无法确认上游 Desktop 系统语言回退逻辑，停止构建，避免覆盖新的 i18n 实现。")
 
 preload_path = root / "apps/desktop/electron/preload.ts"
-preload_text = preload_path.read_text(encoding="utf-8")
-update_bridge_marker = "Hermes standalone Linux AppImage: disable source-checkout desktop self-update"
-if update_bridge_marker not in preload_text:
-    update_bridge_candidates = (
-        (
-            "  updates: {\n"
-            "    check: opts => ipcRenderer.invoke('hermes:updates:check', opts),\n"
-            "    apply: opts => ipcRenderer.invoke('hermes:updates:apply', opts),\n"
-            "    getBranch: () => ipcRenderer.invoke('hermes:updates:branch:get'),\n"
-            "    setBranch: name => ipcRenderer.invoke('hermes:updates:branch:set', name),\n"
-        ),
-        (
-            "  updates: {\n"
-            "    check: () => ipcRenderer.invoke('hermes:updates:check'),\n"
-            "    apply: opts => ipcRenderer.invoke('hermes:updates:apply', opts),\n"
-            "    getBranch: () => ipcRenderer.invoke('hermes:updates:branch:get'),\n"
-            "    setBranch: name => ipcRenderer.invoke('hermes:updates:branch:set', name),\n"
-        ),
-    )
-    matching_update_bridges = [
-        candidate for candidate in update_bridge_candidates if preload_text.count(candidate) == 1
-    ]
-    if len(matching_update_bridges) != 1:
-        die("无法唯一定位 Desktop update preload bridge，停止构建，避免错误修改上游源码。")
-    old_update_bridge = matching_update_bridges[0]
-    new_update_bridge = (
-        "  updates: {\n"
-        "    // Hermes standalone Linux AppImage: disable source-checkout desktop self-update.\n"
-        "    // AppImage updates are distributed through the packaging repository release.\n"
-        "    check: _opts => Promise.resolve(null),\n"
-        "    apply: _opts =>\n"
-        "      Promise.resolve({\n"
-        "        ok: false,\n"
-        "        error: 'unavailable',\n"
-        "        message: 'Desktop self-update is disabled for this standalone AppImage.'\n"
-        "      }),\n"
-        "    getBranch: () => Promise.resolve(null),\n"
-        "    setBranch: _name => Promise.resolve(null),\n"
-    )
-    preload_text = preload_text.replace(old_update_bridge, new_update_bridge, 1)
-    preload_path.write_text(preload_text, encoding="utf-8")
+preload_text = disable_preload_self_update(preload_path.read_text(encoding="utf-8"))
+preload_path.write_text(preload_text, encoding="utf-8")
 
 about_path = root / "apps/desktop/src/app/settings/about-settings.tsx"
 about_text = about_path.read_text(encoding="utf-8")
@@ -224,8 +303,28 @@ if about_marker not in about_text:
         '            </a>\n'
         '          </Button>\n'
     )
-    client_update_card = '          <UpdateStatusCard target="client" />\n'
-    if about_text.count(version_anchor) == 1:
+    client_update_card = re.compile(r"^[ \t]*<UpdateStatusCard target=\"client\" />[ \t]*$", re.M)
+    channel_row = re.compile(r"^[ \t]*<UpdateChannelRow />[ \t]*$", re.M)
+    if client_update_card.search(about_text) or channel_row.search(about_text):
+        # v0.21.6 起 About 页不再用 ListRow。只拿掉 Desktop 自己的更新入口，
+        # 远程后端的 UpdateStatusCard 保持原样。通道开关从 v0.21.7 起出现。
+        about_text, card_count = hide_jsx_line(about_text, client_update_card.pattern)
+        about_text, channel_count = hide_jsx_line(about_text, channel_row.pattern)
+        if card_count + channel_count < 1:
+            die("无法唯一定位 About 的 Desktop 更新入口，停止构建，避免错误修改上游源码。")
+        about_text = re.sub(
+            r"^([ \t]*)\{null\}$",
+            lambda match: (
+                f"{match.group(1)}{{/* Hermes standalone Linux AppImage: hide source-checkout desktop update controls. */}}\n"
+                f"{match.group(1)}{{null}}"
+            ),
+            about_text,
+            count=1,
+            flags=re.M,
+        )
+        about_text = drop_update_channel_import(about_text)
+        about_path.write_text(about_text, encoding="utf-8")
+    elif about_text.count(version_anchor) == 1:
         about_text = about_text.replace(version_anchor, version_anchor + release_notes_button, 1)
 
         updates_open = '        <SectionHeading icon={RefreshCw} title={a.updates} />\n'
@@ -258,16 +357,6 @@ if about_marker not in about_text:
         )
         about_text = about_text.replace(updates_open, update_wrapper_open + updates_open, 1)
         about_text = about_text.replace(updates_close, updates_close + '        </div>\n', 1)
-        about_path.write_text(about_text, encoding="utf-8")
-    elif about_text.count(client_update_card) == 1:
-        # v0.21.6 起 About 页不再用 ListRow，Desktop 自更新是 UpdateStatusCard。
-        # 只拿掉这一张卡片，远程后端更新保持原样。
-        about_text = about_text.replace(
-            client_update_card,
-            "          {/* Hermes standalone Linux AppImage: hide source-checkout desktop update controls. */}\n"
-            "          {null}\n",
-            1,
-        )
         about_path.write_text(about_text, encoding="utf-8")
     else:
         die("无法唯一定位 About 的 Desktop 更新入口，停止构建，避免错误修改上游源码。")
@@ -415,6 +504,7 @@ for forbidden in (
     "ipcRenderer.invoke('hermes:updates:apply'",
     "ipcRenderer.invoke('hermes:updates:branch:get')",
     "ipcRenderer.invoke('hermes:updates:branch:set'",
+    "ipcRenderer.invoke('hermes:updates:channel:set'",
 ):
     if forbidden in preload_final:
         die(f"补丁校验失败：preload 仍包含源码自更新 IPC：{forbidden}")

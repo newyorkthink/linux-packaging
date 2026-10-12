@@ -33,7 +33,7 @@
 - 对应 GitHub Actions Run：`34662458787`，其中 `Build Hermes Desktop` 已成功完成并把 `hermes-desktop.AppImage` 上传到 `latest` Release。
 - CI 对最终 AppImage 的实际运行结果为：检测到 `gnome-libsecret`，`safeStorage encryptionAvailable=true`，加密/解密往返 `roundTrip=true`，中文 locale 为 `zh-CN`；该次产物 SHA-256 为 `bc73db99007f769cd7b13263c3cd22329c30c98b52078047214955c45fffacce`。
 - Linux 实机验证已确认最终 AppImage 能直接启动图形界面，中文界面正常，会话与对话功能可用。
-- 上游 `v2026.9.11` 已在 Desktop i18n 中原生使用机器 locale 作为未保存语言时的回退；当前补丁不再覆盖这段上游逻辑，只校验其仍存在。Desktop update preload bridge 同时兼容当前带 `opts` 的签名和旧版无参数签名。
+- 上游 `v2026.9.11` 已在 Desktop i18n 中原生使用机器 locale 作为未保存语言时的回退；当前补丁不再覆盖这段上游逻辑，只校验其仍存在。Desktop update preload bridge 按方法名停用 `check`、`apply`，以及 `setChannel` 或旧的 `getBranch` / `setBranch`，不再锁定整段函数签名。
 - 当前启动日志中的 Fontconfig cache 版本提示、systemd `UnitExists`、IBus surrounding-text 警告以及 Electron deprecated 提示，在上述成功启动和功能验证中均未造成实际故障；不得仅为消除这些非致命日志改动当前稳定打包链。
 
 ## 上游兼容修复记录（2026-09-22）
@@ -53,7 +53,7 @@
 ## 上游兼容修复记录（2026-10-08）
 
 - 上游最新稳定版从日期标签 `v2026.9.24` 改成了 `v0.21.6`。构建不再检查标签是不是 `v年.月.日`，`releases/latest` 返回的稳定 tag 都会打。
-- `v0.21.6` 的 About 页改成 `UpdateStatusCard`。补丁只去掉 Desktop 自己的更新卡片，远程后端更新保留。旧的 `ListRow` 写法仍然接受。
+- `v0.21.6` 的 About 页改成 `UpdateStatusCard`，`v0.21.7` 又加了 `UpdateChannelRow`。补丁只去掉 Desktop 自己的更新入口和通道开关，远程后端更新保留。旧的 `ListRow` 写法仍然接受。
 - `v0.21.6` 的打包脚本在命令行带 `--x64` 时，会把原生依赖写到 `apps/desktop/build/native-deps-linux-x64`，上游自己的输出检查拒绝这个目录。构建不再传 `--x64`，由 x64 构建机使用允许的 `native-deps` 目录。
 - 同一版把 `icon-tool.js` 复制到 `apps/desktop` 下面后，Node 会按 ES 模块执行它，`require` 直接报错。复制后补一个 CommonJS 的 `package.json`。
 - `v0.21.6` 的 electron-builder 读取 `electron-builder.config.cjs`。只改 `package.json` 时，内置 `libsecret` 和 AppImage hook 都不会进包。补丁改这个配置文件。
