@@ -41,7 +41,7 @@
 | 当前项目类型 | 优先参考 |
 | --- | --- |
 | 普通 ELF / CLI | MediaInfo、Poppler Utils、Alacritty |
-| Qt 应用 | PeaZip、XnConvert、XnView MP |
+| Qt 应用 | PeaZip、XnView MP |
 | GTK 应用 | Joplin、百度网盘、Rainlendar2、RealVNC RVNC Connect |
 | GTK + GStreamer / 多插件应用 | Remmina，并同时参考一个普通 GTK 项目 |
 | GSettings、dconf、locale 或多入口应用 | dconf Editor、Poppler Utils，并结合相同技术栈项目 |

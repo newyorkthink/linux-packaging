@@ -17,8 +17,8 @@
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
 | `ARCH` | 告诉 linuxdeploy 和 appimagetool 打 x86_64。 | 80 个脚本，例如 Keyviz、adspower-global、aionui |
-| `QMAKE` | 告诉 linuxdeploy 的 Qt 插件用哪个 qmake。Qt5 和 Qt6 不能混。 | 4 个脚本，例如 peazip、wemeet、xnconvert |
-| `QT_SELECT` | 构建机上有多套 Qt 时，指定用 qt5 还是 qt6。 | 3 个脚本，例如 wemeet、xnconvert、xnviewmp |
+| `QMAKE` | 告诉 linuxdeploy 的 Qt 插件用哪个 qmake。Qt5 和 Qt6 不能混。 | 4 个脚本，例如 goldendict、peazip、wemeet、xnviewmp |
+| `QT_SELECT` | 构建机上有多套 Qt 时，指定用 qt5 还是 qt6。 | 3 个脚本，例如 goldendict、wemeet、xnviewmp |
 | `DEPLOY_GTK_VERSION` | linuxdeploy 的 GTK 插件打哪一代。现有脚本都是 3。 | 6 个脚本，例如 baidunetdisk、binance、joplin |
 | `APPIMAGE_EXTRACT_AND_RUN` | 让 AppImage 先解包再跑，不靠 FUSE。只在构建机使用，不写进最终包。 | 10 个脚本，例如 kitty、mediainfo、poppler-utils |
 | `LDAI_OUTPUT` | linuxdeploy 中间 AppImage 的输出路径。这个文件不进发布目录。 | 3 个脚本，例如 mediainfo、poppler-utils |
@@ -109,7 +109,7 @@
 | `QT_QPA_PLATFORMTHEME` | Qt 平台主题，用来跟桌面外观。例如 qt6ct。 | 2 个脚本，例如 kde-suite、peazip |
 | `QT_IM_MODULE` | Qt 输入法模块，常见是 fcitx 或 ibus。 | 5 个脚本，例如 dingtalk、kde-suite、mailmaster、xnviewmp |
 | `QT_IM_MODULES` | Qt 6.7 及更新版本的输入法模块列表，分号分隔，优先于 QT_IM_MODULE。XnView 固定为 ibus，避免宿主的 wayland;fcitx 盖掉自带 IBus 插件。 | xnviewmp |
-| `QT_TRANSLATIONS_PATH` | Qt 翻译文件目录。 | 3 个脚本，例如 peazip、xnconvert、xnviewmp |
+| `QT_TRANSLATIONS_PATH` | Qt 翻译文件目录。 | 3 个脚本，例如 goldendict、peazip、xnviewmp |
 | `QML_IMPORT_PATH` | QML 模块目录。 | 3 个脚本，例如 kde-suite、xnviewmp |
 | `QML2_IMPORT_PATH` | Qt5 的 QML 模块目录。 | 3 个脚本，例如 kde-suite、xnviewmp |
 | `QML_DISABLE_DISK_CACHE` | 禁止 Qt Quick 写磁盘缓存。 | kde-suite |
