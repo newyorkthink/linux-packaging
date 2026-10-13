@@ -66,6 +66,8 @@ Grok App Linux 桌面端是 Tauri 2 / wry 程序，链接 GTK 3 与 WebKitGTK 4.
 
 构建目录中的对应文件是 `dist/grok-app.AppImage`。程序仍需要本机的 Grok Build CLI，以及发行版安装的 `bubblewrap`（`/usr/bin/bwrap`）。沙箱策略仍由 Grok CLI 决定，本目录不把沙箱关掉。`bwrap: unknown cap: --proc` 已由 `15-grok-host-bwrap.hook` 修好，2026-10-07 实机确认 CLI 使用 `/usr/bin/bwrap`。包内 `bin/bwrap` 留给 WebKit，不删除。用户命名空间和 WebKit 显示问题沿用官方说明。
 
+会话能正常结束，但说某个目录写不进去、要先加进可写目录：沙箱在生效，不是 AppImage 坏了。`workspace` 默认可写当前工作目录、`~/.grok/` 和临时目录。目标不在这份范围里就会被拦住。把该目录加进 Grok 的额外可写根，不要重打 `grok-app.AppImage`，也不要改 `15-grok-host-bwrap.hook`。这和 `bwrap: unknown cap: --proc` 不是同一件事。
+
 ## 托盘图标
 
 Linux 托盘图标由上游编译进 `grok-app`，本目录不替换。深色状态栏上可能看不见，托盘菜单仍可用。不是缺 `libayatana-appindicator`，也不需要 `librsvg`。
@@ -98,5 +100,11 @@ Linux 托盘图标由上游编译进 `grok-app`，本目录不替换。深色状
 - **核查：** 解出的 AppImage 含 `AppDir/bin/15-grok-host-bwrap.hook`。宿主有 `/usr/bin/bwrap` 时，PATH 把 `/usr/bin` 和 `/bin` 放在包内 bin 前面。`AppDir/bin/bwrap` 仍在，是 WebKit 用的 sharun 包装，不删除。
 - **实机：** 沙箱内执行命令，输出 `sandbox-ok` 和 `/usr/bin/bwrap`。没有 `bwrap: unknown cap: --proc`，没有 `SANDBOX_BLOCKED`。回合以 `stop=end_turn` 正常结束。
 - **不是本问题：** 同一条命令末尾再执行一层 `bwrap`，得到 `exit:1`，stderr 是 `No permissions to create a new namespace`。外层沙箱已经在跑，里面不能再新建 user namespace。不要据此重开 PATH 问题。
-- **结论：** `unknown cap: --proc` 这条已修好。以后没有新的 `unknown cap: --proc` 或 `SANDBOX_BLOCKED`，不要再怀疑 `15-grok-host-bwrap.hook`。
+- **结论：** `unknown cap: --proc` 这条已修好。以后没有新的 `unknown cap: --proc` 或进程秒退时的 `SANDBOX_BLOCKED`，不要再怀疑 `15-grok-host-bwrap.hook`。回合能结束、只是写不进工作区以外的目录，见下一节。
 
+## 2026-10-13：工作区以外的目录写不进去
+
+- **现象：** 界面能开，回合能结束。会话写不进当前工作区以外的库，并说明沙箱拦住了，要先把该库加进可写目录。
+- **核查：** 没有 `bwrap: unknown cap: --proc`，也不是 Agent 进程秒退。宿主 `bwrap` 已在用。Grok CLI 的 `workspace` 沙箱默认可写工作目录、`~/.grok/` 和临时目录。上游 grok-app 用额外可写根放行工作区以外的目录：独立模式由应用写 agent-home 的 `sandbox.toml`；共享模式不改 `~/.grok/`，只在用户自己的 `~/.grok/sandbox.toml` 已经列出这些根时才放行。
+- **处理：** 不改 `build_grok-app.sh`，不重打包。把目录加进可写根。不要为此关掉沙箱，也不要改 `15-grok-host-bwrap.hook`。
+- **验证状态：** 现象来自这次会话原文。默认可写范围来自 Grok CLI 的 `workspace` 说明；额外可写根来自上游 extra-root 改动。这次没有改包，也没有在设置界面再点一遍。
