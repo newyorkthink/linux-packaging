@@ -1,3 +1,13 @@
+# 已归档
+
+2026-10-13 起本目录不再使用，已从 `xnconvert/` 移到 `archive/xnconvert/`。
+
+停用原因：官方 1.118.0 的运行库已是 Qt 6.8.9，包内提供 `libQt6XcbQpa.so.6.8.9`，没有 `libQt5XcbQpa.so*`。日常构建仍按 Qt5 复制该库，因此失败。这个应用用得少，不再单独维护一条 Qt 打包线。不再构建，Release 里的 `xnconvert.AppImage` 已删除。
+
+替代：官方当前 Linux 包，位于 `https://download.xnview.com/versions/XnConvert/` 的最新 `XnConvert-*-linux-x64.deb`。官方同时提供 glibc AppImage。
+
+下面原文保留，只作历史记录。
+
 # XnConvert AppImage
 
 ## 用途与产物

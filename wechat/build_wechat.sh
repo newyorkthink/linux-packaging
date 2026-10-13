@@ -115,7 +115,9 @@ readonly SOURCE_APP_ROOT="$PACKAGE_ROOT/opt/wechat"
 file "$SOURCE_APP_ROOT/wechat" | grep -q 'ELF 64-bit' || \
   die "官方 WeChat 主程序不是 64 位 ELF。"
 
-# 从官方包内自动定位唯一的 WeChat desktop 文件。
+# 官方包里匹配 *wechat*.desktop 的文件不一定都是主启动项。
+# 4.1.13.26 同时带有 com.tencent.wechatappex.desktop：NoDisplay=true，
+# Exec 指向 RadiumWMPF/runtime/WeChatAppEx，不能当作 AppImage 主入口。
 mapfile -d '' desktop_candidates < <(
   find "$PACKAGE_ROOT/usr/share/applications" \
     -maxdepth 1 \
@@ -123,9 +125,16 @@ mapfile -d '' desktop_candidates < <(
     -iname '*wechat*.desktop' \
     -print0
 )
-[[ ${#desktop_candidates[@]} -eq 1 ]] || \
-  die "官方 deb 中应且只能找到一个 WeChat desktop 文件，实际为 ${#desktop_candidates[@]}。"
-readonly SOURCE_DESKTOP="${desktop_candidates[0]}"
+visible_desktops=()
+for desktop_candidate in "${desktop_candidates[@]}"; do
+  if grep -Eq '^NoDisplay=true$' "$desktop_candidate"; then
+    continue
+  fi
+  visible_desktops+=("$desktop_candidate")
+done
+[[ ${#visible_desktops[@]} -eq 1 ]] || \
+  die "官方 deb 中应且只能找到一个可显示的 WeChat desktop 文件，实际为 ${#visible_desktops[@]}。"
+readonly SOURCE_DESKTOP="${visible_desktops[0]}"
 
 # 从官方包内所有 wechat.png 中选择文件体积最大的图标，当前对应 256x256。
 mapfile -d '' icon_candidates < <(

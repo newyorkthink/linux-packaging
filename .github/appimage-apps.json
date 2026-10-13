@@ -899,15 +899,6 @@
       "software_key": "xnview"
     },
     {
-      "key": "xnconvert",
-      "kind": "special",
-      "name": "XnConvert",
-      "script": "xnconvert/build_xnconvert.sh",
-      "dir": "xnconvert",
-      "release_name": "xnconvert.AppImage",
-      "software_key": "xnconvert"
-    },
-    {
       "key": "st",
       "kind": "standard",
       "name": "st",

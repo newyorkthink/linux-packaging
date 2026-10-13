@@ -116,7 +116,6 @@ on:
           - wps-office-cn/build_wps-office-cn.sh
           - xephyr/build_xephyr.sh
           - xmind/build_xmind.sh
-          - xnconvert/build_xnconvert.sh
           - xnviewmp/build_xnviewmp.sh
           - zen/build_zen.sh
           - zotero/build_zotero.sh
@@ -1529,49 +1528,6 @@ jobs:
           version_file: 'workbuddy/dist/version.txt'
           asset_name: 'workbuddy.AppImage'
           artifact_dir: 'workbuddy/dist'
-          github_token: ${{ github.token }}
-
-
-  build_xnconvert:
-    name: Build XnConvert
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).xnconvert == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Build XnConvert AppImage
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          chmod +x xnconvert/build_xnconvert.sh
-          ./xnconvert/build_xnconvert.sh
-          test -s xnconvert/dist/xnconvert.AppImage
-      - name: Upload software version metadata
-        uses: actions/upload-artifact@v4
-        with:
-          name: software-version-xnconvert
-          path: xnconvert/dist/version.txt
-          if-no-files-found: error
-          retention-days: 1
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          gh release upload latest xnconvert/dist/xnconvert.AppImage --repo "$GITHUB_REPOSITORY" --clobber
-
-      - name: Publish software version immediately
-        uses: ./.github/actions/publish-software-versions
-        with:
-          software_key: 'xnconvert'
-          version_file: 'xnconvert/dist/version.txt'
-          asset_name: 'xnconvert.AppImage'
-          artifact_dir: 'xnconvert/dist'
           github_token: ${{ github.token }}
 
 

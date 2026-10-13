@@ -21,7 +21,6 @@
 | Alacritty | `alacritty/build_alacritty_linuxdeploy.sh` | linuxdeploy |
 | MediaInfo | `mediainfo/build_mediainfo_linuxdeploy.sh` | linuxdeploy |
 | PeaZip | `peazip/build_peazip.sh` | linuxdeploy + Qt 插件 |
-| XnConvert | `xnconvert/build_xnconvert.sh` | linuxdeploy + Qt 插件 |
 | Joplin | `joplin/build_joplin.sh` | linuxdeploy + GTK 插件 |
 | Binance | `binance/build_binance.sh` | linuxdeploy + GTK 插件 |
 | XnView MP | `xnviewmp/build_xnviewmp.sh` | linuxdeploy + Qt 插件 |
