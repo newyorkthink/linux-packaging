@@ -80,12 +80,28 @@ LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
 ENV
 
+# 添加项目由 rfd 选目录：先问 xdg-desktop-portal，失败后再执行 PATH 上的 zenity。
+# i3 上经常没有 org.freedesktop.portal.Desktop。Arch 的 zenity 是 GTK 4，没有 portal 时窗口照样不出现，
+# 还会把 GTK 4 拉进这个 GTK 3 的包。这里改放 zenity-rs 0.3.0 的静态 PIE，没有 DT_NEEDED，自己画选目录窗口。
+# rfd 实际传入 --no-markup、--file-selection、--directory；保存时还有 --save、--confirm-overwrite、--filename、--file-filter。
+# 不交给 quick-sharun，避免打包时改掉它的解释器。bin/zenity 是相对符号链接，留给宿主没有 bwrap、包内 bin 仍在 PATH 最前的情况。
+readonly ZENITY_RS_VERSION="0.3.0"
+readonly ZENITY_RS_SHA256="f7a351180f364501855181420ceecd40b42ff84742ab79eca7aec43fe8ec074a"
+"$SCRIPT_DIR/../common/download/download_file.sh" \
+  "https://github.com/QaidVoid/zenity-rs/releases/download/v${ZENITY_RS_VERSION}/zenity-rs-x86_64-linux" \
+  "$SOURCE_DIR/zenity-rs-${ZENITY_RS_VERSION}-x86_64" \
+  "$ZENITY_RS_SHA256"
+mkdir -p "$APPDIR/bin/filechooser"
+install -m 755 "$SOURCE_DIR/zenity-rs-${ZENITY_RS_VERSION}-x86_64" "$APPDIR/bin/filechooser/zenity"
+ln -sfn filechooser/zenity "$APPDIR/bin/zenity"
+
 # Grok CLI 用 PATH 上的第一个 bwrap。quick-sharun 把包内 bin 放在最前时，
 # 打包工具带入的 bwrap 会把 --proc 当成 capability：bwrap: unknown cap: --proc。
 # 不覆盖 AppRun。宿主没有 /usr/bin/bwrap 时保持原 PATH。
+# 宿主有 bwrap 时，只把 filechooser 放在 /usr/bin 前面。宿主日后装上的 GTK 4 zenity 不能再抢走选目录。
 cat > "$APPDIR/bin/15-grok-host-bwrap.hook" <<'HOOK'
 if [ -x /usr/bin/bwrap ]; then
-  export PATH="/usr/bin:/bin${HOSTPATH:+:$HOSTPATH}:$APPDIR/bin"
+  export PATH="$APPDIR/bin/filechooser:/usr/bin:/bin${HOSTPATH:+:$HOSTPATH}:$APPDIR/bin"
 fi
 HOOK
 

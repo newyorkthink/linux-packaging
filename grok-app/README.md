@@ -36,9 +36,10 @@ Grok App Linux 桌面端是 Tauri 2 / wry 程序，链接 GTK 3 与 WebKitGTK 4.
 4. 沿用官方 desktop，把 `Exec` 改为 `grok-app %U`，补上 `Categories=Development;`。图标使用官方 `128x128` 的 `grok-app.png`。
 5. quick-sharun 收集主程序、`libayatana-appindicator3.so.1`、GTK 3 的 `im-ibus.so` 与 `im-fcitx5.so`。`DEPLOY_GTK`、`DEPLOY_OPENGL` 和 `DEPLOY_WEBKIT2GTK` 打开，`WEBKIT2GTK_DIR` 指向 `/usr/lib/webkit2gtk-4.1`。
 6. 在 quick-sharun 生成的 `.env` 末尾写入包内 `zh_CN.UTF-8`。不写 `LC_ALL`，不写 `GTK_IM_MODULE`，不覆盖 `AppRun`。`.env` 追加内容从 `LANG=` 开始，前面不留空行。
-7. `AppDir/bin/15-grok-host-bwrap.hook` 在宿主存在 `/usr/bin/bwrap` 时，把 `/usr/bin` 和 `/bin` 放到 PATH 最前，包内 bin 留在最后。不删除包内 `bwrap`，也不覆盖 `AppRun`。
-8. 公共协议 hook 注册 `grok://` 和官方 `application/vnd.grok.skin`。
-9. `quick-sharun --make-appimage` 生成 `dist/grok-app.AppImage`，成功后由 `common/build/save_appimage_version.sh` 写入 `dist/version.txt`。
+7. quick-sharun 之后放入 [zenity-rs](https://github.com/QaidVoid/zenity-rs) `0.3.0` 的静态 `x86_64` 二进制，路径是 `AppDir/bin/filechooser/zenity`，`AppDir/bin/zenity` 为相对符号链接。校验 SHA-256 后安装，不交给 quick-sharun。
+8. `AppDir/bin/15-grok-host-bwrap.hook` 在宿主存在 `/usr/bin/bwrap` 时，PATH 依次为包内 `bin/filechooser`、`/usr/bin`、`/bin`、原宿主 PATH、包内 bin。`filechooser` 里只有选目录用的 `zenity`。包内 `bwrap` 仍留在最后，不删除，也不覆盖 `AppRun`。
+9. 公共协议 hook 注册 `grok://` 和官方 `application/vnd.grok.skin`。
+10. `quick-sharun --make-appimage` 生成 `dist/grok-app.AppImage`，成功后由 `common/build/save_appimage_version.sh` 写入 `dist/version.txt`。
 
 统一 workflow 中按标准 matrix 项构建，本项目不使用独立 Job。
 
@@ -67,6 +68,8 @@ Grok App Linux 桌面端是 Tauri 2 / wry 程序，链接 GTK 3 与 WebKitGTK 4.
 构建目录中的对应文件是 `dist/grok-app.AppImage`。程序仍需要本机的 Grok Build CLI，以及发行版安装的 `bubblewrap`（`/usr/bin/bwrap`）。沙箱策略仍由 Grok CLI 决定，本目录不把沙箱关掉。`bwrap: unknown cap: --proc` 已由 `15-grok-host-bwrap.hook` 修好，2026-10-07 实机确认 CLI 使用 `/usr/bin/bwrap`。包内 `bin/bwrap` 留给 WebKit，不删除。用户命名空间和 WebKit 显示问题沿用官方说明。
 
 会话能正常结束，但说某个目录写不进去、要先加进可写目录：沙箱在生效，不是 AppImage 坏了。`workspace` 默认可写当前工作目录、`~/.grok/` 和临时目录。目标不在这份范围里就会被拦住。把该目录加进 Grok 的额外可写根，不要重打 `grok-app.AppImage`，也不要改 `15-grok-host-bwrap.hook`。这和 `bwrap: unknown cap: --proc` 不是同一件事。
+
+点「添加项目」没有窗口：也不是要在宿主上装 zenity 或 xdg-desktop-portal。选目录用包内 `bin/filechooser/zenity`。需要 2026-10-14 这次构建之后的 `grok-app.AppImage`。
 
 ## 托盘图标
 
@@ -108,3 +111,10 @@ Linux 托盘图标由上游编译进 `grok-app`，本目录不替换。深色状
 - **核查：** 没有 `bwrap: unknown cap: --proc`，也不是 Agent 进程秒退。宿主 `bwrap` 已在用。Grok CLI 的 `workspace` 沙箱默认可写工作目录、`~/.grok/` 和临时目录。上游 grok-app 用额外可写根放行工作区以外的目录：独立模式由应用写 agent-home 的 `sandbox.toml`；共享模式不改 `~/.grok/`，只在用户自己的 `~/.grok/sandbox.toml` 已经列出这些根时才放行。
 - **处理：** 不改 `build_grok-app.sh`，不重打包。把目录加进可写根。不要为此关掉沙箱，也不要改 `15-grok-host-bwrap.hook`。
 - **验证状态：** 现象来自这次会话原文。默认可写范围来自 Grok CLI 的 `workspace` 说明；额外可写根来自上游 extra-root 改动。这次没有改包，也没有在设置界面再点一遍。
+
+## 2026-10-14：添加项目没有反应
+
+- **现象：** 输入框上的「添加项目」点下去没有窗口，也没有错误提示。
+- **核查：** 日志是 `rfd` 的两段失败。`org.freedesktop.portal.Desktop` 没有任何 service 提供；退到 `zenity` 时是 `没有那个文件或目录 (os error 2)`。rfd 把失败回成空结果，界面就当成取消。官方 Arch `zenity` 是 GTK 4，没有 portal 时选目录同样不出现，而且会把 GTK 4 拉进这个 GTK 3 的包。不走那条。
+- **处理：** `build_grok-app.sh` 在 quick-sharun 之后装入 zenity-rs `0.3.0` 静态二进制，SHA-256 为 `f7a351180f364501855181420ceecd40b42ff84742ab79eca7aec43fe8ec074a`。位置是 `AppDir/bin/filechooser/zenity`，`AppDir/bin/zenity` 指向它。`15-grok-host-bwrap.hook` 只把 `filechooser` 放到 `/usr/bin` 前面。包内 bin 仍在宿主 `bwrap` 后面，不重开 `unknown cap: --proc`。
+- **验证状态：** 核对了 rfd 传入的参数和 zenity-rs `0.3.0` 的接受范围，并用 `readelf` 确认该二进制没有 `DT_NEEDED`。未在本机跑新的 AppImage。推送后由统一 workflow 构建。
