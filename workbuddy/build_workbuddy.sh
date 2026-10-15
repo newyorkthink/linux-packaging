@@ -15,6 +15,7 @@ rm -rf AppDir dist workbuddy.desktop workbuddy.png
 [[ "$(uname -m)" == "x86_64" ]] || die "this script only supports x86_64 / linux-x64."
 
 # AppImage 构建依赖；WorkBuddy 的 Linux 应用适配继续复用当前 AUR workbuddy 配方。
+# asar 用来读取 app.asar 内的 payload 版本。makepkg 可能清掉仅作为 makedepends 安装的 asar。
 yay -S --noconfirm --needed \
   gcc base-devel git curl jq wget tar gzip binutils patchelf coreutils file p7zip \
   appstream-glib desktop-file-utils util-linux zsync \
@@ -24,7 +25,8 @@ yay -S --noconfirm --needed \
   gcc-libs glibc lsof inetutils \
   libx11 libxext libxi libxrandr libxkbcommon \
   libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau \
-  pulseaudio pulseaudio-alsa pipewire-audio ibus imagemagick
+  pulseaudio pulseaudio-alsa pipewire-audio ibus imagemagick \
+  asar
 
 # AUR 的 .SRCINFO 与 PKGBUILD 曾出现版本不同步；先按 AUR 对外声明版本修正本次临时 PKGBUILD。
 AUR_BUILD_PARENT="$(mktemp -d)"
@@ -86,10 +88,11 @@ INSTALLED_PKGVER="${VERSION%-*}"
   die "installed WorkBuddy package version mismatch: $INSTALLED_PKGVER != $EXPECTED_PKGVER"
 
 PACKAGE_FILES="$(pacman -Qlq workbuddy)"
-APP_PACKAGE_JSON="$(awk '/\/app\.asar\.unpacked\/package\.json$/ && !found {print; found=1}' <<< "$PACKAGE_FILES")"
-[[ -f "$APP_PACKAGE_JSON" ]] || die "WorkBuddy app.asar.unpacked/package.json was not found."
+APP_ASAR="$(awk '/\/resources\/app\.asar$/ && !found {print; found=1}' <<< "$PACKAGE_FILES")"
+[[ -f "$APP_ASAR" ]] || die "WorkBuddy resources/app.asar was not found."
+command -v asar >/dev/null 2>&1 || die "asar is required to read the WorkBuddy payload version."
 
-APP_PAYLOAD_VERSION="$(jq -r '.version // empty' "$APP_PACKAGE_JSON")"
+APP_PAYLOAD_VERSION="$(asar extract-file "$APP_ASAR" package.json | jq -r '.version // empty')"
 APP_PAYLOAD_VERSION="${APP_PAYLOAD_VERSION#v}"
 EXPECTED_VERSION_BASE="${EXPECTED_PKGVER%%_*}"
 IFS='.' read -r EXPECTED_MAJOR EXPECTED_MINOR EXPECTED_PATCH _ <<< "$EXPECTED_VERSION_BASE"
@@ -97,43 +100,31 @@ EXPECTED_APP_VERSION="$EXPECTED_MAJOR.$EXPECTED_MINOR.$EXPECTED_PATCH"
 [[ "$APP_PAYLOAD_VERSION" == "$EXPECTED_APP_VERSION" || "$APP_PAYLOAD_VERSION" == "$EXPECTED_APP_VERSION".* ]] || \
   die "WorkBuddy payload version mismatch: $APP_PAYLOAD_VERSION != $EXPECTED_APP_VERSION"
 
-APP_PAYLOAD_DIR="$(dirname "$APP_PACKAGE_JSON")"
-AUR_RESOURCE_ROOT="$(dirname "$APP_PAYLOAD_DIR")"
-
-# AUR 使用系统 Electron；把对应主版本的完整 runtime 收进 AppImage。
-ELECTRON_VERSION="$(electron --no-sandbox --version)"
-ELECTRON_MAJOR="${ELECTRON_VERSION#v}"
-ELECTRON_MAJOR="${ELECTRON_MAJOR%%.*}"
-ELECTRON_ROOT="/usr/lib/electron${ELECTRON_MAJOR}"
-[[ -x "$ELECTRON_ROOT/electron" && -d "$ELECTRON_ROOT/resources" ]] || \
-  die "Electron runtime is incomplete: $ELECTRON_ROOT"
+RESOURCE_DIR="$(dirname "$APP_ASAR")"
+UPSTREAM_ROOT="$(dirname "$RESOURCE_DIR")"
+[[ "$(basename "$RESOURCE_DIR")" == "resources" ]] || \
+  die "WorkBuddy app.asar is not inside a resources directory: $APP_ASAR"
+[[ -x "$UPSTREAM_ROOT/workbuddy" ]] || \
+  die "WorkBuddy upstream executable was not found: $UPSTREAM_ROOT/workbuddy"
+[[ -d "$UPSTREAM_ROOT/locales" ]] || \
+  die "WorkBuddy locales were not found: $UPSTREAM_ROOT/locales"
+[[ -d "$RESOURCE_DIR/app.asar.unpacked" ]] || \
+  die "WorkBuddy app.asar.unpacked was not found: $RESOURCE_DIR/app.asar.unpacked"
 
 echo "WorkBuddy package version: $VERSION"
 echo "WorkBuddy payload version: $APP_PAYLOAD_VERSION"
-echo "WorkBuddy payload: $APP_PAYLOAD_DIR"
-echo "Electron runtime: $ELECTRON_ROOT"
+echo "WorkBuddy payload: $APP_ASAR"
+echo "WorkBuddy runtime: $UPSTREAM_ROOT"
 
 mkdir -p AppDir/bin dist
-cp -a "$ELECTRON_ROOT"/. AppDir/bin/
+cp -a "$UPSTREAM_ROOT"/. AppDir/bin/
 
-# Arch Electron 的可选 Qt6 主题 shim 不作为 AppImage 必需依赖。
+# Arch Electron 的可选 Qt6 主题 shim 不作为 AppImage 必需依赖。官方运行时通常没有该文件。
 rm -f AppDir/bin/libqt6_shim.so
 
-rm -rf AppDir/bin/resources/app.asar.unpacked
-cp -a "$APP_PAYLOAD_DIR" AppDir/bin/resources/app.asar.unpacked
-APPDIR_PAYLOAD="AppDir/bin/resources/app.asar.unpacked"
-
-# AUR 为系统安装把 process.resourcesPath 改成 /opt 下资源目录；
-# AppImage 内恢复 process.resourcesPath，避免挂载路径变化后资源失效。
-AUR_RESOURCE_LITERAL="'$AUR_RESOURCE_ROOT'"
-while IFS= read -r -d '' patched_file; do
-  sed -i "s#$AUR_RESOURCE_LITERAL#process.resourcesPath#g" "$patched_file"
-done < <(grep -RIlZ --fixed-strings "$AUR_RESOURCE_LITERAL" "$APPDIR_PAYLOAD" 2>/dev/null || true)
-
-if grep -RIq --fixed-strings "$AUR_RESOURCE_LITERAL" "$APPDIR_PAYLOAD" 2>/dev/null; then
-  die "hard-coded AUR resource root remains: $AUR_RESOURCE_LITERAL"
-fi
-
+# 官方二进制本身就是 Electron，resources/app.asar 在它旁边。
+# 改名后由同目录的壳补上 CI 参数，避免覆盖官方文件名。
+mv AppDir/bin/workbuddy AppDir/bin/workbuddy.bin
 cat > AppDir/bin/workbuddy <<'EOF_WRAPPER'
 #!/usr/bin/env bash
 set -e
@@ -141,12 +132,19 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 export ELECTRON_FORCE_IS_PACKAGED=1
 
 if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
-  exec "$HERE/electron" --disable-dev-shm-usage "$HERE/resources/app.asar.unpacked" "$@"
+  exec "$HERE/workbuddy.bin" --disable-dev-shm-usage "$@"
 fi
 
-exec "$HERE/electron" "$HERE/resources/app.asar.unpacked" "$@"
+exec "$HERE/workbuddy.bin" "$@"
 EOF_WRAPPER
 chmod +x AppDir/bin/workbuddy
+
+# 旧 AUR 会把 process.resourcesPath 写成单引号资源根。当前官方包不再这样做。
+# 若解包目录又出现该字面量，停止构建，避免 AppImage 挂载路径变化后资源失效。
+QUOTED_RESOURCE_ROOT="'${UPSTREAM_ROOT}/resources'"
+if grep -RIq --fixed-strings "$QUOTED_RESOURCE_ROOT" AppDir/bin/resources/app.asar.unpacked 2>/dev/null; then
+  die "WorkBuddy payload still hard-codes the AUR resource root: $QUOTED_RESOURCE_ROOT"
+fi
 
 # 直接复用 AUR desktop；只替换 launcher 前缀，保留 Desktop Actions 的 URI 参数和图标。
 INSTALLED_DESKTOP="$(awk '/\/applications\/[^/]*workbuddy[^/]*\.desktop$/ && !found {print; found=1}' <<< "$PACKAGE_FILES")"

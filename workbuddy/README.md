@@ -6,7 +6,7 @@
 
 使用当前 AUR `workbuddy` 包作为 Linux 适配来源。
 
-当前 AUR 配方直接下载 WorkBuddy 官方 Linux x64 DEB，并使用系统 `electron` 启动展开后的 `app.asar.unpacked`。因此本仓库不重复修补或裁剪 `node-pty`、`better-sqlite3` 等 Linux native module，只处理 AUR 临时构建版本一致性和 AppImage 便携化所需的路径、Electron runtime、desktop、图标与依赖部署。
+当前 AUR 配方直接下载 WorkBuddy 官方 Linux x64 DEB，安装官方自带的 Electron 运行时，应用入口是 `resources/app.asar`。`app.asar.unpacked` 只包含官方已拆出的 native module，根上没有应用 `package.json`。因此本仓库不重复修补或裁剪 `node-pty`、`better-sqlite3` 等 Linux native module，只处理 AUR 临时构建版本一致性，并把官方运行时、desktop、图标和依赖收进 AppImage。
 
 **本仓库不锁定 WorkBuddy 版本。**
 
@@ -31,8 +31,8 @@ pacman -Qlq workbuddy
 ## 技术栈
 
 - 上游应用：WorkBuddy 官方 Linux x64 DEB。
-- AUR：负责官方 Linux 包来源、Electron payload 展开和 Linux 系统安装适配。
-- Runtime：Arch `electron` 包提供的完整 Electron runtime。
+- AUR：负责官方 Linux 包来源和系统安装适配。当前配方不再把 `app.asar` 展开成应用目录。
+- Runtime：官方 DEB 自带的完整 Electron 运行时，与 `resources/app.asar` 放在同一安装根目录。不再用 Arch `electron` 包代替。
 - AppImage：使用 `quick-sharun` 部署运行库并生成最终单文件。
 - 目标架构：Linux x86_64。
 
@@ -42,10 +42,10 @@ pacman -Qlq workbuddy
 
 1. 安装构建依赖并临时克隆当前 AUR `workbuddy`。
 2. 从 `.SRCINFO` 动态取得 AUR 对外发布版本，确认 Linux x64 DEB source 与该版本一致；若 `PKGBUILD` 初始 `pkgver` 滞后，只在临时副本中修正，并固定本次 `pkgver()` 返回同一版本。
-3. 使用修正后的当前 AUR 配方执行 `makepkg`，安装完成后同时校验 `pacman` 包版本和 `app.asar.unpacked/package.json` payload 主版本，任一不一致都停止构建。
-4. 从 `pacman -Qlq` 动态取得 `app.asar.unpacked`、desktop 和图标。
-5. 根据系统 Electron 主版本复制完整 `/usr/lib/electron<主版本>` runtime，保留 `locales`、`resources`、snapshot 等文件。
-6. AUR 为系统安装会把 `process.resourcesPath` 替换为 `/opt` 下资源目录；复制进 AppImage 后恢复为 `process.resourcesPath`，避免 AppImage 挂载路径变化导致资源失效。
+3. 使用修正后的当前 AUR 配方执行 `makepkg`，安装完成后同时校验 `pacman` 包版本和 `app.asar` 内 `package.json` 的 payload 主版本，任一不一致都停止构建。
+4. 从 `pacman -Qlq` 动态取得 `resources/app.asar`，再推导官方运行时根目录、desktop 和图标。运行时根目录必须同时包含可执行文件 `workbuddy`、`locales` 和 `resources/app.asar.unpacked`。
+5. 复制完整官方运行时到 `AppDir/bin`，保留 `locales`、`resources`、snapshot 等文件。官方二进制改名为 `workbuddy.bin`，由同目录的 `workbuddy` 壳启动；Electron 按可执行文件旁边的 `resources/app.asar` 加载应用。GitHub Actions 中该壳追加 `--disable-dev-shm-usage`。
+6. 若解包目录仍含 AUR 曾经写入的单引号资源根 `'$安装根/resources'`，停止构建。当前官方包不再改写 `process.resourcesPath`，因此不再对 payload 做整树替换。麒麟 `sourceInstallDir` 等发行版元数据保留不动。
 7. 直接复用 AUR desktop，只把 `Exec=/usr/bin/workbuddy...` 前缀改为 `Exec=workbuddy...`，保留 Desktop Actions 原有 URI 参数和图标。
 8. 复制 desktop icon，并把托盘图标放到 WorkBuddy Linux AppIndicator 实际读取的 `.workbuddy-linux/workbuddy.png`。
 9. 使用 `quick-sharun` 部署 Electron 运行库、输入法、NSS、`ln`、`grep` 等已确认需要的运行项并生成 AppImage。
@@ -56,15 +56,15 @@ pacman -Qlq workbuddy
 
 2026-08-28 的旧基线解决了当时 WorkBuddy 非完整 Linux payload 下的 native module、资源路径和托盘图标问题。
 
-自 2026-09-03 起，AUR `workbuddy` 已改用官方 Linux DEB，因此当前基线调整为：
+自 2026-10-15 起，官方 DEB 自带 Electron，应用入口改为 `resources/app.asar`。在 2026-09-03 官方 Linux DEB 基线之上，当前基线为：
 
 - WorkBuddy Linux 应用适配继续由 AUR 配方负责，本仓库只补 AUR 临时构建版本一致性并做 AppImage 便携化。
 - 继续动态读取版本和安装布局，不锁版本、不写死 `/opt/workbuddy` 或 `/opt/WorkBuddy`。
 - AUR `.SRCINFO` 与 `PKGBUILD` 初始 `pkgver` 必须在 source 下载前保持一致；不能只相信最终 `pacman -Q` 的包版本。
 - 最终安装 payload 版本必须与本次 AUR 对外发布版本一致，否则停止构建，不能发布“新版本号 + 旧 payload”的 AppImage。
 - **当前 AUR 临时版本修正逻辑属于 workaround。** 后续确认 AUR `PKGBUILD` 初始 `pkgver` 与 `.SRCINFO` 已恢复一致，且 source 能直接解析到同版本官方 Linux x64 DEB 后，应删除临时 clone、`sed` 修正及覆盖 `pkgver()` 的逻辑，恢复 `yay -S --noconfirm --needed workbuddy` 直接安装；安装后的 payload 版本一致性校验继续保留，防止再次出现元数据与实际应用版本错配。
-- 继续保留 Electron 完整 runtime。
-- 继续把 AUR 系统安装目录硬编码恢复成 `process.resourcesPath`。
+- 继续保留官方 Electron 完整 runtime，不再改用 Arch `electron` 包。
+- 不再把 `process.resourcesPath` 整树改回。只在解包目录出现旧式单引号资源根时停止构建。
 - 继续保留托盘图标路径、CI `/dev/shm` 处理以及 `quick-sharun` 中的 `/usr/bin/ln`、`/usr/bin/grep`。
 - 不再重复处理 `node-pty`、`better-sqlite3` 等 AUR 已经负责的 Linux native module。
 - AUR desktop 的 Desktop Actions 必须保留原有 URI 参数，不能把所有 `Exec=` 行统一覆盖成同一条命令。
@@ -94,10 +94,10 @@ workbuddy.AppImage
 - **不要锁 WorkBuddy 版本。** 始终从当前 AUR `.SRCINFO` 动态取得本次对外发布版本。
 - **不要直接假设 AUR `PKGBUILD` 初始 `pkgver` 与 `.SRCINFO` 一致。** source 数组会在 `pkgver()` 更新版本前解析；初始版本滞后会下载旧 DEB，再生成带新版本号的软件包。
 - **不要长期保留已失效的 AUR workaround。** 一旦 AUR `PKGBUILD` 初始 `pkgver`、`.SRCINFO` 与对应官方 DEB source 已恢复一致，应回到直接安装 AUR 包的简单流程；但仍保留 payload 版本一致性校验作为防回归保护。
-- **不要只看 `pacman -Q workbuddy` 判断 payload 是否正确。** 同时检查 `app.asar.unpacked/package.json`，防止软件包元数据与实际应用版本错配。
-- **不要写死 AUR 安装路径。** 从 `pacman -Qlq workbuddy` 动态定位 `app.asar.unpacked/package.json`，再推导资源根目录。
-- **不要要求安装结果必须存在 `app.asar`。** 当前打包入口是 AUR 已展开的 `app.asar.unpacked`。
-- **资源路径不能保留 AUR 系统安装目录硬编码。** payload 中的 AUR 资源根目录需要恢复为 `process.resourcesPath`。
+- **不要只看 `pacman -Q workbuddy` 判断 payload 是否正确。** 同时用 `asar extract-file` 检查 `resources/app.asar` 内的 `package.json`，防止软件包元数据与实际应用版本错配。
+- **不要写死 AUR 安装路径。** 从 `pacman -Qlq workbuddy` 动态定位 `resources/app.asar`，再推导运行时根目录。
+- **不要要求安装结果必须存在 `app.asar.unpacked/package.json`。** 当前入口是官方 `resources/app.asar`；`app.asar.unpacked` 只放 native module。
+- **不要把麒麟 `sourceInstallDir` 当成需要改写的运行时路径。** 它是发行版打包元数据。旧式需要处理的只有单引号资源根 `'$安装根/resources'`。
 - **Electron runtime 不能只复制单个可执行文件。** 必须保留 `locales`、`resources`、snapshot 等完整运行文件。
 - **不要把 `libqt6_shim.so` 当成必需依赖。** 它属于可选 Qt 原生主题 shim，不应因此引入整套 Qt6。
 - **不要重复修补 AUR 已完成的 Linux native module。** 当前 AUR 已基于官方 Linux DEB 处理 Linux payload；AppImage 层不再自行查找、裁剪或替换 native module。
@@ -107,6 +107,15 @@ workbuddy.AppImage
 - **`ln` 和 `grep` 必须作为 `quick-sharun` 输入显式部署。** 否则目标 Linux 环境下可能出现 `/bin/sh` 语法错误。
 
 ## 变更记录
+
+### 2026-10-15：跟随官方自带 Electron 和 app.asar
+
+- 现象：每日构建在安装 `workbuddy 5.6.2.40046327_c7b525f3-1` 后失败，报 `WorkBuddy app.asar.unpacked/package.json was not found.`
+- 根因：AUR `f62cefe` 停止执行 `asar e`，改为直接运行官方安装根目录下的 `workbuddy`。官方 deb 的应用入口是 `resources/app.asar`，`app.asar.unpacked` 不再包含应用根 `package.json`。
+- 修改文件：`workbuddy/build_workbuddy.sh`、`workbuddy/README.md`。
+- 修改内容：从 `app.asar` 读取 payload 版本；复制官方运行时整树；用 `workbuddy.bin` 加原有 CI 壳启动，不再把解包目录交给系统 Electron。
+- 不修改 AUR 上游仓库，不写死安装路径或具体版本。
+- 已知结果：提交前完成 Bash 静态语法检查。AppImage 构建和实机启动不在本次本地验证范围内。
 
 ### 2026-09-04：修复 AUR 包版本与实际 WorkBuddy payload 版本错配
 
