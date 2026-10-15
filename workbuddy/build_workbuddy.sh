@@ -92,7 +92,16 @@ APP_ASAR="$(awk '/\/resources\/app\.asar$/ && !found {print; found=1}' <<< "$PAC
 [[ -f "$APP_ASAR" ]] || die "WorkBuddy resources/app.asar was not found."
 command -v asar >/dev/null 2>&1 || die "asar is required to read the WorkBuddy payload version."
 
-APP_PAYLOAD_VERSION="$(asar extract-file "$APP_ASAR" package.json | jq -r '.version // empty')"
+# asar 4 的 extract-file 把文件写进当前目录，标准输出是空的。
+PAYLOAD_DIR="$(mktemp -d)"
+trap 'rm -rf "$AUR_BUILD_PARENT" "$PAYLOAD_DIR"' EXIT
+(
+  cd "$PAYLOAD_DIR"
+  asar extract-file "$APP_ASAR" package.json >/dev/null
+)
+[[ -s "$PAYLOAD_DIR/package.json" ]] || \
+  die "WorkBuddy payload package.json was not extracted from $APP_ASAR."
+APP_PAYLOAD_VERSION="$(jq -r '.version // empty' "$PAYLOAD_DIR/package.json")"
 APP_PAYLOAD_VERSION="${APP_PAYLOAD_VERSION#v}"
 EXPECTED_VERSION_BASE="${EXPECTED_PKGVER%%_*}"
 IFS='.' read -r EXPECTED_MAJOR EXPECTED_MINOR EXPECTED_PATCH _ <<< "$EXPECTED_VERSION_BASE"
