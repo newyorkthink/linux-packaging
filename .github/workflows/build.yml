@@ -1491,7 +1491,14 @@ jobs:
           cat "$LOG"
           echo "Smoke test exit code: $rc"
 
-          if grep -Eqi 'invalid ELF header|wrong ELF class|Exec format error|Cannot find module.*node-pty-linux|FATAL:|Trace/breakpoint trap|Segmentation fault' "$LOG"; then
+          # timeout 杀掉仍在运行的进程时，Electron 会打 FATAL Failed to shutdown。这不是移植错误。
+          CHECK_LOG="$LOG"
+          if [[ "$rc" -eq 124 ]]; then
+            CHECK_LOG="$RUNNER_TEMP/workbuddy-smoke.checked.log"
+            grep -Ev 'electron/shell/browser/electron_browser_main_parts\.cc:[0-9]+\] Failed to shutdown\.' "$LOG" > "$CHECK_LOG" || true
+          fi
+
+          if grep -Eqi 'invalid ELF header|wrong ELF class|Exec format error|Cannot find module.*node-pty-linux|FATAL:|Trace/breakpoint trap|Segmentation fault' "$CHECK_LOG"; then
             echo 'WorkBuddy smoke test detected a fatal Linux porting error.' >&2
             exit 1
           fi
