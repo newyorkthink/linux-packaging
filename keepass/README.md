@@ -74,3 +74,11 @@ KeePass 必须保持独立 Job / 独立 Arch Linux 容器构建，避免其他�
 - 构建时从本次实际安装的 Arch `keepass` 包读取版本，去掉 Arch epoch 与 pkgrel 后写入根构建目录的 `dist/version.txt`。
 - workflow 使用 `SOFTWARE_KEY=keepass` 接入统一 `software_versions.json`。
 - 现有 KeePass 稳定依赖、插件、主题、字体、Fontconfig、Mono 兼容修复和 wrapper 均保持不变。
+
+## GTK2 依赖分层安装修复（2026-10-18）
+
+- 对应提交：[`8afc120`](https://github.com/newyorkthink/linux-packaging/commit/8afc120d3f5cd7ec95168b012df8c67d35e40be0)。
+- 故障现象：`gtk-sharp-2`、`gtk-engine-murrine` 和 `gtk-engines` 因缺少 `gtk2` 构建失败，报 `Could not resolve all dependencies`（退出码 8）；`gnome-themes-extra-gtk2` 又因缺少 `gtk-engines` 构建失败。
+- 原因：同一条 `yay` 命令中，前一层依赖编译完成后仍在安装队列中，后一层的 `makepkg` 只检查已经安装的包，无法使用尚未安装的依赖。
+- 修复内容：`keepass/build_keepass.sh` 先安装 `gtk2`，再安装 `gtk-sharp-2`、`gtk-engine-murrine` 和 `gtk-engines`，最后安装 KeePass、`gnome-themes-extra-gtk2` 及其余依赖；三步均保留 `--noconfirm --needed`。
+- 验证结果：用户已确认该提交的修复有效，分层安装的命令、参数和执行顺序作为已验证基线保留。
