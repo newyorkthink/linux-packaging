@@ -3,7 +3,8 @@
 # KeePass AppImage 构建脚本
 #
 # 维护说明：
-# - 已验证的依赖、命令参数、执行顺序、打包路径、插件、主题、字体、Fontconfig 和 wrapper 保持不变。
+# - 已验证的依赖、打包路径、插件、主题、字体、Fontconfig 和 wrapper 保持不变。
+# - GTK2 相关 AUR 包按依赖分层安装，避免同一条 yay 在前一层尚未装入系统时构建后一层。
 # - KPScript 始终通过 AUR 的 kpscript 软件包流程安装，不改为官方 ZIP 直装，也不增加镜像、缓存或手动下载。
 # - AUR 或 KeePass 上游偶发下载失败时，按 keepass/README.md 等待约 30 分钟后重新构建。
 # - Mono 兼容修复保持相互独立，只修改明确对应的问题；提交前检查 Bash/C# 语法和完整 diff。
@@ -28,10 +29,14 @@ yay -S --noconfirm gcc base-devel wget curl unzip gnupg binutils patchelf coreut
 # gtk-sharp-2 是 Keebuntu GTK2 XEmbed 托盘插件的运行依赖。
 # libappindicator / dbusmenu / libnotify 保留为现有托盘指示器相关运行库。
 # argon2 和 libgcrypt 分别用于加速 Argon2、AES-KDF 密钥转换；必须显式打包其动态库，因为 KeePass.exe 通过 Mono 运行时加载，quick-sharun 无法从托管程序集自动发现。
-yay -S --noconfirm keepass gtk2 gtk-sharp-2 dbus-glib \
+# gtk2、依赖它的 AUR 包、以及依赖 gtk-engines 的 gnome-themes-extra-gtk2 必须分层安装。
+# 同一条 yay 会把前一层编完后留在安装队列里；后一层的 makepkg 只检查已安装的包，于是报 Could not resolve all dependencies（exit 8）。
+yay -S --noconfirm --needed gtk2
+yay -S --noconfirm --needed gtk-sharp-2 gtk-engine-murrine gtk-engines
+yay -S --noconfirm --needed keepass dbus-glib \
   bash hicolor-icon-theme mono argon2 libgcrypt xdotool xsel mono-msbuild gtk3 \
   libappindicator libdbusmenu-glib libdbusmenu-gtk3 libnotify \
-  gdk-pixbuf2 librsvg materia-gtk-theme gnome-themes-extra-gtk2 gtk-engine-murrine
+  gdk-pixbuf2 librsvg materia-gtk-theme gnome-themes-extra-gtk2
 
 KEEPASS_PACKAGE_VERSION="$(pacman -Q keepass | awk '{print $2}')"
 KEEPASS_VERSION="${KEEPASS_PACKAGE_VERSION#*:}"
