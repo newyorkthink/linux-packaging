@@ -32,7 +32,6 @@ on:
           - android-tools/build_android-tools.sh
           - antigravity-ide/build_antigravity-ide.sh
           - antigravity/build_antigravity.sh
-          - baidunetdisk/build_baidunetdisk.sh
           - binance/build_binance.sh
           - bluemail/build_bluemail.sh
           - cc-switch/build_cc-switch.sh
@@ -282,50 +281,6 @@ jobs:
           version_file: 'alacritty/dist/version.txt'
           asset_name: 'alacritty.AppImage'
           artifact_dir: 'alacritty/dist'
-          github_token: ${{ github.token }}
-
-
-  build_baidunetdisk:
-    name: Build Baidu Netdisk
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).baidunetdisk == 'true'
-    runs-on: ubuntu-22.04
-    timeout-minutes: 90
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Build and validate Baidu Netdisk AppImage
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          bash -n baidunetdisk/build_baidunetdisk.sh
-          chmod +x baidunetdisk/build_baidunetdisk.sh
-          ./baidunetdisk/build_baidunetdisk.sh
-          test -s baidunetdisk/dist/baidunetdisk.AppImage
-      - name: Upload software version metadata
-        uses: actions/upload-artifact@v4
-        with:
-          name: software-version-baidunetdisk
-          path: baidunetdisk/dist/version.txt
-          if-no-files-found: error
-          retention-days: 1
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          gh release upload latest baidunetdisk/dist/baidunetdisk.AppImage --repo "$GITHUB_REPOSITORY" --clobber
-
-      - name: Publish software version immediately
-        uses: ./.github/actions/publish-software-versions
-        with:
-          software_key: 'baidunetdisk'
-          version_file: 'baidunetdisk/dist/version.txt'
-          asset_name: 'baidunetdisk.AppImage'
-          artifact_dir: 'baidunetdisk/dist'
           github_token: ${{ github.token }}
 
 

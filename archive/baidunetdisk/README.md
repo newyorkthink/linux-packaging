@@ -1,3 +1,15 @@
+# 已归档
+
+2026-10-21 起本目录不再使用，已从 `baidunetdisk/` 移到 `archive/baidunetdisk/`。构建脚本改名为 `build_baidunetdisk_linuxdeploy.sh`，只保留这条 linuxdeploy 记录，不再构建，不再发布。
+
+停用原因：linuxdeploy 打出的 AppImage 在 glibc 2.41 及以上无法启动。主进程加载 `resources/app.asar` 里的 Koffi 时失败，错误是 `cannot enable executable stack as shared object requires: Invalid argument`，代码 `ERR_DLOPEN_FAILED`。官方包里的 `koffi.node` 带有 `GNU_STACK` 可执行栈标记，这个版本的 glibc 会拒绝 `dlopen`。没有改官方 `app.asar`。
+
+以后如果重新启用，不要沿用这份 linuxdeploy 脚本，改用 quick-sharun 打包。这只针对百度网盘。
+
+替代：当前没有。Release 里的 `baidunetdisk.AppImage` 已删除。
+
+下面原文保留，只作历史记录。
+
 # 百度网盘 AppImage
 
 本目录把百度网盘官方当前稳定版 Linux x86_64 DEB 重新封装为 `baidunetdisk.AppImage`。正式构建入口为 `.github/workflows/build.yml` 中独立的 `Build Baidu Netdisk` Job。

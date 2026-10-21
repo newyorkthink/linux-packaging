@@ -27,7 +27,6 @@
 | Poppler Utils | `poppler-utils/build_poppler-utils.sh` | linuxdeploy |
 | Remmina | `remmina/build_remmina.sh` | linuxdeploy + GTK / GStreamer 插件 |
 | dconf Editor | `dconf-editor/build_dconf-editor.sh` | linuxdeploy |
-| 百度网盘 | `baidunetdisk/build_baidunetdisk.sh` | linuxdeploy + GTK 插件 |
 | Rainlendar2 | `rainlendar2/build_rainlendar2.sh` | linuxdeploy + GTK 插件 |
 | RealVNC RVNC Connect | `realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh` | linuxdeploy + GTK 插件 |
 | 腾讯会议 | `wemeet/build_wemeet.sh` | linuxdeploy + Qt 插件 |

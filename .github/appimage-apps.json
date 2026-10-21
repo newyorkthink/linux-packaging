@@ -698,15 +698,6 @@
       "run_from_root": "false"
     },
     {
-      "key": "baidunetdisk",
-      "kind": "special",
-      "name": "Baidu Netdisk",
-      "script": "baidunetdisk/build_baidunetdisk.sh",
-      "dir": "baidunetdisk",
-      "release_name": "baidunetdisk.AppImage",
-      "software_key": "baidunetdisk"
-    },
-    {
       "key": "binance",
       "kind": "special",
       "name": "Binance",
