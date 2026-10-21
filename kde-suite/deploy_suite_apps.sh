@@ -163,6 +163,14 @@ export LANGUAGE=zh_CN
 EOF_LANGUAGE_HOOK
 chmod +x AppDir/bin/00-kde-suite-language.hook
 
+# KIO 优先在真实程序所在的 shared/bin 中寻找 kioworker，会绕过 bin 中的 sharun。
+# 给原程序和启动器使用同一个独立名称，再让两个 kioworker 入口都经由原启动器启动，
+# 使缩略图等外部 KIO worker 使用包内动态加载器与库搜索路径。
+mv -- AppDir/shared/bin/kioworker AppDir/shared/bin/kde-suite-kioworker
+mv -- AppDir/bin/kioworker AppDir/bin/kde-suite-kioworker
+ln -s -- kde-suite-kioworker AppDir/bin/kioworker
+ln -s -- ../../bin/kde-suite-kioworker AppDir/shared/bin/kioworker
+
 # 最终静态检查：AppImage 图标、Haruna 在线链接、Dolphin 下载服务 QML、
 # 简体中文、MIME 默认项和 Breeze 主题均已部署。
 test -f AppDir/lib/qt6/plugins/kf6/thumbcreator/appimagethumbnail.so

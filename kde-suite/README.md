@@ -136,6 +136,14 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - **当前处理建议：** 保留已验证的打包、主题和启动逻辑，不凭截图改动插件或更换封装工具。后续需要修复时，先对实际缺图标文件核实格式和 `.DirIcon`，再结合 Dolphin 的实际解析结果判断修改范围；证据不足时继续保持待确认。
 - **记录状态：** 本条是检查记录，本次仅补充 README，没有实施程序修复。后续有对应修复时，用修复记录替换已处理条目，保留尚未确认部分，并如实注明验证状态。
 
+### 2026-10-21：修复 KIO worker 绕过 sharun 的启动路径
+
+- **故障证据：** 用户启动日志中，文件夹预览已经启用，`shared/bin/kioworker` 却反复报 `libKF6KIOCore.so.6: cannot open shared object file`。核对当日 Release 成品后确认该库已在 `AppDir/lib`，原始 worker 直接运行可复现缺库错误，原有 `AppDir/bin/kioworker` 经 sharun 启动则能进入程序。
+- **原因：** KIO 6.31.0 通过 `KLibexec::kdeFrameworksPaths()` 优先搜索 `QCoreApplication::applicationDirPath()`；Dolphin 的真实程序位于 `shared/bin`，因而选中同目录的原始 worker ELF，绕过 sharun 提供的包内动态加载器和库搜索路径。仅调整 `PATH` 无法改变这个优先顺序。
+- **修复：** 在全部依赖部署完成、最终压缩前，将原始 worker 和对应 sharun 启动器分别改名为 `shared/bin/kde-suite-kioworker`、`bin/kde-suite-kioworker`；`shared/bin/kioworker` 和 `bin/kioworker` 均使用相对链接指向该启动器。原程序内容、库文件和现有运行时 Hook 保留。
+- **云端检查：** 在 Release 解包目录验证两个入口，有无继承 `SHARUN_DIR` 时均能进入 worker，不再报动态库缺失；使用成品内 Qt 6.12.0 与 KCoreAddons 的搜索函数，确认 KIO 首选路径解析到 sharun 启动器，并可由 Qt 子进程启动。修后入口也能加载 `thumbnail.so`；这些检查未提交临时测试文件。
+- **验证边界：** 上述结果只确认子进程的路径选择与启动、插件加载。完整 AppImage 构建、Dolphin 文件夹拼贴预览和空白任务进度框是否消失，仍待新成品实机确认；不据此更新已验收稳定基线。
+
 ## 发布前检查
 
 构建脚本会在压缩前自动检查启动器、`apps.ini` 中全部命令、Qt6ct/KFind/KDF、Qt6ct 配色路径迁移 Hook、KIO 服务与插件、SSHFS/FUSE 边界、Qt/Kirigami/Breeze、中文翻译、Fcitx5、MIME、图标、Activities、yt-dlp/Python/EJS/Deno，并在 Xvfb 中启动 Haruna 做 QML 运行时检查。
