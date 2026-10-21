@@ -13,6 +13,14 @@ quick-sharun \
   /usr/lib/qt6/plugins/kf6/thumbcreator/appimagethumbnail.so \
   /usr/lib/qt6/plugins/kf6/kfilemetadata/kfilemetadata_appimageextractor.so
 
+# KDE 图标引擎和 Kirigami Forms 私有库由插件/QML 按需加载，显式收集其运行依赖，
+# 保证单色图标跟随深浅配色，并使 KDE Connect 和文件共享页面能够导入 Kirigami。
+quick-sharun \
+  /usr/lib/qt6/plugins/kiconthemes6/iconengines/KIconEnginePlugin.so \
+  /usr/lib/libKirigamiFormsPrivateCards.so.6 \
+  /usr/lib/libKirigamiFormsPrivateFlat.so.6 \
+  /usr/lib/libKirigamiFormsPrivateTemplates.so.6
+
 # 增加 KDE 视频播放器 Haruna。必须先部署程序和桌面入口，再执行现有集成脚本，
 # 使后续中文翻译恢复、桌面服务数据库和 KSycoca 生成能够包含 Haruna。
 quick-sharun /usr/bin/haruna
@@ -175,6 +183,10 @@ ln -s -- ../../bin/kde-suite-kioworker AppDir/shared/bin/kioworker
 # 简体中文、MIME 默认项和 Breeze 主题均已部署。
 test -f AppDir/lib/qt6/plugins/kf6/thumbcreator/appimagethumbnail.so
 test -f AppDir/lib/qt6/plugins/kf6/kfilemetadata/kfilemetadata_appimageextractor.so
+test -f AppDir/lib/qt6/plugins/kiconthemes6/iconengines/KIconEnginePlugin.so
+test -f AppDir/lib/libKirigamiFormsPrivateCards.so.6
+test -f AppDir/lib/libKirigamiFormsPrivateFlat.so.6
+test -f AppDir/lib/libKirigamiFormsPrivateTemplates.so.6
 test -x AppDir/bin/haruna
 test -x AppDir/bin/yt-dlp
 test -x AppDir/bin/deno

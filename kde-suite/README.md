@@ -144,6 +144,14 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - **云端检查：** 在 Release 解包目录验证两个入口，有无继承 `SHARUN_DIR` 时均能进入 worker，不再报动态库缺失；使用成品内 Qt 6.12.0 与 KCoreAddons 的搜索函数，确认 KIO 首选路径解析到 sharun 启动器，并可由 Qt 子进程启动。修后入口也能加载 `thumbnail.so`；这些检查未提交临时测试文件。
 - **验证边界：** 上述结果只确认子进程的路径选择与启动、插件加载。完整 AppImage 构建、Dolphin 文件夹拼贴预览和空白任务进度框是否消失，仍待新成品实机确认；不据此更新已验收稳定基线。
 
+### 2026-10-21：补齐 KDE 图标引擎与 Kirigami Forms 运行依赖
+
+- **保留已验证结果：** 提交 `c8fb937d49de04e8e63b48a877b3d9e4cc215164` 的 worker 入口修复已由用户实机确认文件夹内容预览恢复；后续截图也显示 `kdeconnect://` 手机内存目录能够正常列出。此次保留该入口布局。
+- **故障证据：** 当前成品左侧单色图标变黑，KDE Connect 图形界面和 Dolphin 文件共享页面报 Kirigami Forms 导入失败。检查 SHA-256 为 `fbf7bfa344d722a1fed264a97984a1c1d661ece6d31f1641bd35dc4dae9254d3` 的 Release 成品，确认缺少 `KIconEnginePlugin.so` 及 `libKirigamiFormsPrivateCards.so.6`、`libKirigamiFormsPrivateFlat.so.6`、`libKirigamiFormsPrivateTemplates.so.6`；QML 插件文件虽在，相关依赖仍无法加载。
+- **修复：** 在套件最终部署入口中，将 KDE 图标引擎和三项 Kirigami Forms 私有运行库显式交给 `quick-sharun` 收集，并在现有最终完整性检查中确认图标插件和三个 SONAME 文件均可用。使用构建环境已安装软件包的当前文件，不固定版本，不改写用户配色。
+- **云端验证：** 在当前成品解包目录补齐匹配的组件后，图标引擎及 Cards、Flat、Templates 插件均能加载；与报错相同的 `org.kde.kirigami 2.20` 导入通过，`Kirigami.ApplicationWindow` 组件可创建。相同配置下，单色图标在 Breeze Dark 中显示浅色、在 Breeze Light 中显示深色；原 `kioworker` 入口仍能启动。
+- **验证边界：** 上述结果是成品组件和依赖加载检查；完整 AppImage 构建、新成品的 KDE Connect 图形界面、文件共享页面和图标效果仍待实机确认，不据此扩大整套软件的稳定基线。
+
 ## 发布前检查
 
 构建脚本会在压缩前自动检查启动器、`apps.ini` 中全部命令、Qt6ct/KFind/KDF、Qt6ct 配色路径迁移 Hook、KIO 服务与插件、SSHFS/FUSE 边界、Qt/Kirigami/Breeze、中文翻译、Fcitx5、MIME、图标、Activities、yt-dlp/Python/EJS/Deno，并在 Xvfb 中启动 Haruna 做 QML 运行时检查。
