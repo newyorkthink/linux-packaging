@@ -2,6 +2,21 @@
 
 `kde-suite/build_kde_suite.sh` 构建一个共享挂载的 `kde-suite.AppImage`，内含 KDE Connect、Dolphin、KFind、Konsole、Filelight、KDF、Okular、Gwenview、Haruna、Ark、Kompare、Qt6ct、Plasma Activities 后台及必要的 KDE/KF6 运行组件。
 
+## 当前稳定基线（2026-10-22）
+
+当前功能源码基准为 [`3d07d518c607479658392ce23017ea7d4d36ea3e`](https://github.com/newyorkthink/linux-packaging/commit/3d07d518c607479658392ce23017ea7d4d36ea3e)（`补齐 KDE 图标引擎和 Kirigami Forms 运行依赖`），包含前一次 KIO worker 入口修复。两次修复已依据 Linux 实机反馈和截图确认以下结果：
+
+- **KIO worker 入口修复：** [`c8fb937d49de04e8e63b48a877b3d9e4cc215164`](https://github.com/newyorkthink/linux-packaging/commit/c8fb937d49de04e8e63b48a877b3d9e4cc215164)（`修复 KDE Suite KIO worker 启动路径`）恢复了 Dolphin 文件夹内容预览；KDE Connect 手机存储目录也已能够正常列出。
+- **图标引擎与 Kirigami Forms 依赖修复：** `3d07d518c607479658392ce23017ea7d4d36ea3e` 修复后，Dolphin 左侧单色图标恢复，KDE Connect 图形界面能够正常打开并显示设备已连接。
+
+两次修复均位于 `deploy_suite_apps.sh`，对应中文注释已经说明缺失依赖和 worker 绕过 sharun 的原因。worker 的改名与相对链接、图标引擎及 Cards/Flat/Templates 的显式依赖收集、对应完整性检查和执行顺序均作为稳定基线原样保留。后续处理配色问题时，不得无证据回退或改写这些已验证内容；纯文档提交不替代上述功能源码基准。
+
+下文 2026-10-21 的详细修复记录保留提交当时的验证边界，本节补充后续实机验收结果。此次确认范围限于文件夹内容预览、手机目录列表、左侧单色图标和 KDE Connect 图形界面，不扩大为文件共享属性页、空白任务进度框或整套应用均已重新验收。
+
+### 待解决：Dolphin 启动时的深色配色异常
+
+实机反馈显示，直接以深色主题启动 Dolphin 时，左侧“文件夹”树的隔行底色呈明显灰黑相间；浅色主题下不明显，先切换到浅色再切回深色后恢复正常。该启动状态与切换后的显示不一致，仍列为待解决事项，与已恢复的单色图标分别记录。是否与下文旧记录中的“重启后的配色异常”完全同源尚未确认，不重复已实机无效并回退的启动注入方案。
+
 ## 稳定基线（2026.08.08）
 
 当前版本按“核心功能可重复使用、已知日志不影响结果”验收，不以终端完全无输出作为稳定标准。已完成的实际验收包括：
