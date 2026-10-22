@@ -6,7 +6,7 @@
 
 ## 技术栈与打包方式
 
-KeePassXC 为 Qt5/C++ 桌面应用。构建脚本安装 Arch `keepassxc` 及 Qt5/X11/Fcitx5 相关依赖，通过 quick-sharun 生成 AppImage。
+KeePassXC 为 C++ 桌面应用，自 2.8.0 起使用 Qt6。构建脚本安装 Arch `keepassxc` 及 Qt6/X11/Fcitx5 相关依赖，通过 quick-sharun 生成 AppImage。实际打包版本以 Arch 仓库提供的 `keepassxc` 包为准。
 
 ## 版本元数据
 
