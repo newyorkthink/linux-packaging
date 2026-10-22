@@ -179,6 +179,20 @@ mv -- AppDir/bin/kioworker AppDir/bin/kde-suite-kioworker
 ln -s -- kde-suite-kioworker AppDir/bin/kioworker
 ln -s -- ../../bin/kde-suite-kioworker AppDir/shared/bin/kioworker
 
+# 当前 Breeze QML 菜单的动作名称与快捷键会重叠，Haruna 恢复使用上游默认的桌面控件样式。
+# 原始 sharun 入口保留在 bin，并创建同名真实程序别名，兼容现有构建期直接调用。
+mv -- AppDir/bin/haruna AppDir/bin/kde-suite-haruna
+ln -s -- haruna AppDir/shared/bin/kde-suite-haruna
+cat > AppDir/bin/haruna <<'EOF_HARUNA_WRAPPER'
+#!/bin/sh
+
+# 只为本次 Haruna 进程选择已打包的桌面控件样式。
+export QT_QUICK_CONTROLS_STYLE=org.kde.desktop
+# 通过同目录的原始 sharun 入口启动，原样传递文件、网络链接和其他参数。
+exec "$(dirname -- "$0")/kde-suite-haruna" "$@"
+EOF_HARUNA_WRAPPER
+chmod +x AppDir/bin/haruna AppDir/bin/kde-suite-haruna
+
 # 最终静态检查：AppImage 图标、Haruna 在线链接、Dolphin 下载服务 QML、
 # 简体中文、MIME 默认项和 Breeze 主题均已部署。
 test -f AppDir/lib/qt6/plugins/kf6/thumbcreator/appimagethumbnail.so

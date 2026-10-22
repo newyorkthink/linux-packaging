@@ -68,6 +68,7 @@
 - 打包 Fcitx5 Qt6 输入模块，Konsole 等 Qt6 应用可使用宿主 Fcitx5 输入中文。
 - 图片默认使用 Gwenview，视频和音频默认使用 Haruna，PDF 默认使用 Okular。
 - Haruna 内置 Arch 仓库版 `yt-dlp`、匹配的 `yt-dlp-ejs` 和 Deno，可解析 YouTube 等 yt-dlp 支持的网站链接；本地播放链路保持不变。
+- Haruna 通过专用启动入口使用上游默认的 `org.kde.desktop` Qt Quick 控件样式，为中文菜单动作与快捷键分别安排宽度；其他应用继续使用现有 `org.kde.breeze`。播放程序本体、yt-dlp 链路、快捷键绑定和用户配色配置保持原样，验证范围见下方修复记录。
 - Dolphin 可显示受支持 AppImage 的内置图标和元数据。
 - KDE Connect 图形入口会复用现有 `kdeconnectd`；不存在时才启动 AppImage 内后台。
 - Dolphin 会复用现有 `org.kde.ActivityManager`；不存在时由 AppImage 启动 `kactivitymanagerd`，不需要 `sudo`。
@@ -166,6 +167,16 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - **修复：** 在套件最终部署入口中，将 KDE 图标引擎和三项 Kirigami Forms 私有运行库显式交给 `quick-sharun` 收集，并在现有最终完整性检查中确认图标插件和三个 SONAME 文件均可用。使用构建环境已安装软件包的当前文件，不固定版本，不改写用户配色。
 - **云端验证：** 在当前成品解包目录补齐匹配的组件后，图标引擎及 Cards、Flat、Templates 插件均能加载；与报错相同的 `org.kde.kirigami 2.20` 导入通过，`Kirigami.ApplicationWindow` 组件可创建。相同配置下，单色图标在 Breeze Dark 中显示浅色、在 Breeze Light 中显示深色；原 `kioworker` 入口仍能启动。
 - **验证边界：** 上述结果是成品组件和依赖加载检查；完整 AppImage 构建、新成品的 KDE Connect 图形界面、文件共享页面和图标效果仍待实机确认，不据此扩大整套软件的稳定基线。
+
+### 2026-10-22：修复 Haruna 菜单文字与快捷键重叠
+
+- **检查对象与故障：** 基于仓库提交 `a3aa4dd3fd2a2039718a70b4dcf718e439bfb452`，核对 SHA-256 为 `d8e2b1f5d3805111791f1c5526bdca5584e87db9c743c5c2cef5f380eecf59bb` 的现有成品。包内 Haruna 为 1.8.1、Qt 为 6.12.0；真实运行截图中，视图、播放、视频和字幕菜单的动作名称与右侧快捷键互相重叠。
+- **设置菜单图标：** [Haruna 1.8.1 的 SettingsMenu.qml](https://github.com/KDE/haruna/blob/v1.8.1/src/qml/Menus/SettingsMenu.qml) 只为“快捷键”设置 `configure-shortcuts` 图标，其他设置项没有指定图标。截图中的空白图标列符合上游实现，不属于漏打包，不额外补造图标。
+- **原因与静态依据：** 套件公共运行时 Hook 的 `QT_QUICK_CONTROLS_STYLE=org.kde.breeze` 覆盖了 [Haruna 上游默认的 `org.kde.desktop`](https://github.com/KDE/haruna/blob/v1.8.1/src/main.cpp)。成品内 Breeze 的 `IconLabelShortcutContent.qml` 将快捷键放在普通标签布局之外，未把快捷键宽度计入内容隐式宽度；中文菜单可出现宽度不足。桌面样式的 `MenuItem.qml` 则用 `RowLayout` 分别布局动作名称和快捷键，云端对比已复现两者差异。
+- **修改文件与实现：** 仅修改 `kde-suite/deploy_suite_apps.sh` 和本 README。在全部依赖收集完成、最终静态检查前，将原始 sharun 启动器从 `bin/haruna` 改名为 `bin/kde-suite-haruna`，在 `shared/bin/kde-suite-haruna` 创建指向原始 `haruna` 的相对链接，再生成 `bin/haruna` 专用包装。包装只为当前 Haruna 启动设置 `QT_QUICK_CONTROLS_STYLE=org.kde.desktop`，随后经同目录原始 sharun 入口以 `exec` 原样传入 `"$@"`；播放器 ELF、公共运行时 Hook、其他应用样式、两次已验收修复及原有构建检查命令均保留。
+- **启动布局取舍：** 云端曾试将原始 sharun 启动器移到 `libexec/kde-suite/haruna`；经 AppRun 启动可用，但未继承 `SHARUN_DIR` 的直接调用返回 SIGILL，不能满足现有构建检查直接执行 `AppDir/bin/haruna` 的用法，因此未采用该布局。最终将原始启动器留在 `bin`，不要求构建环境预先设置 `APPDIR` 或 `SHARUN_DIR`，也不改写已有的 Haruna QML 构建检查。
+- **云端验证：** 直接使用成品内 Qt/QML，比较 14 组中文动作与快捷键在 10、13、18 pt 下的布局；Breeze 样式复现重叠，桌面样式的 42 组检查全部分开显示。新入口在无 `APPDIR`/`SHARUN_DIR`、继承现有启动环境、通过 AppRun 启动三种情况下，`--version` 均返回 0 并显示 `haruna 1.8.1`。含空格、中文、URL、空参数和选项分隔符的参数传递及退出状态检查通过；原始启动器和播放器 ELF 的 SHA-256 未变。部署脚本与生成包装的语法、完整 diff 和既有稳定内容保留情况已核对，临时检查程序与日志不进入仓库。
+- **验证边界：** 上述结果是成品组件布局、依赖加载、入口与参数检查，不等于新 AppImage 已完成完整构建或 Haruna 菜单已完成实机验收；本次不扩大整套软件的已验收稳定基线。Dolphin 深色主题启动底色异常仍按原记录待解决。
 
 ## 发布前检查
 
