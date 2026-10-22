@@ -11,8 +11,8 @@ rm -rf AppDir || true
 yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux glycin libheif zsync xorg-server xorg-server-common xorg-server-xvfb
 yay -S --noconfirm keepassxc xclip fcitx5-qt libxcb xcb-util xcb-util-keysyms libxss \
   xcb-util-renderutil xcb-util-wm xcb-util-image xcb-util-cursor libxkbcommon libxkbcommon-x11 mesa libglvnd \
-  qt5-base qt5-svg qt5-x11extras libxtst xdotool libvdpau libva lxqt-qtplugin \
-  libx11 libxext libxfixes libxi libxinerama libxcb xcb-util adwaita-qt5 \
+  qt6-base qt6-svg libxtst xdotool libvdpau libva lxqt-qtplugin \
+  libx11 libxext libxfixes libxi libxinerama libxcb xcb-util adwaita-qt6 \
   libsm libice libxrandr libxrender libxcursor libxcomposite libxdamage
 
 KEEPASSXC_PACKAGE_VERSION="$(pacman -Q keepassxc | awk '{print $2}')"
