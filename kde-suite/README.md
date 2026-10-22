@@ -4,7 +4,9 @@
 
 ## 当前稳定基线（2026-10-22）
 
-当前功能源码基准为 [`3d07d518c607479658392ce23017ea7d4d36ea3e`](https://github.com/newyorkthink/linux-packaging/commit/3d07d518c607479658392ce23017ea7d4d36ea3e)（`补齐 KDE 图标引擎和 Kirigami Forms 运行依赖`），包含前一次 KIO worker 入口修复。两次修复已依据 Linux 实机反馈和截图确认以下结果：
+当前功能源码基准为 [`4ac2418d271e4935055f4f662122873ff10c9ae6`](https://github.com/newyorkthink/linux-packaging/commit/4ac2418d271e4935055f4f662122873ff10c9ae6)（`修复 Haruna 中文菜单与快捷键重叠`），包含 KIO worker 入口、KDE 图标引擎与 Kirigami Forms 依赖，以及 Haruna 专用控件样式修复。该提交的 [KDE Suite 构建与发布](https://github.com/newyorkthink/linux-packaging/actions/runs/39698105440/job/119560408839)已成功完成；实机验收范围仍以下述反馈及原修复记录为准。
+
+前一功能源码基准为 [`3d07d518c607479658392ce23017ea7d4d36ea3e`](https://github.com/newyorkthink/linux-packaging/commit/3d07d518c607479658392ce23017ea7d4d36ea3e)（`补齐 KDE 图标引擎和 Kirigami Forms 运行依赖`），包含前一次 KIO worker 入口修复。两次修复已依据 Linux 实机反馈和截图确认以下结果：
 
 - **KIO worker 入口修复：** [`c8fb937d49de04e8e63b48a877b3d9e4cc215164`](https://github.com/newyorkthink/linux-packaging/commit/c8fb937d49de04e8e63b48a877b3d9e4cc215164)（`修复 KDE Suite KIO worker 启动路径`）恢复了 Dolphin 文件夹内容预览；KDE Connect 手机存储目录也已能够正常列出。
 - **图标引擎与 Kirigami Forms 依赖修复：** `3d07d518c607479658392ce23017ea7d4d36ea3e` 修复后，Dolphin 左侧单色图标恢复，KDE Connect 图形界面能够正常打开并显示设备已连接。
@@ -183,6 +185,8 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - **启动布局取舍：** 云端曾试将原始 sharun 启动器移到 `libexec/kde-suite/haruna`；经 AppRun 启动可用，但未继承 `SHARUN_DIR` 的直接调用返回 SIGILL，不能满足现有构建检查直接执行 `AppDir/bin/haruna` 的用法，因此未采用该布局。最终将原始启动器留在 `bin`，不要求构建环境预先设置 `APPDIR` 或 `SHARUN_DIR`，也不改写已有的 Haruna QML 构建检查。
 - **云端验证：** 直接使用成品内 Qt/QML，比较 14 组中文动作与快捷键在 10、13、18 pt 下的布局；Breeze 样式复现重叠，桌面样式的 42 组检查全部分开显示。新入口在无 `APPDIR`/`SHARUN_DIR`、继承现有启动环境、通过 AppRun 启动三种情况下，`--version` 均返回 0 并显示 `haruna 1.8.1`。含空格、中文、URL、空参数和选项分隔符的参数传递及退出状态检查通过；原始启动器和播放器 ELF 的 SHA-256 未变。部署脚本与生成包装的语法、完整 diff 和既有稳定内容保留情况已核对，临时检查程序与日志不进入仓库。
 - **验证边界：** 上述结果是成品组件布局、依赖加载、入口与参数检查，不等于新 AppImage 已完成完整构建或 Haruna 菜单已完成实机验收；本次不扩大整套软件的已验收稳定基线。Dolphin 深色主题启动底色异常仍按原记录待解决。
+
+- **后续构建确认（2026-10-22）：** 提交 [`4ac2418d271e4935055f4f662122873ff10c9ae6`](https://github.com/newyorkthink/linux-packaging/commit/4ac2418d271e4935055f4f662122873ff10c9ae6) 对应 [Run `39698105440`](https://github.com/newyorkthink/linux-packaging/actions/runs/39698105440) 的 `Build KDE Suite`、`Build and publish AppImage` 和版本元数据发布步骤均已成功完成，现登记为当前功能源码基准。该结果确认构建与发布通过；实机验收范围仍以已有反馈为准。
 
 ## 发布前检查
 
