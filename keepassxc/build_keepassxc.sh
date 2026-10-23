@@ -43,6 +43,19 @@ quick-sharun \
   /usr/lib/libXtst.so.6 \
   /usr/lib/libxcb-xtest.so.0
 
+# Qt6 按 shared/bin 中的真实程序路径查找资源，复用顶层 share 中的翻译和数据。
+ln -sfnT ../share AppDir/shared/share
+
+# 在包内生成简体中文 locale，保留 quick-sharun 已写入的环境配置。
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'EOF'
+LANG=zh_CN.UTF-8
+LANGUAGE=zh_CN:zh
+LC_MESSAGES=zh_CN.UTF-8
+LOCPATH=${SHARUN_DIR}/lib/locale
+EOF
+
 quick-sharun --make-appimage
 
 # 构建成功后输出统一的软件版本元数据。

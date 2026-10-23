@@ -14,6 +14,7 @@ AI 修改或提交本仓库前，先读 [AGENTS.md](./AGENTS.md)。怎么提交�
 
 ## 文档
 
+- 文档索引：[docs/README.md](./docs/README.md)
 - 人工维护：[维护者指南](./docs/maintainer-guide.md)
 - AI 规范：[AGENTS.md](./AGENTS.md)
 - linuxdeploy：[linuxdeploy_projects.md](./linuxdeploy_projects.md)
