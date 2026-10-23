@@ -2,7 +2,7 @@
 
 `kde-suite/build_kde_suite.sh` 构建一个共享挂载的 `kde-suite.AppImage`，内含 KDE Connect、Dolphin、KFind、Konsole、Filelight、KDF、Okular、Gwenview、Haruna、Ark、Kompare、Qt6ct、Plasma Activities 后台及必要的 KDE/KF6 运行组件。
 
-## 当前稳定基线（2026-10-22）
+## 当前稳定基线（2026-10-23）
 
 当前功能源码基准为 [`4ac2418d271e4935055f4f662122873ff10c9ae6`](https://github.com/newyorkthink/linux-packaging/commit/4ac2418d271e4935055f4f662122873ff10c9ae6)（`修复 Haruna 中文菜单与快捷键重叠`），包含 KIO worker 入口、KDE 图标引擎与 Kirigami Forms 依赖，以及 Haruna 专用控件样式修复。该提交的 [KDE Suite 构建与发布](https://github.com/newyorkthink/linux-packaging/actions/runs/39698105440/job/119560408839)已成功完成；实机验收范围仍以下述反馈及原修复记录为准。
 
@@ -13,7 +13,19 @@
 
 两次修复均位于 `deploy_suite_apps.sh`，对应中文注释已经说明缺失依赖和 worker 绕过 sharun 的原因。worker 的改名与相对链接、图标引擎及 Cards/Flat/Templates 的显式依赖收集、对应完整性检查和执行顺序均作为稳定基线原样保留。后续处理配色问题时，不得无证据回退或改写这些已验证内容；纯文档提交不替代上述功能源码基准。
 
-下文 2026-10-21 的详细修复记录保留提交当时的验证边界，本节补充后续实机验收结果。此次确认范围限于文件夹内容预览、手机目录列表、左侧单色图标和 KDE Connect 图形界面，不扩大为文件共享属性页、空白任务进度框或整套应用均已重新验收。
+下文详细修复记录中的故障现象、原因、修复过程和云端检查证据继续保留；对应过时待验证表述已按最新用户实测结果更新。
+
+### 2026-10-23：用户实机验收通过
+
+根据用户明确反馈及 Linux 实机截图，以下五项均已确认正常，按“用户实测通过、已完成”记录：
+
+- **Haruna 中文菜单与快捷键：** 菜单动作名称与右侧快捷键分开显示，不再重叠。
+- **KDE Connect 图形界面：** 能够正常打开，并显示设备已连接。
+- **KDE Connect 手机目录浏览：** 能够通过内置 Dolphin 正常列出手机存储目录。
+- **Dolphin 文件夹内容预览：** 文件夹图标上能够显示目录内文件的缩略图拼贴。此处指文件夹图标中的内容预览，与单个 AppImage 的内置图标预览、右侧信息面板的视频播放分别记录。
+- **Dolphin 侧栏单色图标：** 左侧“主文件夹”“桌面”“下载”等位置的小图标正常显示，深色界面下不再变黑而难以辨认；此项与“文件夹”树隔行底色异常分别记录。
+
+上述五项作为当前稳定基线保留，后续 AI 不得因没有重复测试而重新标为待验证或要求再次验收。此次确认不扩大为文件共享属性页、空白任务进度框或整套应用均已重新验收。
 
 ### 待解决：Dolphin 启动时的深色配色异常
 
@@ -166,7 +178,7 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - **原因：** KIO 6.31.0 通过 `KLibexec::kdeFrameworksPaths()` 优先搜索 `QCoreApplication::applicationDirPath()`；Dolphin 的真实程序位于 `shared/bin`，因而选中同目录的原始 worker ELF，绕过 sharun 提供的包内动态加载器和库搜索路径。仅调整 `PATH` 无法改变这个优先顺序。
 - **修复：** 在全部依赖部署完成、最终压缩前，将原始 worker 和对应 sharun 启动器分别改名为 `shared/bin/kde-suite-kioworker`、`bin/kde-suite-kioworker`；`shared/bin/kioworker` 和 `bin/kioworker` 均使用相对链接指向该启动器。原程序内容、库文件和现有运行时 Hook 保留。
 - **云端检查：** 在 Release 解包目录验证两个入口，有无继承 `SHARUN_DIR` 时均能进入 worker，不再报动态库缺失；使用成品内 Qt 6.12.0 与 KCoreAddons 的搜索函数，确认 KIO 首选路径解析到 sharun 启动器，并可由 Qt 子进程启动。修后入口也能加载 `thumbnail.so`；这些检查未提交临时测试文件。
-- **验证边界：** 上述结果只确认子进程的路径选择与启动、插件加载。完整 AppImage 构建、Dolphin 文件夹拼贴预览和空白任务进度框是否消失，仍待新成品实机确认；不据此更新已验收稳定基线。
+- **验证边界：** 上述云端结果确认子进程的路径选择与启动、插件加载。完整 AppImage 构建已成功；用户已实机确认 Dolphin 文件夹拼贴预览和 KDE Connect 手机目录浏览恢复，该修复已纳入稳定基线。空白任务进度框是否消失仍未单独确认。
 
 ### 2026-10-21：补齐 KDE 图标引擎与 Kirigami Forms 运行依赖
 
@@ -174,7 +186,7 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - **故障证据：** 当前成品左侧单色图标变黑，KDE Connect 图形界面和 Dolphin 文件共享页面报 Kirigami Forms 导入失败。检查 SHA-256 为 `fbf7bfa344d722a1fed264a97984a1c1d661ece6d31f1641bd35dc4dae9254d3` 的 Release 成品，确认缺少 `KIconEnginePlugin.so` 及 `libKirigamiFormsPrivateCards.so.6`、`libKirigamiFormsPrivateFlat.so.6`、`libKirigamiFormsPrivateTemplates.so.6`；QML 插件文件虽在，相关依赖仍无法加载。
 - **修复：** 在套件最终部署入口中，将 KDE 图标引擎和三项 Kirigami Forms 私有运行库显式交给 `quick-sharun` 收集，并在现有最终完整性检查中确认图标插件和三个 SONAME 文件均可用。使用构建环境已安装软件包的当前文件，不固定版本，不改写用户配色。
 - **云端验证：** 在当前成品解包目录补齐匹配的组件后，图标引擎及 Cards、Flat、Templates 插件均能加载；与报错相同的 `org.kde.kirigami 2.20` 导入通过，`Kirigami.ApplicationWindow` 组件可创建。相同配置下，单色图标在 Breeze Dark 中显示浅色、在 Breeze Light 中显示深色；原 `kioworker` 入口仍能启动。
-- **验证边界：** 上述结果是成品组件和依赖加载检查；完整 AppImage 构建、新成品的 KDE Connect 图形界面、文件共享页面和图标效果仍待实机确认，不据此扩大整套软件的稳定基线。
+- **验证边界：** 上述云端结果是成品组件和依赖加载检查；完整 AppImage 构建已成功，用户已实机确认 KDE Connect 图形界面及 Dolphin 侧栏单色图标正常，该修复已纳入稳定基线。本次验收不扩大到文件共享功能或整套软件的全部功能。
 
 ### 2026-10-22：修复 Haruna 菜单文字与快捷键重叠
 
@@ -184,7 +196,7 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - **修改文件与实现：** 仅修改 `kde-suite/deploy_suite_apps.sh` 和本 README。在全部依赖收集完成、最终静态检查前，将原始 sharun 启动器从 `bin/haruna` 改名为 `bin/kde-suite-haruna`，在 `shared/bin/kde-suite-haruna` 创建指向原始 `haruna` 的相对链接，再生成 `bin/haruna` 专用包装。包装只为当前 Haruna 启动设置 `QT_QUICK_CONTROLS_STYLE=org.kde.desktop`，随后经同目录原始 sharun 入口以 `exec` 原样传入 `"$@"`；播放器 ELF、公共运行时 Hook、其他应用样式、两次已验收修复及原有构建检查命令均保留。
 - **启动布局取舍：** 云端曾试将原始 sharun 启动器移到 `libexec/kde-suite/haruna`；经 AppRun 启动可用，但未继承 `SHARUN_DIR` 的直接调用返回 SIGILL，不能满足现有构建检查直接执行 `AppDir/bin/haruna` 的用法，因此未采用该布局。最终将原始启动器留在 `bin`，不要求构建环境预先设置 `APPDIR` 或 `SHARUN_DIR`，也不改写已有的 Haruna QML 构建检查。
 - **云端验证：** 直接使用成品内 Qt/QML，比较 14 组中文动作与快捷键在 10、13、18 pt 下的布局；Breeze 样式复现重叠，桌面样式的 42 组检查全部分开显示。新入口在无 `APPDIR`/`SHARUN_DIR`、继承现有启动环境、通过 AppRun 启动三种情况下，`--version` 均返回 0 并显示 `haruna 1.8.1`。含空格、中文、URL、空参数和选项分隔符的参数传递及退出状态检查通过；原始启动器和播放器 ELF 的 SHA-256 未变。部署脚本与生成包装的语法、完整 diff 和既有稳定内容保留情况已核对，临时检查程序与日志不进入仓库。
-- **验证边界：** 上述结果是成品组件布局、依赖加载、入口与参数检查，不等于新 AppImage 已完成完整构建或 Haruna 菜单已完成实机验收；本次不扩大整套软件的已验收稳定基线。Dolphin 深色主题启动底色异常仍按原记录待解决。
+- **验证边界：** 上述云端结果是成品组件布局、依赖加载、入口与参数检查；完整 AppImage 构建与发布已成功，用户于 2026-10-23 明确反馈并提供截图，确认 Haruna 中文菜单动作名称与快捷键不再重叠，该项已完成实机验收。Dolphin 深色主题启动底色异常仍按原记录待解决。
 
 - **后续构建确认（2026-10-22）：** 提交 [`4ac2418d271e4935055f4f662122873ff10c9ae6`](https://github.com/newyorkthink/linux-packaging/commit/4ac2418d271e4935055f4f662122873ff10c9ae6) 对应 [Run `39698105440`](https://github.com/newyorkthink/linux-packaging/actions/runs/39698105440) 的 `Build KDE Suite`、`Build and publish AppImage` 和版本元数据发布步骤均已成功完成，现登记为当前功能源码基准。该结果确认构建与发布通过；实机验收范围仍以已有反馈为准。
 
