@@ -14,7 +14,7 @@ KeePassXC 为 C++ 桌面应用，自 2.8.0 起使用 Qt6。构建脚本安装 Ar
 
 包内生成 `AppDir/lib/locale/zh_CN.utf8`，并在 quick-sharun 已有 `.env` 后追加 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_MESSAGES=zh_CN.UTF-8` 和 `LOCPATH=${SHARUN_DIR}/lib/locale`。这样“系统默认”可使用简体中文，不要求宿主预先生成中文 locale；用户在 KeePassXC 中明确选择的界面语言仍由上游配置处理。不设置 `LC_ALL`。
 
-资源路径决定能否找到翻译，中文环境决定默认选择哪种语言，两者作用不同。原理、旧版差异和适用边界见 [quick-sharun 与 Qt6 资源路径案例](../docs/packaging-cases/quick-sharun-qt6-resources.md)。
+资源路径决定能否找到翻译，中文环境决定默认选择哪种语言，两者作用不同。原理、旧版差异和适用边界见 [quick-sharun 与 Qt6 资源路径案例](./docs/quick-sharun-qt6-paths.md)。
 
 ## 浏览器集成与代理入口
 
@@ -22,7 +22,7 @@ KeePassXC 为 C++ 桌面应用，自 2.8.0 起使用 Qt6。构建脚本安装 Ar
 
 首次 quick-sharun 后，原 `bin/keepassxc-proxy` 启动器和 `shared/bin/keepassxc-proxy` 代理程序分别改名为同目录的 `keepassxc-proxy.real`，原位置新建两个仅执行 `exec` 的转发入口。两条调用路径最终均由 `bin/keepassxc-proxy.real`（原 sharun）加载 `shared/bin/keepassxc-proxy.real`（原代理），完整保留参数及标准输入输出。
 
-原生消息 JSON 仍由 KeePassXC 自身生成和更新；构建脚本不写宿主浏览器配置，不写死 AppImage 临时挂载路径，也不修改 KeePassXC/Qt 源码或二进制内容。通用机制和适用条件见 [Qt5 转 Qt6 的程序路径说明](../docs/packaging-cases/quick-sharun-qt6-resources.md)。
+原生消息 JSON 仍由 KeePassXC 自身生成和更新；构建脚本不写宿主浏览器配置，不写死 AppImage 临时挂载路径，也不修改 KeePassXC/Qt 源码或二进制内容。通用机制和适用条件见 [Qt5 转 Qt6 的程序路径说明](../docs/packaging-cases/quick-sharun-qt6-resources.md)。本应用的详细对照与验证边界见 [Qt6 路径专项记录](./docs/quick-sharun-qt6-paths.md)。
 
 ## 版本元数据
 
