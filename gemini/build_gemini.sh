@@ -347,10 +347,9 @@ chmod +x "$APP_ROOT/electron"
 ICO_DIR="$WORK_DIR/ico"
 mkdir -p "$ICO_DIR"
 wrestool -x -t14 -o "$ICO_DIR" "$WINDOWS_EXE"
-ICON_ICO="$(find "$ICO_DIR" -type f -name '*.ico' -print | sort -V | head -n 1)"
-[[ -f "$ICON_ICO" ]] || die "无法从 Gemini.exe 提取官方 ICO 图标。"
-python3 "$SCRIPT_DIR/patches/extract_ico_png.py" "$ICON_ICO" "$BUILD_ICON"
-[[ -s "$BUILD_ICON" ]] || die "Gemini 官方 ICO 中没有可用 PNG 图标。"
+# 扫描全部官方 ICO，优先原样提取 PNG；没有 PNG 时逐帧转换 DIB，跳过损坏条目。
+python3 "$SCRIPT_DIR/patches/extract_ico_png.py" "$ICO_DIR" "$BUILD_ICON"
+[[ -s "$BUILD_ICON" ]] || die "Gemini 官方 ICO 中没有可用图标。"
 
 cat > "$BUILD_DESKTOP" <<EOF_DESKTOP
 [Desktop Entry]

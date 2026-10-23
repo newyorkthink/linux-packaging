@@ -73,7 +73,7 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 7. 以 Linux Electron runtime 为外壳，复制 Gemini 官方产品资源；Windows `.exe` / `.dll` 资源不进入最终 Linux 产品层。
 8. 完整提取 `app.asar` 后调用 `patches/remove_windows_native_addon.sh`，从外置资源和提取目录同时删除已确认可安全回退的 PE 格式 `gemini_native.node`；发现其他 PE `.node` 或路径变化时停止构建。
 9. 调用 `patches/disable_visible_on_all_workspaces.py`，在重新打包前取消 sticky 窗口并核对 Speak to Window 安全回退仍然存在。
-10. 从官方 `Gemini.exe` 提取应用图标（`patches/extract_ico_png.py`），生成 `Exec=Gemini` 的 desktop，并用 `patches/Gemini` 作为简体中文启动器。
+10. 从官方 `Gemini.exe` 提取全部 ICO，由 `patches/extract_ico_png.py` 优先原样复制最大的内嵌 PNG；没有可用 PNG 时逐帧转换 DIB，跳过损坏条目。生成 `Exec=Gemini` 的 desktop，并用 `patches/Gemini` 作为简体中文启动器。
 11. 使用仓库当前 `quick-sharun` 打包并输出 `dist/Gemini.AppImage`。
 
 构建脚本不固定 `quick-sharun`、sharun 或其他 AppImage 打包工具版本，继续使用统一 AnyLinux 构建环境当前提供的工具链。
@@ -202,6 +202,16 @@ dist/Gemini.AppImage
 ```
 
 ## 变更记录
+
+### 2026-10-23：兼容官方 ICO 仅含 DIB 的图标资源
+
+- 现象：[Actions run `39902547034` 的 Gemini Job](https://github.com/newyorkthink/linux-packaging/actions/runs/39902547034/job/120261371409) 已完成 Gemini 1.16.0 和 Electron 44.5.1 的下载与校验，随后在图标提取时报 `Gemini ICO does not contain a usable embedded PNG frame` 并退出。
+- 根因：按 Google Omaha 返回的大小和 SHA-256 校验同版官方安装包后，确认与 `resources/app.asar` 对应的 `Gemini.exe` 只有一个 ICO，其中 6 帧全部为 DIB，没有内嵌 PNG。原提取脚本只接受 PNG，因此不能处理该版图标；调用处还只选择排序后的第一个 ICO，存在遗漏其他图标组的限制。
+- 修改文件：`gemini/build_gemini.sh`、`gemini/patches/extract_ico_png.py`、`gemini/README.md`。
+- 处理：构建脚本将全部官方 ICO 所在目录传给提取脚本；仍优先原样复制最大的内嵌 PNG。没有可用 PNG 时，按尺寸和色深选择 DIB，将每个候选单独封装为临时单帧 ICO，再由已有 `icoutils` 依赖提供的 `icotool` 转换为 PNG；损坏帧不会阻断其余候选，全部不可用时仍停止构建。未新增软件包依赖。
+- 已验证：原脚本在官方 1.16.0 的实际 ICO 上复现同一报错；新脚本生成 256×256 RGBA PNG，并完成图像解码检查。隔离临时目录中的 11 项验证覆盖 PNG 字节原样保留、多个 ICO 的选择、32 位和 24 位 DIB 转换、损坏帧与越界条目跳过、全部损坏及空目录失败；Bash / Python 语法和完整 diff 检查通过。临时工具、样本和验证代码不进入提交。
+- 范围：只修复构建时的 AppImage / desktop 图标提取。原有产品层补丁、中文启动器、输入法、动态版本、Electron runtime 和 quick-sharun 流程保持原样，不恢复已删除的任务切换器窗口图标补丁。
+- 验证边界：本次未执行完整 AppImage 构建或实机运行；提交后不监控 Actions，正式构建及运行结果未验证。
 
 ### 2026-10-08：窗口图标没改掉，补丁已删除
 
