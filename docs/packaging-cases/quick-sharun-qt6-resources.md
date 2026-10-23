@@ -89,3 +89,9 @@ LOCPATH=${SHARUN_DIR}/lib/locale
 - [KeePassXC 2.8.0 Translator.cpp](https://github.com/keepassxreboot/keepassxc/blob/2.8.0/src/core/Translator.cpp)：翻译加载与语言列表来自应用数据目录下的 `translations`。
 
 上游 `main` / `master` 链接会变化，后续排查须结合当时产物和对应版本重新核对。
+
+## 2026-10-23：用户实机验收通过
+
+用户实机运行 [ba30a16](https://github.com/newyorkthink/linux-packaging/commit/ba30a160db2d46615257f8379bb4d23f5fe1c9f8) 修复后的 KeePassXC 2.8.0，提供中文界面和中文输入法候选截图，确认中文界面、中文输入正常，反馈使用没有发现问题，本次修复测试通过。
+
+前文“新构建及实机运行结果未验证”是修复提交时的记录，本条追加后续用户验收结论，不覆盖此前的产物对照、排查过程和检查边界。当前实现作为已验证稳定基线保留，具体确认范围与维护要求见 [KeePassXC README](../../keepassxc/README.md)。

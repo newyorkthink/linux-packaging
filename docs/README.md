@@ -39,7 +39,7 @@
 
 | 记录 | 检索关键词 | 状态与范围 |
 | --- | --- | --- |
-| [quick-sharun 与 Qt6 资源路径](./packaging-cases/quick-sharun-qt6-resources.md) | KeePassXC、Qt5、Qt6、中文界面、Language、System default、shared/bin、AT_EXECFN | 资源目录适配与中文默认环境；具体检查结果和未验证部分见正文及 [KeePassXC README](../keepassxc/README.md) |
+| [quick-sharun 与 Qt6 资源路径](./packaging-cases/quick-sharun-qt6-resources.md) | KeePassXC、Qt5、Qt6、中文界面、Language、System default、shared/bin、AT_EXECFN | 用户实机验收通过（2026-10-23）：KeePassXC 2.8.0 中文界面、中文输入正常；详情见正文及 [KeePassXC README](../keepassxc/README.md) |
 
 ## 已知隐患与保留记录
 
