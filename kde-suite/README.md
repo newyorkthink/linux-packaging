@@ -34,7 +34,7 @@
 | 事项 | 出现位置与现象 | 当前处理决定 |
 | --- | --- | --- |
 | Dolphin 深色启动时文件夹树出现灰黑条纹 | Dolphin 左侧“文件夹”树中，各行底色明显灰黑相间；这是树视图的背景问题，与已恢复的侧栏单色图标分别记录。 | 已有上游同类问题记录，等待上游修复；不恢复已撤回的配色插件或启动注入。详见下节及 [配色方案参考](./docs/dolphin-palette-reference-20261022.md)。 |
-| DwarFS AppImage 显示通用图标 | Dolphin 主文件区中，部分 DwarFS 格式的 `.AppImage` 文件显示通用图标，无法预览包内应用图标；此项与已恢复的文件夹内容拼贴预览分别记录，不能将所有通用图标都归因于 DwarFS。 | 现有读取链路存在格式支持缺口，替代组件尚未完成可靠集成；本轮不更换组件，不影响 AppImage 执行。详见 [DwarFS 缩略图记录](./docs/dwarfs-appimage-thumbnail-reference-20261022.md)。 |
+| DwarFS AppImage 显示通用图标 | Dolphin 主文件区中，部分 DwarFS 格式的 `.AppImage` 文件显示通用图标，无法预览包内应用图标；此项与已恢复的文件夹内容拼贴预览分别记录，不能将所有通用图标都归因于 DwarFS。 | 现有读取链路存在格式支持缺口，替代组件尚未完成可靠集成；本轮不更换组件，不影响 AppImage 执行。详见 [DwarFS 缩略图记录](./docs/dwarfs-appimage-thumbnail-reference.md)。 |
 | Dolphin 信息面板部分视频有声音但黑屏 | Dolphin 右侧“信息”面板内的视频预览，部分视频播放时有声音但全程黑屏；与 Haruna 播放窗口分别记录。 | 尚未修复、根因未确定，不能断定属于上游或打包问题；本轮保留现状，不重复已无效的禁用硬件解码等方向，不加入补丁或启动干预。详见 [视频预览黑屏记录](./docs/dolphin-video-preview-black-screen-reference-20261022.md)。 |
 | Dolphin“属性 → 共享”提示服务不可用 | 在 Dolphin 中右键文件夹，打开“属性 → 共享”页面时提示“文件共享服务不可用”；这里是把本机文件夹通过 Samba/SMB 共享给其他设备的设置，与 KDE Connect 手机目录浏览分别记录。 | 当前共享页依赖宿主 Samba 服务；本轮不在 AppImage 内置并启动 Samba 服务器。需要使用该页发布 SMB 文件夹共享时，应在主机配置并启用服务。 |
 
