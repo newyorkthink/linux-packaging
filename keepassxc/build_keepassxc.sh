@@ -43,6 +43,28 @@ quick-sharun \
   /usr/lib/libXtst.so.6 \
   /usr/lib/libxcb-xtest.so.0
 
+# 先改名保留原 sharun 硬链接，避免直接覆盖时破坏其他启动入口。
+mv -- AppDir/bin/keepassxc-proxy AppDir/bin/keepassxc-proxy.real
+# 保留原代理二进制，仍由 sharun 加载包内依赖。
+mv -- AppDir/shared/bin/keepassxc-proxy AppDir/shared/bin/keepassxc-proxy.real
+
+# 保留原 bin 调用入口，完整传递参数及标准输入输出。
+cat > AppDir/bin/keepassxc-proxy <<'PROXY_BIN'
+#!/bin/sh
+# 通过原 sharun 启动器运行原代理程序。
+exec "${0%/*}/keepassxc-proxy.real" "$@"
+PROXY_BIN
+
+# 让 Qt6 默认登记的 shared/bin 入口也经过包内 sharun 启动器。
+cat > AppDir/shared/bin/keepassxc-proxy <<'PROXY_SHARED'
+#!/bin/sh
+# 从浏览器直接调用的位置转到包内 sharun 启动器。
+exec "${0%/*}/../../bin/keepassxc-proxy.real" "$@"
+PROXY_SHARED
+
+# 两个代理入口均需能够被 AppRun 或浏览器直接执行。
+chmod +x AppDir/bin/keepassxc-proxy AppDir/shared/bin/keepassxc-proxy
+
 # Qt6 按 shared/bin 中的真实程序路径查找资源，复用顶层 share 中的翻译和数据。
 ln -sfnT ../share AppDir/shared/share
 

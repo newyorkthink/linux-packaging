@@ -1,4 +1,48 @@
-# quick-sharun 与 Qt6 的资源路径：翻译存在但界面找不到
+# quick-sharun 下 Qt5 转 Qt6 的程序路径变化
+
+本文说明一种可复用的打包问题：在采用 sharun 的 AppDir 中，Qt 获取程序路径的方式变化后，应用按程序目录查找资源或辅助程序，可能落到不同位置。先按下面的机制和适用条件排查，再参考后面的 KeePassXC 实测案例。具体应用实现和验收仍记录在各自目录的 README。
+
+## 通用机制与适用条件
+
+以下是本次检查过的一种布局，其他 AppDir 必须以实际解包结果为准：
+
+| 作用 | 路径示例 |
+| --- | --- |
+| 建立包内加载环境的启动入口 | `AppDir/bin/<程序>`，可能是 sharun 的硬链接 |
+| 被启动器加载的原始 ELF | `AppDir/shared/bin/<程序>` |
+| 包内依赖库 | `AppDir/lib/`；也可能通过 `shared/lib` 相对链接访问 |
+| 应用数据 | `AppDir/share/<应用>/` |
+
+sharun 的普通 ELF64 启动链使用 userland-execve：在当前进程中加载解释器和程序。这样 `/proc/<pid>/exe` 可以仍指向 `bin` 下的启动器，而加载器给出的 `AT_EXECFN` 指向 `shared/bin` 下的真实 ELF。Qt 如果改用后一条路径，`applicationFilePath()` 和 `applicationDirPath()` 的结果就会变化。
+
+路径策略取决于 Qt 的具体版本、平台和构建选项。下面实测的 Qt5 与 Qt 6.12.0 是已经核对过的样本；不能只看“Qt5 / Qt6”标签就认定其他应用的查找行为相同。复用本页结论需要同时满足：
+
+1. 应用经过 sharun 启动，启动入口与真实程序位于不同目录。
+2. 当前 Qt 实际报告的程序目录与旧版不同。
+3. 应用源码确实用该程序目录拼接资源目录或辅助程序路径。
+4. 目标位置、文件类型或启动方式与应用的实际需要不匹配。
+
+## 两类常见后果
+
+| 受影响对象 | 路径变化后的问题 | 处理方向 |
+| --- | --- | --- |
+| 翻译、词表、图标等资源 | 按新程序目录拼接的相对路径不存在，或回退到错误的数据根目录 | 对照应用源码和现有数据位置，补足相符的相对目录映射 |
+| 浏览器代理等辅助程序 | 外部程序直接启动 `shared/bin` 中的原始 ELF，绕过包内加载器和依赖路径 | 在应用登记的位置提供经过原 sharun 启动器的入口，并保持原程序和通信接口 |
+
+资源适配不能代替辅助程序适配。`LANG`、`LANGUAGE`、`LOCPATH` 用于语言环境，也不会改变 Qt 所报告的程序目录，或替外部浏览器建立代理的库加载环境。
+
+资源映射只在路径关系确实相符时采用。例如实际数据位于顶层 `share`，而应用确实需要从 `shared/bin/../share` 访问时，才适用后面案例的 `shared/share -> ../share`。辅助程序适配则应核对调用位置和加载链，保留原二进制，通过 `exec` 原样传递参数及标准输入输出；原生消息标准输出不能混入日志。
+
+sharun 入口可能共享同一个硬链接 inode。需要改成转发脚本时，必须先改名保留原入口，再在原路径新建文件；不得直接用重定向覆盖硬链接。外部浏览器直接执行原始 ELF 时，不会自动经过默认 AppRun 或 hook，也不会读取 sharun 的 `.env`，因此单改这些配置不能修复该调用链。
+
+## 后续应用的排查顺序
+
+1. 完整阅读对应应用 README、打包脚本和相关源码，确认已验证稳定基线。
+2. 核对成品的 Qt 版本、入口与真实程序的位置、资源目录，以及外部程序实际登记的路径。
+3. 分清文件缺失、资源根目录错误和绕过启动器三种情况，再提出针对该应用的最小适配清单；不批量改动其他 Qt 应用。
+4. 分别验证文件定位、真实程序启动、参数和标准输入输出、实际通信及实机使用。某一层通过不能代替后续层的验证。
+
+## quick-sharun 与 Qt6 的资源路径：翻译存在但界面找不到（KeePassXC 实测案例）
 
 记录日期：2026-10-23。关键词：KeePassXC、Qt5、Qt6、quick-sharun、sharun、中文界面、Language、System default、shared/bin、AT_EXECFN、`.env`。
 
@@ -95,3 +139,27 @@ LOCPATH=${SHARUN_DIR}/lib/locale
 用户实机运行 [ba30a16](https://github.com/newyorkthink/linux-packaging/commit/ba30a160db2d46615257f8379bb4d23f5fe1c9f8) 修复后的 KeePassXC 2.8.0，提供中文界面和中文输入法候选截图，确认中文界面、中文输入正常，反馈使用没有发现问题，本次修复测试通过。
 
 前文“新构建及实机运行结果未验证”是修复提交时的记录，本条追加后续用户验收结论，不覆盖此前的产物对照、排查过程和检查边界。当前实现作为已验证稳定基线保留，具体确认范围与维护要求见 [KeePassXC README](../../keepassxc/README.md)。
+
+## 2026-10-23：KeePassXC 浏览器代理入口后续问题
+
+用户随后反馈旧版浏览器集成正常，新版 Firefox 和 Vivaldi 无法连接；原生消息配置均指向临时挂载目录下的 `shared/bin/keepassxc-proxy`。这是前述程序目录变化影响辅助程序启动的另一处表现，之前的中文界面和中文输入验收记录继续保留。
+
+本次对照的当前 AppImage 为 114889567 字节，SHA-256 为 `57b84e80fa4b056bc0853cb2b79f12421ab6dcb99a413aa60d714eb3659d5263`；旧版仍为前文列出的 `1afcebfc...` 产物。实际版本分别为 KeePassXC 2.8.0 / Qt 6.12.0 和 2.7.12 / Qt 5.15.19。当前程序的调试信息显示 `Distribution: Native`，因此按发行版程序分支计算辅助程序路径，而非官方 AppImage 构建分支。
+
+[2.7.12 NativeMessageInstaller.cpp](https://github.com/keepassxreboot/keepassxc/blob/2.7.12/src/browser/NativeMessageInstaller.cpp) 与 [2.8.0 NativeMessageInstaller.cpp](https://github.com/keepassxreboot/keepassxc/blob/2.8.0/src/browser/NativeMessageInstaller.cpp) 均在该分支使用 `applicationDirPath()` 加 `/keepassxc-proxy`。隔离启动后，两版实际写出的 Firefox/Vivaldi JSON 分别指向 `bin` 和 `shared/bin`，与用户的新版路径反馈一致。
+
+本次没有修改 KeePassXC 或 Qt 源码、二进制内容，也没有覆盖默认 AppRun、写宿主浏览器配置或硬编码临时挂载路径。只在第一次 quick-sharun 后保留原代理与启动器为 `.real`，再在两个原位置生成转发入口，让两种调用都经过原 sharun 启动器。`.env` 与 AppRun hook 不能覆盖外部浏览器的直接执行，因此本例需要这两个包内入口适配。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| 旧版原 `bin` 入口 | 加载包内 Qt5 Core/Network，标准输入结束后退出码 0 |
+| 当前版原 `bin` 入口 | 加载包内 Qt6 Core/Network，标准输入结束后退出码 0 |
+| 当前版 JSON 登记的原 `shared/bin` ELF | 云端直接执行报缺少 `libQt6Network.so.6`，退出码 127 |
+| 修复副本的 `bin` 与 `shared/bin` 两个入口 | 在带空格的实际 AppDir 路径下均加载包内 Qt6 Core/Network，标准输入结束后退出码 0，标准输出无额外内容 |
+| 两个转发入口的透明性检查 | 仓库外临时夹具执行真实转发脚本，空参数、空格、引号、中文参数、二进制标准输入输出及标准错误均原样传递；这不是与 KeePassXC 的握手测试 |
+| 稳定基线比对 | 原代理及 sharun 内容保留为 `.real`；其他 `bin` / `shared/bin` 入口、AppRun、`.env`、中文 locale、48 个应用翻译文件和资源链接保持一致 |
+| 提交前检查 | 构建脚本及两个转发入口语法、文档链接、完整 diff 通过；临时检查代码、日志和产物不入仓库 |
+
+加载库的结论来自实际代理进程的 `LD_DEBUG=libs` 日志。真实公钥交换检查未完成：首次临时运行目录超过了 Linux Unix socket 路径长度限制，缩短后又确认云端禁止创建 Unix socket（`Operation not permitted`）；解除限制的请求被自动审批拒绝，当前策略不允许提升权限。不能把这些失败尝试、启动后以 0 退出或夹具转发检查写成真实握手成功。
+
+本次只完成代理入口启动链和转发行为验证；与真实 KeePassXC 服务的公钥交换、Firefox/Vivaldi 连接仍待新产物实机确认。提交后不监控 Actions，新构建结果未验证。应用具体维护记录见 [KeePassXC README](../../keepassxc/README.md)。

@@ -16,6 +16,14 @@ KeePassXC 为 C++ 桌面应用，自 2.8.0 起使用 Qt6。构建脚本安装 Ar
 
 资源路径决定能否找到翻译，中文环境决定默认选择哪种语言，两者作用不同。原理、旧版差异和适用边界见 [quick-sharun 与 Qt6 资源路径案例](../docs/packaging-cases/quick-sharun-qt6-resources.md)。
 
+## 浏览器集成与代理入口
+
+当前 Arch 程序按 Qt 识别的程序目录生成原生消息配置，Qt6 下会登记 `AppDir/shared/bin/keepassxc-proxy`。该位置需要提供经过包内启动器的可执行入口，不能让浏览器直接执行依赖包内 Qt/glibc 的原始 ELF。
+
+首次 quick-sharun 后，原 `bin/keepassxc-proxy` 启动器和 `shared/bin/keepassxc-proxy` 代理程序分别改名为同目录的 `keepassxc-proxy.real`，原位置新建两个仅执行 `exec` 的转发入口。两条调用路径最终均由 `bin/keepassxc-proxy.real`（原 sharun）加载 `shared/bin/keepassxc-proxy.real`（原代理），完整保留参数及标准输入输出。
+
+原生消息 JSON 仍由 KeePassXC 自身生成和更新；构建脚本不写宿主浏览器配置，不写死 AppImage 临时挂载路径，也不修改 KeePassXC/Qt 源码或二进制内容。通用机制和适用条件见 [Qt5 转 Qt6 的程序路径说明](../docs/packaging-cases/quick-sharun-qt6-resources.md)。
+
 ## 版本元数据
 
 构建时从本次实际安装的 `keepassxc` 包读取版本，去掉 Arch epoch 与 pkgrel 后写入 `dist/version.txt`。workflow 使用 `SOFTWARE_KEY=keepassxc` 接入统一版本清单。
@@ -51,3 +59,17 @@ sharun 启动后，Qt5 使用 `/proc/<pid>/exe` 得到 `AppDir/bin/keepassxc`；
 验收对应 [ba30a16](https://github.com/newyorkthink/linux-packaging/commit/ba30a160db2d46615257f8379bb4d23f5fe1c9f8) 的 Qt6 资源路径与默认中文环境修复。当前构建脚本及其中的资源链接、包内中文 locale、保留原 `.env` 后追加环境配置的方式，作为已验证稳定基线保留；后续不得无故重写或改动已确认实现。
 
 本条补齐上一条记录中尚未取得的用户实机结果；此前“未验证”是修复提交时的状态，原有排查过程和临时检查记录继续保留。
+
+### 2026-10-23：补齐 Qt6 浏览器代理入口适配
+
+用户随后反馈旧版浏览器集成正常，新版 Firefox 和 Vivaldi 均无法连接；提供的原生消息配置显示，两者都登记到临时挂载目录的 `shared/bin/keepassxc-proxy`。此前实机验收覆盖中文界面和中文输入，本条单独记录后续发现的浏览器连接问题。
+
+对照旧版 2.7.12 / Qt 5.15.19 与当前 2.8.0 / Qt 6.12.0：两版 KeePassXC 生成默认代理路径的源码相同，均使用 `applicationDirPath()` 加代理名。隔离启动实际生成的配置分别指向旧版 `bin/keepassxc-proxy` 和新版 `shared/bin/keepassxc-proxy`。后者是原始动态链接程序，直接执行会绕过 sharun。
+
+本次只增加上述代理入口适配。必须先改名保留原 sharun 硬链接，再创建转发脚本；直接在原硬链接上重定向写入会破坏其他同 inode 的启动器。原代理及启动器内容逐字节保留为 `.real`，原有中文 locale、`.env`、资源链接、输入法、剪贴板、CLI 和其他构建命令保留。
+
+检查结果：旧版和新版 `bin` 原入口均能加载各自包内 Qt；新版原登记的 `shared/bin` ELF 在云端报缺少 `libQt6Network.so.6`，退出码 127。修复临时副本的两个入口均实际加载包内 Qt6 Core/Network，在标准输入结束后以 0 退出且标准输出无额外内容。两份真实转发脚本的隔离夹具检查通过：带空格路径、空参数、引号及中文参数、二进制标准输入输出和标准错误均按原样传递。
+
+其余 `bin` / `shared/bin` 入口、AppRun、`.env`、中文 locale、48 个应用翻译文件及资源链接与本次原产物核对一致；脚本语法、文档链接和完整 diff 检查通过。所有临时检查文件、日志和产物均不入仓库。
+
+验证边界：云端禁止创建 Unix socket，解除限制的检查请求也被自动审批拒绝，因此未完成与真实 KeePassXC 服务的公钥交换，未验收 Firefox/Vivaldi 实际连接。本次代理适配已完成启动链检查，浏览器连接仍待新产物实机确认。提交后不监控 Actions，新构建结果未验证。
