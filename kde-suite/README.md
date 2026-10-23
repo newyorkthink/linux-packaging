@@ -27,9 +27,15 @@
 
 上述五项作为当前稳定基线保留，后续 AI 不得因没有重复测试而重新标为待验证或要求再次验收。此次确认不扩大为文件共享属性页、空白任务进度框或整套应用均已重新验收。
 
+### 2026-10-23：文件选择窗口显示验收通过
+
+- **用户实测通过、已完成：** 用户提供的 Okular 实机截图显示，“打开文档”的文件选择窗口选中行文字清楚，“最近文档”列表显示正常；用户明确确认当前显示正常。本项不再列为当前待修或待验收事项，不要求重复测试。
+- **历史记录：** 旧记录曾描述 Qt 内置文件选择器在个别浅色配色下，选中目录的文字和背景对比度偏低。该描述仅保留为历史，不据此把当前正常显示重新列为问题。
+- **处理范围：** 本次仅更新验收状态，没有新增程序修复；现有 Qt 内置文件选择器和防闪退实现保持原样，不恢复 `qgtk3`/`qxdgdesktopportal` 后端。
+
 ### 2026-10-23：本轮新确认保留的四项问题
 
-本轮新确认保留的是以下四项，不等于已经修复。此前已决定保留的 Portal、虚拟显示器、文件选择器对比度、Markdown 字重和非致命日志等事项维持原记录，不与本轮四项合并计数。
+本轮新确认保留的是以下四项，不等于已经修复。此前已决定保留的 Portal、虚拟显示器、Markdown 字重和非致命日志等事项维持原记录，不与本轮四项合并计数。
 
 | 事项 | 出现位置与现象 | 当前处理决定 |
 | --- | --- | --- |
@@ -156,7 +162,6 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - Dolphin“属性 → 共享”页面由 `kdenetwork-filesharing` 提供，但实际 Samba `smbd` 服务属于宿主系统，不在 AppImage 内启动。宿主未安装或未启用 Samba 时会显示“文件共享服务不可用”；如果不使用 Samba 文件夹共享功能可直接忽略，不影响 Dolphin 普通文件管理、KDE Connect 及套件其他功能。
 - i3/Kali 会话没有运行 `org.freedesktop.portal.Desktop` 时，终端可能出现 `qt.qpa.theme.gnome ... ServiceUnknown` 或 KDE Connect Input Capture 错误。文件共享、设备连接和播放正常时可忽略；不要仅为消除日志给 AppImage 增加权限或强行启动桌面服务。
 - KDE Connect 可能输出 QML `depends on non-bindable properties`、Breeze `Value is null`、通知扩展未实现或蓝牙 `Missing CAP_NET_ADMIN`。文件已完整送达、设备连接和多媒体控制正常时，这些是上游界面或可选能力日志。
-- Qt 内置文件选择器在个别浅色配色下，选中目录的文字和背景对比度偏低。这是当前防崩溃方案的外观限制，不影响选择和传输；不要为改善颜色恢复 `qgtk3`/`qxdgdesktopportal` 后端。
 - AppImage 缩略图插件主要读取 SquashFS；遇到 DwarFS 或其他格式时可能反复输出 `This doesn't look like a squashfs image`，对应文件可能使用通用图标，不影响执行。
 - Dolphin 信息面板使用 Qt Multimedia/FFmpeg 预览，与 Haruna 的播放链路不同。个别视频可能只有声音、画面为黑色，或输出 VDPAU/PipeWire/AAC 时间戳提示；同一文件在 Haruna 中画面和声音正常时属于预览后端或编码差异。
 - Okular 打开 Markdown 时会按 Markdown 标题层级使用不同字重，缺少完全匹配的中文字体时还可能回退到另一字重；内容和 PDF 输出正常时属于排版差异。
