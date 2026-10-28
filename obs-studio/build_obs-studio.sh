@@ -14,6 +14,7 @@ cd "$SCRIPT_DIR"
 # 应用本身。包管理器会拉入它声明的依赖。中文输入只装 Qt6 这一套。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" obs-studio fcitx5-qt
 
+# 清掉上次的打包目录。dist 留给这次的 AppImage 和版本文件，AppDir 由 quick-sharun 生成。
 rm -rf -- AppDir dist
 mkdir -p dist
 
