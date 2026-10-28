@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # OBS Studio：安装官方包，把 /usr/bin/obs 和会被临时加载的模块交给 quick-sharun。
 # quick-sharun 自己生成 AppRun。这里不要写 AppRun.sh。
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
