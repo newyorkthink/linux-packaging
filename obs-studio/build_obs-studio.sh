@@ -18,17 +18,24 @@ cd "$SCRIPT_DIR"
 rm -rf -- AppDir dist
 mkdir -p dist
 
+# 把当前机器架构传给 quick-sharun。
 export ARCH="$(uname -m)"
+# 使用官方包中的图标作为 AppImage 图标。
 export ICON=/usr/share/icons/hicolor/256x256/apps/com.obsproject.Studio.png
+# 使用官方包中的桌面入口文件。
 export DESKTOP=/usr/share/applications/com.obsproject.Studio.desktop
+# 把 AppImage 写到脚本目录下的 dist。
 export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
 export OUTNAME=obs-studio.AppImage
+# 官方包依赖 libglvnd，打包时打入 OpenGL。
 export DEPLOY_OPENGL=1
+# 官方包依赖 libpipewire，打包时打入 PipeWire。
 export DEPLOY_PIPEWIRE=1
+# 官方包依赖 Python，打包时打入 Python 运行时。
 export DEPLOY_PYTHON=1
+# 官方包依赖 qt6-base，打包时打入 Qt。
 export DEPLOY_QT=1
-export DEPLOY_SDL=1
-export DEPLOY_VULKAN=1
 
 # 模块、模块数据和录制程序不是主程序的动态库依赖，同一次传入。
 quick-sharun /usr/bin/obs /usr/bin/obs-ffmpeg-mux \
