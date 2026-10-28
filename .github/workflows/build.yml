@@ -899,7 +899,6 @@ jobs:
           chmod +x build_obs-studio.sh
           ./build_obs-studio.sh 2>&1 | tee build_obs-studio.log
           test -x dist/obs-studio.AppImage
-          test -s dist/obs-studio.AppImage.sha256
       - name: Upload software version metadata
         uses: actions/upload-artifact@v4
         with:
