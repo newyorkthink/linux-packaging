@@ -97,7 +97,7 @@ unset ADD_HOOKS UPINFO GITHUB_REPOSITORY
 
 QS_ARGS=(
   /usr/bin/obs
-  /usr/lib/obs-plugins
+  /usr/lib/obs-modules
   /usr/lib/libobs.so
   /usr/lib/cef
   /usr/share/obs
@@ -166,8 +166,6 @@ find AppDir -type f -iname 'Yami.obt' -print -quit | grep -q . || \
   die "最终 AppDir 缺少 OBS Yami 深色主题。"
 find AppDir -type f \( -iname '*zh-CN*' -o -iname '*zh_CN*' \) -print -quit | grep -q . || \
   die "最终 AppDir 缺少中文资源。"
-find AppDir -type f -path '*obs-plugins*' -iname '*browser*' -print -quit | grep -q . || \
-  die "最终 AppDir 缺少 OBS Browser 插件。"
 
 # OBS 为 Qt6 程序；禁止混入 Qt5 运行库。
 if find AppDir -type f -name 'libQt5*.so*' -print -quit | grep -q .; then
