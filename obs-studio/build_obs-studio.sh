@@ -47,8 +47,7 @@ ENV
 # 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-# 打包成功后记下版本，去掉 epoch 和 pkgrel。
-version="$(pacman -Q obs-studio | awk '{print $2}')"
-version="${version#*:}"
-version="${version%-*}"
-printf '%s\n' "$version" > dist/version.txt
+# 打包成功后用公共脚本记下版本，去掉 epoch 和 pkgrel。
+version="$("$SCRIPT_DIR/../common/arch/get_package_version.sh" obs-studio)"
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" \
+  dist/obs-studio.AppImage "$version" dist/version.txt
