@@ -29,3 +29,17 @@ Process completed with exit code 1.
 - 写死的内容：`/usr/bin/obs-ffmpeg-mux`
 - 作用：和主程序一起进包。
 - 当初报错：同上。构建停在不存在的插件目录，还没有跑到缺这个程序。
+
+## `/usr/lib/obs-scripting`
+
+- 为什么写死：OBS 的 Python 脚本模块在这个目录，不在 `/usr/lib/obs-modules`。
+- 写死的内容：`/usr/lib/obs-scripting`
+- 作用：和主程序同一次交给 `quick-sharun`，让包里有 `obspython.py` 和 `_obspython.so`。
+- 当初报错全文：
+
+```text
+warning: [Python] Python failure in obs_scripting_load_python:1707:
+ModuleNotFoundError: No module named 'obspython'
+warning: [Python] Error importing obspython.py', unloading obs-python
+warning: [Python] Failed to load python plugin
+```

@@ -38,9 +38,9 @@ export DEPLOY_PYTHON=1
 # 官方包依赖 qt6-base，打包时打入 Qt。
 export DEPLOY_QT=1
 
-# 模块、模块数据和录制程序不是主程序的动态库依赖，同一次传入。
+# 模块、模块数据、脚本模块和录制程序不是主程序的动态库依赖，同一次传入。
 quick-sharun /usr/bin/obs /usr/bin/obs-ffmpeg-mux \
-  /usr/lib/obs-modules /usr/share/obs
+  /usr/lib/obs-modules /usr/share/obs /usr/lib/obs-scripting
 
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
 mkdir -p AppDir/lib/locale

@@ -146,7 +146,7 @@ Qt 6 程序打包前安装 qt6ct、kvantum、lxqt-qtplugin。装上后由 quick-
 
 ## 有窗口的 Qt 程序
 
-有窗口且使用 Qt 6 的程序，标准脚本是 [obs-studio/build_obs-studio.sh](./obs-studio/build_obs-studio.sh)。相对 mpv 的默认形状，这个脚本增加了中文环境、Qt 主题插件，以及同一次交给 quick-sharun 的录制程序、模块目录和模块数据。图标、desktop、DEPLOY_* 和传给 quick-sharun 的路径来自该程序自己的官方包。
+有窗口且使用 Qt 6 的程序，标准脚本是 [obs-studio/build_obs-studio.sh](./obs-studio/build_obs-studio.sh)。相对 mpv 的默认形状，这个脚本增加了中文环境、Qt 主题插件，以及同一次交给 quick-sharun 的录制程序、模块目录、模块数据和脚本模块。图标、desktop、DEPLOY_* 和传给 quick-sharun 的路径来自该程序自己的官方包。
 
 ## 非必要不要自己写 AppRun.sh
 
