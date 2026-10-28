@@ -58,7 +58,6 @@ export DWARFS_COMP="zstd:level=5"
 
 quick-sharun ./AppDir/bin/* /usr/lib/libnss_nis.so* /usr/lib/libnsl.so* /usr/lib/libnss_mdns*_minimal.so* /usr/bin/bwrap
 printf 'LANG=zh_CN.UTF-8\nLANGUAGE=zh_CN:zh\n' >> ./AppDir/.env
-patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 ./AppDir/shared/bin/language_server_linux_x64
 quick-sharun --make-appimage
 
 # 记录当前上游版本，供构建成功后自动增量更新软件版本清单。
