@@ -12,7 +12,8 @@ cd "$SCRIPT_DIR"
 # 打包工具。GTK、Qt、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 # 应用本身。包管理器会拉入它声明的依赖。中文输入只装 Qt6 这一套。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" obs-studio fcitx5-qt
+# 构建时缺少 lxqt 的 Qt 插件，补上这个包。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" obs-studio fcitx5-qt lxqt-qtplugin
 
 # 清掉上次的打包目录。dist 留给这次的 AppImage 和版本文件，AppDir 由 quick-sharun 生成。
 rm -rf -- AppDir dist
