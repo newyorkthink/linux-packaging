@@ -28,9 +28,6 @@ export DEPLOY_PYTHON=1
 export DEPLOY_QT=1
 export DEPLOY_SDL=1
 export DEPLOY_VULKAN=1
-# 插件按文件名找 libobs.so，要用已登记的固定映射。
-export PATH_MAPPING_HARDCODED='libobs.so*'
-
 # 不加入 AnyLinux 的 self-updater hook。
 unset ADD_HOOKS UPINFO GITHUB_REPOSITORY
 
