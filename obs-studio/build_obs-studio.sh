@@ -31,17 +31,9 @@ export DEPLOY_VULKAN=1
 # 不加入 AnyLinux 的 self-updater hook。
 unset ADD_HOOKS UPINFO GITHUB_REPOSITORY
 
-FCITX=/usr/lib/qt6/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so
-IBUS=/usr/lib/qt6/plugins/platforminputcontexts/libibusplatforminputcontextplugin.so
-if [[ ! -f "$FCITX" || ! -f "$IBUS" ]]; then
-  echo "错误：没有找到 Qt6 中文输入模块。" >&2
-  exit 1
-fi
-
 # 模块、模块数据和录制程序不是主程序的动态库依赖，同一次传入。
 quick-sharun /usr/bin/obs /usr/bin/obs-ffmpeg-mux \
-  /usr/lib/obs-modules /usr/share/obs \
-  "$FCITX" "$IBUS"
+  /usr/lib/obs-modules /usr/share/obs
 
 mkdir -p AppDir/lib/locale
 localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
