@@ -121,6 +121,17 @@ Qt 6 安装 `ibus`、`fcitx5-qt`，把这两个插件一并传入：
 
 GTK 4、Qt 5 也安装对应的 `fcitx5-gtk` 或 `fcitx5-qt`，再把安装后真实存在的 IBus 和 Fcitx5 模块传进去。文件不存在就停止构建，不要悄悄省掉中文输入，也不要把 GTK 3 的模块塞进 GTK 4 或 Qt 程序。
 
+## Qt 主题插件
+
+quick-sharun 打入 Qt 时会检查主题插件。缺少插件就警告界面没有对应的主题支持。警告下面的包名列表是固定的，三个名字都会出现，不表示三个都缺。缺哪个，以 there is no 后面的插件名为准。
+
+打包前按程序实际使用的 Qt 版本安装：
+
+- Qt 6 安装 `qt6ct`、`kvantum`、`lxqt-qtplugin`。
+- Qt 5 安装 `qt5ct`、`kvantum`、`lxqt-qtplugin`。
+
+安装后由 quick-sharun 收进包里，不用再把插件路径传给 quick-sharun。
+
 ## 非必要不要自己写 AppRun.sh
 
 quick-sharun 生成的 `AppRun` 就是启动入口。一般情况禁止再创建或覆盖：

@@ -30,7 +30,7 @@
 | --- | --- |
 | [AI 仓库规范](../AGENTS.md) | 授权、稳定基线、完整阅读、提交、验证边界 |
 | [维护者指南](./maintainer-guide.md) | 人工维护、入口、打包路线、提交前核对 |
-| [Anylinux / quick-sharun 规范](../anylinux_projects.md) | Arch、sharun、AppDir、中文环境、输入模块、`.env` |
+| [Anylinux / quick-sharun 规范](../anylinux_projects.md) | Arch、sharun、AppDir、中文环境、输入模块、`.env`、Qt 主题插件、qt6ct、kvantum、lxqt-qtplugin |
 | [linuxdeploy 规范](../linuxdeploy_projects.md) | Ubuntu、插件、AppRun、appimagetool |
 | [AppImage 构建依赖清单](./appimage-build-dependency-list.md) | 基础包、Qt5 / Qt6、GTK、功能依赖 |
 | [打包 export 登记表](./packaging-export-registry.md) | 环境变量、用途、登记后使用 |
@@ -43,7 +43,7 @@
 | 记录 | 检索关键词 | 状态与范围 |
 | --- | --- | --- |
 | [quick-sharun 下 Qt5 转 Qt6 的程序路径变化](./packaging-cases/quick-sharun-qt6-resources.md) | Qt5、Qt6、applicationDirPath、AT_EXECFN、/proc/self/exe、shared/bin、资源、中文界面、Language、System default、辅助程序、native messaging | 程序目录变化、资源定位和辅助程序启动的通用机制、适用条件与排查方法；具体应用证据和验收结果见各应用目录 |
-| [quick-sharun 说明](./packaging-cases/quick-sharun.md) | quick-sharun、更新 hook、self-updater、ADD_HOOKS、不会自动更新 | 已核对的 quick-sharun 行为。后续往该文件追加，不单开一篇 |
+| [quick-sharun 说明](./packaging-cases/quick-sharun.md) | quick-sharun、更新 hook、self-updater、ADD_HOOKS、不会自动更新、Qt 主题插件、qt6ct、kvantum、lxqt-qtplugin | 已核对的 quick-sharun 行为。后续往该文件追加，不单开一篇 |
 
 ## 已知隐患与保留记录
 
