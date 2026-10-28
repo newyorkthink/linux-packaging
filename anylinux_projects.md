@@ -123,14 +123,30 @@ GTK 4、Qt 5 也安装对应的 `fcitx5-gtk` 或 `fcitx5-qt`，再把安装后�
 
 ## Qt 主题插件
 
-quick-sharun 打入 Qt 时会检查主题插件。缺少插件就警告界面没有对应的主题支持。警告下面的包名列表是固定的，三个名字都会出现，不表示三个都缺。缺哪个，以 there is no 后面的插件名为准。
+这段检查只在包里有 Qt 6 时出现。quick-sharun 在 qt6/plugins 里按文件名找 kvantum、qtlxqt、qt6ct。找不到就打出对应的一段警告。三段可以在同一次打包里连续出现。四行正文相同，只有第一行的插件名不同。
 
-打包前按程序实际使用的 Qt 版本安装：
+WARNING: Qt was deployed but there is no kvantum plugin!
+This means the application will lack proper theme support!
+Install the packages that provide theme support before deploying
+In archlinux those are: qt6ct kvantum lxqt-qtplugin
 
-- Qt 6 安装 `qt6ct`、`kvantum`、`lxqt-qtplugin`。
-- Qt 5 安装 `qt5ct`、`kvantum`、`lxqt-qtplugin`。
+WARNING: Qt was deployed but there is no qtlxqt plugin!
+This means the application will lack proper theme support!
+Install the packages that provide theme support before deploying
+In archlinux those are: qt6ct kvantum lxqt-qtplugin
 
-安装后由 quick-sharun 收进包里，不用再把插件路径传给 quick-sharun。
+WARNING: Qt was deployed but there is no qt6ct plugin!
+This means the application will lack proper theme support!
+Install the packages that provide theme support before deploying
+In archlinux those are: qt6ct kvantum lxqt-qtplugin
+
+In archlinux those are 后面固定是 qt6ct、kvantum、lxqt-qtplugin。三个名字每次都写全，不表示三个都缺。缺的是第一行点名的那个：kvantum、qtlxqt 或 qt6ct。
+
+Qt 6 程序打包前安装 qt6ct、kvantum、lxqt-qtplugin。装上后由 quick-sharun 收进包里，不用再把插件路径传给 quick-sharun。
+
+## 有窗口的 Qt 程序
+
+有窗口且使用 Qt 6 的程序，标准脚本是 [obs-studio/build_obs-studio.sh](./obs-studio/build_obs-studio.sh)。相对 mpv 的默认形状，这个脚本增加了中文环境、Qt 主题插件，以及同一次交给 quick-sharun 的录制程序、模块目录和模块数据。图标、desktop、DEPLOY_* 和传给 quick-sharun 的路径来自该程序自己的官方包。
 
 ## 非必要不要自己写 AppRun.sh
 
