@@ -28,8 +28,6 @@ export DEPLOY_PYTHON=1
 export DEPLOY_QT=1
 export DEPLOY_SDL=1
 export DEPLOY_VULKAN=1
-# 不加入 AnyLinux 的 self-updater hook。
-unset ADD_HOOKS UPINFO GITHUB_REPOSITORY
 
 # 模块、模块数据和录制程序不是主程序的动态库依赖，同一次传入。
 quick-sharun /usr/bin/obs /usr/bin/obs-ffmpeg-mux \
