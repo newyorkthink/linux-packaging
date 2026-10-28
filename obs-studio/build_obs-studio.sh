@@ -35,6 +35,7 @@ unset ADD_HOOKS UPINFO GITHUB_REPOSITORY
 quick-sharun /usr/bin/obs /usr/bin/obs-ffmpeg-mux \
   /usr/lib/obs-modules /usr/share/obs
 
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
 mkdir -p AppDir/lib/locale
 localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
 cat >> AppDir/.env <<'ENV'
@@ -44,8 +45,10 @@ LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
 ENV
 
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
+# 打包成功后记下版本，去掉 epoch 和 pkgrel。
 version="$(pacman -Q obs-studio | awk '{print $2}')"
 version="${version#*:}"
 version="${version%-*}"
