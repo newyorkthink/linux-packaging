@@ -6,9 +6,7 @@
 
 ## 技术栈与打包方式
 
-OBS Studio 为 Qt 6 / C++ 桌面应用。当前脚本使用 Arch Linux 构建环境与 quick-sharun 收集 OBS、Browser Source、PipeWire、Qt 6、Fcitx5 及相关运行依赖，并生成最终 AppImage；不启用 AnyLinux self-updater hook。
-
-构建脚本同时保留简体中文 locale、Qt 6 Fcitx5 输入模块和 OBS 官方 Yami 深色主题默认值。最终图形驱动仍按现有脚本规则处理，本次不引入额外兼容逻辑。
+OBS Studio 为 Qt 6 / C++ 桌面应用。当前脚本按 quick-sharun 的默认写法安装官方包，把 `/usr/bin/obs`、录制用的 `obs-ffmpeg-mux`、`/usr/lib/obs-modules` 和 `/usr/share/obs` 交给同一次收集。中文环境和 Qt 6 输入模块按规范写入，不写启动包装，不启用 self-updater hook。
 
 ## 版本元数据
 
@@ -35,6 +33,13 @@ obs-studio/build_obs-studio.sh
 ```
 
 ## 变更记录
+
+### 2026-10-28：按标准写法重写构建脚本
+
+- 构建失败是因为脚本把已经不存在的 `/usr/lib/obs-plugins` 交给 `quick-sharun`，原文是 `'/usr/lib/obs-plugins' is NOT present!`。OBS 33.0.0 的模块在 `/usr/lib/obs-modules`。
+- 删掉安装后和打包后的一串存在性检查、自定义启动包装，以及已经不存在的 `obs-studio-plugin-browser`、`/usr/lib/cef`。
+- 安装改走 `common/arch/install_packages.sh`。中文环境按规范写 `.env`，不再设置 `LC_ALL`，也不再默认写入 Yami 主题。
+
 
 ### 2026-09-16：接入统一软件版本元数据
 
