@@ -1,202 +1,65 @@
 #!/usr/bin/env bash
+# WorkBuddy：安装当前 AUR 包，把整个程序目录放进 AppDir/bin，再交给 quick-sharun。
+# quick-sharun 自己生成 AppRun。这里不要写 AppRun.sh。
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 当前 AUR 包。中文输入只装 GTK 3 这一套。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" workbuddy fcitx5-gtk
 
-die() {
-  echo "Error: $*" >&2
-  exit 1
-}
-
-rm -rf AppDir dist workbuddy.desktop workbuddy.png
-[[ "$(uname -m)" == "x86_64" ]] || die "this script only supports x86_64 / linux-x64."
-
-# AppImage 构建依赖；WorkBuddy 的 Linux 应用适配继续复用当前 AUR workbuddy 配方。
-# asar 用来读取 app.asar 内的 payload 版本。makepkg 可能清掉仅作为 makedepends 安装的 asar。
-yay -S --noconfirm --needed \
-  gcc base-devel git curl jq wget tar gzip binutils patchelf coreutils file p7zip \
-  appstream-glib desktop-file-utils util-linux zsync \
-  xorg-server xorg-server-common xorg-server-xvfb \
-  nss alsa-lib gtk3 at-spi2-core libsecret libxkbfile \
-  libappindicator-gtk3 libnotify libxss libxtst shared-mime-info xdg-utils \
-  gcc-libs glibc lsof inetutils \
-  libx11 libxext libxi libxrandr libxkbcommon \
-  libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau \
-  pulseaudio pulseaudio-alsa pipewire-audio ibus imagemagick \
-  asar
-
-# AUR 的 .SRCINFO 与 PKGBUILD 曾出现版本不同步；先按 AUR 对外声明版本修正本次临时 PKGBUILD。
-AUR_BUILD_PARENT="$(mktemp -d)"
-AUR_BUILD_DIR="$AUR_BUILD_PARENT/workbuddy"
-trap 'rm -rf "$AUR_BUILD_PARENT"' EXIT
-
-for attempt in 1 2 3; do
-  rm -rf "$AUR_BUILD_DIR"
-  if git -c http.version=HTTP/1.1 clone --depth=1 \
-    https://aur.archlinux.org/workbuddy.git "$AUR_BUILD_DIR"; then
-    break
-  fi
-  if [[ "$attempt" -eq 3 ]]; then
-    die "failed to clone the AUR workbuddy PKGBUILD."
-  fi
-  sleep 5
-done
-
-[[ -f "$AUR_BUILD_DIR/PKGBUILD" ]] || die "AUR workbuddy PKGBUILD was not found."
-[[ -f "$AUR_BUILD_DIR/.SRCINFO" ]] || die "AUR workbuddy .SRCINFO was not found."
-
-AUR_PKGVER="$(sed -n 's/^pkgver=//p' "$AUR_BUILD_DIR/PKGBUILD" | head -n 1)"
-EXPECTED_PKGVER="$(awk -F ' = ' '/^[[:space:]]*pkgver = / {print $2; exit}' "$AUR_BUILD_DIR/.SRCINFO")"
-[[ -n "$AUR_PKGVER" && -n "$EXPECTED_PKGVER" ]] || die "AUR workbuddy version metadata was not found."
-[[ "$EXPECTED_PKGVER" =~ ^[0-9A-Za-z._+:-]+$ ]] || die "unexpected AUR workbuddy pkgver: $EXPECTED_PKGVER"
-
-EXPECTED_DEB="WorkBuddy-linux-x64-deb-${EXPECTED_PKGVER//_/-}.deb"
-grep -Fq "$EXPECTED_DEB" "$AUR_BUILD_DIR/.SRCINFO" || \
-  die "AUR .SRCINFO version and Linux x64 DEB source do not match."
-
-sed -i "0,/^pkgver=.*/s//pkgver=$EXPECTED_PKGVER/" "$AUR_BUILD_DIR/PKGBUILD"
-cat >> "$AUR_BUILD_DIR/PKGBUILD" <<EOF_PKGVER
-
-# Keep source resolution and package metadata on the same AUR-advertised version.
-pkgver() {
-  printf '%s\n' '$EXPECTED_PKGVER'
-}
-EOF_PKGVER
-
-echo "AUR WorkBuddy version: $EXPECTED_PKGVER"
-if [[ "$AUR_PKGVER" != "$EXPECTED_PKGVER" ]]; then
-  echo "Correcting stale AUR PKGBUILD pkgver: $AUR_PKGVER -> $EXPECTED_PKGVER"
-fi
-
-if [[ "$EUID" -eq 0 ]]; then
-  id builduser >/dev/null 2>&1 || die "builduser is required when running as root."
-  chown -R builduser: "$AUR_BUILD_PARENT"
-  sudo -HE -u builduser bash -lc "cd '$AUR_BUILD_DIR' && makepkg -si --noconfirm"
-else
-  (
-    cd "$AUR_BUILD_DIR"
-    makepkg -si --noconfirm
-  )
-fi
-
-VERSION="$(pacman -Q workbuddy | awk '{print $2}')"
-INSTALLED_PKGVER="${VERSION%-*}"
-[[ "$INSTALLED_PKGVER" == "$EXPECTED_PKGVER" ]] || \
-  die "installed WorkBuddy package version mismatch: $INSTALLED_PKGVER != $EXPECTED_PKGVER"
-
-PACKAGE_FILES="$(pacman -Qlq workbuddy)"
-APP_ASAR="$(awk '/\/resources\/app\.asar$/ && !found {print; found=1}' <<< "$PACKAGE_FILES")"
-[[ -f "$APP_ASAR" ]] || die "WorkBuddy resources/app.asar was not found."
-command -v asar >/dev/null 2>&1 || die "asar is required to read the WorkBuddy payload version."
-
-# asar 4 的 extract-file 把文件写进当前目录，标准输出是空的。
-PAYLOAD_DIR="$(mktemp -d)"
-trap 'rm -rf "$AUR_BUILD_PARENT" "$PAYLOAD_DIR"' EXIT
-(
-  cd "$PAYLOAD_DIR"
-  asar extract-file "$APP_ASAR" package.json >/dev/null
-)
-[[ -s "$PAYLOAD_DIR/package.json" ]] || \
-  die "WorkBuddy payload package.json was not extracted from $APP_ASAR."
-APP_PAYLOAD_VERSION="$(jq -r '.version // empty' "$PAYLOAD_DIR/package.json")"
-APP_PAYLOAD_VERSION="${APP_PAYLOAD_VERSION#v}"
-EXPECTED_VERSION_BASE="${EXPECTED_PKGVER%%_*}"
-IFS='.' read -r EXPECTED_MAJOR EXPECTED_MINOR EXPECTED_PATCH _ <<< "$EXPECTED_VERSION_BASE"
-EXPECTED_APP_VERSION="$EXPECTED_MAJOR.$EXPECTED_MINOR.$EXPECTED_PATCH"
-[[ "$APP_PAYLOAD_VERSION" == "$EXPECTED_APP_VERSION" || "$APP_PAYLOAD_VERSION" == "$EXPECTED_APP_VERSION".* ]] || \
-  die "WorkBuddy payload version mismatch: $APP_PAYLOAD_VERSION != $EXPECTED_APP_VERSION"
-
-RESOURCE_DIR="$(dirname "$APP_ASAR")"
-UPSTREAM_ROOT="$(dirname "$RESOURCE_DIR")"
-[[ "$(basename "$RESOURCE_DIR")" == "resources" ]] || \
-  die "WorkBuddy app.asar is not inside a resources directory: $APP_ASAR"
-[[ -x "$UPSTREAM_ROOT/workbuddy" ]] || \
-  die "WorkBuddy upstream executable was not found: $UPSTREAM_ROOT/workbuddy"
-[[ -d "$UPSTREAM_ROOT/locales" ]] || \
-  die "WorkBuddy locales were not found: $UPSTREAM_ROOT/locales"
-[[ -d "$RESOURCE_DIR/app.asar.unpacked" ]] || \
-  die "WorkBuddy app.asar.unpacked was not found: $RESOURCE_DIR/app.asar.unpacked"
-
-echo "WorkBuddy package version: $VERSION"
-echo "WorkBuddy payload version: $APP_PAYLOAD_VERSION"
-echo "WorkBuddy payload: $APP_ASAR"
-echo "WorkBuddy runtime: $UPSTREAM_ROOT"
-
+# 清掉上次的打包目录。
+rm -rf -- AppDir dist
 mkdir -p AppDir/bin dist
-cp -a "$UPSTREAM_ROOT"/. AppDir/bin/
 
-# Arch Electron 的可选 Qt6 主题 shim 不作为 AppImage 必需依赖。官方运行时通常没有该文件。
-rm -f AppDir/bin/libqt6_shim.so
+# 整个程序目录原样放进 AppDir/bin。/usr/bin 里的是 shell，不用它当入口。
+cp -a /opt/WorkBuddy/. AppDir/bin/
 
-# 官方二进制本身就是 Electron，resources/app.asar 在它旁边。
-# 改名后由同目录的壳补上 CI 参数，避免覆盖官方文件名。
-mv AppDir/bin/workbuddy AppDir/bin/workbuddy.bin
-cat > AppDir/bin/workbuddy <<'EOF_WRAPPER'
-#!/usr/bin/env bash
-set -e
-HERE="$(cd "$(dirname "$0")" && pwd)"
-export ELECTRON_FORCE_IS_PACKAGED=1
-
-if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
-  exec "$HERE/workbuddy.bin" --disable-dev-shm-usage "$@"
-fi
-
-exec "$HERE/workbuddy.bin" "$@"
-EOF_WRAPPER
-chmod +x AppDir/bin/workbuddy
-
-# 旧 AUR 会把 process.resourcesPath 写成单引号资源根。当前官方包不再这样做。
-# 若解包目录又出现该字面量，停止构建，避免 AppImage 挂载路径变化后资源失效。
-QUOTED_RESOURCE_ROOT="'${UPSTREAM_ROOT}/resources'"
-if grep -RIq --fixed-strings "$QUOTED_RESOURCE_ROOT" AppDir/bin/resources/app.asar.unpacked 2>/dev/null; then
-  die "WorkBuddy payload still hard-codes the AUR resource root: $QUOTED_RESOURCE_ROOT"
-fi
-
-# 直接复用 AUR desktop；只替换 launcher 前缀，保留 Desktop Actions 的 URI 参数和图标。
-INSTALLED_DESKTOP="$(awk '/\/applications\/[^/]*workbuddy[^/]*\.desktop$/ && !found {print; found=1}' <<< "$PACKAGE_FILES")"
-[[ -f "$INSTALLED_DESKTOP" ]] || die "WorkBuddy desktop entry was not found."
-cp -a "$INSTALLED_DESKTOP" ./workbuddy.desktop
-sed -i 's#^Exec=/usr/bin/workbuddy#Exec=workbuddy#' ./workbuddy.desktop
-
-ICON_SOURCE="$(grep -Ei '/icons/.*/workbuddy\.png$' <<< "$PACKAGE_FILES" | sort -V | tail -n 1)"
-[[ -f "$ICON_SOURCE" ]] || die "WorkBuddy PNG icon was not found."
-cp -a "$ICON_SOURCE" ./workbuddy.png
-
-# WorkBuddy Linux AppIndicator 固定从 resources 同级 .workbuddy-linux 目录读取托盘图标。
-mkdir -p AppDir/bin/.workbuddy-linux
-cp -a "$ICON_SOURCE" AppDir/bin/.workbuddy-linux/workbuddy.png
-
-echo "$VERSION" > ~/version
-
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 成品里的应用名。
 export APPNAME=WorkBuddy
-export STARTUPWMCLASS="$(sed -n 's/^StartupWMClass=//p' ./workbuddy.desktop | head -n 1)"
-export STARTUPWMCLASS="${STARTUPWMCLASS:-WorkBuddy}"
-export ICON=./workbuddy.png
-export DESKTOP=./workbuddy.desktop
-export OUTPATH=./dist
+# 包里的真实程序名。
+export MAIN_BIN=workbuddy
+# 让窗口对上 desktop 里的 StartupWMClass。
+export STARTUPWMCLASS=WorkBuddy
+# 使用系统里装好的图标。
+export ICON=/usr/share/icons/hicolor/512x512/apps/workbuddy.png
+# 使用系统里装好的桌面入口文件。
+export DESKTOP=/usr/share/applications/workbuddy.desktop
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
 export OUTNAME=workbuddy.AppImage
+# 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
-export DEPLOY_OPENGL=1
-export DEPLOY_VULKAN=1
-export DEPLOY_PIPEWIRE=1
 
-# 保留已验证需要随 AppImage 部署的 ln、grep 和输入法/NSS 运行项。
-quick-sharun \
-  ./AppDir/bin/* \
-  /usr/bin/hostname \
-  /usr/bin/ln \
-  /usr/bin/grep \
-  /usr/lib/libnss* \
-  /usr/lib/libsoftokn3.so \
-  /usr/lib/libfreeblpriv3.so \
-  /usr/lib/pkcs11/* \
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
+# 从本次安装结果读取版本，去掉 epoch 和 pkgrel。
+VERSION="$(pacman -Q workbuddy | awk '{print $2}')"
+VERSION="${VERSION#*:}"
+VERSION="${VERSION%-*}"
 
+quick-sharun AppDir/bin/*
+
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'ENV'
+LANG=zh_CN.UTF-8
+LANGUAGE=zh_CN:zh
+LC_MESSAGES=zh_CN.UTF-8
+LOCPATH=${SHARUN_DIR}/lib/locale
+ENV
+
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
-test -s ./dist/workbuddy.AppImage
 
-# 记录当前上游版本，供构建成功后自动增量更新软件版本清单。
-printf '%s\n' "$EXPECTED_PKGVER" > ./dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" \
+  dist/workbuddy.AppImage "$VERSION" dist/version.txt

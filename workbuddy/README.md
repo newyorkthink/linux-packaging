@@ -2,6 +2,12 @@
 
 本目录维护 **WorkBuddy Linux x86_64 AppImage** 的构建与发布。
 
+## 当前状态
+
+2026-10-29 起，脚本安装当前 AUR 包，把 `/opt/WorkBuddy` 整份放进 `AppDir/bin`，再交给 quick-sharun。写死的路径在 [docs/hardcoded.md](docs/hardcoded.md)。不再克隆 AUR，不再用 `asar` 核对版本，不再加启动壳。
+
+下文里 2026-10-29 以前的打包步骤，以及“不要写死安装路径”，只保留当时的做法，不再作为当前脚本。
+
 ## 构建来源
 
 使用当前 AUR `workbuddy` 包作为 Linux 适配来源。
@@ -107,6 +113,14 @@ workbuddy.AppImage
 - **`ln` 和 `grep` 必须作为 `quick-sharun` 输入显式部署。** 否则目标 Linux 环境下可能出现 `/bin/sh` 语法错误。
 
 ## 变更记录
+
+### 2026-10-29：按系统安装目录整份打包
+
+- 现象：构建脚本克隆 AUR、用 `asar` 核对 payload，并另加启动壳、托盘图标和额外扫描目标。
+- 根因：这些步骤不是当前打包方式。AUR 包已经把程序装在 `/opt/WorkBuddy`。
+- 修改文件：`workbuddy/build_workbuddy.sh`、`workbuddy/docs/hardcoded.md`、`workbuddy/README.md`。
+- 修改内容：安装当前 AUR 包，把程序目录整份放进 `AppDir/bin`，图标和桌面入口使用安装结果里的固定路径。写死的三项记在 `docs/hardcoded.md`。
+- 已知结果：这次修改的构建还没有完成。
 
 ### 2026-10-15：跟随官方自带 Electron 和 app.asar
 
