@@ -26,7 +26,7 @@ Visual Studio Code 为 Electron / Chromium 桌面应用。构建脚本动态解�
 - [make-appimage.sh](https://github.com/pkgforge-dev/Visual-Studio-Code-AppImage/blob/0016f8465bfeb37d7bb557eeab0c8469a41cf0de/make-appimage.sh)：原样保留 `DEPLOY_OPENGL=1` 和 `DEPLOY_VULKAN=1`，用于收集相应图形运行依赖。官方未说明额外背景原因。
 - [cli-router.hook](https://github.com/pkgforge-dev/Visual-Studio-Code-AppImage/blob/0016f8465bfeb37d7bb557eeab0c8469a41cf0de/AppDir/bin/cli-router.hook)：保留上游命令行入口、远程终端转发、WSL 提示和 root 启动检查的完整代码。文件头补充同一上游的版权及 MIT 许可注释，可执行代码和原有运行提示不改。
 
-图标、主 desktop 和 URL 协议入口文件直接从已安装的 `visual-studio-code-bin` 获取，不下载 desktop 模板，也不替换占位符。这部分属于本仓库的标准资源获取流程，不标注为官方原命令。
+图标和主 desktop 按标准模板直接从已安装的 `visual-studio-code-bin` 获取。标准模板未单独收集 URL 协议入口；本构建参照 [官方 get-dependencies.sh](https://github.com/pkgforge-dev/Visual-Studio-Code-AppImage/blob/0016f8465bfeb37d7bb557eeab0c8469a41cf0de/get-dependencies.sh) 保留协议入口文件的做法，增加目录准备和文件复制步骤，文件同样取自已安装的软件包。这里参照的是保留入口的做法，复制命令属于本仓库实现，不标注为官方原命令；不下载 desktop 模板，也不替换占位符。
 
 详细出处、用途及原因见 [模板差异说明](./docs/template-deviations.md)；固定路径及参数依据见 [固定配置说明](./docs/hardcoded.md)。
 

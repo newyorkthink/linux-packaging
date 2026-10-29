@@ -19,6 +19,7 @@
 
 ## 系统桌面资源
 
+- 与标准模板的差异：[Cursor](../../cursor/build_cursor.sh) 和 [WorkBuddy](../../workbuddy/build_workbuddy.sh) 模板没有单独创建协议入口目录、收集独立协议入口文件的步骤。本构建参照 [官方 get-dependencies.sh](https://github.com/pkgforge-dev/Visual-Studio-Code-AppImage/blob/0016f8465bfeb37d7bb557eeab0c8469a41cf0de/get-dependencies.sh) 中保留 `code-url-handler.desktop` 的做法增加此步骤，实际文件从已安装包取得。
 - 位置：依赖安装完成后取得协议入口；打包元数据阶段直接指定系统图标和主 desktop。
 - 主 desktop：`/usr/share/applications/com.microsoft.VSCode.desktop`。
 - URL 入口来源：`/usr/share/applications/com.microsoft.VSCode.UrlHandler.desktop`，复制到 `AppDir/share/applications/code-url-handler.desktop`。

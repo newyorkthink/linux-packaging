@@ -27,6 +27,7 @@ mkdir -p AppDir/bin dist
 # 整个程序目录原样放进 AppDir/bin。
 cp -a vscode-unpacked/VSCode-linux-x64/. AppDir/bin/
 
+# 标准模板未单独收集协议入口；此处参照官方保留该入口的做法，从已安装的软件包取得文件。
 # 准备协议入口目录。
 mkdir -p AppDir/share/applications
 # 使用系统里装好的协议入口文件。
