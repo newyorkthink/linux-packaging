@@ -30,7 +30,7 @@
 | --- | --- |
 | [AI 仓库规范](../AGENTS.md) | 授权、稳定基线、完整阅读、提交、验证边界 |
 | [维护者指南](./maintainer-guide.md) | 人工维护、入口、打包路线、提交前核对 |
-| [Anylinux / quick-sharun 规范](../anylinux_projects.md) | Arch、sharun、AppDir、中文环境、输入模块、platforminputcontexts、自动收集、`.env`、Qt 主题插件、qt6ct、kvantum、lxqt-qtplugin、有窗口的 Qt 程序 |
+| [Anylinux / quick-sharun 规范](../anylinux_projects.md) | Arch、sharun、AppDir、中文环境、输入模块、platforminputcontexts、自动收集、`.env`、Qt 主题插件、qt6ct、kvantum、lxqt-qtplugin、有窗口的 Qt 程序、Electron、程序目录 |
 | [linuxdeploy 规范](../linuxdeploy_projects.md) | Ubuntu、插件、AppRun、appimagetool |
 | [AppImage 构建依赖清单](./appimage-build-dependency-list.md) | 基础包、Qt5 / Qt6、GTK、功能依赖 |
 | [打包 export 登记表](./packaging-export-registry.md) | 环境变量、用途、登记后使用 |

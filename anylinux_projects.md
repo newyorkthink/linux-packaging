@@ -209,6 +209,27 @@ quick-sharun --make-appimage
 
 不要把主程序塞进 quick-sharun 用来放启动器的 `AppDir/bin/`。不要复制整个 `/opt` 或整个 `/usr/lib`。如果包已经提供可用的 `/usr/bin` 启动器，仍走上一节，不要再复制一份。
 
+## Electron
+
+Electron 的程序和旁边的资源在同一个目录里。不论文件来自系统安装，还是来自官方 deb 或 tar，都把这个目录的全部内容放进 `AppDir/bin`，再交给 quick-sharun。不要先抽出主程序，也不要在打包后再把资源拷回去或做链接。
+
+系统里已经装好时，程序目录通常在 `/usr/lib/<应用>`。`/usr/bin` 里如果只是转去运行这个目录的 shell，不用它当入口。菜单、图标和许可证如果在 `/usr/share`，从那些原路径读取。
+
+官方直接提供 deb 或 tar 时，包里已经有完整程序目录，不经过系统安装。解包后把该目录的全部内容放进 `AppDir/bin`。菜单和图标留在 AppDir 外面，由 quick-sharun 放进包。desktop 里的启动命令如果写的是系统路径，改成包内程序名。
+
+两种来源都这样调用：
+
+```bash
+export DEPLOY_GTK=1
+quick-sharun AppDir/bin/*
+```
+
+GTK 3 输入模块由 quick-sharun 收集。构建环境里要已经装有这些模块，调用处不再传入模块路径。`chrome-sandbox` 留在程序目录里，不单独删除。
+
+中文 locale 仍按有窗口程序的写法，加在第一次 quick-sharun 之后、`--make-appimage` 之前。
+
+没有这种并列资源、只是缺少 `/usr/bin` 入口的程序，仍放在 `AppDir/shared/bin`。
+
 ## 和 linuxdeploy 的分界
 
 | 路线 | 规范 |
