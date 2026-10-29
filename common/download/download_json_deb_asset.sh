@@ -12,11 +12,12 @@ FILENAME_TEMPLATE="${5:-}"
 EXPECTED_PACKAGE="${6:-}"
 EXPECTED_ARCHITECTURE="${7:-}"
 OUTPUT="${8:-}"
+SHA256_JQ_FILTER="${9:-}"
 
 [[ -n "$METADATA_URL" && -n "$VERSION_JQ_FILTER" && -n "$ASSET_URL_JQ_FILTER" &&
    -n "$ASSET_URL_REGEX" && -n "$FILENAME_TEMPLATE" && -n "$EXPECTED_PACKAGE" &&
    -n "$EXPECTED_ARCHITECTURE" && -n "$OUTPUT" ]] || {
-  echo "用法：$0 <元数据 URL> <版本 jq> <资产 URL jq> <允许 URL 正则> <文件名模板> <DEB 包名> <架构> <输出 DEB>" >&2
+  echo "用法：$0 <元数据 URL> <版本 jq> <资产 URL jq> <允许 URL 正则> <文件名模板> <DEB 包名> <架构> <输出 DEB> [SHA-256 jq]" >&2
   exit 1
 }
 [[ "$FILENAME_TEMPLATE" == *'{version}'* ]] || {
@@ -51,13 +52,19 @@ ASSET_URL="$(jq -er "$ASSET_URL_JQ_FILTER // empty" "$METADATA_FILE")"
 }
 
 EXPECTED_FILENAME="${FILENAME_TEMPLATE//\{version\}/$VERSION}"
-[[ "${ASSET_URL##*/}" == "$EXPECTED_FILENAME" ]] || {
+[[ "${ASSET_URL##*/}" == $EXPECTED_FILENAME ]] || {
   echo "错误：资产 URL 文件名与版本模板不一致：$ASSET_URL" >&2
   exit 1
 }
 
-# 上游未提供摘要时仍复用统一 HTTPS 下载入口；随后核对 DEB 类型和调用方指定的包元数据。
-"$DOWNLOAD_FILE" "$ASSET_URL" "$OUTPUT"
+# 上游提供 SHA-256 字段时，由公共下载入口完成校验；未提供时保持原有下载方式。
+SHA256=""
+if [[ -n "$SHA256_JQ_FILTER" ]]; then
+  SHA256="$(jq -er "$SHA256_JQ_FILTER // empty" "$METADATA_FILE")"
+fi
+
+# 下载完成后核对 DEB 类型和调用方指定的包元数据。
+"$DOWNLOAD_FILE" "$ASSET_URL" "$OUTPUT" "$SHA256"
 file "$OUTPUT" | grep -q 'Debian binary package' || {
   echo "错误：下载文件不是 Debian 软件包：$OUTPUT" >&2
   exit 1
