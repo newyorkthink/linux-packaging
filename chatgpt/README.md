@@ -9,16 +9,21 @@
 - [OpenAI Codex 沙盒说明](https://learn.chatgpt.com/docs/sandboxing)
 - OpenAI 官方 stable APT 仓库：`https://persistent.oaistatic.com/codex-app-prod/linux/deb`
 
-构建脚本动态读取官方 `Packages` 元数据，下载当前 `amd64` 稳定包，并使用其中的文件大小和 SHA-256 校验下载内容；不会写死应用版本。
+构建先通过公共入口安装已核实的 AUR `chatgpt-desktop` 及依赖，再由公共 AUR 下载入口读取当前 `.SRCINFO`，独立下载其中声明的 OpenAI 官方 x86_64 DEB，并按 SHA-256 校验。版本读取本次 DEB 内的 `resources/linux-package-metadata.json`，不锁定应用版本，也不在应用脚本解析 APT 元数据。
+
+当前 AUR 来源：[PKGBUILD](https://github.com/archlinux/aur/blob/fac212f2e43f029d6c5b336c82d1ebf68da77949/PKGBUILD)、[.SRCINFO](https://github.com/archlinux/aur/blob/fac212f2e43f029d6c5b336c82d1ebf68da77949/.SRCINFO)。参考的同应用 pkgforge 打包：[准备脚本](https://github.com/pkgforge-dev/ChatGPT-Desktop-AppImage/blob/0e52cadeafc0229ea9a55415a70a2abc00d0bf07/get-dependencies.sh)、[封装脚本](https://github.com/pkgforge-dev/ChatGPT-Desktop-AppImage/blob/0e52cadeafc0229ea9a55415a70a2abc00d0bf07/make-appimage.sh)。
 
 ## 打包说明
 
-- 完整保留官方 `/usr/lib/chatgpt` 运行目录、desktop、图标和 copyright 文件。
-- 不执行 deb 的 `postinst`、`prerm` 或 `postrm`，不向宿主系统写入 APT 源、密钥或 AppArmor 配置。
-- AppImage 无法使用官方 deb 针对固定安装路径提供的 AppArmor userns 规则，因此便携入口使用 `--no-sandbox --disable-setuid-sandbox` 启动 Electron/Chromium；这两个参数只针对 Electron/Chromium，不代表禁用 Codex 命令沙盒。
-- ChatGPT AppImage 的 Codex 命令沙盒依赖宿主发行版安装的 `bubblewrap`。启动入口会把 `/usr/bin` 和 `/bin` 放在 PATH 最前，确保优先使用宿主 `/usr/bin/bwrap`；AppImage 内部工具目录保留在 PATH 末尾，只作为后备，不会删除或替换宿主 `bwrap`。
-- 构建后会检查最终 AppImage 的关键资源、动态库和官方 Codex 二进制摘要，并使用最终 AppImage 内的 `resources/codex` 执行 `codex sandbox /usr/bin/true`，随后在隔离 HOME、D-Bus 与 Xvfb 中执行图形启动测试。
-- GitHub Actions 的 ChatGPT Job 单独以 `--privileged` 启动临时 Arch Linux 构建容器，仅用于允许嵌套 `bubblewrap` 在 CI 中创建 namespace 并执行上述真实 Codex 沙盒测试；该 CI 权限不会进入 AppImage，也不改变终端用户运行时的权限模型。
+- 按直接下载标准执行：初始化、安装、清理目录、三行公共下载、公共解包、完整复制程序、元数据、版本读取、依赖收集、中文环境、最终封装及单行版本保存。
+- 完整复制官方 `/usr/lib/chatgpt/` 到 `AppDir/bin/`；主 desktop 和图标分别读取系统安装的 `/usr/share/applications/chatgpt.desktop`、`/usr/share/pixmaps/chatgpt.png`。
+- 原样采用 pkgforge 的 Qt shim 删除及全目录收集命令。删除范围限于 `AppDir/bin/libqt*_shim.so`；其必要性判断、Qt 依赖影响和 Plasma 验证边界见 [官方处理记录](docs/pkgforge-differences.md)。
+- 保留宿主 bwrap 优先级和 `--no-sandbox --disable-setuid-sandbox`，通过两个运行时 hook 接入标准 AppRun，不再另写 `AppRun.sh`。这些参数只针对 Electron/Chromium，不关闭 Codex 自身的命令沙箱。
+- GTK 输入模块交给 quick-sharun 收集；包内按标准生成中文 locale。官方完整程序目录中的 Codex、Code Mode Host、插件及 Computer Use 资源随目录复制，产品功能是否开放仍由上游决定。
+- 取消旧的内联 APT 下载解析、ELF 数组筛选、手工库搜索路径、禁用 Electron 自动部署的开关，以及解包产物、哈希一致性、Codex 沙盒和 Xvfb 冒烟自测。采用工具默认部署后，不再沿用旧脚本的“部署后核心文件摘要与源完全一致”保证。
+- 本次未修改工作流或其他应用。旧 CI 沙盒及图形测试结果继续作为历史记录保留，不写成这份新脚本已经重新完成了这些验证。
+
+详细配置见 [模板差异与代码位置](docs/template-deviations.md)、[固定配置依据](docs/hardcoded.md)、[官方处理的采用与不采用](docs/pkgforge-differences.md)。
 
 ## Codex / bubblewrap PATH 陷阱
 
@@ -44,19 +49,21 @@ export PATH="/usr/bin:/bin${PATH:+:$PATH}:$APPDIR/bin"
 
 因此运行时优先级为 `/usr/bin` → `/bin` → 原宿主 PATH → AppImage 内工具目录。宿主 `/usr/bin/bwrap` 始终优先；AppImage 内的 `bwrap` 不删除，只作为后备。
 
-最终 AppImage 的构建验证会直接使用其中的官方 `resources/codex` 执行：
-
-```text
-codex sandbox /usr/bin/true
-```
-
-该测试必须以退出码 `0` 完成；任何 `bwrap` 错误都会使构建失败。当前 CI 已通过这项真实 Codex 沙盒测试，避免仅靠 ChatGPT 图形界面冒烟测试而漏掉 Codex 命令沙盒问题。
+旧构建流程曾在 CI 执行真实 Codex 沙盒检查，见下方修复历史。本次标准化稿不再内嵌这些自测；本次只沿用已有的运行时 PATH 处理，不声称新稿已重新通过沙盒或图形验收。
 
 终端用户仍需在宿主 Linux 发行版安装 `bubblewrap`。`--no-sandbox` 和 `--disable-setuid-sandbox` 只处理 Electron/Chromium 的启动限制，并不会关闭或替代 Codex 自己的命令沙盒。
 
 OpenAI 当前将 Linux 桌面版标记为预览版，并正式支持指定版本的 Ubuntu、Debian 和 Fedora。这里生成的 AppImage 是本仓库的便携重打包产物，不是 OpenAI 官方发布格式。
 
 虽然官方 Linux 包内含相关运行资源，但 OpenAI 当前文档明确说明 Computer Use 尚未在 Linux 预览版开放；本项目不会绕过该产品限制。
+
+## 2026-10-30：按标准骨架整理打包
+
+- 下载、安装、解包和版本读写统一使用既有公共入口；主程序目录、系统图标和主 desktop 直接使用已核实的包布局。
+- 只直接复用 pkgforge 的 `rm -f ./AppDir/bin/libqt*_shim.so` 与 `quick-sharun ./AppDir/bin/*`，命令逐字保留。官方 Qt 主题适配说明仍有 Plasma 待测试项，不声称删除对所有桌面均无影响。
+- 保留原有宿主 bwrap PATH 和两个 Electron 启动参数，改由标准 AppRun 的 hook 执行；构建期不新增 APPDIR、SOURCE_DIR 或 APP_ROOT 目录包装变量。
+- 清理旧脚本的下载解析、循环筛选、手工库路径、额外部署开关、产物自检和冒烟测试。下方历史故障记录原样保留。
+- 复用聊天草稿已经完成的 Bash / hook 语法检查结果；本次仅核对获批文本、完整 diff、代码行号及文档。没有重复安装、构建、测试或实机运行。
 
 ## 修复记录
 
