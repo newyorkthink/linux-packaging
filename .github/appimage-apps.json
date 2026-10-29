@@ -476,18 +476,6 @@
       "software_key": "trae-work"
     },
     {
-      "key": "deepseek_harness",
-      "kind": "standard",
-      "name": "DeepSeek Harness",
-      "script": "deepseek-harness/build_deepseek-harness.sh",
-      "dir": "deepseek-harness",
-      "artifact_dir": "deepseek-harness/dist",
-      "release_name": "deepseek-harness.AppImage",
-      "software_key": "deepseek-harness",
-      "timeout_minutes": 60,
-      "run_from_root": "false"
-    },
-    {
       "key": "deepseek_harness_desktop",
       "kind": "standard",
       "name": "DeepSeek Harness Desktop",

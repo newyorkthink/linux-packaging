@@ -1,3 +1,13 @@
+# 已归档
+
+2026-10-29 起本目录不再使用，已从 `deepseek-harness/` 移到 `archive/deepseek-harness/`。不再构建，不再发布。
+
+停用原因：这条命令行打包不再使用。
+
+替代：[deepseek-harness-desktop](../../deepseek-harness-desktop/README.md)。Release 里的 `deepseek-harness.AppImage` 已删除。
+
+下面原文保留，只作历史记录。
+
 # DeepSeek Harness AppImage
 
 将 DeepSeek 官方 [`deepseek-ai/deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness) 的 npm 发行包 `@deepseek-ai/dsh` 封装为自包含 Linux x86_64 AppImage。

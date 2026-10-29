@@ -7,7 +7,7 @@
 - 应用主体来自 DeepSeek 官方仓库中的 [桌面工程（`apps/desktop`）](https://github.com/deepseek-ai/deepseek-harness/tree/master/apps/desktop)。
 - Linux 构建采用 AUR 社区维护的配方及适配补丁，AppImage 由本仓库封装并发布。
 - 用户实测已确认 AppImage 桌面启动和基础中文对话，其他功能及跨发行版兼容性尚未验证。
-- 官方桌面应用采用 Electron，并内置完整 dsh 运行时。它与仓库已有的 [deepseek-harness 浏览器版](../deepseek-harness/README.md) 分别构建、分别发布。
+- 官方桌面应用采用 Electron，并内置完整 dsh 运行时。原来的命令行打包已于 2026-10-29 归档到 [archive/deepseek-harness](../archive/deepseek-harness/README.md)，不再构建、不再发布。
 - 每次构建读取当前 AUR 配方和实际安装版本，本仓库不写死应用版本；AUR 当前渠道可能是 alpha，版本元数据保留该标识。
 - [PKGBUILD](https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=deepseek-harness-desktop) 从官方 Git tag 获取源码，并应用社区 [linux-desktop.patch](https://aur.archlinux.org/cgit/aur.git/plain/linux-desktop.patch?h=deepseek-harness-desktop)。Linux 目标、更新配置、原生模块和 Office 运行时存在社区适配。
 - 核对时的补丁使用第三方 `@janhapke/sharp-electron` 修复 Linux 图像处理崩溃，因此不能称为官方源码原样封装。补丁摘要由 makepkg 校验，补丁中的下载和上游运行时下载使用各自提供的摘要校验。
