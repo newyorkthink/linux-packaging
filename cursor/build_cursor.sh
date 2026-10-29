@@ -19,6 +19,7 @@ cd "$SCRIPT_DIR"
   mesa libglvnd libva libvdpau libva-intel-driver \
   alsa-lib pulseaudio pulseaudio-alsa pipewire-audio \
   libsecret libnotify lsof
+"$SCRIPT_DIR/../common/arch/install_packages.sh" cursor-bin
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist cursor-unpacked cursor.deb cursor.desktop co.anysphere.cursor.png
