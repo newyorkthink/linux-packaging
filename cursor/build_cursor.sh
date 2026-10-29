@@ -1,147 +1,87 @@
 #!/usr/bin/env bash
-set -e
+# Cursor：下载官方 x64 deb，把整个程序目录放进 AppDir/bin，再交给 quick-sharun。
+# quick-sharun 自己生成 AppRun。这里不要写 AppRun.sh。
 
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
+
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 官方 deb 不经过包管理器，运行库要单独装。dpkg 用来解包。中文输入只装 GTK 3 这一套。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" \
+  dpkg gtk3 fcitx5-gtk \
+  libx11 libxrandr libxss libxext libxi libxtst libxkbfile \
+  libxcomposite libxdamage libxfixes \
+  mesa libglvnd libva libvdpau libva-intel-driver \
+  alsa-lib pulseaudio pulseaudio-alsa pipewire-audio \
+  libsecret libnotify lsof
 
-rm -rf AppDir usr opt etc debian-binary control.tar.* data.tar.* \
-  cursor.desktop co.anysphere.cursor.png \
-  /tmp/cursor.deb /tmp/cursor-download.log || true
+# 清掉上次的打包目录。
+rm -rf -- AppDir dist cursor-unpacked cursor.deb cursor.desktop co.anysphere.cursor.png
+mkdir -p AppDir/bin dist
 
-ARCH="$(uname -m)"
+# 这个地址会跳到当前 x64 deb。
+"$SCRIPT_DIR/../common/download/download_file.sh" \
+  https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/latest \
+  cursor.deb
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" cursor.deb cursor-unpacked
 
-if [ "$ARCH" != "x86_64" ]; then
-  echo "Error: this script only supports x86_64 / linux-x64."
-  exit 1
-fi
+# 整个程序目录原样放进 AppDir/bin。
+cp -a cursor-unpacked/usr/share/cursor/. AppDir/bin/
 
-export ARCH
-
-DEB_ARCH=x64
-
-# 安装基础打包工具和依赖
-yay -S --noconfirm gcc base-devel wget curl tar gzip xz binutils patchelf coreutils \
-  appstream-glib desktop-file-utils util-linux zsync \
-  xorg-server xorg-server-common xorg-server-xvfb
-
-# 安装 Cursor / Electron 运行相关依赖
-# 补充 GTK3 / IBus / X11 / OpenGL / PipeWire 相关库，方便 quick-sharun 收集运行库。
-yay -S --noconfirm inetutils libx11 libxrandr libxss nss \
-  pulseaudio pulseaudio-alsa pipewire-audio \
-  alsa-lib gtk3 libsecret libnotify shared-mime-info xdg-utils \
-  gcc-libs glibc lsof \
-  libxext libxi libxtst libxkbcommon libxkbfile \
-  libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau libva-intel-driver \
-  ibus
-
-export APPNAME=Cursor
-export STARTUPWMCLASS=cursor
-export ICON=./co.anysphere.cursor.png
-export DESKTOP=./cursor.desktop
-export OUTPATH=./dist
-export OUTNAME="cursor.AppImage"
-export DEPLOY_GTK=1
-export DEPLOY_OPENGL=1
-export DEPLOY_VULKAN=1
-export DEPLOY_PIPEWIRE=1
-
-# 下载官方 Cursor x64 deb 包
-DEB_SOURCE="https://cursor.com/download"
-DEB_LINK="$(wget --retry-connrefused --tries=30 "$DEB_SOURCE" -O - \
-  | sed 's/[()",{} ]/\n/g' \
-  | grep -E "https.*download.*linux.*${DEB_ARCH}.*deb" \
-  | head -n 1 || true)"
-
-if [ -z "$DEB_LINK" ]; then
-  echo "Error: failed to resolve Cursor x64 deb download URL."
-  exit 1
-fi
-
-echo "Cursor deb URL: $DEB_LINK"
-
-mkdir -p ./AppDir ./dist
-
-if ! wget --retry-connrefused --tries=30 "$DEB_LINK" -O /tmp/cursor.deb 2>/tmp/cursor-download.log; then
-  cat /tmp/cursor-download.log
-  exit 1
-fi
-
-ar xvf /tmp/cursor.deb
-
-if [ -f ./data.tar.xz ]; then
-  tar -xvf ./data.tar.xz
-elif [ -f ./data.tar.zst ]; then
-  tar -xvf ./data.tar.zst
-elif [ -f ./data.tar.gz ]; then
-  tar -xvf ./data.tar.gz
-else
-  echo "Error: data.tar.* not found in cursor.deb."
-  exit 1
-fi
-
-mv -v ./usr ./AppDir/usr
-
-# Cursor deb 解包后的实际路径是 AppDir/usr/share/cursor。
-if [ -d ./AppDir/usr/share/cursor ]; then
-  mv -v ./AppDir/usr/share/cursor ./AppDir/bin
-else
-  echo "Error: ./AppDir/usr/share/cursor not found."
-  exit 1
-fi
-
-# 注意：desktop 和 icon 不要复制到 AppDir 根目录。
-# quick-sharun 会根据 DESKTOP / ICON 自动添加到 AppDir。
-if [ -f ./AppDir/usr/share/applications/cursor.desktop ]; then
-  cp -v ./AppDir/usr/share/applications/cursor.desktop ./cursor.desktop
-else
-  echo "Error: cursor.desktop not found."
-  exit 1
-fi
-
-if [ -f ./AppDir/usr/share/pixmaps/co.anysphere.cursor.png ]; then
-  cp -v ./AppDir/usr/share/pixmaps/co.anysphere.cursor.png ./co.anysphere.cursor.png
-else
-  echo "Error: Cursor icon not found."
-  exit 1
-fi
+# 菜单和图标留在 AppDir 外面，由 quick-sharun 放进包。
+cp cursor-unpacked/usr/share/applications/cursor.desktop cursor.desktop
+cp cursor-unpacked/usr/share/pixmaps/co.anysphere.cursor.png co.anysphere.cursor.png
 
 # 修正 desktop 文件，让 AppImage 入口直接调用 cursor。
 sed -i \
   -e 's#^Exec=.*#Exec=cursor %U#' \
   -e 's#^Icon=.*#Icon=co.anysphere.cursor#' \
-  ./cursor.desktop
+  cursor.desktop
 
-# 尽量提取版本号，方便记录。
-VERSION=""
-if [ -f ./AppDir/bin/resources/app/package.json ]; then
-  VERSION="$(awk -F'"' '/"version":/ {print $4; exit}' ./AppDir/bin/resources/app/package.json || true)"
-fi
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 成品里的应用名。
+export APPNAME=Cursor
+# 让窗口对上 desktop 里的 StartupWMClass。
+export STARTUPWMCLASS=cursor
+# 使用官方包中的图标。
+export ICON="$SCRIPT_DIR/co.anysphere.cursor.png"
+# 使用修正后的桌面入口文件。
+export DESKTOP="$SCRIPT_DIR/cursor.desktop"
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
+export OUTNAME=cursor.AppImage
+# 这是 GTK 3 程序。输入模块、NSS 和 pkcs11 由 quick-sharun 自己收集。
+export DEPLOY_GTK=1
 
-if [ -n "$VERSION" ]; then
-  echo "$VERSION" > ~/version
-  echo "Cursor version: $VERSION"
+# 版本写在官方 package.json 里，没有 Arch 包可读。
+VERSION="$(awk -F'"' '/"version":/ {print $4; exit}' AppDir/bin/resources/app/package.json)"
+printf '%s\n' "$VERSION" > ~/version
+grep -q '^X-AppImage-Version=' cursor.desktop \
+  || printf 'X-AppImage-Version=%s\n' "$VERSION" >> cursor.desktop
 
-  if ! grep -q '^X-AppImage-Version=' ./cursor.desktop; then
-    echo "X-AppImage-Version=$VERSION" >> ./cursor.desktop
-  fi
-fi
+# hostname 不会被自动收进包。
+quick-sharun AppDir/bin/* /usr/bin/hostname
 
-# 使用 quick-sharun 构建 AppDir，并补充 IBus GTK3 输入法模块和 NSS / hostname 相关运行项。
-quick-sharun \
-  ./AppDir/bin/* \
-  /usr/bin/hostname \
-  /usr/lib/libnss* \
-  /usr/lib/libsoftokn3.so \
-  /usr/lib/libfreeblpriv3.so \
-  /usr/lib/pkcs11/* \
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'ENV'
+LANG=zh_CN.UTF-8
+LANGUAGE=zh_CN:zh
+LC_MESSAGES=zh_CN.UTF-8
+LOCPATH=${SHARUN_DIR}/lib/locale
+ENV
 
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-if [ -z "$VERSION" ]; then
-  echo "Error: failed to determine Cursor version." >&2
-  exit 1
-fi
-printf '%s\n' "$VERSION" > ./dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" \
+  dist/cursor.AppImage "$VERSION" dist/version.txt
