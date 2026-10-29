@@ -33,11 +33,22 @@ chmod +x deepseek-harness-desktop.AppImage
 ## 构建与产物
 
 - 正式构建复用现有标准 Arch Linux matrix 和 `build-anylinux` Action，不在用户真实主机安装 AUR 包。
-- 构建脚本通过 `common/arch/install_packages.sh` 安装当前 AUR 包和 GTK 3 输入模块；打包复用容器中已有的 quick-sharun。
-- `/usr/bin/deepseek-harness-desktop` 是 shell 包装，实际打包入口为 `/usr/lib/deepseek-harness-desktop/deepseek-harness`。脚本同时收集内置原生组件的动态依赖，再补齐相邻资源和许可证。
+- 当前 [AUR 配方及来源](https://github.com/archlinux/aur/blob/deepseek-harness-desktop/PKGBUILD) 从官方 Git tag 构建 Linux 桌面程序；[官方桌面打包说明](https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/desktop/packaging/README.md) 未将 Linux 列为支持的发布目标。本次未找到适用的 Linux 预编译桌面安装包，采用“从系统里已安装的程序取得”分类，不添加 DEB 下载和解包步骤。
+- 先通过 `common/arch/install_packages.sh --base` 安装统一基础工具，保留原有 simdjson 下载和本地安装处理，再安装 `deepseek-harness-desktop fcitx5-gtk` 及 `libxcrypt-compat`。原有安装命令和执行顺序保持不变，应用运行依赖由当前 AUR 配方声明。
+- `/usr/bin/deepseek-harness-desktop` 是 shell 包装，实际程序为 `/usr/lib/deepseek-harness-desktop/deepseek-harness`。构建脚本将 `/usr/lib/deepseek-harness-desktop/.` 完整复制到 `AppDir/bin/`，保留程序、Electron、dsh 和相邻运行时资源，再调用 `quick-sharun AppDir/bin/*` 收集依赖。
+- 内置 Python 私有库目录只在第一次 quick-sharun 调用中加入临时 `LD_LIBRARY_PATH`；后续封装不继承这次赋值。`libxcrypt-compat`、Python 私有库路径和 simdjson 的既有故障依据继续保留，不把这些修复复制到通用模板。
+- 图标和 desktop 直接读取已安装包的原路径。上游 MIT 版权和许可声明从 `/usr/share/licenses/deepseek-harness-desktop/LICENSE` 复制到 `AppDir/share/licenses/deepseek-harness-desktop/LICENSE`；当前未证实程序资源内已完整包含同一声明，因此保留这份独立副本。
+- 使用 `common/build/read_app_version.sh pacman deepseek-harness-desktop` 读取本次安装版本，去掉 epoch 和 pkgrel，保留 alpha 等渠道标识。版本读取保留在第一次 quick-sharun 之前；最终 AppImage 成功生成后，用单行公共保存调用写入 `dist/version.txt`。
+- 当前脚本共 75 行。通用流程、元数据顺序、中文 locale 和版本保存沿用 Electron 标准；无现成安装包的来源差异及已保留的专属处理见下方文档。标准化不表示所有专属步骤与 DEB 模板具有相同行数。
 - AUR 源码构建会下载工具链、Electron 和内置运行时，耗时与空间需求高于直接重打包现成二进制；构建任务设置 90 分钟超时。
 - 唯一发布产物为 `dist/deepseek-harness-desktop.AppImage`。成功生成后写入 `dist/version.txt`，由现有流程立即发布版本信息。
 - 手动构建时选择 `deepseek-harness-desktop/build_deepseek-harness-desktop.sh`；正常提交和每日构建沿用现有调度规则。
+
+## 维护说明
+
+- [固定配置与原始故障记录](docs/hardcoded.md)：说明目录、程序名、桌面资源、版本参数及已有修复的取值依据。
+- [模板差异说明](docs/template-deviations.md)：说明无现成安装包的来源分类，以及 simdjson、Python 私有库、兼容库和许可证复制为何保留。
+- [打包分类](../docs/packaging-classification.md)：只登记近期已按当前标准完成重写或整理的项目；未重写的应用不自动加入。
 
 ## 检查记录
 
@@ -45,7 +56,7 @@ chmod +x deepseek-harness-desktop.AppImage
 
 - 已核对当前 AUR 配方、Linux 补丁、上游桌面说明和仓库已有 Electron 打包布局；本次仅新增独立桌面版。
 - Bash 语法、JSON/YAML 解析、手动选项排序、公共入口路径和既有配置保留检查通过；已使用现有 Plan 脚本核对本次 push 仅选择新增桌面版，桌面版与浏览器版的手动入口分别选择对应项目。
-- 尚未取得正式 CI 构建产物，也未进行图形启动、中文输入、Office 功能或跨发行版运行验证。
+- 首次接入时未取得正式 CI 构建产物。桌面启动和基础中文对话已由后续用户实测确认；中文输入法候选词行为、Office 功能及跨发行版兼容性尚未验证。
 - 社区补丁和第三方原生依赖会随 AUR 配方更新；当前来源核对不代表后续版本或运行稳定性已经通过验证。
 
 ### 2026-10-07：修复内置 Python 的依赖扫描
@@ -54,7 +65,7 @@ chmod +x deepseek-harness-desktop.AppImage
 - 两项库位于内置 Python 的 `lib` 目录。仅为首次 quick-sharun 调用设置临时 `LD_LIBRARY_PATH`，加入该目录并保留已有路径，让依赖扫描按包内位置解析 Tcl/Tk。
 - 在临时目录下载该版本上游锁定的 CPython 运行时并通过 SHA256 校验；已复现修复前的两项缺库，加入私有库路径后 `_tkinter` 的全部 `ldd` 依赖均可解析。
 - Bash 语法检查通过；使用临时入口执行脚本的实际调用片段，确认 `LD_LIBRARY_PATH` 未设置、为空及已有值时均可解析，后续 `--make-appimage` 调用保留原环境。
-- 本次未进行完整 Arch 容器构建和 AppImage 封装，也未验证 AppImage 的图形启动、中文输入、Office 功能或跨发行版运行；本地依赖检查不代表最终 AppImage 已构建成功。
+- 该次本地依赖检查未进行完整 Arch 容器构建和 AppImage 封装，不代表整包构建成功。桌面启动和基础中文对话已由后续用户实测确认；中文输入法候选词行为、Office 功能及跨发行版兼容性尚未验证。
 
 ### 2026-10-07：补齐 _crypt 的 Arch 兼容库
 
@@ -62,7 +73,7 @@ chmod +x deepseek-harness-desktop.AppImage
 - 修改 `deepseek-harness-desktop/build_deepseek-harness-desktop.sh`，通过公共安装入口独立追加 `libxcrypt-compat`，由该 [Arch 官方包](https://archlinux.org/packages/core/x86_64/libxcrypt-compat/files/) 提供 `libcrypt.so.1`；原有 AUR 编译命令和 Python 私有库路径处理保持原样。本文件同步记录此次修复。
 - 在临时目录按该应用版本的上游锁定摘要校验并组装 Python、全部 wheel 和 Node；Arch 运行库按当前官方仓库数据库的摘要校验。使用 Arch 动态加载器关闭宿主库缓存，并核对每项解析路径都位于临时运行时或 Arch 库目录。
 - 共检查 114 个 x86_64 ELF：CPython 13 个、原生 wheel 100 个、Node 1 个。基线仅 `_crypt` 缺少 `libcrypt.so.1`；加入 `libxcrypt-compat` 后全部依赖解析通过，Bash 语法检查通过。
-- 本次检查针对上述同版运行时；尚未完成 Electron 主程序及其原生模块的完整 AppImage 封装，也未验证图形启动、中文输入、Office 功能和跨发行版运行。最终构建及运行结果仍未验证。
+- 该次检查仅针对上述同版运行时，没有完成 Electron 主程序及其原生模块的完整 AppImage 封装。桌面启动和基础中文对话已由后续用户实测确认；中文输入法候选词行为、Office 功能及跨发行版兼容性尚未验证。
 
 ### 2026-10-07：按 libc ABI 筛选原生依赖
 
@@ -70,7 +81,7 @@ chmod +x deepseek-harness-desktop.AppImage
 - 修改 `deepseek-harness-desktop/build_deepseek-harness-desktop.sh`，通过 `readelf` 读取 x86_64 ELF 的解释器和动态依赖，仅从依赖扫描输入中排除声明 musl 的文件。原始资源完整保留，既有安装命令和 quick-sharun 调用保持原样；本文件记录此次修复。
 - 已按 npm SHA512 摘要校验失败构建使用的 Koffi 3.1.1 原生包，并直接执行修改前后的筛选片段。临时运行时样本的输入由 114 项减为 113 项，唯一排除项是 musl Koffi 模块；使用 Arch 动态加载器关闭宿主库缓存后，保留项均可解析依赖，原生包在保留 musl 文件时成功加载 GNU 模块。两个原生模块的文件摘要保持不变。
 - Bash 语法、既有命令逐字保留和完整 diff 检查通过；本次只修改上述脚本和本文件。
-- 完整 Arch 试构建停在临时测试环境的软件包初始化下载，尚未执行应用构建脚本，未取得 AppImage。整包构建、图形启动、中文输入、Office 功能和跨发行版运行仍未验证。
+- 完整 Arch 试构建停在临时测试环境的软件包初始化下载，尚未执行应用构建脚本，未取得 AppImage。桌面启动和基础中文对话已由后续用户实测确认；中文输入法候选词行为、Office 功能及跨发行版兼容性尚未验证。
 
 ### 2026-10-07：完整脚本检查与实测反馈
 
@@ -83,3 +94,10 @@ chmod +x deepseek-harness-desktop.AppImage
 
 - 本次核对 [d24fdd4](https://github.com/newyorkthink/linux-packaging/commit/d24fdd4b4f9196d72d28713128852d4ef8c6f823) 中的来源表述，参考 DeepSeek 官方 [桌面工程说明](https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/desktop/README.md) 和此前已核对的 AUR 配方。将应用主体、Linux 适配和安装包发布分别说明为官方桌面源码、AUR 社区维护的适配补丁及本仓库的 AppImage 封装发布；补丁和第三方原生依赖的既有说明完整保留。
 - 本次仅修改本文件的来源说明并追加这条文档变更记录，完整 diff 核对通过。构建脚本、使用命令、既有检查与修复历史、已实测及未验证的运行范围保持原样。
+
+### 2026-10-30：按标准整理脚本并复用公共版本入口
+
+- 按已确认的 75 行草稿统一通用注释、空行和版本调用。用 `common/build/read_app_version.sh` 替换脚本内的三行版本解析，最终版本保存改为单行调用；本次不改变程序来源、安装顺序、复制布局、元数据、依赖收集或中文环境。
+- 保留 simdjson 下载和安装、`libxcrypt-compat`、仅作用于一次扫描的 Python 私有库路径，以及独立许可证副本。前三项依据既有构建故障；许可证依据上游 MIT 分发要求，不能仅因基础模板没有该步骤而删除。
+- 更新本文件的当前构建说明和已被后续实测取代的待验证表述，其他故障现象、检查边界及修复历史保留。同步补充固定配置、模板差异和打包分类；未修改工作流、公共脚本或其他应用。
+- 提交前核对脚本与批准草稿逐字一致、Bash 语法、原有修复命令、文档路径及完整 diff。此前用户已实测确认的桌面启动和基础中文对话继续按通过处理；本次未重新构建 AppImage，不能据此声明新产物或 Office 等其他功能通过。

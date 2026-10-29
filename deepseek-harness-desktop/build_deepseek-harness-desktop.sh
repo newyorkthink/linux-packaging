@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# DeepSeek Harness 桌面版：安装当前 AUR 包，把整个程序目录放进 AppDir/bin，再交给 quick-sharun。
-# quick-sharun 自己生成 AppRun。这里不要写 AppRun.sh。
 
 # 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
@@ -15,8 +13,9 @@ cd "$SCRIPT_DIR"
 "$SCRIPT_DIR/../common/download/download_file.sh" \
   https://archlinux.org/packages/extra/x86_64/simdjson/download/ \
   simdjson.pkg.tar.zst
+# 安装下载的软件包。
 pacman -U --noconfirm simdjson.pkg.tar.zst
-# 当前 AUR 包。中文输入只装 GTK 3 这一套。
+# 应用本身。包管理器会拉入它声明的依赖。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" deepseek-harness-desktop fcitx5-gtk
 # 内置 CPython 的 _crypt 需要 libcrypt.so.1。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" libxcrypt-compat
@@ -25,7 +24,7 @@ pacman -U --noconfirm simdjson.pkg.tar.zst
 rm -rf -- AppDir dist
 mkdir -p AppDir/bin dist
 
-# 整个程序目录原样放进 AppDir/bin。/usr/bin 里的是 shell，不用它当入口。
+# 整个程序目录原样放进 AppDir/bin。
 cp -a /usr/lib/deepseek-harness-desktop/. AppDir/bin/
 
 # 许可证留在系统原路径，放进包里。
@@ -51,11 +50,10 @@ export OUTNAME=deepseek-harness-desktop.AppImage
 # 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
 
-# 从本次安装结果读取版本，去掉 epoch 和 pkgrel。
-VERSION="$(pacman -Q deepseek-harness-desktop | awk '{print $2}')"
-VERSION="${VERSION#*:}"
-VERSION="${VERSION%-*}"
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman deepseek-harness-desktop)"
 
+# 收集程序及其运行依赖。
 # 内置 Python 的库不在系统路径上。只给这一次扫描使用。
 LD_LIBRARY_PATH="AppDir/bin/resources/runtime/primary-runtime/dependencies/python/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
 quick-sharun AppDir/bin/*
@@ -74,5 +72,4 @@ ENV
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" \
-  dist/deepseek-harness-desktop.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/deepseek-harness-desktop.AppImage "$VERSION" dist/version.txt
