@@ -18,10 +18,8 @@ mkdir -p AppDir/bin dist
 
 # 下载官方当前 DEB。
 "$SCRIPT_DIR/../common/download/download_json_deb_asset.sh" \
-  'https://copilot.tencent.com/v2/update?platform=workbuddy-linux-x64-deb' \
-  '.version | split(".") | .[0:3] | join(".")' '.url' \
-  '^https://download[.]codebuddy[.]cn/workbuddy/saas/linux-x64-deb/WorkBuddy-linux-x64-deb-[^/]+[.]deb$' \
-  'WorkBuddy-linux-x64-deb-{version}*.deb' workbuddy amd64 workbuddy.deb '.sha256hash'
+  'https://copilot.tencent.com/v2/update?platform=workbuddy-linux-x64-deb' '.version | split(".") | .[0:3] | join(".")' '.url' \
+  '^https://download[.]codebuddy[.]cn/workbuddy/saas/linux-x64-deb/WorkBuddy-linux-x64-deb-[^/]+[.]deb$' 'WorkBuddy-linux-x64-deb-{version}*.deb' workbuddy amd64 workbuddy.deb '.sha256hash'
 
 # 解包官方 DEB。
 "$SCRIPT_DIR/../common/archive/extract_archive.sh" workbuddy.deb workbuddy-unpacked
