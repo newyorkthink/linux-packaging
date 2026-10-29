@@ -55,7 +55,12 @@ VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json AppDir
 
 正式构建由 `.github/workflows/build.yml` 的标准 Arch matrix 执行，发布资产名为 `cursor.AppImage`。完成构建和发布后，当前 Job 更新自己的 `software_versions.json` 条目。
 
-固定配置依据见 [docs/hardcoded.md](docs/hardcoded.md)，程序专属参数见 [docs/template-deviations.md](docs/template-deviations.md)。
+## 配置说明文档
+
+以下文件只记录本应用的实际配置，通用用途和维护方法见 [应用配置说明文件](../docs/README.md#应用配置说明文件)。
+
+- [固定配置依据：docs/hardcoded.md](docs/hardcoded.md)：说明固定路径、文件名和参数为什么这样取值、有什么作用，以及相关的原始报错。
+- [模板差异说明：docs/template-deviations.md](docs/template-deviations.md)：说明本应用与标准模板不同的地方、原因和影响，避免套用模板时误删必需的专属处理。
 
 ## 变更记录
 
