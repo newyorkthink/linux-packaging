@@ -1,6 +1,6 @@
 # pkgforge Arch 容器的第一条源有时候会超时
 
-2026-10-28。现在没有超时。这条源不是一直坏，只是有时候会慢到 `pacman` 放弃这次下载。这是上游那条源的情况，不是本仓库某个应用的脚本坏了。不改 workflow，不换源，不写死别的地址。
+2026-10-28，CC Switch 曾有一次构建未出现超时；同日后续的 AionUi 和微信构建再次超时。这条源不是一直坏，只是有时候会慢到 `pacman` 放弃这次下载。这是上游那条源的情况，不是本仓库某个应用的脚本坏了。不改 workflow，不换源，不写死别的地址。
 
 这里有记录，不表示要去改。后面的 AI 如果再看到下面这种日志，按「上游 Bug 默认保留」说明，不要自行处理。不要去查 Actions 链接，运行记录会被自动清理。
 
@@ -22,9 +22,9 @@ Server = https://ghcr.mirror.archlinux.pkgforge.dev/$arch/$repo
 2. `pkgforge-dev/anylinux-setup-action`，装上 `quick-sharun`
 3. 本仓库的构建 Action 再装 `yay`，然后运行该应用自己的 `build_*.sh`
 
-`build_*.sh` 再调用已经装好的 `quick-sharun`。超时发生时，失败在第 1 步，应用脚本还没开始。
+`build_*.sh` 再调用已经装好的 `quick-sharun`。下文早先的 CC Switch 故障发生在第 1 步；后续 AionUi 和微信故障发生在第 2 步。两种情况下，应用脚本都尚未开始执行。
 
-## 现在的情况
+## 2026-10-28 的一次成功记录
 
 2026-10-28 这次 CC Switch 构建没有超时。`Pre-install Git` 大约 3 秒完成，后面的打包也完成了。workflow 没有为这件事改过。
 
@@ -38,7 +38,7 @@ not /ARCH/REPO/FILE, /ARCH/REPO:TAG/FILE or /ARCH/REPO@sha256:HEX/FILE
 
 ## 有时候会怎样
 
-`pacman` 先用第一条。这条源慢到不足 1 字节/秒时，并行下载里已经失败的文件不会改去后面的官方源。日志里就只出现 `ghcr.mirror.archlinux.pkgforge.dev`，然后整次安装失败。
+已保存的失败日志中，`pacman` 报告从 `ghcr.mirror.archlinux.pkgforge.dev` 下载文件时连续 10 秒速度低于 1 字节/秒，随后终止了当次安装。此前关于并行下载失败后不会切换到后续镜像的说法，不作为通用结论。
 
 这不是 archlinux.org 打不开，也不是应用自己的安装包下不下来。用这个容器的应用都会走同一步，不限于某一次失败的那个应用。
 
@@ -81,6 +81,32 @@ Process completed with exit code 1.
 ```
 
 同一天更早的一次 CC Switch 构建也是这句：`Operation too slow. Less than 1 bytes/sec transferred the last 10 seconds`。日志里的主机只有 `ghcr.mirror.archlinux.pkgforge.dev`。那次在装 `git` 之后，安装 curl、wget 和基础包时又出现同样的超时。
+
+## 2026-10-28：AionUi 和微信再次超时
+
+运行编号 `40676971761` 的第 2 次运行中，AionUi 和微信均在 `Preparing Container` 步骤安装基础依赖时失败。两项任务的 `Pre-install Git` 均已成功，应用打包步骤均未执行。下面保留失败日志中的错误与退出信息原文。
+
+### AionUi
+
+```text
+2026-10-28T11:37:51.9050865Z error: failed retrieving file 'mpg123-1.33.7-1-x86_64.pkg.tar.zst' from ghcr.mirror.archlinux.pkgforge.dev : Operation too slow. Less than 1 bytes/sec transferred the last 10 seconds
+2026-10-28T11:37:51.9096649Z error: failed retrieving file 'patch-2.8.1-1-x86_64.pkg.tar.zst.sig' from ghcr.mirror.archlinux.pkgforge.dev : Operation too slow. Less than 1 bytes/sec transferred the last 10 seconds
+2026-10-28T11:37:51.9098429Z error: failed to commit transaction (unexpected error)
+2026-10-28T11:37:51.9275601Z Errors occurred, no packages were upgraded.
+2026-10-28T11:37:51.9380616Z ##[error]Process completed with exit code 1.
+```
+
+### 微信
+
+```text
+2026-10-28T11:37:30.8611816Z error: failed retrieving file 'elfutils-0.197-1-x86_64.pkg.tar.zst.sig' from ghcr.mirror.archlinux.pkgforge.dev : Operation too slow. Less than 1 bytes/sec transferred the last 10 seconds
+2026-10-28T11:37:30.8615719Z error: failed retrieving file 'pulseaudio-17.0+r134+g77d25a1e6-1-x86_64.pkg.tar.zst.sig' from ghcr.mirror.archlinux.pkgforge.dev : Operation too slow. Less than 1 bytes/sec transferred the last 10 seconds
+2026-10-28T11:37:30.8619087Z error: failed retrieving file 'source-highlight-3.1.9-19-x86_64.pkg.tar.zst.sig' from ghcr.mirror.archlinux.pkgforge.dev : Operation too slow. Less than 1 bytes/sec transferred the last 10 seconds
+2026-10-28T11:37:30.8621472Z warning: too many errors from ghcr.mirror.archlinux.pkgforge.dev, skipping for the remainder of this transaction
+2026-10-28T11:37:30.8623026Z error: failed to commit transaction (download library error)
+2026-10-28T11:37:30.8823763Z Errors occurred, no packages were upgraded.
+2026-10-28T11:37:30.8922937Z ##[error]Process completed with exit code 1.
+```
 
 ## 不要这样做
 

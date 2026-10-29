@@ -6,7 +6,11 @@
 
 ## 技术栈与打包方式
 
-OBS Studio 为 Qt 6 / C++ 桌面应用。当前脚本按 quick-sharun 的默认写法安装官方包，把 `/usr/bin/obs`、录制用的 `obs-ffmpeg-mux`、`/usr/lib/obs-modules` 和 `/usr/share/obs` 交给同一次收集。中文环境和 Qt 6 输入模块按规范写入，不写启动包装，不启用 self-updater hook。
+OBS Studio 为 Qt 6 / C++ 桌面应用。当前脚本按 quick-sharun 的默认写法安装官方包，把 `/usr/bin/obs`、录制用的 `obs-ffmpeg-mux`、`/usr/lib/obs-modules`、`/usr/share/obs` 和 Python 脚本模块目录 `/usr/lib/obs-scripting` 交给同一次收集。脚本将中文环境写入 `.env`，通过 `DEPLOY_QT=1` 让 quick-sharun 收集 Qt 6 输入模块，不写启动包装，也不启用 self-updater hook。
+
+脚本安装 `qt6ct`、`kvantum` 和 `lxqt-qtplugin`，由 quick-sharun 收集对应的 Qt 6 主题插件。
+
+相关路径的用途和原始故障记录见 [OBS Studio 写死的路径](./docs/hardcoded.md)。
 
 ## 版本元数据
 

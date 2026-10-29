@@ -112,7 +112,7 @@ quick-sharun /usr/bin/<主程序> \
   /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
 ```
 
-Qt 6 安装 `ibus`、`fcitx5-qt`，把这两个插件一并传入：
+Qt 6 安装 `ibus`、`fcitx5-qt`。当前 quick-sharun 在 `DEPLOY_QT=1` 且依赖列表包含 Qt 6 Gui 库时，会通过 `platform*/*` 收集 `platforminputcontexts/` 中已安装的输入模块，无需重复传入这些 `.so` 路径。以下路径用于定位这两个模块：
 
 ```text
 /usr/lib/qt6/plugins/platforminputcontexts/libibusplatforminputcontextplugin.so
@@ -125,6 +125,7 @@ GTK 4、Qt 5 也安装对应的 `fcitx5-gtk` 或 `fcitx5-qt`，再把安装后�
 
 这段检查只在包里有 Qt 6 时出现。quick-sharun 在 qt6/plugins 里按文件名找 kvantum、qtlxqt、qt6ct。找不到就打出对应的一段警告。三段可以在同一次打包里连续出现。四行正文相同，只有第一行的插件名不同。
 
+```text
 WARNING: Qt was deployed but there is no kvantum plugin!
 This means the application will lack proper theme support!
 Install the packages that provide theme support before deploying
@@ -139,6 +140,7 @@ WARNING: Qt was deployed but there is no qt6ct plugin!
 This means the application will lack proper theme support!
 Install the packages that provide theme support before deploying
 In archlinux those are: qt6ct kvantum lxqt-qtplugin
+```
 
 In archlinux those are 后面固定是 qt6ct、kvantum、lxqt-qtplugin。三个名字每次都写全，不表示三个都缺。缺的是第一行点名的那个：kvantum、qtlxqt 或 qt6ct。
 

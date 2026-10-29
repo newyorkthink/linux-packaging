@@ -71,7 +71,7 @@
 | `DEPLOY_QML` | quick-sharun 是否打入 Qt QML。 | webcamoid |
 | `DEPLOY_LOCALE` | quick-sharun 是否打入 locale。 | 6 个脚本，例如 antigravity-ide、antigravity、freedownloadmanager |
 | `DEPLOY_PYTHON` | quick-sharun 是否打入 Python 运行时。 | 2 个脚本，例如 obs-studio、smplayer |
-| `DEPLOY_SDL` | quick-sharun 是否打入 SDL。 | obs-studio |
+| `DEPLOY_SDL` | quick-sharun 是否打入 SDL。 | 当前没有脚本使用 |
 | `DEPLOY_GDK` | quick-sharun 是否打入 GDK。 | ripdrag |
 | `DEPLOY_GLYCIN` | quick-sharun 是否打入 glycin 图片加载器。 | ripdrag |
 | `DEPLOY_GSTREAMER` | quick-sharun 是否打入 GStreamer。0 是不打。 | webcamoid |
@@ -105,7 +105,7 @@
 | --- | --- | --- |
 | `QT_PLUGIN_PATH` | Qt 插件目录。官方或应用自带目录放前面，linuxdeploy 的 usr/plugins 放后面。 | 10 个脚本，例如 dingtalk、kde-suite、mailmaster |
 | `QT_QPA_PLATFORM_PLUGIN_PATH` | 只放平台插件的目录，比 QT_PLUGIN_PATH 更窄。官方目录放前面。 | 6 个脚本，例如 dingtalk、mailmaster、wemeet |
-| `QT_QPA_PLATFORM` | Qt 用哪个平台插件。xcb 是 X11，wayland 是 Wayland。 | 9 个脚本，例如 dingtalk、mailmaster、obs-studio |
+| `QT_QPA_PLATFORM` | Qt 用哪个平台插件。xcb 是 X11，wayland 是 Wayland。 | 例如 dingtalk、mailmaster |
 | `QT_QPA_PLATFORMTHEME` | Qt 平台主题，用来跟桌面外观。例如 qt6ct。 | 2 个脚本，例如 kde-suite、peazip |
 | `QT_IM_MODULE` | Qt 输入法模块，常见是 fcitx 或 ibus。 | 5 个脚本，例如 dingtalk、kde-suite、mailmaster、xnviewmp |
 | `QT_IM_MODULES` | Qt 6.7 及更新版本的输入法模块列表，分号分隔，优先于 QT_IM_MODULE。XnView 固定为 ibus，避免宿主的 wayland;fcitx 盖掉自带 IBus 插件。 | xnviewmp |
