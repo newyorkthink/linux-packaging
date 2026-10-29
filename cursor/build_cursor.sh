@@ -31,6 +31,8 @@ cp -a cursor-unpacked/usr/share/cursor/. AppDir/bin/
 export ARCH="$(uname -m)"
 # 成品里的应用名。
 export APPNAME=Cursor
+# 包里的真实程序名。
+export MAIN_BIN=cursor
 # 让窗口对上 desktop 里的 StartupWMClass。
 export STARTUPWMCLASS=cursor
 # 使用系统里装好的图标。
