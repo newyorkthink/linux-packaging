@@ -211,35 +211,80 @@ quick-sharun --make-appimage
 
 ## Electron
 
-Electron 的程序和旁边的资源在同一个目录里。不论文件来自系统安装，还是来自官方 deb 或 tar，都把这个目录的全部内容放进 `AppDir/bin`，再交给 quick-sharun。不要先抽出主程序，也不要在打包后再把资源拷回去或做链接。
+Electron 的程序和旁边的资源在同一个目录里。不论文件来自系统安装，还是来自官方 DEB 或 tar，都把这个目录的全部内容放进 `AppDir/bin`，再交给 quick-sharun。不要先抽出主程序，也不要在打包后再把资源拷回去或做链接。
 
 系统里已经装好时，程序目录通常在 `/usr/lib/<应用>`。`/usr/bin` 里如果只是转去运行这个目录的 shell，不用它当入口。菜单、图标和许可证如果在 `/usr/share`，从那些原路径读取。
 
-官方直接提供 deb 或 tar 时，包里已经有完整程序目录，不经过系统安装。解包后把该目录的全部内容放进 `AppDir/bin`。菜单和图标留在 AppDir 外面，由 quick-sharun 放进包。desktop 里的启动命令如果写的是系统路径，改成包内程序名。
+### 直接下载安装包的标准模板
 
-直接下载官方 deb 或 tar 时，如果没有通过 Arch 包管理器安装程序，就需要另外准备运行依赖。quick-sharun 只能收集构建环境中已有的库。
+**后续使用 quick-sharun、需要直接下载官方 Electron 安装包的应用，以 [Cursor](./cursor/build_cursor.sh) 和 [WorkBuddy](./workbuddy/build_workbuddy.sh) 这两个构建脚本为标准。** 当前两份模板都下载官方 DEB；其他归档格式沿用相同执行阶段，按真实包格式选择公共入口，并在应用的差异文档中说明。分类入口见 [打包分类](./docs/packaging-classification.md)。
 
-存在对应的 Arch 或 AUR 软件包时，可以通过 install_packages.sh 安装该软件包及其依赖：
+这项分类按最终程序文件的来源划分：安装 Arch / AUR 软件包用于依赖、图标、desktop 或既定版本元数据；最终程序文件仍单独从官方下载并解包的安装包取得。不要把安装依赖误写成从系统安装目录取得最终程序。
+
+存在对应的 Arch / AUR 软件包时，通过公共安装入口安装它及所需依赖；没有对应软件包时，按实际依赖准备运行库。quick-sharun 只能收集构建环境中已有的库。图标和 desktop 优先读取已安装软件包提供的路径；确无此来源时，再从官方包取得资源并留在 AppDir 外供工具收集。
+
+两份标准模板固定采用以下顺序：
+
+| 阶段 | 固定做法 |
+| --- | --- |
+| 脚本初始化 | 严格模式，定位并切到脚本目录。 |
+| 安装依赖 | 一行安装基础包，一行安装应用及其已确认依赖。 |
+| 准备工作目录 | 清理 AppDir、dist、旧安装包和解包目录，再创建 AppDir/bin 与 dist。 |
+| 下载 | 一条公共下载命令；当前两份 DEB 模板均排成三行，参数由调用方提供。 |
+| 解包 | 一行调用公共解包入口。 |
+| 复制程序 | 一行复制完整程序目录，保持相邻资源布局。 |
+| 打包元数据 | 按 ARCH、APPNAME、MAIN_BIN、STARTUPWMCLASS、ICON、DESKTOP、OUTPATH、OUTNAME、DEPLOY_GTK 的顺序设置。 |
+| 读取版本 | 在原有打包前位置，用一行公共调用赋给 VERSION。 |
+| 收集依赖 | 一行调用 quick-sharun，附加参数只保留当前程序已确认需要的运行命令。 |
+| 中文环境 | 在第一次 quick-sharun 后生成包内 locale，并追加到现有 .env。 |
+| 最终封装 | 调用 quick-sharun --make-appimage。 |
+| 保存版本 | 成功后用一行调用公共保存入口，不加续行符。 |
+
+**总行数、代码结构、执行阶段、通用注释全文以及空行的位置和数量都属于模板。** 对照时逐行核对，不得忽略空行后宣布一致。软件名称、软件包、下载接口、路径、版本来源、元数据选项和必要辅助命令可以不同；具体原因写入该应用的 `docs/template-deviations.md`，固定配置依据写入 `docs/hardcoded.md`。不得把某个应用的专属参数机械复制给其他程序。
+
+通用注释直接沿用两份标准脚本，保持泛化表述和原位置。版本读取统一使用 `# 读取本次打包使用的版本。`，保存统一使用 `# 打包成功后用公共脚本记下版本。`，注释均紧贴对应的单行调用。
+
+### 公共版本读取与保存
+
+`common/build/read_app_version.sh` 支持两种来源：
+
+| 来源 | 参数 | 读取规则 |
+| --- | --- | --- |
+| package-json | package.json 的实际路径 | 用 jq 读取根对象中非空的字符串 version。 |
+| pacman | 已安装的 Arch / AUR 包名 | 复用 common/arch/get_package_version.sh，去掉 epoch 和 pkgrel。 |
+
+公共入口默认只向 stdout 返回版本，供调用方赋给 `VERSION`。`--version-file <路径>` 可保留既有构建版本文件写入，`--desktop <路径>` 可保留缺少 `X-AppImage-Version` 时追加版本的处理；这两项仅在当前程序确有需要时传入。所有输出路径都由应用脚本提供，公共代码不得写死应用名或布局。
+
+下列代码用于说明调用格式，所有尖括号占位内容都须按实际应用替换后使用。应用脚本在各自原位置只保留一种来源的一行调用：
 
 ```bash
-"$SCRIPT_DIR/../common/arch/install_packages.sh" \
-  <对应软件包名>
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json "<package.json路径>")"
 ```
-
-没有对应的软件包时，按实际依赖安装所需的库。最终打包的程序文件仍取自官方 deb 或 tar，不使用构建环境中安装的程序文件。
-
-两种来源都这样调用：
 
 ```bash
-export DEPLOY_GTK=1
-quick-sharun AppDir/bin/*
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman "<已安装的包名>")"
 ```
 
-GTK 3 输入模块由 quick-sharun 收集。构建环境里要已经装有这些模块，调用处不再传入模块路径。`chrome-sandbox` 留在程序目录里，不单独删除。
+读取必须在依赖安装、官方程序解包和复制完成之后，保留在第一次 quick-sharun 之前。Cursor 原有的构建版本文件和 desktop 版本字段通过可选参数在这个阶段处理；WorkBuddy 继续使用 AUR 安装版本。新增来源时扩展公共入口的来源分支，并补充对应说明和验证，不在应用脚本中重新实现解析。
 
-中文 locale 仍按有窗口程序的写法，加在第一次 quick-sharun 之后、`--make-appimage` 之前。
+保存仍调用现有 `common/build/save_appimage_version.sh`，只在最终 AppImage 成功生成后执行；其产物非空检查和版本写入行为保持不变：
 
-没有这种并列资源、只是缺少 `/usr/bin` 入口的程序，仍放在 `AppDir/shared/bin`。
+```bash
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/<应用名>.AppImage" "$VERSION" dist/version.txt
+```
+
+两次公共调用分别服务于打包前和打包后的阶段，不挪动既定顺序。
+
+### 依赖收集与中文环境
+
+两种程序来源都在打包元数据阶段设置 `DEPLOY_GTK=1`，在版本读取之后对完整程序目录执行 `quick-sharun AppDir/bin/*`，并按真实需求保留额外运行参数。
+
+GTK 3 输入模块由 quick-sharun 收集。构建环境里要已经装有这些模块，调用处不再传入模块路径。`chrome-sandbox` 留在程序目录里，不单独删除。显式设置 `MAIN_BIN` 后由工具生成 AppRun，不批量改写上游 desktop 的 `Exec`、`Icon` 或 Desktop Actions。
+
+中文 locale 仍按有窗口程序的写法，加在第一次 quick-sharun 之后、`--make-appimage` 之前。没有这种并列资源、只是缺少 `/usr/bin` 入口的程序，仍按非标准布局放在 `AppDir/shared/bin`。
 
 ## 和 linuxdeploy 的分界
 

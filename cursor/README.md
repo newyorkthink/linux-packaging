@@ -2,41 +2,65 @@
 
 ## 用途与产物
 
-本目录从 Cursor 官方 Linux x64 DEB 动态下载当前版本，并通过 quick-sharun 重新封装为 `dist/cursor.AppImage`。
+本目录动态下载 Cursor 官方 Linux x64 DEB，保留官方 Electron 程序和资源，通过 quick-sharun 生成 `dist/cursor.AppImage`。目标架构为 Linux x86_64。
 
 ## 技术栈与打包方式
 
-Cursor 属于 Electron / VS Code 系谱。构建脚本安装 AUR `cursor-bin` 及其依赖，另行下载当前官方 x64 DEB，解包后把整个程序目录放进 `AppDir/bin`。图标和 desktop 直接使用 AUR 安装结果，由 quick-sharun 放进包，不再复制到脚本目录或改写 `Exec`、`Icon`。GTK 3 输入模块由 quick-sharun 收集。包内带有 zh_CN.UTF-8。
+本项目采用 [Electron 直接下载安装包标准模板](../anylinux_projects.md#直接下载安装包的标准模板)，打包分类见 [打包分类](../docs/packaging-classification.md)。模板允许软件名称、路径、依赖、下载接口和版本来源参数不同；通用代码、注释、执行阶段及空行逐行对齐。
 
-图标使用 `/usr/share/pixmaps/co.anysphere.cursor.png`，桌面入口使用 `/usr/share/applications/cursor.desktop`，具体依据见 [docs/hardcoded.md](docs/hardcoded.md)。构建脚本中可复用的注释与 WorkBuddy 使用相同表述。脚本在 `APPNAME` 后通过 `MAIN_BIN=cursor` 显式指定主程序，与 WorkBuddy 的设置位置、注释和相邻空行保持一致。
+| 配置 | 当前值 |
+| --- | --- |
+| AUR 软件包 | `cursor-bin` |
+| 官方 DEB 程序目录 | `cursor-unpacked/usr/share/cursor/` |
+| 主程序 | `MAIN_BIN=cursor` |
+| 图标 | `/usr/share/pixmaps/co.anysphere.cursor.png` |
+| 桌面入口 | `/usr/share/applications/cursor.desktop` |
 
-## 运行
+构建脚本先安装基础包、应用及其依赖，再通过公共下载和解包入口取得官方 DEB，把完整程序目录原样放入 `AppDir/bin`。AUR 安装结果用于依赖、图标和 desktop，最终程序文件取自另行下载的官方 DEB。
 
-```bash
-./dist/cursor.AppImage
-```
+quick-sharun 使用显式指定的主程序生成 AppRun，并收集 GTK 3 输入模块。程序目录中的 `chrome-sandbox` 和相邻资源继续保留。中文 locale 在第一次 quick-sharun 之后、最终封装之前生成，运行时通过 `.env` 使用包内的 `zh_CN.UTF-8`。
+
+下载入口使用官方当前版本跳转地址，由 `common/download/download_file.sh` 下载。原有 `/usr/bin/hostname` 继续作为 quick-sharun 输入显式部署。
 
 ## 版本元数据
 
-版本从官方包内 `resources/app/package.json` 读取。现有 `X-AppImage-Version` 逻辑继续保留，改为检查 `DESKTOP` 指向的系统安装文件，缺少该字段时向同一文件追加版本；这一步只发生在 CI 构建环境中。构建完成后同一版本额外写入 `dist/version.txt`，workflow 使用 `SOFTWARE_KEY=cursor` 接入统一清单。
+在原有打包前位置调用公共入口，从官方程序内的 `package.json` 根对象读取字符串 `version`：
+
+```bash
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json AppDir/bin/resources/app/package.json --version-file "$HOME/version" --desktop "$DESKTOP")"
+```
+
+`--version-file` 保留原有 `~/version` 写入；`--desktop` 保留缺少 `X-AppImage-Version` 时追加版本的行为，不覆盖已有字段。这些操作均发生在 CI 构建环境中，执行位置仍在第一次 quick-sharun 之前。
+
+最终 AppImage 生成成功后，再用一行公共调用保存同一个版本：
+
+```bash
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/cursor.AppImage "$VERSION" dist/version.txt
+```
+
+公共保存入口先确认最终产物存在且非空，再写入 `dist/version.txt`。当前 workflow 使用 `SOFTWARE_KEY=cursor` 发布版本元数据。
+
+## 运行
+
+在仓库的 `cursor` 目录中打开 Linux 终端，已有构建产物时执行：
+
+```bash
+# 启动已生成的 AppImage。
+./dist/cursor.AppImage
+```
+
+## 构建与发布
+
+正式构建由 `.github/workflows/build.yml` 的标准 Arch matrix 执行，发布资产名为 `cursor.AppImage`。完成构建和发布后，当前 Job 更新自己的 `software_versions.json` 条目。
+
+固定配置依据见 [docs/hardcoded.md](docs/hardcoded.md)，程序专属参数见 [docs/template-deviations.md](docs/template-deviations.md)。
 
 ## 变更记录
 
-### 2026-09-16：接入统一软件版本元数据
+### 2026-10-29：统一公共版本读取与直接下载模板
 
-仅增加 `dist/version.txt` 与发布映射；官方 DEB 解析、Electron 目录、desktop、IBus/NSS 与 quick-sharun 逻辑保持不变。
+版本读取改为原位置的单行公共调用，保留构建版本文件和 desktop 版本字段处理；末尾版本保存改为单行调用。两边脚本的行数、通用注释、代码结构和空行保持一致，清理项按同一顺序排列。README 与 docs 删除失效的旧流程说明，改为维护当前配置及其依据。
 
-### 2026-10-29：按 Electron 目录方式重排构建脚本
-
-官方 x64 deb 改由 download_file.sh 从当前下载地址取得，再用 extract_archive.sh 解包。整个程序目录放进 AppDir/bin。脚本不再逐个传入 NSS、pkcs11 和输入模块。包内增加中文 locale。提交 7d92a907c379a0e0c0cf405948726d9fd39b770b。
-
-### 2026-10-29：复用已安装的图标和桌面入口
-
-- 原因：构建已安装 `cursor-bin`，可以直接使用安装结果中的图标和 desktop，原有的本地复制和 `Exec`、`Icon` 改写不再需要。
-- 修改文件：`cursor/build_cursor.sh`、`cursor/README.md`、`cursor/docs/hardcoded.md`。
-- 修改内容：`ICON`、`DESKTOP` 改为系统安装路径，删除两条资源复制命令和整段 desktop 修正，移除不再生成的本地资源清理项；版本字段的检查和追加同步改用 `"$DESKTOP"`。安装、下载、复制、GTK 部署、版本读取及依赖收集的通用注释与 WorkBuddy 对齐，注释位置和相邻空行逐处核对。程序来源、版本解析、quick-sharun 参数和中文环境保持原样。
-- 已知结果：提交前完成 Bash 语法、路径引用、通用注释和空行及完整差异核对；本次未构建或启动修改后的 AppImage。
-
-### 2026-10-29：显式指定主程序入口
-
-按用户要求，在 `APPNAME=Cursor` 后补上通用注释及 `export MAIN_BIN=cursor`，设置位置和空行与 WorkBuddy 对齐。quick-sharun 直接使用该入口文件名，其他构建命令和参数保持原样。固定入口的依据同步记录在 [docs/hardcoded.md](docs/hardcoded.md)。提交前完成 Bash 语法、插入位置和完整差异核对；本次未构建或启动修改后的 AppImage。
+提交前检查 Bash 语法、两种版本来源、元数据写入和失败处理、模板逐行一致性、文档链接及完整差异。本次未在本地构建或启动 AppImage。

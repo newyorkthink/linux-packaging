@@ -47,9 +47,7 @@ export OUTNAME=workbuddy.AppImage
 export DEPLOY_GTK=1
 
 # 读取本次打包使用的版本。
-VERSION="$(pacman -Q workbuddy | awk '{print $2}')"
-VERSION="${VERSION#*:}"
-VERSION="${VERSION%-*}"
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman workbuddy)"
 
 # 收集程序及其运行依赖。
 quick-sharun AppDir/bin/* /usr/bin/ls /usr/bin/mkdir /usr/bin/ln /usr/bin/grep
@@ -68,5 +66,4 @@ ENV
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" \
-  dist/workbuddy.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/workbuddy.AppImage "$VERSION" dist/version.txt

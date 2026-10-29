@@ -13,7 +13,7 @@ cd "$SCRIPT_DIR"
 "$SCRIPT_DIR/../common/arch/install_packages.sh" cursor-bin dpkg gtk3 fcitx5-gtk libx11 libxrandr libxss libxext libxi libxtst libxkbfile libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau libva-intel-driver alsa-lib pulseaudio pulseaudio-alsa pipewire-audio libsecret libnotify lsof
 
 # 清掉上次的打包目录。
-rm -rf -- AppDir dist cursor-unpacked cursor.deb
+rm -rf -- AppDir dist cursor.deb cursor-unpacked
 mkdir -p AppDir/bin dist
 
 # 下载官方当前 DEB。
@@ -47,10 +47,7 @@ export OUTNAME=cursor.AppImage
 export DEPLOY_GTK=1
 
 # 读取本次打包使用的版本。
-VERSION="$(awk -F'"' '/"version":/ {print $4; exit}' AppDir/bin/resources/app/package.json)"
-printf '%s\n' "$VERSION" > ~/version
-grep -q '^X-AppImage-Version=' "$DESKTOP" \
-  || printf 'X-AppImage-Version=%s\n' "$VERSION" >> "$DESKTOP"
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json AppDir/bin/resources/app/package.json --version-file "$HOME/version" --desktop "$DESKTOP")"
 
 # 收集程序及其运行依赖。
 quick-sharun AppDir/bin/* /usr/bin/hostname
@@ -69,5 +66,4 @@ ENV
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" \
-  dist/cursor.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/cursor.AppImage "$VERSION" dist/version.txt

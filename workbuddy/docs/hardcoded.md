@@ -35,3 +35,17 @@
 ```
 
 同一包里直接执行 `ls` 也报 `Syntax error: "(" unexpected`。改用 `/bin/ls` 可以正常读写文件。
+
+## `MAIN_BIN=workbuddy`
+
+- 为什么写死：官方主程序的文件名为 `workbuddy`，位于完整程序目录中；`/usr/bin/workbuddy` 是 shell launcher。
+- 写死的内容：`MAIN_BIN=workbuddy`
+- 作用：显式指定 quick-sharun 的主程序入口 `AppDir/bin/workbuddy`。
+- 当初报错：没有。这是原有构建参数。
+
+## 版本读取参数
+
+- 为什么写死：当前构建按已确认的规则从已安装的 AUR `workbuddy` 读取版本。
+- 写死的内容：`pacman workbuddy`，作为 `common/build/read_app_version.sh` 的两个来源参数。
+- 作用：复用 `common/arch/get_package_version.sh`，去掉 epoch 和 pkgrel 后返回版本，最终写入 `dist/version.txt`。
+- 当初报错：没有。本次只把原有读取规则移入统一公共调用，不改为下载入口中的 DEB 校验版本。
