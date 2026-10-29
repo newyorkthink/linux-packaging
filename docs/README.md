@@ -22,16 +22,17 @@
 
 ## 应用配置说明文件
 
-每个应用的 `docs/hardcoded.md` 和 `docs/template-deviations.md` 采用相同的用途约定，正文只记录所属应用的实际配置。两份文件都是维护说明，不参与打包执行，也不构成修改授权。
+每个应用的 `docs/hardcoded.md` 和 `docs/template-deviations.md` 采用相同的用途约定，正文只记录所属应用的实际配置。明确决定暂不采用 pkgforge-dev 专属处理时，另用 `docs/pkgforge-differences.md` 保存原文、作用和未采用状态。这些文件都是维护说明，不参与打包执行，也不构成修改授权。
 
 | 文件 | 说明什么 | 什么时候查看或更新 |
 | --- | --- | --- |
 | `<应用目录>/docs/hardcoded.md` | 固定路径、文件名和参数的具体取值、选择依据、用途及相关原始报错，回答“这个值为什么这样写”。 | 查找配置来源，或新增、修改固定值时查看，并同步维护对应记录。 |
 | `<应用目录>/docs/template-deviations.md` | 相对标准模板必须保留的程序专属差异、所在阶段、原因和影响，回答“这里为什么与模板不同”。 | 套用模板或调整下载入口、版本来源、辅助命令等专属处理时查看，并同步维护对应记录。 |
+| `<应用目录>/docs/pkgforge-differences.md` | pkgforge-dev 专属处理的源码快照、作用、官方理由和明确暂不采用的决定。 | 后续拟加入某项处理时，先核实官方当前是否仍保留以及是否适用，再取得本次加入的授权；禁止直接恢复历史快照。 |
 
 例如，图标路径和主程序文件名的取值依据写在 `hardcoded.md`；采用不同版本来源或额外部署运行命令的原因写在 `template-deviations.md`。同一项配置同时涉及两类说明时，分别记录取值依据和模板差异原因，并保持内容一致。
 
-这两类文档用于防止后续维护时忘记配置来由，或为了统一模板误删应用必需的专属处理。具体应用的文档入口放在该应用的 README 中。
+这些文档用于防止后续维护时忘记配置来由、为了统一模板误删必需处理，或把明确未启用的历史方案误认为当前实现。具体应用的文档入口放在该应用的 README 中。
 
 ## 文档命名
 
@@ -43,11 +44,11 @@
 | --- | --- |
 | [AI 仓库规范](../AGENTS.md) | 授权、稳定基线、完整阅读、提交、验证边界 |
 | [维护者指南](./maintainer-guide.md) | 人工维护、入口、打包路线、提交前核对 |
-| [Anylinux / quick-sharun 规范](../anylinux_projects.md) | Arch、sharun、AppDir、中文环境、输入模块、platforminputcontexts、自动收集、`.env`、Qt 主题插件、qt6ct、kvantum、lxqt-qtplugin、有窗口的 Qt 程序、Electron、程序目录、直接下载标准模板、公共版本读取、单行保存、行数与空行 |
+| [Anylinux / quick-sharun 规范](../anylinux_projects.md) | Arch、sharun、AppDir、中文环境、输入模块、platforminputcontexts、自动收集、`.env`、Qt 主题插件、qt6ct、kvantum、lxqt-qtplugin、有窗口的 Qt 程序、Electron、程序目录、直接下载标准模板、公共版本读取、单行保存、行数与空行、暂不采用官方处理、加入前重新核实 |
 | [打包分类](./packaging-classification.md) | quick-sharun、Electron、Qt、linuxdeploy、直接下载标准、系统安装、参数差异 |
 | [linuxdeploy 规范](../linuxdeploy_projects.md) | Ubuntu、插件、AppRun、appimagetool |
 | [AppImage 构建依赖清单](./appimage-build-dependency-list.md) | 基础包、Qt5 / Qt6、GTK、功能依赖 |
-| [公共脚本入口](../common/README.md) | 下载、解包、依赖、公共版本来源、可选构建元数据、版本保存 |
+| [公共脚本入口](../common/README.md) | 下载、AUR DEB 来源与摘要、解包、依赖、公共版本来源、可选构建元数据、版本保存 |
 | [打包 export 登记表](./packaging-export-registry.md) | 环境变量、用途、登记后使用 |
 | [AppRun 路径型环境变量](./apprun-path-environment.md) | PATH、LD_LIBRARY_PATH、XDG_DATA_DIRS、Qt 路径 |
 | [AppImage 自定义协议登记](./appimage-scheme-handler.md) | scheme、OAuth、浏览器回调、desktop |
