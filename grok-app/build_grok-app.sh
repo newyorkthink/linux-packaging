@@ -1,79 +1,67 @@
 #!/usr/bin/env bash
-# 从 RongleCat/grok-app 官方 Linux amd64 DEB 动态重打包。
-# 官方包不带 zh_CN.UTF-8，也不带 GTK 3 的 IBus / Fcitx5 输入模块。
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-###### 准备 Arch 构建环境 ######
-
-# 只清理当前项目的构建目录。AppDir 由 quick-sharun 创建。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" \
-  "$SCRIPT_DIR" --skip-create AppDir source dist
-
-# 安装统一的 Arch AppImage 基础包。
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装运行依赖及 DEB 解包工具。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" dpkg gtk3 webkit2gtk-4.1 fcitx5-gtk libayatana-appindicator
 
-# WebKitGTK 4.1 是主程序的直接依赖。im-ibus.so 属于 ibus，不随 gtk3 安装。
-# 托盘库由程序运行时加载，不在 ELF NEEDED 里。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" \
-  dpkg gtk3 webkit2gtk-4.1 ibus fcitx5-gtk libayatana-appindicator
+# 清掉上次的打包目录。
+rm -rf -- AppDir dist source grok-app.deb grok-app-unpacked grok-app.version
+mkdir -p AppDir/bin dist source
 
-readonly SOURCE_DIR="$SCRIPT_DIR/source"
-readonly DIST_DIR="$SCRIPT_DIR/dist"
-readonly APPDIR="$SCRIPT_DIR/AppDir"
-readonly DEB_FILE="$SOURCE_DIR/grok-app.deb"
-readonly PACKAGE_ROOT="$SOURCE_DIR/package"
-readonly DESKTOP_FILE="$SOURCE_DIR/grok-app.desktop"
-readonly ICON_FILE="$PACKAGE_ROOT/usr/share/icons/hicolor/128x128/apps/grok-app.png"
-readonly OUTFILE="$DIST_DIR/grok-app.AppImage"
+# 下载官方当前 DEB。
+"$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" \
+  RongleCat/grok-app 'Grok_{version}_amd64.deb' \
+  grok-app.deb grok amd64 > grok-app.version
 
-###### 获取官方正式版 ######
+# 解包官方 DEB。
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" grok-app.deb grok-app-unpacked
 
-# 公共入口选择最新正式 semver Release，核对唯一 amd64 DEB 与 GitHub SHA-256 后下载。
-VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" \
-  RongleCat/grok-app 'Grok_{version}_amd64.deb' "$DEB_FILE" grok amd64)"
-readonly VERSION
+# 整个程序目录原样放进 AppDir/bin。
+cp -a grok-app-unpacked/usr/bin/. AppDir/bin/
 
-# 公共归档入口按官方 DEB 原始布局解包。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$DEB_FILE" "$PACKAGE_ROOT"
-
-# 沿用官方 desktop。补上协议参数和分类，图标名保持 grok-app。
-cp -a -- "$PACKAGE_ROOT/usr/share/applications/Grok.desktop" "$DESKTOP_FILE"
-sed -i \
-  -e 's|^Exec=.*|Exec=grok-app %U|' \
-  -e 's|^Icon=.*|Icon=grok-app|' \
-  -e 's|^Categories=.*|Categories=Development;|' \
-  "$DESKTOP_FILE"
-
-###### 构建 AppImage ######
-
-export ARCH=x86_64
-export VERSION
-export APPNAME="Grok"
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 成品里的应用名。
+export APPNAME=Grok
+# 包里的真实程序名。
 export MAIN_BIN=grok-app
+# 让窗口对上 desktop 里的 StartupWMClass。
 export STARTUPWMCLASS=grok-app
-export ICON="$ICON_FILE"
-export DESKTOP="$DESKTOP_FILE"
-export OUTPATH="$DIST_DIR"
+# 使用官方 DEB 提供的图标。
+export ICON=grok-app-unpacked/usr/share/icons/hicolor/128x128/apps/grok-app.png
+# 使用官方 DEB 提供的桌面入口文件。
+export DESKTOP=grok-app-unpacked/usr/share/applications/Grok.desktop
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
 export OUTNAME=grok-app.AppImage
+# 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
+# 保留原有的 OpenGL 部署设置。
 export DEPLOY_OPENGL=1
+# 保留必需的 WebKitGTK 部署设置。
 export DEPLOY_WEBKIT2GTK=1
+# 使用构建系统提供的 WebKitGTK 运行目录。
 export WEBKIT2GTK_DIR=/usr/lib/webkit2gtk-4.1
 
-# 收集官方主程序、运行时托盘库，以及 GTK 3 的 IBus 与 Fcitx5 输入模块。
-quick-sharun \
-  "$PACKAGE_ROOT/usr/bin/grok-app" \
-  /usr/lib/libayatana-appindicator3.so.1 \
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so \
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text grok-app.version)"
 
-# 包内提供 zh_CN.UTF-8。不设置 LC_ALL，也不指定 GTK_IM_MODULE，由宿主已配置的输入法选择模块。
-mkdir -p "$APPDIR/lib/locale"
-localedef --no-archive -i zh_CN -f UTF-8 "$APPDIR/lib/locale/zh_CN.utf8"
-cat >> "$APPDIR/.env" <<'ENV'
+# 收集程序及其运行依赖。
+quick-sharun AppDir/bin/* /usr/lib/libayatana-appindicator3.so.1
+
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'ENV'
 LANG=zh_CN.UTF-8
 LANGUAGE=zh_CN:zh
 LC_MESSAGES=zh_CN.UTF-8
@@ -89,17 +77,17 @@ readonly ZENITY_RS_VERSION="0.3.0"
 readonly ZENITY_RS_SHA256="f7a351180f364501855181420ceecd40b42ff84742ab79eca7aec43fe8ec074a"
 "$SCRIPT_DIR/../common/download/download_file.sh" \
   "https://github.com/QaidVoid/zenity-rs/releases/download/v${ZENITY_RS_VERSION}/zenity-rs-x86_64-linux" \
-  "$SOURCE_DIR/zenity-rs-${ZENITY_RS_VERSION}-x86_64" \
+  "source/zenity-rs-${ZENITY_RS_VERSION}-x86_64" \
   "$ZENITY_RS_SHA256"
-mkdir -p "$APPDIR/bin/filechooser"
-install -m 755 "$SOURCE_DIR/zenity-rs-${ZENITY_RS_VERSION}-x86_64" "$APPDIR/bin/filechooser/zenity"
-ln -sfn filechooser/zenity "$APPDIR/bin/zenity"
+mkdir -p AppDir/bin/filechooser
+install -m 755 "source/zenity-rs-${ZENITY_RS_VERSION}-x86_64" AppDir/bin/filechooser/zenity
+ln -sfn filechooser/zenity AppDir/bin/zenity
 
 # Grok CLI 用 PATH 上的第一个 bwrap。quick-sharun 把包内 bin 放在最前时，
 # 打包工具带入的 bwrap 会把 --proc 当成 capability：bwrap: unknown cap: --proc。
 # 不覆盖 AppRun。宿主没有 /usr/bin/bwrap 时保持原 PATH。
 # 宿主有 bwrap 时，只把 filechooser 放在 /usr/bin 前面。宿主日后装上的 GTK 4 zenity 不能再抢走选目录。
-cat > "$APPDIR/bin/15-grok-host-bwrap.hook" <<'HOOK'
+cat > AppDir/bin/15-grok-host-bwrap.hook <<'HOOK'
 if [ -x /usr/bin/bwrap ]; then
   export PATH="$APPDIR/bin/filechooser:/usr/bin:/bin${HOSTPATH:+:$HOSTPATH}:$APPDIR/bin"
 fi
@@ -107,7 +95,7 @@ HOOK
 
 # 启动时把 grok:// 和官方皮肤 MIME 指到当前 AppImage。
 bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
-  --output "$APPDIR/bin/20-grok-app-protocol.hook" \
+  --output AppDir/bin/20-grok-app-protocol.hook \
   --desktop-file grok-app.desktop \
   --name "Grok" \
   --comment "desktop workbench for Grok Build CLI" \
@@ -117,7 +105,8 @@ bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
   --scheme grok \
   --mime-extra application/vnd.grok.skin
 
-# 正式生成 AppImage；版本只在产物成功后写入。
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" \
-  "$OUTFILE" "$VERSION" "$DIST_DIR/version.txt"
+
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/grok-app.AppImage "$VERSION" dist/version.txt

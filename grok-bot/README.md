@@ -20,17 +20,19 @@ Grok Bot Linux 桌面端是 Electron / Chromium 应用。官方 DEB 的主要程
 
 ## 打包方式
 
-当前采用 Arch Linux + quick-sharun：
+当前按 [Electron 直接下载标准](../anylinux_projects.md#直接下载安装包的标准模板) 重写：
 
-1. 通过仓库公共 Arch 安装入口准备统一基础环境及 Grok Bot 应用依赖。
-2. 通过官方 Linux stable JSON 动态取得当前 x64 DEB；下载与 DEB 身份检查全部复用公共下载入口。
-3. 通过公共归档入口解包 DEB，只把官方 `/opt/Grok Bot/` 运行目录复制到 `AppDir/shared/bin/`，保持 Electron 相对资源布局。
-4. quick-sharun 收集主程序、Crashpad、GTK3 输入法、通知、密钥环、托盘以及音频客户端运行库。
-5. 使用 `.env` 保持 `shared/bin` 为应用运行目录并提供中文 locale；使用 hook 加入 `--no-sandbox`，不自行覆盖 quick-sharun 生成的 AppRun。
-6. 使用公共协议 hook 注册 `grokbot://` 与兼容的 `sand://`，用于浏览器登录回调。
-7. `quick-sharun --make-appimage` 生成 `dist/grok-bot.AppImage`，成功后写入 `dist/version.txt`。
+1. 公共入口先安装基础包，再安装已核实的 AUR `grok-bot-bin`、原有音频运行依赖和 DEB 工具。系统安装结果用于依赖、图标及主 desktop。
+2. 从官方 stable manifest 独立下载当前 x64 DEB，公共入口校验 CDN、文件名、包名、版本和架构；stdout 的实际版本保存到 `grok-bot.version`，不拿 AUR 安装版本代替。
+3. 公共归档入口解包到 `grok-bot-unpacked`，把完整 `opt/Grok Bot/` 原样放入 `AppDir/bin/`，保留 Electron 相邻资源。
+4. 图标使用系统 `/usr/share/icons/hicolor/256x256/apps/grok-bot.png`，主 desktop 使用 `/usr/share/applications/grok-bot.desktop`。最终程序不复制 AUR 安装目录中的托盘注入、wrapper 或其他修改。
+5. quick-sharun 收集完整程序目录及原有音频客户端、通知、密钥环和托盘库；GTK 输入模块交给工具收集，构建环境继续提供 Fcitx5 GTK 和 IBus。
+6. 标准步骤生成包内中文 locale；保留原有 `--no-sandbox` 启动兼容 hook，以及 `grokbot://`、`sand://` 登录回调注册。
+7. 第一次 quick-sharun 前用公共版本入口读取本次下载记录；最终 AppImage 成功后，统一单行调用公共保存入口写 `dist/version.txt`。
 
-统一 workflow 中按标准 matrix 项构建，本项目不使用独立 Job。
+不再把程序放入 `AppDir/shared/bin/`，不再用手工相对链接把资源补回 bin，也不再追加旧布局专用的库路径和工作目录环境变量。脚本中没有构建期 `APPDIR` 变量、额外 `chmod`、`STRACE_MODE`、`NO_STRIP` 或强制 `DEPLOY_PIPEWIRE` 设置。
+
+统一 workflow 中按标准 matrix 项构建，本项目不使用独立 Job。详细配置见 [模板差异](docs/template-deviations.md) 和 [固定配置依据](docs/hardcoded.md)。
 
 ## 音频处理
 
@@ -51,10 +53,19 @@ Grok Bot 官方文档确认桌面端支持 voice chat 与可播放的 voice memo
 ## 运行与兼容说明
 
 - AppImage 不安装官方 DEB 的系统级 postinst，也不向 `/etc` 写 AppArmor 配置。
-- `chrome-sandbox` 在 AppImage 内保持普通执行权限，启动参数使用 `--no-sandbox`；不会要求用户为 AppImage 设置 setuid root。
-- GTK3 同时携带 IBus 与 Fcitx5 输入模块，并在包内提供 `zh_CN.UTF-8` locale。IBus 模块来自 `ibus` 包，不来自 `gtk3`。
+- 启动 hook 保留 `--no-sandbox`，用于原有 Electron 启动兼容；该参数关闭应用自身的 Chromium 沙箱，不写成所有 AppImage 都必需。构建脚本不再额外修改 `chrome-sandbox` 权限。
+- GTK3 的 IBus 与 Fcitx5 输入模块交给 quick-sharun 收集，并按标准生成包内 `zh_CN.UTF-8` locale。IBus 仍由基础包 `ibus` 提供，不在调用处重复列输入模块路径。
 - `grokbot://` 与 `sand://` 的桌面协议注册只写入当前用户的 XDG desktop / MIME 配置，不修改系统级默认配置。
 - 音频客户端库进入 AppImage 后仍依赖宿主存在可用的用户音频会话与实际输出设备。
+
+## 2026-10-30：按直接下载标准重写
+
+- **处理：** 先安装 `grok-bot-bin`，再独立下载官方 DEB，完整程序放入 `AppDir/bin/`；图标和主 desktop 从系统安装结果取得。
+- **版本：** 下载和版本记录属于同一次公共调用；打包前读取文本，封装成功后用公共保存入口写 `dist/version.txt`。
+- **保留：** 原有音频客户端库、启动兼容和登录回调。2026-09-26 的出声实测作为既有基线保留，本次不声称重写后的包已重新实测。
+- **清理：** 构建期 `APPDIR`、额外 sandbox 权限修改、动态图标查询、旧 shared/bin 布局及手工资源链接、旧库路径和工作目录设置、额外收集模式与不剥离开关。以用户最后确认的脚本为定稿，不再改写。
+- **文档：** 增加模板差异与固定配置依据，并登记 Electron 直接下载分类。
+- **检查边界：** 本次完成语法、公共接口、依赖覆盖、代码行号和文档核对；没有执行新的完整构建或实机运行。图标位置沿用原脚本已使用的官方 DEB 256×256 资源布局，AUR 安装代码按原 DEB 路径展开，未作本次系统安装实测。
 
 ## 2026-09-26：新增重打包方案
 

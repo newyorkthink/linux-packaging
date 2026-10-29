@@ -28,20 +28,21 @@ Grok App Linux 桌面端是 Tauri 2 / wry 程序，链接 GTK 3 与 WebKitGTK 4.
 
 ## 打包方式
 
-当前采用 Arch Linux + quick-sharun，与仓库里另一套 Tauri / WebKitGTK 基线一致：
+当前按直接下载标准的执行阶段重写，保留 Tauri / WebKitGTK 的真实依赖和本应用已有修复：
 
-1. `common/build/prepare_x86_64_workspace.sh` 只清理本目录的 `source`、`AppDir` 和 `dist`。
-2. `common/arch/install_packages.sh --base` 安装统一基础包，再追加 `dpkg`、`gtk3`、`webkit2gtk-4.1`、`ibus`、`fcitx5-gtk` 和 `libayatana-appindicator`。
-3. 公共下载入口取得官方 DEB，公共归档入口按原始布局解包。
-4. 沿用官方 desktop，把 `Exec` 改为 `grok-app %U`，补上 `Categories=Development;`。图标使用官方 `128x128` 的 `grok-app.png`。
-5. quick-sharun 收集主程序、`libayatana-appindicator3.so.1`、GTK 3 的 `im-ibus.so` 与 `im-fcitx5.so`。`DEPLOY_GTK`、`DEPLOY_OPENGL` 和 `DEPLOY_WEBKIT2GTK` 打开，`WEBKIT2GTK_DIR` 指向 `/usr/lib/webkit2gtk-4.1`。
-6. 在 quick-sharun 生成的 `.env` 末尾写入包内 `zh_CN.UTF-8`。不写 `LC_ALL`，不写 `GTK_IM_MODULE`，不覆盖 `AppRun`。`.env` 追加内容从 `LANG=` 开始，前面不留空行。
-7. quick-sharun 之后放入 [zenity-rs](https://github.com/QaidVoid/zenity-rs) `0.3.0` 的静态 `x86_64` 二进制，路径是 `AppDir/bin/filechooser/zenity`，`AppDir/bin/zenity` 为相对符号链接。校验 SHA-256 后安装，不交给 quick-sharun。
-8. `AppDir/bin/15-grok-host-bwrap.hook` 在宿主存在 `/usr/bin/bwrap` 时，PATH 依次为包内 `bin/filechooser`、`/usr/bin`、`/bin`、原宿主 PATH、包内 bin。`filechooser` 里只有选目录用的 `zenity`。包内 `bwrap` 仍留在最后，不删除，也不覆盖 `AppRun`。
-9. 公共协议 hook 注册 `grok://` 和官方 `application/vnd.grok.skin`。
-10. `quick-sharun --make-appimage` 生成 `dist/grok-app.AppImage`，成功后由 `common/build/save_appimage_version.sh` 写入 `dist/version.txt`。
+1. 公共入口安装基础包，再安装 `dpkg gtk3 webkit2gtk-4.1 fcitx5-gtk libayatana-appindicator`；IBus 等既有基础依赖由 `--base` 提供。
+2. 本次没有确认 RongleCat/grok-app 的同源 Arch/AUR 应用包。用户已确认采用官方 DEB 路线：只安装真实运行依赖，程序、图标和主 desktop 均从独立下载的 DEB 取得。这是本应用已批准的安装阶段例外。
+3. 公共 GitHub 下载入口动态选择正式 semver Release 的 `Grok_{version}_amd64.deb`，校验 GitHub SHA-256、DEB 包名 `grok` 和 `amd64` 架构；stdout 版本保存到 `grok-app.version`。本次提供的 v0.2.50 用于核对来源，不锁定后续应用版本。
+4. 公共归档入口解包到 `grok-app-unpacked`，完整复制 `usr/bin/` 到 `AppDir/bin/`；使用 DEB 原有的 `Grok.desktop` 和 `128x128/apps/grok-app.png`，不再另建并批量改写 desktop。
+5. quick-sharun 收集 `AppDir/bin/*` 与运行时加载的 `libayatana-appindicator3.so.1`。GTK 输入模块由工具收集；OpenGL、WebKitGTK 部署及 `/usr/lib/webkit2gtk-4.1` 保留。
+6. 第一次收集后生成包内中文 locale，追加 `LANG`、`LANGUAGE`、`LC_MESSAGES`、`LOCPATH`。
+7. 保留 zenity-rs 0.3.0 及原 SHA-256，将校验后的静态工具放入 `AppDir/bin/filechooser/zenity`，相对链接 `AppDir/bin/zenity` 指向它。下载中间文件仍位于 `source/`，不交给 quick-sharun。
+8. 保留 `15-grok-host-bwrap.hook` 的原始运行时正文。宿主有 `/usr/bin/bwrap` 时，包内 filechooser 在最前，随后使用宿主 bwrap，包内 bin 仍在最后。
+9. 公共协议 hook 继续注册 `grok://` 和 `application/vnd.grok.skin`。最后封装 AppImage，成功后用公共保存入口写 `dist/version.txt`。
 
-统一 workflow 中按标准 matrix 项构建，本项目不使用独立 Job。
+构建期不再声明 `APPDIR`、`SOURCE_DIR`；构建命令使用 `AppDir/...` 和 `source/...`。运行时 hook 内的 `$APPDIR`、`HOSTPATH` 保持原样，不与构建期变量混淆。
+
+统一 workflow 中按标准 matrix 项构建，本项目不使用独立 Job。详细配置见 [模板差异](docs/template-deviations.md) 和 [固定配置依据](docs/hardcoded.md)。
 
 ## 中文环境与输入
 
@@ -74,6 +75,14 @@ Grok App Linux 桌面端是 Tauri 2 / wry 程序，链接 GTK 3 与 WebKitGTK 4.
 ## 托盘图标
 
 Linux 托盘图标由上游编译进 `grok-app`，本目录不替换。深色状态栏上可能看不见，托盘菜单仍可用。不是缺 `libayatana-appindicator`，也不需要 `librsvg`。
+
+## 2026-10-30：按标准阶段整理并保留已有专属修复
+
+- **处理：** 独立下载官方 DEB，完整程序改放 `AppDir/bin/`；下载命令保持三行，实际版本由公共下载入口输出并在打包前读取，成功封装后单行保存。
+- **保留：** zenity-rs 0.3.0、原 SHA-256、filechooser 目录及相对链接；宿主 bwrap hook 的运行时正文；grok 协议与皮肤 MIME。下面 2026-10-07 的实机 bwrap 确认继续有效，不把这次整理写成重新完成了实机验收。
+- **清理：** 构建期 `APPDIR` / `SOURCE_DIR` 变量、旧 `PACKAGE_ROOT` 等目录包装、重复 desktop 改写和调用处显式输入模块参数；运行时 hook 的 `$APPDIR` 不删除。
+- **文档：** 增加对应代码与行号的模板差异表、固定配置依据，并在打包分类中单独列为 Tauri / GTK 直接下载及已批准的 DEB 安装阶段例外。
+- **检查边界：** 本次完成脚本和 hook 语法、原始 hook 保留、参数、依赖覆盖、代码行号和文档核对；没有执行完整 AppImage 构建或新的实机运行。原有详细故障史全部保留。
 
 ## 2026-09-29：新增重打包并补上中文输入环境
 
