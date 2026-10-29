@@ -9,14 +9,14 @@ cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-# 安装 AUR workbuddy 及其依赖，dpkg 用于解包官方 DEB。
+# 安装应用及其依赖。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" workbuddy fcitx5-gtk dpkg
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist workbuddy.deb workbuddy-unpacked
 mkdir -p AppDir/bin dist
 
-# 下载并校验官方当前 DEB。
+# 下载官方当前 DEB。
 "$SCRIPT_DIR/../common/download/download_json_deb_asset.sh" \
   'https://copilot.tencent.com/v2/update?platform=workbuddy-linux-x64-deb' \
   '.version | split(".") | .[0:3] | join(".")' '.url' \
@@ -26,7 +26,7 @@ mkdir -p AppDir/bin dist
 # 解包官方 DEB。
 "$SCRIPT_DIR/../common/archive/extract_archive.sh" workbuddy.deb workbuddy-unpacked
 
-# 整个程序目录原样放进 AppDir/bin。/usr/bin 里的是 shell，不用它当入口。
+# 整个程序目录原样放进 AppDir/bin。
 cp -a workbuddy-unpacked/opt/WorkBuddy/. AppDir/bin/
 
 # 把当前机器架构传给 quick-sharun。
@@ -48,11 +48,12 @@ export OUTNAME=workbuddy.AppImage
 # 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
 
-# 从本次安装结果读取版本，去掉 epoch 和 pkgrel。
+# 读取本次打包使用的版本。
 VERSION="$(pacman -Q workbuddy | awk '{print $2}')"
 VERSION="${VERSION#*:}"
 VERSION="${VERSION%-*}"
 
+# 收集程序及其运行依赖。
 quick-sharun AppDir/bin/* /usr/bin/ls /usr/bin/mkdir /usr/bin/ln /usr/bin/grep
 
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。

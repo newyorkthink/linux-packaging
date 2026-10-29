@@ -17,14 +17,14 @@ cd "$SCRIPT_DIR"
   mesa libglvnd libva libvdpau libva-intel-driver \
   alsa-lib pulseaudio pulseaudio-alsa pipewire-audio \
   libsecret libnotify lsof
-# 安装 AUR cursor-bin 及其依赖，最终仍使用官方 DEB 中的程序。
+# 安装应用及其依赖。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" cursor-bin
 
 # 清掉上次的打包目录。
-rm -rf -- AppDir dist cursor-unpacked cursor.deb cursor.desktop co.anysphere.cursor.png
+rm -rf -- AppDir dist cursor-unpacked cursor.deb
 mkdir -p AppDir/bin dist
 
-# 这个地址会跳到当前 x64 deb。
+# 下载官方当前 DEB。
 "$SCRIPT_DIR/../common/download/download_file.sh" \
   https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/latest \
   cursor.deb
@@ -35,40 +35,30 @@ mkdir -p AppDir/bin dist
 # 整个程序目录原样放进 AppDir/bin。
 cp -a cursor-unpacked/usr/share/cursor/. AppDir/bin/
 
-# 菜单和图标留在 AppDir 外面，由 quick-sharun 放进包。
-cp cursor-unpacked/usr/share/applications/cursor.desktop cursor.desktop
-cp cursor-unpacked/usr/share/pixmaps/co.anysphere.cursor.png co.anysphere.cursor.png
-
-# 修正 desktop 文件，让 AppImage 入口直接调用 cursor。
-sed -i \
-  -e 's#^Exec=.*#Exec=cursor %U#' \
-  -e 's#^Icon=.*#Icon=co.anysphere.cursor#' \
-  cursor.desktop
-
 # 把当前机器架构传给 quick-sharun。
 export ARCH="$(uname -m)"
 # 成品里的应用名。
 export APPNAME=Cursor
 # 让窗口对上 desktop 里的 StartupWMClass。
 export STARTUPWMCLASS=cursor
-# 使用官方包中的图标。
-export ICON="$SCRIPT_DIR/co.anysphere.cursor.png"
-# 使用修正后的桌面入口文件。
-export DESKTOP="$SCRIPT_DIR/cursor.desktop"
+# 使用系统里装好的图标。
+export ICON=/usr/share/pixmaps/co.anysphere.cursor.png
+# 使用系统里装好的桌面入口文件。
+export DESKTOP=/usr/share/applications/cursor.desktop
 # 把 AppImage 写到脚本目录下的 dist。
 export OUTPATH="$SCRIPT_DIR/dist"
 # 固定最终 AppImage 的文件名。
 export OUTNAME=cursor.AppImage
-# 这是 GTK 3 程序。输入模块、NSS 和 pkcs11 由 quick-sharun 自己收集。
+# 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
 
-# 版本写在官方 package.json 里，没有 Arch 包可读。
+# 读取本次打包使用的版本。
 VERSION="$(awk -F'"' '/"version":/ {print $4; exit}' AppDir/bin/resources/app/package.json)"
 printf '%s\n' "$VERSION" > ~/version
-grep -q '^X-AppImage-Version=' cursor.desktop \
-  || printf 'X-AppImage-Version=%s\n' "$VERSION" >> cursor.desktop
+grep -q '^X-AppImage-Version=' "$DESKTOP" \
+  || printf 'X-AppImage-Version=%s\n' "$VERSION" >> "$DESKTOP"
 
-# hostname 不会被自动收进包。
+# 收集程序及其运行依赖。
 quick-sharun AppDir/bin/* /usr/bin/hostname
 
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。

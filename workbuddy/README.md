@@ -132,6 +132,10 @@ workbuddy.AppImage
 
 ## 变更记录
 
+### 2026-10-29：统一 Electron 模板通用注释
+
+`workbuddy/build_workbuddy.sh` 中安装应用、下载官方 DEB、复制完整程序目录、版本读取和依赖收集的注释改为通用表述，与 Cursor 对应位置逐字一致。GTK 部署、图标和 desktop 沿用现有通用注释。程序专属依据继续保留在当前打包说明及 [docs/template-deviations.md](docs/template-deviations.md)。本次只调整注释，原有命令、参数、执行顺序和空行保持原样；提交前核对 Bash 语法及完整差异。
+
 ### 2026-10-29：通过公共入口下载并解包官方 DEB
 
 - 现象：程序文件仍从 AUR 安装目录复制，尚未按已确认的官方 DEB 下载方式打包。
