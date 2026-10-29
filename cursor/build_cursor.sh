@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Cursor：下载官方 x64 deb，把整个程序目录放进 AppDir/bin，再交给 quick-sharun。
-# quick-sharun 自己生成 AppRun。这里不要写 AppRun.sh。
 
 # 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
