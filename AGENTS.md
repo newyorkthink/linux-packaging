@@ -227,7 +227,7 @@ Plan 的选择规则：
 
 | 范围 | 主要内容 |
 | --- | --- |
-| 文首永久规则 | 已知错误禁止写入仓库、修复记录只增不删、GitHub 提交步骤、手动只跑指定应用时禁止默认全量、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、命令行不加中文而 GUI 默认带中文环境和中文输入、打包 export 必须先登记、测试代码边界与必要验证、workflow 只负责打包、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入、没有故障原始记录就禁止写死、更新写死内容时同步改说明 |
+| 文首永久规则 | 已知错误禁止写入仓库、修复记录只增不删、GitHub 提交步骤、手动只跑指定应用时禁止默认全量、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、命令行不加中文而 GUI 默认带中文环境和中文输入、打包 export 必须先登记、测试代码边界与必要验证、workflow 只负责打包、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入、没有故障原始记录就禁止写死、更新写死内容时同步改说明、打包分类见 `docs/packaging-classification.md` |
 | 第 1～2 节 | 仓库目标、最小修改、应用 README、检查记录、迁移完整性 |
 | 第 3～5 节 | 宿主安全、Shell 与中文说明、上游来源、授权、动态版本和版本元数据 |
 | 第 6 节 | AppImage 内容、AppRun、libunionpreload、打包路线、linuxdeploy、Qt 与 quick-sharun |
