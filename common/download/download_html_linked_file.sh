@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# 下载 HTTPS 页面，按调用方给出的正则选出唯一资源链接，再下载该文件。
+# 下载 HTTPS 页面，按调用方给出的正则筛选资源链接，去重后要求唯一，再下载该文件。
 # 页面地址、正则和输出路径都由调用方传入。
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -75,7 +75,8 @@ trap cleanup EXIT
 
 mapfile -t LINKS < <(
   grep -oE 'https://[^[:space:]"'\''<>]+' "$PAGE_FILE" \
-    | grep -xE "$LINK_REGEX" || true
+    | grep -xE "$LINK_REGEX" \
+    | LC_ALL=C sort -u || true
 )
 if (( ${#LINKS[@]} != 1 )); then
   echo "错误：页面中符合正则的 HTTPS 链接不是唯一一个：${#LINKS[@]}。" >&2
