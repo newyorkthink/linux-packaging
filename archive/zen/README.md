@@ -1,3 +1,11 @@
+# 已归档
+
+2026-10-29 起本目录不再使用，已从 `zen/` 移到 `archive/zen/`。
+
+停用原因：确认不再使用。不再构建，不再发布。替代：无。
+
+下面原文保留，只作历史记录。
+
 # Zen AppImage
 
 本目录用于构建 Zen Ad-Blocker 的 AnyLinux AppImage。

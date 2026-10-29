@@ -103,7 +103,6 @@ on:
           - trae/build_trae.sh
           - v2rayn/build_v2rayn.sh
           - ventoy/build_ventoy.sh
-          - virt-manager/build_virt-manager.sh
           - vscode/build_vscode.sh
           - webcamoid/build_webcamoid.sh
           - wechat/build_wechat.sh
@@ -115,7 +114,6 @@ on:
           - xephyr/build_xephyr.sh
           - xmind/build_xmind.sh
           - xnviewmp/build_xnviewmp.sh
-          - zen/build_zen.sh
           - zotero/build_zotero.sh
       script_search:
         description: '模糊输入脚本名称（可留空；填写时优先于上方下拉）'
@@ -1203,20 +1201,6 @@ jobs:
           asset_name: 'trae-work.AppImage'
           artifact_dir: 'trae-work/dist'
           github_token: ${{ github.token }}
-
-
-  build_virt_manager:
-    name: Build Virt Manager
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).virt_manager == 'true'
-    runs-on: *arch_runner
-    timeout-minutes: 120
-    container:
-      image: ghcr.io/pkgforge-dev/archlinux:latest
-      options: --privileged --device /dev/fuse
-    permissions: *arch_permissions
-    env: {BUILD_SCRIPT: 'virt-manager/build_virt-manager.sh', ARTIFACT_DIR: 'virt-manager/dist', RELEASE_NAME: 'virt-manager.AppImage', RUN_FROM_ROOT: 'false'}
-    steps: *arch_steps
 
 
   build_wemeet:

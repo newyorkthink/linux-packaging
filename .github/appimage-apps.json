@@ -71,18 +71,6 @@
       "run_from_root": "false"
     },
     {
-      "key": "zen",
-      "kind": "standard",
-      "name": "Zen",
-      "script": "zen/build_zen.sh",
-      "dir": "zen",
-      "artifact_dir": "zen/dist",
-      "release_name": "zen.AppImage",
-      "software_key": "",
-      "timeout_minutes": 60,
-      "run_from_root": "false"
-    },
-    {
       "key": "copyq",
       "kind": "standard",
       "name": "CopyQ",
@@ -1029,13 +1017,6 @@
       "software_key": "qq",
       "timeout_minutes": 90,
       "run_from_root": "false"
-    },
-    {
-      "key": "virt_manager",
-      "kind": "special",
-      "name": "Virt Manager",
-      "script": "virt-manager/build_virt-manager.sh",
-      "dir": "virt-manager"
     },
     {
       "key": "android_tools",
