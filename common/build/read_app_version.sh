@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 显示公共版本读取入口的参数用法。
 usage() {
-  echo "用法：$0 <package-json|pacman> <文件路径或包名> [--version-file <版本文件>] [--desktop <桌面入口文件>]" >&2
+  echo "用法：$0 <package-json|pacman|text> <文件路径或包名> [--version-file <版本文件>] [--desktop <桌面入口文件>]..." >&2
   exit 2
 }
 
@@ -18,7 +18,7 @@ source_type="$1"
 source_value="$2"
 shift 2
 version_file=
-desktop_file=
+desktop_files=()
 
 # 解析可选的构建元数据输出，默认只返回版本。
 while (( $# > 0 )); do
@@ -28,7 +28,7 @@ while (( $# > 0 )); do
       if [[ "$1" == --version-file ]]; then
         version_file="$2"
       else
-        desktop_file="$2"
+        desktop_files+=("$2")
       fi
       shift 2
       ;;
@@ -41,6 +41,9 @@ case "$source_type" in
   package-json)
     version="$(jq -er '.version | select(type == "string" and length > 0)' "$source_value")"
     ;;
+  text)
+    version="$(cat -- "$source_value")"
+    ;;
   pacman)
     version="$("$SCRIPT_DIR/../arch/get_package_version.sh" "$source_value")"
     ;;
@@ -52,19 +55,21 @@ esac
   echo "错误：版本为空或包含空白字符：$source_value" >&2
   exit 1
 }
-if [[ -n "$desktop_file" && ! -f "$desktop_file" ]]; then
-  echo "错误：桌面入口文件不存在：$desktop_file" >&2
-  exit 1
-fi
+for desktop_file in "${desktop_files[@]}"; do
+  if [[ ! -f "$desktop_file" ]]; then
+    echo "错误：桌面入口文件不存在：$desktop_file" >&2
+    exit 1
+  fi
+done
 
 # 按调用方要求保存构建版本，并仅在 desktop 缺少版本字段时追加。
 if [[ -n "$version_file" ]]; then
   printf '%s\n' "$version" > "$version_file"
 fi
-if [[ -n "$desktop_file" ]]; then
+for desktop_file in "${desktop_files[@]}"; do
   grep -q '^X-AppImage-Version=' "$desktop_file" \
     || printf 'X-AppImage-Version=%s\n' "$version" >> "$desktop_file"
-fi
+done
 
 # 标准输出只返回版本，供调用方赋给 VERSION。
 printf '%s\n' "$version"
