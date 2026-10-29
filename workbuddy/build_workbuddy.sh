@@ -9,7 +9,7 @@ cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-# 安装应用及其依赖。
+# 安装 AUR 软件包、运行依赖及 DEB 解包工具。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" workbuddy fcitx5-gtk dpkg
 
 # 清掉上次的打包目录。

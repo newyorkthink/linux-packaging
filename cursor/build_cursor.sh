@@ -9,16 +9,8 @@ cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-# 官方 deb 不经过包管理器，运行库要单独装。dpkg 用来解包。中文输入只装 GTK 3 这一套。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" \
-  dpkg gtk3 fcitx5-gtk \
-  libx11 libxrandr libxss libxext libxi libxtst libxkbfile \
-  libxcomposite libxdamage libxfixes \
-  mesa libglvnd libva libvdpau libva-intel-driver \
-  alsa-lib pulseaudio pulseaudio-alsa pipewire-audio \
-  libsecret libnotify lsof
-# 安装应用及其依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" cursor-bin
+# 安装 AUR 软件包、运行依赖及 DEB 解包工具。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" cursor-bin dpkg gtk3 fcitx5-gtk libx11 libxrandr libxss libxext libxi libxtst libxkbfile libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau libva-intel-driver alsa-lib pulseaudio pulseaudio-alsa pipewire-audio libsecret libnotify lsof
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist cursor-unpacked cursor.deb
