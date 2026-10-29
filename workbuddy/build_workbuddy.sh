@@ -45,7 +45,7 @@ VERSION="$(pacman -Q workbuddy | awk '{print $2}')"
 VERSION="${VERSION#*:}"
 VERSION="${VERSION%-*}"
 
-quick-sharun AppDir/bin/*
+quick-sharun AppDir/bin/* /usr/bin/ls /usr/bin/mkdir /usr/bin/ln /usr/bin/grep
 
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
 mkdir -p AppDir/lib/locale

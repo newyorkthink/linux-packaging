@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-2026-10-29 起，脚本安装当前 AUR 包，把 `/opt/WorkBuddy` 整份放进 `AppDir/bin`，再交给 quick-sharun。写死的路径在 [docs/hardcoded.md](docs/hardcoded.md)。不再克隆 AUR，不再用 `asar` 核对版本，不再加启动壳。
+2026-10-29 起，脚本安装当前 AUR 包，把 `/opt/WorkBuddy` 整份放进 `AppDir/bin`，再交给 quick-sharun。写死的路径在 [docs/hardcoded.md](docs/hardcoded.md)。不再克隆 AUR，不再用 `asar` 核对版本，不再加启动壳。quick-sharun 同时带上 `/usr/bin/ls`、`/usr/bin/mkdir`、`/usr/bin/ln`、`/usr/bin/grep`。
 
 下文里 2026-10-29 以前的打包步骤，以及“不要写死安装路径”，只保留当时的做法，不再作为当前脚本。
 
@@ -113,6 +113,14 @@ workbuddy.AppImage
 - **`ln` 和 `grep` 必须作为 `quick-sharun` 输入显式部署。** 否则目标 Linux 环境下可能出现 `/bin/sh` 语法错误。
 
 ## 变更记录
+
+### 2026-10-29：带上 ls、mkdir、ln、grep
+
+- 现象：实机启动后，包内的 `mkdir`、`ln`、`grep` 被 `/bin/sh` 执行并报 `Syntax error: "(" unexpected`。直接执行 `ls` 也是同一报错。改用 `/bin/ls` 后读写正常。
+- 根因：AppImage 的 PATH 里这四个名字是包装脚本，dash 不能执行。
+- 修改文件：`workbuddy/build_workbuddy.sh`、`workbuddy/docs/hardcoded.md`、`workbuddy/README.md`。
+- 修改内容：把 `/usr/bin/ls`、`/usr/bin/mkdir`、`/usr/bin/ln`、`/usr/bin/grep` 交给 quick-sharun。
+- 已知结果：这次修改的构建还没有完成。
 
 ### 2026-10-29：按系统安装目录整份打包
 

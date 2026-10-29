@@ -20,3 +20,18 @@
 - 写死的内容：`/usr/share/applications/workbuddy.desktop`
 - 作用：交给 quick-sharun 作为桌面入口。
 - 当初报错：没有。这是包装用的桌面入口路径，不是扫描失败后补的路径。
+
+## `/usr/bin/ls`、`/usr/bin/mkdir`、`/usr/bin/ln`、`/usr/bin/grep`
+
+- 为什么写死：AppImage 的 PATH 里这四个名字是包装脚本。程序用 `/bin/sh` 执行时，dash 不认识脚本里的括号。
+- 写死的内容：`/usr/bin/ls`、`/usr/bin/mkdir`、`/usr/bin/ln`、`/usr/bin/grep`
+- 作用：交给 quick-sharun，让包里使用这四个真实命令。
+- 当初报错全文：
+
+```text
+/tmp/.mount_workbremp10445982116532899481/bin/mkdir: 620: Syntax error: "(" unexpected (expecting ")")
+/tmp/.mount_workbremp10445982116532899481/bin/ln: 620: Syntax error: "(" unexpected (expecting ")")
+/tmp/.mount_workbremp10445982116532899481/bin/grep: 620: Syntax error: "(" unexpected (expecting ")")
+```
+
+同一包里直接执行 `ls` 也报 `Syntax error: "(" unexpected`。改用 `/bin/ls` 可以正常读写文件。
