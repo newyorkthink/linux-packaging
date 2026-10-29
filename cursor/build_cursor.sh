@@ -30,6 +30,7 @@ mkdir -p AppDir/bin dist
 "$SCRIPT_DIR/../common/download/download_file.sh" \
   https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/latest \
   cursor.deb
+# 解包官方 DEB。
 "$SCRIPT_DIR/../common/archive/extract_archive.sh" cursor.deb cursor-unpacked
 
 # 整个程序目录原样放进 AppDir/bin。

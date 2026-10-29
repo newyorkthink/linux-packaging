@@ -4,11 +4,27 @@
 
 ## 当前状态
 
-2026-10-29 起，脚本安装当前 AUR 包，把 `/opt/WorkBuddy` 整份放进 `AppDir/bin`，再交给 quick-sharun。写死的路径在 [docs/hardcoded.md](docs/hardcoded.md)。不再克隆 AUR，不再用 `asar` 核对版本，不再加启动壳。quick-sharun 同时带上 `/usr/bin/ls`、`/usr/bin/mkdir`、`/usr/bin/ln`、`/usr/bin/grep`。
+2026-10-29 起，脚本安装当前 AUR `workbuddy` 及其依赖，单独下载并校验官方 Linux x64 DEB，解包后把 `workbuddy-unpacked/opt/WorkBuddy/` 整份放进 `AppDir/bin`，再交给 quick-sharun。
 
-下文里 2026-10-29 以前的打包步骤，以及“不要写死安装路径”，只保留当时的做法，不再作为当前脚本。
+图标和 desktop 继续使用 AUR 安装结果。最终版本仍由原位置的三行 `pacman -Q workbuddy` 代码读取，去掉 epoch 和 pkgrel；下载入口提取的三段版本仅用于 DEB 校验，不覆盖 AUR 版本。不再克隆 AUR，不再用 `asar` 核对版本，不再加启动壳。quick-sharun 同时带上 `/usr/bin/ls`、`/usr/bin/mkdir`、`/usr/bin/ln`、`/usr/bin/grep`。
 
-## 构建来源
+固定路径见 [docs/hardcoded.md](docs/hardcoded.md)，程序专属处理见 [docs/template-deviations.md](docs/template-deviations.md)。下文的历史实现和历史排查记录完整保留，仅说明当时的做法，不作为当前构建步骤。
+
+## 当前打包逻辑
+
+1. 通过公共安装入口安装基础包，以及已经定稿的 `workbuddy fcitx5-gtk dpkg`。
+2. 清理原有 `AppDir`、`dist`，以及旧的 `workbuddy.deb` 和 `workbuddy-unpacked`；重新创建 `AppDir/bin` 与 `dist`。
+3. 调用公共 JSON DEB 下载入口，从官方更新接口读取资产 URL 和 SHA-256；版本过滤器只提取 DEB 校验所需的三段版本，文件名模板保留构建号匹配。公共入口校验摘要、DEB 类型、包名、版本和架构。
+4. 调用公共解包入口，再把 `workbuddy-unpacked/opt/WorkBuddy/` 完整复制到 `AppDir/bin`。下载、解包、复制各一条命令，不再从 AUR 安装目录复制程序。
+5. 保留原有图标、desktop、所有其他参数和 AUR 版本读取位置。
+6. 保留原有 quick-sharun 参数与中文 locale，生成 `dist/workbuddy.AppImage` 后，通过公共版本保存入口将 AUR 版本写入 `dist/version.txt`。
+7. 继续使用现有 `.github/workflows/build.yml` 中的 WorkBuddy 独立 Job；完成构建、原有 Xvfb 检查和发布后，由当前 Job 立即更新 `software_versions.json`。
+
+## 历史实现
+
+以下构建来源、技术栈、打包逻辑和稳定基线保留原文，已由上文的当前流程替代。不得恢复其中的临时克隆、版本修正、启动壳或额外检查。
+
+### 原构建来源
 
 使用当前 AUR `workbuddy` 包作为 Linux 适配来源。
 
@@ -34,7 +50,7 @@ pacman -Qlq workbuddy
 
 不得按 `5.x`、某个具体小版本或固定 `/opt` 目录编写版本判断。上游版本变化时，不应仅为了更新版本号修改本仓库。
 
-## 技术栈
+### 原技术栈
 
 - 上游应用：WorkBuddy 官方 Linux x64 DEB。
 - AUR：负责官方 Linux 包来源和系统安装适配。当前配方不再把 `app.asar` 展开成应用目录。
@@ -42,7 +58,7 @@ pacman -Qlq workbuddy
 - AppImage：使用 `quick-sharun` 部署运行库并生成最终单文件。
 - 目标架构：Linux x86_64。
 
-## 当前打包逻辑
+### 原打包逻辑
 
 `workbuddy/build_workbuddy.sh` 只保留 AUR 版本一致性和 AppImage 层必须处理的内容：
 
@@ -58,7 +74,7 @@ pacman -Qlq workbuddy
 
 不再保留旧版针对非原生 Linux payload 的 native module 查找、平台裁剪和 ELF 校验逻辑；这些仍属于 AUR / 官方 Linux 包的职责。
 
-## 当前稳定基线
+### 原稳定基线
 
 2026-08-28 的旧基线解决了当时 WorkBuddy 非完整 Linux payload 下的 native module、资源路径和托盘图标问题。
 
@@ -95,7 +111,9 @@ GitHub Actions：
 workbuddy.AppImage
 ```
 
-## 已踩过的坑
+## 历史排查记录
+
+以下条目对应当时的实现，保留用于追溯故障和失败方向；当前构建步骤以上文为准。
 
 - **不要锁 WorkBuddy 版本。** 始终从当前 AUR `.SRCINFO` 动态取得本次对外发布版本。
 - **不要直接假设 AUR `PKGBUILD` 初始 `pkgver` 与 `.SRCINFO` 一致。** source 数组会在 `pkgver()` 更新版本前解析；初始版本滞后会下载旧 DEB，再生成带新版本号的软件包。
@@ -113,6 +131,14 @@ workbuddy.AppImage
 - **`ln` 和 `grep` 必须作为 `quick-sharun` 输入显式部署。** 否则目标 Linux 环境下可能出现 `/bin/sh` 语法错误。
 
 ## 变更记录
+
+### 2026-10-29：通过公共入口下载并解包官方 DEB
+
+- 现象：程序文件仍从 AUR 安装目录复制，尚未按已确认的官方 DEB 下载方式打包。
+- 原因：官方更新接口返回 JSON；其中的版本包含构建号，而 DEB 的版本字段使用三段版本，不能直接把完整接口版本交给 DEB 版本校验。
+- 修改文件：`workbuddy/build_workbuddy.sh`、`workbuddy/README.md`、`workbuddy/docs/hardcoded.md`、`workbuddy/docs/template-deviations.md`、`cursor/build_cursor.sh`、`docs/packaging-classification.md`。
+- 修改内容：复用现有公共下载和解包入口；三段版本只用于校验 DEB，文件名模板保留构建号匹配，摘要取自官方 JSON；从解包目录完整复制程序。依赖安装补上已定稿的 `dpkg`，清理项补上旧 DEB 和解包目录。AUR 版本读取、图标、desktop、quick-sharun、中文环境和最终版本保存保持不变。Cursor 仅补充相同的解包注释，分类中将 WorkBuddy 加入直接下载安装包的 Electron 程序。
+- 已知结果：提交前完成 Bash 语法、官方 DEB 下载与 SHA-256 校验、包元数据及解包目录检查，并核对完整差异。本次未在本地构建 AppImage 或启动 WorkBuddy，新成品的构建及运行结果未验证。
 
 ### 2026-10-29：带上 ls、mkdir、ln、grep
 

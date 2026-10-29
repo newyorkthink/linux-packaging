@@ -7,6 +7,7 @@
 程序目录在官方 deb 或 tar 里，不先装到系统。
 
 - Cursor
+- WorkBuddy
 
 ### 从系统里已安装的程序取得
 

@@ -2,9 +2,9 @@
 
 ## `/opt/WorkBuddy`
 
-- 为什么写死：AUR 包把程序装在这个目录。`/usr/bin/workbuddy` 是 shell，不是入口。脚本不在构建时再查询安装位置。
+- 为什么写死：官方 DEB 将完整程序放在这个目录。构建脚本通过公共入口解包后，直接使用解包目录中的程序文件。`/usr/bin/workbuddy` 是 shell，不是入口。脚本不在构建时再查询安装位置。
 - 写死的内容：`/opt/WorkBuddy`
-- 作用：把这个目录里的全部内容放进 `AppDir/bin`。
+- 作用：把 `workbuddy-unpacked/opt/WorkBuddy/` 里的全部内容放进 `AppDir/bin`。
 - 当初报错：没有。这是包装进去的目录，不是扫描失败后补的路径。
 
 ## `/usr/share/icons/hicolor/512x512/apps/workbuddy.png`

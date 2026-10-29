@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WorkBuddy：安装当前 AUR 包，把整个程序目录放进 AppDir/bin，再交给 quick-sharun。
+# WorkBuddy：下载官方 x64 deb，把整个程序目录放进 AppDir/bin，再交给 quick-sharun。
 # quick-sharun 自己生成 AppRun。这里不要写 AppRun.sh。
 
 # 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
@@ -11,15 +11,25 @@ cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-# 当前 AUR 包。中文输入只装 GTK 3 这一套。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" workbuddy fcitx5-gtk
+# 安装 AUR workbuddy 及其依赖，dpkg 用于解包官方 DEB。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" workbuddy fcitx5-gtk dpkg
 
 # 清掉上次的打包目录。
-rm -rf -- AppDir dist
+rm -rf -- AppDir dist workbuddy.deb workbuddy-unpacked
 mkdir -p AppDir/bin dist
 
+# 下载并校验官方当前 DEB。
+"$SCRIPT_DIR/../common/download/download_json_deb_asset.sh" \
+  'https://copilot.tencent.com/v2/update?platform=workbuddy-linux-x64-deb' \
+  '.version | split(".") | .[0:3] | join(".")' '.url' \
+  '^https://download[.]codebuddy[.]cn/workbuddy/saas/linux-x64-deb/WorkBuddy-linux-x64-deb-[^/]+[.]deb$' \
+  'WorkBuddy-linux-x64-deb-{version}*.deb' workbuddy amd64 workbuddy.deb '.sha256hash'
+
+# 解包官方 DEB。
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" workbuddy.deb workbuddy-unpacked
+
 # 整个程序目录原样放进 AppDir/bin。/usr/bin 里的是 shell，不用它当入口。
-cp -a /opt/WorkBuddy/. AppDir/bin/
+cp -a workbuddy-unpacked/opt/WorkBuddy/. AppDir/bin/
 
 # 把当前机器架构传给 quick-sharun。
 export ARCH="$(uname -m)"
