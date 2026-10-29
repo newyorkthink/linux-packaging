@@ -107,18 +107,6 @@
       "run_from_root": "false"
     },
     {
-      "key": "goldendict_ng",
-      "kind": "standard",
-      "name": "GoldenDict-ng",
-      "script": "goldendict-ng/build_goldendict-ng.sh",
-      "dir": "goldendict-ng",
-      "artifact_dir": "goldendict-ng/dist",
-      "release_name": "goldendict-ng.AppImage",
-      "software_key": "",
-      "timeout_minutes": 60,
-      "run_from_root": "false"
-    },
-    {
       "key": "grok_app",
       "kind": "standard",
       "name": "Grok App",
@@ -609,15 +597,6 @@
       "software_key": "Gemini",
       "timeout_minutes": 90,
       "run_from_root": "false"
-    },
-    {
-      "key": "github_desktop",
-      "kind": "special",
-      "name": "GitHub Desktop",
-      "script": "github-desktop/build_github-desktop.sh",
-      "dir": "github-desktop",
-      "release_name": "github-desktop.AppImage",
-      "software_key": "github-desktop"
     },
     {
       "key": "hermes_desktop",

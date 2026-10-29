@@ -14,3 +14,5 @@
 | [deepseek-harness](./deepseek-harness/README.md) | 2026-10-29 | 这条命令行打包不再使用 | [deepseek-harness-desktop](../deepseek-harness-desktop/README.md) |
 | [virt-manager](./virt-manager/README.md) | 2026-10-29 | 确认不再使用 | 无 |
 | [zen](./zen/README.md) | 2026-10-29 | 确认不再使用 | 无 |
+| [github-desktop](./github-desktop/README.md) | 2026-10-29 | 确认不再使用 | 无 |
+| [goldendict-ng](./goldendict-ng/README.md) | 2026-10-29 | 确认不再使用 | 无 |

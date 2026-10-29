@@ -1,3 +1,11 @@
+# 已归档
+
+2026-10-29 起本目录不再使用，已从 `github-desktop/` 移到 `archive/github-desktop/`。
+
+停用原因：确认不再使用。不再构建，不再发布。替代：无。
+
+下面原文保留，只作历史记录。
+
 # GitHub Desktop AppImage
 
 本目录用于把 GitHub 官方 `desktop/desktop` 最新稳定源码构建为 x86_64 Linux AppImage。
