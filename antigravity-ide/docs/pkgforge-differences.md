@@ -6,29 +6,30 @@
 
 以下“作用”根据命令及本仓库流程说明；除明确引述的内容外，**官方未说明原因**，不得把本仓库的选择理由写成官方原始理由。
 
-| 处理 | 决定 | 当前依据、用途与影响 |
-| --- | --- | --- |
-| GTK 部署 | 采用标准步骤，命令也与官方相同 | GTK 输入模块依靠标准模板的安装及自动收集，保留 `DEPLOY_GTK=1`，不另加输入法路径。 |
-| OpenGL、Vulkan 部署 | 采用并原样复用 | 两项均为原构建已有的图形部署范围；当前仍为图形应用，保留该范围，不引入额外运行开关。官方未说明原因；没有据此宣称硬件加速实测通过。 |
-| NSS 模块显式收集 | 采用并原样复用 | 原构建已携带这些动态加载模块，普通 ELF 依赖扫描不足以代表 NSS 按配置加载的模块集合，因此保留显式收集。官方未说明具体故障或选择这些模块的原因。 |
-| bwrap 收集 | 不额外加入 | 官方 IDE 收集命令没有该参数；当前未确认独立调用消费者，不以另一个应用的需要作为加入依据。原有 bubblewrap 安装保留，不宣称包内沙箱完整或实测通过。 |
-| 单独保留 URL handler | 不采用 | 主 desktop 由系统包提供；独立协议文件没有后续消费者，单独放入 AppImage 不会登记宿主协议。本次不新增宿主登记功能，因此不加 mkdir/sed/cp；浏览器回调未由此实现。 |
-| 主 desktop、图标下载 | 不复用这些下载命令 | 标准模板已经先安装应用，直接使用系统包的主 desktop 和图标。它们不是需要再次下载或批量替换的未处理模板；本仓库的系统资源赋值不冒称官方原命令。 |
-| 官网解析、下载、解包及版本写入 | 使用公共入口，不直接复用官方命令 | 标准模板已覆盖这些阶段；公共 HTML 下载入口同时记录本次所选 URL 的版本。独立下载、完整复制目录保持不变，不复制系统中的程序文件。 |
-| 全系统升级与精简包替换 | 不采用官方命令 | 使用仓库公共基础包及应用依赖安装；当前没有需要 `get-debloated-pkgs` 替换系统包的依据，不额外增加升级和替换阶段。依赖覆盖见 [模板差异](template-deviations.md)。 |
-| 自动更新 hook、UPINFO | 不采用 | 当前任务是构建与仓库既有发布流程，未授权增加运行时自更新；官方更新元数据绑定其 GitHub 发布布局，不能作为本仓库的更新地址。 |
-| 官方 `--test` 启动 | 不接入脚本 | 本次使用标准模板的封装和版本保存阶段，不额外增加自动运行应用的操作；保留现有仓库构建流程，本次未执行 AppImage。 |
-| 强制 `DEPLOY_LOCALE=1` | 不采用 | 属于旧脚本额外配置，当前两份官方脚本没有该开关。标准模板已显式生成包内中文 locale，无须为了旧脚本再强制部署 locale 数据；没有关闭工具自身的默认处理。 |
-| `DWARFS_COMP="zstd:level=5"` | 不采用 | 旧脚本自定义压缩，标准模板和当前官方脚本均无此项；没有额外压缩需求，因此使用工具默认设置。 |
-| AUR watcher 替换 | 不复制到最终程序 | 当前 AUR PKGBUILD 注明用于修复 watcher 退出故障；系统安装可能包含该处理，但最终程序独立取自官方 tar。本次没有授权修复上游程序，保持原版，不复制系统里的替换文件。 |
+| 处理 | 决定 | 对应代码 | 当前依据、用途与影响 |
+| --- | --- | --- | --- |
+| GTK 部署 | 采用标准步骤，命令也与官方相同 | `export DEPLOY_GTK=1`（[第47行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L47)） | GTK 输入模块依靠标准模板的安装及自动收集，保留 `DEPLOY_GTK=1`，不另加输入法路径。 |
+| OpenGL、Vulkan 部署 | 采用并原样复用 | `export DEPLOY_OPENGL=1`（[第49行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L49)）<br>`export DEPLOY_VULKAN=1`（[第51行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L51)） | 两项均为原构建已有的图形部署范围；当前仍为图形应用，保留该范围，不引入额外运行开关。官方未说明原因；没有据此宣称硬件加速实测通过。 |
+| NSS 模块显式收集 | 采用并原样复用 | [完整收集命令，第57行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L57)；原文见下方完整代码块。 | 原构建已携带这些动态加载模块，普通 ELF 依赖扫描不足以代表 NSS 按配置加载的模块集合，因此保留显式收集。官方未说明具体故障或选择这些模块的原因。 |
+| bwrap 收集 | 不额外加入 | 未启用额外收集；正式收集命令中无该参数。 | 官方 IDE 收集命令没有该参数；当前未确认独立调用消费者，不以另一个应用的需要作为加入依据。原有 bubblewrap 安装保留，不宣称包内沙箱完整或实测通过。 |
+| 单独保留 URL handler | 不采用 | 未启用；正式构建无独立协议文件复制或宿主登记代码。 | 主 desktop 由系统包提供；独立协议文件没有后续消费者，单独放入 AppImage 不会登记宿主协议。本次不新增宿主登记功能，因此不加 mkdir/sed/cp；浏览器回调未由此实现。 |
+| 主 desktop、图标下载 | 不复用这些下载命令 | 官方下载命令未启用；实际使用[系统图标与主 desktop，第39～41行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L39-L41)。 | 标准模板已经先安装应用，直接使用系统包的主 desktop 和图标。它们不是需要再次下载或批量替换的未处理模板；本仓库的系统资源赋值不冒称官方原命令。 |
+| 官网解析、下载、解包及版本写入 | 使用公共入口，不直接复用官方命令 | 官方命令未启用；实际使用公共入口：[下载，第20～22行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L20-L22)、[解包和复制，第25～28行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L25-L28)、[版本读取，第54行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L54)、[保存，第73行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L73)。 | 标准模板已覆盖这些阶段；公共 HTML 下载入口同时记录本次所选 URL 的版本。独立下载、完整复制目录保持不变，不复制系统中的程序文件。 |
+| 全系统升级与精简包替换 | 不采用官方命令 | 官方命令未启用；实际使用[公共依赖安装，第11～13行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L11-L13)。 | 使用仓库公共基础包及应用依赖安装；当前没有需要 `get-debloated-pkgs` 替换系统包的依据，不额外增加升级和替换阶段。依赖覆盖见 [模板差异](template-deviations.md)。 |
+| 自动更新 hook、UPINFO | 不采用 | 未启用；正式构建无对应更新配置。 | 当前任务是构建与仓库既有发布流程，未授权增加运行时自更新；官方更新元数据绑定其 GitHub 发布布局，不能作为本仓库的更新地址。 |
+| 官方 `--test` 启动 | 不接入脚本 | 未启用；正式构建不调用该测试命令。 | 本次使用标准模板的封装和版本保存阶段，不额外增加自动运行应用的操作；保留现有仓库构建流程，本次未执行 AppImage。 |
+| 强制 `DEPLOY_LOCALE=1` | 不采用 | 该开关未启用；实际采用[标准中文环境，第60～67行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L60-L67)。 | 属于旧脚本额外配置，当前两份官方脚本没有该开关。标准模板已显式生成包内中文 locale，无须为了旧脚本再强制部署 locale 数据；没有关闭工具自身的默认处理。 |
+| `DWARFS_COMP="zstd:level=5"` | 不采用 | 未启用；正式构建不设置自定义压缩参数。 | 旧脚本自定义压缩，标准模板和当前官方脚本均无此项；没有额外压缩需求，因此使用工具默认设置。 |
+| AUR watcher 替换 | 不复制到最终程序 | 未启用最终程序替换；程序来自[独立下载的官方 tar，第25～28行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L25-L28)。 | 当前 AUR PKGBUILD 注明用于修复 watcher 退出故障；系统安装可能包含该处理，但最终程序独立取自官方 tar。本次没有授权修复上游程序，保持原版，不复制系统里的替换文件。 |
 
 协议结论依据本仓库 [AppImage 自定义协议登记说明](../../docs/appimage-scheme-handler.md) 和 [AUR URL handler](https://github.com/archlinux/aur/blob/antigravity-ide/antigravity-ide-url-handler.desktop)：包内文件存在与宿主登记是两件事。此次未采用该收集步骤，不等于断言所有环境都不需要协议功能。
 
-## 当前原样复用的专属代码
+## 当前采用的构建代码
 
-来源：[make-appimage.sh](https://github.com/pkgforge-dev/Antigravity-IDE-AppImage/blob/d4297876ff865da85f0dff592cc6ab39b51563f0/make-appimage.sh)。部署开关位于元数据阶段；收集命令位于读取版本后、生成中文 locale 前。只改进对应中文注释，以下可执行内容不改写：
+来源：[make-appimage.sh](https://github.com/pkgforge-dev/Antigravity-IDE-AppImage/blob/d4297876ff865da85f0dff592cc6ab39b51563f0/make-appimage.sh)。部署开关位于元数据阶段；收集命令位于读取版本后、生成中文 locale 前。GTK 部署属于标准模板已有步骤，命令与官方相同；OpenGL、Vulkan 和完整收集命令直接复用官方代码。只改进对应中文注释，以下可执行内容不改写。表中多个收集项目共用同一条完整命令：
 
 ```bash
+export DEPLOY_GTK=1
 export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
 quick-sharun ./AppDir/bin/* /usr/lib/libnss_nis.so* /usr/lib/libnsl.so* /usr/lib/libnss_mdns*_minimal.so*
