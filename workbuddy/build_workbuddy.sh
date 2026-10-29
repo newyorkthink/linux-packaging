@@ -62,6 +62,11 @@ LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
 ENV
 
+# 启动时优先使用系统命令，保留原有 PATH 作为后备。
+cat > AppDir/bin/99-workbuddy-host-path.hook <<'HOOK'
+export PATH="/usr/bin:/bin${PATH:+:$PATH}"
+HOOK
+
 # 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 

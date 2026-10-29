@@ -49,3 +49,21 @@
 - 写死的内容：`pacman workbuddy`，作为 `common/build/read_app_version.sh` 的两个来源参数。
 - 作用：复用 `common/arch/get_package_version.sh`，去掉 epoch 和 pkgrel 后返回版本，最终写入 `dist/version.txt`。
 - 当初报错：没有。本次只把原有读取规则移入统一公共调用，不改为下载入口中的 DEB 校验版本。
+
+## 启动 PATH 与 `99-workbuddy-host-path.hook`
+
+- 为什么写死：已发布 AppImage 的 AppRun 把顶层 `bin` 放在 PATH 最前，其中 `cat`、`head`、`find`、`sed`、`cp`、`mv` 是与资源树内 `brokered-bin` 文件相同的脚本。脚本声明 `#!/bin/sh`，第 620 行却使用 Bash 数组；普通命令误选这些脚本时，在使用 dash 的环境中报错。让系统命令优先后，同一只读命令测试通过。
+- 写死的内容：构建时生成 `AppDir/bin/99-workbuddy-host-path.hook`，内容为 `export PATH="/usr/bin:/bin${PATH:+:$PATH}"`。
+- 作用：在现有默认 hook 之后、主程序启动之前，将 `/usr/bin`、`/bin` 放在 PATH 最前，原有 PATH 完整保留为后备。hook 通过 AppRun 加载，不需要单独执行；原有四个运行命令的部署参数及顺序保持不变。资源树内的沙盒和命令代理脚本不作修改。
+- 当初报错全文：对解包产物中的对应脚本逐一执行 dash 语法检查，得到以下原始错误输出：
+
+```text
+AppDir/bin/cat: 620: Syntax error: "(" unexpected (expecting "}")
+AppDir/bin/head: 620: Syntax error: "(" unexpected (expecting "}")
+AppDir/bin/find: 620: Syntax error: "(" unexpected (expecting "}")
+AppDir/bin/sed: 620: Syntax error: "(" unexpected (expecting "}")
+AppDir/bin/cp: 620: Syntax error: "(" unexpected (expecting "}")
+AppDir/bin/mv: 620: Syntax error: "(" unexpected (expecting "}")
+```
+
+这项处理只改变普通命令的搜索顺序，不修补上述脚本本身；如果应用后续主动把资源树内的代理目录放到 PATH 前面，其行为仍由应用自身决定。该扩展仅适用于本应用，具体位置和模板影响见 [template-deviations.md](template-deviations.md#启动-path-hook)。
