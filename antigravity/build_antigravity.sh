@@ -1,61 +1,74 @@
 #!/usr/bin/env bash
-set -e
 
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
+
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装 AUR 软件包及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" antigravity fcitx5-gtk libnss_nis bubblewrap gvfs librsvg libvdpau libxkbcommon-x11 gcc-libs
 
-rm -rf AppDir || true
+# 清掉上次的打包目录。
+rm -rf -- AppDir dist antigravity.tar.gz antigravity-unpacked antigravity.version
+mkdir -p AppDir/bin dist
 
-ARCH="$(uname -m)"
-export ARCH
+# 下载官方当前 tar 包。
+"$SCRIPT_DIR/../common/download/download_html_linked_file.sh" \
+  https://antigravity.google/download \
+  '^https://storage[.]googleapis[.]com/antigravity-public/antigravity-hub/[0-9]+([.][0-9]+)+-[0-9]+/linux-x64/Antigravity[.]tar[.]gz$' antigravity.tar.gz \
+  --version-regex '/antigravity-hub/([0-9]+([.][0-9]+)+)-[0-9]+/linux-x64/' --version-file antigravity.version
 
-# Basic dependencies
-yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux zsync
-# App dependencies
-yay -S --noconfirm patchelf libnss_nis nss-mdns nss bubblewrap alsa-lib at-spi2-core cairo dbus expat glib2 glibc gtk3 libcups gcc-libs libx11 libxcb libxcomposite libxdamage libxext libxfixes libxkbcommon libxrandr mesa nspr pango systemd-libs ibus debugedit gvfs librsvg libvdpau libxkbcommon-x11
+# 解包官方 tar 包。
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" antigravity.tar.gz antigravity-unpacked
 
-farch=x64
+# 整个程序目录原样放进 AppDir/bin。
+cp -a antigravity-unpacked/Antigravity-*/. AppDir/bin/
 
-echo "Getting binary..."
-BASE_URL="https://antigravity.google"
-link=$(curl -sSfL --compressed "$BASE_URL/download" | grep -oP "https://storage\\.googleapis\\.com/antigravity-public/antigravity-hub/[0-9]+(?:\\.[0-9]+)+-[0-9]+/linux-${farch}/Antigravity\\.tar\\.gz" | head -1)
-
-if [[ -z "$link" ]]; then
-  echo "Error: failed to find the Antigravity Linux ${farch} download URL." >&2
-  exit 1
-fi
-
-VERSION="$(sed -nE "s#.*/antigravity-hub/([0-9]+(\\.[0-9]+)+)-[0-9]+/linux-${farch}/Antigravity\\.tar\\.gz#\\1#p" <<< "$link")"
-if [[ -z "$VERSION" ]]; then
-  echo "Error: failed to resolve the Antigravity version from: $link" >&2
-  exit 1
-fi
-
-curl -sSfL --retry 30 --retry-connrefused "$link" -o /tmp/temp.tar.gz
-
-mkdir -p ./AppDir/bin
-curl -sL "https://aur.archlinux.org/cgit/aur.git/plain/antigravity.desktop?h=antigravity" | sed 's|^Exec=/usr/bin/|Exec=|g' > ./AppDir/antigravity.desktop
-tar -xvzf /tmp/temp.tar.gz --strip-components=1 -C ./AppDir/bin
-rm -f /tmp/temp.tar.gz
-
-curl -sL "https://aur.archlinux.org/cgit/aur.git/plain/antigravity.png?h=antigravity" -o ./antigravity.png
-
-export STARTUPWMCLASS=antigravity
-export ICON=./antigravity.png
-export DESKTOP=./AppDir/antigravity.desktop
-export OUTPATH=./dist
-export OUTNAME="antigravity.AppImage"
-
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 成品里的应用名。
+export APPNAME=Antigravity
+# 包里的真实程序名。
+export MAIN_BIN=antigravity
+# 让窗口对上 desktop 里的 StartupWMClass。
+export STARTUPWMCLASS=Antigravity
+# 使用系统里装好的图标。
+export ICON=/usr/share/pixmaps/antigravity.png
+# 使用系统里装好的桌面入口文件。
+export DESKTOP=/usr/share/applications/antigravity.desktop
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
+export OUTNAME=antigravity.AppImage
+# 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
-export DEPLOY_LOCALE=1
+# 复用官方代码：部署 OpenGL 运行依赖。
 export DEPLOY_OPENGL=1
+# 复用官方代码：部署 Vulkan 运行依赖。
 export DEPLOY_VULKAN=1
 
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text antigravity.version)"
+
+# 复用官方代码：收集程序、NSS 模块及沙箱辅助程序。
 quick-sharun ./AppDir/bin/* /usr/lib/libnss_nis.so* /usr/lib/libnsl.so* /usr/lib/libnss_mdns*_minimal.so* /usr/bin/bwrap
-printf 'LANG=zh_CN.UTF-8\nLANGUAGE=zh_CN:zh\n' >> ./AppDir/.env
+
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'ENV'
+LANG=zh_CN.UTF-8
+LANGUAGE=zh_CN:zh
+LC_MESSAGES=zh_CN.UTF-8
+LOCPATH=${SHARUN_DIR}/lib/locale
+ENV
+
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-# 记录当前上游版本，供构建成功后自动增量更新软件版本清单。
-printf '%s\n' "$VERSION" > ./dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/antigravity.AppImage "$VERSION" dist/version.txt
