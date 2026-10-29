@@ -1,61 +1,69 @@
 #!/usr/bin/env bash
-set -e
 
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
+
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装 AUR 软件包、运行依赖及 DEB 解包工具。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" cc-switch-bin fcitx5-gtk dpkg xorg-server xorg-server-common xorg-server-xvfb gtk3 libayatana-appindicator libdbusmenu-glib libdbusmenu-gtk3 webkit2gtk-4.1 libsoup3 glib-networking gsettings-desktop-schemas libsecret libnotify glibc gcc-libs zlib libx11 libxext libxi libxtst libxss libxrandr libxinerama libxcomposite libxdamage libxfixes libxkbcommon-x11 libxkbfile cairo fribidi freetype2 harfbuzz librsvg adwaita-icon-theme
 
-rm -rf AppDir dist || true
+# 清掉上次的打包目录。
+rm -rf -- AppDir dist cc-switch.deb cc-switch-unpacked cc-switch.version
+mkdir -p AppDir/bin dist
 
-export ARCH=x86_64
+# 下载官方当前 DEB。
+"$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" \
+  farion1231/cc-switch 'CC-Switch-v{version}-Linux-x86_64.deb' \
+  cc-switch.deb cc-switch amd64 > cc-switch.version
 
-export APPNAME="cc-switch"
-export STARTUPWMCLASS="cc-switch"
-export ICON="/usr/share/icons/hicolor/128x128/apps/cc-switch.png"
+# 解包官方 DEB。
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" cc-switch.deb cc-switch-unpacked
+
+# 整个程序目录原样放进 AppDir/bin。
+cp -a cc-switch-unpacked/usr/bin/. AppDir/bin/
+
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 成品里的应用名。
+export APPNAME=cc-switch
+# 包里的真实程序名。
+export MAIN_BIN=cc-switch
+# 让窗口对上 desktop 里的 StartupWMClass。
+export STARTUPWMCLASS=cc-switch
+# 使用系统里装好的图标。
+export ICON=/usr/share/icons/hicolor/128x128/apps/cc-switch.png
+# 使用系统里装好的桌面入口文件。
 export DESKTOP="/usr/share/applications/CC Switch.desktop"
-export OUTPATH=./dist
-export OUTNAME="cc-switch.AppImage"
-
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
+export OUTNAME=cc-switch.AppImage
+# 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
 
-# 安装基础打包工具
-yay -S --noconfirm \
-  gcc base-devel wget curl tar gzip xz binutils patchelf coreutils \
-  appstream-glib desktop-file-utils util-linux zsync \
-  xorg-server xorg-server-common xorg-server-xvfb
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text cc-switch.version)"
 
-# 安装 CC Switch / GTK / WebKit / 输入法 / 托盘相关依赖
-# 依赖选择使用官方仓库版本：gtk3 / webkit2gtk-4.1，不使用 AUR 变体。
-yay -S --noconfirm \
-  cc-switch-bin \
-  gtk3 ibus \
-  libayatana-appindicator libdbusmenu-glib libdbusmenu-gtk3 \
-  webkit2gtk-4.1 libsoup3 glib-networking gsettings-desktop-schemas \
-  libsecret libnotify shared-mime-info xdg-utils \
-  glib2 glibc gcc-libs zlib ca-certificates \
-  libx11 libxext libxi libxtst libxss libxrandr libxinerama \
-  libxcomposite libxdamage libxfixes libxkbcommon libxkbcommon-x11 libxkbfile \
-  at-spi2-core cairo pango fribidi fontconfig freetype2 harfbuzz \
-  gdk-pixbuf2 librsvg hicolor-icon-theme adwaita-icon-theme
+# 收集程序及其运行依赖。
+quick-sharun AppDir/bin/* /usr/lib/libayatana-appindicator3.so.1
 
-PACKAGE_VERSION="$(pacman -Q cc-switch-bin | awk '{print $2; exit}')"
-VERSION="${PACKAGE_VERSION%-*}"
-VERSION="${VERSION#*:}"
-if [[ -z "$VERSION" ]]; then
-  echo "Error: failed to resolve CC Switch version." >&2
-  exit 1
-fi
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'ENV'
+LANG=zh_CN.UTF-8
+LANGUAGE=zh_CN:zh
+LC_MESSAGES=zh_CN.UTF-8
+LOCPATH=${SHARUN_DIR}/lib/locale
+ENV
 
-# desktop / icon 由 DESKTOP / ICON 环境变量处理，不放进 quick-sharun 参数里。
-# /usr/bin/hostname 先不加；如果实际运行报 hostname 相关错误，再补。
-# CC Switch 托盘通过 dlopen 运行时加载 AppIndicator；显式收集 Ayatana 实现，避免 AppImage 启动时缺少动态库。
-quick-sharun \
-  /usr/bin/cc-switch \
-  /usr/lib/libayatana-appindicator3.so.1 \
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
-
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-# 记录当前上游版本，供构建成功后自动增量更新软件版本清单。
-printf '%s\n' "$VERSION" > ./dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/cc-switch.AppImage "$VERSION" dist/version.txt
