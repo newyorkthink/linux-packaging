@@ -7,7 +7,7 @@
 | 阶段 | 当前处理及原因 |
 | --- | --- |
 | 安装 | 先通过公共入口安装基础包，再安装 `antigravity-ide fcitx5-gtk libnss_nis bubblewrap gvfs librsvg libvdpau xcb-util-wm libxkbcommon-x11 gcc-libs`。系统安装用于依赖、图标和 desktop；最终程序另行下载。 |
-| 下载 | 用公共 HTML 链接下载入口从官网下载页选择唯一的 Linux x64 tar，并将同一下载 URL 中的版本保存到 `antigravity-ide.version`。该入口需要额外的链接与版本匹配参数，所以调用比 DEB 模板多一行。 |
+| 下载 | 用公共 HTML 链接下载入口从官网下载页选择唯一的 Linux x64 tar，并将同一下载 URL 中的版本保存到 `antigravity-ide.version`。下载命令按标准模板保持三行，链接与版本匹配规则作为参数传入。 |
 | 解包和复制 | 公共解包入口后，将 `antigravity-ide-unpacked/Antigravity IDE/` 完整复制到 `AppDir/bin/`；保留程序与资源布局。 |
 | 图形部署 | 在 `DEPLOY_GTK=1` 后原样保留 `DEPLOY_OPENGL=1`、`DEPLOY_VULKAN=1`，维持原构建的图形依赖部署范围。 |
 | 版本 | 第一次 quick-sharun 前使用 `read_app_version.sh text antigravity-ide.version`；AppImage 成功生成后用公共保存入口写 `dist/version.txt`。 |

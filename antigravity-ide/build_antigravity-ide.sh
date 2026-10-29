@@ -17,8 +17,7 @@ rm -rf -- AppDir dist antigravity-ide.tar.gz antigravity-ide-unpacked antigravit
 mkdir -p AppDir/bin dist
 
 # 下载官方当前 tar 包。
-"$SCRIPT_DIR/../common/download/download_html_linked_file.sh" \
-  https://antigravity.google/download \
+"$SCRIPT_DIR/../common/download/download_html_linked_file.sh" https://antigravity.google/download \
   '^https://edgedl[.]me[.]gvt1[.]com/edgedl/release2/[^[:space:]]+/stable/[0-9]+([.][0-9]+)+-[0-9]+/linux-x64/Antigravity%20IDE[.]tar[.]gz$' antigravity-ide.tar.gz \
   --version-regex '/stable/([0-9]+([.][0-9]+)+)-[0-9]+/linux-x64/' --version-file antigravity-ide.version
 

@@ -17,8 +17,7 @@ rm -rf -- AppDir dist antigravity.tar.gz antigravity-unpacked antigravity.versio
 mkdir -p AppDir/bin dist
 
 # 下载官方当前 tar 包。
-"$SCRIPT_DIR/../common/download/download_html_linked_file.sh" \
-  https://antigravity.google/download \
+"$SCRIPT_DIR/../common/download/download_html_linked_file.sh" https://antigravity.google/download \
   '^https://storage[.]googleapis[.]com/antigravity-public/antigravity-hub/[0-9]+([.][0-9]+)+-[0-9]+/linux-x64/Antigravity[.]tar[.]gz$' antigravity.tar.gz \
   --version-regex '/antigravity-hub/([0-9]+([.][0-9]+)+)-[0-9]+/linux-x64/' --version-file antigravity.version
 
