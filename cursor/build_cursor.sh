@@ -19,6 +19,7 @@ cd "$SCRIPT_DIR"
   mesa libglvnd libva libvdpau libva-intel-driver \
   alsa-lib pulseaudio pulseaudio-alsa pipewire-audio \
   libsecret libnotify lsof
+# 安装 AUR cursor-bin 及其依赖，最终仍使用官方 DEB 中的程序。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" cursor-bin
 
 # 清掉上次的打包目录。
