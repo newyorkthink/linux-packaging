@@ -1,0 +1,76 @@
+#!/bin/sh
+
+# MIT License
+#
+# Copyright (c) 2025 Package Forge (Dev)
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# when run in remote terminal, use the remote cli
+if [ -n "$VSCODE_IPC_HOOK_CLI" ]; then
+	REMOTE_CLI=""
+	_IFS=$IFS
+	IFS=:
+	for d in $PATH; do
+		case "$d" in
+			*/remote-cli/*)
+				if REMOTE_CLI=$(PATH=$d command -v code); then
+					break
+				fi
+				;;
+		esac
+	done
+	IFS=$_IFS
+	if [ -n "$REMOTE_CLI" ]; then
+		"$REMOTE_CLI" "$@"
+		exit $?
+	fi
+fi
+
+# test that VSCode wasn't installed inside WSL
+if grep -qi Microsoft /proc/version && [ -z "$DONT_PROMPT_WSL_INSTALL" ]; then
+	echo "To use VS Code with the Windows Subsystem for Linux, please install VS Code in Windows and uninstall the Linux version in WSL. You can then use the \`code\` command in a WSL terminal just as you would in a normal command prompt." 1>&2
+	printf "Do you want to continue anyway? [y/N] " 1>&2
+	read -r YN
+	case "$YN" in
+		y|Y|yes|Yes|YES) :;;
+		*) exit 1;;
+	esac
+	echo "To no longer see this prompt, start VS Code with the environment variable DONT_PROMPT_WSL_INSTALL defined." 1>&2
+fi
+
+# If root, ensure that --user-data-dir or --file-write is specified
+if [ "$APPIMAGE_UID" = 0 ]; then
+	for i do
+		case "$i" in
+			--user-data-dir|--user-data-dir=*|--file-write|tunnel|serve-web)
+				CAN_LAUNCH_AS_ROOT=1
+				;;
+		esac
+	done
+	if [ -z "$CAN_LAUNCH_AS_ROOT" ]; then
+		echo "You are trying to start VS Code as a super user which isn't recommended. If this was intended, please add the argument \`--no-sandbox\` and specify an alternate user data directory using the \`--user-data-dir\` argument." 1>&2
+		exit 1
+	fi
+fi
+
+ELECTRON=$APPDIR/bin/code
+CLI=$APPDIR/bin/resources/app/out/cli.js
+ELECTRON_RUN_AS_NODE=1 "$ELECTRON" "$CLI" "$@"
+exit $?

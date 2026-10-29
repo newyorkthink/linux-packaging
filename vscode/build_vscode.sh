@@ -1,118 +1,84 @@
 #!/usr/bin/env bash
-set -e
 
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
+
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装 AUR 软件包及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" visual-studio-code-bin fcitx5-gtk libdbusmenu-glib libx11 libxext libxi libxrandr libxtst libxkbcommon libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau xorg-server xorg-server-common xorg-server-xvfb
 
-rm -rf AppDir VSCode-linux-* || true
+# 清掉上次的打包目录。
+rm -rf -- AppDir dist vscode.tar.gz vscode-unpacked
+mkdir -p AppDir/bin dist
 
-ARCH="$(uname -m)"
+# 下载官方当前 tar 包。
+"$SCRIPT_DIR/../common/download/download_file.sh" \
+  'https://code.visualstudio.com/sha/download?build=stable&os=linux-x64' \
+  vscode.tar.gz
 
-if [ "$ARCH" != "x86_64" ]; then
-  echo "Error: this script only supports x86_64 / linux-x64."
-  exit 1
-fi
+# 解包官方 tar 包。
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" vscode.tar.gz vscode-unpacked
 
-export ARCH
+# 整个程序目录原样放进 AppDir/bin。
+cp -a vscode-unpacked/VSCode-linux-x64/. AppDir/bin/
 
-FARCH=x64
+# 准备协议入口目录。
+mkdir -p AppDir/share/applications
+# 使用系统里装好的协议入口文件。
+cp -a /usr/share/applications/com.microsoft.VSCode.UrlHandler.desktop AppDir/share/applications/code-url-handler.desktop
 
-# 安装基础打包工具和依赖
-yay -S --noconfirm gcc base-devel curl wget tar gzip binutils patchelf coreutils \
-  appstream-glib desktop-file-utils util-linux zsync \
-  xorg-server xorg-server-common xorg-server-xvfb
-
-# 安装 VS Code / Electron 运行相关依赖
-# 参考 visual-studio-code-bin 的常见依赖，并补充 X11 / OpenGL / IBus 相关库，方便 quick-sharun 收集运行库。
-yay -S --noconfirm libdbusmenu-glib libxkbfile gnupg gtk3 libsecret nss \
-  gcc-libs libnotify libxss glibc lsof shared-mime-info xdg-utils alsa-lib \
-  libx11 libxext libxi libxrandr libxtst libxkbcommon \
-  libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau \
-  ibus
-
-export STARTUPWMCLASS=Code
-export ICON=https://raw.githubusercontent.com/microsoft/vscode/refs/heads/main/resources/linux/code.png
-export DESKTOP=./AppDir/code.desktop
-export OUTPATH=./dist
-export OUTNAME="vscode.AppImage"
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 成品里的应用名。
+export APPNAME=Code
+# 包里的真实程序名。
+export MAIN_BIN=code
+# 让窗口对上 desktop 里的 StartupWMClass。
+export STARTUPWMCLASS=com.microsoft.VSCode
+# 使用系统里装好的图标。
+export ICON=/usr/share/pixmaps/vscode.png
+# 使用系统里装好的桌面入口文件。
+export DESKTOP=/usr/share/applications/com.microsoft.VSCode.desktop
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
+export OUTNAME=vscode.AppImage
+# 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
+# 复用官方代码：部署 OpenGL 运行依赖。
 export DEPLOY_OPENGL=1
+# 复用官方代码：部署 Vulkan 运行依赖。
 export DEPLOY_VULKAN=1
 
-# 下载官方 VS Code stable x64 tar 包
-DOWNLOAD_URL="$(curl -fsSLI -o /dev/null -w '%{redirect_url}' \
-  "https://code.visualstudio.com/sha/download?build=stable&os=linux-$FARCH")"
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json AppDir/bin/resources/app/package.json --version-file "$HOME/version" --desktop "$DESKTOP" --desktop AppDir/share/applications/code-url-handler.desktop)"
 
-if [ -z "$DOWNLOAD_URL" ]; then
-  DOWNLOAD_URL="$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
-    "https://code.visualstudio.com/sha/download?build=stable&os=linux-$FARCH")"
-fi
-
-if [ -z "$DOWNLOAD_URL" ]; then
-  echo "Error: failed to resolve VS Code download URL."
-  exit 1
-fi
-
-echo "VS Code download URL: $DOWNLOAD_URL"
-
-mkdir -p ./AppDir/bin ./AppDir/share/applications ./dist
-wget --retry-connrefused --tries=30 "$DOWNLOAD_URL" -O /tmp/vscode.tar.gz
-
-tar -xzf /tmp/vscode.tar.gz
-VSCODE_DIR="$(find . -maxdepth 1 -type d -name 'VSCode-linux-*' | head -n 1)"
-
-if [ -z "$VSCODE_DIR" ]; then
-  echo "Error: extracted VSCode-linux-* directory not found."
-  exit 1
-fi
-
-mv -v "$VSCODE_DIR"/* ./AppDir/bin/
-
-# 提取版本号，供后续 release / desktop 元数据使用
-VERSION="$(awk -F'\"' '/\"version\":/ {print $4; exit}' ./AppDir/bin/resources/app/package.json)"
-echo "$VERSION" > ~/version
-echo "VS Code version: $VERSION"
-
-# 下载并修正官方 desktop 文件，保留 vscode:// URL handler
-wget --retry-connrefused --tries=30 \
-  https://raw.githubusercontent.com/microsoft/vscode/refs/heads/main/resources/linux/code.desktop \
-  -O ./AppDir/code.desktop
-
-wget --retry-connrefused --tries=30 \
-  https://raw.githubusercontent.com/microsoft/vscode/refs/heads/main/resources/linux/code-url-handler.desktop \
-  -O ./AppDir/share/applications/code-url-handler.desktop
-
-sed -i \
-  -e 's/@@NAME_SHORT@@/Code/g' \
-  -e 's/@@NAME@@/code/g' \
-  -e 's#@@EXEC@@#code#g' \
-  -e 's/@@ICON@@/visual-studio-code/g' \
-  -e 's/@@URLPROTOCOL@@/vscode/g' \
-  -e 's/@@NAME_LONG@@/Visual Studio Code/g' \
-  ./AppDir/code.desktop \
-  ./AppDir/share/applications/code-url-handler.desktop
-
-# 给 AppImage 追加版本元数据
-for desktop_file in ./AppDir/code.desktop ./AppDir/share/applications/code-url-handler.desktop; do
-  if [ -n "$VERSION" ] && ! grep -q '^X-AppImage-Version=' "$desktop_file"; then
-    echo "X-AppImage-Version=$VERSION" >> "$desktop_file"
-  fi
-done
-
-# 上游脚本移除了不需要的 linuxmusl copilot 目录，这里保留同样处理。
+# 复用官方代码：删除上游明确标为不需要保留的运行组件。
 rm -rf ./AppDir/bin/resources/app/node_modules/@github/copilot-linuxmusl-x64
 
-# 使用 quick-sharun 构建 AppDir，并补充 IBus GTK3 输入法模块
-quick-sharun \
-  ./AppDir/bin/* \
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
+# 收集程序及其运行依赖。
+quick-sharun AppDir/bin/*
 
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'ENV'
+LANG=zh_CN.UTF-8
+LANGUAGE=zh_CN:zh
+LC_MESSAGES=zh_CN.UTF-8
+LOCPATH=${SHARUN_DIR}/lib/locale
+ENV
+
+# 文件内容复用官方代码：保留命令行入口、远程转发及启动检查。
+cp -a "$SCRIPT_DIR/cli-router.hook" AppDir/bin/cli-router.hook
+
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-if [ -z "$VERSION" ]; then
-  echo "Error: failed to determine VS Code version." >&2
-  exit 1
-fi
-printf '%s\n' "$VERSION" > ./dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/vscode.AppImage "$VERSION" dist/version.txt
