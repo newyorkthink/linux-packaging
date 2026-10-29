@@ -11,8 +11,11 @@ cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-# 构建用的 node 需要 libsimdjson.so.34。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" simdjson
+# nodejs 26.12.1-2 需要 libsimdjson.so.34。镜像里的 simdjson 1:5.0.8-1 只提供 .so.35。
+"$SCRIPT_DIR/../common/download/download_file.sh" \
+  https://archlinux.org/packages/extra/x86_64/simdjson/download/ \
+  simdjson.pkg.tar.zst
+pacman -U --noconfirm simdjson.pkg.tar.zst
 # 当前 AUR 包。中文输入只装 GTK 3 这一套。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" deepseek-harness-desktop fcitx5-gtk
 # 内置 CPython 的 _crypt 需要 libcrypt.so.1。
