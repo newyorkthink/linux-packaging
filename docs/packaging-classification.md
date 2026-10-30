@@ -72,3 +72,11 @@ htop 保留原有 MAIN_BIN、Open Files / Trace 辅助命令和运行时动态�
 pkgforge-dev 的实现须先核实是否必要和适用，再决定采用或不采用；具体原文、官方原因、依据、影响及未启用状态放在对应应用的 `docs/pkgforge-differences.md`。没有对应处理时不创建空清单。后续拟加入历史未启用项时，先核实官方当前是否仍保留且仍适用，不能直接恢复旧快照。
 
 固定配置及原始故障放在对应应用的 `docs/hardcoded.md`，当前模板差异放在 `docs/template-deviations.md`，运行状态和完整修复历史从应用 README 查找。新增分类条目时先核对实际重写提交、当前脚本及说明；只改版本、仅有旧打包脚本或尚未重写的项目不补入本页。
+
+## 用 quick-sharun 打包的 Qt 程序
+
+待补充，暂未登记项目。
+
+## linuxdeploy
+
+待补充，暂未登记项目。
