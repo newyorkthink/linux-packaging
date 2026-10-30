@@ -12,7 +12,7 @@
 
 **本分类的基础模板是 [Cursor](../cursor/build_cursor.sh) 和 [WorkBuddy](../workbuddy/build_workbuddy.sh)。** 后续同类项目按两份脚本的共同结构、执行顺序、通用注释及对应空行编写，允许的参数变化和专属差异按 [Electron 直接下载标准](../anylinux_projects.md#直接下载安装包的标准模板) 记录。
 
-| 已标准化项目 | 构建脚本 | 程序及版本来源 | 打包 export | 专属差异说明 |
+| 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
 | Antigravity | [build_antigravity.sh](../antigravity/build_antigravity.sh) | 官网独立下载 Linux x64 tar；实际下载链接的版本先保存为文本，再由公共版本入口读取。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../antigravity/docs/template-deviations.md) |
 | Antigravity IDE | [build_antigravity-ide.sh](../antigravity-ide/build_antigravity-ide.sh) | 官网独立下载 Linux x64 tar；实际下载链接的版本先保存为文本，再由公共版本入口读取。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../antigravity-ide/docs/template-deviations.md) |
@@ -31,7 +31,7 @@
 
 仅在核实 AUR、软件官方网站、软件包仓库及 Release 等来源后，仍未找到适用的预编译安装包时采用。先在构建系统安装应用及其依赖，再使用已安装的真实程序；Electron 必须保留完整程序目录和相邻资源。以后若确认已有适用二进制包，应按规则重新判断来源，不因本表继续源码构建。
 
-| 已标准化项目 | 构建脚本 | 程序及版本来源 | 打包 export | 专属差异说明 |
+| 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
 | DeepSeek Harness Desktop | [build_deepseek-harness-desktop.sh](../deepseek-harness-desktop/build_deepseek-harness-desktop.sh) | 当前 AUR 从官方桌面源码及社区 Linux 适配构建；复制完整安装目录，公共版本入口读取 AUR 安装版本。 | export DEPLOY_GTK=1 | [模板差异](../deepseek-harness-desktop/docs/template-deviations.md) |
 
@@ -43,7 +43,7 @@
 
 采用相同的先安装、再独立下载和校验流程，共用标准阶段、通用注释、元数据及版本接口。程序布局按实际软件包处理；GTK、WebKitGTK 和输入模块由当前工具依据依赖部署，动态加载库只保留有应用依据的显式输入。
 
-| 已标准化项目 | 构建脚本 | 程序及版本来源 | 打包 export | 专属差异说明 |
+| 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
 | CC Switch | [build_cc-switch.sh](../cc-switch/build_cc-switch.sh) | 独立下载官方正式 Release DEB，核对 GitHub SHA-256、包名和架构；公共版本入口读取同一下载操作记录的版本文本。 | export DEPLOY_GTK=1 | [模板差异](../cc-switch/docs/template-deviations.md) |
 | Grok App | [build_grok-app.sh](../grok-app/build_grok-app.sh) | 独立下载 RongleCat/grok-app 正式 Release DEB；版本由同次下载记录。按用户确认的 DEB 例外只安装真实运行依赖，桌面资源取自 DEB。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_WEBKIT2GTK=1<br>export WEBKIT2GTK_DIR=/usr/lib/webkit2gtk-4.1 | [模板差异](../grok-app/docs/template-deviations.md) |
@@ -58,7 +58,7 @@ Grok App 尚未核实同源 Arch/AUR 应用包，本次采用用户明确确认�
 
 基础结构、通用注释及空行以 [原生程序系统入口标准](../anylinux_projects.md#arch-官方仓库原生程序系统入口标准) 为准。只登记已经实际完成标准化重写的项目；尚未重写的项目不提前加入。
 
-| 已标准化项目 | 构建脚本 | 程序及版本来源 | 打包 export | 专属差异说明 |
+| 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
 | htop | [build_htop.sh](../htop/build_htop.sh) | 安装 Arch 官方 htop 及原有依赖，直接收集 `/usr/bin/htop` 与既有辅助程序、动态库；公共入口读取实际安装版本。 | 无 | [模板差异](../htop/docs/template-deviations.md) |
 | mpv | [build_mpv.sh](../mpv/build_mpv.sh) | 安装 Arch 官方 mpv 及依赖，直接收集 `/usr/bin/mpv`；公共入口读取实际安装版本。 | 无 | [模板差异](../mpv/docs/template-deviations.md) |
