@@ -130,7 +130,7 @@ AI 只能执行用户当前明确要求的任务，并将读取、搜索、分�
 
 本规则不授权批量整改既有应用、修改当前任务之外的文件或跳过修改授权。查找和核实始终受当前任务范围约束。
 
-## 永久规则：quick-sharun 必须双项核实并先安装再独立下载（不可豁免）
+## 永久规则：quick-sharun 必须双项核实并按程序来源执行（不可豁免）
 
 新增、迁移、重写或本次获授权修改 quick-sharun / sharun 应用时，必须在当前应用范围内完成以下两项独立核实；找到其中一项，不得省略另一项：
 
@@ -139,7 +139,9 @@ AI 只能执行用户当前明确要求的任务，并将读取、搜索、分�
 | pkgforge-dev 是否已有对应打包 | 查找当前应用及其名称别名，核对对应仓库的实际构建脚本、workflow 和配套文件；专属代码继续遵守原样复用规则。 |
 | AUR、软件官方网站等是否已有现成二进制包 | 核对 AUR 的 PKGBUILD、`.SRCINFO` 和 Sources 中的实际下载地址，以及软件官方网站、官方软件包仓库或 Release 提供的包。包括适用于目标平台和架构的 DEB、RPM、含预编译程序的 tar.gz、tar.xz、ZIP 等；不得把源码归档当成现成二进制包，也不得只查软件官网而漏查 AUR。 |
 
-**确认已有上述现成二进制包后，执行顺序固定为以下两个阶段，两个阶段都必须明确写入构建脚本，一项都不能省略：**
+**Arch 官方仓库原生程序例外：** 当前选择 Arch 官方仓库提供的原生二进制包，且 `/usr/bin/<主程序>` 是可直接执行的真实程序时，先安装应用及依赖，再直接执行 `quick-sharun /usr/bin/<主程序>`；不另行下载同一主程序，也不预先复制到 `AppDir/bin`。mpv 按此路线执行，完整模板见 [原生程序系统入口标准](./anylinux_projects.md#arch-官方仓库原生程序系统入口标准)。这不是外部 DEB、预编译 tar 等下载路线的替代方案，不得扩大到 AUR 包、Electron 的 shell launcher 或需要保持完整相邻资源的程序目录。两项来源核实、原依赖覆盖和专属处理取舍要求仍须执行。
+
+**除上述 Arch 官方仓库原生程序系统入口路线外，确认已有适用的 DEB、RPM、预编译归档等现成二进制包后，执行顺序固定为以下两个阶段，两个阶段都必须明确写入构建脚本，一项都不能省略：**
 
 1. **先安装到构建系统。** 在隔离的 Arch 构建环境中安装当前应用及其真实运行依赖；存在对应 Arch / AUR 包时，安装该应用包，让包管理器拉入依赖。统一基础工具也必须安装，不能只装基础工具而省略应用安装。
 2. **再独立下载并放入 AppDir/bin。** 在应用工作目录另行下载从当前 AUR 元数据、软件官方网站等核实得到的安装包，完成校验和解包后，将完整的真实程序目录原样放入 `AppDir/bin/`，保持程序与相邻资源的相对布局，再交给 quick-sharun 收集依赖和封装。
@@ -150,7 +152,7 @@ AI 只能执行用户当前明确要求的任务，并将读取、搜索、分�
 
 固定的是上述两项核实和两个执行阶段；应用版本仍从当前 AUR 元数据或软件官方动态入口取得，不得因此锁定旧版本。安装、下载、校验和解包继续复用对应公共入口；已核实的 pkgforge-dev 专属代码继续按原样复用规则处理，发生具体冲突时按既有规则报告。
 
-该两阶段规则优先于仅从系统 `/usr/bin` 入口直接打包或先放入 `AppDir/shared/bin` 的一般示例；只有核实没有上述适用的现成二进制包时，才按对应的一般示例判断。已经验证稳定且本次未涉及的应用保持原样，不得借本规则批量重写。
+除上述 Arch 官方仓库原生程序系统入口路线外，该两阶段规则优先于系统 `/usr/bin` 或 `AppDir/shared/bin` 的一般示例；其他项目只有核实没有适用的现成二进制包时，才按对应一般示例判断。已经验证稳定且本次未涉及的应用保持原样，不得借本规则批量重写。
 
 ## 永久规则：已知错误禁止写入仓库（不可豁免）
 
@@ -365,7 +367,7 @@ Plan 的选择规则：
 
 强制范围：
 
-- 不得只看本节摘要。先核实 pkgforge-dev 打包及 AUR、软件官方网站等现成包来源；已有适用二进制包时，必须先安装到构建系统，再独立下载、解包并把完整程序目录放入 `AppDir/bin`。仅未找到上述现成包且有 `/usr/bin/<主程序>` 入口时，才按该文件里的 mpv 写法处理。
+- 不得只看本节摘要。先核实 pkgforge-dev 打包及 AUR、软件官方网站等现成包来源；Arch 官方仓库原生程序按该文件的系统入口标准直接收集真实 `/usr/bin/<主程序>`，不预复制主程序。其他已有适用二进制包的项目必须先安装到构建系统，再独立下载、解包并把完整程序目录放入 `AppDir/bin`；仅未找到适用现成包时，才按对应一般示例判断。
 - 非必要不得自己写 `AppRun.sh`，也不得覆盖 quick-sharun 生成的 `AppRun`。补参数用 hook，补环境变量用 `AppDir/.env`。
 - 调用 `linuxdeploy` 的项目继续只遵守 `linuxdeploy_projects.md`，不得改成 quick-sharun，也不得两套混用。
 - 已验证稳定的现有脚本保持原样。不得为了套用 `anylinux_projects.md` 的示例去批量改写它们。
@@ -388,6 +390,7 @@ Plan 的选择规则：
 - quick-sharun 的命令以 [`anylinux_projects.md`](./anylinux_projects.md) 的「命令行不加中文，GUI 默认要」为准。linuxdeploy 的 GUI 同样要做这两件事，仍遵守 `linuxdeploy_projects.md`，不得因此改路线。
 - 新做、迁移或本次本来就要改的 GUI 构建必须带上。已有稳定脚本不要为了补中文去批量重写或重新发布。
 - 某一套输入模块实机会弄坏该应用时，只在该应用 README 写明并去掉那一套；中文环境仍保留。
+- mpv 本次按用户明确批准的官方 locale 处理执行 `echo 'LC_ALL=C.UTF-8' >> ./AppDir/.env`，不生成中文 locale、不额外部署 GTK / Qt 输入模块；原因和边界见 `mpv/docs/template-deviations.md`。这是当前应用的明确例外，不改变其他 GUI 的默认规则。
 
 ## 永久规则：禁止手工创建 linuxdeploy hook 或伪造 AppRun.wrapped（不可豁免）
 
@@ -1307,31 +1310,49 @@ Ubuntu 22.04 和 24.04 使用上述文档列出的对应包；其中 GLib 在 Ub
 
 ### quick-sharun 默认必须走最短链路
 
-仅在已经完成两项来源核实、没有找到上述适用的现成二进制包，并且能够通过 Arch 官方仓库 / AUR 正常安装、存在可用 `/usr/bin/<主程序>` 时，才使用以下最短结构。已有 DEB、预编译 tar.gz 等包时，必须执行前述“先安装到构建系统，再独立下载到 AppDir/bin”的两阶段规则：
+完成两项来源核实后，Arch 官方仓库提供原生二进制包且存在真实 `/usr/bin/<主程序>` 时，使用以下系统入口模板，主程序不预复制到 AppDir。外部 DEB、预编译归档等继续执行两阶段规则；AUR 及其他来源不因存在 `/usr/bin` launcher 自动适用本例外。所有尖括号内容均须按实际应用替换，完整要求见 `anylinux_projects.md` 的原生程序系统入口标准：
 
 ```bash
-# 定位当前应用脚本所在目录，供公共安装入口使用
+#!/usr/bin/env bash
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
+
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 设置当前应用实际需要的 quick-sharun / AppImage 元数据
-export ARCH="$(uname -m)"
-export STARTUPWMCLASS="<StartupWMClass>"
-export ICON="<desktop/icon 实际路径>"
-export DESKTOP="<desktop 文件实际路径>"
-export OUTPATH="./dist"
-export OUTNAME="<应用名>.AppImage"
-
-# 通过公共入口安装上文的完整 Arch 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装官方软件包及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" <应用包> <已确认的运行依赖>
 
-# 单独安装当前应用；让包管理器按该应用真实依赖关系拉入运行时
-yay -S --noconfirm <应用包>
+# 清掉上次的打包目录。
+rm -rf -- AppDir dist
+mkdir -p dist
 
-# 直接从标准 /usr/bin 入口交给 quick-sharun 收集依赖
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 使用系统里装好的图标。
+export ICON=<系统图标路径>
+# 使用系统里装好的桌面入口文件。
+export DESKTOP=<系统桌面入口路径>
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
+export OUTNAME=<应用名>.AppImage
+
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman <应用包>)"
+
+# 收集程序及其运行依赖。
 quick-sharun /usr/bin/<主程序>
 
-# 生成最终 AppImage
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
+
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/<应用名>.AppImage "$VERSION" dist/version.txt
 ```
 
 实际脚本中不得保留示例占位符，变量只设置当前项目真实需要的值；不需要的 export 不得为了模板完整而硬加。应用存在标准 `/usr/bin` 入口时，**不得先手工复制整个程序、依赖库或 plugin 到 AppDir，再调用 quick-sharun**。

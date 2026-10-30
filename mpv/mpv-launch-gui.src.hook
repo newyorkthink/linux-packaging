@@ -1,0 +1,6 @@
+#!/bin/false
+
+# 复用官方代码：未传入参数时启用窗口模式。
+if [ -z "$1" ]; then
+	set -- "--player-operation-mode=pseudo-gui"
+fi

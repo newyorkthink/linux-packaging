@@ -31,9 +31,11 @@
 | --- | --- |
 | 官方原文：未传入参数时启用窗口模式 | `# 复用官方代码：未传入参数时启用窗口模式。` |
 | 本仓库复制上述官方独立文件，文件内容原样复用 | `# 文件内容复用官方代码：未传入参数时启用窗口模式。` |
-| 本仓库既有实现：清空全局 locale 覆盖并固定数值 locale | `# 本仓库兼容处理：清空全局 locale 覆盖，并固定数值解析所用的 locale。` |
+| 官方原文：固定运行时 locale | `# 复用官方代码：固定运行时 locale。` |
+| 本仓库既有实现：在依赖收集后下载并校验独立辅助程序 | `# 本仓库兼容处理：在依赖收集后下载并校验独立辅助程序。` |
+| 其他已确认保留的本仓库 locale 实现 | `# 本仓库兼容处理：清空全局 locale 覆盖，并固定数值解析所用的 locale。` |
 
-官方独立 hook 必须保存为独立文件。构建脚本中的复制命令是本仓库的引用代码，不能标成官方原命令；官方文件内的有效命令、参数和顺序原样保留。locale 两行若与当前官方原文不同，应保留已确认的本仓库命令，并在应用差异文档中同时列出官方原文、现有代码及保留原因，不得仅因作用相近就标为官方复用。
+官方独立 hook 必须保存为独立文件。构建脚本中的复制命令是本仓库的引用代码，不能标成官方原命令；官方文件内的有效命令、参数和顺序原样保留。与官方不同且已确认保留的本仓库 locale 实现必须标明来源，并在应用差异文档中同时列出官方原文、现有代码及保留原因。mpv 本次已明确改用官方 `LC_ALL=C.UTF-8`，旧 `LC_ALL=` / `LC_NUMERIC=C` 两行仅作为历史记录，不再执行。
 
 ### 先判断是否必要，采用和不采用都必须记录
 
@@ -69,7 +71,7 @@
 
 本规则不授权批量整改既有应用、修改当前任务之外的文件或跳过修改授权。查找和核实始终受当前任务范围约束。
 
-## 强制前置：两项来源核实与先安装再独立下载
+## 强制前置：两项来源核实与程序来源
 
 新增、迁移、重写或本次获授权修改 quick-sharun / sharun 应用时，必须在当前应用范围内完成以下两项独立核实；找到其中一项，不得省略另一项：
 
@@ -78,7 +80,9 @@
 | pkgforge-dev 是否已有对应打包 | 查找当前应用及其名称别名，核对对应仓库的实际构建脚本、workflow 和配套文件；专属代码继续遵守原样复用规则。 |
 | AUR、软件官方网站等是否已有现成二进制包 | 核对 AUR 的 PKGBUILD、`.SRCINFO` 和 Sources 中的实际下载地址，以及软件官方网站、官方软件包仓库或 Release 提供的包。包括适用于目标平台和架构的 DEB、RPM、含预编译程序的 tar.gz、tar.xz、ZIP 等；不得把源码归档当成现成二进制包，也不得只查软件官网而漏查 AUR。 |
 
-**确认已有上述现成二进制包后，执行顺序固定为以下两个阶段，两个阶段都必须明确写入构建脚本，一项都不能省略：**
+**Arch 官方仓库原生程序例外：** 当前选择 Arch 官方仓库提供的原生二进制包，且 `/usr/bin/<主程序>` 是可直接执行的真实程序时，先安装应用及依赖，再直接执行 `quick-sharun /usr/bin/<主程序>`；不另行下载同一主程序，也不预先复制到 `AppDir/bin`。mpv 按此路线执行，完整模板见 [原生程序系统入口标准](./anylinux_projects.md#arch-官方仓库原生程序系统入口标准)。这不是外部 DEB、预编译 tar 等下载路线的替代方案，不得扩大到 AUR 包、Electron 的 shell launcher 或需要保持完整相邻资源的程序目录。两项来源核实、原依赖覆盖和专属处理取舍要求仍须执行。
+
+**除上述 Arch 官方仓库原生程序系统入口路线外，确认已有适用的 DEB、RPM、预编译归档等现成二进制包后，执行顺序固定为以下两个阶段，两个阶段都必须明确写入构建脚本，一项都不能省略：**
 
 1. **先安装到构建系统。** 在隔离的 Arch 构建环境中安装当前应用及其真实运行依赖；存在对应 Arch / AUR 包时，安装该应用包，让包管理器拉入依赖。统一基础工具也必须安装，不能只装基础工具而省略应用安装。
 2. **再独立下载并放入 AppDir/bin。** 在应用工作目录另行下载从当前 AUR 元数据、软件官方网站等核实得到的安装包，完成校验和解包后，将完整的真实程序目录原样放入 `AppDir/bin/`，保持程序与相邻资源的相对布局，再交给 quick-sharun 收集依赖和封装。
@@ -89,7 +93,7 @@
 
 固定的是上述两项核实和两个执行阶段；应用版本仍从当前 AUR 元数据或软件官方动态入口取得，不得因此锁定旧版本。安装、下载、校验和解包继续复用对应公共入口；已核实的 pkgforge-dev 专属代码继续按原样复用规则处理，发生具体冲突时按既有规则报告。
 
-该两阶段规则优先于仅从系统 `/usr/bin` 入口直接打包或先放入 `AppDir/shared/bin` 的一般示例；只有核实没有上述适用的现成二进制包时，才按对应的一般示例判断。已经验证稳定且本次未涉及的应用保持原样，不得借本规则批量重写。
+除上述 Arch 官方仓库原生程序系统入口路线外，该两阶段规则优先于系统 `/usr/bin` 或 `AppDir/shared/bin` 的一般示例；其他项目只有核实没有适用的现成二进制包时，才按对应一般示例判断。已经验证稳定且本次未涉及的应用保持原样，不得借本规则批量重写。
 
 ## 强制边界：禁止反复扩大查找、检查与修改范围
 
@@ -107,64 +111,71 @@
 1. 在 Arch 上安装应用和它自己的依赖。不要在会把 32 位库放进 `/usr/lib` 的发行版上打包。
 2. 使用 quick-sharun。本仓库的 Arch 构建容器里已经有这个命令，**不要再把 `quick-sharun.sh` wget 进应用目录**。
 3. 设置 `ICON`、`DESKTOP`、`OUTPATH`、`OUTNAME`。用软件包自带的图标和 desktop；上游没有时才在应用目录里补。
-4. 已有适用的 DEB、预编译 tar.gz 等包时，将第二阶段独立下载、解包后放入 `AppDir/bin` 的完整程序交给 quick-sharun；仅未找到上述现成包时，才按对应一般示例使用系统安装入口。由 quick-sharun 收集依赖并生成 `AppRun`。
+4. Arch 官方仓库原生程序将已安装的真实 `/usr/bin/<主程序>` 交给 quick-sharun，不预复制主程序。外部 DEB、预编译归档等路线将第二阶段独立下载、解包后放入 `AppDir/bin` 的完整程序交给 quick-sharun；其他无适用现成包的项目按对应一般示例判断。由 quick-sharun 收集依赖并生成 `AppRun`。
 5. 再执行一次 `quick-sharun --make-appimage`。
 
 上游文档里的 `get-debloated-pkgs.sh`、为了瘦身替换 Mesa / Qt / GTK 的做法，不是本仓库默认步骤。没有该应用自己的验证记录时不要加。
 
-## 一般情况就写成 mpv 这样
+## Arch 官方仓库原生程序系统入口标准
 
-仅在完成两项来源核实、未找到适用的现成二进制包，且 Arch 官方或 AUR 包安装后有 `/usr/bin/<主程序>` 时，新脚本才使用下面这个形状。已有 DEB、预编译 tar.gz 等包时，必须执行前述两阶段规则。备注说明每一行为什么在，不要再加启动脚本。
+适用于选择 Arch 官方仓库原生二进制包、且 `/usr/bin/<主程序>` 为真实可执行程序的路线。先安装基础包、应用及已确认依赖，再从系统入口收集；不另行下载同一主程序，不预复制程序到 `AppDir/bin`，不把 Electron 的 shell launcher 当成原生入口。本类已标准化项目见 [打包分类](./docs/packaging-classification.md)。
+
+以下为基础模板。尖括号内容按当前应用实际值替换；没有额外运行依赖时只保留应用包参数，不保留占位符。同类项目必须逐字逐行保持公共代码、通用注释、缩进和空行，仅替换参数。应用专属段放在依赖收集之后、最终封装之前，并在应用的 `docs/template-deviations.md` 记录；不要求与 Electron 下载模板具有相同总行数。
 
 ```bash
 #!/usr/bin/env bash
-# mpv 这类程序的默认写法：安装官方包，把 /usr/bin 入口交给 quick-sharun。
-# quick-sharun 自己生成 AppRun。这里不要写 AppRun.sh。
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# 打包工具。GTK、Qt、输入法不要塞进这一行。
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-# 应用本身。包管理器会拉入它声明的依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" mpv
+# 安装官方软件包及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" <应用包> <已确认的运行依赖>
 
+# 清掉上次的打包目录。
 rm -rf -- AppDir dist
 mkdir -p dist
 
+# 把当前机器架构传给 quick-sharun。
 export ARCH="$(uname -m)"
-export ICON=/usr/share/icons/hicolor/scalable/apps/mpv.svg
-export DESKTOP=/usr/share/applications/mpv.desktop
+# 使用系统里装好的图标。
+export ICON=<系统图标路径>
+# 使用系统里装好的桌面入口文件。
+export DESKTOP=<系统桌面入口路径>
+# 把 AppImage 写到脚本目录下的 dist。
 export OUTPATH="$SCRIPT_DIR/dist"
-export OUTNAME=mpv.AppImage
+# 固定最终 AppImage 的文件名。
+export OUTNAME=<应用名>.AppImage
 
-# 入口是已经安装好的官方程序，不是安装器，也不是自己写的 shell。
-quick-sharun /usr/bin/mpv
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman <应用包>)"
+
+# 收集程序及其运行依赖。
+quick-sharun /usr/bin/<主程序>
+
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-# 成功之后才记版本。epoch 和 pkgrel 去掉。
-version="$(pacman -Q mpv | awk '{print $2}')"
-version="${version#*:}"
-version="${version%-*}"
-printf '%s\n' "$version" > dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/<应用名>.AppImage "$VERSION" dist/version.txt
 ```
 
-对照：
+版本在第一次 quick-sharun 之前通过公共入口读取；最终 AppImage 成功生成后单行调用公共保存入口。ICON、DESKTOP 从当前软件包真实路径读取。APPNAME、MAIN_BIN、STARTUPWMCLASS、DEPLOY_GTK 等仅在当前程序确有需要时设置，不为凑齐 Electron 模板加入。
 
-| 写法 | 什么时候用 |
-| --- | --- |
-| `quick-sharun /usr/bin/mpv` | 一个官方入口。这是默认。 |
-| `quick-sharun /usr/bin/htop /usr/bin/lsof /usr/lib/libsensors.so*` | 主程序还会拉起别的命令，或 dlopen 某个库。这些路径跟主程序放在同一次调用里。 |
-| `quick-sharun /usr/bin/newsboat /usr/bin/podboat` | 同一个包有两个都要保留的入口。 |
+一次 quick-sharun 调用可以包含已确认必需的多个真实入口、辅助命令或 dlopen 库；没有依据时不添加。既有 htop、newsboat 等短写法只提供布局参考，不代表已经完成本轮标准化，不在分类表中提前登记。
 
-`mpv/build_mpv.sh` 里另外三处是 mpv 自己的，别的程序不要照抄：
+[mpv/build_mpv.sh](./mpv/build_mpv.sh) 的基础部分遵守上面模板，另有三段经批准的专属处理，不能复制给其他应用：
 
-- 下载独立的 `yt-dlp` 放进 AppDir；
-- 在 `AppDir/.env` 里写 `LC_NUMERIC=C`，避免非 C locale 影响 mpv；
-- `AppDir/bin/mpv-launch-gui.src.hook`：没有参数时补 `--player-operation-mode=pseudo-gui`。
+- 原样采用 pkgforge-dev 的 `echo 'LC_ALL=C.UTF-8' >> ./AppDir/.env`。不再执行旧的 `LC_ALL=` / `LC_NUMERIC=C` 两行。
+- 保留本仓库在依赖收集后下载独立 yt-dlp 的方式，改由公共入口动态选择正式资产、校验 GitHub SHA-256，并内置到 `AppDir/usr/bin/yt-dlp`。不采用运行时安装 yt-dlp 或自更新的官方 hooks。
+- 独立保存并复制官方无参数窗口 hook；可执行代码原样保留，注释采用上表固定中文说明，不自写 AppRun。
 
-旧脚本里的 `yay -S` 和直接 `wget` 保持不动。新脚本，以及这次修改已经碰到的安装或下载，改成 `common/arch/install_packages.sh` 和 `common/download/download_file.sh`。
+完整来源、原文、采用与未采用原因见 [mpv 的 pkgforge 差异说明](./mpv/docs/pkgforge-differences.md)。固定配置、依赖覆盖和当前验证范围分别由 mpv 的配置说明及 README 记录。
 
 ## 命令行不加中文，GUI 默认要
 
@@ -176,6 +187,8 @@ printf '%s\n' "$version" > dist/version.txt
 | 有窗口，包括 GTK、Qt、Electron、播放器界面 | 要 | 要 |
 
 已经验证稳定的脚本不要为了补上本节去批量重写。某个应用实机证明某一套输入模块会弄坏它时，在该应用 README 写明并只去掉那一套；中文环境仍保留。
+
+**mpv 的已批准例外：** 本次按官方原文固定 `LC_ALL=C.UTF-8`，不执行下面的中文 locale 生成块，也不额外部署 GTK / Qt 输入模块。官方说明 mpv 只支持 C / C.UTF-8 数值 locale；这项选择会覆盖宿主 locale，不承诺保留宿主中文语言设置，详见 [模板差异](./mpv/docs/template-deviations.md)。其他 GUI 的默认要求不变。
 
 中文环境不依赖用户机器是否生成过 `zh_CN.UTF-8`。第一次 `quick-sharun` 生成 AppDir 之后、`--make-appimage` 之前写入：
 
@@ -190,7 +203,7 @@ LOCPATH=${SHARUN_DIR}/lib/locale
 EOF
 ```
 
-不要设置 `LC_ALL`。个别程序还要 `LC_NUMERIC=C` 时，写在这四行后面，不要改掉 `LANG`。
+除上述已批准的 mpv 例外外，不要设置 `LC_ALL`。个别程序还要 `LC_NUMERIC=C` 时，写在这四行后面，不要改掉 `LANG`。
 
 中文输入只装和这个程序实际 GUI 版本匹配的一套，和主程序放在同一次 `quick-sharun` 里。不要写 `AppRun.sh` 去设置输入法。
 
