@@ -1,65 +1,42 @@
 #!/usr/bin/env bash
-set -e
 
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
+
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装官方软件包及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" htop ncurses libcap libnl lm_sensors lsof strace
 
-# 稳定基线说明：
-# - 使用 Arch Linux Extra 官方 htop 软件包。
-# - 使用 quick-sharun 打包，不使用 linuxdeploy。
-# - 保留 Arch 官方 htop.desktop 和 htop.svg。
-# - 显式封装 htop 运行时动态加载的 libsensors、libnl。
-# - 同时封装 Arch 官方列出的 lsof、strace 可选功能。
+# 清掉上次的打包目录。
+rm -rf -- AppDir dist
+mkdir -p dist
 
-# 清理上一次构建生成的 AppDir。
-rm -rf AppDir || true
-
-# 获取当前系统架构。
-ARCH="$(uname -m)"
-
-# 导出 AppImage 架构。
-export ARCH
-
-# 使用 Arch 官方 htop SVG 图标。
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 使用系统里装好的图标。
 export ICON=/usr/share/icons/hicolor/scalable/apps/htop.svg
-
-# 使用 Arch 官方 htop desktop 文件。
+# 使用系统里装好的桌面入口文件。
 export DESKTOP=/usr/share/applications/htop.desktop
-
-# 设置 AppImage 输出目录。
-export OUTPATH=./dist
-
-# 固定最终 AppImage 文件名。
-export OUTNAME="htop.AppImage"
-
-# 固定 AppImage 主程序为 htop。
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
+export OUTNAME=htop.AppImage
+# 包里的真实程序名。
 export MAIN_BIN=htop
 
-# 安装 quick-sharun 打包所需的基础依赖。
-yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux zsync
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman htop)"
 
-# 安装 htop、运行依赖以及 Arch 官方列出的可选功能依赖。
-yay -S --noconfirm htop ncurses libcap libnl lm_sensors lsof strace
-
-# 读取本次实际安装的 Arch 包版本，并去掉仅用于 Arch 打包排序的 epoch / pkgrel。
-HTOP_PACKAGE_VERSION="$(pacman -Q htop | awk '{print $2}')"
-HTOP_VERSION="${HTOP_PACKAGE_VERSION#*:}"
-HTOP_VERSION="${HTOP_VERSION%-*}"
-[[ -n "$HTOP_VERSION" ]] || {
-  echo "错误：无法解析 htop 版本。" >&2
-  exit 1
-}
-
-# 一次性封装 htop 主程序、Open Files/Trace 外部程序，以及运行时动态加载的 libsensors、libnl。
+# 收集程序及其运行依赖。
 quick-sharun /usr/bin/htop /usr/bin/lsof /usr/bin/strace /usr/lib/libsensors.so* /usr/lib/libnl-3.so* /usr/lib/libnl-genl-3.so*
 
-# 生成最终 htop AppImage。
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-# 确认最终 AppImage 文件已经生成且不为空。
-test -s ./dist/htop.AppImage
-
-# 构建成功后输出统一的软件版本元数据。
-printf '%s\n' "$HTOP_VERSION" > ./dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/htop.AppImage "$VERSION" dist/version.txt

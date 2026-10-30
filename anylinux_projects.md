@@ -32,6 +32,7 @@
 | 官方原文：未传入参数时启用窗口模式 | `# 复用官方代码：未传入参数时启用窗口模式。` |
 | 本仓库复制上述官方独立文件，文件内容原样复用 | `# 文件内容复用官方代码：未传入参数时启用窗口模式。` |
 | 官方原文：固定运行时 locale | `# 复用官方代码：固定运行时 locale。` |
+| 明确包内真实主程序 | `# 包里的真实程序名。` |
 | 本仓库既有实现：在依赖收集后下载并校验独立辅助程序 | `# 本仓库兼容处理：在依赖收集后下载并校验独立辅助程序。` |
 | 其他已确认保留的本仓库 locale 实现 | `# 本仓库兼容处理：清空全局 locale 覆盖，并固定数值解析所用的 locale。` |
 
@@ -167,7 +168,7 @@ quick-sharun --make-appimage
 
 版本在第一次 quick-sharun 之前通过公共入口读取；最终 AppImage 成功生成后单行调用公共保存入口。ICON、DESKTOP 从当前软件包真实路径读取。APPNAME、MAIN_BIN、STARTUPWMCLASS、DEPLOY_GTK 等仅在当前程序确有需要时设置，不为凑齐 Electron 模板加入。
 
-一次 quick-sharun 调用可以包含已确认必需的多个真实入口、辅助命令或 dlopen 库；没有依据时不添加。既有 htop、newsboat 等短写法只提供布局参考，不代表已经完成本轮标准化，不在分类表中提前登记。
+一次 quick-sharun 调用可以包含已确认必需的多个真实入口、辅助命令或 dlopen 库；没有依据时不添加。[htop/build_htop.sh](./htop/build_htop.sh) 已按本类标准完成整理：保留原有 MAIN_BIN 明确入口，以及 lsof、strace、libsensors、libnl 的完整收集参数；两行 MAIN_BIN 元数据之外的公共结构、注释和空行遵守上面模板。专属用途与官方静态源码构建的差异见 [htop 模板差异](./htop/docs/template-deviations.md) 和 [pkgforge 取舍](./htop/docs/pkgforge-differences.md)。newsboat 等未重写项目仍只提供布局参考，不在分类表中提前登记。
 
 [mpv/build_mpv.sh](./mpv/build_mpv.sh) 的基础部分遵守上面模板，另有三段经批准的专属处理，不能复制给其他应用：
 
