@@ -43,6 +43,12 @@ remmina/fix_remmina_webkit.sh
 
 ## 变更记录
 
+### 2026-10-30：补齐 appimagetool 要求的 PNG 图标
+
+- 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build Remmina。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报根目录没有 `org.remmina.Remmina.png`，`.DirIcon` 无效，退出码 1。发行版图标是 SVG。
+- 处理：`build_remmina.sh` 和 `fix_remmina_webkit.sh` 都在原封装命令前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。原 appimagetool 参数和 AppRun 未改。
+- 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 Remmina，没有重跑 Actions。构建环境需要 `rsvg-convert`、`magick` 或 `convert` 才能把 SVG 转成 PNG；本次没有在正式构建里确认该工具是否已安装。
+
 ### 2026-09-16：接入统一软件版本元数据
 
 - 修改文件：`.github/workflows/build.yml`、本 README。

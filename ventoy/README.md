@@ -72,6 +72,12 @@ Ventoy 的核心功能是向用户选择的 USB / 磁盘设备安装或更新 Ve
 
 ## 变更记录
 
+### 2026-10-30：补齐 appimagetool 要求的权限
+
+- 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build Ventoy。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报 `ventoy/tool/languages.json` 为 `0744`，没有生成 AppImage。
+- 处理：封装前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。原 `appimagetool --runtime-file` 命令和 AppRun 未改。
+- 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 Ventoy，没有重跑 Actions。
+
 ### 2026-09-02：接入统一 AppImage 构建
 
 - 现象：旧构建参考脚本固定到特定 Ventoy 版本，并依赖本地 `appimagetool.AppImage`；旧的 zsync 更新目标还指向其他仓库，无法作为本仓库持续构建方案。

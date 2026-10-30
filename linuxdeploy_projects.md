@@ -323,7 +323,7 @@ GitHub Actions 使用构建目录中的官方 Type 2 runtime 和明确资产名�
 export ARCH=x86_64; appimagetool -n ./AppDir ./dist/<应用名>.AppImage --runtime-file ./source/runtime-x86_64
 ```
 
-linuxdeploy 产生或尝试产生的 AppImage 都只能留在临时位置，禁止作为正式 Release 资产。
+linuxdeploy 产生或尝试产生的 AppImage 都只能留在临时位置，禁止作为正式 Release 资产。`common/linuxdeploy/package_appimage.sh` 在执行原有 appimagetool 命令前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`，只补齐新版工具要求的权限和根目录 PNG。直接调用 appimagetool 的项目在原命令前做同样调用。appimagetool 的参数、顺序和 AppRun 保持原样，不使用 `--no-check-permissions`。
 
 ## AppRun 变量按项目实际需要添加
 

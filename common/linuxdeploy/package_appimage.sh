@@ -8,6 +8,10 @@ RUNTIME_FILE="$4"
 VERSION="${5:-}"
 VERSION_FILE="${6:-$(dirname -- "$OUTFILE")/version.txt}"
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# 补齐封装所需权限和 PNG 图标。
+"$SCRIPT_DIR/../appimage/prepare_appdir_for_appimagetool.sh" "$APPDIR"
+
 # 使用官方 appimagetool 和 Type 2 runtime 正式封装，并统一确认最终资产非空。
 export ARCH=x86_64
 export APPIMAGE_EXTRACT_AND_RUN=1

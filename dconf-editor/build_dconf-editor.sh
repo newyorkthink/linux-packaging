@@ -336,6 +336,8 @@ if find "$APPDIR" \( -name 'libc.so.6' -o -name 'ld-linux-x86-64.so.2' \) -print
 fi
 
 # 使用本次动态取得并校验的 Type 2 runtime 生成最终 dconf-editor.AppImage；保留 AppStream 元数据，仅跳过新版校验器对 45.0.1 历史元数据的警告检查。
+# 补齐封装所需权限和 PNG 图标。
+"$SCRIPT_DIR/../common/appimage/prepare_appdir_for_appimagetool.sh" "$APPDIR"
 ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
   "$APPIMAGETOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$OUTPUT_FILE"
 

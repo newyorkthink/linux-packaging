@@ -273,6 +273,8 @@ verify_release_asset_digest "$RUNTIME_FILE" "$RUNTIME_DIGEST" "runtime-x86_64"
 
 # 使用明确的 x86_64 type2 runtime 直接封装已经准备完整的 AppDir。
 OUTPUT="$DIST_DIR/ventoy.AppImage"
+# 补齐封装所需权限和 PNG 图标。
+"$SCRIPT_DIR/../common/appimage/prepare_appdir_for_appimagetool.sh" "$APPDIR"
 ARCH=x86_64 \
 VERSION="$VENTOY_VERSION" \
 APPIMAGE_EXTRACT_AND_RUN=1 \

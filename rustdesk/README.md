@@ -35,3 +35,9 @@ Linux 实机运行重封装产物报 `APPRUN ERROR: Unable to open file: (null)`
 用户使用当前 RustDesk AppImage 后确认：启动时不再出现“当前显示服务器 tty 不支持，请切换到 x11”，手机可以连接电脑。此前 `AppRun.env` 设置 X11 会话类型的修改据此作为当前 X11 主机端稳定基线，打包问题结束；此前失败方案和待验证记录保留为当时的历史状态。
 
 电脑主动连接另一设备时另见公共服务器要求登录，以及 `Failed to secure tcp: deadline has elapsed` 连接超时；这不影响上述手机连接电脑的已确认结果，也不据此修改打包代码。终端的 `org.freedesktop.ScreenSaver` D-Bus 警告尚无证据表明与连接超时有关。
+
+## 2026-10-30：补齐 appimagetool 要求的权限
+
+- 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build RustDesk。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报 513 处权限错误，`var/lib/systemd` 和 `var/lib/dbus` 为 `0700`，没有生成 AppImage。
+- 处理：`common/linuxdeploy/package_appimage.sh` 在原封装命令前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。`build_rustdesk.sh` 的调用参数和官方 ELF AppRun 未改。
+- 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 RustDesk，没有重跑 Actions。

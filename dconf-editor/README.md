@@ -22,6 +22,12 @@ dconf Editor 为 GTK3 / GLib 应用。构建脚本固定使用 Ubuntu 24.04 的 
 
 ## 变更记录
 
+### 2026-10-30：补齐 appimagetool 要求的 PNG 图标
+
+- 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build dconf Editor。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报根目录没有 `ca.desrt.dconf-editor.png`，`.DirIcon` 无效，退出码 1。发行版图标是 SVG。
+- 处理：封装前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。原命令仍是 `"$APPIMAGETOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$OUTPUT_FILE"`。AppRun 未改。
+- 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 dconf Editor，没有重跑 Actions。构建环境需要 `rsvg-convert`、`magick` 或 `convert` 才能把 SVG 转成 PNG；本次没有在正式构建里确认该工具是否已安装。
+
 ### 2026-09-16：接入统一软件版本元数据
 
 仅在正式 workflow 中增加版本文件生成、artifact 上传与统一 `software_versions.json` 映射；现有 Ubuntu、GLIBC、中文 locale、Fcitx5、dconf backend 和固定打包工具基线均保持不变。

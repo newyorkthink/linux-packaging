@@ -151,6 +151,12 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 
 ## 变更记录
 
+### 2026-10-30：补齐 appimagetool 要求的权限
+
+- 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build PeaZip。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报 3 处权限错误：`zpaq` 为 `0771`，两个 `libQt6Pas.so.6.2.8` 为 `0764`，没有生成 AppImage。
+- 处理：`common/linuxdeploy/package_appimage.sh` 在原封装命令前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。`build_peazip.sh` 的封装参数和 AppRun 未改。
+- 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 PeaZip，没有重跑 Actions。
+
 ### 2026-09-21：改用 glibc 登记的 UTF-8 locale 名称
 
 - **故障证据：** 正式 AppImage 已设置 `C.UTF-8`，用户实机选择简体中文后仍显示 `æ…` 一类 UTF-8 字节被按单字节代码页解释的乱码；包内 `zh-cn.txt` 已确认是带 BOM 的有效 UTF-8，问题不在语言文件正文。

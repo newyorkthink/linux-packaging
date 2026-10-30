@@ -513,6 +513,8 @@ if [[ "$LOCAL_SHELL_TEST_OUTPUT" != "$LOCAL_SHELL_TEST_EXPECTED" ]]; then
 fi
 rmdir "$LOCAL_SHELL_TEST_DIR"
 
+# 补齐封装所需权限和 PNG 图标。
+"$ROOT/../common/appimage/prepare_appdir_for_appimagetool.sh" "$APPDIR"
 /tmp/appimagetool -n \
   --runtime-file /tmp/runtime-x86_64 \
   "$APPDIR" \

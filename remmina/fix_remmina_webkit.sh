@@ -2,6 +2,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
+PREPARE_APPDIR="$(pwd)/../common/appimage/prepare_appdir_for_appimagetool.sh"
 
 APPIMAGE="${1:-dist/remmina.AppImage}"
 APPIMAGE="$(readlink -f "$APPIMAGE")"
@@ -282,6 +283,8 @@ curl -fL --retry 3 \
 chmod +x "$APPIMAGETOOL"
 
 NEW_APPIMAGE="$WORKDIR/remmina-runtime-fixed.AppImage"
+# 补齐封装所需权限和 PNG 图标。
+"$PREPARE_APPDIR" "$APPDIR"
 ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
   "$APPIMAGETOOL" -n "$APPDIR" "$NEW_APPIMAGE"
 chmod +x "$NEW_APPIMAGE"

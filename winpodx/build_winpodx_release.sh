@@ -308,6 +308,8 @@ patches=qt-xcb,audio-pulse-fallback,i3bar-icon
 EOF_VERSION
 
 log "生成最终 winpodx.AppImage"
+# 补齐封装所需权限和 PNG 图标。
+"$SCRIPT_DIR/../common/appimage/prepare_appdir_for_appimagetool.sh" "$APPDIR"
 ARCH=x86_64 appimagetool "$APPDIR" "$OUTFILE" >/dev/null
 chmod +x "$OUTFILE"
 "$OUTFILE" --appimage-version >/dev/null

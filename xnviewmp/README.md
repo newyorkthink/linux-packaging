@@ -59,6 +59,12 @@ AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/X
 
 ## 变更记录
 
+### 2026-10-30：补齐 appimagetool 要求的权限
+
+- 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build XnView MP。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报 100 处权限错误，`AddOn/clut` 中的图片为 `0764`，没有生成 AppImage。
+- 处理：`common/linuxdeploy/package_appimage.sh` 在原封装命令前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。`build_xnviewmp.sh` 的封装参数和 AppRun 未改。
+- 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 XnView MP，没有重跑 Actions。
+
 ### 2026-09-29：用 IBus Portal 接上 Fcitx5，替代只设置 QT_IM_MODULE=ibus
 
 真实运行确认，提交 `b889719` 只把 `QT_IM_MODULE` 改成 `ibus` 之后，Fcitx5 下仍然无法输入中文。上一方案已被这次实机结果否定，不能再把它当作有效修复。
