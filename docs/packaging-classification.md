@@ -14,14 +14,14 @@
 
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 打包 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
-| Antigravity | [build_antigravity.sh](../antigravity/build_antigravity.sh) | 官网独立下载 Linux x64 tar；实际下载链接的版本先保存为文本，再由公共版本入口读取。 | <pre><code>export DEPLOY_GTK=1&#10;export DEPLOY_OPENGL=1&#10;export DEPLOY_VULKAN=1</code></pre> | [模板差异](../antigravity/docs/template-deviations.md) |
-| Antigravity IDE | [build_antigravity-ide.sh](../antigravity-ide/build_antigravity-ide.sh) | 官网独立下载 Linux x64 tar；实际下载链接的版本先保存为文本，再由公共版本入口读取。 | <pre><code>export DEPLOY_GTK=1&#10;export DEPLOY_OPENGL=1&#10;export DEPLOY_VULKAN=1</code></pre> | [模板差异](../antigravity-ide/docs/template-deviations.md) |
-| ChatGPT | [build_chatgpt.sh](../chatgpt/build_chatgpt.sh) | 先安装 chatgpt-desktop；公共 AUR 入口独立下载 OpenAI 官方 DEB 并校验 SHA-256，版本读取本次包内 Linux 元数据。 | <pre><code>export DEPLOY_GTK=1</code></pre> | [模板差异](../chatgpt/docs/template-deviations.md) |
-| Claude Desktop | [build_claude-desktop.sh](../claude-desktop/build_claude-desktop.sh) | 公共 AUR 下载入口独立取得 DEB 并校验摘要；版本由公共入口读取 AUR 安装结果。 | <pre><code>export DEPLOY_GTK=1</code></pre> | [模板差异](../claude-desktop/docs/template-deviations.md) |
-| Cursor | [build_cursor.sh](../cursor/build_cursor.sh) | 官方独立下载 DEB；版本由公共入口读取包内 `package.json`。 | <pre><code>export DEPLOY_GTK=1</code></pre> | [模板差异](../cursor/docs/template-deviations.md) |
-| Grok Bot | [build_grok-bot.sh](../grok-bot/build_grok-bot.sh) | 先安装 grok-bot-bin；独立下载官方 stable JSON 对应 DEB，公共版本入口读取同次下载记录。 | <pre><code>export DEPLOY_GTK=1</code></pre> | [模板差异](../grok-bot/docs/template-deviations.md) |
-| Visual Studio Code | [build_vscode.sh](../vscode/build_vscode.sh) | Microsoft 官方 stable tar；版本由公共入口读取包内 `package.json`。 | <pre><code>export DEPLOY_GTK=1&#10;export DEPLOY_OPENGL=1&#10;export DEPLOY_VULKAN=1</code></pre> | [模板差异](../vscode/docs/template-deviations.md) |
-| WorkBuddy | [build_workbuddy.sh](../workbuddy/build_workbuddy.sh) | 官方更新接口独立下载 DEB 并校验摘要；版本由公共入口读取 AUR 安装结果。 | <pre><code>export DEPLOY_GTK=1</code></pre> | [模板差异](../workbuddy/docs/template-deviations.md) |
+| Antigravity | [build_antigravity.sh](../antigravity/build_antigravity.sh) | 官网独立下载 Linux x64 tar；实际下载链接的版本先保存为文本，再由公共版本入口读取。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../antigravity/docs/template-deviations.md) |
+| Antigravity IDE | [build_antigravity-ide.sh](../antigravity-ide/build_antigravity-ide.sh) | 官网独立下载 Linux x64 tar；实际下载链接的版本先保存为文本，再由公共版本入口读取。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../antigravity-ide/docs/template-deviations.md) |
+| ChatGPT | [build_chatgpt.sh](../chatgpt/build_chatgpt.sh) | 先安装 chatgpt-desktop；公共 AUR 入口独立下载 OpenAI 官方 DEB 并校验 SHA-256，版本读取本次包内 Linux 元数据。 | export DEPLOY_GTK=1 | [模板差异](../chatgpt/docs/template-deviations.md) |
+| Claude Desktop | [build_claude-desktop.sh](../claude-desktop/build_claude-desktop.sh) | 公共 AUR 下载入口独立取得 DEB 并校验摘要；版本由公共入口读取 AUR 安装结果。 | export DEPLOY_GTK=1 | [模板差异](../claude-desktop/docs/template-deviations.md) |
+| Cursor | [build_cursor.sh](../cursor/build_cursor.sh) | 官方独立下载 DEB；版本由公共入口读取包内 `package.json`。 | export DEPLOY_GTK=1 | [模板差异](../cursor/docs/template-deviations.md) |
+| Grok Bot | [build_grok-bot.sh](../grok-bot/build_grok-bot.sh) | 先安装 grok-bot-bin；独立下载官方 stable JSON 对应 DEB，公共版本入口读取同次下载记录。 | export DEPLOY_GTK=1 | [模板差异](../grok-bot/docs/template-deviations.md) |
+| Visual Studio Code | [build_vscode.sh](../vscode/build_vscode.sh) | Microsoft 官方 stable tar；版本由公共入口读取包内 `package.json`。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../vscode/docs/template-deviations.md) |
+| WorkBuddy | [build_workbuddy.sh](../workbuddy/build_workbuddy.sh) | 官方更新接口独立下载 DEB 并校验摘要；版本由公共入口读取 AUR 安装结果。 | export DEPLOY_GTK=1 | [模板差异](../workbuddy/docs/template-deviations.md) |
 
 两份基础模板当前使用 DEB；其他归档格式保持同一执行阶段，按真实格式选择公共入口。原样采用的 pkgforge-dev 专属代码及其必要性、来源和影响由对应应用文档说明，不复制到其他应用。
 
@@ -33,7 +33,7 @@
 
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 打包 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
-| DeepSeek Harness Desktop | [build_deepseek-harness-desktop.sh](../deepseek-harness-desktop/build_deepseek-harness-desktop.sh) | 当前 AUR 从官方桌面源码及社区 Linux 适配构建；复制完整安装目录，公共版本入口读取 AUR 安装版本。 | <pre><code>export DEPLOY_GTK=1</code></pre> | [模板差异](../deepseek-harness-desktop/docs/template-deviations.md) |
+| DeepSeek Harness Desktop | [build_deepseek-harness-desktop.sh](../deepseek-harness-desktop/build_deepseek-harness-desktop.sh) | 当前 AUR 从官方桌面源码及社区 Linux 适配构建；复制完整安装目录，公共版本入口读取 AUR 安装版本。 | export DEPLOY_GTK=1 | [模板差异](../deepseek-harness-desktop/docs/template-deviations.md) |
 
 该分类不添加并不存在的 DEB 下载和解包阶段。DeepSeek 保留的 simdjson、兼容库、Python 私有库路径和许可证复制都有本应用的依据，只作为专属差异保留，不加入直接下载基础模板。
 
@@ -45,8 +45,8 @@
 
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 打包 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
-| CC Switch | [build_cc-switch.sh](../cc-switch/build_cc-switch.sh) | 独立下载官方正式 Release DEB，核对 GitHub SHA-256、包名和架构；公共版本入口读取同一下载操作记录的版本文本。 | <pre><code>export DEPLOY_GTK=1</code></pre> | [模板差异](../cc-switch/docs/template-deviations.md) |
-| Grok App | [build_grok-app.sh](../grok-app/build_grok-app.sh) | 独立下载 RongleCat/grok-app 正式 Release DEB；版本由同次下载记录。按用户确认的 DEB 例外只安装真实运行依赖，桌面资源取自 DEB。 | <pre><code>export DEPLOY_GTK=1&#10;export DEPLOY_OPENGL=1&#10;export DEPLOY_WEBKIT2GTK=1&#10;export WEBKIT2GTK_DIR=/usr/lib/webkit2gtk-4.1</code></pre> | [模板差异](../grok-app/docs/template-deviations.md) |
+| CC Switch | [build_cc-switch.sh](../cc-switch/build_cc-switch.sh) | 独立下载官方正式 Release DEB，核对 GitHub SHA-256、包名和架构；公共版本入口读取同一下载操作记录的版本文本。 | export DEPLOY_GTK=1 | [模板差异](../cc-switch/docs/template-deviations.md) |
+| Grok App | [build_grok-app.sh](../grok-app/build_grok-app.sh) | 独立下载 RongleCat/grok-app 正式 Release DEB；版本由同次下载记录。按用户确认的 DEB 例外只安装真实运行依赖，桌面资源取自 DEB。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_WEBKIT2GTK=1<br>export WEBKIT2GTK_DIR=/usr/lib/webkit2gtk-4.1 | [模板差异](../grok-app/docs/template-deviations.md) |
 
 Grok App 尚未核实同源 Arch/AUR 应用包，本次采用用户明确确认的官方 DEB 路线，作为安装阶段的应用专属例外；不改变其他项目先安装应用、再独立下载的默认要求。其选目录工具、宿主 bwrap 和协议登记保留原有依据。Grok Bot 则完整执行标准两阶段，并保留音频、启动兼容及登录回调；这些专属段不加入通用模板。
 
@@ -60,8 +60,8 @@ Grok App 尚未核实同源 Arch/AUR 应用包，本次采用用户明确确认�
 
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 打包 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
-| htop | [build_htop.sh](../htop/build_htop.sh) | 安装 Arch 官方 htop 及原有依赖，直接收集 `/usr/bin/htop` 与既有辅助程序、动态库；公共入口读取实际安装版本。 | 无部署 export | [模板差异](../htop/docs/template-deviations.md) |
-| mpv | [build_mpv.sh](../mpv/build_mpv.sh) | 安装 Arch 官方 mpv 及依赖，直接收集 `/usr/bin/mpv`；公共入口读取实际安装版本。 | 无部署 export | [模板差异](../mpv/docs/template-deviations.md) |
+| htop | [build_htop.sh](../htop/build_htop.sh) | 安装 Arch 官方 htop 及原有依赖，直接收集 `/usr/bin/htop` 与既有辅助程序、动态库；公共入口读取实际安装版本。 | 无 | [模板差异](../htop/docs/template-deviations.md) |
+| mpv | [build_mpv.sh](../mpv/build_mpv.sh) | 安装 Arch 官方 mpv 及依赖，直接收集 `/usr/bin/mpv`；公共入口读取实际安装版本。 | 无 | [模板差异](../mpv/docs/template-deviations.md) |
 
 mpv 的 yt-dlp 继续在构建时下载、校验并内置，未启用官方运行时 yt-dlp 安装与自更新 hooks；locale 和独立无参数窗口 hook 的来源及取舍见其应用文档。这些专属段不属于本类通用模板。
 
