@@ -10,6 +10,8 @@ OBS Studio 为 Qt 6 / C++ 桌面应用。当前脚本按 quick-sharun 的默认�
 
 脚本安装 `qt6ct`、`kvantum` 和 `lxqt-qtplugin`，由 quick-sharun 收集对应的 Qt 6 主题插件。
 
+这三个主题插件包必须保留；缺少插件时的红字属于主题支持警告，完整原文见 [Qt 主题插件说明](../docs/packaging-cases/quick-sharun.md#qt-主题插件警告)。当前结构与既有专属处理见 [模板差异](./docs/template-deviations.md)。
+
 相关路径的用途和原始故障记录见 [OBS Studio 写死的路径](./docs/hardcoded.md)。
 
 ## 版本元数据

@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# OBS Studio：安装官方包，把 /usr/bin/obs 和会被临时加载的模块交给 quick-sharun。
-# quick-sharun 自己生成 AppRun。这里不要写 AppRun.sh。
 
 # 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
@@ -9,21 +7,21 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# 打包工具。GTK、Qt、输入法不要塞进这一行。
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-# 应用本身。包管理器会拉入它声明的依赖。中文输入只装 Qt6 这一套。
+# 安装官方软件包及运行依赖。
 # 构建时缺少 Qt 主题插件，补上 qt6ct、kvantum 和 lxqt-qtplugin。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" obs-studio fcitx5-qt qt6ct kvantum lxqt-qtplugin
 
-# 清掉上次的打包目录。dist 留给这次的 AppImage 和版本文件，AppDir 由 quick-sharun 生成。
+# 清掉上次的打包目录。
 rm -rf -- AppDir dist
 mkdir -p dist
 
 # 把当前机器架构传给 quick-sharun。
 export ARCH="$(uname -m)"
-# 使用官方包中的图标作为 AppImage 图标。
+# 使用系统里装好的图标。
 export ICON=/usr/share/icons/hicolor/256x256/apps/com.obsproject.Studio.png
-# 使用官方包中的桌面入口文件。
+# 使用系统里装好的桌面入口文件。
 export DESKTOP=/usr/share/applications/com.obsproject.Studio.desktop
 # 把 AppImage 写到脚本目录下的 dist。
 export OUTPATH="$SCRIPT_DIR/dist"
@@ -39,6 +37,7 @@ export DEPLOY_PYTHON=1
 export DEPLOY_QT=1
 
 # 模块、模块数据、脚本模块和录制程序不是主程序的动态库依赖，同一次传入。
+# 收集程序及其运行依赖。
 quick-sharun /usr/bin/obs /usr/bin/obs-ffmpeg-mux \
   /usr/lib/obs-modules /usr/share/obs /usr/lib/obs-scripting
 
@@ -55,7 +54,8 @@ ENV
 # 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-# 打包成功后用公共脚本记下版本，去掉 epoch 和 pkgrel。
+# 读取本次打包使用的版本。
 version="$("$SCRIPT_DIR/../common/arch/get_package_version.sh" obs-studio)"
+# 打包成功后用公共脚本记下版本。
 "$SCRIPT_DIR/../common/build/save_appimage_version.sh" \
   dist/obs-studio.AppImage "$version" dist/version.txt
