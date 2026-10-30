@@ -6,7 +6,11 @@
 
 ## 技术栈与打包方式
 
-OBS Studio 为 Qt 6 / C++ 桌面应用。当前脚本按 quick-sharun 的默认写法安装官方包，把 `/usr/bin/obs`、录制用的 `obs-ffmpeg-mux`、`/usr/lib/obs-modules`、`/usr/share/obs` 和 Python 脚本模块目录 `/usr/lib/obs-scripting` 交给同一次收集。脚本将中文环境写入 `.env`，通过 `DEPLOY_QT=1` 让 quick-sharun 收集 Qt 6 输入模块，不写启动包装，也不启用 self-updater hook。
+OBS Studio 为 Qt 6 / C++ 桌面应用。安装 Arch 官方软件包后，原样复用 [pkgforge-dev 的收集命令](https://github.com/pkgforge-dev/OBS-Studio-AppImage/blob/8c17c157a498876f75b84cb0a30307aba641b396/make-appimage.sh)，同次收集系统中的 OBS 程序、模块、libobs、CEF 和 LuaJIT。当前 `/usr/lib/obs*` 包含模块与 Python 脚本模块目录；`/usr/share/obs` 由 quick-sharun 的同名数据目录扫描收集。后者是依据工具源码作出的判断，不作为新产物已验收的结论。
+
+同时原样采用官方的 `DEPLOY_SDL=1` 和 `PATH_MAPPING_HARDCODED='libobs.so*'`，分别强制部署 SDL 相关运行库、按文件名指定 libobs 的硬编码路径处理。官方未说明这两项设置的具体原因；本次按已明确选择的官方配置接入，工具行为和影响见 [官方处理取舍](./docs/pkgforge-differences.md)。
+
+脚本保留包内中文环境和 `DEPLOY_QT=1`，由 quick-sharun 收集已安装的 Qt 6 输入模块并生成 AppRun，不写启动包装。当前未启用 `self-updater.hook`，也不显式设置 `UPINFO`。
 
 脚本安装 `qt6ct`、`kvantum` 和 `lxqt-qtplugin`，由 quick-sharun 收集对应的 Qt 6 主题插件。
 
@@ -16,7 +20,7 @@ OBS Studio 为 Qt 6 / C++ 桌面应用。当前脚本按 quick-sharun 的默认�
 
 ## 版本元数据
 
-`build_obs-studio.sh` 从 `pacman -Q obs-studio` 读取实际软件包版本，去除 Arch package release 后写入：
+`build_obs-studio.sh` 在第一次 quick-sharun 之前，通过 `common/build/read_app_version.sh pacman obs-studio` 读取实际安装版本，去掉 epoch 和 pkgrel，保存到 `VERSION`。最终 AppImage 成功生成后，单行调用 `common/build/save_appimage_version.sh` 写入：
 
 ```text
 dist/version.txt
@@ -39,6 +43,15 @@ obs-studio/build_obs-studio.sh
 ```
 
 ## 变更记录
+
+### 2026-10-30：复用官方收集命令并修正标准阶段
+
+- 原有问题：版本读取仍位于最终封装之后，使用旧的直接读取入口；收集命令前有重复注释，模板差异文档还把旧版本位置和两行保存写法记为专属处理。
+- 修正内容：版本读取移到第一次 quick-sharun 之前，统一使用公共版本入口和 `VERSION`；版本保存改为标准单行调用；应用依赖和收集命令各保留一行用途注释。
+- 官方复用：原样采用 `DEPLOY_SDL=1`、`PATH_MAPPING_HARDCODED='libobs.so*'` 和完整的通配收集命令，包括官方原有的参数、制表符、空格、续行和顺序。三个代码块的注释以“复用官方代码：”标明来源。
+- CEF 更正：此前“`/usr/lib/cef` 已经不存在”的判断只查看了 `obs-studio` 本身的文件列表，遗漏了独立的 `cef` 依赖包。当前 `cef` 包实际提供该目录及其数据资源；2026-10-28 记录中的这项判断已被本次核实取代，原始记录仍保留。
+- 修改文件：`obs-studio/build_obs-studio.sh`、`obs-studio/README.md`、`obs-studio/docs/template-deviations.md`、`obs-studio/docs/pkgforge-differences.md`、`obs-studio/docs/hardcoded.md`、`docs/packaging-classification.md`、`docs/packaging-export-registry.md`、`anylinux_projects.md`。
+- 验证边界：提交前核对 Bash 语法、官方代码原文、相对链接、注释、版本阶段和完整 diff；这些检查不替代新产物的构建或实机验收。未启用自更新 hook，未显式设置 UPINFO，未加入官方测试步骤。
 
 ### 2026-10-28：按标准写法重写构建脚本
 

@@ -10,7 +10,6 @@ cd "$SCRIPT_DIR"
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 # 安装官方软件包及运行依赖。
-# 构建时缺少 Qt 主题插件，补上 qt6ct、kvantum 和 lxqt-qtplugin。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" obs-studio fcitx5-qt qt6ct kvantum lxqt-qtplugin
 
 # 清掉上次的打包目录。
@@ -35,11 +34,21 @@ export DEPLOY_PIPEWIRE=1
 export DEPLOY_PYTHON=1
 # 官方包依赖 qt6-base，打包时打入 Qt。
 export DEPLOY_QT=1
+# 复用官方代码：部署 SDL 运行库。
+export DEPLOY_SDL=1
+# 复用官方代码：映射指定库中的硬编码系统路径。
+export PATH_MAPPING_HARDCODED='libobs.so*'
 
-# 模块、模块数据、脚本模块和录制程序不是主程序的动态库依赖，同一次传入。
-# 收集程序及其运行依赖。
-quick-sharun /usr/bin/obs /usr/bin/obs-ffmpeg-mux \
-  /usr/lib/obs-modules /usr/share/obs /usr/lib/obs-scripting
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman obs-studio)"
+
+# 复用官方代码：收集程序及其运行依赖。
+quick-sharun \
+	/usr/bin/obs*    \
+	/usr/lib/obs*    \
+	/usr/lib/libobs* \
+	/usr/lib/cef     \
+	/usr/lib/libluajit*.so*
 
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
 mkdir -p AppDir/lib/locale
@@ -54,8 +63,5 @@ ENV
 # 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-# 读取本次打包使用的版本。
-version="$("$SCRIPT_DIR/../common/arch/get_package_version.sh" obs-studio)"
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" \
-  dist/obs-studio.AppImage "$version" dist/version.txt
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/obs-studio.AppImage "$VERSION" dist/version.txt
