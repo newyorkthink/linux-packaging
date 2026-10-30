@@ -31,6 +31,7 @@ fi
 
 docker run --rm -i \
   "${DOCKER_MOUNT[@]}" \
+  -v "$SCRIPT_DIR/../common:/common:ro" \
   -w "$DOCKER_WORKDIR" \
   -e HOST_UID="$(id -u)" \
   -e HOST_GID="$(id -g)" \
@@ -81,6 +82,7 @@ apt-get install -y --no-install-recommends \
   libgtk-3-bin \
   libgtk-3-dev \
   libpango1.0-dev \
+  librsvg2-bin \
   librsvg2-dev \
   openssl \
   patchelf \
@@ -514,7 +516,7 @@ fi
 rmdir "$LOCAL_SHELL_TEST_DIR"
 
 # 补齐封装所需权限和 PNG 图标。
-"$ROOT/../common/appimage/prepare_appdir_for_appimagetool.sh" "$APPDIR"
+/common/appimage/prepare_appdir_for_appimagetool.sh "$APPDIR"
 /tmp/appimagetool -n \
   --runtime-file /tmp/runtime-x86_64 \
   "$APPDIR" \

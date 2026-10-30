@@ -43,6 +43,12 @@ remmina/fix_remmina_webkit.sh
 
 ## 变更记录
 
+### 2026-10-30：把公共脚本挂进容器并安装 rsvg-convert
+
+- 故障依据：[Actions run 41022743379](https://github.com/newyorkthink/linux-packaging/actions/runs/41022743379) 的 Build Remmina。构建命令是 `env -u GITHUB_ACTIONS`，容器只挂载应用目录到 `/work`。日志：`/work/../common/appimage/prepare_appdir_for_appimagetool.sh: No such file or directory`，退出码 127。
+- 处理：把仓库 `common` 只读挂到容器 `/common`，封装前改调这个路径。容器安装列表增加 `librsvg2-bin`。原 appimagetool 命令未改。
+- 验证范围：只做了 `bash -n`。这次构建结果尚未验证。
+
 ### 2026-10-30：补齐 appimagetool 要求的 PNG 图标
 
 - 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build Remmina。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报根目录没有 `org.remmina.Remmina.png`，`.DirIcon` 无效，退出码 1。发行版图标是 SVG。

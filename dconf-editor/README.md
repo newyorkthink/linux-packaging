@@ -22,6 +22,12 @@ dconf Editor 为 GTK3 / GLib 应用。构建脚本固定使用 Ubuntu 24.04 的 
 
 ## 变更记录
 
+### 2026-10-30：安装 rsvg-convert
+
+- 故障依据：[Actions run 41022743379](https://github.com/newyorkthink/linux-packaging/actions/runs/41022743379) 的 Build dconf Editor。日志原文：`错误：没有可用的 SVG 转 PNG 工具，需要 rsvg-convert、magick 或 convert。` 已安装的是 `librsvg2-2` 和 `librsvg2-common`，没有 `rsvg-convert`。
+- 处理：安装列表增加 `librsvg2-bin`。原 appimagetool 命令未改。
+- 验证范围：只做了 `bash -n`。这次构建结果尚未验证。
+
 ### 2026-10-30：补齐 appimagetool 要求的 PNG 图标
 
 - 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build dconf Editor。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报根目录没有 `ca.desrt.dconf-editor.png`，`.DirIcon` 无效，退出码 1。发行版图标是 SVG。

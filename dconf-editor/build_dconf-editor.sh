@@ -60,6 +60,7 @@ mkdir -p "$APPDIR" "$OUTDIR" "$TOOLDIR"
   gettext \
   language-pack-gnome-zh-hans-base \
   libglib2.0-bin \
+  librsvg2-bin \
   locales \
   patchelf \
   python3 \
