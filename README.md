@@ -38,6 +38,7 @@
 | 人工维护流程 | [维护者指南](./docs/maintainer-guide.md) |
 | AI 操作、修改授权与提交规则 | [AGENTS.md](./AGENTS.md) |
 | 已标准化项目与打包分类 | [打包分类](./docs/packaging-classification.md) |
+| AppImage 对应上游仓库与构建代码 | [上游打包参考索引](./docs/upstream-packaging-index.md) |
 | Anylinux / quick-sharun 规范 | [anylinux_projects.md](./anylinux_projects.md) |
 | linuxdeploy 规范 | [linuxdeploy_projects.md](./linuxdeploy_projects.md) |
 | AppImage 自定义协议登记 | [协议入口说明](./docs/appimage-scheme-handler.md) |

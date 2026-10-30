@@ -46,6 +46,7 @@
 | [维护者指南](./maintainer-guide.md) | 人工维护、入口、打包路线、提交前核对 |
 | [Anylinux / quick-sharun 规范](../anylinux_projects.md) | Arch、sharun、AppDir、中文环境、输入模块、platforminputcontexts、自动收集、`.env`、Qt 主题插件、qt6ct、kvantum、lxqt-qtplugin、有窗口的 Qt 程序、Electron、程序目录、直接下载标准模板、公共版本读取、单行保存、行数与空行、暂不采用官方处理、加入前重新核实 |
 | [打包分类](./packaging-classification.md) | quick-sharun、Electron、Qt、linuxdeploy、直接下载标准、系统安装、参数差异 |
+| [上游打包参考索引](./upstream-packaging-index.md) | 当前 AppImage 项目、目录排序、pkgforge-dev、上游仓库、固定 commit、依赖脚本、封装脚本、workflow、差异说明 |
 | [linuxdeploy 规范](../linuxdeploy_projects.md) | Ubuntu、插件、AppRun、appimagetool |
 | [AppImage 构建依赖清单](./appimage-build-dependency-list.md) | 基础包、Qt5 / Qt6、GTK、功能依赖 |
 | [公共脚本入口](../common/README.md) | 下载、AUR DEB 来源与摘要、解包、依赖、公共版本来源、可选构建元数据、版本保存 |
