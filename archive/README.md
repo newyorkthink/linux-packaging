@@ -16,3 +16,13 @@
 | [zen](./zen/README.md) | 2026-10-29 | 确认不再使用 | 无 |
 | [github-desktop](./github-desktop/README.md) | 2026-10-29 | 确认不再使用 | 无 |
 | [goldendict-ng](./goldendict-ng/README.md) | 2026-10-29 | 确认不再使用 | 无 |
+
+## 独立归档检查
+
+[Check Archived Versions](../.github/workflows/check-archived-versions.yml) 在 main 的归档目录、活动构建清单或工作流变更时自动检查，也可以在 Actions 中手动运行。它只有 `contents: read` 权限，只在日志和运行摘要中列出待人工清理的条目，不修改 Release，不接入原有构建、完整性监督或自愈流程。
+
+归档时同步维护 [固定资产映射](./appimage-apps.json)，原样登记原构建配置中的 `dir`、`script`、`release_name`；脚本路径仍写移动前的路径，实际文件位于 `archive/<原脚本路径>`。检查按版本条目的 `asset` 精确匹配，不从目录名猜测软件键。
+
+只有归档索引、README 和原脚本齐全，原目录及活动构建入口均已移除，并且完整分页读取的 Release 资产中没有对应文件，才列为待人工清理。API 读取、清单格式或摘要校验失败时，检查报错，不把失败当作资产不存在。报告注明所检查的 main 快照，实际删除记录仍按上面的归档步骤处理。
+
+当前登记七个具有固定资产名的历史归档项目。JRiver 的历史资产名会随主版本变化，未登记，也不会猜测或匹配仍在使用的 RunImage 资产。恢复项目时同步移除归档映射并恢复构建入口。

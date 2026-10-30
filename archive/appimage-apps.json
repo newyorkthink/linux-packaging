@@ -1,0 +1,40 @@
+{
+  "description": "已确认停用的固定 AppImage 资产映射；按精确资产名匹配版本条目，不从目录名猜测软件键。",
+  "apps": [
+    {
+      "dir": "baidunetdisk",
+      "script": "baidunetdisk/build_baidunetdisk_linuxdeploy.sh",
+      "release_name": "baidunetdisk.AppImage"
+    },
+    {
+      "dir": "deepseek-harness",
+      "script": "deepseek-harness/build_deepseek-harness.sh",
+      "release_name": "deepseek-harness.AppImage"
+    },
+    {
+      "dir": "github-desktop",
+      "script": "github-desktop/build_github-desktop.sh",
+      "release_name": "github-desktop.AppImage"
+    },
+    {
+      "dir": "goldendict-ng",
+      "script": "goldendict-ng/build_goldendict-ng.sh",
+      "release_name": "goldendict-ng.AppImage"
+    },
+    {
+      "dir": "virt-manager",
+      "script": "virt-manager/build_virt-manager.sh",
+      "release_name": "virt-manager.AppImage"
+    },
+    {
+      "dir": "xnconvert",
+      "script": "xnconvert/build_xnconvert.sh",
+      "release_name": "xnconvert.AppImage"
+    },
+    {
+      "dir": "zen",
+      "script": "zen/build_zen.sh",
+      "release_name": "zen.AppImage"
+    }
+  ]
+}
