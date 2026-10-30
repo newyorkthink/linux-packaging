@@ -640,6 +640,7 @@ AI 必须遵守最小修改原则。
 
 - 在 `archive/README.md` 和该项目 README 顶部写明停用日期、原因，以及仍在使用的替代入口。
 - 从 `.github/workflows` 和 `.github/appimage-apps.json` 去掉对应构建，并删除 Release 上已经发出的对应产物。
+- 若 `latest` Release 的 `software_versions.json` 里有该应用条目，同一次归档必须删掉这一条。清单里本来没有的，不要新增。只删 AppImage、留下版本条目，发布完整性检查会失败；构建清单里的 `software_key` 已经去掉之后，它也不能自动重修。
 - `archive/` 里的旧文件默认不再修改。当前仍在使用的 RunImage 和 AppImage 不要放进去。
 
 ### 记录放在软件目录，根 README 不再保存待办
