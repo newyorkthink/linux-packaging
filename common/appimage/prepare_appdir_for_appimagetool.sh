@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# 适配 2026-10-29 的 appimagetool（continuous build 333，git b082d2e）。
-# 只补齐传入 AppDir 的权限，并在缺少根目录同名 PNG 时补图标。不改打包命令。
+# 适配 appimagetool 对 AppDir 权限和 .DirIcon 有效性的检查，不改变封装命令。
+# 上游不再主动用 SVG 生成 .DirIcon；本入口在缺少同名 PNG / XPM 根图标时补 PNG，并保留原 SVG。
+# SVG 转换需要构建环境提供 rsvg-convert、magick 或 convert；Ubuntu 可安装 librsvg2-bin。
+# 上游变更、适用条件和依赖说明见 docs/appimagetool-icon-compatibility.md。
 set -Eeuo pipefail
 
 die() {
@@ -123,11 +125,13 @@ if [[ -n "$src" ]]; then
   exit 0
 fi
 
+# 根目录和包内均无同名 PNG 时，保留原 SVG，并生成供 appimagetool 选择的 PNG 根图标。
 src="$(largest_match "$icon.svg")"
 if [[ -z "$src" ]]; then
   die "desktop 图标 $icon 没有可用的 PNG 或 SVG。"
 fi
 
+# 仅在需要转换 SVG 时查找工具；依赖由调用方安装，本入口不安装软件包。
 tmp="$(mktemp)"
 if command -v rsvg-convert >/dev/null 2>&1; then
   rsvg-convert -w 256 -h 256 "$src" -o "$tmp" || {
@@ -146,7 +150,7 @@ elif command -v convert >/dev/null 2>&1; then
   }
 else
   rm -f -- "$tmp"
-  die "没有可用的 SVG 转 PNG 工具，需要 rsvg-convert、magick 或 convert。"
+  die "没有可用的 SVG 转 PNG 工具，需要 rsvg-convert、magick 或 convert；Ubuntu 构建环境可安装 librsvg2-bin（提供 rsvg-convert）。"
 fi
 
 actual="$(head -c 4 -- "$tmp" || true)"

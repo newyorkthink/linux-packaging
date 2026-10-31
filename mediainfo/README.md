@@ -7,7 +7,7 @@
 上游与软件来源：
 
 - 上游项目：MediaArea/MediaInfo
-- 正式构建软件包：MediaArea 官方 Ubuntu releases 仓库的 `mediainfo`
+- 正式构建软件包：Ubuntu 24.04 仓库的 `mediainfo`
 - 最终 Release 资产：`mediainfo.AppImage`
 
 正式构建通过 `.github/workflows/build.yml` 的 Ubuntu 24.04 独立 Job 执行。应用清单 `.github/appimage-apps.json` 当前指向 `mediainfo/build_mediainfo_linuxdeploy.sh`，并将该项目标记为 Ubuntu 特例。
@@ -16,7 +16,7 @@
 
 - MediaInfo CLI 为 C / C++ 命令行程序，核心运行库为 `libmediainfo` / `libzen`。
 - 正式构建目标为 x86_64。
-- MediaArea 官方 Ubuntu `mediainfo` 包提供标准 `/usr/bin/mediainfo` 入口，正式构建使用 linuxdeploy 收集依赖，官方 appimagetool 完成最终封装。
+- Ubuntu `mediainfo` 包提供标准 `/usr/bin/mediainfo` 入口，正式构建使用 linuxdeploy 收集依赖，官方 appimagetool 完成最终封装。
 - 已核对 Ubuntu 24.04 发行版包和 MediaArea 官方 Ubuntu 24.04 CLI 包，两者都不包含 desktop 或图标。脚本仍会先读取本次实际安装包的文件清单；确认没有 desktop 后才生成 `Terminal=true` 的最小 desktop。品牌图标从 MediaInfo 官方源码仓库取得，无需 GTK 插件。
 
 ## 打包方式
@@ -25,21 +25,21 @@
 
 当前流程：
 
-1. 在 Ubuntu 24.04 runner 安装 linuxdeploy / appimagetool 最小基础工具，动态读取 MediaArea 官方 releases 仓库入口并安装最新稳定版 `mediainfo`。
+1. 在 Ubuntu 24.04 runner 通过公共 APT 入口安装基础工具及 `aptitude mediainfo librsvg2-bin`；使用 Ubuntu 仓库中的 `mediainfo`，不额外配置 MediaArea releases 仓库。`librsvg2-bin` 提供构建时 SVG 转 PNG 所需的 `rsvg-convert`。
 2. 下载 linuxdeploy、官方 appimagetool 和 `runtime-x86_64`，按官方 Release 的 SHA-256 校验。
-3. 将 CLI 放入 `AppDir/usr/bin`；先检查安装包是否含 desktop，仅在确认缺失时生成最小 desktop，再加入官方图标。linuxdeploy 自动收集共享库并生成 AppRun，不添加自定义 wrapper。
+3. 首次运行 linuxdeploy 创建 AppDir 基础目录，再通过公共入口下载本次实际安装版本的 DEB，按原始布局解包到 AppDir。检查安装包是否含 desktop，仅在确认缺失时生成支持终端运行的最小 desktop，并加入官方 SVG。构建脚本写入完整根 `AppRun`，直接启动包内 `usr/bin/mediainfo`，随后由 linuxdeploy 收集运行库。
 4. `linuxdeploy --appdir AppDir --output appimage` 负责整理 AppDir、收集依赖并生成不发布的中间包；最后由官方 `appimagetool -n` 使用明确的 `--runtime-file` 重新封装为 `dist/mediainfo.AppImage`。Release 只上传这个最终文件。
 5. 最终封装成功后写入 `dist/version.txt`，仅发布 `dist/` 内的最终 AppImage。
 
-`source/runtime-x86_64` 不是仓库中的固定文件。每次构建都会从 [AppImage/type2-runtime 的 continuous Release](https://github.com/AppImage/type2-runtime/releases/tag/continuous) 下载当时最新的 `runtime-x86_64`，并使用 GitHub Release 提供的 SHA-256 校验；[官方 appimagetool 文档](https://github.com/AppImage/appimagetool#changelog) 也明确说明其新 runtime 来自该仓库。CI 不依赖个人工具目录。
+`runtime-x86_64` 不是仓库中的固定文件。每次构建都会从 [AppImage/type2-runtime 的 continuous Release](https://github.com/AppImage/type2-runtime/releases/tag/continuous) 下载当时最新的 `runtime-x86_64`，并使用 GitHub Release 提供的 SHA-256 校验；[官方 appimagetool 文档](https://github.com/AppImage/appimagetool#changelog) 也明确说明其新 runtime 来自该仓库。CI 不依赖个人工具目录。
 
-构建只在 Actions 临时容器中执行。脚本会清理当前应用的 `AppDir/`、`dist/`、`source/` 上一次构建内容；不会修改使用者的 lf 配置。
+构建在 Actions 的 Ubuntu 24.04 runner 中直接执行，不使用 Docker。脚本会清理当前应用的 `AppDir/`、`dist/`、`source/` 上一次构建内容；不会修改使用者的 lf 配置。
 
 MediaInfo 的稳定构建基线固定为 Ubuntu 24.04：linuxdeploy 负责整理 AppDir 和收集依赖，官方 appimagetool 使用明确下载并校验的 `runtime-x86_64` 完成最终封装。不得改回 Arch Linux + quick-sharun / anylinux，也不得在 Arch Linux 中执行 linuxdeploy + appimagetool 打包。
 
 ## 版本元数据
 
-版本来自本次实际安装的 MediaArea 官方 Ubuntu `mediainfo` 软件包，去掉 Debian epoch / revision 后写入：
+版本来自本次实际安装的 Ubuntu `mediainfo` 软件包，去掉 Debian epoch / revision 后写入：
 
 ```text
 mediainfo/dist/version.txt
@@ -104,3 +104,11 @@ linuxdeploy 默认不捆绑 glibc / 动态加载器，因此宿主仍需满足 U
 - **确认结论：** MediaInfo 的 lf 预览延迟来自 quick-sharun / anylinux 打包路线，现有 lf 配置无需修改；当前 linuxdeploy + appimagetool 产物已解决该问题。
 - **稳定基线：** MediaInfo 不再使用 Arch Linux + quick-sharun / anylinux。正式构建固定在 Ubuntu 24.04 完成，linuxdeploy 只负责整理 AppDir 和收集依赖，最终由官方 appimagetool 配合明确下载并校验的 `runtime-x86_64` 封装。
 - **修改文件与处理：** 删除停用的 `build_mediainfo_anylinux.sh`，同步整理本 README，并在仓库规则和当前构建脚本注释中明确 linuxdeploy + appimagetool 必须使用 Ubuntu 环境。
+
+### 2026-10-31：补齐最终封装的 SVG 转换依赖
+
+- **检查对象与证据：** [Build MediaInfo Job 124500994832](https://github.com/newyorkthink/linux-packaging/actions/runs/41188749603/job/124500994832) 的现成日志、当前应用脚本、公共最终封装入口和图标准备入口。日志显示 linuxdeploy 已生成中间 AppImage，随后公共入口因没有 SVG 转 PNG 工具而退出；最终封装未完成。
+- **原因：** 当前应用下载官方 SVG。为适配新版 appimagetool 的根图标选择，公共入口会在没有同名 PNG / XPM 时补 PNG；原依赖没有安装转换工具。
+- **处理：** 仅在原依赖命令末尾追加 `librsvg2-bin`。保留官方 SVG、标准注释、AppRun、linuxdeploy 命令和最终封装命令。公共图标准备入口只补充用途、依赖说明和缺包提示，权限与图标处理逻辑保持不变。
+- **上游与公共机制：** 新版不再主动用 SVG 生成 `.DirIcon`，并加强其有效性检查，但仍接受已有有效 `.DirIcon` 的回退路径；不能表述为所有 AppImage 一律禁止 SVG。详细依据和公共入口的适用条件见 [appimagetool 图标检查与 SVG 兼容处理](../docs/appimagetool-icon-compatibility.md)。
+- **验证边界：** 已依据现成失败日志、上游提交及源码完成静态核对；本次未执行安装、试打包或程序运行，补包后的正式构建结果尚未核实。

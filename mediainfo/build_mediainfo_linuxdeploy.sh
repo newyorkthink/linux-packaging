@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ###### 准备构建环境 ######
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" aptitude mediainfo
+"$SCRIPT_DIR/../common/apt/install_packages.sh" aptitude mediainfo librsvg2-bin
 
 ###### 下载打包工具 ######
 
