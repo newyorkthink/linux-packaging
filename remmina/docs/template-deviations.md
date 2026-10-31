@@ -43,4 +43,6 @@ GStreamer 插件会执行 `"$LINUXDEPLOY" --appdir "$APPDIR"`，没有转交外�
 
 ## 当前状态
 
-两个 `patches` 入口已接入主 build，Remmina job 直接使用 `ubuntu-24.04`，不使用 Docker。workflow 已移除旧 `fix_remmina_webkit.sh` 调用；旧脚本保留为历史文件，不与新入口同时执行。新链路已做语法和静态衔接检查，尚未实际构建或实机验证。
+两个 `patches` 入口已接入主 build，Remmina job 直接使用 `ubuntu-24.04`，不使用 Docker。workflow 已移除旧 `fix_remmina_webkit.sh` 调用；旧脚本保留为历史文件，不与新入口同时执行。
+
+当前构建基线 [7346900](https://github.com/newyorkthink/linux-packaging/commit/7346900ae63d06a4c4cddd353f87f9903acc6be1) 已通过 [Actions run 41221937920](https://github.com/newyorkthink/linux-packaging/actions/runs/41221937920)。用户实机截图确认的功能及剩余告警见 [当前基线与验收](../README.md#当前基线与验收)。本次标准化已收尾，GTK、GLib 和 WebKit 告警暂不处理；后续仅在有明确需求或功能故障并获得授权时按 linuxdeploy 标准调整。

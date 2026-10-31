@@ -14,6 +14,14 @@ Remmina 为 GTK3 / C 桌面应用，RDP 使用 FreeRDP 3。当前构建直接使
 
 `build_remmina.sh` 遵循 [linuxdeploy 标准](../linuxdeploy_projects.md)，在资源准备阶段调用 `patches/prepare_runtime.sh`，在依赖部署后、最终封装前调用 `patches/fix_runtime.sh`。完整 AppRun、本地终端 wrapper、输入法缓存和 RDP 认证设置保留在主 build；用途及位置见 [专属差异](./docs/template-deviations.md)。
 
+## 当前基线与验收
+
+构建基线为 [7346900](https://github.com/newyorkthink/linux-packaging/commit/7346900ae63d06a4c4cddd353f87f9903acc6be1)。[Actions run 41221937920](https://github.com/newyorkthink/linux-packaging/actions/runs/41221937920) 已成功完成 Remmina 构建、Release 上传和版本元数据发布步骤。
+
+2026-11-01，用户提供的实机截图确认：程序正常启动，中文界面和输入法候选框显示正常，WWW 页面能够加载，RDP 连接能够显示远程 Windows 桌面。
+
+日志中仍有 GTK、GLib 和 WebKit 告警，原因尚未定位，暂不处理。当前实现作为已确认基线保留，后续仅在有明确需求或功能故障并获得授权时调整，不为消除这些告警反复改动已验证实现。
+
 ## 版本元数据
 
 `common/apt/extract_installed_package.sh` 读取实际安装的 `remmina` 版本，去掉 Debian epoch 和 revision，仅以主软件包作为版本来源；附加插件包按各自已安装的同一版本下载并解包。
@@ -37,6 +45,8 @@ remmina/patches/fix_runtime.sh
 ```
 
 ## 变更记录
+
+以下检查范围记录各次提交当时执行的检查，当前验收结论以 [当前基线与验收](#当前基线与验收) 为准。
 
 ### 2026-11-01：避免 GStreamer 部署误选辅助桌面入口
 
