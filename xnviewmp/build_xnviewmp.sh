@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ###### 准备构建环境 ######
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg qmake6 qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n qt6-wayland libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good libpulse0 libpulse-mainloop-glib0 libva2 libva-drm2 libva-x11-2 libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 libudev1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
+"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg qmake6 qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n qt6-wayland fcitx5-frontend-qt6 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good libpulse0 libpulse-mainloop-glib0 libva2 libva-drm2 libva-x11-2 libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 libudev1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
 
 ###### 下载打包工具 ######
 
@@ -30,6 +30,27 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_
 
 # 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
 VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" --checksum "https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt" '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$SOURCE_DIR/XnView_MP.deb" "$APPDIR")"
+
+###### 准备桌面资源和运行库 ######
+
+# 指定 XnView MP 官方安装包中的桌面入口和图标路径，供图标修正及 linuxdeploy 图标部署使用。
+DESKTOP_FILE="$APPDIR/usr/share/applications/XnView.desktop"
+ICON_FILE="$APPDIR/opt/XnView/xnview.png"
+
+# XnView MP 官方桌面入口使用绝对图标路径，需改为图标名称才能通过公共封装检查。
+sed -i 's|^Icon=.*|Icon=xnview|' "$DESKTOP_FILE"
+
+# 复制应用自带的 Qt XCB 平台库，供 Qt 插件识别模块。
+cp -a "$APPDIR/opt/XnView/lib"/libQt6XcbQpa.so* "$APPDIR/usr/lib/"
+
+# XnView MP 的包内组件依赖 PulseAudio 和 Wayland，但官方安装包未携带这些系统库，因此补入 AppDir。
+for runtime_lib in libpulse.so.0 libwayland-client.so.0 libwayland-cursor.so.0 libwayland-egl.so.1; do
+  # 复制当前运行库及其版本文件。
+  cp -a "/usr/lib/x86_64-linux-gnu/${runtime_lib}"* "$APPDIR/usr/lib/"
+done
+
+# 为 XnView MP 补入的 PulseAudio 库还依赖 libpulsecommon，因此同时复制该配套库。
+cp -a /usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-*.so "$APPDIR/usr/lib/"
 
 ###### 准备 AppRun ######
 
@@ -61,7 +82,7 @@ export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_
 # 设置界面自动缩放。
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 
-# 设置显示后端和输入法兼容选项。
+# 使用 XCB 后端，并通过包内 IBus 插件和 IBus Portal 接入 Fcitx5。
 export QT_QPA_PLATFORM=xcb
 export QT_IM_MODULE=ibus
 export QT_IM_MODULES=ibus
@@ -82,11 +103,25 @@ chmod +x "$APPDIR/AppRun"
 
 ###### 核心打包 ######
 
+# 创建独立的 Qt 查询工具入口，避免应用自带运行库影响系统工具。
+cat > "$TOOLS_DIR/qmake6" <<'EOF_QMAKE'
+#!/usr/bin/env bash
+
+# 清除运行库搜索路径。
+unset LD_LIBRARY_PATH
+
+# 启动系统工具，并保留传入的命令行参数。
+exec /usr/bin/qmake6 "$@"
+EOF_QMAKE
+
+# 为工具入口添加执行权限。
+chmod +x "$TOOLS_DIR/qmake6"
+
 # 指定 Qt 查询工具。
 export QMAKE=qmake6
 
 # 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
-export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
+export ARCH=x86_64; linuxdeploy --appdir AppDir --icon-file "$ICON_FILE" --plugin qt --output appimage
 
 ###### 整理产物 ######
 
