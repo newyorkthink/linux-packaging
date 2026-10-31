@@ -38,6 +38,17 @@ remmina/patches/fix_runtime.sh
 
 ## 变更记录
 
+### 2026-11-01：修正 Ubuntu 24.04 的图标资源包名
+
+- 故障依据：[Actions run 41219755183 的 Build Remmina](https://github.com/newyorkthink/linux-packaging/actions/runs/41219755183/job/124591702545)。下载图标与主题资源时，APT 因 `adwaita-icon-theme-full` 没有候选版本而退出，退出码为 100。原始错误：
+
+  ```text
+  E: Can't select candidate version from package adwaita-icon-theme-full as it has no candidate
+  ```
+
+- 处理：Ubuntu 24.04 的下载清单移除 `adwaita-icon-theme-full`，保留 `adwaita-icon-theme` 和 `gnome-themes-extra-data`；构建环境继续使用 Ubuntu 24.04。公共脚本、workflow 和其他项目保持原样。
+- 检查范围：仅做主 build 的语法检查及本次完整差异核对；未执行实际打包或实机运行，提交后不监控 Actions。
+
 ### 2026-11-01：按 linuxdeploy 标准接入 patches
 
 - 主 build 改为直接安装并解包 Ubuntu 软件包，复用公共工具准备、APT 解包和最终封装入口；资源准备与封装前修复分别调用两个 `patches` 脚本。

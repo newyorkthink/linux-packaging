@@ -37,7 +37,7 @@ echo "Remmina 版本：$VERSION"
 ########## 准备桌面资源和运行库 #########
 
 # 下载并解包应用所需的图标与主题资源。
-"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
+"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" adwaita-icon-theme gnome-themes-extra-data
 
 # Remmina 需要补齐协议插件、翻译、WebKitGTK、FreeRDP、OpenSSL provider 和 GTK 输入模块。
 "$SCRIPT_DIR/patches/prepare_runtime.sh" "$APPDIR"

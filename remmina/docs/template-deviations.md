@@ -17,6 +17,10 @@
 
 主 build 的工具准备复用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh` 的 `gtk,gstreamer` 组合；APT 原布局解包复用 `common/apt/extract_installed_package.sh` 的附加软件包参数。参数说明见 [公共入口](../../common/README.md)，Remmina 的包名和资源清单由主 build 指定。
 
+## 图标与主题资源
+
+准备桌面资源和运行库阶段下载 `adwaita-icon-theme` 和 `gnome-themes-extra-data`。Ubuntu 24.04 的默认 Adwaita 图标由前者提供；该版本不提供 `adwaita-icon-theme-full`，不加入下载清单。依据：[Ubuntu 官方包索引](https://packages.ubuntu.com/adwaita-icon-theme)。
+
 ## AppRun 中保留的兼容处理
 
 | 处理 | 原因 |
