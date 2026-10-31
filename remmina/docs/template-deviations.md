@@ -21,6 +21,14 @@
 
 准备桌面资源和运行库阶段下载 `adwaita-icon-theme` 和 `gnome-themes-extra-data`。Ubuntu 24.04 的默认 Adwaita 图标由前者提供；该版本不提供 `adwaita-icon-theme-full`，不加入下载清单。依据：[Ubuntu 官方包索引](https://packages.ubuntu.com/adwaita-icon-theme)。
 
+## 桌面入口选择
+
+Ubuntu 软件包同时包含主入口 `org.remmina.Remmina.desktop`、文件关联入口 `org.remmina.Remmina-file.desktop` 和 GNOME kiosk 会话入口 `remmina-gnome.desktop`。后者没有 `Icon` 字段，不适合作为 AppImage 主入口。
+
+GStreamer 插件会执行 `"$LINUXDEPLOY" --appdir "$APPDIR"`，没有转交外层 desktop 参数；linuxdeploy 此时从 `usr/share/applications` 选择遇到的第一个 desktop。仅在主命令添加 `--desktop-file` 不能覆盖这次内部调用。
+
+资源准备时将两个辅助入口暂存到 `.remmina-desktop-files/`，部署期间仅保留主入口；封装前恢复两个原文件并删除空暂存目录。处理只发生在 AppDir，不修改宿主文件，不改变辅助入口内容，也不增加公共插件补丁。依据：[GStreamer 插件](https://github.com/linuxdeploy/linuxdeploy-plugin-gstreamer/blob/master/linuxdeploy-plugin-gstreamer.sh)、[linuxdeploy 主入口选择](https://github.com/linuxdeploy/linuxdeploy/blob/07333c6e942c7d71782b66be924c5d867f9dfdfc/src/core.cpp)、[Remmina 的 GNOME 会话入口](https://github.com/FreeRDP/Remmina/blob/bb33690d870e9121379ad86e8dec019e06695c96/data/desktop/remmina-gnome.desktop)。
+
 ## AppRun 中保留的兼容处理
 
 | 处理 | 原因 |

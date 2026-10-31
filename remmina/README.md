@@ -38,6 +38,19 @@ remmina/patches/fix_runtime.sh
 
 ## 变更记录
 
+### 2026-11-01：避免 GStreamer 部署误选辅助桌面入口
+
+- 故障依据：[Actions run 41220793043 的 Build Remmina](https://github.com/newyorkthink/linux-packaging/actions/runs/41220793043/job/124594759881)。GStreamer 插件内部再次调用 linuxdeploy，未指定 desktop；自动选择了没有 `Icon` 字段的 `remmina-gnome.desktop`，退出码为 1。原始日志：
+
+  ```text
+  [gstreamer/stdout] WARNING: No desktop file specified, using first desktop file found: AppDir/usr/share/applications/remmina-gnome.desktop
+  [gstreamer/stdout] ERROR: Icon entry missing in desktop file: AppDir/usr/share/applications/remmina-gnome.desktop
+  ERROR: Failed to run plugin: gstreamer (exit code: 1)
+  ```
+
+- 处理：`patches/prepare_runtime.sh` 在依赖部署前，将 `remmina-gnome.desktop` 和 `org.remmina.Remmina-file.desktop` 暂存到 AppDir 内的 `.remmina-desktop-files/`，使 applications 目录仅保留主入口 `org.remmina.Remmina.desktop`；`patches/fix_runtime.sh` 在依赖部署完成后恢复原文件并移除空暂存目录。不删除或修改辅助入口的内容。
+- 检查范围：两个 helper 的语法及临时目录中的 desktop 暂存、选择和恢复；未执行实际打包或实机运行。主 build、公共脚本、workflow 和其他项目保持原样。
+
 ### 2026-11-01：修正 Ubuntu 24.04 的图标资源包名
 
 - 故障依据：[Actions run 41219755183 的 Build Remmina](https://github.com/newyorkthink/linux-packaging/actions/runs/41219755183/job/124591702545)。下载图标与主题资源时，APT 因 `adwaita-icon-theme-full` 没有候选版本而退出，退出码为 100。原始错误：

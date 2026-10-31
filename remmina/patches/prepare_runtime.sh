@@ -18,6 +18,15 @@ APPDIR="$(cd -- "$1" && pwd -P)"
 DESKTOP_FILE="$APPDIR/usr/share/applications/org.remmina.Remmina.desktop"
 sed -E -i 's|^Exec=remmina-file-wrapper(.*)$|Exec=remmina\1|' "$DESKTOP_FILE"
 
+# Remmina 的辅助桌面入口会干扰 linuxdeploy 自动选择，部署期间暂存这两个文件，仅保留主入口。
+DESKTOP_BACKUP_DIR="$APPDIR/.remmina-desktop-files"
+mkdir -p "$DESKTOP_BACKUP_DIR"
+for desktop_file in remmina-gnome.desktop org.remmina.Remmina-file.desktop; do
+  if [[ -f "$APPDIR/usr/share/applications/$desktop_file" ]]; then
+    mv "$APPDIR/usr/share/applications/$desktop_file" "$DESKTOP_BACKUP_DIR/"
+  fi
+done
+
 # Remmina 的插件路径编译为绝对路径，保留插件原布局，并额外准备运行时插件目录。
 RDP_PLUGIN="$(find /usr/lib -type f -name 'remmina-plugin-rdp.so' -print -quit)"
 [[ -n "$RDP_PLUGIN" ]] || { echo "错误：构建环境中缺少 Remmina RDP 插件。" >&2; exit 1; }

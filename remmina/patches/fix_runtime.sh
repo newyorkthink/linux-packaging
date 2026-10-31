@@ -138,3 +138,14 @@ find "$APPDIR/usr/lib" -maxdepth 1 \( -type f -o -type l \) -print | while IFS= 
     rm -f "$library"
   fi
 done
+
+# linuxdeploy 部署完成后恢复 Remmina 的辅助桌面入口，最终产物保留原文件。
+DESKTOP_BACKUP_DIR="$APPDIR/.remmina-desktop-files"
+if [[ -d "$DESKTOP_BACKUP_DIR" ]]; then
+  for desktop_file in remmina-gnome.desktop org.remmina.Remmina-file.desktop; do
+    if [[ -f "$DESKTOP_BACKUP_DIR/$desktop_file" ]]; then
+      mv "$DESKTOP_BACKUP_DIR/$desktop_file" "$APPDIR/usr/share/applications/"
+    fi
+  done
+  rmdir "$DESKTOP_BACKUP_DIR"
+fi
