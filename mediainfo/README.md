@@ -12,6 +12,10 @@
 
 正式构建通过 `.github/workflows/build.yml` 的 Ubuntu 24.04 独立 Job 执行。应用清单 `.github/appimage-apps.json` 当前指向 `mediainfo/build_mediainfo_linuxdeploy.sh`，并将该项目标记为 Ubuntu 特例。
 
+## 标准参考与专属差异
+
+本目录是 CLI / 无框架插件类型标准参考，统一规则见 [linuxdeploy 规范](../linuxdeploy_projects.md)。公共注释逐字复用 [固定注释标准](../docs/linuxdeploy-comments.md)；当前包的图标、desktop 和依赖说明见 [专属差异](./docs/template-deviations.md)，不作为所有 CLI 程序的默认步骤。
+
 ## 技术栈
 
 - MediaInfo CLI 为 C / C++ 命令行程序，核心运行库为 `libmediainfo` / `libzen`。

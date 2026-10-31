@@ -22,6 +22,8 @@
 
 ## 应用配置说明文件
 
+**linuxdeploy 项目的专属差异统一简记在 `<应用目录>/docs/template-deviations.md`：处理位置、原因、必要代码或依据。** 软件专属注释也放在那里，不加入公共注释表；已有 `hardcoded.md` 和故障历史保留，不重复扩写同一说明。下面的多文件约定继续用于其他打包路线。
+
 每个应用的 `docs/hardcoded.md` 和 `docs/template-deviations.md` 采用相同的用途约定，正文只记录所属应用的实际配置。明确决定暂不采用 pkgforge-dev 专属处理时，另用 `docs/pkgforge-differences.md` 保存原文、作用和未采用状态。这些文件都是维护说明，不参与打包执行，也不构成修改授权。
 
 | 文件 | 说明什么 | 什么时候查看或更新 |
@@ -47,8 +49,8 @@
 | [Anylinux / quick-sharun 规范](../anylinux_projects.md) | Arch、sharun、AppDir、中文环境、输入模块、platforminputcontexts、自动收集、`.env`、Qt 主题插件、qt6ct、kvantum、lxqt-qtplugin、有窗口的 Qt 程序、Electron、程序目录、直接下载标准模板、公共版本读取、单行保存、行数与空行、暂不采用官方处理、加入前重新核实 |
 | [打包分类](./packaging-classification.md) | quick-sharun、Electron、Qt、linuxdeploy、直接下载标准、系统安装、参数差异 |
 | [上游打包参考索引](./upstream-packaging-index.md) | 当前 AppImage 项目、目录排序、pkgforge-dev、上游仓库、固定 commit、依赖脚本、封装脚本、workflow、差异说明 |
-| [linuxdeploy 规范](../linuxdeploy_projects.md) | Ubuntu runner、唯一脚本模板、逐字逐行、85 行、29 行空行、固定注释与行距、禁止 Docker、特殊差异说明与审批、公共入口、AppRun、appimagetool |
-| [linuxdeploy 固定注释标准](./linuxdeploy-comments.md) | Joplin 通用原文、GTK、Qt、固定分区、逐字复用、问题处理原因、适用条件、禁止应用名前缀 |
+| [linuxdeploy 规范](../linuxdeploy_projects.md) | Joplin / GTK、XnView MP / Qt、MediaInfo / CLI 三个标准参考、Ubuntu runner、禁止 Docker、公共流程、项目专属差异 |
+| [linuxdeploy 固定注释标准](./linuxdeploy-comments.md) | 仅收录跨项目公共注释、APT 同版本解包、GTK、Qt、固定分区、逐字复用；不收录软件专属注释 |
 | [AppImage 构建依赖清单](./appimage-build-dependency-list.md) | 基础包、Qt5 / Qt6、GTK、功能依赖 |
 | [公共脚本入口](../common/README.md) | 下载、AUR DEB 来源与摘要、解包、依赖、公共版本来源、可选构建元数据、版本保存 |
 | [appimagetool 图标检查与 SVG 兼容处理](./appimagetool-icon-compatibility.md) | 上游图标变更、.DirIcon、PNG / SVG / XPM、librsvg2-bin、公共准备入口、最终封装 |

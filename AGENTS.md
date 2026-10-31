@@ -345,35 +345,20 @@ Plan 的选择规则：
 
 ## 永久规则：任何 linuxdeploy 打包必须严格遵守 linuxdeploy_projects.md（不可豁免）
 
-**凡构建脚本、workflow 或其他正式流程实际调用 `linuxdeploy`，无论是新增应用、迁移项目、修改脚本、修复故障、重做打包还是整理既有实现，都必须先完整阅读并严格遵守根目录 [`linuxdeploy_projects.md`](./linuxdeploy_projects.md) 的全部做法。该文件是本仓库所有 linuxdeploy 打包的强制实施规范，不是参考、建议、示例或可选模板。**
+**所有实际调用 linuxdeploy 的项目，均须先完整阅读并严格遵守 [linuxdeploy_projects.md](./linuxdeploy_projects.md)。** 标准参考为 [Joplin（GTK）](./joplin/build_joplin.sh)、[XnView MP（Qt）](./xnviewmp/build_xnviewmp.sh) 和 [MediaInfo（CLI）](./mediainfo/build_mediainfo_linuxdeploy.sh)，不得另造模板或混用其他打包路线。
 
-**所有 linuxdeploy 项目一律以 [`joplin/build_joplin.sh`](./joplin/build_joplin.sh) 为唯一标准模板。当前基线共 85 行，其中 29 行为空行、56 行为非空行；完整原文和空行位置以 `linuxdeploy_projects.md` 为准。** 依赖参数及 AppRun 的应用专属配置由各程序实际需要确定；除这些已明确说明并获准的应用差异外，通用部分的字符、字数、注释、标点、命令写法、排列顺序、缩进、空格、总行数和空行位置必须逐字逐行一致。聊天拟稿、修改方案和实际文件全部适用。
-
-**依赖安装行的软件包清单不是固定值，AppRun 的真实入口、参数、搜索路径、Qt / GTK 等框架专属配置及语言、输入法、主题兼容项也不是固定值。** 必须按当前程序的实际依赖、包内布局、技术栈及已验证需求确定，不机械照抄 Joplin，也不得借此删改当前程序的稳定配置。公共安装调用保持原位置和单行写法；AppRun 通用结构、通用注释、三个 `/usr` 基础搜索目录及保留 `"$@"` 的启动方式仍按模板。增删专属配置行时必须说明并记录具体代码、依据、空行与行数变化；85 行、29 行空行仅为 Joplin 完整基线，不用无关内容凑数。
-
-**模板没有的代码、变量、函数、检查、复制、循环、desktop 修正、wrapper、环境设置和步骤，一律禁止自行添加；模板已有内容也不得自行删减、移动、拆分、合并或改写。** 命令必须保持原有单行写法，禁止为了排版加入反斜杠续行；模板中已经验证的同一行命令必须原样保留。本要求优先于其他关于长参数换行、横向模板参考和按技术栈自行补充步骤的一般说明。
-
-**任何通过 linuxdeploy 打包的项目一律禁止使用 Docker。** 构建脚本、workflow、公共入口、应用 helper 和容器 Action 均不得直接或间接通过 Docker 执行打包；实际构建直接运行在 GitHub Actions Ubuntu runner 中。不得以隔离、依赖、Qt / GTK、程序布局或旧实现为由套容器，特殊差异审批也不能豁免。
-
-特殊情况必须先说明应用、文件与模板行号，完整列出模板原文和拟用代码、相邻空行、实际问题与原始依据、公共入口为何不能覆盖、增加或删除的行数、调整后的总行数与空行数、影响及验证边界；用户针对该清单明确同意后才可实施，并在同一次修改中维护该应用的 `docs/template-deviations.md` 和 README 入口。Qt / GTK 变更、删除不适用段落、额外运行库、输入法、desktop / icon、qmake wrapper 和 AppRun 路径整理都不自动构成例外。未涉及的模板正文保持逐字一致，禁止用占位内容凑行数。
-
-本节后续技术要求用于核对当前应用及已获批准的差异，不授权自行增加模板外内容，也不授权批量修改本次未指定的应用。不得为了模板一致而擅自删除已验证有效的处理；必须先说明其相对模板的差异并取得本次授权。
-
-强制范围：
-
-- 不得只阅读本文件中的 linuxdeploy 摘要；开始处理任何 linuxdeploy 项目前，必须同时完整阅读 `linuxdeploy_projects.md`，并按其中规定的实际顺序、路径、命令和最终封装方式执行。
-- 普通、Qt、GTK、GStreamer 及任何其他使用 linuxdeploy 的项目全部受此规则约束；不得以技术栈、上游包格式、历史脚本、现有 README、旧 workflow、其他项目模板或“当前项目特殊”为理由绕过。
-- 无论上游 DEB、归档或安装结果把真实程序放在 `/opt`、`/usr/bin` 还是其他目录，linuxdeploy 的基础调用形式都不得随布局改变：普通项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，GTK 项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage`，Qt 项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage`。`--desktop-file`、`--icon-file` 和精确的 `-l <库路径>` 只有在按上述特殊差异流程说明完整代码、必要性、行数变化并获得本次明确同意后才可追加；禁止追加 `--executable`，也禁止擅自增加其他未经本规范确认的 linuxdeploy 参数。
-- 必须遵守 `linuxdeploy_projects.md` 规定的完整链路：先由项目脚本单行调用 `common/linuxdeploy/initialize_appdir.sh`，其内部在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，仅由 linuxdeploy 创建 `usr/bin`、`usr/lib`、`usr/share` 等基础目录；再下载应用，按上游真实布局解包到 AppDir，同时把发行版软件包装入构建环境供依赖扫描；随后写完整根 `AppDir/AppRun`；最后按技术栈执行第二次 linuxdeploy 并保留 `--output appimage`，由当前官方插件完成资源部署，并仅在插件自身实际生成 hook 时由 linuxdeploy 自动处理顶层 `AppRun` 和 `AppRun.wrapped`，禁止手工补 hook 或包装层；首次打包或第二次 linuxdeploy 后目录尚未由用户确认时必须保留 `common/linuxdeploy/normalize_apprun_paths.sh` 调用；用户确认最终成品没有问题后，再从当前仓库 Release 成品的实际解包结果或用户提供的最终成品解包截图中核对目录和 AppRun，把确认过的路径型 `export` 原样固化回构建脚本写入的根 AppRun，同时删除该项目的整理脚本调用；最后再使用官方 appimagetool 和明确的 Type 2 runtime 重新封装正式资产。
-- 第一次针对空 AppDir 的命令只用于创建基础目录，因尚无 desktop 而在输出阶段返回 1 属于正常结果。项目构建脚本只能单行调用 `common/linuxdeploy/initialize_appdir.sh`，不得重复这段命令或添加额外检查；公共入口不得删掉原命令的 `--output appimage`，项目也不得把应用文件提前塞入这次初始化。
-- 发行版仓库提供的应用必须同时执行两条路径：在隔离构建环境中正常安装该应用及依赖；并使用 `apt download` 等对应包管理器下载实际软件包，再把同一包内容解压到 AppDir。网上直接下载的 DEB 也必须同时安装到构建环境并解压到 AppDir；tar、压缩包或 GitHub Release 则按上游布局直接解压到 AppDir，并在构建环境安装其明确依赖。
-- 所有完整根 AppRun 都必须包含 `AppDir/usr/bin`、`AppDir/usr/lib`、`AppDir/usr/share` 三个基础路径，分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`；应用位于 `/opt` 时只能按变量用途追加真实目录，例如程序目录进入 `PATH`、库目录进入 `LD_LIBRARY_PATH`、共享数据目录进入 `XDG_DATA_DIRS`，不得用 `/opt` 路径替代或遗漏 `/usr` 基础路径。Qt、GTK、QML、translations、plugins 等目录继续按最终 AppDir 的实际结构补充。
-- 禁止选择性执行、删减、调换或自行解释上述步骤；尤其不得把核心启动逻辑移到 `AppDir/usr/bin/<程序名>` 后让根 `AppRun` 只做转发，不得发布 linuxdeploy 中间 AppImage，也不得省略最终 appimagetool + Type 2 runtime 封装。
-- 判断 `AppDir/usr/bin/<程序名>` 是否属于应用真实入口时，必须追溯上游 DEB、归档或源码安装结果的原始文件布局，不能只看当前构建脚本最终造出了什么文件。构建脚本自己通过 `cat > "$APPDIR/usr/bin/<程序名>"`、复制、拼接或其他方式生成的转发 wrapper，不属于“上游真实提供的 launcher”，不得作为保留根 `AppRun` 二次转发结构的依据。
-- `linuxdeploy_projects.md` 中关于 Qt `QMAKE`、GTK `DEPLOY_GTK_VERSION`、插件选择、额外 `-l`、工具动态下载、中文说明、检查边界和正式资产位置的规则必须全部按当前应用真实情况执行，不得只挑方便的部分。
-- 所有 Qt linuxdeploy 项目禁止设置 `EXTRA_QT_MODULES` 手工指定模块，包括 `core` 和 `gui`；必须由 Qt 插件从 AppDir 中真实部署的 Qt 库自动识别。上游 Qt 库只在 `/opt` 而无法识别时，按当前应用实际库路径通过允许的精确 `-l` 收集必要库，再检查 Qt 插件的真实产物和兼容性；禁止用手工指定模块掩盖扫描失败。
-- 如果目标项目现有脚本、README、workflow 或历史做法与 `linuxdeploy_projects.md` 冲突，处理该 linuxdeploy 项目时必须以本永久规则和 `linuxdeploy_projects.md` 为准完成最小必要修正；不得引用“旧实现已经这样写”继续保留冲突。
-- 后续修改 linuxdeploy 总体规范时，必须同步保持本文件与 `linuxdeploy_projects.md` 的强制关系和语义一致；不得删除链接、弱化为“可参考”，或把遵守范围缩小到新项目。
+- 通用命令、注释、顺序、缩进和空行逐字保留；命令保持单行，不加反斜杠续行。依赖、路径、AppRun 及框架配置按程序实际需要确定，不照抄其他应用的专属修复，也不为凑行数加入无关内容。
+- [linuxdeploy-comments.md](./docs/linuxdeploy-comments.md) 只收录跨项目共用的固定注释。软件专属的修复、路径调整、补库及其注释放在本项目的 `docs/template-deviations.md`，不加入公共表，也不要求先在公共表登记。
+- linuxdeploy 专属差异和配置只简记处理位置、原因、必要代码或依据，由 README 提供入口；不重复整份脚本或 AppRun。既有 `hardcoded.md` 和故障历史保留，不重复扩写同一说明。此项为 linuxdeploy 文档约定，其他打包路线不变。
+- 增删步骤或调整已确认配置，须先说明具体改动、原因与依据并取得本次明确同意；不得借标准化批量修改未指定的项目。已验证代码、命令和未涉及的注释保持原样。
+- **任何 linuxdeploy 打包一律禁止使用 Docker。** 脚本、workflow、公共入口和应用 helper 均不得直接或间接通过 Docker、Compose 或容器 Action 执行；构建直接使用已确认的 GitHub Actions Ubuntu runner。
+- 按固定顺序复用公共入口：工作区、依赖安装、工具准备、空 AppDir 初始化、应用安装与原布局解包、必要资源、完整根 AppRun、第二次 linuxdeploy、最终 appimagetool 封装。
+- 第一次初始化前不放入应用文件；第二次保留 `--output appimage`，仅启用实际需要的插件。完整启动逻辑写在根 AppRun，保留三个 `/usr` 基础搜索路径并传递 `"$@"`，不得制造不必要的 `usr/bin` 副本或二次转发入口。
+- Qt 主版本必须一致，禁止设置 `EXTRA_QT_MODULES` 绕过识别；额外图标参数和运行库处理必须有当前应用依据并获准。既有已确认的精确收集方式保持不变，禁止 `--executable`。
+- hook 只能由官方插件实际生成；禁止手工补 hook 或伪造 AppRun.wrapped。没有 hook 时使用完整顶层 AppRun，不强求 wrapped。
+- `normalize_apprun_paths.sh` 只在确需整理路径并获准时使用，不是默认步骤。已有临时调用在成品确认前保留；确认后固化准确路径并移除临时调用，已确定项目不反复整理。
+- 只发布官方 appimagetool 配合明确 Type 2 runtime 最终生成的资产，不发布中间包，不因下载或封装失败改变路线。
+- 软件和工具继续动态取得官方版本；修改总体规范时同步保持本节与 `linuxdeploy_projects.md` 一致。检查范围及提交授权继续遵守本文件文首规则。
 
 ## 永久规则：任何 quick-sharun 打包必须严格遵守 anylinux_projects.md（不可豁免）
 
@@ -474,6 +459,8 @@ Plan 的选择规则：
 **任何写死都禁止，除非该程序自己的目录里已经有文档，并且文档里写有当初故障的全部原始记录。没有这份文档，禁止写死。没有故障原始记录，禁止写死。没有例外。**
 
 写死包括路径、文件名、下载地址、版本、命令参数、环境值，以及任何不从当前上游或当前环境取得、而是直接写进脚本、workflow、配置或产物的固定内容。
+
+linuxdeploy 项目的记录位置与简写格式按前述 linuxdeploy 专属文档约定执行；已有记录继续保留。以下 `docs/hardcoded.md` 约定适用于其他打包路线。
 
 每条写死必须先写在该程序自己的目录下的 `docs/hardcoded.md`。不得放在仓库根 `docs/`、其他应用目录，或只写在对话、提交说明里。该文件至少写明这四项，缺一项就不得写死：
 
@@ -990,7 +977,7 @@ AppImage 应只包含应用正常运行所需内容。
 
 1. 项目脚本单行调用 `common/linuxdeploy/initialize_appdir.sh`，由公共入口在空目录执行第一次普通 linuxdeploy，只创建 AppDir 的 `usr/bin`、`usr/lib`、`usr/share` 等基础目录；此时不提前放入应用、desktop、icon 或 AppRun。
 2. 初始化完成后再获取应用：发行版软件包同时安装到隔离构建环境并下载、解压到 AppDir，tar / GitHub Release 按上游布局解压到 AppDir；随后写完整根 `AppDir/AppRun`，第二次 linuxdeploy 再按技术栈部署插件并生成中间 AppImage；只有当前官方插件自身实际生成 hook 时，linuxdeploy 才自动生成对应 `apprun-hooks`、顶层 `AppRun` 和 `AppRun.wrapped`，禁止人工补齐。
-3. 首次打包或最终目录尚未由用户确认时，必须在第二次 linuxdeploy 后调用 `common/linuxdeploy/normalize_apprun_paths.sh`，按最终 AppDir 只整理 `AppRun.wrapped`（没有 wrapped 时为 `AppRun`）中现有的路径型 export；在用户确认最终成品没有问题前不得提前删除该调用。确认后从当前仓库 Release 成品的实际解包结果或用户提供的最终成品解包截图中核对目录和 AppRun，把确认过的路径型 export 原样写回构建脚本生成的根 AppRun，再删除该项目的整理脚本调用。随后官方 appimagetool 使用明确的 Type 2 runtime 对同一个 AppDir 重新封装正式 AppImage，只有这个最终产物可以进入发布目录。
+3. 只有确需整理路径并获准时才调用 `common/linuxdeploy/normalize_apprun_paths.sh`，只处理现有路径型 export；已确认的准确路径直接保留。已有临时调用在成品确认后再固化并移除。最后由官方 appimagetool 配合明确的 Type 2 runtime 封装正式 AppImage，只有最终产物可以发布。
 
 完整顺序、普通 / Qt / GTK 命令、`DEPLOY_GTK_VERSION`、额外 `-l` 库和本地已验证命令统一见根目录 `linuxdeploy_projects.md`。核心结构如下：
 
@@ -1039,7 +1026,7 @@ linuxdeploy 插件分为输入 / bundling 插件和输出插件。输入插件�
 - Qt 插件只解决 Qt 框架资源部署，不替代与主程序主版本一致的 Qt 运行库、qmake / qtpaths 和 plugins，也不替代 linuxdeploy 对普通 ELF 依赖的收集。
 - GTK 插件支持通过 `DEPLOY_GTK_VERSION` 明确 GTK 2 / 3 / 4；已确认主版本时应显式设置，避免依赖自动检测产生歧义。
 - 官方 `linuxdeploy-plugin-gtk` 当前没有复制 GIO dynamic modules。新增、迁移或重做 GTK linuxdeploy 项目时，必须通过 `common/linuxdeploy/prepare_linuxdeploy_tools.sh <工具目录> gtk` 取得经过 Git blob 校验并按需补入 GIO modules 复制逻辑的插件；不得直接下载未修补的官方脚本作为最终构建输入。公共脚本只在上游仍缺少 `gio_moduledir` 时应用一次最小修复，上游加入等价实现后自动跳过。已经验证稳定且本次未涉及的旧项目不为套用该规则批量改写。
-- linuxdeploy 自动发现不到的 `dlopen` 库、NSS / provider、helper 或其他运行时模块，只能根据当前应用的源码、ELF、日志、已有产物或真实运行反馈用 `-l` 精确补入，不得复制其他项目的整组库。
+- linuxdeploy 自动发现不到的 `dlopen` 库、NSS / provider、helper 或其他运行时模块，须根据当前应用的源码、ELF、日志、已有产物或真实运行反馈精确补入；保留本项目已获准的收集方式，不得复制其他项目的整组库。
 - `--plugin <名称>` 与 `--output appimage` 应在第二次 linuxdeploy 命令中同时使用：输入插件部署当前版本实际提供的资源，输出阶段产生中间 AppImage；只有插件自身生成非空 hook 时才由 linuxdeploy 自动生成顶层 AppRun / AppRun.wrapped。
 - 对应应用 README 的“打包方式”必须写清实际启用了哪些输入插件、为什么需要、额外补入了哪些库，以及最终 appimagetool / runtime 封装方式。
 
@@ -1074,7 +1061,7 @@ linuxdeploy 额外规则：
 - AppRun 只加入当前应用真实需要的路径、Qt / GTK 环境和兼容设置，最后直接执行当前应用的真实入口并原样传递 `"$@"`。
 - 第二次按技术栈执行普通、Qt、GTK 或 GStreamer 命令，并且必须保留 `--output appimage`。只有当前官方插件自身实际生成非空 `apprun-hooks` 时，linuxdeploy 输出阶段才会把自定义 `AppRun` 保存为 `AppRun.wrapped`，再生成新的顶层 `AppRun` 加载 hooks 并执行 `AppRun.wrapped`；没有 hook 时完整根 `AppRun` 保持为顶层入口。
 - **禁止手工创建、复制、下载、修改或注入任何 linuxdeploy hook；禁止用空 hook、`true` hook、兼容 hook或占位 hook触发包装；禁止因当前插件没有生成 `AppRun.wrapped` 而自行补造或让构建失败。**
-- 不得手工创建或覆盖 `AppRun.wrapped`，也不得在 linuxdeploy 完成后覆盖它生成的顶层 `AppRun`。首次打包或最终目录尚未由用户确认时，必须在第二次 linuxdeploy 完成后、appimagetool 最终封装前保留 `common/linuxdeploy/normalize_apprun_paths.sh` 调用。该脚本只能整理现有路径型 export，不得改写 hook、`exec` 或其他应用逻辑。用户确认最终成品没有问题后，应从当前仓库 Release 成品的实际解包结果或用户提供的最终成品解包截图中核对 `AppRun.wrapped`（无 wrapped 时为 `AppRun`）及真实目录，把确认过的路径型 export 原样固化回构建脚本生成的根 AppRun，并在同次修改中移除该项目的自动整理调用；不得凭模板、目录名称或未经确认的推测提前固化。
+- 不得手工创建或覆盖 `AppRun.wrapped`，也不得覆盖 linuxdeploy 生成的顶层 hook AppRun。`common/linuxdeploy/normalize_apprun_paths.sh` 只在确需整理路径并获准时使用，且只能修改现有路径型 export。已有临时调用在用户确认成品并核对真实目录后，再将准确 export 固化回构建脚本并移除；已确定的项目不重复加入该调用。
 - linuxdeploy 完成后必须按实际产物核对入口：有官方插件生成的 hook 时核对 `AppRun → AppRun.wrapped` 执行链；没有 hook 时核对完整自定义逻辑仍保留在顶层 `AppRun`。
 - linuxdeploy 输出的 AppImage 只用于完成自身输出阶段，不进入发布目录；最终使用官方 appimagetool 和明确的 Type 2 runtime 对同一个 AppDir 重新封装。
 

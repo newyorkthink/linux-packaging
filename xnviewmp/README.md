@@ -28,7 +28,7 @@ XnView MP 当前稳定版是 Qt6 应用，并自带 Qt、MDK 和 FFmpeg 组件�
 
 应用脚本只保留按指定库名收集必需媒体运行库等 XnView 特有逻辑；通用命令、下载、安装、解包、初始化和最终封装由公共入口负责。linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime 每次构建都由公共脚本取得官方最新版本，不需要人工或 AI 更新工具版本。正式脚本与工作流不提交 GUI smoke test、媒体样例生成或解包测试代码。
 
-通用注释和 Qt 注释逐字复用 [固定注释标准](../docs/linuxdeploy-comments.md)。四条 XnView MP 问题处理注释明确说明图标修正和运行库复制的原因；其他 Qt 设置不使用应用名前缀。完整差异见 [模板差异](./docs/template-deviations.md)，路径和固定参数依据见 [固定配置](./docs/hardcoded.md)。
+本目录是 Qt 类型标准参考，统一规则见 [linuxdeploy 规范](../linuxdeploy_projects.md)。通用与 Qt 注释逐字复用 [固定注释标准](../docs/linuxdeploy-comments.md)；本项目的图标修正、补库、qmake 及输入法说明放在 [专属差异](./docs/template-deviations.md)，不加入公共注释表。既有 [固定配置](./docs/hardcoded.md) 保留，不重复扩写。
 
 ## 官方 DEB 启动入口
 
