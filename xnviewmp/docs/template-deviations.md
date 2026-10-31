@@ -10,10 +10,10 @@
 
 | 所在位置 | 相对 Joplin 的差异 | 原因及边界 |
 | --- | --- | --- |
-| [构建依赖，第 17 行](../build_xnviewmp.sh#L17) | 使用已确认的 Qt6、媒体、Wayland 和 XCB 依赖清单，补入 fcitx5-frontend-qt6。 | 依赖参数按 XnView MP 实际需要及本次授权保留，不照抄 Joplin 的 GTK / Electron 依赖。安装软件包不改变 AppRun 的 IBus Portal 配置。 |
+| [构建依赖，第 17 行](../build_xnviewmp.sh#L17) | 使用已确认的 Qt6、媒体、Wayland 和 XCB 依赖清单，保留 fcitx5-frontend-qt6，并补入 libpipewire-0.3-0t64。 | 依赖参数按 XnView MP 实际需要及本次授权保留，不照抄 Joplin 的 GTK / Electron 依赖。安装软件包不改变 AppRun 的 IBus Portal 配置。 |
 | [工具准备，第 22 行](../build_xnviewmp.sh#L22) | 插件参数使用 qt。 | 当前应用使用 Qt6，通用调用结构和注释保持不变。 |
 | [安装包准备，第 32 行](../build_xnviewmp.sh#L32) | 公共 DEB 入口使用 --checksum 和 XnView 官方清单。 | 官方来源不采用 GitHub Release 资产模板，下载、校验、安装和解包仍由同一公共入口处理。 |
-| [桌面资源与运行库，第 36 行](../build_xnviewmp.sh#L36) | 使用本节下列完整代码，替代不适用的 Joplin 主题和 NSS 收集步骤。 | 官方 desktop 的绝对图标路径被公共封装检查拒绝；Qt 库位于 opt 布局，需按已获准代码供插件识别；包内组件依赖安装包未携带的 PulseAudio / Wayland 系统库。 |
+| [桌面资源与运行库，第 36 行](../build_xnviewmp.sh#L36) | 使用本节下列完整代码，替代不适用的 Joplin 主题和 NSS 收集步骤。 | 官方 desktop 的绝对图标路径被公共封装检查拒绝；Qt 库位于 opt 布局，需按已获准代码供插件识别；包内组件依赖 PulseAudio / Wayland 系统库，运行日志还显示 Qt 动态加载 PipeWire / VA-API 失败。 |
 | [AppRun，第 57 行](../build_xnviewmp.sh#L57) | 使用下列完整 AppRun，保留中文、Qt 路径、缩放、输入法、视频和字体设置。 | 沿用已确认的应用配置，不把 Qt 设置标成 XnView 独有功能，不套用 Joplin 的 GTK schema / GIO 配置。 |
 | [核心打包，第 106 行](../build_xnviewmp.sh#L106) | 使用下列 qmake6 入口和完整 linuxdeploy 命令。 | 历史记录中系统 qmake 曾误加载应用自带 Qt；保留工具隔离入口，向 linuxdeploy 指定包内图标。本次不增加构建阶段的 LD_LIBRARY_PATH。 |
 
@@ -23,7 +23,7 @@
 
 [失败日志](https://github.com/newyorkthink/linux-packaging/actions/runs/41175873664/job/124463228278) 显示 Qt 插件未识别到模块。官方 DEB 的 Qt 库位于 opt/XnView/lib；此次按用户确认的代码复制自带 XCB 平台库，不改为手工指定 EXTRA_QT_MODULES。
 
-桌面入口的图标修正用于通过公共封装检查。PulseAudio 和 Wayland 列表仅覆盖本次已核实并获准补入的系统库，不恢复旧版整组运行库复制。
+桌面入口的图标修正用于通过公共封装检查。运行库列表保留原有 PulseAudio 和 Wayland 库，并按本次日志补入 PipeWire、VA-API 库；不扩大为旧版整组运行库复制。
 
 ```bash
 # 指定 XnView MP 官方安装包中的桌面入口和图标路径，供图标修正及 linuxdeploy 图标部署使用。
@@ -36,8 +36,8 @@ sed -i 's|^Icon=.*|Icon=xnview|' "$DESKTOP_FILE"
 # 复制应用自带的 Qt XCB 平台库，供 Qt 插件识别模块。
 cp -a "$APPDIR/opt/XnView/lib"/libQt6XcbQpa.so* "$APPDIR/usr/lib/"
 
-# XnView MP 的包内组件依赖 PulseAudio 和 Wayland，但官方安装包未携带这些系统库，因此补入 AppDir。
-for runtime_lib in libpulse.so.0 libwayland-client.so.0 libwayland-cursor.so.0 libwayland-egl.so.1; do
+# XnView MP 的包内组件依赖 PulseAudio、Wayland，Qt 多媒体还会动态加载 PipeWire 和 VA-API，因此一并补入对应运行库。
+for runtime_lib in libpulse.so.0 libwayland-client.so.0 libwayland-cursor.so.0 libwayland-egl.so.1 libpipewire-0.3.so.0 libva.so.2 libva-drm.so.2 libva-x11.so.2; do
   # 复制当前运行库及其版本文件。
   cp -a "/usr/lib/x86_64-linux-gnu/${runtime_lib}"* "$APPDIR/usr/lib/"
 done
@@ -45,6 +45,8 @@ done
 # 为 XnView MP 补入的 PulseAudio 库还依赖 libpulsecommon，因此同时复制该配套库。
 cp -a /usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-*.so "$APPDIR/usr/lib/"
 ```
+
+Ubuntu 24.04 的 PipeWire 运行库由 [libpipewire-0.3-0t64](https://packages.ubuntu.com/noble/amd64/libpipewire-0.3-0t64) 提供。Qt 通过 [运行时符号解析](https://github.com/qt/qtmultimedia/blob/v6.8.3/src/multimedia/qsymbolsresolveutils.cpp) 加载相应库；本次将 PipeWire 库和已获准的 VA-API 相关库补入 AppDir 的 usr/lib，交由后续 linuxdeploy 收集可解析的动态依赖。本次只补齐打包收集，不处理 QMutex 内部同步警告，也不宣称已修复部分视频黑屏。
 
 ## 完整 AppRun
 

@@ -97,7 +97,7 @@ NSS 注释按实际运行库需求使用，不因 Joplin 使用 GTK 就认定所
 | XnView MP 的桌面入口和图标变量，用于修正官方 desktop 的图标字段，并向 linuxdeploy 提供包内图标路径。 | `# 指定 XnView MP 官方安装包中的桌面入口和图标路径，供图标修正及 linuxdeploy 图标部署使用。` |
 | XnView MP 官方 desktop 的 Icon 使用绝对路径，公共封装入口会拒绝该值，因此改为对应图标名称。 | `# XnView MP 官方桌面入口使用绝对图标路径，需改为图标名称才能通过公共封装检查。` |
 | 应用自带 Qt 库只在 opt 布局中，linuxdeploy 的 Qt 插件未从 usr/lib 识别到模块；已获准复制自带 XCB 平台库供模块识别。 | `# 复制应用自带的 Qt XCB 平台库，供 Qt 插件识别模块。` |
-| XnView MP 包内组件依赖 PulseAudio 和 Wayland 库，官方安装包未携带对应系统库，因此按已获准的精确库名补入。 | `# XnView MP 的包内组件依赖 PulseAudio 和 Wayland，但官方安装包未携带这些系统库，因此补入 AppDir。` |
+| XnView MP 包内组件依赖 PulseAudio 和 Wayland，运行日志还显示 Qt 动态加载 PipeWire、VA-API 失败，因此在原收集列表中补入对应库。 | `# XnView MP 的包内组件依赖 PulseAudio、Wayland，Qt 多媒体还会动态加载 PipeWire 和 VA-API，因此一并补入对应运行库。` |
 | 在已获准的运行库复制循环中，复制当前选定库及其版本文件。 | `# 复制当前运行库及其版本文件。` |
 | 为 XnView MP 补入 PulseAudio 时，同时收集其依赖的 libpulsecommon 配套库。 | `# 为 XnView MP 补入的 PulseAudio 库还依赖 libpulsecommon，因此同时复制该配套库。` |
 | 已确认系统 qmake 受应用自带 Qt 库影响，需要通过独立入口隔离系统工具的运行库环境。 | `# 创建独立的 Qt 查询工具入口，避免应用自带运行库影响系统工具。` |

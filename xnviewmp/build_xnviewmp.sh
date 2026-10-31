@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ###### 准备构建环境 ######
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg qmake6 qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n qt6-wayland fcitx5-frontend-qt6 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good libpulse0 libpulse-mainloop-glib0 libva2 libva-drm2 libva-x11-2 libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 libudev1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
+"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg qmake6 qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n qt6-wayland fcitx5-frontend-qt6 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good libpipewire-0.3-0t64 libpulse0 libpulse-mainloop-glib0 libva2 libva-drm2 libva-x11-2 libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 libudev1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
 
 ###### 下载打包工具 ######
 
@@ -43,8 +43,8 @@ sed -i 's|^Icon=.*|Icon=xnview|' "$DESKTOP_FILE"
 # 复制应用自带的 Qt XCB 平台库，供 Qt 插件识别模块。
 cp -a "$APPDIR/opt/XnView/lib"/libQt6XcbQpa.so* "$APPDIR/usr/lib/"
 
-# XnView MP 的包内组件依赖 PulseAudio 和 Wayland，但官方安装包未携带这些系统库，因此补入 AppDir。
-for runtime_lib in libpulse.so.0 libwayland-client.so.0 libwayland-cursor.so.0 libwayland-egl.so.1; do
+# XnView MP 的包内组件依赖 PulseAudio、Wayland，Qt 多媒体还会动态加载 PipeWire 和 VA-API，因此一并补入对应运行库。
+for runtime_lib in libpulse.so.0 libwayland-client.so.0 libwayland-cursor.so.0 libwayland-egl.so.1 libpipewire-0.3.so.0 libva.so.2 libva-drm.so.2 libva-x11.so.2; do
   # 复制当前运行库及其版本文件。
   cp -a "/usr/lib/x86_64-linux-gnu/${runtime_lib}"* "$APPDIR/usr/lib/"
 done

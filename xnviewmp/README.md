@@ -61,6 +61,15 @@ AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/X
 
 ## 变更记录
 
+### 2026-10-31：补齐 PipeWire 和 VA-API 动态加载库
+
+- 目标 Linux 运行日志出现 `Couldn't load pipewire-0.3 library`、`Couldn't load va library` 和 `Couldn't load va-drm library`。Qt 使用运行时符号解析加载这些库，仅核对 ELF 直接依赖会遗漏该需求。
+- 在原有 APT 安装行增加 Ubuntu 24.04 的 `libpipewire-0.3-0t64`；原来的 `libva2`、`libva-drm2` 和 `libva-x11-2` 安装参数保持不变。
+- 在原有运行库循环末尾增加 `libpipewire-0.3.so.0`、`libva.so.2`、`libva-drm.so.2` 和 `libva-x11.so.2`，原有库顺序、复制命令和 libpulsecommon 配套库收集保持原样。
+- 同步固定注释、模板差异和固定配置记录；AppRun、qmake6 入口、linuxdeploy 命令、最终封装及工作流均未改动。QMutex 警告不在这次补库的处理范围内。
+- 主脚本及其中生成的 AppRun、qmake6 入口通过 Bash 语法检查，完整 diff 已核对。本次未执行实际打包或运行验证，不把补库写成已经消除全部日志或修复视频黑屏。
+- 来源：[Ubuntu 软件包说明](https://packages.ubuntu.com/noble/amd64/libpipewire-0.3-0t64)、[Qt PipeWire 动态加载](https://github.com/qt/qtmultimedia/blob/v6.8.3/src/multimedia/pipewire/qpipewire_symbolloader.cpp)、[Qt 符号解析](https://github.com/qt/qtmultimedia/blob/v6.8.3/src/multimedia/qsymbolsresolveutils.cpp)。
+
 ### 2026-10-31：写入已确认的完整构建脚本和问题处理注释
 
 - 写入本次确认的 129 行脚本，其中 40 行为空行；通用结构沿用 Joplin，Qt 配置、依赖参数和应用布局按已获准版本保留。

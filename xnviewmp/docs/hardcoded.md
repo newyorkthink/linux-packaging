@@ -22,7 +22,8 @@
 | Icon 字段 | `xnview` | 官方入口原来使用绝对路径，公共封装检查不接受该值，因此改为图标名称。 |
 | Qt 模块识别入口 | `$APPDIR/opt/XnView/lib/libQt6XcbQpa.so*` | 自带 Qt 库位于 opt 布局；按本次获准代码复制到 usr/lib，供 Qt 插件识别模块。 |
 | 系统库来源 | `/usr/lib/x86_64-linux-gnu` | 当前 Ubuntu x86_64 构建环境的运行库目录。 |
-| 已获准复制的库 | libpulse.so.0、libwayland-client.so.0、libwayland-cursor.so.0、libwayland-egl.so.1 | 官方安装包未携带，包内 Qt / MDK 等组件存在对应依赖。 |
+| 已获准复制的库 | libpulse.so.0、libwayland-client.so.0、libwayland-cursor.so.0、libwayland-egl.so.1、libpipewire-0.3.so.0、libva.so.2、libva-drm.so.2、libva-x11.so.2 | 保留包内 Qt / MDK 等组件依赖的库，并补入 Qt 运行时动态加载所需的 PipeWire / VA-API 库。 |
+| PipeWire 构建依赖 | libpipewire-0.3-0t64 | Ubuntu 24.04 中提供 libpipewire-0.3.so.0 的包；在原 APT 安装行补入，不固定软件包版本。 |
 | PulseAudio 配套库 | `/usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-*.so` | 与补入的 PulseAudio 库一并保留其配套依赖。 |
 
 ## AppRun
