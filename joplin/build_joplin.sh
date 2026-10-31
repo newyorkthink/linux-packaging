@@ -1,99 +1,85 @@
 #!/usr/bin/env bash
+
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
 set -Eeuo pipefail
 
+# 获取脚本所在目录的绝对路径。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-# 使用公共工作区入口统一设置路径，并清理、重建标准构建目录。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" joplin
+###### 准备构建目录 ######
 
-DEB_FILE="$SOURCE_DIR/joplin.deb"
+# 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" joplin
 
 ###### 准备构建环境 ######
 
-# 通过公共 APT 入口安装 GTK3 插件、Joplin 运行时和当前脚本明确需要的依赖。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" \
-  dpkg-dev pkgconf \
-  libglib2.0-bin libglib2.0-dev libgirepository1.0-dev \
-  libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev \
-  librsvg2-dev librsvg2-common libpango1.0-dev \
-  ibus-gtk3 libibus-1.0-5 \
-  libasound2 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcairo2 libcups2 \
-  libdbus-1-3 libdrm2 libgbm1 libgdk-pixbuf-2.0-0 libglib2.0-0 libgtk-3-0 \
-  libnotify4 libnspr4 libnss3 libpango-1.0-0 libsecret-1-0 libuuid1 \
-  libappindicator3-1 \
-  libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 \
-  libxfixes3 libxi6 libxinerama1 libxkbcommon0 libxrandr2 libxrender1 \
-  libxshmfence1 libxss1 libxtst6 \
-  xdg-utils shared-mime-info hicolor-icon-theme
+# 安装构建工具和应用所需的依赖包。
+"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev pkgconf libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev librsvg2-dev librsvg2-common libpango1.0-dev ibus-gtk3 libibus-1.0-5 libasound2 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcairo2 libcups2 libdbus-1-3 libdrm2 libgbm1 libgdk-pixbuf-2.0-0 libglib2.0-0 libgtk-3-0 libnotify4 libnspr4 libnss3 libpango-1.0-0 libsecret-1-0 libuuid1 libappindicator3-1 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxinerama1 libxkbcommon0 libxrandr2 libxrender1 libxshmfence1 libxss1 libxtst6 xdg-utils shared-mime-info hicolor-icon-theme
 
 ###### 下载打包工具 ######
 
-# 动态取得 linuxdeploy、GTK 插件、appimagetool 和 Type 2 runtime，并记录可用摘要。
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" gtk
+# 下载并校验打包工具及所需插件，随后加载构建环境配置。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" gtk "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 
 ###### 初始化 AppDir ######
 
-# 通过公共入口运行第一次普通 linuxdeploy，只创建空 AppDir 基础目录。
+# 首次运行 linuxdeploy，创建 AppDir 的基础目录。
 "$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
-###### 下载并准备 Joplin ######
+###### 下载并准备应用 ######
 
-# 公共入口选择正式 semver Release、核对唯一 Linux x64 DEB 与官方摘要，并下载同一资产。
-VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" \
-  "laurent22/joplin" 'Joplin-{version}.deb' "$DEB_FILE")"
+# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
+VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" "laurent22/joplin" 'Joplin-{version}.deb' "$SOURCE_DIR/joplin.deb" "$APPDIR")"
 
-# 把同一官方 DEB 安装到隔离构建环境供依赖扫描，并由公共入口按上游布局解包到 AppDir。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB_FILE"
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$DEB_FILE" "$APPDIR"
+###### 准备桌面资源和运行库 ######
 
-# 通过公共 APT 入口下载并解包 Ubuntu 22.04 的 Adwaita 图标与 GTK 主题包。
-"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" \
-  adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
+# 下载并解包应用所需的图标与主题资源。
+"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
 
-# 规范官方 desktop 条目，并保留 Joplin 的 URI 参数。
-DESKTOP_FILE="$(find "$APPDIR/usr/share/applications" -maxdepth 1 -type f -iname '*joplin*.desktop' -print -quit)"
-sed -i -e 's|^Exec=.*|Exec=joplin %U|' -e 's|^Icon=.*|Icon=joplin|' "$DESKTOP_FILE"
-
-###### 准备兼容运行库 ######
-
-# NSS 核心库和 dlopen 模块必须来自同一套 Ubuntu 22.04 libnss3；复制清单由公共入口统一维护。
+# 复制构建环境中的 NSS 核心库及其配套动态加载模块。
 "$SCRIPT_DIR/../common/linuxdeploy/copy_nss_runtime.sh" "$APPDIR/usr/lib"
 
-###### 核心打包 ######
+###### 准备 AppRun ######
 
-# 最终 AppImage 已解包并实际运行确认，直接写入包含准确路径的完整根 AppRun。
-# GTK linuxdeploy 会自动把它保存为 AppRun.wrapped，并生成加载 GTK hook 的顶层 AppRun。
+# 在 AppDir 根目录创建完整的 AppRun 启动脚本。
 cat > "$APPDIR/AppRun" <<'APPRUN'
 #!/usr/bin/env bash
+
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
 set -Eeuo pipefail
 
+# 获取脚本所在目录的绝对路径。
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-# 保留三个 linuxdeploy 基础目录，并仅把 Joplin 的真实程序 / 库目录加入对应变量。
+# 设置程序、运行库和共享数据的搜索路径。
 export PATH="$HERE/opt/Joplin:$HERE/usr/bin${PATH:+:$PATH}"
 export LD_LIBRARY_PATH="$HERE/opt/Joplin:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+
+# GTK 运行环境：指定 GSettings schema 和 GIO 动态模块的目录。
 export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
 
-# 保留已经通过真实运行确认的深色主题与辅助功能兼容设置。
+# 设置深色主题和辅助功能兼容选项。
 export GTK_THEME=Adwaita-dark
 export NO_AT_BRIDGE=1
 
+# 启动包内程序，并保留传入的命令行参数。
 exec "$HERE/opt/Joplin/joplin" "$@"
 APPRUN
+
+# 为启动脚本添加执行权限。
 chmod +x "$APPDIR/AppRun"
 
-# 公共入口配置 linuxdeploy 通用环境；GTK3 只在当前 GTK 项目中追加。
-source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" \
-  "$TOOLS_DIR" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
+###### 核心打包 ######
 
-# Joplin 使用 GTK3；第二次 linuxdeploy 部署 GTK 资源并完成 AppRun 包装。
+# 指定 GTK 主版本。
 export DEPLOY_GTK_VERSION=3
+
+# 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 
 ###### 整理产物 ######
 
-# 忽略 linuxdeploy 中间 AppImage；公共入口负责正式封装、产物检查、SHA-256 和成功后的版本元数据。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
-  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+# 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
+"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
