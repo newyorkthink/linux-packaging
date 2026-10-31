@@ -48,6 +48,7 @@
 | [打包分类](./packaging-classification.md) | quick-sharun、Electron、Qt、linuxdeploy、直接下载标准、系统安装、参数差异 |
 | [上游打包参考索引](./upstream-packaging-index.md) | 当前 AppImage 项目、目录排序、pkgforge-dev、上游仓库、固定 commit、依赖脚本、封装脚本、workflow、差异说明 |
 | [linuxdeploy 规范](../linuxdeploy_projects.md) | Ubuntu runner、唯一脚本模板、逐字逐行、85 行、29 行空行、固定注释与行距、禁止 Docker、特殊差异说明与审批、公共入口、AppRun、appimagetool |
+| [linuxdeploy 固定注释标准](./linuxdeploy-comments.md) | Joplin 通用原文、GTK、Qt、固定分区、逐字复用、问题处理原因、适用条件、禁止应用名前缀 |
 | [AppImage 构建依赖清单](./appimage-build-dependency-list.md) | 基础包、Qt5 / Qt6、GTK、功能依赖 |
 | [公共脚本入口](../common/README.md) | 下载、AUR DEB 来源与摘要、解包、依赖、公共版本来源、可选构建元数据、版本保存 |
 | [打包 export 登记表](./packaging-export-registry.md) | 环境变量、用途、登记后使用 |

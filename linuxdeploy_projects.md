@@ -2,6 +2,8 @@
 
 本文件是本仓库所有 linuxdeploy 打包项目的强制规范。[`joplin/build_joplin.sh`](./joplin/build_joplin.sh) 是唯一标准模板，不得另选其他应用、上游脚本或自行编写的变体作为模板。
 
+固定注释的唯一用语来源是 [linuxdeploy 固定注释标准](./docs/linuxdeploy-comments.md)。后续聊天拟稿、修改方案和实际脚本只能按用途逐字复用其中的固定原文；通用、GTK 和 Qt 注释不得添加应用名前缀。问题处理注释只适用于已核实且获准的对应场景，不得据此向其他程序复制处理代码。未登记的新用途必须先说明并经用户确认补入该文档，禁止自行编写新表述。
+
 ## 强制规则：禁止使用 Docker
 
 **任何通过 linuxdeploy 打包的项目，一律禁止使用 Docker。** 构建脚本、workflow、公共入口和应用专用脚本均不得直接或间接调用 Docker，不得通过 Dockerfile、Compose、容器 Action 或额外容器包装执行这条打包链路。
