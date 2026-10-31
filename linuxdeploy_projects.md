@@ -1,17 +1,151 @@
 # linuxdeploy 项目清单与打包规范
 
-本文件记录当前仓库实际调用 `linuxdeploy` 的项目，并规定以后新增、迁移或重做 linuxdeploy 项目的统一流程。
+本文件是本仓库所有 linuxdeploy 打包项目的强制规范。[`joplin/build_joplin.sh`](./joplin/build_joplin.sh) 是唯一标准模板，不得另选其他应用、上游脚本或自行编写的变体作为模板。
 
-本规范基于以下证据整理：
+## 强制规则：禁止使用 Docker
 
-- 当前仓库全部 linuxdeploy 构建脚本；
-- 用户本地已经实际使用的两阶段命令；
-- 用户提供的 PeaZip 与 File Roller AppImage 解包结果；
-- linuxdeploy、linuxdeploy-plugin-qt、linuxdeploy-plugin-gtk 和 Type 2 runtime 的实际行为。
+**任何通过 linuxdeploy 打包的项目，一律禁止使用 Docker。** 构建脚本、workflow、公共入口和应用专用脚本均不得直接或间接调用 Docker，不得通过 Dockerfile、Compose、容器 Action 或额外容器包装执行这条打包链路。
 
-历史样本解包后都确认存在顶层 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks/`：当时的 PeaZip 顶层 AppRun 自动加载 `linuxdeploy-plugin-qt-hook.sh`，File Roller 顶层 AppRun 自动加载 `linuxdeploy-plugin-gtk.sh`，随后执行 `AppRun.wrapped`。这些样本证明第二次 linuxdeploy 必须保留 `--output appimage`，但不证明当前每个插件版本都会生成 hook；例如当前官方 Qt 插件会跳过 Qt6 hook。最终结构必须以当前官方工具实际产物为准，禁止为了复刻历史样本手工补 hook。
+实际打包必须直接在 GitHub Actions 的 Ubuntu runner 中执行。不得以环境隔离、Qt / GTK 版本、依赖扫描、安装包布局或旧脚本已经使用为由加入 Docker。特殊差异说明和审批也不能豁免这条禁令。
 
-已经验证稳定的现有项目继续以自身 README 和脚本为稳定基线；不得为了套用本文模板而顺手重写稳定项目。
+## 唯一标准模板：逐字逐行遵循 Joplin
+
+**凡实际调用 linuxdeploy 的项目，无论技术栈、安装包格式或程序目录布局，都必须以 Joplin 脚本为唯一模板，逐字逐句、逐行逐处对齐。** 本要求同时适用于聊天拟稿、修改方案和实际文件。
+
+只允许在模板原有位置替换当前应用的软件名称、软件包及依赖参数、下载来源参数、文件路径和真实启动参数。参数以外的全部字符、字数、标点、引号、命令写法、变量顺序、分区标题、通用注释、缩进、空格、行数和空行必须完全一致；参数值长度不同不构成改写周围内容的理由。
+
+模板没有的代码、变量、函数、检查、复制、循环、桌面入口修正、wrapper、环境变量和执行步骤，一律不得自行添加。模板已有内容也不得自行删除、移动、拆分、合并或换词。技术栈变化、需要删除不适用的 GTK 代码、增加 Qt 配置或使用其他公共入口，均须先按下节说明精确差异并获得明确同意。
+
+命令保持模板中的单行写法，禁止添加反斜杠续行。模板已有的 `export ARCH=x86_64; linuxdeploy ...` 必须整行保留，不得拆分。文件使用 LF 换行，末尾保留一个换行符；行距以空行的位置和数量为准，不得用占位命令、无关注释或额外空行凑行数。
+
+### 固定行数与位置
+
+当前基线为 [提交 86ad3f2 中的原脚本](https://github.com/newyorkthink/linux-packaging/blob/86ad3f255081b171d46a272b5a46f70318dbff86/joplin/build_joplin.sh)。该快照用于核对已确认原文，不用于固定应用或打包工具版本。开始任务时仍须读取最新 main；模板发生变化时须先确认变更，禁止自行切换基线。
+
+| 核对项 | 固定要求 |
+| --- | --- |
+| 总行数 | 85 行，包括脚本内部生成的 AppRun。 |
+| 空行数 | 29 行。 |
+| 非空行数 | 56 行。 |
+| 空行位置 | 第 2、5、8、10、13、15、18、20、23、25、28、30、33、35、38、41、43、47、50、53、58、62、66、70、73、75、78、81、83 行。 |
+| 分区标题 | 9 个，分别位于第 9、14、19、24、29、34、42、74、82 行。 |
+| 注释与字数 | 通用注释逐字复制，包括标点，不作润色、缩写或同义改写。 |
+| 代码与空白 | 参数以外的每个字符、缩进、空格和空行逐处一致。 |
+
+没有获批特殊差异时，必须同时满足以上要求。已获批准的差异只能改变记录中列明的具体位置，其他行仍须与模板原文一致。
+
+### 特殊情况必须逐项说明
+
+特殊情况不能由 AI 自行认定后直接写入。必须先在聊天中列出以下内容，并在用户针对该清单明确同意后实施；聊天拟稿也不得先混入尚未说明的差异。
+
+| 必须说明的内容 | 具体要求 |
+| --- | --- |
+| 应用与位置 | 写明文件路径、模板行号、所在分区和实际使用者。 |
+| 模板原文 | 原样列出本次涉及的完整注释和命令，不用省略号替代。 |
+| 拟用代码 | 完整列出准备新增、删除或替换的内容，包括相邻空行。 |
+| 必要性与依据 | 说明解决的实际问题，提供包内布局、原始日志、源码或已确认运行结果；不得只写程序特殊、原脚本已有或为了兼容。 |
+| 公共能力覆盖 | 说明模板、安装包和现有公共入口为什么不能直接满足需要；通用能力不得重复写在应用脚本中。 |
+| 行数与字符差异 | 写明增加、删除的行数，调整后的总行数、空行数和受影响的字符；未涉及部分保持逐字一致。 |
+| 影响与验证 | 说明依赖、启动、资源部署、输出和验证范围，不把语法检查当作运行通过。 |
+| 授权与记录 | 明确本次决定和授权范围，并在同一次修改中写入该应用的 `docs/template-deviations.md`，由应用 README 提供入口。 |
+
+涉及固定配置时同步维护该应用的 `docs/hardcoded.md`；涉及 pkgforge-dev 专属代码时同时按 `AGENTS.md` 维护来源和采用、未采用记录。记录必须列出实际完整代码及位置，不能只写采用、保留或参考官方。
+
+删除 GTK 专属段、设置 Qt 查询工具、增加 Qt 路径、修正 desktop / icon、复制额外运行库、创建查询工具 wrapper、增加输入法或显示选项、调用 AppRun 路径整理入口，都属于需要说明的差异，不因常见或已有而自动允许。不得为了模板一致而擅自删除已经验证有效的处理；需要保留时应明确记录并取得本次授权。
+
+Docker 不属于可批准的特殊情况。`--executable`、手工创建 hook 或 AppRun.wrapped、发布中间 AppImage 等现有禁令也不得通过差异说明绕过。
+
+### Joplin 标准原文
+
+以下代码与当前基线脚本逐字一致，共 85 行；这是唯一完整模板。代码中的应用参数属于 Joplin，其他应用只能按前述参数替换和差异审批规则处理，不得机械复制不适用的依赖或兼容配置。
+
+```bash
+#!/usr/bin/env bash
+
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
+set -Eeuo pipefail
+
+# 获取脚本所在目录的绝对路径。
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+###### 准备构建目录 ######
+
+# 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" joplin
+
+###### 准备构建环境 ######
+
+# 安装构建工具和应用所需的依赖包。
+"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev pkgconf libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev librsvg2-dev librsvg2-common libpango1.0-dev ibus-gtk3 libibus-1.0-5 libasound2 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcairo2 libcups2 libdbus-1-3 libdrm2 libgbm1 libgdk-pixbuf-2.0-0 libglib2.0-0 libgtk-3-0 libnotify4 libnspr4 libnss3 libpango-1.0-0 libsecret-1-0 libuuid1 libappindicator3-1 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxinerama1 libxkbcommon0 libxrandr2 libxrender1 libxshmfence1 libxss1 libxtst6 xdg-utils shared-mime-info hicolor-icon-theme
+
+###### 下载打包工具 ######
+
+# 下载并校验打包工具及所需插件，随后加载构建环境配置。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" gtk "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
+
+###### 初始化 AppDir ######
+
+# 首次运行 linuxdeploy，创建 AppDir 的基础目录。
+"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
+
+###### 下载并准备应用 ######
+
+# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
+VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" "laurent22/joplin" 'Joplin-{version}.deb' "$SOURCE_DIR/joplin.deb" "$APPDIR")"
+
+###### 准备桌面资源和运行库 ######
+
+# 下载并解包应用所需的图标与主题资源。
+"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
+
+# 复制构建环境中的 NSS 核心库及其配套动态加载模块。
+"$SCRIPT_DIR/../common/linuxdeploy/copy_nss_runtime.sh" "$APPDIR/usr/lib"
+
+###### 准备 AppRun ######
+
+# 在 AppDir 根目录创建完整的 AppRun 启动脚本。
+cat > "$APPDIR/AppRun" <<'APPRUN'
+#!/usr/bin/env bash
+
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
+set -Eeuo pipefail
+
+# 获取脚本所在目录的绝对路径。
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+# 设置程序、运行库和共享数据的搜索路径。
+export PATH="$HERE/opt/Joplin:$HERE/usr/bin${PATH:+:$PATH}"
+export LD_LIBRARY_PATH="$HERE/opt/Joplin:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+
+# GTK 运行环境：指定 GSettings schema 和 GIO 动态模块的目录。
+export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
+export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
+
+# 设置深色主题和辅助功能兼容选项。
+export GTK_THEME=Adwaita-dark
+export NO_AT_BRIDGE=1
+
+# 启动包内程序，并保留传入的命令行参数。
+exec "$HERE/opt/Joplin/joplin" "$@"
+APPRUN
+
+# 为启动脚本添加执行权限。
+chmod +x "$APPDIR/AppRun"
+
+###### 核心打包 ######
+
+# 指定 GTK 主版本。
+export DEPLOY_GTK_VERSION=3
+
+# 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
+
+###### 整理产物 ######
+
+# 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
+"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+```
 
 ## 当前项目清单
 
@@ -31,113 +165,79 @@
 | RealVNC RVNC Connect | `realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh` | linuxdeploy + GTK 插件 |
 | 腾讯会议 | `wemeet/build_wemeet.sh` | linuxdeploy + Qt 插件 |
 
-仅在 README、注释或说明文字中出现 linuxdeploy，但构建脚本没有实际调用的项目，不计入本清单。
+仅在 README、注释或说明文字中出现 linuxdeploy，但构建脚本没有实际调用的项目，不计入本清单。清单只表示实际使用这条路线，不表示所有既有脚本已经完成模板对齐；本次规范更新不授权批量修改其他应用。
 
-## 新项目必须先横向参考现有实现
+## 既有工具行为与产物证据
 
-开始新增、迁移或重做 linuxdeploy 项目前，必须先完整阅读根目录 `AGENTS.md`、本文件、目标应用 README、构建脚本和对应 workflow，再从本仓库选择至少 2～3 个技术栈与上游包布局最接近的项目横向核对。
+本规范基于以下证据整理：
 
-| 当前项目类型 | 优先参考 |
+- 当前仓库全部 linuxdeploy 构建脚本；
+- 用户本地已经实际使用的两阶段命令；
+- 用户提供的 PeaZip 与 File Roller AppImage 解包结果；
+- linuxdeploy、linuxdeploy-plugin-qt、linuxdeploy-plugin-gtk 和 Type 2 runtime 的实际行为。
+
+历史样本解包后都确认存在顶层 `AppRun`、`AppRun.wrapped` 和 `apprun-hooks/`：当时的 PeaZip 顶层 AppRun 自动加载 `linuxdeploy-plugin-qt-hook.sh`，File Roller 顶层 AppRun 自动加载 `linuxdeploy-plugin-gtk.sh`，随后执行 `AppRun.wrapped`。这些样本证明第二次 linuxdeploy 必须保留 `--output appimage`，但不证明当前每个插件版本都会生成 hook；例如当前官方 Qt 插件会跳过 Qt6 hook。最终结构必须以当前官方工具实际产物为准，禁止为了复刻历史样本手工补 hook。
+
+## 模板与技术说明的边界
+
+处理任何 linuxdeploy 项目前先完整阅读 Joplin 原脚本、本文、当前应用 README 及对应 workflow。其他应用只能用于核实已经出现的技术差异，不能作为第二套模板；其他技术栈、下载格式或旧实现中的额外代码，也不能直接复制进拟稿。
+
+## 标准流程的技术说明
+
+以下内容解释公共入口、打包工具和已经核实的行为，不是另一份模板，也不授权从中挑选代码拼接脚本。涉及与 Joplin 原文不同的调用、参数以外的修改或额外步骤时，必须先执行前述特殊差异流程。
+
+### 公共入口与职责
+
+应用脚本复用下列入口，不重复实现下载、校验、安装、解包或初始化逻辑。入口支持某项能力不等于应用获准额外添加调用；默认调用位置和写法以唯一模板为准。
+
+| 公共入口 | 职责与参数 |
 | --- | --- |
-| 普通 ELF / CLI | MediaInfo、Poppler Utils、Alacritty |
-| Qt 应用 | PeaZip、XnView MP |
-| GTK 应用 | Joplin、百度网盘、Rainlendar2、RealVNC RVNC Connect |
-| GTK + GStreamer / 多插件应用 | Remmina，并同时参考一个普通 GTK 项目 |
-| GSettings、dconf、locale 或多入口应用 | dconf Editor、Poppler Utils，并结合相同技术栈项目 |
+| `common/linuxdeploy/prepare_build_workspace.sh` | 按脚本目录和资产基础名设置工作路径、检查 x86_64，并清理、重建当前应用的标准工作目录。 |
+| `common/apt/install_packages.sh` | 安装基础工具及调用方提供的精确依赖；后续本地 DEB 安装使用 `--no-update`，不重复更新索引。 |
+| `common/linuxdeploy/prepare_linuxdeploy_tools.sh` | 模板使用 `source` 并传入工具目录、插件、中间 AppImage、runtime 四个参数，下载和校验工具后在当前脚本加载通用环境。 |
+| `common/linuxdeploy/configure_environment.sh` | 设置 ARCH、工具 PATH、中间输出和 runtime 等通用环境，由工具准备入口加载；模板不再单独调用。 |
+| `common/linuxdeploy/initialize_appdir.sh` | 接收 AppDir 和已下载的 linuxdeploy 路径，在空目录运行第一次普通 linuxdeploy。 |
+| `common/github/install_and_extract_latest_stable_release_deb.sh` | 默认接收仓库、资产模板、DEB 保存路径和 AppDir，统一下载、校验、安装和解包；所有步骤成功后只向 stdout 返回版本。GitHub 模式可追加 DEB 包名和架构。 |
+| 同一 DEB 入口的 `--checksum` 模式 | 接收 HTTPS 校验清单、完整资产名正则、DEB 保存路径和 AppDir，复用官网清单下载入口；后续安装和解包保持共用。 |
+| `common/apt/download_and_extract_packages.sh` | 只下载调用方指定的图标、主题等 APT 包，并按各自原始布局解包到 AppDir。 |
+| `common/linuxdeploy/copy_nss_runtime.sh` | 复制同一构建环境的 NSS 核心库及其配套动态加载模块。 |
+| `common/linuxdeploy/package_appimage.sh` | 接收 appimagetool、AppDir、正式输出文件、runtime 和软件版本，完成正式封装、SHA-256 输出及成功后的 version.txt 保存。 |
+| `common/download/download_file.sh` | 统一 HTTPS 下载、重试、超时、临时文件及可选 SHA-256 校验。 |
+| `common/download/download_latest_checksum_asset.sh` | 从官方 SHA-256 清单选择并校验最新匹配资产，只返回实际版本；DEB 的安装和解包由组合入口继续处理。 |
+| `common/github/download_latest_stable_release_asset.sh` | 按正式 semver、资产名模板及 GitHub digest 下载并校验，支持可选 DEB 包名和架构核对。 |
+| `common/download/download_json_deb_asset.sh` | 按调用方参数解析官方 JSON 中的版本和 DEB 地址，并校验来源、资产名及 DEB 元数据。 |
+| `common/archive/extract_archive.sh` | 统一解包 DEB 和 tar 系列归档；特殊来源使用时也不在应用脚本重复格式判断。 |
+| `common/linuxdeploy/normalize_apprun_paths.sh` | 仅供已说明并获批的特殊目录情况整理现有路径型 export，不属于 Joplin 默认模板步骤。 |
 
-横向参考只用于比较上游来源、AppDir 布局、AppRun、desktop / icon、插件和动态加载依赖。不得复制另一个项目的整段 Qt、GTK、GStreamer、主题、输入法、多媒体或特殊兼容逻辑。
+工具和应用版本继续通过官方动态入口取得，不固定旧标签、旧提交或旧资产。GTK 插件从官方默认分支动态取得并校验 Git blob SHA；公共入口只在上游仍缺少 GIO modules 复制时补入既有最小修复，上游提供等价能力后跳过。
 
-## 唯一标准流程：先初始化目录，再放入应用，最后由 appimagetool 封装
-
-### 公共下载、初始化与打包工具准备
-
-仓库内可复用公共入口如下：
-
-```bash
-# 下载普通 HTTPS 文件；上游提供摘要时把 SHA-256 作为第三个参数传入
-"$SCRIPT_DIR/../common/download/download_file.sh" "<下载地址>" "<输出文件>" "<SHA-256>"
-
-# 从官方 SHA-256 清单选择、校验并下载最新匹配资产；stdout 返回实际版本
-VERSION="$("$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" \
-  "<官方校验清单 URL>" '<完整资产名正则>' "<输出文件>")"
-
-# 从官方 JSON 元数据提取版本和 DEB URL，并按调用方参数校验后下载；stdout 返回实际版本
-VERSION="$("$SCRIPT_DIR/../common/download/download_json_deb_asset.sh" \
-  "<元数据 URL>" '<版本 jq>' '<资产 URL jq>' '<允许 URL 正则>' \
-  '<资产名-{version}.deb>' '<DEB 包名>' '<架构>' "<输出 DEB>")"
-
-# 从 GitHub 正式 semver Release 选择、校验并下载唯一的 {version} 资产；stdout 返回实际版本
-VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" \
-  "<owner/repo>" '<资产名-{version}.扩展名>' "<输出文件>")"
-
-# 下载 DEB 时可追加包名和架构，由同一公共入口统一核对 DEB 身份与目标架构
-VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" \
-  "<owner/repo>" '<资产名-{version}.deb>' "<输出 DEB>" "<DEB 包名>" "<DEB 架构>")"
-
-# 统一更新 APT 索引并安装当前应用明确需要的软件包
-"$SCRIPT_DIR/../common/apt/install_packages.sh" <软件包名或本地 DEB> [...]
-
-# 只下载指定 APT 包并按各自原始布局解包进目标目录
-"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "<解包目标目录>" <软件包名> [...]
-
-# 统一把 DEB 或 tar 系列归档解包到指定目录
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" "<归档文件>" "<输出目录>"
-
-# 动态下载 linuxdeploy、appimagetool、Type 2 runtime；GTK 项目追加 gtk 参数
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "<工具目录>" gtk
-
-# Qt 项目追加 qt 参数
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "<工具目录>" qt
-
-# 设置标准 source / AppDir / dist / tools 路径、检查 x86_64，并清理、重建工作目录
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "<资产基础名>"
-
-# 复制同一 Debian / Ubuntu 运行环境的 NSS 核心库与 dlopen 模块
-"$SCRIPT_DIR/../common/linuxdeploy/copy_nss_runtime.sh" "$APPDIR/usr/lib"
-
-# 设置技术栈无关的 linuxdeploy 环境；Qt / GTK 变量由项目另行追加
-source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" "<工具目录>" "<中间 AppImage>" "<runtime>"
-
-# 第一次普通 linuxdeploy：在空目录创建 AppDir 基础结构
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR"
-
-# 使用官方 appimagetool 和 Type 2 runtime 最终封装，并输出 SHA-256；已取得软件版本时追加第五参数
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "<appimagetool>" "$APPDIR" "<输出 AppImage>" "<runtime>" "<软件版本>"
-```
-
-项目尚未把工具目录加入 `PATH` 时，可把 linuxdeploy 可执行文件作为第二个参数传入；调用仍只保留一行。
-
-`download_file.sh` 统一处理 HTTPS、失败退出、重试、超时、临时文件和可选 SHA-256 校验；`download_latest_checksum_asset.sh` 统一处理官方清单下载、最新版选择、摘要校验和资产下载，并只把实际版本写到 stdout；`download_json_deb_asset.sh` 统一处理官方 JSON 元数据中的版本 / DEB URL 提取、URL 与文件名约束、DEB 包名 / 版本 / 架构核对和资产下载，应用专用 API、jq 过滤器、域名规则、文件名模板、包名和架构均由调用方传参；`download_latest_stable_release_asset.sh` 复用 GitHub Release 解析与公共下载入口，把“正式 semver + `{version}` 资产模板 + GitHub digest”的解析、拆分、下载和校验收进一处；调用方同时传入 DEB 包名与架构时，再统一核对 DEB 包名和架构。Release 版本由资产模板与 digest 绑定，不强制假设 DEB 内部 `Version` 与 Release tag 完全一致，并只把实际 Release 版本写到 stdout；`install_packages.sh` 统一处理 APT 索引、root / sudo、非交互安装以及公共下载与解析入口所需的基础命令，项目只传应用专用依赖；`download_and_extract_packages.sh` 统一处理“只下载指定 APT 包并解包到目标目录”的场景；`extract_archive.sh` 统一处理 DEB 与 tar 系列归档的格式判断和解包命令；`prepare_build_workspace.sh` 统一检查当前 x86_64 linuxdeploy 架构、设置标准工作路径并清理、重建目录；`copy_nss_runtime.sh` 统一维护当前已验证的 Debian / Ubuntu NSS 核心库和 dlopen 模块复制清单；`configure_environment.sh` 只设置技术栈无关的 linuxdeploy 环境；`initialize_appdir.sh` 统一执行第一次普通 linuxdeploy；`package_appimage.sh` 统一使用官方 appimagetool 和 Type 2 runtime 最终封装、确认正式资产非空并输出 SHA-256；调用方已取得软件版本时可追加第五参数，由该公共入口在最终资产成功生成后写入同目录 `version.txt`。`prepare_linuxdeploy_tools.sh` 每次构建都从各自官方 continuous Release 动态解析当前最新 x86_64 资产与 GitHub 官方 digest，应用脚本和 AI 都不记录或人工更新工具版本；GTK 插件没有 Release 资产，因此从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。官方 GTK 插件当前缺少 GIO modules 复制逻辑，公共脚本只在下载文件仍没有 `gio_moduledir` 时应用已验证的最小修复；上游将来加入后自动跳过。以上文件再交给公共下载脚本取得，不固定工具版本。
+`source` 的环境设置在当前构建脚本中生效，因此模板不再保留第二条独立的环境配置调用。DEB 组合入口负责使用同一份已校验安装包完成安装和解包，应用脚本不再另设下载文件变量并重复这三步。
 
 新增项目或当前修改触及对应代码时，项目脚本对每一次下载、安装、解包或空 AppDir 初始化只能保留一条公共脚本调用命令，并把当前应用的 URL、完整资产名正则、输出路径、版本文件、依赖名称、归档文件或 AppDir 路径作为参数传入。禁止在项目脚本中自行使用 `curl`、`wget`、Release / API 查询、校验清单解析、最新版选择、摘要拼装、`apt-get update`、`apt-get install`、`dpkg-deb -x`、`tar -x`、root / sudo 判断，或重复第一次 linuxdeploy 命令。需要修复通用行为时只修改 `common/` 公共实现；下载后的应用专用文件定位和 AppDir 布局调整仍由项目脚本处理。本规则不授权批量改写本次任务未触及的稳定项目。
 
 GIO dynamic modules 与 GI typelibs、GTK input modules 不是同一类资源。官方插件已经处理 typelibs 和 GTK immodules，但这不能替代 `gio-2.0` modules。新增、迁移或重做 GTK linuxdeploy 项目时不得直接下载未修补的官方 `linuxdeploy-plugin-gtk.sh`；必须给公共工具准备脚本传入 `gtk`，并在第二次 linuxdeploy 后确认最终 AppDir 中存在构建环境实际 `giomoduledir` 对应的模块目录。项目若明确设置 `GIO_MODULE_DIR`，必须指向该 AppDir 内的实际目录，不能指向宿主机。
 
-以上占位符只用于说明接口，正式脚本必须换成当前项目的真实变量。公共脚本属于本仓库自身实现，不得在代码或说明中依赖、调用或提及其他仓库。
+GitHub Release 版本由资产名模板和 digest 绑定，不强制要求 DEB 内部 Version 与 Release tag 完全相同。公共下载、安装及解析入口内部统一处理认证、重试、root / sudo 和非交互安装，调用方不重复实现。公共脚本只能依赖本仓库自身及软件官方来源，不建立外部代码库运行时依赖。
 
 ### linuxdeploy 命令形式固定
 
-linuxdeploy 统一只使用下面三种基础命令，不因应用来自 DEB、tar、GitHub Release，也不因主程序位于 `/opt`、`/usr/bin` 或其他目录而改变：
+以下只列出工具参数的含义，不构成可替换 Joplin 的第二套模板。
 
-```bash
-# 普通应用统一使用此命令
-export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
+| 技术栈 | 输入插件参数 |
+| --- | --- |
+| 普通程序 | 不设置 `--plugin`。 |
+| GTK | `--plugin gtk`。 |
+| Qt | `--plugin qt`。 |
 
-# GTK 应用统一使用此命令
-export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
-
-# Qt 应用统一使用此命令
-export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
-```
-
-项目确有需要时，只允许追加 `--desktop-file`、`--icon-file` 和精确的 `-l <库路径>`。禁止追加 `--executable`，也禁止擅自增加其他未经本规范确认的 linuxdeploy 参数。
+所有类型都保留 `--appdir AppDir` 和 `--output appimage`。改变技术栈和对应代码必须逐项说明相对模板的差异；`--desktop-file`、`--icon-file` 和精确的 `-l <库路径>` 也必须先说明必要性、实际完整命令及行数影响并获得本次授权。禁止追加 `--executable`。
 
 ### 第一步：在空目录运行普通 linuxdeploy，只创建 AppDir 基础目录
 
 应用文件进入 AppDir 之前，项目构建脚本只调用一次公共入口：
 
 ```bash
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR"
+# 首次运行 linuxdeploy，创建 AppDir 的基础目录。
+"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 ```
 
 公共入口内部逐字保留已经验证的 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`。项目脚本不得复制这段实现，只保留上面一行调用；应用各自的 Qt、GTK、QMAKE、NO_STRIP 等环境仍按项目需要在调用前设置。
@@ -152,22 +252,11 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 
 #### Debian / Ubuntu 软件源中的应用
 
-```bash
-# 下载当前软件源实际提供的 DEB
-apt download <软件包名>
-
-# 在隔离构建环境安装同一应用及其依赖
-sudo apt-get install -y <软件包名>
-
-# 通过公共入口把下载得到的同一 DEB 内容解压到 AppDir
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" "./<软件包文件>.deb" "$APPDIR"
-```
-
-正式脚本应使用当前环境实际需要的 root / sudo 调用方式；不能把示例占位符直接提交。
+对应下载、安装和解包必须调用已有公共入口；公共实现不支持当前来源时，先明确说明并扩展公共能力，不得在应用脚本中直接加入 apt 下载、安装或解包命令。来源变化及其相对 Joplin 的完整差异必须先说明并获准。
 
 #### 网上直接下载的 DEB
 
-先校验来源与摘要，再把同一 DEB 安装到隔离构建环境，并调用 `common/archive/extract_archive.sh` 解压到 AppDir。安装和解压必须对应同一个文件，禁止拿不同版本混用。
+由 `common/github/install_and_extract_latest_stable_release_deb.sh` 统一下载、校验、安装并解包同一份 DEB。调用方只保留模板中的一行 VERSION 赋值；官网清单来源使用该入口的 `--checksum` 参数，不再拆成下载、安装、解包三条调用，也不得混用不同版本。
 
 #### tar、压缩包或 GitHub Release
 
@@ -177,37 +266,15 @@ sudo apt-get install -y <软件包名>
 
 所有 linuxdeploy 项目的自定义启动逻辑都必须直接写入根 `AppDir/AppRun`。禁止把启动逻辑写入新建的 `AppDir/usr/bin/<程序名>`，再让根 AppRun 二次转发。
 
-无论应用实际位于 `/opt` 还是 `/usr/bin`，完整根 AppRun 都必须保留以下三项基础路径：
+完整 AppRun 只从唯一模板复制，以下说明各变量的用途，不另提供一份缩写模板。
 
-```bash
-# 让 AppImage 优先找到 AppDir/usr/bin 中的程序
-export PATH="$HERE/usr/bin${PATH:+:$PATH}"
+| 变量 | 必须保留的基础目录 |
+| --- | --- |
+| `PATH` | `$HERE/usr/bin`，用于查找程序。 |
+| `LD_LIBRARY_PATH` | `$HERE/usr/lib`，用于查找运行库。 |
+| `XDG_DATA_DIRS` | `$HERE/usr/share`，用于共享数据、desktop、locale 和 schemas。 |
 
-# 让 AppImage 优先找到 AppDir/usr/lib 中的运行库
-export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
-# 让应用找到 AppDir/usr/share 中的数据、desktop、locale 和 schemas
-export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
-```
-
-应用位于 `/opt` 时，只按每个变量的用途追加真实目录，不能删掉 `usr/bin`、`usr/lib`、`usr/share`：
-
-```bash
-#!/usr/bin/env bash
-
-HERE="$(dirname "$(readlink -f "${0}")")"
-
-# 保留 /usr/bin 基础路径，并加入 /opt 中的真实程序目录
-export PATH="$HERE/opt/<应用>:$HERE/usr/bin${PATH:+:$PATH}"
-
-# 保留 /usr/lib 基础路径，并只加入 /opt 中真实存在的库目录
-export LD_LIBRARY_PATH="$HERE/opt/<应用>/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
-# 所有布局都保留 /usr/share
-export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
-
-exec "$HERE/opt/<应用>/<真实主程序>" "$@"
-```
+应用位于 `/opt` 时，只在模板原位置替换为当前程序和运行库的真实路径，不能删掉三个 `/usr` 基础目录。超出参数值替换的新增、删除和其他环境设置均须按特殊差异流程处理。
 
 Qt 应用再按最终 AppDir 的真实内容加入 `usr/plugins`、`usr/qml`、`usr/translations` 及对应的上游 `/opt` 目录；GTK hook 会处理 GTK 专用目录，但不能因此删除上述三个 `/usr` 基础路径。各变量只加入与自身用途对应的目录，不要求每行目录数量相同。
 
@@ -218,44 +285,14 @@ Qt 应用再按最终 AppDir 的真实内容加入 `usr/plugins`、`usr/qml`、`
 > [!IMPORTANT]
 > **禁止项目脚本、workflow、公共 helper 或 AI 手工创建、复制、下载、修改或注入任何 linuxdeploy hook。禁止空 hook、`true` hook、兼容 hook和占位 hook；当前官方插件没有生成 hook 时，禁止为了得到 `AppRun.wrapped` 无中生有补 hook，也禁止把缺少 `AppRun.wrapped` 当作构建失败。完整根 `AppDir/AppRun` 在无 hook 时就是最终顶层入口。**
 
-普通应用继续执行：
+第二次 linuxdeploy 的原始写法见唯一模板，不再提供另一份可自行复制的脚本。框架差异按下表核实后，仍须逐项说明并获准。
 
-```bash
-# 部署普通应用并处理根 AppRun
-export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
-```
-
-GTK 3 应用执行：
-
-```bash
-# 明确要求 GTK 插件部署 GTK 3
-export DEPLOY_GTK_VERSION=3
-
-# 部署 GTK 资源并生成中间 AppImage；仅使用官方插件实际生成的 hook
-export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
-```
-
-只有主程序真实使用 GTK 2 或 GTK 4 时，才把 `DEPLOY_GTK_VERSION` 改为 `2` 或 `4`。
-
-Qt 应用先确认 Qt 5 / Qt 6，再把大写 `QMAKE` 指向对应 qmake 的真实命令或完整路径：
-
-```bash
-# 指定 Qt 6 qmake
-export QMAKE=qmake6
-
-# 部署 Qt 6 资源并生成中间 AppImage；不得手工补 hook
-export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
-```
-
-```bash
-# 指定 Qt 5 qmake
-export QMAKE=qmake
-
-# 部署 Qt 5 资源并生成中间 AppImage；不得手工补 hook
-export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
-```
-
-Qt 运行库、qmake、plugins、输入上下文和 QML 必须保持同一主版本。能够唯一、正确自动识别 qmake 时可以不设置 `QMAKE`；否则必须使用 `command -v qmake6` 或 `command -v qmake` 核实真实路径。
+| 项目 | 核实要求 |
+| --- | --- |
+| GTK 主版本 | 模板为 `DEPLOY_GTK_VERSION=3`；GTK 2 / 4 必须有主程序实际版本依据，不能自行换值。 |
+| Qt 查询工具 | 大写 `QMAKE` 指向与主程序一致的真实 qmake 命令或完整路径；Qt 6 使用 qmake6，Qt 5 使用 qmake。必须核实当前环境的实际工具路径。 |
+| Qt 资源 | 运行库、qmake、plugins、输入上下文和 QML 必须保持同一主版本。 |
+| 其他输入插件 | 仅在真实依赖及普通 ELF 收集不足的证据明确后说明，不预防性添加。 |
 
 所有 Qt 项目禁止设置 `EXTRA_QT_MODULES` 手工指定模块（包括 `core`、`gui`）。Qt 插件必须从 AppDir 中实际部署的 Qt 库自动识别模块；上游 Qt 库仅位于 `/opt` 导致无法识别时，只能按当前应用实际路径以精确的 `-l` 收集必要 Qt 库，并核对插件生成目录及 Qt 运行库兼容性，不能通过手工指定模块绕过扫描失败。
 
@@ -268,9 +305,9 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage -
 
 不得把该 NSS 列表复制到不需要的项目，也不得使用目录或通配符代替精确库路径。
 
-### 第五步：目录尚不确定时才整理 AppRun 路径
+### 第五步：已获批的特殊目录情况才整理 AppRun 路径
 
-首次打包，或第二次 linuxdeploy 可能新增、删除目录且最终成品尚未由用户确认时，必须在 appimagetool 最终封装之前保留以下调用：
+Joplin 标准模板没有这一步，不得默认给所有项目添加。已有目录证据确实不足、需要路径整理时，先说明相对模板增加的完整代码和空行、原因、总行数变化及验证边界，获准并记录后才保留以下调用。既有已批准调用在成品确认前不得擅自删除：
 
 ```bash
 # 根据最终 AppDir 整理 AppRun.wrapped / AppRun 中已经声明的路径型 export
@@ -351,12 +388,12 @@ GTK plugin 自动生成的 hook 会设置 GTK 数据、schemas、typelib、immod
 
 ## 检查要求
 
-可以在本地、容器或临时目录执行与当前修改直接相关的检查，但不得把 test / smoke 代码写进正式脚本。
+只在获准的 Ubuntu runner 或临时目录执行与当前修改直接相关的检查，不通过 Docker 执行；不得把 test / smoke 代码写进正式脚本。
 
-至少核对：
+首先对照唯一模板核对总行数、29 处空行位置、通用注释全文及每个非参数字符；有获批差异时，同时核对差异清单及调整后的行数。随后只按本次获准范围核对：
 
 - 第一次普通 linuxdeploy 在空目录中创建了 `AppDir/usr/bin`、`AppDir/usr/lib`、`AppDir/usr/share`，且初始化后没有非预期文件；
-- 发行版应用已经同时安装到隔离构建环境并下载、解压到 AppDir；tar / GitHub Release 已按上游真实布局进入 AppDir；
+- 发行版应用已经同时安装到当前 Ubuntu runner并下载、解压到 AppDir；tar / GitHub Release 已按上游真实布局进入 AppDir；
 - 第三步写入的 AppRun 包含三个 `/usr` 基础路径，且路径、引号、工作目录和 `"$@"` 传参正确；
 - 第二次 linuxdeploy 保留 `--output appimage`，并只启用当前技术栈需要的插件；
 - GTK 项目的 `DEPLOY_GTK_VERSION` 与主程序一致；

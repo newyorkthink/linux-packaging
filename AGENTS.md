@@ -347,11 +347,21 @@ Plan 的选择规则：
 
 **凡构建脚本、workflow 或其他正式流程实际调用 `linuxdeploy`，无论是新增应用、迁移项目、修改脚本、修复故障、重做打包还是整理既有实现，都必须先完整阅读并严格遵守根目录 [`linuxdeploy_projects.md`](./linuxdeploy_projects.md) 的全部做法。该文件是本仓库所有 linuxdeploy 打包的强制实施规范，不是参考、建议、示例或可选模板。**
 
+**所有 linuxdeploy 项目一律以 [`joplin/build_joplin.sh`](./joplin/build_joplin.sh) 为唯一标准模板。当前基线共 85 行，其中 29 行为空行、56 行为非空行；完整原文和空行位置以 `linuxdeploy_projects.md` 为准。** 除已明确列出的应用参数替换外，其他字符、字数、注释、标点、命令写法、排列顺序、缩进、空格、总行数和空行位置必须逐字逐行一致。聊天拟稿、修改方案和实际文件全部适用。
+
+**模板没有的代码、变量、函数、检查、复制、循环、desktop 修正、wrapper、环境设置和步骤，一律禁止自行添加；模板已有内容也不得自行删减、移动、拆分、合并或改写。** 命令必须保持原有单行写法，禁止为了排版加入反斜杠续行；模板中已经验证的同一行命令必须原样保留。本要求优先于其他关于长参数换行、横向模板参考和按技术栈自行补充步骤的一般说明。
+
+**任何通过 linuxdeploy 打包的项目一律禁止使用 Docker。** 构建脚本、workflow、公共入口、应用 helper 和容器 Action 均不得直接或间接通过 Docker 执行打包；实际构建直接运行在 GitHub Actions Ubuntu runner 中。不得以隔离、依赖、Qt / GTK、程序布局或旧实现为由套容器，特殊差异审批也不能豁免。
+
+特殊情况必须先说明应用、文件与模板行号，完整列出模板原文和拟用代码、相邻空行、实际问题与原始依据、公共入口为何不能覆盖、增加或删除的行数、调整后的总行数与空行数、影响及验证边界；用户针对该清单明确同意后才可实施，并在同一次修改中维护该应用的 `docs/template-deviations.md` 和 README 入口。Qt / GTK 变更、删除不适用段落、额外运行库、输入法、desktop / icon、qmake wrapper 和 AppRun 路径整理都不自动构成例外。未涉及的模板正文保持逐字一致，禁止用占位内容凑行数。
+
+本节后续技术要求用于核对当前应用及已获批准的差异，不授权自行增加模板外内容，也不授权批量修改本次未指定的应用。不得为了模板一致而擅自删除已验证有效的处理；必须先说明其相对模板的差异并取得本次授权。
+
 强制范围：
 
 - 不得只阅读本文件中的 linuxdeploy 摘要；开始处理任何 linuxdeploy 项目前，必须同时完整阅读 `linuxdeploy_projects.md`，并按其中规定的实际顺序、路径、命令和最终封装方式执行。
 - 普通、Qt、GTK、GStreamer 及任何其他使用 linuxdeploy 的项目全部受此规则约束；不得以技术栈、上游包格式、历史脚本、现有 README、旧 workflow、其他项目模板或“当前项目特殊”为理由绕过。
-- 无论上游 DEB、归档或安装结果把真实程序放在 `/opt`、`/usr/bin` 还是其他目录，linuxdeploy 的基础调用形式都不得随布局改变：普通项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，GTK 项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage`，Qt 项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage`。按项目真实需要只允许追加 `--desktop-file`、`--icon-file` 和精确的 `-l <库路径>`；禁止追加 `--executable`，也禁止擅自增加其他未经本规范确认的 linuxdeploy 参数。
+- 无论上游 DEB、归档或安装结果把真实程序放在 `/opt`、`/usr/bin` 还是其他目录，linuxdeploy 的基础调用形式都不得随布局改变：普通项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，GTK 项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage`，Qt 项目使用 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage`。`--desktop-file`、`--icon-file` 和精确的 `-l <库路径>` 只有在按上述特殊差异流程说明完整代码、必要性、行数变化并获得本次明确同意后才可追加；禁止追加 `--executable`，也禁止擅自增加其他未经本规范确认的 linuxdeploy 参数。
 - 必须遵守 `linuxdeploy_projects.md` 规定的完整链路：先由项目脚本单行调用 `common/linuxdeploy/initialize_appdir.sh`，其内部在空目录执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage`，仅由 linuxdeploy 创建 `usr/bin`、`usr/lib`、`usr/share` 等基础目录；再下载应用，按上游真实布局解包到 AppDir，同时把发行版软件包装入构建环境供依赖扫描；随后写完整根 `AppDir/AppRun`；最后按技术栈执行第二次 linuxdeploy 并保留 `--output appimage`，由当前官方插件完成资源部署，并仅在插件自身实际生成 hook 时由 linuxdeploy 自动处理顶层 `AppRun` 和 `AppRun.wrapped`，禁止手工补 hook 或包装层；首次打包或第二次 linuxdeploy 后目录尚未由用户确认时必须保留 `common/linuxdeploy/normalize_apprun_paths.sh` 调用；用户确认最终成品没有问题后，再从当前仓库 Release 成品的实际解包结果或用户提供的最终成品解包截图中核对目录和 AppRun，把确认过的路径型 `export` 原样固化回构建脚本写入的根 AppRun，同时删除该项目的整理脚本调用；最后再使用官方 appimagetool 和明确的 Type 2 runtime 重新封装正式资产。
 - 第一次针对空 AppDir 的命令只用于创建基础目录，因尚无 desktop 而在输出阶段返回 1 属于正常结果。项目构建脚本只能单行调用 `common/linuxdeploy/initialize_appdir.sh`，不得重复这段命令或添加额外检查；公共入口不得删掉原命令的 `--output appimage`，项目也不得把应用文件提前塞入这次初始化。
 - 发行版仓库提供的应用必须同时执行两条路径：在隔离构建环境中正常安装该应用及依赖；并使用 `apt download` 等对应包管理器下载实际软件包，再把同一包内容解压到 AppDir。网上直接下载的 DEB 也必须同时安装到构建环境并解压到 AppDir；tar、压缩包或 GitHub Release 则按上游布局直接解压到 AppDir，并在构建环境安装其明确依赖。

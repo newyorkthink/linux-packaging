@@ -2,23 +2,36 @@
 
 本目录用于把 Joplin 官方发布的 Linux x64 DEB 重新封装为 `joplin.AppImage`。既有正式包已经实际确认 Joplin 可正常启动、Adwaita 深色主题正常、IBus 中文输入正常；当前脚本保留这些兼容处理，并按仓库统一 linuxdeploy 规范重排打包链路。
 
+## 唯一标准模板
+
+[`build_joplin.sh`](./build_joplin.sh) 是本仓库所有 linuxdeploy 项目的唯一标准模板，完整原文和强制规则见 [`linuxdeploy_projects.md`](../linuxdeploy_projects.md)。
+
+- 当前模板共 85 行，其中 29 行为空行、56 行为非空行，包含 9 个固定分区；脚本内生成的 AppRun 计入总行数。
+- 除当前应用的名称、软件包及依赖参数、下载来源参数、路径和真实启动参数外，其他字符、字数、注释、标点、顺序、缩进、空格、行数及空行位置必须逐字逐行一致。所有命令保持原有单行写法，不添加反斜杠续行。
+- 模板没有的代码、变量、函数、检查、复制、循环、desktop 修正、wrapper 和环境设置不得自行加入；模板已有内容也不得自行删减、移动或换词。
+- Qt / GTK 差异、不同来源和布局、额外运行库、输入法设置等特殊情况，必须先列明模板原文、拟用完整代码、位置、必要性、证据、行数与空行变化及影响，获得明确同意后再实施，并同步记录到对应应用的 `docs/template-deviations.md`。
+- 任何通过 linuxdeploy 打包的项目一律禁止使用 Docker。特殊差异流程不得豁免；已有脚本使用 Docker 也不能作为继续使用的理由。
+
+本目录的实际环境为 GitHub Actions Ubuntu 22.04 runner，直接运行构建脚本，不经过 Docker。已确认有效的 Joplin AppRun、GTK3、IBus/GIO、Adwaita 深色主题和 NSS 处理继续保留，不因其他应用需要调整而改写这个标准模板。
+
 ## 构建来源
 
-- 构建脚本通过 `common/github/download_latest_stable_release_asset.sh` 读取 Joplin 官方 Releases，忽略 draft / prerelease，选择版本号最高且唯一提供 `Joplin-<版本>.deb` 的 Linux x64 正式版本，并在同一公共入口中校验 GitHub Release 提供的 SHA-256 digest 后下载。
+- 构建脚本单行调用 `common/github/install_and_extract_latest_stable_release_deb.sh`，由它复用 `common/github/download_latest_stable_release_asset.sh` 读取 Joplin 官方 Releases，忽略 draft / prerelease，选择版本号最高且唯一提供 `Joplin-<版本>.deb` 的 Linux x64 正式版本，校验 GitHub Release 的 SHA-256 digest 后，将同一份 DEB 安装到构建环境并解包到 AppDir，全部成功后返回版本号。
 - 保留官方 `/opt/Joplin`、`resources/app.asar`、Node 原生模块、desktop 文件和图标，不修改 Joplin 官方 `app.asar`。
 - GitHub Releases API 在 Actions 中优先使用现有 GitHub 认证，避免匿名 API 请求触发限流或 403。
 
 ## 构建环境与依赖
 
-- GitHub Actions 构建环境固定为 `ubuntu-22.04`。
-- 标准 `source` / `AppDir` / `dist` / `source/tools` 工作区和 x86_64 检查由 `common/linuxdeploy/prepare_build_workspace.sh` 统一处理；APT 安装和 DEB 解包分别复用 `common/apt/install_packages.sh` 与 `common/archive/extract_archive.sh`。
-- 同一份官方 DEB 既安装到隔离构建环境供 linuxdeploy 解析依赖，也按上游布局解包到 AppDir。
+- GitHub Actions 构建环境固定为 `ubuntu-22.04`，由 Ubuntu runner 直接执行 `build_joplin.sh`，不使用 Docker、Dockerfile、Compose 或额外容器包装。
+- 标准 `source` / `AppDir` / `dist` / `source/tools` 工作区和 x86_64 检查由 `common/linuxdeploy/prepare_build_workspace.sh` 统一处理；构建依赖通过 `common/apt/install_packages.sh` 安装，官方 DEB 的下载、校验、安装和解包统一由组合入口负责。
+- 同一份官方 DEB 既安装到当前 Ubuntu runner 供 linuxdeploy 解析依赖，也按上游布局解包到 AppDir。
 - 安装 GTK3、GLib/GIO、GDK Pixbuf、Pango、IBus、NSS、X11/Electron 等运行依赖。
 - `ibus-gtk3` 和 `libibus-1.0-5` 负责把 GTK3 的 IBus 输入模块及运行库带入 AppDir；已解包成品可见 `im-ibus.so`、`libibus-1.0.so.5` 等文件，因此运行日志中的 `IBUS-WARNING` 不是构建环境未安装 IBus。不在 AppRun 中强制写死 `GTK_IM_MODULE`、`QT_IM_MODULE` 或 `XMODIFIERS`，输入法选择继续由宿主机会话管理。
 - `adwaita-icon-theme`、`adwaita-icon-theme-full`、`gnome-themes-extra-data` 通过 `common/apt/download_and_extract_packages.sh` 下载并按原始 DEB 布局解包进 AppDir，保证 Adwaita 图标和 GTK 主题资源完整。
 
 ## linuxdeploy 规范流程
 
+- 单行 `source common/linuxdeploy/prepare_linuxdeploy_tools.sh`，传入工具目录、gtk 插件、中间 AppImage 和 runtime 四个参数；下载完成后在当前脚本中加载通用环境，不再单独调用 `configure_environment.sh`。
 - 动态取得 linuxdeploy、官方 GTK 插件、appimagetool 和 Type 2 runtime；GTK 插件上游未提供 Release digest，因此从官方仓库默认分支解析当前文件并核对 Git blob SHA。公共准备脚本随后仅在上游仍缺少时补入已验证的 GIO modules 复制逻辑，并输出最终文件的本地 SHA-256。
 - 单行调用 `common/linuxdeploy/initialize_appdir.sh`，由公共入口在空目录执行原始普通 linuxdeploy 命令。
 - 初始化后才下载官方 DEB；应用主体保持在 `AppDir/opt/Joplin`，不再创建人工 `AppDir/usr/bin/joplin` 二次转发入口。
@@ -44,14 +57,15 @@ libnssutil3.so: version `NSSUTIL_xxx' not found
 `linuxdeploy` 负责整理 AppDir、部署 GTK/运行库依赖并完成 hook 与 AppRun 包装；它生成的 AppImage 只作为中间产物：
 
 ```bash
+# 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 ```
 
 项目脚本最终单行调用 `common/linuxdeploy/package_appimage.sh`；公共入口内部仍由官方 `appimagetool` 使用指定的 Type-2 runtime 封装，并统一负责最终资产非空检查、可执行权限、SHA-256 输出，以及在封装成功后写入版本元数据：
 
 ```bash
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
-  "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+# 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
+"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
 ```
 
 不得把 linuxdeploy 的中间 AppImage 发布为正式资产，也不得因为 appimagetool、runtime、GitHub 或 CDN 的临时网络错误增加自动 fallback 到其他封装方式；下载失败应由当前构建直接失败，后续正常重试。
@@ -100,6 +114,14 @@ libnssutil3.so: version `NSSUTIL_...' not found
 - 本次证据来自用户实际运行；没有把仅靠静态检查的结论写成 GUI 验证结果。
 
 ## 变更记录
+
+### 2026-10-31：确认唯一标准模板并同步公共入口说明
+
+当前标准脚本来自提交 `86ad3f255081b171d46a272b5a46f70318dbff86`，共 85 行、29 行空行。工作区、依赖安装、工具准备、AppDir 初始化、应用准备、桌面资源和运行库、AppRun、核心打包及最终产物整理均按固定位置排列，通用注释和空行属于模板正文。
+
+工具准备已合并为单行 source 调用，下载成功后立即在当前脚本加载构建环境；官方 DEB 已改为单行调用下载、校验、安装和解包组合入口，相关步骤不再分散维护。Joplin 保留官方 desktop，不额外改写 Exec 或 Icon；已验证的根 AppRun、主题、IBus/GIO、NSS 和第二次 linuxdeploy 命令保持原样。
+
+本次更新 README、linuxdeploy 规范、对应 AGENTS 规则和文档索引，明确所有 linuxdeploy 项目必须逐字逐行遵循 Joplin，禁止使用 Docker，特殊差异必须说明完整代码、依据、位置、行数与空行变化，并在获准后记录。本次未修改应用构建脚本或 workflow，既有实机确认范围保持不变。
 
 ### 2026-09-21：复用 linuxdeploy 公共构建入口
 
