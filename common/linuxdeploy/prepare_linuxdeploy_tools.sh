@@ -1,4 +1,40 @@
 #!/usr/bin/env bash
+
+# 被 source 时先独立完成工具下载，再把通用构建环境设置加载到当前脚本。
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  # source 调用必须明确提供工具目录、插件、中间产物位置和 runtime。
+  if [[ $# -ne 4 || -z "${1:-}" || -z "${3:-}" || -z "${4:-}" ]]; then
+    echo "用法：source ${BASH_SOURCE[0]} <工具目录> <gtk|qt|空字符串> <中间 AppImage> <runtime>" >&2
+    return 1
+  fi
+
+  # 只接受现有下载入口支持的插件类型，避免参数错误时仍下载工具。
+  case "$2" in
+    ''|gtk|qt) ;;
+    *)
+      echo "错误：当前不支持的 linuxdeploy 输入插件：$2" >&2
+      return 1
+      ;;
+  esac
+
+  # 在下载前确认环境配置入口可读，已有配置实现继续原样复用。
+  if [[ ! -r "$(dirname -- "${BASH_SOURCE[0]}")/configure_environment.sh" ]]; then
+    echo "错误：linuxdeploy 通用环境配置入口不存在或不可读。" >&2
+    return 1
+  fi
+
+  # 在独立 Bash 进程中执行原有下载流程，保留调用方变量、函数和 Shell 选项。
+  if bash "${BASH_SOURCE[0]}" "$1" "$2"; then
+    # 下载成功后加载环境设置；工具目录使用绝对路径，后续命令可直接调用 linuxdeploy。
+    source "$(dirname -- "${BASH_SOURCE[0]}")/configure_environment.sh" "$(cd -- "$1" && pwd)" "$3" "$4"
+    return
+  else
+    # 下载失败时将原退出状态返回调用方，并跳过后续环境设置。
+    return "$?"
+  fi
+fi
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
