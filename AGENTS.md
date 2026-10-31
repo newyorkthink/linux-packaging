@@ -350,6 +350,8 @@ Plan 的选择规则：
 - 通用命令、注释、顺序、缩进和空行逐字保留；命令保持单行，不加反斜杠续行。依赖、路径、AppRun 及框架配置按程序实际需要确定，不照抄其他应用的专属修复，也不为凑行数加入无关内容。
 - [linuxdeploy-comments.md](./docs/linuxdeploy-comments.md) 只收录跨项目共用的固定注释。软件专属的修复、路径调整、补库及其注释放在本项目的 `docs/template-deviations.md`，不加入公共表，也不要求先在公共表登记。
 - linuxdeploy 专属差异和配置只简记处理位置、原因、必要代码或依据，由 README 提供入口；不重复整份脚本或 AppRun。既有 `hardcoded.md` 和故障历史保留，不重复扩写同一说明。此项为 linuxdeploy 文档约定，其他打包路线不变。
+- linuxdeploy 项目的专属补丁和修复脚本统一放入本项目的 `patches/`：源码或文本补丁使用 `.patch`，资源准备和运行时修复按任务使用 `.sh` 或 `.py`。公共机制仍放在 `common/`，不把单个应用的修复公共化，也不要求每个项目创建相同脚本。
+- 主 build 按实际阶段单行调用 `patches/` 脚本；源码补丁在下载并准备应用时应用，资源准备放在准备桌面资源和运行库，依赖部署后的修复放在整理产物且先于最终封装。完整 AppRun 保留在主 build。旧入口须在调用方获准迁移后再移除，不同时执行新旧修复。
 - 增删步骤或调整已确认配置，须先说明具体改动、原因与依据并取得本次明确同意；不得借标准化批量修改未指定的项目。已验证代码、命令和未涉及的注释保持原样。
 - **任何 linuxdeploy 打包一律禁止使用 Docker。** 脚本、workflow、公共入口和应用 helper 均不得直接或间接通过 Docker、Compose 或容器 Action 执行；构建直接使用已确认的 GitHub Actions Ubuntu runner。
 - 按固定顺序复用公共入口：工作区、依赖安装、工具准备、空 AppDir 初始化、应用安装与原布局解包、必要资源、完整根 AppRun、第二次 linuxdeploy、最终 appimagetool 封装。

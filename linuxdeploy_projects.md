@@ -59,16 +59,26 @@
 
 例如，复制随包发布的运行库属于准备桌面资源和运行库，应在第二次 linuxdeploy 前完成，不得移入核心打包。
 
+### 程序专属补丁与修复脚本
+
+程序专属的补丁和修复脚本统一放在本项目的 `patches/`。源码或文本补丁使用 `.patch`；资源准备、文件整理和二进制路径修复按任务使用 `.sh` 或 `.py`。公共机制仍由 `common/` 提供，不要求每个项目创建相同的脚本。
+
+主 build 按实际阶段单行调用：源码补丁在下载并准备应用时应用，资源准备放在准备桌面资源和运行库，依赖部署后的修复放在整理产物且先于最终封装。完整 AppRun 仍在主 build 中生成，不拆成额外启动入口。各脚本的用途、调用位置和原因简记于本项目的 `docs/template-deviations.md`。
+
+旧修复入口在调用方获准迁移后再移除；新脚本尚未接入时须明确记录，不同时执行新旧修复。
+
 ### 应用来源
 
 | 来源 | 公共入口 |
 | --- | --- |
 | GitHub 正式 Release 的 DEB | `common/github/install_and_extract_latest_stable_release_deb.sh`，返回实际版本。 |
 | 官网校验清单中的 DEB | 同一入口的 `--checksum` 模式；使用同一份已校验 DEB 安装并解包。 |
-| Ubuntu 仓库 | 先通过公共 APT 入口安装，再调用 `common/apt/extract_installed_package.sh <包名> <AppDir>`，下载已安装的同一版本并解包，返回去掉 epoch / revision 的版本号。 |
+| Ubuntu 仓库 | 先通过公共 APT 入口安装，再调用 `common/apt/extract_installed_package.sh <主软件包名> <AppDir> [附加软件包名 ...]`，逐包下载已安装的同一版本并解包，仅返回主软件包去掉 epoch / revision 的版本号。 |
 | 预编译归档 | 通过公共下载入口取得，再调用 `common/archive/extract_archive.sh`；在构建环境安装明确需要的依赖。 |
 
 下载、校验、安装、解包、版本读取和初始化由公共入口负责，应用脚本不重复实现。工具准备入口已加载 `configure_environment.sh`，不再单独调用它。软件和打包工具版本按现有官方动态入口取得，不固定旧版本。
+
+工具准备入口的插件参数支持空字符串、`gtk`、`qt`、`gstreamer`、`gtk,gstreamer` 和 `qt,gstreamer`，只选择当前应用需要的组合；该参数负责下载插件，实际启用仍由 linuxdeploy 命令的 `--plugin` 参数指定。
 
 ### AppRun 与框架配置
 

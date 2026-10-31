@@ -4,13 +4,13 @@
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
   # source 调用必须明确提供工具目录、插件、中间产物位置和 runtime。
   if [[ $# -ne 4 || -z "${1:-}" || -z "${3:-}" || -z "${4:-}" ]]; then
-    echo "用法：source ${BASH_SOURCE[0]} <工具目录> <gtk|qt|空字符串> <中间 AppImage> <runtime>" >&2
+    echo "用法：source ${BASH_SOURCE[0]} <工具目录> <gtk|qt|gstreamer|gtk,gstreamer|qt,gstreamer|空字符串> <中间 AppImage> <runtime>" >&2
     return 1
   fi
 
   # 只接受现有下载入口支持的插件类型，避免参数错误时仍下载工具。
   case "$2" in
-    ''|gtk|qt) ;;
+    ''|gtk|qt|gstreamer|gtk,gstreamer|qt,gstreamer) ;;
     *)
       echo "错误：当前不支持的 linuxdeploy 输入插件：$2" >&2
       return 1
@@ -43,8 +43,17 @@ GITHUB_API="$SCRIPT_DIR/../github/github_api.sh"
 TOOLS_DIR="${1:-}"
 PLUGIN="${2:-}"
 
+# 在下载前检查插件组合，保留原有单插件参数。
+case "$PLUGIN" in
+  ''|gtk|qt|gstreamer|gtk,gstreamer|qt,gstreamer) ;;
+  *)
+    echo "错误：当前不支持的 linuxdeploy 输入插件：$PLUGIN" >&2
+    exit 1
+    ;;
+esac
+
 [[ -n "$TOOLS_DIR" ]] || {
-  echo "用法：$0 <工具目录> [gtk|qt]" >&2
+  echo "用法：$0 <工具目录> [gtk|qt|gstreamer|gtk,gstreamer|qt,gstreamer]" >&2
   exit 1
 }
 [[ -x "$DOWNLOAD_FILE" ]] || {
@@ -110,9 +119,9 @@ download_release_asset AppImage/type2-runtime runtime-x86_64 \
 
 # GTK / Qt 项目按需取得对应的官方 linuxdeploy 输入插件。
 case "$PLUGIN" in
-  '')
+  ''|gstreamer)
     ;;
-  gtk)
+  gtk|gtk,gstreamer)
     # GTK 插件没有 Release 资产；从官方仓库默认分支动态解析当前文件并核对 Git blob SHA。
     command -v sha1sum >/dev/null 2>&1 || {
       echo "错误：缺少 sha1sum。" >&2
@@ -175,7 +184,7 @@ case "$PLUGIN" in
     chmod +x "$TOOLS_DIR/linuxdeploy-plugin-gtk"
     sha256sum "$TOOLS_DIR/linuxdeploy-plugin-gtk"
     ;;
-  qt)
+  qt|qt,gstreamer)
     download_release_asset linuxdeploy/linuxdeploy-plugin-qt linuxdeploy-plugin-qt-x86_64.AppImage \
       "$TOOLS_DIR/linuxdeploy-plugin-qt-x86_64.AppImage"
     chmod +x "$TOOLS_DIR/linuxdeploy-plugin-qt-x86_64.AppImage"
@@ -183,6 +192,38 @@ case "$PLUGIN" in
   *)
     echo "错误：当前不支持的 linuxdeploy 输入插件：$PLUGIN" >&2
     exit 1
+    ;;
+esac
+
+# GStreamer 可单独使用，也可与 GTK / Qt 插件组合使用。
+case "$PLUGIN" in
+  gstreamer|gtk,gstreamer|qt,gstreamer)
+    # 从官方默认分支解析插件地址，并校验下载文件的 Git blob SHA。
+    command -v sha1sum >/dev/null 2>&1 || {
+      echo "错误：缺少 sha1sum。" >&2
+      exit 1
+    }
+    gstreamer_metadata="$(github_api_get "https://api.github.com/repos/linuxdeploy/linuxdeploy-plugin-gstreamer/contents/linuxdeploy-plugin-gstreamer.sh")"
+    gstreamer_url="$(jq -er '.download_url' <<< "$gstreamer_metadata")"
+    gstreamer_blob_sha="$(jq -er '.sha' <<< "$gstreamer_metadata")"
+    [[ "$gstreamer_blob_sha" =~ ^[[:xdigit:]]{40}$ ]] || {
+      echo "错误：官方 GStreamer 插件没有有效的 Git blob SHA。" >&2
+      exit 1
+    }
+    "$DOWNLOAD_FILE" "$gstreamer_url" "$TOOLS_DIR/linuxdeploy-plugin-gstreamer.sh"
+    gstreamer_actual_blob_sha="$({
+      printf 'blob %s\0' "$(stat -c '%s' "$TOOLS_DIR/linuxdeploy-plugin-gstreamer.sh")"
+      cat "$TOOLS_DIR/linuxdeploy-plugin-gstreamer.sh"
+    } | sha1sum | awk '{print $1}')"
+    [[ "$gstreamer_actual_blob_sha" == "$gstreamer_blob_sha" ]] || {
+      echo "错误：GStreamer 插件 Git blob SHA 校验失败。" >&2
+      exit 1
+    }
+
+    # 为已校验的官方插件添加执行权限。
+    bash -n "$TOOLS_DIR/linuxdeploy-plugin-gstreamer.sh"
+    chmod +x "$TOOLS_DIR/linuxdeploy-plugin-gstreamer.sh"
+    sha256sum "$TOOLS_DIR/linuxdeploy-plugin-gstreamer.sh"
     ;;
 esac
 

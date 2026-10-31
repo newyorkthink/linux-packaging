@@ -10,6 +10,10 @@ Remmina 为 GTK3 / C 桌面应用，RDP 使用 FreeRDP 3。当前构建脚本在
 
 现有兼容处理包括 Remmina 插件相对路径、简体中文翻译、Local Terminal / SSH 运行环境、OpenSSL 3 legacy provider、WebKitGTK 运行目录、GTK3 Fcitx5 / IBus 输入模块以及本地 RDP 认证默认值。最终 workflow 仍先执行 `build_remmina.sh`，再执行 `fix_remmina_webkit.sh`；本次不改这些稳定运行逻辑。
 
+## 标准化准备
+
+已新增 `patches/prepare_runtime.sh` 和 `patches/fix_runtime.sh`，用途及调用位置见 [专属差异](./docs/template-deviations.md)。两个脚本尚未接入主 build；当前 `build_remmina.sh`、workflow 和 `fix_remmina_webkit.sh` 保持原样，本次尚未完成禁止 Docker 的标准迁移。
+
 ## 版本元数据
 
 `build_remmina.sh` 使用：
