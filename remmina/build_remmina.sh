@@ -1,389 +1,61 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
+set -Eeuo pipefail
+
+# 获取脚本所在目录的绝对路径。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
 
-"$SCRIPT_DIR/../common/apt/install_packages.sh" \
-  fcitx5-frontend-gtk3 ibus-gtk3 libgtk-3-bin
+############# 准备构建目录 #############
 
-if ! command -v docker >/dev/null 2>&1; then
-  if command -v yay >/dev/null 2>&1; then
-    yay -S --needed --noconfirm docker
-  else
-    echo "错误：未找到 docker。" >&2
-    exit 1
-  fi
-fi
+# 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" remmina
 
-if ! docker info >/dev/null 2>&1; then
-  echo "错误：Docker daemon 不可用。" >&2
-  exit 1
-fi
+############# 准备构建环境 #############
 
-if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  DOCKER_MOUNT=(--volumes-from "$HOSTNAME")
-  DOCKER_WORKDIR="$PWD"
-else
-  DOCKER_MOUNT=(-v "$PWD:/work")
-  DOCKER_WORKDIR="/work"
-fi
+# 安装构建工具和应用所需的依赖包。
+"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev pkgconf bubblewrap dbus-x11 gnome-themes-extra language-pack-gnome-zh-hans-base gstreamer1.0-gl gstreamer1.0-libav gstreamer1.0-plugins-bad gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-x libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev libgirepository1.0-dev libglib2.0-bin libglib2.0-dev libgtk-3-bin libgtk-3-dev libpango1.0-dev librsvg2-bin librsvg2-dev libwebkit2gtk-4.1-dev fcitx5-frontend-gtk3 ibus-gtk3 remmina remmina-common remmina-plugin-rdp remmina-plugin-vnc remmina-plugin-exec remmina-plugin-secret remmina-plugin-www remmina-plugin-spice freerdp3-x11 xdg-dbus-proxy
 
-docker run --rm -i \
-  "${DOCKER_MOUNT[@]}" \
-  -v "$SCRIPT_DIR/../common:/common:ro" \
-  -w "$DOCKER_WORKDIR" \
-  -e HOST_UID="$(id -u)" \
-  -e HOST_GID="$(id -g)" \
-  ubuntu:24.04 \
-  bash -s <<'INNER_EOF'
-set -euo pipefail
+############# 下载打包工具 #############
 
-export DEBIAN_FRONTEND=noninteractive
-export APPIMAGE_EXTRACT_AND_RUN=1
-export ARCH=x86_64
-export DEPLOY_GTK_VERSION=3
-export GSTREAMER_INCLUDE_BAD_PLUGINS=1
+# 下载并校验打包工具及所需插件，随后加载构建环境配置。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" gtk,gstreamer "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 
-ROOT="$PWD"
-APPDIR="$ROOT/AppDir"
-OUTDIR="$ROOT/dist"
-OUTFILE="$OUTDIR/remmina.AppImage"
+############ 初始化 AppDir #############
 
-# Ubuntu 24.04 当前更新/安全源已提供 Remmina 1.4.43 与 FreeRDP 3；直接使用官方仓库。
-# 官方包主程序已包含 libssh + VTE，Local Terminal/SSH 属于 Remmina 内建协议，不需要独立插件包。
-apt-get update
-apt-get install -y --no-install-recommends \
-  ca-certificates \
-  adwaita-icon-theme \
-  bash \
-  binutils \
-  bubblewrap \
-  coreutils \
-  curl \
-  dbus-x11 \
-  desktop-file-utils \
-  dpkg-dev \
-  file \
-  findutils \
-  gnome-themes-extra \
-  language-pack-gnome-zh-hans-base \
-  gstreamer1.0-gl \
-  gstreamer1.0-libav \
-  gstreamer1.0-plugins-bad \
-  gstreamer1.0-plugins-base \
-  gstreamer1.0-plugins-good \
-  gstreamer1.0-x \
-  libgdk-pixbuf2.0-bin \
-  libgdk-pixbuf-2.0-dev \
-  libgirepository1.0-dev \
-  libglib2.0-bin \
-  libglib2.0-dev \
-  libgtk-3-bin \
-  libgtk-3-dev \
-  libpango1.0-dev \
-  librsvg2-bin \
-  librsvg2-dev \
-  openssl \
-  patchelf \
-  pkg-config \
-  python3 \
-  remmina \
-  remmina-common \
-  shared-mime-info \
-  squashfs-tools \
-  xauth \
-  xdg-dbus-proxy \
-  xvfb
+# 首次运行 linuxdeploy，创建 AppDir 的基础目录。
+"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
-install_if_available() {
-  local pkg
-  for pkg in "$@"; do
-    if apt-cache show "$pkg" >/dev/null 2>&1; then
-      apt-get install -y --no-install-recommends "$pkg"
-    fi
-  done
-}
+############ 下载并准备应用 #############
 
-install_if_available \
-  libwebkit2gtk-4.1-dev \
-  remmina-plugin-rdp \
-  remmina-plugin-vnc \
-  remmina-plugin-exec \
-  remmina-plugin-secret \
-  remmina-plugin-www \
-  remmina-plugin-spice
+# 下载已安装版本的软件包并解包到 AppDir，成功后返回版本号。
+VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" remmina "$APPDIR" remmina-common remmina-plugin-rdp remmina-plugin-vnc remmina-plugin-exec remmina-plugin-secret remmina-plugin-www remmina-plugin-spice)"
 
-# 本 AppImage 的 RDP 基线固定为 FreeRDP 3；不再回退到 FreeRDP 2，避免 Remmina RDP 插件与运行库混用。
-if ! apt-cache show freerdp3-x11 >/dev/null 2>&1; then
-  echo "错误：Ubuntu 24.04 软件源中未找到 freerdp3-x11。" >&2
-  exit 1
-fi
-apt-get install -y --no-install-recommends freerdp3-x11
+# 输出 Remmina 版本，供现有工作流读取版本元数据。
+echo "Remmina 版本：$VERSION"
 
-RDP_PLUGIN="$(find /usr/lib -type f -name 'remmina-plugin-rdp.so' -print -quit)"
-VNC_PLUGIN="$(find /usr/lib -type f -name 'remmina-plugin-vnc.so' -print -quit)"
-EXEC_PLUGIN="$(find /usr/lib -type f -name 'remmina-plugin-exec.so' -print -quit)"
-WWW_PLUGIN="$(find /usr/lib -type f -name 'remmina-plugin-www.so' -print -quit)"
-DESKTOP_FILE="$(find /usr/share/applications -type f -name 'org.remmina.Remmina.desktop' -print -quit)"
-ICON_FILE="$(find /usr/share/icons/hicolor -type f \
-  \( -name 'org.remmina.Remmina.png' -o -name 'org.remmina.Remmina.svg' \) \
-  -print | sort -r | head -n 1)"
-OPENSSL_LEGACY_MODULE="$(find /usr/lib -type f -path '*/ossl-modules/legacy.so' -print -quit)"
-OPENSSL_LIBCRYPTO="$(find /usr/lib/x86_64-linux-gnu -maxdepth 1 -type f -name 'libcrypto.so.3' -print -quit)"
-OPENSSL_LIBSSL="$(find /usr/lib/x86_64-linux-gnu -maxdepth 1 -type f -name 'libssl.so.3' -print -quit)"
-ZH_CN_MO=""
-for locale_root in /usr/share/locale /usr/share/locale-langpack; do
-  if [[ -f "$locale_root/zh_CN/LC_MESSAGES/remmina.mo" ]]; then
-    ZH_CN_MO="$locale_root/zh_CN/LC_MESSAGES/remmina.mo"
-    break
-  fi
-done
+########## 准备桌面资源和运行库 #########
 
-for required in "$RDP_PLUGIN" "$VNC_PLUGIN" "$EXEC_PLUGIN" "$WWW_PLUGIN" "$DESKTOP_FILE" "$ICON_FILE"; do
-  if [[ -z "$required" ]]; then
-    echo "错误：Remmina 必需文件或插件缺失。" >&2
-    exit 1
-  fi
-done
+# 下载并解包应用所需的图标与主题资源。
+"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
 
-for required in "$OPENSSL_LEGACY_MODULE" "$OPENSSL_LIBCRYPTO" "$OPENSSL_LIBSSL"; do
-  if [[ -z "$required" ]]; then
-    echo "错误：缺少 OpenSSL 3 legacy provider 或配套运行库，FreeRDP 的 NTLM/MD4 无法工作。" >&2
-    exit 1
-  fi
-done
+# Remmina 需要补齐协议插件、翻译、WebKitGTK、FreeRDP、OpenSSL provider 和 GTK 输入模块。
+"$SCRIPT_DIR/patches/prepare_runtime.sh" "$APPDIR"
 
-if [[ -z "$ZH_CN_MO" ]]; then
-  echo "错误：缺少 Remmina 简体中文翻译文件。" >&2
-  exit 1
-fi
+# Remmina 和 WebKitGTK 的模块按需加载，显式收集这些模块的运行依赖。
+LINUXDEPLOY_LIBRARIES=()
+while IFS= read -r library; do
+  LINUXDEPLOY_LIBRARIES+=(-l "$library")
+done < <(find "$APPDIR/plugins" "$APPDIR/webkit" -type f -name '*.so*' -print | sort)
 
-# Remmina 1.4.36 起提供 FreeRDP 3 auth filter；同时确认 RDP 插件实际链接 FreeRDP 3。
-REMMINA_VERSION="$(dpkg-query -W -f='${Version}' remmina)"
-if ! dpkg --compare-versions "$REMMINA_VERSION" ge '1.4.36'; then
-  echo "错误：Remmina 版本过旧（$REMMINA_VERSION），必须 >= 1.4.36。" >&2
-  exit 1
-fi
-if ! grep -Fq 'rdp_auth_filter' < <(strings "$RDP_PLUGIN"); then
-  echo "错误：Remmina RDP 插件缺少 FreeRDP 3 auth-pkg-list 支持。" >&2
-  exit 1
-fi
-if ! grep -Eq 'Shared library: \[libfreerdp3\.so' < <(readelf -d "$RDP_PLUGIN"); then
-  echo "错误：Remmina RDP 插件没有链接 FreeRDP 3。" >&2
-  exit 1
-fi
-if ! command -v xfreerdp3 >/dev/null 2>&1; then
-  echo "错误：未安装 xfreerdp3。" >&2
-  exit 1
-fi
-
-# Local Terminal/SSH 是 Remmina 主程序内建协议；只有同时编入 libssh 与 VTE 时相关代码才会存在。
-if ! grep -Fq 'Local Terminal' < <(strings /usr/bin/remmina); then
-  echo "错误：Remmina 主程序未包含 Local Terminal。" >&2
-  exit 1
-fi
-if ! grep -Fq 'SSH - Secure Shell' < <(strings /usr/bin/remmina); then
-  echo "错误：Remmina 主程序未包含 SSH 协议。" >&2
-  exit 1
-fi
-if ! grep -Eq 'Shared library: \[libssh\.so' < <(readelf -d /usr/bin/remmina); then
-  echo "错误：Remmina 主程序未链接 libssh，SSH/Local Terminal 无法注册。" >&2
-  exit 1
-fi
-if ! grep -Eq 'Shared library: \[libvte-2\.91\.so' < <(readelf -d /usr/bin/remmina); then
-  echo "错误：Remmina 主程序未链接 VTE，Local Terminal 无法工作。" >&2
-  exit 1
-fi
-
-# 注意：--full-version 在 GApplication startup 之前执行，只能列出已预加载的外部插件，
-# 不能用它判断内建 SSH/Local Terminal 是否注册；这里使用上面的二进制与依赖检查。
-echo "Remmina 版本：$REMMINA_VERSION"
-
-DEPLOY_DESKTOP_FILE="/tmp/org.remmina.Remmina.desktop"
-cp -a "$DESKTOP_FILE" "$DEPLOY_DESKTOP_FILE"
-sed -E -i 's|^Exec=remmina-file-wrapper(.*)$|Exec=remmina\1|' "$DEPLOY_DESKTOP_FILE"
-
-curl -fL --retry 3 \
-  https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
-  -o /tmp/linuxdeploy
-curl -fL --retry 3 \
-  https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh \
-  -o /tmp/linuxdeploy-plugin-gtk.sh
-curl -fL --retry 3 \
-  https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gstreamer/master/linuxdeploy-plugin-gstreamer.sh \
-  -o /tmp/linuxdeploy-plugin-gstreamer.sh
-curl -fL --retry 3 \
-  https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
-  -o /tmp/appimagetool
-curl -fL --retry 3 \
-  https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64 \
-  -o /tmp/runtime-x86_64
-chmod +x \
-  /tmp/linuxdeploy \
-  /tmp/linuxdeploy-plugin-gtk.sh \
-  /tmp/linuxdeploy-plugin-gstreamer.sh \
-  /tmp/appimagetool \
-  /tmp/runtime-x86_64
-export PATH="/tmp:$PATH"
-
-rm -rf "$APPDIR"
-mkdir -p "$OUTDIR"
-rm -f "$OUTFILE"
-
-LINUXDEPLOY_ARGS=(
-  --appdir "$APPDIR"
-  --executable /usr/bin/remmina
-  --desktop-file "$DEPLOY_DESKTOP_FILE"
-  --icon-file "$ICON_FILE"
-  --plugin gtk
-  --plugin gstreamer
-)
-
-if [[ -x /usr/bin/bwrap ]]; then
-  LINUXDEPLOY_ARGS+=(--executable /usr/bin/bwrap)
-fi
-if [[ -x /usr/bin/xdg-dbus-proxy ]]; then
-  LINUXDEPLOY_ARGS+=(--executable /usr/bin/xdg-dbus-proxy)
-fi
-
-while IFS= read -r plugin; do
-  LINUXDEPLOY_ARGS+=(--library "$plugin")
-done < <(find /usr/lib -type f -path '*/remmina/plugins/*.so' -print | sort)
-
-while IFS= read -r webkit_exec; do
-  LINUXDEPLOY_ARGS+=(--executable "$webkit_exec")
-done < <(find /usr/lib -type f -path '*/webkit2gtk-4.1/WebKit*Process' -perm /111 -print | sort)
-while IFS= read -r webkit_lib; do
-  LINUXDEPLOY_ARGS+=(--library "$webkit_lib")
-done < <(find /usr/lib -type f -path '*/webkit2gtk-4.1/*.so*' -print | sort)
-
-NO_STRIP=1 /tmp/linuxdeploy "${LINUXDEPLOY_ARGS[@]}"
-
-while IFS= read -r pkg; do
-  while IFS= read -r item; do
-    if [[ -f "$item" || -L "$item" ]]; then
-      cp -a --parents "$item" "$APPDIR"
-    fi
-  done < <(dpkg -L "$pkg")
-done < <(dpkg-query -W -f='${binary:Package}\n' 'remmina*' 2>/dev/null | sort -u)
-
-# 明确补入简体中文翻译，避免 linuxdeploy 或包拆分变化导致界面回退为英文。
-mkdir -p "$APPDIR/usr/share/locale/zh_CN/LC_MESSAGES"
-cp -a "$ZH_CN_MO" "$APPDIR/usr/share/locale/zh_CN/LC_MESSAGES/remmina.mo"
-
-while IFS= read -r webkit_dir; do
-  webkit_parent="$(dirname "${webkit_dir#/}")"
-  mkdir -p "$APPDIR/$webkit_parent"
-  cp -a "$webkit_dir" "$APPDIR/$webkit_parent/"
-done < <(find /usr/lib -type d -path '*/webkit2gtk-4.1' -print | sort -u)
-
-while IFS= read -r freerdp_dir; do
-  mkdir -p "$APPDIR/$(dirname "${freerdp_dir#/}")"
-  cp -a "$freerdp_dir" "$APPDIR/$(dirname "${freerdp_dir#/}")/"
-done < <(find /usr/lib -maxdepth 4 -type d -name 'freerdp[0-9]*' -print | sort -u)
-
-# FreeRDP 3 在 OpenSSL 3 上会主动加载 legacy provider 以提供 NTLM 所需的 MD4/RC4。
-# linuxdeploy 不会自动收集 provider 模块，因此把与 libcrypto/libssl 完全同源的运行库和 legacy.so 一起打包。
-OPENSSL_APP_LIBDIR="$APPDIR/usr/lib/x86_64-linux-gnu"
-mkdir -p "$OPENSSL_APP_LIBDIR/ossl-modules"
-cp -aL "$OPENSSL_LIBCRYPTO" "$OPENSSL_APP_LIBDIR/libcrypto.so.3"
-cp -aL "$OPENSSL_LIBSSL" "$OPENSSL_APP_LIBDIR/libssl.so.3"
-cp -aL "$OPENSSL_LEGACY_MODULE" "$OPENSSL_APP_LIBDIR/ossl-modules/legacy.so"
-
-# 在构建阶段直接使用 AppDir 内的 libcrypto 和 provider 验证 MD4，避免生成后才发现 NLA/NTLM 无法登录。
-OPENSSL_MODULES="$OPENSSL_APP_LIBDIR/ossl-modules" \
-LD_LIBRARY_PATH="$OPENSSL_APP_LIBDIR:$APPDIR/usr/lib" \
-openssl dgst -provider legacy -provider default -md4 /dev/null >/dev/null
-
-# Remmina 的插件路径在 Ubuntu 二进制中是绝对路径。把插件复制到 AppDir 根目录，
-# 再将编译路径改为 /proc/self/cwd/plugins；AppRun 启动前会进入 AppDir。
-PLUGIN_SOURCE_DIR="$(dirname "$RDP_PLUGIN")"
-mkdir -p "$APPDIR/plugins"
-cp -a "$PLUGIN_SOURCE_DIR"/. "$APPDIR/plugins/"
-python3 - "$APPDIR/usr/bin/remmina" "$PLUGIN_SOURCE_DIR" <<'PY'
-from pathlib import Path
-import sys
-
-binary = Path(sys.argv[1])
-old = sys.argv[2].encode() + b"\0"
-new = b"/proc/self/cwd/plugins\0"
-data = binary.read_bytes()
-
-if new in data:
-    pass
-elif data.count(old) == 1:
-    if len(new) > len(old):
-        raise SystemExit("runtime plugin path is longer than compiled plugin path")
-    data = data.replace(old, new + b"\0" * (len(old) - len(new)), 1)
-    binary.write_bytes(data)
-else:
-    raise SystemExit(f"cannot find unique compiled plugin path: {sys.argv[2]}")
-PY
-
-# Remmina 主程序和内建/外部插件会通过 REMMINA_RUNTIME_LOCALEDIR 绑定编译时的 /usr/share/locale。
-# AppRun 会先进入 AppDir，因此将它改为等长以内的相对路径 usr/share/locale，确保使用包内中文翻译。
-python3 - "$APPDIR/usr/bin/remmina" "$APPDIR/plugins" <<'PY'
-from pathlib import Path
-import sys
-
-targets = [Path(sys.argv[1]), *sorted(Path(sys.argv[2]).glob("*.so"))]
-old = b"/usr/share/locale\0"
-new = b"usr/share/locale\0"
-
-patched = 0
-for target in targets:
-    data = target.read_bytes()
-    count = data.count(old)
-    if count:
-        data = data.replace(old, new + b"\0" * (len(old) - len(new)))
-        target.write_bytes(data)
-        patched += count
-
-if patched == 0:
-    raise SystemExit("cannot find compiled Remmina locale path")
-PY
-
-# 补入 GTK3 Adwaita 主题与图标。运行时优先使用宿主主题，包内资源作为回退。
-mkdir -p "$APPDIR/usr/share/themes" "$APPDIR/usr/share/icons"
-for theme in Adwaita Adwaita-dark HighContrast; do
-  if [[ -d "/usr/share/themes/$theme" ]]; then
-    rm -rf "$APPDIR/usr/share/themes/$theme"
-    cp -a "/usr/share/themes/$theme" "$APPDIR/usr/share/themes/"
-  fi
-done
-if [[ -d /usr/share/icons/Adwaita ]]; then
-  rm -rf "$APPDIR/usr/share/icons/Adwaita"
-  cp -a /usr/share/icons/Adwaita "$APPDIR/usr/share/icons/"
-fi
-
-if [[ ! -d "$APPDIR/usr/share/themes/Adwaita/gtk-3.0" ]]; then
-  echo "错误：未打包 Adwaita GTK3 主题。" >&2
-  exit 1
-fi
-
-# 删除构建容器中的图形驱动栈，运行时完全使用宿主 GPU 驱动。
-find "$APPDIR" \( -type f -o -type l \) -print | while IFS= read -r item; do
-  case "$(basename "$item")" in
-    libEGL.so*|libGL.so*|libGLX.so*|libGLdispatch.so*|libOpenGL.so*|\
-    libgbm.so*|libdrm.so*|libvulkan.so*)
-      rm -f "$item"
-      ;;
-  esac
-done
-find "$APPDIR" -type d \
-  \( -name dri -o -path '*/glvnd/egl_vendor.d' -o -path '*/vulkan/icd.d' \) \
-  -prune -exec rm -rf {} + 2>/dev/null || true
-
-rm -f \
-  "$APPDIR/usr/bin/WebKitWebProcess" \
-  "$APPDIR/usr/bin/WebKitNetworkProcess" \
-  "$APPDIR/usr/bin/WebKitGPUProcess"
+############# 准备 AppRun ##############
 
 # Remmina Local Terminal 调用 $SHELL 时不会指定工作目录，会继承 Remmina 进程当前目录。
 # Remmina 又必须进入 AppDir 才能加载 /proc/self/cwd/plugins，因此使用 shell wrapper 恢复 AppImage 启动目录。
-cat > "$APPDIR/usr/bin/remmina-local-shell" <<'LOCAL_SHELL_EOF'
+cat > "$APPDIR/usr/bin/remmina-local-shell" <<'LOCAL_SHELL'
 #!/bin/sh
+
+# 在命令执行失败时退出。
 set -e
 
 host_shell="${REMMINA_HOST_SHELL:-/bin/sh}"
@@ -396,14 +68,21 @@ fi
 cd "$target_dir"
 export SHELL="$host_shell"
 exec "$host_shell" "$@"
-LOCAL_SHELL_EOF
+LOCAL_SHELL
+
+# 为 Local Terminal 的 shell wrapper 添加执行权限。
 chmod +x "$APPDIR/usr/bin/remmina-local-shell"
 
-cat > "$APPDIR/AppRun" <<'APPRUN_EOF'
+# 在 AppDir 根目录创建完整的 AppRun 启动脚本。
+cat > "$APPDIR/AppRun" <<'APPRUN'
 #!/usr/bin/env bash
-set -e
 
-APPDIR="$(dirname "$(readlink -f "$0")")"
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
+set -Eeuo pipefail
+
+# 获取脚本所在目录的绝对路径。
+HERE="$(dirname "$(readlink -f "${0}")")"
+APPDIR="$HERE"
 export APPDIR
 
 # 保存 AppImage 启动时的当前目录；Local Terminal 通过 wrapper 回到这里。
@@ -419,47 +98,112 @@ else
 fi
 export SHELL="$APPDIR/usr/bin/remmina-local-shell"
 
-for hook in "$APPDIR"/apprun-hooks/*.sh; do
-  [[ -f "$hook" ]] && . "$hook"
-done
-
 # linuxdeploy GTK hook 会强制 Adwaita:light；取消强制值，让应用跟随宿主主题。
 unset GTK_DATA_PREFIX
 unset GTK_THEME
 unset APPIMAGE_GTK_THEME
 
 LIBDIR="$APPDIR/usr/lib/x86_64-linux-gnu"
-export PATH="$APPDIR/usr/bin:${PATH:-/usr/bin:/bin}"
-export LD_LIBRARY_PATH="$LIBDIR:$APPDIR/usr/lib:${LD_LIBRARY_PATH:-}"
-export XDG_DATA_DIRS="$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
-export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas"
 
-# 默认使用 AppImage 内的简体中文翻译，不修改宿主系统 locale。
-export LANGUAGE="zh_CN:zh"
+# 设置程序、运行库和共享数据的搜索路径。
+export PATH="$HERE/usr/bin${PATH:+:$PATH}"
+export LD_LIBRARY_PATH="$LIBDIR:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
-# 固定使用 AppImage 内与 libcrypto.so.3 配套的 OpenSSL provider，保证 FreeRDP 能加载 legacy MD4/RC4。
-export OPENSSL_MODULES="$LIBDIR/ossl-modules"
-
+# GTK 运行环境：指定 GSettings schema 和 GIO 动态模块的目录。
+export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas"
 if [[ -d "$LIBDIR/gio/modules" ]]; then
   export GIO_MODULE_DIR="$LIBDIR/gio/modules"
 fi
+
+# Remmina 的 GObject Introspection 组件使用包内 typelib。
 if [[ -d "$LIBDIR/girepository-1.0" ]]; then
   export GI_TYPELIB_PATH="$LIBDIR/girepository-1.0:${GI_TYPELIB_PATH:-}"
 fi
 
-WEBKIT_DIR="$(find "$APPDIR/usr/lib" -type d -path '*/webkit2gtk-4.1' -print -quit)"
-if [[ -n "$WEBKIT_DIR" ]]; then
-  export WEBKIT_EXEC_PATH="$WEBKIT_DIR"
+# 设置简体中文界面环境。
+export LANGUAGE="zh_CN:zh"
+
+# 本 AppImage 面向本地/工作组 Windows RDP：默认禁用 Kerberos/U2U，直接使用可用的 NTLM/NLA。
+# 只在 rdp_auth_filter 不存在或为空时写入；已有非空自定义值保持原样。
+REMMINA_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME:-/tmp}/.config}"
+REMMINA_PREF_FILE="$REMMINA_CONFIG_HOME/remmina/remmina.pref"
+mkdir -p "$(dirname "$REMMINA_PREF_FILE")"
+
+if [[ ! -f "$REMMINA_PREF_FILE" ]]; then
+  printf '%s\n' '[remmina_pref]' 'rdp_auth_filter=!kerberos,!u2u' > "$REMMINA_PREF_FILE"
+elif grep -Eq '^[[:space:]]*rdp_auth_filter[[:space:]]*=[[:space:]]*$' "$REMMINA_PREF_FILE"; then
+  sed -Ei 's|^[[:space:]]*rdp_auth_filter[[:space:]]*=[[:space:]]*$|rdp_auth_filter=!kerberos,!u2u|' "$REMMINA_PREF_FILE"
+elif ! grep -Eq '^[[:space:]]*rdp_auth_filter[[:space:]]*=' "$REMMINA_PREF_FILE"; then
+  if grep -Eq '^[[:space:]]*\[remmina_pref\][[:space:]]*$' "$REMMINA_PREF_FILE"; then
+    sed -Ei '/^[[:space:]]*\[remmina_pref\][[:space:]]*$/a rdp_auth_filter=!kerberos,!u2u' "$REMMINA_PREF_FILE"
+  else
+    printf '\n%s\n%s\n' '[remmina_pref]' 'rdp_auth_filter=!kerberos,!u2u' >> "$REMMINA_PREF_FILE"
+  fi
+fi
+unset REMMINA_CONFIG_HOME REMMINA_PREF_FILE
+
+# 固定使用 AppImage 内与 libcrypto.so.3 配套的 OpenSSL provider，保证 FreeRDP 能加载 legacy MD4/RC4。
+export OPENSSL_MODULES="$LIBDIR/ossl-modules"
+
+# 为 fcitx5/IBus 生成包含当前 AppImage 挂载路径的 GTK3 模块缓存。
+GTK_IMMODULE_DIR=""
+for candidate in "$APPDIR/usr/lib/gtk-3.0/3.0.0/immodules" "$APPDIR/usr/lib/"*/gtk-3.0/3.0.0/immodules; do
+  if [[ -d "$candidate" ]]; then
+    GTK_IMMODULE_DIR="$candidate"
+    break
+  fi
+done
+
+IM_HINT="${GTK_IM_MODULE:-} ${QT_IM_MODULE:-} ${SDL_IM_MODULE:-} ${XMODIFIERS:-}"
+if [[ "${IM_HINT,,}" != *fcitx* ]] && command -v pgrep >/dev/null 2>&1 && pgrep -x fcitx5 >/dev/null 2>&1; then
+  IM_HINT="$IM_HINT fcitx"
 fi
 
+IM_CACHE_DIR="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
+IM_CACHE_FILE="$IM_CACHE_DIR/remmina-appimage-immodules-${UID:-0}.cache"
+
+case "${IM_HINT,,}" in
+  *fcitx*)
+    if [[ -f "$GTK_IMMODULE_DIR/im-fcitx5.so" ]]; then
+      cat > "$IM_CACHE_FILE" <<EOF
+# GTK+ Input Method Modules file
+"$GTK_IMMODULE_DIR/im-fcitx5.so"
+"fcitx" "Fcitx 5" "fcitx" "" "ja:ko:zh:*"
+EOF
+      export GTK_IM_MODULE_FILE="$IM_CACHE_FILE"
+      export GTK_IM_MODULE="fcitx"
+      export XMODIFIERS="${XMODIFIERS:-@im=fcitx}"
+    fi
+    ;;
+  *ibus*)
+    if [[ -f "$GTK_IMMODULE_DIR/im-ibus.so" ]]; then
+      cat > "$IM_CACHE_FILE" <<EOF
+# GTK+ Input Method Modules file
+"$GTK_IMMODULE_DIR/im-ibus.so"
+"ibus" "IBus" "ibus" "" "ja:ko:zh:*"
+EOF
+      export GTK_IM_MODULE_FILE="$IM_CACHE_FILE"
+      export GTK_IM_MODULE="ibus"
+    fi
+    ;;
+esac
+unset candidate IM_HINT IM_CACHE_DIR IM_CACHE_FILE
+
+# WebKitGTK 的编译路径已改为包内 webkit 目录，子进程使用同一目录。
+export WEBKIT_EXEC_PATH="$APPDIR/webkit"
+
+# Remmina 的 RDP 插件从包内 FreeRDP 模块目录加载组件。
 FREERDP_DIR="$(find "$APPDIR/usr/lib" -type d -name 'freerdp[0-9]*' -print -quit)"
 if [[ -n "$FREERDP_DIR" ]]; then
   export FREERDP_PLUGIN_PATH="$FREERDP_DIR"
 fi
 
+# 保留 Remmina 已采用的 WebKitGTK 和 GDK 图形兼容设置。
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
 export GDK_GL=disable
 
+# 清除显式驱动目录设置，交由宿主环境选择图形驱动。
 unset LIBGL_DRIVERS_PATH
 unset LIBVA_DRIVERS_PATH
 unset VDPAU_DRIVER_PATH
@@ -468,69 +212,34 @@ unset __EGL_VENDOR_LIBRARY_FILENAMES
 unset VK_DRIVER_FILES
 unset VK_ICD_FILENAMES
 
+# Remmina 的插件、翻译和 WebKitGTK 路径依赖 AppDir 工作目录。
 cd "$APPDIR"
-exec "$APPDIR/usr/bin/remmina" "$@"
-APPRUN_EOF
+
+# 启动包内程序，并保留传入的命令行参数。
+exec "$HERE/usr/bin/remmina" "$@"
+APPRUN
+
+# 为启动脚本添加执行权限。
 chmod +x "$APPDIR/AppRun"
 
-for plugin in rdp vnc exec www; do
-  test -f "$APPDIR/plugins/remmina-plugin-$plugin.so"
-done
-grep -Fx '/proc/self/cwd/plugins' < <(strings "$APPDIR/usr/bin/remmina") >/dev/null
-grep -Fq 'rdp_auth_filter' < <(strings "$APPDIR/plugins/remmina-plugin-rdp.so")
-grep -Eq 'Shared library: \[libfreerdp3\.so' < <(readelf -d "$APPDIR/plugins/remmina-plugin-rdp.so")
-grep -Fq 'Local Terminal' < <(strings "$APPDIR/usr/bin/remmina")
-grep -Fq 'SSH - Secure Shell' < <(strings "$APPDIR/usr/bin/remmina")
-grep -Eq 'Shared library: \[libssh\.so' < <(readelf -d "$APPDIR/usr/bin/remmina")
-grep -Eq 'Shared library: \[libvte-2\.91\.so' < <(readelf -d "$APPDIR/usr/bin/remmina")
-grep -Fq 'usr/share/locale' < <(strings "$APPDIR/usr/bin/remmina")
-if grep -Fq '/usr/share/locale' < <(strings "$APPDIR/usr/bin/remmina"); then
-  echo "错误：Remmina 主程序仍残留宿主绝对 locale 路径。" >&2
-  exit 1
-fi
-test -f "$APPDIR/usr/share/locale/zh_CN/LC_MESSAGES/remmina.mo"
-grep -Fq 'export LANGUAGE="zh_CN:zh"' "$APPDIR/AppRun"
-test -x "$APPDIR/usr/bin/remmina-local-shell"
-grep -Fq 'export REMMINA_LAUNCH_CWD="$PWD"' "$APPDIR/AppRun"
-grep -Fq 'export SHELL="$APPDIR/usr/bin/remmina-local-shell"' "$APPDIR/AppRun"
-test -f "$APPDIR/usr/lib/x86_64-linux-gnu/libcrypto.so.3"
-test -f "$APPDIR/usr/lib/x86_64-linux-gnu/libssl.so.3"
-test -f "$APPDIR/usr/lib/x86_64-linux-gnu/ossl-modules/legacy.so"
-grep -Fq 'export OPENSSL_MODULES="$LIBDIR/ossl-modules"' "$APPDIR/AppRun"
-test -d "$APPDIR/usr/share/themes/Adwaita/gtk-3.0"
-test -d "$(find "$APPDIR/usr/lib" -type d -path '*/webkit2gtk-4.1' -print -quit)"
+############### 核心打包 ###############
 
-# 直接验证 Local Terminal wrapper 会回到启动目录，并恢复宿主 SHELL。
-LOCAL_SHELL_TEST_DIR="/tmp/remmina-local-shell-cwd-test"
-mkdir -p "$LOCAL_SHELL_TEST_DIR"
-LOCAL_SHELL_TEST_OUTPUT="$(
-  REMMINA_LAUNCH_CWD="$LOCAL_SHELL_TEST_DIR" \
-  REMMINA_HOST_SHELL=/bin/sh \
-  "$APPDIR/usr/bin/remmina-local-shell" -c 'printf "%s\n%s\n" "$PWD" "$SHELL"'
-)"
-LOCAL_SHELL_TEST_EXPECTED="$(printf '%s\n%s' "$LOCAL_SHELL_TEST_DIR" /bin/sh)"
-if [[ "$LOCAL_SHELL_TEST_OUTPUT" != "$LOCAL_SHELL_TEST_EXPECTED" ]]; then
-  echo "错误：Local Terminal wrapper 未正确恢复启动目录或宿主 SHELL。" >&2
-  exit 1
-fi
-rmdir "$LOCAL_SHELL_TEST_DIR"
+# 指定 GTK 主版本。
+export DEPLOY_GTK_VERSION=3
 
-# 补齐封装所需权限和 PNG 图标。
-/common/appimage/prepare_appdir_for_appimagetool.sh "$APPDIR"
-/tmp/appimagetool -n \
-  --runtime-file /tmp/runtime-x86_64 \
-  "$APPDIR" \
-  "$OUTFILE"
-chmod +x "$OUTFILE"
+# 部署 Remmina 已使用的 GStreamer bad 插件。
+export GSTREAMER_INCLUDE_BAD_PLUGINS=1
 
-# --full-version 仅验证外部插件；SSH/Local Terminal 已在上面通过主程序编译内容与依赖静态检查。
-VERSION_LOG="/tmp/remmina-full-version.txt"
-APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a "$OUTFILE" --full-version 2>&1 | tee "$VERSION_LOG"
-grep -Eq '^[[:space:]]*RDP[[:space:]]+Protocol' "$VERSION_LOG"
-grep -Eq '^[[:space:]]*VNC[[:space:]]+Protocol' "$VERSION_LOG"
-grep -Eq '^[[:space:]]*EXEC[[:space:]]+Protocol' "$VERSION_LOG"
-grep -Eq '^[[:space:]]*WWW[[:space:]]+Protocol' "$VERSION_LOG"
+# 部署 Remmina 及其运行组件时不剥离符号。
+export NO_STRIP=1
 
-chown "$HOST_UID:$HOST_GID" "$OUTFILE" 2>/dev/null || true
-echo "已生成并验证：$OUTFILE"
-INNER_EOF
+# 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --plugin gstreamer "${LINUXDEPLOY_LIBRARIES[@]}" --output appimage
+
+############### 整理产物 ###############
+
+# Remmina 的编译路径需要在依赖部署后修正，同时移除临时扫描副本和不随包发布的运行库。
+"$SCRIPT_DIR/patches/fix_runtime.sh" "$APPDIR"
+
+# 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
+"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

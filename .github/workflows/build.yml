@@ -912,7 +912,7 @@ jobs:
     name: Build Remmina
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).remmina == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: write
@@ -923,7 +923,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build and validate Remmina AppImage
+      - name: Build Remmina AppImage
         shell: bash
         run: |
           chmod +x remmina/build_remmina.sh
@@ -936,13 +936,6 @@ jobs:
             exit "$status"
           fi
           tail -n 120 build-remmina.log
-
-      - name: Fix WebKitGTK and desktop runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          chmod +x remmina/fix_remmina_webkit.sh
-          ./remmina/fix_remmina_webkit.sh dist/remmina.AppImage 2>&1 | tee fix-remmina-webkit.log
 
       - name: Prepare release files
         shell: bash

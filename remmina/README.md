@@ -6,29 +6,19 @@
 
 ## 技术栈与打包方式
 
-Remmina 为 GTK3 / C 桌面应用，RDP 使用 FreeRDP 3。当前构建脚本在 Ubuntu 24.04 容器中安装官方软件包，使用 linuxdeploy 部署 AppDir，再由官方 appimagetool 与明确 runtime 生成 AppImage。
+Remmina 为 GTK3 / C 桌面应用，RDP 使用 FreeRDP 3。当前构建直接使用 GitHub Actions 的 Ubuntu 24.04 runner，安装官方软件包后按原布局解包到 AppDir，使用 linuxdeploy 的 GTK / GStreamer 插件部署依赖，再由官方 appimagetool 与明确 runtime 生成 AppImage。打包链路不使用 Docker。
 
-现有兼容处理包括 Remmina 插件相对路径、简体中文翻译、Local Terminal / SSH 运行环境、OpenSSL 3 legacy provider、WebKitGTK 运行目录、GTK3 Fcitx5 / IBus 输入模块以及本地 RDP 认证默认值。最终 workflow 仍先执行 `build_remmina.sh`，再执行 `fix_remmina_webkit.sh`；本次不改这些稳定运行逻辑。
+现有兼容处理包括 Remmina 插件相对路径、简体中文翻译、Local Terminal / SSH 运行环境、OpenSSL 3 legacy provider、WebKitGTK 运行目录、GTK3 Fcitx5 / IBus 输入模块以及本地 RDP 认证默认值。上述处理已接入 `build_remmina.sh`；workflow 不再调用 `fix_remmina_webkit.sh` 重新解包和封装产物。旧脚本保留为历史文件。
 
-## 标准化准备
+## 标准化入口
 
-已新增 `patches/prepare_runtime.sh` 和 `patches/fix_runtime.sh`，用途及调用位置见 [专属差异](./docs/template-deviations.md)。两个脚本尚未接入主 build；当前 `build_remmina.sh`、workflow 和 `fix_remmina_webkit.sh` 保持原样，本次尚未完成禁止 Docker 的标准迁移。
+`build_remmina.sh` 遵循 [linuxdeploy 标准](../linuxdeploy_projects.md)，在资源准备阶段调用 `patches/prepare_runtime.sh`，在依赖部署后、最终封装前调用 `patches/fix_runtime.sh`。完整 AppRun、本地终端 wrapper、输入法缓存和 RDP 认证设置保留在主 build；用途及位置见 [专属差异](./docs/template-deviations.md)。
 
 ## 版本元数据
 
-`build_remmina.sh` 使用：
+`common/apt/extract_installed_package.sh` 读取实际安装的 `remmina` 版本，去掉 Debian epoch 和 revision，仅以主软件包作为版本来源；附加插件包按各自已安装的同一版本下载并解包。
 
-```text
-dpkg-query -W -f='${Version}' remmina
-```
-
-取得实际打包的软件包版本，并在现有构建日志输出 `Remmina 版本：<版本>`。统一 workflow 在最终运行时修复完成后，从该构建日志生成：
-
-```text
-dist/version.txt
-```
-
-随后上传 `software-version-remmina`，当前 Build 使用 `remmina.AppImage` 的 Release SHA-256 更新 `software_versions.json`。
+构建日志保留 `Remmina 版本：<版本>`。最终封装成功后，公共封装入口写入 `dist/version.txt`；workflow 沿用现有日志读取及元数据上传步骤，上传 `software-version-remmina`，并以 `remmina.AppImage` 更新 `software_versions.json`。
 
 ## 构建与运行
 
@@ -36,7 +26,8 @@ dist/version.txt
 
 ```text
 remmina/build_remmina.sh
-remmina/fix_remmina_webkit.sh
+remmina/patches/prepare_runtime.sh
+remmina/patches/fix_runtime.sh
 ```
 
 运行最终产物：
@@ -46,6 +37,12 @@ remmina/fix_remmina_webkit.sh
 ```
 
 ## 变更记录
+
+### 2026-11-01：按 linuxdeploy 标准接入 patches
+
+- 主 build 改为直接安装并解包 Ubuntu 软件包，复用公共工具准备、APT 解包和最终封装入口；资源准备与封装前修复分别调用两个 `patches` 脚本。
+- Remmina job 使用 `ubuntu-24.04`，移除旧 `fix_remmina_webkit.sh` 调用；其他应用 job、Release 资产名和版本发布机制保持原样。既有修复历史完整保留。
+- 检查范围：主 build、AppRun、本地终端 wrapper 的语法，以及 workflow 的 YAML、路径和调用顺序；未执行实际打包或实机运行，提交后不监控 Actions。
 
 ### 2026-10-30：把公共脚本挂进容器并安装 rsvg-convert
 
