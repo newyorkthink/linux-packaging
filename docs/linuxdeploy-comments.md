@@ -1,4 +1,4 @@
-# linuxdeploy 固定注释标准
+# AppDir / appimagetool 固定注释标准（含 linuxdeploy）
 
 本文件只收录需要跨项目统一复用的注释，适用于脚本、聊天拟稿和修改方案。标准参考为 [Joplin（GTK）](../joplin/build_joplin.sh)、[XnView MP（Qt）](../xnviewmp/build_xnviewmp.sh) 和 [MediaInfo（CLI）](../mediainfo/build_mediainfo_linuxdeploy.sh)，流程见 [linuxdeploy 规范](../linuxdeploy_projects.md)。
 
@@ -6,6 +6,8 @@
 - GTK、Qt 及资源注释按实际需要使用，不为套用注释增加配置。
 - 软件专属的修复、路径调整、补库及其注释只记入本项目的 `docs/template-deviations.md`，不加入公共表，也不要求先在这里登记。
 - 新增公共用语须经用户确认。注释放在对应命令或命令块正上方，分区、顺序和空行遵循对应参考脚本。
+
+直接 appimagetool 模式复用适用的分区及通用注释，省略 linuxdeploy 初始化、部署、插件和中间输出。既有 linuxdeploy 固定原文保持不变，不为直接模式增加无关步骤。
 
 ## 固定分区标题
 
@@ -34,6 +36,8 @@
 | 准备构建工作目录 | `# 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。` |
 | 安装构建工具及当前应用的依赖 | `# 安装构建工具和应用所需的依赖包。` |
 | 下载打包工具并加载环境配置 | `# 下载并校验打包工具及所需插件，随后加载构建环境配置。` |
+| 直接模式准备最终封装工具和 runtime | `# 下载并校验最终封装工具及运行时，并设置执行权限。` |
+| 从当前来源读取实际软件版本 | `# 读取本次打包使用的版本。` |
 | 第一次空 AppDir 初始化 | `# 首次运行 linuxdeploy，创建 AppDir 的基础目录。` |
 | 下载、校验、安装并解包同一份官方安装包 | `# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。` |
 | 下载已安装版本的 APT 软件包并解包 | `# 下载已安装版本的软件包并解包到 AppDir，成功后返回版本号。` |

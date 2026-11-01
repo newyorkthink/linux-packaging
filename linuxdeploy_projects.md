@@ -1,6 +1,6 @@
-# linuxdeploy 项目清单与打包规范
+# AppDir / appimagetool 打包规范（含 linuxdeploy）
 
-本文件是本仓库所有 linuxdeploy 项目的强制规范，适用于聊天拟稿、修改方案和实际文件。
+本文件统一 AppDir / 官方 appimagetool 体系的风格。下面保留 linuxdeploy 项目的强制规范；直接 appimagetool 项目遵循文末的直接封装补充。两种模式均适用于聊天拟稿、修改方案和实际文件。
 
 ## 三个标准参考
 
@@ -160,3 +160,41 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 
 - `htop/build_htop.sh`：明确使用 quick-sharun，不使用 linuxdeploy。
 - `goldendict-ng/build_goldendict-ng.sh`：只有注释提到 linuxdeploy，构建脚本没有实际调用 linuxdeploy。
+
+## 直接 appimagetool 模式：同一体系的精简流程
+
+直接 appimagetool 和 linuxdeploy 属于同一套 AppDir / 官方 appimagetool 打包体系，按相同的分区、通用注释、单行公共调用和空行风格维护；quick-sharun / sharun 继续使用另一套规范。直接模式不执行 linuxdeploy，也不下载它的插件，不增加空 AppDir 初始化、第二次部署或中间 AppImage。
+
+| 阶段 | 直接模式的处理 |
+| --- | --- |
+| 准备构建目录和环境 | 沿用本项目已确认的隔离环境、目录布局和清理范围；安装依赖仍按当前系统选择公共入口，不混用 Arch 与 Ubuntu。 |
+| 下载并准备应用 | 使用官方预编译包和公共下载 / 解包入口，保留程序真实布局。 |
+| 准备桌面资源和运行库 | 只保留有当前应用依据的资源、补库及专属修复。 |
+| 准备 AppRun | 完整逻辑位于最终 AppDir 根目录；已确认的独立 AppRun 可以原样复制，不为统一风格重新生成或改写。 |
+| 下载打包工具 | 一次调用工具准备入口的 `--appimagetool` 模式，下载并校验 appimagetool 和 Type 2 runtime，在公共入口设置权限。 |
+| 整理产物 | 一次调用公共封装入口，完成 PNG / 权限准备、封装、有效产物检查、SHA-256 和版本保存。 |
+
+上表只说明适用阶段，不授权改变已验证命令的必要顺序或批量重写其他项目。原 linuxdeploy 项目的 Ubuntu runner、禁止 Docker、完整内联根 AppRun 和插件要求继续按前文执行，不套到没有调用 linuxdeploy 的既有直接封装项目。
+
+在项目的 build 脚本中使用以下公共调用，变量由当前程序的实际路径和版本输出确定：
+
+~~~bash
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" command "$MAIN_BIN" --field "$VERSION_FIELD" -- "$VERSION_OPTION")"
+~~~
+
+`MAIN_BIN` 是真实程序，`VERSION_FIELD` 是首行输出中从 1 开始的版本字段编号，`VERSION_OPTION` 是该程序已核实的查询参数。需要多个查询参数时在 `--` 后逐个传入；原 `package-json`、`pacman` 和 `text` 来源继续按实际来源使用。
+
+~~~bash
+# 下载并校验最终封装工具及运行时，并设置执行权限。
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" --appimagetool "$APPIMAGETOOL" "$RUNTIME_FILE"
+~~~
+
+两个参数分别是 appimagetool 和 runtime 的输出文件路径，必须不同。该模式只独立执行，不使用 source；保留原官方 continuous 来源和摘要校验，不下载或执行 linuxdeploy，也不加载它的环境配置。
+
+~~~bash
+# 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
+"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+~~~
+
+最终产物目录的 `version.txt` 由公共封装入口写入。调用方不重复准备 PNG、保存版本或追加仅表示成功的 `echo`；程序实际需要的运行输出继续保留。直接模式的通用注释登记在 [固定注释标准](./docs/linuxdeploy-comments.md)，kitty 的既有目录和启动差异见其专属说明。

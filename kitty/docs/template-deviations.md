@@ -45,3 +45,18 @@
 `package_appimage.sh` 内部只执行 PNG / 权限准备和 appimagetool 封装，不运行 linuxdeploy。PNG 准备在封装前执行一次；资源脚本不再创建旧的 SVG `.DirIcon`，由 appimagetool 根据合格根图标创建最终链接。最终资产非空检查、SHA-256 输出和版本写入也由该入口负责，调用方不再重复保存版本。
 
 本次未修改 `common/`、workflow、应用清单或其他应用；仍由既有 push 规则选中 kitty 构建。上文精简检查的边界继续有效。
+
+## 当前公共版本与工具准备接口
+
+本节替代前一阶段中“分别下载两个封装工具”的当前调用方式，前述记录保留为演变依据。
+
+| 操作 | 当前调用及保留依据 |
+| --- | --- |
+| 版本读取 | `read_app_version.sh command "$KITTY_DIR/bin/kitty" --field 2 -- --version`；保留原程序、查询参数、首行第二字段和原版本格式规则。 |
+| 工具准备 | `prepare_linuxdeploy_tools.sh --appimagetool /tmp/appimagetool /tmp/runtime-x86_64`；一次处理两个官方 continuous 资产、摘要及权限，跳过 linuxdeploy 和插件。 |
+| 最终封装 | 沿用公共 `package_appimage.sh`；PNG、有效产物、SHA-256 和版本只处理一次。 |
+| 构建输出 | 删除仅表示“已生成”的末尾 echo，保留公共入口必要的校验结果与错误输出。 |
+
+直接模式与 linuxdeploy 归入同一 AppDir / 官方 appimagetool 体系，复用适用的风格与公共入口；quick-sharun 另按其规范。kitty 保留已验证的 Arch 构建环境、installer 执行顺序、独立 AppRun、kitten 入口及资源准备，不为风格一致套用 linuxdeploy 的 Ubuntu / 插件 / 中间产物步骤。
+
+AppRun 的 169 行正文保持原样，公共接口扩展不修改其他应用脚本。固定取值及历史依据见 [hardcoded.md](./hardcoded.md)。

@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 显示公共版本读取入口的参数用法。
 usage() {
-  echo "用法：$0 <package-json|pacman|text> <文件路径或包名> [--version-file <版本文件>] [--desktop <桌面入口文件>]..." >&2
+  echo "用法：$0 <package-json|pacman|text|command> <文件路径、包名或程序> [--version-file <版本文件>] [--desktop <桌面入口文件>]... [--field <版本字段编号> -- <程序参数>...]" >&2
   exit 2
 }
 
@@ -19,6 +19,8 @@ source_value="$2"
 shift 2
 version_file=
 desktop_files=()
+version_field=
+command_args=()
 
 # 解析可选的构建元数据输出，默认只返回版本。
 while (( $# > 0 )); do
@@ -31,6 +33,17 @@ while (( $# > 0 )); do
         desktop_files+=("$2")
       fi
       shift 2
+      ;;
+    --field)
+      [[ "$source_type" == command && $# -ge 2 && "${2:-}" =~ ^[1-9][0-9]*$ ]] || usage
+      version_field="$2"
+      shift 2
+      ;;
+    --)
+      [[ "$source_type" == command ]] || usage
+      shift
+      command_args=("$@")
+      break
       ;;
     *) usage ;;
   esac
@@ -46,6 +59,17 @@ case "$source_type" in
     ;;
   pacman)
     version="$("$SCRIPT_DIR/../arch/get_package_version.sh" "$source_value")"
+    ;;
+  command)
+    # 命令参数和输出字段由调用方明确指定，保留程序原有的版本查询方式。
+    [[ -n "$version_field" ]] || usage
+    command_output="$("$source_value" "${command_args[@]}")"
+    version="$(awk -v field="$version_field" 'NR == 1 { print $field; exit }' <<< "$command_output")"
+    [[ "$version" =~ ^[0-9]+([.][0-9]+)+([.+-][0-9A-Za-z.-]+)?$ ]] || {
+      echo "错误：无法从程序输出解析有效版本：$source_value" >&2
+      printf '%s\n' "$command_output" >&2
+      exit 1
+    }
     ;;
   *) usage ;;
 esac

@@ -49,3 +49,12 @@ desktop 继续使用 `Icon=kitty`。资源准备末尾调用既有 `common/appim
 | `dist/version.txt` | 软件版本作为第五参数传入公共封装入口；产物非空时才保存版本。 | 保持版本文件位置和内容格式，移除调用方重复保存。 |
 
 本次未新增应用版本、下载地址或运行时环境的固定值；原 AppRun 及 kitten 分派保持不变。
+
+## 2026-11-01：版本与封装工具参数统一交给公共入口
+
+本节接续上面的公共封装记录。官方 installer、AppDir 布局、两个封装工具的输出路径及 AppRun 均保持原样。
+
+- 版本来源仍是 `AppDir/usr/lib/kitty.app/bin/kitty --version` 的首行第二字段。字段 2 来自原有 awk 取值；原正则原样迁入公共 `command` 来源，不更换取值规则。
+- 两个输出文件仍是 `/tmp/appimagetool` 和 `/tmp/runtime-x86_64`。工具准备入口的 `--appimagetool` 模式统一查询原官方 continuous Release、校验当次资产 SHA-256，并设置执行权限；不写死版本或摘要。
+- 主脚本只传入两个输出路径，不再重复官方工具 URL、下载和 chmod 命令；不执行 linuxdeploy，也不追加重复成功提示。
+- 旧直接下载和手工版本解析的说明作为前面提交的历史保留，当前调用以本节及 README 的“当前公共入口”为准。原图标故障正文继续保留。

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
+
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
 set -Eeuo pipefail
 
+# 获取脚本所在目录的绝对路径。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 安装统一的 Arch AppImage 基础包
@@ -26,17 +29,7 @@ mkdir -p "$APPDIR/usr/lib" "$OUTDIR"
 rm -f "$OUTFILE" "$OUTFILE.zsync"
 
 # 安装原有构建依赖和 kitty 运行资源。
-yay -S --needed --noconfirm \
-  ca-certificates \
-  curl \
-  file \
-  kitty-terminfo \
-  libxcb \
-  ncurses \
-  squashfs-tools \
-  tar \
-  xz \
-  zsync
+"$SCRIPT_DIR/../common/arch/install_packages.sh" ca-certificates curl file kitty-terminfo libxcb ncurses squashfs-tools tar xz zsync
 
 # 使用 kitty 官方预编译包，并保持 bin、lib、share 的相对目录不变。
 "$SCRIPT_DIR/../common/download/download_file.sh" https://sw.kovidgoyal.net/kitty/installer.sh /tmp/kitty-installer.sh
@@ -48,13 +41,8 @@ sh /tmp/kitty-installer.sh \
 # kitten 是独立的软链接入口，保留这项检查，避免生成缺少该入口的产物。
 test -x "$KITTY_DIR/bin/kitten"
 
-# 从本次官方程序读取版本，并保留版本格式校验。
-KITTY_VERSION_OUTPUT="$("$KITTY_DIR/bin/kitty" --version)"
-KITTY_VERSION="$(awk '{print $2; exit}' <<< "$KITTY_VERSION_OUTPUT")"
-if [[ ! "$KITTY_VERSION" =~ ^[0-9]+([.][0-9]+)+([.+-][0-9A-Za-z.-]+)?$ ]]; then
-  echo "错误：无法从 kitty --version 解析版本：$KITTY_VERSION_OUTPUT" >&2
-  exit 1
-fi
+# 读取本次打包使用的版本。
+KITTY_VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" command "$KITTY_DIR/bin/kitty" --field 2 -- --version)"
 
 # 准备程序专属的运行库、terminfo、桌面入口和图标。
 "$SCRIPT_DIR/patches/prepare_appdir.sh" "$APPDIR"
@@ -63,16 +51,8 @@ fi
 cp "$SCRIPT_DIR/AppRun" "$APPDIR/AppRun"
 chmod +x "$APPDIR/AppRun"
 
-# 下载当前官方 appimagetool，保留原有 continuous 来源。
-"$SCRIPT_DIR/../common/download/download_file.sh" https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage /tmp/appimagetool
-
-# 下载当前官方 Type 2 runtime，保留原有 continuous 来源。
-"$SCRIPT_DIR/../common/download/download_file.sh" https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64 /tmp/runtime-x86_64
-
-# 为实际执行的打包工具添加执行权限。
-chmod +x /tmp/appimagetool /tmp/runtime-x86_64
+# 下载并校验最终封装工具及运行时，并设置执行权限。
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" --appimagetool /tmp/appimagetool /tmp/runtime-x86_64
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" /tmp/appimagetool "$APPDIR" "$OUTFILE" /tmp/runtime-x86_64 "$KITTY_VERSION"
-
-echo "已生成：$OUTFILE"

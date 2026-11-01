@@ -40,8 +40,25 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 DOWNLOAD_FILE="$SCRIPT_DIR/../download/download_file.sh"
 GITHUB_API="$SCRIPT_DIR/../github/github_api.sh"
-TOOLS_DIR="${1:-}"
-PLUGIN="${2:-}"
+APPIMAGETOOL_ONLY=0
+APPIMAGETOOL_OUTPUT=
+RUNTIME_OUTPUT=
+
+# 直接封装模式接收两个输出路径；原有工具目录和插件参数保持不变。
+if [[ "${1:-}" == --appimagetool ]]; then
+  if (( $# != 3 )) || [[ -z "${2:-}" || -z "${3:-}" || "$2" == "$3" ]]; then
+    echo "用法：$0 --appimagetool <appimagetool 输出路径> <runtime 输出路径>" >&2
+    exit 1
+  fi
+  APPIMAGETOOL_ONLY=1
+  APPIMAGETOOL_OUTPUT="$2"
+  RUNTIME_OUTPUT="$3"
+  TOOLS_DIR=
+  PLUGIN=
+else
+  TOOLS_DIR="${1:-}"
+  PLUGIN="${2:-}"
+fi
 
 # 在下载前检查插件组合，保留原有单插件参数。
 case "$PLUGIN" in
@@ -52,7 +69,7 @@ case "$PLUGIN" in
     ;;
 esac
 
-[[ -n "$TOOLS_DIR" ]] || {
+[[ "$APPIMAGETOOL_ONLY" == 1 || -n "$TOOLS_DIR" ]] || {
   echo "用法：$0 <工具目录> [gtk|qt|gstreamer|gtk,gstreamer|qt,gstreamer]" >&2
   exit 1
 }
@@ -65,7 +82,7 @@ esac
   exit 1
 }
 [[ "$(uname -m)" == x86_64 ]] || {
-  echo "错误：当前公共 linuxdeploy 工具准备脚本只支持 x86_64。" >&2
+  echo "错误：当前公共 AppImage 工具准备脚本只支持 x86_64。" >&2
   exit 1
 }
 command -v curl >/dev/null 2>&1 || {
@@ -77,8 +94,13 @@ command -v jq >/dev/null 2>&1 || {
   exit 1
 }
 
-mkdir -p "$TOOLS_DIR"
-TOOLS_DIR="$(cd -- "$TOOLS_DIR" && pwd)"
+# 原有 linuxdeploy 模式继续使用同一目录和文件名。
+if [[ "$APPIMAGETOOL_ONLY" == 0 ]]; then
+  mkdir -p "$TOOLS_DIR"
+  TOOLS_DIR="$(cd -- "$TOOLS_DIR" && pwd)"
+  APPIMAGETOOL_OUTPUT="$TOOLS_DIR/appimagetool-x86_64.AppImage"
+  RUNTIME_OUTPUT="$TOOLS_DIR/runtime-x86_64"
+fi
 
 # shellcheck source=common/github/github_api.sh
 source "$GITHUB_API"
@@ -109,13 +131,21 @@ download_release_asset() {
   return 1
 }
 
-# 动态取得 linuxdeploy、最终封装工具和官方 Type 2 runtime。
-download_release_asset linuxdeploy/linuxdeploy linuxdeploy-x86_64.AppImage \
-  "$TOOLS_DIR/linuxdeploy-x86_64.AppImage"
+# 按当前模式取得所需工具；直接封装模式不下载 linuxdeploy。
+if [[ "$APPIMAGETOOL_ONLY" == 0 ]]; then
+  download_release_asset linuxdeploy/linuxdeploy linuxdeploy-x86_64.AppImage \
+    "$TOOLS_DIR/linuxdeploy-x86_64.AppImage"
+fi
 download_release_asset AppImage/appimagetool appimagetool-x86_64.AppImage \
-  "$TOOLS_DIR/appimagetool-x86_64.AppImage"
+  "$APPIMAGETOOL_OUTPUT"
 download_release_asset AppImage/type2-runtime runtime-x86_64 \
-  "$TOOLS_DIR/runtime-x86_64"
+  "$RUNTIME_OUTPUT"
+
+# 直接封装需要的两个文件在公共入口内统一赋予执行权限。
+if [[ "$APPIMAGETOOL_ONLY" == 1 ]]; then
+  chmod +x "$APPIMAGETOOL_OUTPUT" "$RUNTIME_OUTPUT"
+  exit 0
+fi
 
 # GTK / Qt 项目按需取得对应的官方 linuxdeploy 输入插件。
 case "$PLUGIN" in

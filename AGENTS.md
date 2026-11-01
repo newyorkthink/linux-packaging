@@ -343,6 +343,25 @@ Plan 的选择规则：
 - 敏感凭据、Token、密码或其他本来就不应进入仓库的秘密信息不属于“必须原样保留”的内容；如果历史记录意外包含秘密，只移除或脱敏秘密值本身，其他故障事实、原因和修复历史仍须保留。
 - 本规则适用于所有应用和公共代码，不只适用于 Wine。任何后续 AI 在整理文档、迁移 README、合并历史或更新“当前状态”时都必须先遵守本规则。
 
+## 打包体系分类与直接 appimagetool 的统一风格
+
+本仓库按两套打包体系维护规范：
+
+- **AppDir / 官方 appimagetool 体系：** 包括先由 linuxdeploy 部署依赖、再由官方 appimagetool 封装，以及直接对完整 AppDir 使用官方 appimagetool 封装两种方式。两者共用分区风格、适用的固定注释和公共入口；完整规范见 [linuxdeploy_projects.md](./linuxdeploy_projects.md) 的直接封装补充。
+- **quick-sharun / sharun 体系：** 单独遵守 [anylinux_projects.md](./anylinux_projects.md)，不得与前一体系混用步骤或模板。
+
+直接 appimagetool 模式省略 linuxdeploy 的下载、插件、空 AppDir 初始化、第二次部署和中间 AppImage，不得为套用格式下载或执行不需要的 linuxdeploy。既有 linuxdeploy 项目的 Ubuntu runner、禁止 Docker、完整根 AppRun 和插件规则继续原样适用；直接模式保留本项目已确认的构建环境与 AppRun 来源，不据此批量迁移环境或改写稳定启动逻辑。
+
+直接模式新增或修改对应操作时：
+
+1. 命令输出的版本读取、字段提取和格式校验复用 `common/build/read_app_version.sh` 的 `command` 来源；字段和查询参数由当前应用明确传入，不在主脚本重复写 awk、grep 或版本正则。
+2. 一次调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh --appimagetool <appimagetool 输出路径> <runtime 输出路径>`，统一下载、核对官方摘要并设置两个文件的执行权限；主脚本不再分别下载工具或补 `chmod +x`。
+3. 最终调用 `common/linuxdeploy/package_appimage.sh`，统一完成 PNG / 权限准备、正式封装、有效产物检查、SHA-256 输出和版本保存；不重复实现这些步骤。
+4. 分区、通用注释和空行沿用同一体系的对应阶段，只保留真实需要的步骤。程序专属资源放在当前应用的 `patches/`，已确认的独立 AppRun 可以逐字复制到 AppDir 根目录；差异记入本应用说明。
+5. 公共入口已经提供必要结果输出时，不再在主脚本末尾添加仅表示“已生成”的重复 echo；不借此删除程序实际需要的输出或其他已验证运行逻辑。
+
+本节不授权批量修改其他应用。既有稳定命令、必须保留的执行顺序和程序专属差异仍按当前任务的授权范围处理。
+
 ## 永久规则：任何 linuxdeploy 打包必须严格遵守 linuxdeploy_projects.md（不可豁免）
 
 **所有实际调用 linuxdeploy 的项目，均须先完整阅读并严格遵守 [linuxdeploy_projects.md](./linuxdeploy_projects.md)。** 标准参考为 [Joplin（GTK）](./joplin/build_joplin.sh)、[XnView MP（Qt）](./xnviewmp/build_xnviewmp.sh) 和 [MediaInfo（CLI）](./mediainfo/build_mediainfo_linuxdeploy.sh)，不得另造模板或混用其他打包路线。

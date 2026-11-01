@@ -89,7 +89,11 @@ pkgforge-dev 的实现须先核实是否必要和适用，再决定采用或不�
 
 OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以及 SDL 和 libobs 路径处理配置；共享数据由工具扫描收集。中文环境与 Qt 6 输入、主题插件继续保留，完整原文、用途、取舍和原始故障记录见其应用文档。
 
-## linuxdeploy
+## AppDir / 官方 appimagetool 体系
+
+本体系包括 linuxdeploy 部署后封装和完整 AppDir 直接封装两种方式，共用适用的阶段风格、固定注释、工具准备和最终封装入口。quick-sharun / sharun 属于前面的另一套体系，不混用模板。
+
+### linuxdeploy
 
 本类遵循 [linuxdeploy 规范](../linuxdeploy_projects.md) 和 [固定注释标准](./linuxdeploy-comments.md)。基础标准参考为 Joplin（GTK）、XnView MP（Qt）和 MediaInfo（CLI）；Remmina 是已按该标准整理的 GTK / GStreamer 项目。
 
@@ -103,3 +107,13 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | XnView MP | [build_xnviewmp.sh](../xnviewmp/build_xnviewmp.sh) | 官方校验清单中的最新稳定版 x64 DEB；公共入口校验后，将同一份包安装并按原布局解包，返回实际版本。 | Qt6；qt | [专属差异](../xnviewmp/docs/template-deviations.md) |
 
 专属补库、桌面入口调整、AppRun 和 patches 处理按各应用的差异说明保留，不作为同类程序的默认步骤。
+
+### 直接 appimagetool
+
+遵循同一规范的 [直接封装补充](../linuxdeploy_projects.md#直接-appimagetool-模式同一体系的精简流程)，省略 linuxdeploy、插件、初始化和中间输出。构建环境与程序专属差异沿用各自已确认的基线，不因归类强制迁移环境或重写入口。
+
+| 已整理项目 | 构建脚本 | 程序及版本来源 | 工具与封装入口 | 专属差异说明 |
+| --- | --- | --- | --- | --- |
+| kitty | [build_kitty.sh](../kitty/build_kitty.sh) | 官方 installer 提供的预编译目录；公共版本入口执行当前程序的 `--version` 并按指定字段取版本。 | 工具准备入口的 `--appimagetool` 模式一次取得两个工具并设置权限；公共封装入口统一处理 PNG、封装和版本。 | [专属差异](../kitty/docs/template-deviations.md) |
+
+kitty 保留既有构建顺序、独立 AppRun、kitten 分派和专属资源准备；本次只统一公共版本、工具准备和封装调用。其他直接封装项目未按本次整理，不提前登记为已标准化。
