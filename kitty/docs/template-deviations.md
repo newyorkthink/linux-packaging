@@ -60,3 +60,9 @@
 直接模式与 linuxdeploy 归入同一 AppDir / 官方 appimagetool 体系，复用适用的风格与公共入口；quick-sharun 另按其规范。kitty 保留已验证的 Arch 构建环境、installer 执行顺序、独立 AppRun、kitten 入口及资源准备，不为风格一致套用 linuxdeploy 的 Ubuntu / 插件 / 中间产物步骤。
 
 AppRun 的 169 行正文保持原样，公共接口扩展不修改其他应用脚本。固定取值及历史依据见 [hardcoded.md](./hardcoded.md)。
+
+## 2026-11-02：主脚本注释与分区对齐
+
+直接 appimagetool 模式逐字使用 [固定注释标准](../../docs/linuxdeploy-comments.md) 中适用的分区标题、依赖安装和 AppRun 执行权限注释；已一致的通用注释和现有程序专属说明保留。
+
+本次只整理注释与空行，不移动或改写命令。Arch 基础包仍按原位置提前安装；最终封装工具仍在 AppRun 准备之后取得，保留原有已确认顺序。分区仅标明实际执行阶段，不为了套用 linuxdeploy 的默认顺序移动代码，也不增加初始化、插件、部署或中间包阶段。独立 AppRun 及 kitten 分派保持原样。

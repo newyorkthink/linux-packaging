@@ -17,6 +17,8 @@ cd "$(dirname "$0")"
 export ARCH=x86_64
 export APPIMAGE_EXTRACT_AND_RUN=1
 
+############# 准备构建目录 #############
+
 ROOT="$PWD"
 APPDIR="$ROOT/AppDir"
 OUTDIR="$ROOT/dist"
@@ -28,8 +30,12 @@ rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/lib" "$OUTDIR"
 rm -f "$OUTFILE" "$OUTFILE.zsync"
 
-# 安装原有构建依赖和 kitty 运行资源。
+############# 准备构建环境 #############
+
+# 安装构建工具和应用所需的依赖包。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" ca-certificates curl file kitty-terminfo libxcb ncurses squashfs-tools tar xz zsync
+
+############ 下载并准备应用 #############
 
 # 使用 kitty 官方预编译包，并保持 bin、lib、share 的相对目录不变。
 "$SCRIPT_DIR/../common/download/download_file.sh" https://sw.kovidgoyal.net/kitty/installer.sh /tmp/kitty-installer.sh
@@ -44,15 +50,25 @@ test -x "$KITTY_DIR/bin/kitten"
 # 读取本次打包使用的版本。
 KITTY_VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" command "$KITTY_DIR/bin/kitty" --field 2 -- --version)"
 
+########## 准备桌面资源和运行库 #########
+
 # 准备程序专属的运行库、terminfo、桌面入口和图标。
 "$SCRIPT_DIR/patches/prepare_appdir.sh" "$APPDIR"
 
+############# 准备 AppRun ##############
+
 # 安装独立保存的启动脚本，保持原有运行逻辑。
 cp "$SCRIPT_DIR/AppRun" "$APPDIR/AppRun"
+
+# 为启动脚本添加执行权限。
 chmod +x "$APPDIR/AppRun"
+
+############# 下载打包工具 #############
 
 # 下载并校验最终封装工具及运行时，并设置执行权限。
 "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" --appimagetool /tmp/appimagetool /tmp/runtime-x86_64
+
+############### 整理产物 ###############
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" /tmp/appimagetool "$APPDIR" "$OUTFILE" /tmp/runtime-x86_64 "$KITTY_VERSION"
