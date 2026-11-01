@@ -6,7 +6,7 @@
 
 已查阅上游打包参考索引并检索 pkgforge-dev 的 kitty 对应仓库，本次未找到对应打包实现，因此没有新增第三方 hook 或启动代码。官方程序仍由原 installer 取得，应用与打包工具都不固定旧版本。
 
-## 文件与执行阶段
+## 7813f09 基线的文件与执行阶段
 
 | 文件 | 阶段与处理 | 原因及影响 |
 | --- | --- | --- |
@@ -29,3 +29,19 @@
 - `AppRun` 中用于启动分派、输入法就绪和 tmux 环境处理的全部运行判断。
 
 没有把“精简判断”扩大为删除所有 `if` 或 `test`。运行功能、真实依赖错误和发布所需的有效性判断继续保留。固定配置与本次原始报错见 [hardcoded.md](./hardcoded.md)。
+
+## 当前公共入口与执行顺序
+
+下表接续上面的基线记录，说明本次公共化后的当前实现。原基线的资源阶段 PNG 准备和单独版本保存已由公共封装入口替代。
+
+| 当前阶段 | 实际调用与职责 |
+| --- | --- |
+| 官方文件下载 | 三次单行调用 `common/download/download_file.sh`，分别下载原 installer、appimagetool 和 Type 2 runtime。 |
+| 应用安装与版本读取 | 沿用原 installer 命令和版本解析，不更换官方程序来源或目录布局。 |
+| 程序资源准备 | `patches/prepare_appdir.sh` 保留运行库、terminfo、desktop 和原图标复制；移除手工 `.DirIcon` 链接、PNG 公共调用和因此不再使用的路径变量。 |
+| 运行入口 | 原样复制 `AppRun`，保留 kitten、输入法及 tmux 的全部行为。 |
+| 最终封装 | 单行调用 `common/linuxdeploy/package_appimage.sh`，传入 appimagetool、AppDir、输出文件、runtime 和实际软件版本。 |
+
+`package_appimage.sh` 内部只执行 PNG / 权限准备和 appimagetool 封装，不运行 linuxdeploy。PNG 准备在封装前执行一次；资源脚本不再创建旧的 SVG `.DirIcon`，由 appimagetool 根据合格根图标创建最终链接。最终资产非空检查、SHA-256 输出和版本写入也由该入口负责，调用方不再重复保存版本。
+
+本次未修改 `common/`、workflow、应用清单或其他应用；仍由既有 push 规则选中 kitty 构建。上文精简检查的边界继续有效。

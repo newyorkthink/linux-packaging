@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 APPDIR="$1"
 KITTY_DIR="$APPDIR/usr/lib/kitty.app"
 
@@ -42,14 +41,8 @@ sed -i '/^TryExec=/d' "$APPDIR/kitty.desktop"
 case "$ICON_FILE" in
   *.svg)
     cp "$ICON_FILE" "$APPDIR/kitty.svg"
-    ln -sf kitty.svg "$APPDIR/.DirIcon"
     ;;
   *)
     cp "$ICON_FILE" "$APPDIR/kitty.png"
-    ln -sf kitty.png "$APPDIR/.DirIcon"
     ;;
 esac
-
-# 补齐封装所需的 PNG 根图标，并让 .DirIcon 指向该 PNG。
-"$SCRIPT_DIR/../common/appimage/prepare_appdir_for_appimagetool.sh" "$APPDIR"
-ln -sfn kitty.png "$APPDIR/.DirIcon"

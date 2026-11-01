@@ -35,3 +35,17 @@ appimagetool: no AppImage was created because .DirIcon is not valid.
 desktop 继续使用 `Icon=kitty`。资源准备末尾调用既有 `common/appimage/prepare_appdir_for_appimagetool.sh`，优先使用包内同名 PNG；SVG 仍可保留作为应用图标。随后把 `.DirIcon` 明确链接到 `kitty.png`，避免最终封装继续读到 SVG。
 
 上面的构建号只用于记录故障，不用于固定工具版本。`appimagetool` 和 `Type 2 runtime` 的原 `continuous` 下载入口保持不变。
+
+## 2026-11-01：公共封装替代手工图标链接
+
+本节说明当前实现。前述资源阶段手工设置 `.DirIcon` 的方式属于 [7813f09](https://github.com/newyorkthink/linux-packaging/commit/7813f09eb577e2c985c1b22f781286dad159a0b4) 的修复记录，本次由公共封装流程替代，原故障正文继续保留。
+
+| 保留的配置 | 当前获取或处理方式 | 影响 |
+| --- | --- | --- |
+| 官方 installer URL、`/tmp/kitty-installer.sh` | 公共下载入口取得脚本，随后执行原 installer 命令。 | 不变更官方程序来源或包内布局。 |
+| 官方 appimagetool continuous URL、`/tmp/appimagetool` | 公共下载入口取得工具，再沿用原 `chmod +x`。 | 不固定旧版本，也不引入另一套下载重试。 |
+| 官方 Type 2 runtime continuous URL、`/tmp/runtime-x86_64` | 公共下载入口取得 runtime，再沿用原 `chmod +x`。 | 最终封装仍明确使用该 runtime。 |
+| `Icon=kitty`、`kitty.png`、`.DirIcon` | 资源脚本只复制图标，公共封装入口负责取得 PNG，appimagetool 创建最终链接。 | 避免预先创建 SVG `.DirIcon`；PNG 准备只调用一次。 |
+| `dist/version.txt` | 软件版本作为第五参数传入公共封装入口；产物非空时才保存版本。 | 保持版本文件位置和内容格式，移除调用方重复保存。 |
+
+本次未新增应用版本、下载地址或运行时环境的固定值；原 AppRun 及 kitten 分派保持不变。
