@@ -53,3 +53,7 @@ linuxdeploy 的 AppImage 输出插件与最终独立调用的 appimagetool 属�
 ```
 
 这是公共准备入口的缺包提示，不是 appimagetool 本体发出的错误。应补齐当前构建环境的转换依赖，保留已确认的 SVG、AppRun、linuxdeploy 命令和最终封装命令，不通过发布中间产物绕过最终封装。
+
+## linuxdeploy 更新后的中间封装检查
+
+linuxdeploy 更新时，其内置 appimagetool 也可能变化，使同一份脚本在中间封装时提前遇到图标或权限错误。最后一步已有公共准备，不能覆盖尚未走到最后一步的失败。工具版本对比、两类错误及公共处理应接入的位置，见 [linuxdeploy 更新与中间封装兼容](./linuxdeploy-update-compatibility.md)。该说明记录已查明的缺口，不表示代码修复已经完成。

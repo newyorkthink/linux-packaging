@@ -55,6 +55,7 @@
 | [AppImage 构建依赖清单](./appimage-build-dependency-list.md) | 基础包、Qt5 / Qt6、GTK、功能依赖 |
 | [公共脚本入口](../common/README.md) | 下载、AUR DEB 来源与摘要、解包、依赖、公共版本来源、可选构建元数据、版本保存 |
 | [appimagetool 图标检查与 SVG 兼容处理](./appimagetool-icon-compatibility.md) | 上游图标变更、.DirIcon、PNG / SVG / XPM、librsvg2-bin、公共准备入口、最终封装 |
+| [linuxdeploy 更新与中间封装兼容](./linuxdeploy-update-compatibility.md) | continuous 工具变化、内置 appimagetool、中间与最终封装、根图标与权限错误、公共准备接入位置、尚未实施修复 |
 | [打包 export 登记表](./packaging-export-registry.md) | 环境变量、用途、登记后使用 |
 | [AppRun 路径型环境变量](./apprun-path-environment.md) | PATH、LD_LIBRARY_PATH、XDG_DATA_DIRS、Qt 路径 |
 | [AppImage 自定义协议登记](./appimage-scheme-handler.md) | scheme、OAuth、浏览器回调、desktop |
