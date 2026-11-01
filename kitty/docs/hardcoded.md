@@ -1,0 +1,37 @@
+# kitty 固定配置与故障依据
+
+## 保留的运行基线
+
+本次以 [65850a8 中的原脚本](https://github.com/newyorkthink/linux-packaging/blob/65850a8e11bad58bcf30fac33dae6dc20dd31be9/kitty/build_kitty.sh) 为基线。下面的路径和参数都是既有实现，不因拆分文件而更换；原 `AppRun` 的 169 行正文逐字保存到 [AppRun](../AppRun)。
+
+| 既有配置 | 用途与保留依据 |
+| --- | --- |
+| `AppDir/usr/lib/kitty.app` | 保持官方预编译包的 bin、lib、share 相对布局，与现有启动路径一致。 |
+| `bin/kitty`、`bin/kitten` | 普通入口运行 kitty；启动名称为 `kitten` 时运行包内 `kitten`，并原样传递参数。 |
+| `share/terminfo/x/xterm-kitty` | 沿用 Arch `kitty-terminfo` 的已编译数据库；不调用 tic，也不改终端类型。 |
+| `libxcb-xkb.so.1` | 保留既有 X11 GLFW 运行依赖复制步骤和缺库判断。 |
+| `XMODIFIERS=@im=fcitx`、`GLFW_IM_MODULE=ibus` | 保留已有 Fcitx5 / IBus 接入逻辑；GLFW_IM_MODULE 仍只在地址就绪后设置。 |
+| 80 次、每次 0.25 秒、稳定 12 次 | 保留开机自启时最长约 20 秒的等待与连续稳定约 3 秒的判断。 |
+| `ARGV0`、`APPIMAGE`、`TMUX`、`TMUX_PANE` | 保留启动名称识别；普通 kitty 隔离父级 tmux 环境，`kitten` 分支不执行该隔离。 |
+| `kitty.AppImage`、`dist/version.txt` | 保持正式资产名和现有 workflow 的版本元数据接口。 |
+
+这些历史配置的首次故障日志未保存在 kitty 目录，不能把本次整理描述为重新修复了这些功能。本次只保留既有行为，并单独记录下面实际取得的图标封装错误。
+
+## 2026-11-01：PNG `.DirIcon`
+
+故障来源：[Build kitty](https://github.com/newyorkthink/linux-packaging/actions/runs/41263573517/job/124733830935)，构建提交为 65850a8e11bad58bcf30fac33dae6dc20dd31be9。
+
+以下为这次图标故障对应的完整报错正文，省略 GitHub Actions 时间戳：
+
+~~~text
+appimagetool, continuous build (git version 9bab981), build 340 built on 2026-10-31 09:33:46 UTC
+ERROR: /__w/linux-packaging/linux-packaging/kitty/AppDir/.DirIcon
+       Problem: .DirIcon is an SVG image (/__w/linux-packaging/linux-packaging/kitty/AppDir/kitty.svg). SVG is hard to parse, so file managers and thumbnailers cannot be expected to handle it; .DirIcon must be a PNG
+       Fix:     convert it to a PNG with 'rsvg-convert -w 256 -h 256 '/__w/linux-packaging/linux-packaging/kitty/AppDir/kitty.svg' -o '/__w/linux-packaging/linux-packaging/kitty/AppDir/kitty.png'' (or ImageMagick/Inkscape) and delete the SVG .DirIcon with 'rm '/__w/linux-packaging/linux-packaging/kitty/AppDir/.DirIcon''; appimagetool then creates .DirIcon from kitty.png
+appimagetool: no AppImage was created because .DirIcon is not valid.
+##[error]Process completed with exit code 1.
+~~~
+
+desktop 继续使用 `Icon=kitty`。资源准备末尾调用既有 `common/appimage/prepare_appdir_for_appimagetool.sh`，优先使用包内同名 PNG；SVG 仍可保留作为应用图标。随后把 `.DirIcon` 明确链接到 `kitty.png`，避免最终封装继续读到 SVG。
+
+上面的构建号只用于记录故障，不用于固定工具版本。`appimagetool` 和 `Type 2 runtime` 的原 `continuous` 下载入口保持不变。
