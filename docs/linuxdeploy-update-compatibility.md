@@ -6,9 +6,9 @@
 
 linuxdeploy 的依赖部署与最后独立执行的 appimagetool 封装是两个阶段。中间封装提前失败时，后面的公共权限、图标准备和最终封装均不会执行。此前多次成功，只能证明当时的工具组合能完成该流程，不能证明后续工具更新仍会接受尚未整理的 AppDir。
 
-## 两个封装阶段
+## 修复前的两个封装阶段
 
-| 阶段 | 实际使用的工具 | 当前公共准备的位置 |
+| 阶段 | 实际使用的工具 | 修复前公共准备的位置 |
 | --- | --- | --- |
 | linuxdeploy 生成中间 AppImage | linuxdeploy 的 AppImage 输出插件调用其选中的 appimagetool；本次日志显示使用内置版本。 | 原流程没有在这个输出阶段执行公共权限和 PNG 准备。 |
 | 对同一个 AppDir 生成最终 AppImage | 独立下载的官方 appimagetool，显式使用官方 Type 2 runtime。 | `common/linuxdeploy/package_appimage.sh` 在封装前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。 |
@@ -48,4 +48,34 @@ linuxdeploy 的 git commit 相同，仍可能对应包含不同内置工具的�
 2. 不能只把现有准备调用盲目前移到 linuxdeploy 命令之前。公共入口依赖根目录 desktop；根 desktop 尚未部署时会直接返回，而且后续部署还可能新增文件或保留原有权限。
 3. 最终封装前的公共准备仍需保留，因为两个阶段之间可能还有应用专属的目录修正和文件整理。不得通过发布中间包、忽略失败或锁定旧工具绕过问题。
 
-本次只补充已有证据与处理边界，未修改公共脚本或应用构建脚本，也未实施中间封装修复。实现公共接入点时仍须核实当前输出插件的实际调用方式；本文不提供未经验证的 wrapper 或替代封装命令。
+提交 `68b4ddaaa7aeaa28738ce341e9f115e0fc0b8f01` 当时只补充已有证据与处理边界，未实施代码修复。当前已接入的公共处理见下一节；原故障、版本对比与处理边界继续保留。
+
+## 2026-11-01：接入中间封装的公共准备
+
+本次代码修复由两个公共文件完成，三个应用的 build、AppRun、linuxdeploy 命令和最终封装命令保持原文不变：
+
+| 公共文件 | 当前职责 |
+| --- | --- |
+| [工具准备入口](../common/linuxdeploy/prepare_linuxdeploy_tools.sh) | 普通 linuxdeploy 模式额外下载并校验当前官方 AppImage 输出插件，只从资产中提取原始插件程序为 `appimage-output`，与当前下载的 appimagetool 放在同一目录；安装外部包装入口和公共准备脚本的链接。原独立执行、source 参数及直接 appimagetool 模式保留。 |
+| [输出包装入口](../common/linuxdeploy/linuxdeploy-plugin-appimage.sh) | 对插件探测和帮助查询直接调用官方入口；实际收到 `--appdir` 后先准备权限和 PNG，再原样传递全部参数并执行官方输出插件，保留原 LDAI 配置和退出状态。 |
+
+本次检查发现，当前官方独立输出插件资产仍捆绑 appimagetool build 295。本仓库只提取其中未经修改的插件程序；按其官方源码的同目录搜索规则，实际调用本次独立下载并校验的 appimagetool，而不依赖资产内的旧工具。
+
+这是本仓库的构建工具兼容包装，不是应用 AppRun、启动 hook，也没有重写官方输出插件的参数转换和封装逻辑。官方输出插件仍处理输出路径、runtime、AppStream、更新信息、签名等环境配置。输出插件保存在工具目录，不放入 AppDir；中间产物仍不发布，最终产物与版本保存仍使用原公共封装入口。
+
+### 官方接入依据
+
+- [linuxdeploy 插件查找源码](https://github.com/linuxdeploy/linuxdeploy/blob/07333c6e942c7d71782b66be924c5d867f9dfdfc/src/plugin/plugin.cpp)：优先扫描 linuxdeploy AppImage 所在目录，同名外部插件先于内置插件。
+- [linuxdeploy 执行顺序](https://github.com/linuxdeploy/linuxdeploy/blob/07333c6e942c7d71782b66be924c5d867f9dfdfc/src/main.cpp)：输入插件和根桌面资源部署完成后，才调用输出插件。
+- [官方输出插件说明](https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/blob/536b068787179ea901964bd7dabc7bf61e4941c3/README.md) 与 [源码](https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/blob/536b068787179ea901964bd7dabc7bf61e4941c3/src/main.cpp)：支持外部输出入口、插件探测、`--appdir` 及既有 LDAI 参数转换。
+
+上述固定 commit 仅定位本次所读证据；正式工具仍动态下载官方 continuous 资产并核对 SHA-256，不固定旧版本。
+
+### 验证范围
+
+- 已实际下载并校验当前官方工具，验证官方输出插件本体的提取、外部入口安装和 linuxdeploy 的选择优先级。
+- 在隔离临时目录中，用 linuxdeploy build 372 的内置输出入口分别复现 SVG 根图标和 `0745` 权限失败；修复后让中间封装明确使用本次 appimagetool build 340。三个临时 AppDir 均通过中间封装、最终封装及小型 CLI 启动，`.DirIcon` 指向 PNG，AppRun 正文与包外文件权限保持不变，最终版本文件正确。SVG 转换使用隔离命令入口调用系统 librsvg / Cairo 实际渲染，未安装或改变系统软件包。
+- 已检查 Shell 语法、六种原插件组合、独立执行及 source 参数、直接 appimagetool 双文件模式，以及准备失败、官方插件失败时的退出状态、参数和 LDAI 环境传递。接口检查的联网调用使用临时固定数据，工具本体与封装另按上一项实际执行。
+- 已核对正文、相对链接和完整 diff。没有将验证脚本加入仓库，也没有修改应用 build、AppRun、workflow 或手动触发 Actions。
+
+这些结果验证公共接入位置与两类故障的修复，不代替三个完整应用的新一轮正式构建及桌面功能验收；本次未执行这三项完整应用构建，提交后不等待或监控 Actions。既有用户实测成功的功能和运行配置继续作为稳定基线保留。

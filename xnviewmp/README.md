@@ -170,3 +170,9 @@ Actions Job `106070682762` 已成功完成打包；用户实际解包和运行�
 ### 2026-09-20：补齐 Qt5 Declarative 与 QML 打包工具
 
 Actions Job `106069546113` 在 Qt 插件的 QML 阶段调用 `/usr/bin/qmlimportscanner`，因 qtchooser 没有选中 Qt installation 而退出。构建脚本补装 Qt5 qmake、Declarative 开发工具、`qmlimportscanner` 和常用 Qt Quick/QML 模块，并把 `PATH`、`QT_SELECT`、`QMAKE` 明确绑定到 `/usr/lib/qt5/bin`。本次仅完成脚本语法和远端 diff 核对，提交后未监控 Actions，实际构建结果未验证。
+
+### 2026-11-01：补齐中间封装前的公共权限准备
+
+- 故障依据：[运行 #1102 的 Build XnView MP](https://github.com/newyorkthink/linux-packaging/actions/runs/41298501421/job/124824392650)。中间封装将 `usr/share/icons/hicolor/64x64/apps/xnview.png` 的 `0745` 模式列为致命错误，随后输出 `found 1 ERROR(S) in the AppDir` 并退出；其余权限 warning 不作为本次失败原因。
+- 原因与处理：linuxdeploy 新构建内置 appimagetool build 340，原来仅在最终封装执行的权限准备来不及运行。公共工具准备现安装外部输出包装，在 Qt 和根桌面资源部署完成后，先复用现有权限与 PNG 准备，再调用官方输出插件。
+- 本项目 build、AppRun、qmake6 入口、Qt6 / IBus Portal 设置、运行库收集和原 linuxdeploy 命令均未修改；不处理已有视频黑屏问题或改动其记录。公共实现、官方依据和提交前验证边界见 [更新兼容说明](../docs/linuxdeploy-update-compatibility.md)。

@@ -116,3 +116,10 @@ linuxdeploy 默认不捆绑 glibc / 动态加载器，因此宿主仍需满足 U
 - **处理：** 仅在原依赖命令末尾追加 `librsvg2-bin`。保留官方 SVG、标准注释、AppRun、linuxdeploy 命令和最终封装命令。公共图标准备入口只补充用途、依赖说明和缺包提示，权限与图标处理逻辑保持不变。
 - **上游与公共机制：** 新版不再主动用 SVG 生成 `.DirIcon`，并加强其有效性检查，但仍接受已有有效 `.DirIcon` 的回退路径；不能表述为所有 AppImage 一律禁止 SVG。详细依据和公共入口的适用条件见 [appimagetool 图标检查与 SVG 兼容处理](../docs/appimagetool-icon-compatibility.md)。
 - **验证边界：** 已依据现成失败日志、上游提交及源码完成静态核对；本次未执行安装、试打包或程序运行，补包后的正式构建结果尚未核实。
+
+### 2026-11-01：补齐中间封装前的公共图标准备
+
+- **故障依据：** [运行 #1102 的 Build MediaInfo](https://github.com/newyorkthink/linux-packaging/actions/runs/41298501421/job/124824392797) 在 linuxdeploy 中间封装时报 `.DirIcon does not exist`，根目录没有 `mediainfo.png` / XPM，随后因 `.DirIcon` 无效退出。已有 `librsvg2-bin`，此次没有走到最终封装的转换入口。
+- **原因与处理：** linuxdeploy 更新后内置 appimagetool 从 build 295 变为 340，提前暴露了公共准备只覆盖最终封装的缺口。工具准备入口现安装外部输出包装，在桌面资源部署完成后、官方输出插件执行前复用现有权限和 PNG 准备。工具继续从官方 continuous 下载并校验。
+- **稳定基线：** 本项目 build、完整 AppRun、官方 SVG、依赖、两阶段 linuxdeploy 命令及最终封装命令均未修改；不切换 quick-sharun，不改变已确认的 lf 预览路线。公共实现和官方依据见 [更新兼容说明](../docs/linuxdeploy-update-compatibility.md)。
+- **验证范围：** 提交前检查结果与完整应用构建的边界见上述公共说明；本记录不把临时目录验证写成新的 MediaInfo 正式构建或实机验收。

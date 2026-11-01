@@ -101,3 +101,9 @@ remmina/patches/fix_runtime.sh
 - 故障现象：Remmina AppImage 已完成构建和 WebKitGTK 修复，但 `Prepare software version metadata` 在写入 `remmina/dist/version.txt` 时返回 `Permission denied`。
 - 根因：`build_remmina.sh` 通过 Docker 在挂载的工作区中创建 `dist/`，目录归属为 root；后续 GitHub Actions runner 用户不能直接在该目录创建新文件。
 - 修复内容：仅将版本文件写入改为通过 `sudo tee` 写入 root 所有的 `dist/`；不修改 Remmina 构建、WebKitGTK 修复、AppImage 内容或 Release 资产名。
+
+### 2026-11-01：补齐中间封装前的公共图标准备
+
+- 故障依据：[运行 #1102 的 Build Remmina](https://github.com/newyorkthink/linux-packaging/actions/runs/41298501421/job/124824392737)。linuxdeploy 的输出插件报根目录缺少 `org.remmina.Remmina.png` / XPM，`.DirIcon` 无效，退出码为 1；后面的运行目录修正和最终封装未执行。
+- 原因与处理：新版内置 appimagetool 在中间封装就检查根图标。公共工具准备现安装外部输出包装，在 linuxdeploy 完成 GTK / GStreamer 及根桌面资源部署后复用现有图标与权限准备，再交给官方输出插件；最终封装前的准备继续保留。
+- 本项目 build、AppRun、本地终端 wrapper、输入法、认证配置及两个 patches 均未修改，保留已确认的实机基线。公共实现、官方依据和提交前验证边界见 [更新兼容说明](../docs/linuxdeploy-update-compatibility.md)；本次不重复宣称新的完整应用构建或实机验收。

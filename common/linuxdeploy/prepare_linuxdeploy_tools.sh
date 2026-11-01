@@ -147,6 +147,20 @@ if [[ "$APPIMAGETOOL_ONLY" == 1 ]]; then
   exit 0
 fi
 
+# 中间封装先完成权限和 PNG 准备，再交给当前官方 AppImage 输出插件。
+download_release_asset linuxdeploy/linuxdeploy-plugin-appimage linuxdeploy-plugin-appimage-x86_64.AppImage \
+  "$TOOLS_DIR/appimage-output.AppImage"
+
+# 只取官方输出插件本体，使其从同一目录找到本次下载的 appimagetool。
+chmod +x "$TOOLS_DIR/appimage-output.AppImage"
+(
+  EXTRACT_DIR="$(mktemp -d "$TOOLS_DIR/.appimage-output.XXXXXX")"
+  trap 'rm -rf -- "$EXTRACT_DIR"' EXIT
+  cd -- "$EXTRACT_DIR"
+  "$TOOLS_DIR/appimage-output.AppImage" --appimage-extract usr/bin/linuxdeploy-plugin-appimage
+  mv -- squashfs-root/usr/bin/linuxdeploy-plugin-appimage "$TOOLS_DIR/appimage-output"
+)
+
 # GTK / Qt 项目按需取得对应的官方 linuxdeploy 输入插件。
 case "$PLUGIN" in
   ''|gstreamer)
@@ -257,8 +271,14 @@ case "$PLUGIN" in
     ;;
 esac
 
-# 只给需要直接执行的 AppImage 工具增加执行权限，并提供标准 linuxdeploy 命令名。
+# 安装外部输出入口；linuxdeploy 优先使用自身 AppImage 同目录下的同名插件。
+cp "$SCRIPT_DIR/linuxdeploy-plugin-appimage.sh" "$TOOLS_DIR/linuxdeploy-plugin-appimage"
+ln -sfn "$SCRIPT_DIR/../appimage/prepare_appdir_for_appimagetool.sh" "$TOOLS_DIR/prepare_appdir_for_appimagetool.sh"
+
+# 为打包工具和输出入口添加执行权限，并提供标准 linuxdeploy 命令名。
 chmod +x \
   "$TOOLS_DIR/linuxdeploy-x86_64.AppImage" \
-  "$TOOLS_DIR/appimagetool-x86_64.AppImage"
+  "$TOOLS_DIR/appimagetool-x86_64.AppImage" \
+  "$TOOLS_DIR/appimage-output" \
+  "$TOOLS_DIR/linuxdeploy-plugin-appimage"
 ln -sfn linuxdeploy-x86_64.AppImage "$TOOLS_DIR/linuxdeploy"

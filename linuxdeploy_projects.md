@@ -119,6 +119,8 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 
 `normalize_apprun_paths.sh` 只用于已说明并获准的路径整理，不是默认步骤。已有临时调用在成品确认前保留；确认实际目录和 export 后，原样固化到构建脚本的 AppRun，再移除临时调用。已确定的路径不在每次构建时重新整理。
 
+公共工具准备会安装外部 AppImage 输出入口，并按官方优先级接管中间封装：linuxdeploy 部署完依赖及根 desktop / 图标后，包装入口先复用公共权限和 PNG 准备，再将原始参数与 LDAI 环境交给动态下载并校验的官方输出插件。插件探测和第一次空 AppDir 初始化保持原接口；应用无需另加准备命令，不更改既有 `linuxdeploy ... --output appimage` 整行。详细机制与证据见 [linuxdeploy 更新与中间封装兼容](./docs/linuxdeploy-update-compatibility.md)。
+
 最终封装由 `common/linuxdeploy/package_appimage.sh` 使用官方 appimagetool 和明确的 Type 2 runtime 完成。权限及 PNG 根图标的公共处理见 [appimagetool 图标检查与 SVG 兼容处理](./docs/appimagetool-icon-compatibility.md)。不使用 `--no-check-permissions`，不因下载或封装失败而发布中间包。
 
 ## 检查与记录

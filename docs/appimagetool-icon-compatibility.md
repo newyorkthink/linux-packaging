@@ -56,4 +56,4 @@ linuxdeploy 的 AppImage 输出插件与最终独立调用的 appimagetool 属�
 
 ## linuxdeploy 更新后的中间封装检查
 
-linuxdeploy 更新时，其内置 appimagetool 也可能变化，使同一份脚本在中间封装时提前遇到图标或权限错误。最后一步已有公共准备，不能覆盖尚未走到最后一步的失败。工具版本对比、两类错误及公共处理应接入的位置，见 [linuxdeploy 更新与中间封装兼容](./linuxdeploy-update-compatibility.md)。该说明记录已查明的缺口，不表示代码修复已经完成。
+linuxdeploy 更新时，其内置 appimagetool 也可能变化，使同一份脚本在中间封装时提前遇到图标或权限错误。最后一步已有公共准备，不能覆盖尚未走到最后一步的失败。工具版本对比、两类错误及公共处理应接入的位置，见 [linuxdeploy 更新与中间封装兼容](./linuxdeploy-update-compatibility.md)。当前普通 linuxdeploy 工具准备已安装外部输出包装入口，在中间封装前复用同一个公共准备脚本；最终封装前的准备继续保留。具体修复和验证边界以该说明为准。
