@@ -91,4 +91,15 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 
 ## linuxdeploy
 
-待补充，暂未登记项目。
+本类遵循 [linuxdeploy 规范](../linuxdeploy_projects.md) 和 [固定注释标准](./linuxdeploy-comments.md)。基础标准参考为 Joplin（GTK）、XnView MP（Qt）和 MediaInfo（CLI）；Remmina 是已按该标准整理的 GTK / GStreamer 项目。
+
+构建直接使用各项目已确认的 Ubuntu runner，不使用 Docker。linuxdeploy 负责依赖部署和中间输出，最终由官方 appimagetool 配合明确的 Type 2 runtime 封装。
+
+| 已标准化项目 | 构建脚本 | 程序及版本来源 | 技术栈与插件 | 专属差异说明 |
+| --- | --- | --- | --- | --- |
+| Joplin | [build_joplin.sh](../joplin/build_joplin.sh) | 官方 GitHub 正式 Release DEB；公共入口校验后，将同一份包安装并按原布局解包，返回实际版本。 | Electron / GTK3；gtk | [专属差异](../joplin/docs/template-deviations.md) |
+| MediaInfo | [build_mediainfo_linuxdeploy.sh](../mediainfo/build_mediainfo_linuxdeploy.sh) | Ubuntu 24.04 仓库的 mediainfo；公共入口下载已安装的同一版本并解包，返回版本号。 | CLI；无框架插件 | [专属差异](../mediainfo/docs/template-deviations.md) |
+| Remmina | [build_remmina.sh](../remmina/build_remmina.sh) | Ubuntu 24.04 仓库的 Remmina 与协议插件；各包按已安装版本下载并解包，版本以 remmina 主包为准。 | GTK3 / WebKitGTK；gtk、gstreamer | [专属差异](../remmina/docs/template-deviations.md) |
+| XnView MP | [build_xnviewmp.sh](../xnviewmp/build_xnviewmp.sh) | 官方校验清单中的最新稳定版 x64 DEB；公共入口校验后，将同一份包安装并按原布局解包，返回实际版本。 | Qt6；qt | [专属差异](../xnviewmp/docs/template-deviations.md) |
+
+专属补库、桌面入口调整、AppRun 和 patches 处理按各应用的差异说明保留，不作为同类程序的默认步骤。

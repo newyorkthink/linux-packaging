@@ -53,7 +53,7 @@ export DEPLOY_VULKAN=1
 # 读取本次打包使用的版本。
 VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text antigravity-ide.version)"
 
-# 复用官方代码：收集程序及运行时加载的 NSS 模块。
+# 复用官方代码：收集程序及其运行依赖。
 quick-sharun ./AppDir/bin/* /usr/lib/libnss_nis.so* /usr/lib/libnsl.so* /usr/lib/libnss_mdns*_minimal.so*
 
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
