@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Linux 补丁：去掉 Speak to Window 的 Windows PE 原生模块。
+# Linux 补丁：去掉当前产品层中的 Windows PE 原生模块。
 # stdout 只输出 true 或 false，表示是否实际删除了 gemini_native.node。
 set -Eeuo pipefail
 
@@ -22,7 +22,7 @@ die() {
 }
 
 # ASAR 索引把 unpacked 文件记录为外置内容，必须在完整提取后才能删除对应文件。
-# Gemini 的 Windows 原生 Node 模块只用于 Speak to Window；产品层在模块缺失时有明确的安全回退。
+# 当前已检查的产品层会捕获模块加载失败，并在模块不可用时回退；原始证据见项目 README。
 while IFS= read -r -d '' node_file; do
   if file -b "$node_file" | grep -q '^PE32'; then
     [[ "${node_file##*/}" == gemini_native.node ]] || \

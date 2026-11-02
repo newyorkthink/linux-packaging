@@ -15,11 +15,11 @@
 | 打包方式 | 仓库现有 `quick-sharun` AppImage 流程 |
 | 支持架构 | `x86_64` |
 | Release 产物 | `Gemini.AppImage`。启动器也叫 `Gemini`，对应 Windows 的 `Gemini.exe`，避免和 Gemini CLI 的 `gemini` 命令冲突 |
-| Windows 原生模块 | 完整提取 ASAR 后，只移除已确认属于 Speak to Window 的 PE 格式 `gemini_native.node`；重新打包前必须确认当前产品层仍声明缺失模块时使用安全回退 |
+| Windows 原生模块 | 完整提取 ASAR 后，只移除已识别的 PE 格式 `gemini_native.node`；保留未知模块、路径和提取副本保护，不再匹配上游回退日志文字 |
 
 Gemini 应用版本、Google CDN 安装包地址、安装包校验值以及 Electron runtime 版本均不写死在仓库中。上游发布新 stable 版本后，下一次正式构建会重新读取当前元数据。
 
-Windows PE 原生模块不能由 Linux Electron 加载，因此不会进入最终产品层。当前 Gemini 产品层把 `gemini_native.node` 限定在 Speak to Window 的 Windows 前台窗口、光标和文本注入能力，并在加载失败时明确使用安全回退；Linux 启动入口也不启用对应功能。构建先在外置文件仍存在时完整提取 ASAR，再同时删除外置副本和提取目录中的副本并核对回退标记；若发现其他 PE `.node`、模块位于未识别路径或上游取消安全回退则停止构建，不会静默发布不兼容产品层。
+Windows PE 原生模块不能由 Linux Electron 加载。已检查的 1.17.0 产品层仍会捕获模块加载异常，并处理模块不可用的情况；当前日志已变为 `Will use fallbacks`。构建先在外置文件仍存在时完整提取 ASAR，再通过原有脚本同时删除已识别模块的外置副本和提取副本；未知 PE `.node`、未知路径和缺少提取副本仍会中止构建。非 sticky 补丁只处理窗口调用，不再用上游日志文字判断原生模块兼容性。该静态结论不代替新版本的 GUI 或登录验收。
 
 ## 下载与运行
 
@@ -53,30 +53,34 @@ Gemini 沿用 Electron 标准 `userData` 目录，Linux 默认保存在：
 
 Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装还包含 Windows 专用的 launcher / 系统集成组件；本项目不通过 Wine 运行这些 Windows 可执行文件，而是仅迁移 Electron 产品层到官方 Linux Electron runtime。
 
-构建脚本会按以下顺序识别 Electron 版本：
+构建脚本从当前 `Gemini.exe` 的 ASCII / UTF-16LE 内嵌标识读取 Electron 精确版本；无法识别时停止，不使用开发依赖范围替代，也不继续旧的 package.json 回退或 Chromium 反查分支。
 
-1. 优先读取当前 `Gemini.exe` 内嵌的 Electron 版本标识；
-2. 如果上游隐藏该标识，则读取 `app.asar` 中的 `package.json` 元数据；
-3. 如果两者都未提供 Electron 版本，再使用 `Gemini.exe` 内嵌 Chromium 精确版本与 Electron 官方发布元数据进行匹配；
-4. 无法可靠确定精确版本时直接停止构建，不会自行固定或猜测某个 Electron 版本。
+1.17.0 的实际程序标识为 Electron `44.5.1`，同包 `package.json` 中却仍声明开发依赖 `^42.4.1`，因此不能直接照搬上游按该字段选择 runtime 的做法。
 
 ## 打包流程
 
 `build_gemini.sh` 的正式构建流程如下：
 
-1. 向 Google Omaha 更新服务查询 Gemini `prod` channel 的当前 Windows x64 正式版。
-2. 验证返回的版本格式、`dl.google.com` 下载域名、Google DeepMind release 路径、完整安装包大小与 SHA-256。
-3. 下载官方完整 NSIS 安装包并使用 `7z` 解包。
-4. 定位唯一的 `resources/app.asar` 与对应 `Gemini.exe`。
-5. 动态确定 Gemini 实际使用的 Electron 精确版本。
-6. 从 Electron 官方 Release 下载对应 `electron-v<版本>-linux-x64.zip`，并按官方 `SHASUMS256.txt` 校验。
-7. 以 Linux Electron runtime 为外壳，复制 Gemini 官方产品资源；Windows `.exe` / `.dll` 资源不进入最终 Linux 产品层。
-8. 完整提取 `app.asar` 后调用 `patches/remove_windows_native_addon.sh`，从外置资源和提取目录同时删除已确认可安全回退的 PE 格式 `gemini_native.node`；发现其他 PE `.node` 或路径变化时停止构建。
-9. 调用 `patches/disable_visible_on_all_workspaces.py`，在重新打包前取消 sticky 窗口并核对 Speak to Window 安全回退仍然存在。
-10. 从官方 `Gemini.exe` 提取全部 ICO，由 `patches/extract_ico_png.py` 优先原样复制最大的内嵌 PNG；没有可用 PNG 时逐帧转换 DIB，跳过损坏条目。生成 `Exec=Gemini` 的 desktop，并用 `patches/Gemini` 作为简体中文启动器。
-11. 使用仓库当前 `quick-sharun` 打包并输出 `dist/Gemini.AppImage`。
+1. 通过 `common/download/download_omaha_package.sh` 查询当前 `prod` 正式版，校验应用、版本、下载源、文件名、大小和 SHA-256，并记录来源版本。
+2. 通过 `common/archive/extract_archive.sh` 解开官方完整 NSIS 包。
+3. 定位唯一的 `resources/app.asar` 和对应 `Gemini.exe`，从实际程序识别精确 Electron 版本。
+4. 通过 `common/download/download_latest_checksum_asset.sh` 从官方清单选择同版本 Linux x64 runtime，并校验 SHA-256；再通过公共归档入口解包 ZIP。
+5. 以完整 Linux runtime 为外壳，复制产品资源；沿用既有沙盒文件处理，资源中的 Windows `.exe` / `.dll` 不进入最终产品层。
+6. 完整提取 ASAR 后调用原有模块移除脚本，同时处理外置副本和提取副本，保留未知模块、路径和副本保护。
+7. 调用单参数的非 sticky 补丁，只修改显式 all-workspaces 调用，再重新封装 ASAR；不再核对回退日志或 Speak to Window 开关名称。
+8. 直接把包内 `resources/app.asar.unpacked/assets/icon.png` 交给 quick-sharun，不再运行 ICO 转换；旧提取脚本和历史记录保留。原样安装简体中文启动器，并生成大写入口对应的 desktop。
+9. 通过公共版本入口读取来源版本并追加 desktop 元数据，使用原有运行项收集依赖；显式部署 GTK3，并按模板生成包内中文 locale。
+10. 使用 `quick-sharun --make-appimage` 输出 `dist/Gemini.AppImage`，仅在最终产物有效时通过原有公共入口写入 `dist/version.txt`。
 
 构建脚本不固定 `quick-sharun`、sharun 或其他 AppImage 打包工具版本，继续使用统一 AnyLinux 构建环境当前提供的工具链。
+
+常规版本更新不需要人工修改版本号、摘要或日志字符串。上游若改变资源布局、版本标识、窗口调用或原生依赖，仍须重新核对，不承诺永远不需要维护。
+
+## 维护说明
+
+- [标准模板差异](docs/template-deviations.md)：公共步骤、移植路线、依赖覆盖与执行顺序。
+- [pkgforge 采用与未采用项](docs/pkgforge-differences.md)：当前上游固定源码、原始命令、实际落地位置和取舍原因。
+- [固定参数与原始故障](docs/hardcoded.md)：来源限制、目录、runtime、补丁、图标和既有配置依据。
 
 ## 已验证的 Linux 使用结果
 
@@ -92,6 +96,10 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 上述确认范围只代表当前 Linux 移植层已经实际运行通过，不代表 Google 官方支持 Linux，也不代表所有 Windows 桌面原生功能已经移植。
 
 ### 当前上游兼容状态
+
+2026-11-02 已核对 1.17.0：旧构建失败来自回退日志文字变更，不等于模块加载回退已经消失。本次移除日志字符串断言，保留实际 Electron 版本识别和必要窗口修补，直接使用包内 PNG。已完成 1.17.0 与 Electron 44.5.1 的实际资源组装、ASAR 修补和重封装；完整 AppImage、GUI 和登录结果尚未在本次检查中验证，既有旧版实测结果不变。
+
+以下 2026-09 的判断与实现保留为当时的兼容历史，其中旧 Release 回退和日志标记守卫均已被后续方案替代，不作为恢复旧逻辑的指令。
 
 2026-09-27，Google Omaha `prod` channel 已返回 Gemini `1.12.3`。静态解包官方安装包后确认 `gemini_native.node` 仍是 Windows PE x86-64 模块，但当前 `main.js` 使用 `try/catch` 加载它，加载失败会明确记录 `STC will use safe fallbacks`；所有调用点均先处理模块不可用的情况，Speak to Window 还受 `GEMINI_ENABLE_SPEAK_TO_WINDOW=true` 控制，Linux 启动入口没有启用该开关。
 
@@ -149,7 +157,7 @@ for_window [class="^gemini$"] floating enable, sticky disable
 
 当前产品层仍会尝试连接 Windows named pipe `\\\\.\\pipe\\Google.Gemini.AppLauncher`。Linux 中不存在该 helper，因此终端可能持续出现 `helper_ipc` 重连日志；目前已确认这不会阻止主界面启动、登录和聊天。
 
-从 Gemini 1.11.4 开始，官方 Windows 产品层已经包含 `gemini_native.node`。该模块本身不能由 Linux Electron 加载，因此构建只删除实际识别为 PE 的这个模块；当前产品层会捕获加载失败并让 Speak to Window 使用安全回退，主窗口、登录和聊天不依赖该 Windows 模块。Linux 不提供该模块负责的 Windows 前台窗口、光标、辅助功能树和文本注入能力；未来出现其他 PE `.node` 时不会套用这一结论。
+从 Gemini 1.11.4 开始，官方 Windows 产品层已经包含 `gemini_native.node`。该模块不能由 Linux Electron 直接加载，因此构建继续只删除实际识别为 PE 且名称和路径符合既有规则的模块。1.17.0 的代码仍会捕获加载失败；其调用还涉及 Windows 原生集成，不再把整个模块描述为仅属于 Speak to Window。Linux 不提供对应的原生实现，未来出现其他 PE `.node` 时不会自动套用当前结论；本次没有验证新版本的 GUI 或登录功能。
 
 实际运行中还可能看到以下非致命日志：
 
@@ -174,7 +182,7 @@ Gemini 接入仓库统一正式 workflow：
 - `workflow_dispatch` 可以选择 `gemini/build_gemini.sh`；
 - `workflow_dispatch` 选择 `all` 或每日计划构建时包含 Gemini；
 - 构建成功后覆盖 `latest` Release 中的 `Gemini.AppImage`，并把本次动态取得且实际打包的上游版本写入版本清单；
-- 已确认的 PE 格式 `gemini_native.node` 不进入最终 AppImage；出现其他 PE `.node` 或当前产品层的安全回退标记发生变化时构建会停止，不再回退或重新发布旧版资产。
+- 已确认的 PE 格式 `gemini_native.node` 不进入最终 AppImage；出现其他 PE `.node`、未知路径或缺少提取副本时仍会停止。构建不再依赖上游日志措辞，也不回退或重新发布旧版资产。
 
 本项目不新增独立 test workflow、smoke Job 或运行时测试 Step。
 
@@ -202,6 +210,16 @@ dist/Gemini.AppImage
 ```
 
 ## 变更记录
+
+### 2026-11-02：接入公共入口并移除过时的回退日志断言
+
+- 现象：[Actions run 41279519905 的 Gemini Job](https://github.com/newyorkthink/linux-packaging/actions/runs/41279519905/job/124775779381) 已下载并校验 1.17.0 及 Electron 44.5.1，却因 `Gemini product layer no longer declares the safe fallback for the optional Windows native addon` 中止。实际产品仍捕获模块加载失败，日志已改为 `Will use fallbacks`。
+- 根因：非 sticky 补丁同时承担了原生模块兼容判断，并硬匹配旧英文日志与功能开关。另查明包内开发依赖 `^42.4.1` 与实际程序使用的 Electron 44.5.1 不同，不能按该字段替换现有运行时识别。
+- 修改文件：`gemini/build_gemini.sh`、`gemini/patches/disable_visible_on_all_workspaces.py`、`gemini/patches/remove_windows_native_addon.sh`、`gemini/README.md`、`gemini/docs/template-deviations.md`、`gemini/docs/pkgforge-differences.md`、`gemini/docs/hardcoded.md`、`docs/packaging-export-registry.md`。模块移除脚本只修正用途注释，可执行命令保持原样。
+- 处理：主脚本按已核对的标准阶段接入公共下载、摘要和归档入口；保留实际程序版本识别、原生模块移除顺序及非 sticky 修补，去掉过时日志断言；直接使用官方 PNG，退出 ICO 转换链；原样保留中文启动器、既有运行依赖和历史记录，并补齐模板元数据与包内中文 locale。
+- 上游：核对 pkgforge commit `e7bf2237e223c0cb8b2625dfdd0b1d2f211ccabc` 的依赖、封装、workflow 和说明；原样采用包内 PNG 的 `ICON` 设置。没有照搬不适用的开发依赖版本读取，也没有恢复自更新、瘦身包、窗口图标注入或其他未启用处理。
+- 已验证：28 项检查通过；已在真实 1.17.0 产品代码上复现旧断言失败，完成 Electron 44.5.1 官方下载校验、实际资源组装、ASAR 提取、两处原生模块移除、非 sticky 修补与重封装；其余产品资源逐项保持原样，PNG 字节不变，版本与 desktop 元数据一致。临时工具、样本及测试不进入提交。
+- 验证边界：本次没有执行完整 Arch quick-sharun AppImage 构建、图形启动、登录或中文输入测试；此前已确认的旧版 Linux 使用结果保持有效。推送由现有 workflow 正常处理，提交后不等待或监控 Actions。
 
 ### 2026-10-23：兼容官方 ICO 仅含 DIB 的图标资源
 

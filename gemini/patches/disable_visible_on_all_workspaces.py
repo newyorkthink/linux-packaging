@@ -4,22 +4,21 @@
 Windows 原版会把主窗口设为 visible-on-all-workspaces。Linux/i3 会把它映射成 sticky，
 并且应用会在窗口创建后再次设置，导致 i3 的一次性 for_window 规则被覆盖。
 这里只改写当前官方产品层里显式的 true / !0 调用。上游结构变化时直接失败，不猜测新逻辑。
+原生模块由独立脚本处理，这里不再用上游日志文案判断其兼容性。
 """
 
 import re
 import sys
 from pathlib import Path
 
-if len(sys.argv) != 3:
+if len(sys.argv) != 2:
     raise SystemExit(
-        f"用法：{sys.argv[0]} <已提取的 app.asar 目录> <true|false>"
+        f"用法：{sys.argv[0]} <已提取的 app.asar 目录>"
     )
 
 root = Path(sys.argv[1])
-native_addon_removed = sys.argv[2] == "true"
 pattern = re.compile(r"setVisibleOnAllWorkspaces\(\s*(?:true|!0)(?=\s*[,\)])")
 patched = []
-native_fallback_found = False
 
 for path in root.rglob("*"):
     if not path.is_file() or path.suffix not in {".js", ".cjs", ".mjs"}:
@@ -28,12 +27,6 @@ for path in root.rglob("*"):
         text = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         continue
-
-    if (
-        "gemini_native addon unavailable; STC will use safe fallbacks" in text
-        and "GEMINI_ENABLE_SPEAK_TO_WINDOW" in text
-    ):
-        native_fallback_found = True
 
     new_text, count = pattern.subn("setVisibleOnAllWorkspaces(false", text)
     if count:
@@ -44,11 +37,6 @@ if not patched:
     raise SystemExit(
         "Gemini product layer no longer contains a recognized "
         "setVisibleOnAllWorkspaces(true/!0) call"
-    )
-if native_addon_removed and not native_fallback_found:
-    raise SystemExit(
-        "Gemini product layer no longer declares the safe fallback "
-        "for the optional Windows native addon"
     )
 
 total = sum(count for _, count in patched)
