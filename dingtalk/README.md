@@ -155,3 +155,11 @@ dingtalk/README.md
 - 真实来源验证：动态读取 AUR `9f15353cb6556398d3cd3ac594a57ca4a824200a`，下载官方 DEB `8.2.8.260904001` 并通过完整 SHA-512。真实包经新补丁整理后，按 DEB 自带 MD5 清单核对了 2341 份保留文件；29 份清单文件按既有 AUR / 诊断组件规则移除，版权文档与 desktop 净化核对通过。
 - 隔离验证：19 项检查通过，覆盖完整 CI → build 调用、NSS/NSPR 16 文件、真实 ELF 可执行栈清理、两轮依赖收集与软链接、SVG 渲染、AppRun 参数和宿主覆盖、错误拦截、YAML 与仅选中钉钉。使用当前官方 appimagetool / Type 2 runtime 对原生 ELF 替身真实封装并提取执行；依赖扫描使用官方 pax-utils 的 lddtree，来源传输及系统安装使用替身。
 - 验证边界：上述原生 ELF 替身检查不等于完整 Ubuntu 24.04 钉钉 GUI 构建及新产物实机验收；未在云端执行官方 DEB 的安装脚本或登录、会议等功能测试。历史用户实测成功记录继续保留。提交后不等待、监控或重跑 Actions。
+
+### 2026-11-02：兼容 Ubuntu 平铺的 NSS 模块目录
+
+- 故障：[Build DingTalk 失败日志](https://github.com/newyorkthink/linux-packaging/actions/runs/41456031830/job/125312892486) 显示官方 DEB 下载、完整摘要校验和安装均已通过，随后公共 NSS 入口复制 5 个 `nss/` 路径时退出。该次 Ubuntu 24.04 的 `libnss3 2:3.98-1ubuntu0.3` 实际把 `libnssckbi.so`、`libnssdbm3.so`、`libsoftokn3.so` 及后两者的 `.chk` 平铺在 `/usr/lib/x86_64-linux-gnu/`。迁移时未核对公共入口与 Ubuntu 实际目录的差异，前次隔离验证只覆盖了旧 `nss/` 布局，漏检了此处。
+- 修改文件：`common/linuxdeploy/copy_nss_runtime.sh`、`common/README.md`、本 README、固定配置和模板差异说明。公共入口优先使用完整的 `nss/` 模块组，否则整组使用 multiarch 平铺目录，必需文件缺失仍失败；原单参数 13 文件、`--with-nspr` 16 文件、复制选项和应用调用保持不变。
+- 真实包与兼容验证：解包与失败日志同版本的官方 Ubuntu `libnss3` 和 `libnspr4 2:4.35-1.1build1`，旧入口复现相同的 5 个路径错误，新入口分别完成 13 / 16 文件复制。38 项检查通过，覆盖两种布局、旧目录不完整时整组回退、不拼接两套不完整目录、缺文件失败及文件内容、权限、时间戳和原参数兼容。
+- 打包调用验证：使用平铺 NSS 文件和原生 ELF 替身，19 项隔离检查通过；真实调用现有 CI → build、依赖收集、官方 appimagetool / Type 2 runtime 封装及提取执行，并确认 AppRun 参数、宿主覆盖和符号不匹配拦截。来源传输及系统安装仍使用替身，未执行完整 Ubuntu 钉钉 GUI 构建或新产物实机验收。
+- 保留边界：钉钉 build、两份 patches、AppRun 与 workflow 沿用已确认版本；检查仅在临时目录执行，正式构建没有新增测试。Joplin、Binance 的原单参数调用保持兼容，应用实机成功记录继续保留。

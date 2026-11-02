@@ -19,7 +19,7 @@ AUR 当前快照为 [9f15353cb6556398d3cd3ac594a57ca4a824200a](https://aur.archl
 | 同上 | 沿用 AUR 对 GTK2、libm、libstdc++、Harfbuzz、GBM、libcurl、libz、libGL 及平台无关资源的清理。 | AUR 注明移除私有 GTK2 用于工作台中文输入；其余清理的原文见上述 PKGBUILD，AUR 未逐项说明原因。清理范围沿用此前 AUR 产物，外部依赖随后从同一 Ubuntu 环境收集。仅处理 AppDir，不删系统文件。 |
 | 同上 | 移除 doctor、libgtkglext、libgdkglext。 | 沿用旧 CI 已有的诊断组件清理：这些非主程序组件依赖 Ubuntu 24.04 已不提供的 libpangox。 |
 | 同上 | 对 AUR desktop 按分组保留首次出现的键，再沿用 `Exec=dingtalk`、规范化 Icon 和 `usr/bin/dingtalk → ../../AppRun`。 | 保留原 desktop 净化与命令入口。desktop 的 MIME 声明保留，本次不新增宿主协议注册。 |
-| 同上 | 公共 NSS 入口显式传入 `--with-nspr`；`patches/collect_runtime.sh` 保留 NSSUTIL / NSPR 符号版本检查。 | 同一 Ubuntu 软件包集合提供完整 16 文件，覆盖动态加载模块和校验文件，避免包内 NSS 与宿主库混用。 |
+| 同上 | 公共 NSS 入口显式传入 `--with-nspr`，兼容完整的 `nss/` 子目录和 multiarch 平铺目录；`patches/collect_runtime.sh` 保留 NSSUTIL / NSPR 符号版本检查。 | 同一 Ubuntu 软件包集合提供完整 16 文件，覆盖动态加载模块和校验文件；目录选择统一由公共入口完成，模块组不跨目录拼接，避免包内 NSS 与宿主库混用。 |
 | 同上 | 保留 ELF 可执行栈清理、两轮递归依赖收集和缺失依赖拦截。 | 迁入独立 patches，原依赖排除规则和收集命令保留；不随包复制 glibc、动态加载器和宿主 GPU 驱动接口。 |
 | 准备 AppRun | 保留三段库路径、预加载包内 CEF、Wayland/XCB 顺序、缩放与输入法默认值、插件目录及工作目录。 | 主程序仍从官方运行目录直接执行，传入参数完整保留，AppRun 内不下载或安装软件。 |
 | 整理产物 | 只调用公共 `package_appimage.sh`。 | 公共入口生成 PNG 根图标、修权限、正式封装、输出 SHA-256 并保存版本；主 build 不单独生成 SVG .DirIcon，不再附加启动测试或 runtime 检查。 |

@@ -12,7 +12,7 @@
 | `LD_PRELOAD=$CEF_LIB_DIR/libcef.so` | 旧实测 AppRun 及官方 Elevator.sh 的 CEF 预加载行为；保留宿主既有 LD_PRELOAD 的追加方式，不复用官方脚本中的系统绝对路径。 |
 | `wayland;xcb`、缩放默认 `1` | 沿用 AUR 启动脚本和原实测 AppRun；宿主已设置时继续优先使用宿主值。 |
 | `QT_IM_MODULE=fcitx`、`GTK_IM_MODULE=fcitx`、`XMODIFIERS=@im=fcitx` 的默认值 | 原 AppRun 的输入兼容设置；宿主覆盖行为不变。插件路径继续指向官方 bundle 的 plugins / platforms，不替换 Qt 主版本。 |
-| 完整 NSS/NSPR 16 文件与 `NSSUTIL` / `NSPR` 前缀 | 原 CI 的运行库清单和符号检查；公共复制入口按需补 NSPR，缺文件或符号不匹配时阻止继续构建。 |
+| 完整 NSS/NSPR 16 文件与 `NSSUTIL` / `NSPR` 前缀 | 原 CI 的运行库清单和符号检查；公共复制入口兼容完整的 `nss/` 子目录与 multiarch 平铺目录，按需补 NSPR，缺文件或符号不匹配时阻止继续构建。 |
 | ELF 可执行栈清理 | 原 AUR 与仓库基线已处理钉钉私有库的可执行栈；保留对所有 EXEC / DYN ELF 的清理范围，不只列举旧版本的两个文件名。 |
 | doctor、libgtkglext、libgdkglext 排除 | 原 CI 记录的 libpangox 缺失；只从 AppDir 移除主程序不用的旧诊断组件。 |
 | desktop `Exec=dingtalk`、`Icon=com.alibabainc.dingtalk` | 保留旧净化结果与 AppRun 软链接入口；避免 AUR 重复 Name 键使 desktop 校验失败。 |
