@@ -49,4 +49,6 @@ LD_LIBRARY_PATH="$SCRIPT_DIR/AppDir/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" qu
 
 清理仅覆盖 `tradingview/` 中的 `AppDir`、`dist`、旧 `source`、下载 DEB、解包目录和来源版本文本；不涉及用户运行配置。正式 build 中没有新增测试、GUI 冒烟或自动重跑步骤。
 
-原 Snap 产物的启动、图表、中文输入和登录回调已由用户确认；本次新来源的检查及未验证项见 [README 变更记录](../README.md#2026-11-02接入官方-deb-并对齐直接下载标准)。新来源的组装和脚本检查不冒充完整 AppImage 或实机验收。
+原 Snap 产物的启动、图表、中文输入和登录回调已由用户确认。2026-11-02 用户继续提供新版 `3.5.0` AppImage 的实机日志和截图，确认启动、已有登录会话恢复、中文界面、图表及自选列表、中文候选和上屏均正常；本次 DEB 标准化与基本使用验收已完成，继续沿用 [94b1ce8 代码基线](https://github.com/newyorkthink/linux-packaging/commit/94b1ce8631cd69bf6203669f03d20df3d7bcdd8f)。
+
+提交前的隔离组装检查与后续用户实机结果分别保留，详细范围及运行提示见 [新版实机确认](../README.md#2026-11-02新版-appimage-实机确认)。本次只补充文档，不调整脚本、公共入口、workflow 或运行参数。
