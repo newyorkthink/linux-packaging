@@ -14,7 +14,7 @@
 
 ## 本次核对与验证
 
-已核对当前 AUR 快照及官方 DEB，完整 SHA-512 校验通过；真实包的目录整理、版权文档、desktop 净化和保留资源已核对。本次迁移的进一步检查结果记在下方修复记录中，不把静态或隔离验证等同于新产物的登录、会议、摄像头、麦克风等实机验收。
+已核对当前 AUR 快照及官方 DEB，完整 SHA-512 校验通过；真实包的目录整理、版权文档、desktop 净化和保留资源已核对。2026-11-02 用户已提供当前产物的实机验证截图，主界面、中文输入、文件选择器、会议摄像头及进入屏幕共享状态已通过；具体范围和日志观察见下方用户实机验证记录。
 
 ## 历史基线说明
 
@@ -154,12 +154,35 @@ dingtalk/README.md
 - CI：仍使用 Ubuntu 24.04，发布名称与软件清单 key 不变；旧容器、makepkg、旧版本文件转换和两轮图形启动测试不再执行。本次不更改其他 job、公共脚本或发布动作。
 - 真实来源验证：动态读取 AUR `9f15353cb6556398d3cd3ac594a57ca4a824200a`，下载官方 DEB `8.2.8.260904001` 并通过完整 SHA-512。真实包经新补丁整理后，按 DEB 自带 MD5 清单核对了 2341 份保留文件；29 份清单文件按既有 AUR / 诊断组件规则移除，版权文档与 desktop 净化核对通过。
 - 隔离验证：19 项检查通过，覆盖完整 CI → build 调用、NSS/NSPR 16 文件、真实 ELF 可执行栈清理、两轮依赖收集与软链接、SVG 渲染、AppRun 参数和宿主覆盖、错误拦截、YAML 与仅选中钉钉。使用当前官方 appimagetool / Type 2 runtime 对原生 ELF 替身真实封装并提取执行；依赖扫描使用官方 pax-utils 的 lddtree，来源传输及系统安装使用替身。
-- 验证边界：上述原生 ELF 替身检查不等于完整 Ubuntu 24.04 钉钉 GUI 构建及新产物实机验收；未在云端执行官方 DEB 的安装脚本或登录、会议等功能测试。历史用户实测成功记录继续保留。提交后不等待、监控或重跑 Actions。
+- 验证边界：本条记录的是迁移时的原生 ELF 替身检查；当次未在云端执行完整 Ubuntu 24.04 钉钉 GUI 构建、官方 DEB 安装脚本或登录、会议等功能测试。本轮用户实机验证结果见下方记录，历史用户实测成功记录继续保留。提交后不等待、监控或重跑 Actions。
 
 ### 2026-11-02：兼容 Ubuntu 平铺的 NSS 模块目录
 
 - 故障：[Build DingTalk 失败日志](https://github.com/newyorkthink/linux-packaging/actions/runs/41456031830/job/125312892486) 显示官方 DEB 下载、完整摘要校验和安装均已通过，随后公共 NSS 入口复制 5 个 `nss/` 路径时退出。该次 Ubuntu 24.04 的 `libnss3 2:3.98-1ubuntu0.3` 实际把 `libnssckbi.so`、`libnssdbm3.so`、`libsoftokn3.so` 及后两者的 `.chk` 平铺在 `/usr/lib/x86_64-linux-gnu/`。迁移时未核对公共入口与 Ubuntu 实际目录的差异，前次隔离验证只覆盖了旧 `nss/` 布局，漏检了此处。
 - 修改文件：`common/linuxdeploy/copy_nss_runtime.sh`、`common/README.md`、本 README、固定配置和模板差异说明。公共入口优先使用完整的 `nss/` 模块组，否则整组使用 multiarch 平铺目录，必需文件缺失仍失败；原单参数 13 文件、`--with-nspr` 16 文件、复制选项和应用调用保持不变。
 - 真实包与兼容验证：解包与失败日志同版本的官方 Ubuntu `libnss3` 和 `libnspr4 2:4.35-1.1build1`，旧入口复现相同的 5 个路径错误，新入口分别完成 13 / 16 文件复制。38 项检查通过，覆盖两种布局、旧目录不完整时整组回退、不拼接两套不完整目录、缺文件失败及文件内容、权限、时间戳和原参数兼容。
-- 打包调用验证：使用平铺 NSS 文件和原生 ELF 替身，19 项隔离检查通过；真实调用现有 CI → build、依赖收集、官方 appimagetool / Type 2 runtime 封装及提取执行，并确认 AppRun 参数、宿主覆盖和符号不匹配拦截。来源传输及系统安装仍使用替身，未执行完整 Ubuntu 钉钉 GUI 构建或新产物实机验收。
+- 打包调用验证：使用平铺 NSS 文件和原生 ELF 替身，19 项隔离检查通过；真实调用现有 CI → build、依赖收集、官方 appimagetool / Type 2 runtime 封装及提取执行，并确认 AppRun 参数、宿主覆盖和符号不匹配拦截。当次来源传输及系统安装仍使用替身，未执行完整 Ubuntu 钉钉 GUI 构建；本轮用户实机验证结果见下方记录。
 - 保留边界：钉钉 build、两份 patches、AppRun 与 workflow 沿用已确认版本；检查仅在临时目录执行，正式构建没有新增测试。Joplin、Binance 的原单参数调用保持兼容，应用实机成功记录继续保留。
+
+### 2026-11-02：用户实机验证
+
+- 验证依据：用户提供的 Linux 实机截图；运行日志显示版本 `8.2.8-Release.260904001`。
+- 主界面与输入：可启动并进入已登录主界面，会话和历史消息可显示；聊天输入框可输入中文并显示输入法候选窗。
+- 文件选择器：附件入口可打开文件选择窗口并浏览目录。
+- 会议与摄像头：可进入视频会议，会议窗口可显示本机摄像头画面。
+- 屏幕共享：可打开共享选择窗口并显示桌面预览，选择后进入“共享中”状态。
+- 验证范围：本组截图未确认文件传输完成、双向音视频和对端共享接收效果；已通过项目按用户实测完成记录，历史基线实测结论继续保留。
+
+#### 运行日志观察
+
+本轮实测中仍出现以下告警、错误或含超时字样的日志，未观察到它们影响上述已验证功能。当前无需因此修改启动参数、调整打包或重新构建；如后续出现实际功能异常，再结合对应时间的日志判断。
+
+| 日志类型 | 截图中的关键信息 |
+| --- | --- |
+| GLib/GIO 权限告警 | `Error creating IO channel for /proc/self/mountinfo: Permission denied (g-io-error-quark, 14)` |
+| Qt 光标位置提示 | `QTextCursor::setPosition: Position '12' out of range` |
+| 线程长任务 | `[ThreadPoolMonitor] OnLongTaskDetected` |
+| 会话缓存与数据模型 | `conversation id is empty`、`conv not exist in cache`、`ProcessMemberChangedDelta, fail, model has no member version` |
+| 内部事件分发 | `unrecognized web event`、`Two Can not find event`，涉及会话未读数、扩展、群直播状态和日历刷新等事件。 |
+| RPC 请求超时 | `SendRequest fail`，其中 `status=-1`、`code=-3`、`reason=timeout`。 |
+| 同步数据库日志 | `[sync]insert db timeout`、`[sync]insert db timeout and push data empty`；按截图中的日志文字记录，不据此判定数据库损坏。 |
