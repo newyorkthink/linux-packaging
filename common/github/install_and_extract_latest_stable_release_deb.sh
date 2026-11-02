@@ -110,19 +110,7 @@ esac
 
 # HTML 来源在系统安装前核对 DEB 实际版本，并按调用参数核对包名和架构。
 if [[ "$DOWNLOAD_SOURCE" == html-checksum ]]; then
-  DEB_VERSION="$("$SCRIPT_DIR/../build/read_app_version.sh" command dpkg-deb --field 1 -- -f "$DEB_FILE" Version)"
-  if [[ "$DEB_VERSION" != "$VERSION" ]]; then
-    echo "错误：DEB 版本与校验表资产版本不一致：$DEB_VERSION / $VERSION" >&2
-    exit 1
-  fi
-  if [[ -n "$EXPECTED_DEB_PACKAGE" && "$(dpkg-deb -f "$DEB_FILE" Package)" != "$EXPECTED_DEB_PACKAGE" ]]; then
-    echo "错误：DEB 包名不符合预期：$EXPECTED_DEB_PACKAGE" >&2
-    exit 1
-  fi
-  if [[ -n "$EXPECTED_DEB_ARCHITECTURE" && "$(dpkg-deb -f "$DEB_FILE" Architecture)" != "$EXPECTED_DEB_ARCHITECTURE" ]]; then
-    echo "错误：DEB 架构不符合预期：$EXPECTED_DEB_ARCHITECTURE" >&2
-    exit 1
-  fi
+  "$SCRIPT_DIR/../archive/check_deb_metadata.sh" "$DEB_FILE" "$VERSION" "$EXPECTED_DEB_PACKAGE" "$EXPECTED_DEB_ARCHITECTURE"
 fi
 
 # 构建依赖和 APT 索引须由调用方预先准备；安装时不重复更新索引，日志统一写入 stderr。

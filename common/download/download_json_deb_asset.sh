@@ -69,18 +69,7 @@ file "$OUTPUT" | grep -q 'Debian binary package' || {
   echo "错误：下载文件不是 Debian 软件包：$OUTPUT" >&2
   exit 1
 }
-[[ "$(dpkg-deb -f "$OUTPUT" Package)" == "$EXPECTED_PACKAGE" ]] || {
-  echo "错误：DEB 包名不符合预期：$OUTPUT" >&2
-  exit 1
-}
-[[ "$(dpkg-deb -f "$OUTPUT" Version)" == "$VERSION" ]] || {
-  echo "错误：DEB 版本与元数据版本不一致：$OUTPUT" >&2
-  exit 1
-}
-[[ "$(dpkg-deb -f "$OUTPUT" Architecture)" == "$EXPECTED_ARCHITECTURE" ]] || {
-  echo "错误：DEB 架构不符合预期：$OUTPUT" >&2
-  exit 1
-}
+"$SCRIPT_DIR/../archive/check_deb_metadata.sh" "$OUTPUT" "$VERSION" "$EXPECTED_PACKAGE" "$EXPECTED_ARCHITECTURE"
 
 # stdout 只返回实际版本，便于调用方直接用于最终版本元数据；本地摘要写入 stderr。
 sha256sum "$OUTPUT" >&2

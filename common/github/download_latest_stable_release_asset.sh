@@ -46,18 +46,7 @@ ASSET_SHA256="${RELEASE_META[2]}"
 # 调用方明确传入 DEB 包名和架构时，在公共入口统一核对 DEB 身份与目标架构。
 # Release 版本已经由资产名模板和 GitHub digest 绑定；不能假设 DEB Version 必须与 Release tag 完全相同。
 if [[ -n "$EXPECTED_DEB_PACKAGE" ]]; then
-  command -v dpkg-deb >/dev/null 2>&1 || {
-    echo "错误：校验 DEB 元数据需要 dpkg-deb。" >&2
-    exit 1
-  }
-  [[ "$(dpkg-deb -f "$OUTPUT" Package)" == "$EXPECTED_DEB_PACKAGE" ]] || {
-    echo "错误：DEB 包名不符合预期：$OUTPUT" >&2
-    exit 1
-  }
-  [[ "$(dpkg-deb -f "$OUTPUT" Architecture)" == "$EXPECTED_DEB_ARCHITECTURE" ]] || {
-    echo "错误：DEB 架构不符合预期：$OUTPUT" >&2
-    exit 1
-  }
+  "$SCRIPT_DIR/../archive/check_deb_metadata.sh" "$OUTPUT" "" "$EXPECTED_DEB_PACKAGE" "$EXPECTED_DEB_ARCHITECTURE"
 fi
 
 # stdout 只返回版本供调用方复用。

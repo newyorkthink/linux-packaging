@@ -9,6 +9,7 @@
 - 重点检查近期从 PeaZip 等项目下沉到公共函数的逻辑，确认没有把应用专用规则错误公共化，也没有让应用脚本重复做公共入口已经负责的检查。
 - 已经由用户明确确认有效的命令、调用顺序、AppRun 行为和打包基线必须逐字保留；公共化不能成为顺手重写这些稳定内容的理由。
 - 必须同时检查所有受影响调用方，避免只修公共函数后才逐个发现调用参数、路径、返回值或行为不兼容。
+- `archive/check_deb_metadata.sh <DEB 文件> <预期版本或空字符串> <预期包名或空字符串> <预期架构或空字符串>` 独立核对本地 DEB 的 `Version`、`Package`、`Architecture`，成功时无 stdout 输出；空的预期值跳过对应字段，至少指定一项。JSON、签名 APT、GitHub 资产和 HTML DEB 安装入口内部复用它，原参数、版本返回和各自校验范围保持不变。完整使用边界见下文。
 - `archive/extract_archive.sh` 统一支持 DEB、Snap、tar 系列归档、Brotli 压缩的 `.distro` tar 包、ZIP 和 NSIS 安装包；应用脚本只传入归档文件与输出目录，应用专用的文件定位和目录调整仍留在应用脚本。ZIP 由 `unzip` 解包，`.exe` 安装包由 `7z` 提取内容，不执行安装程序；调用方提前提供所需工具，原有格式及两个参数的接口保持不变。
 - `apt/extract_installed_package.sh <主软件包名> <AppDir> [附加软件包名 ...]` 先读取各包的已安装版本，再逐包下载同一版本并按原布局解包；成功后仅向 stdout 返回主软件包去掉 epoch / revision 的版本号。安装由调用方提前完成，本入口不重新安装软件。原有两个参数的调用保持兼容。
 - `linuxdeploy/prepare_linuxdeploy_tools.sh` 独立执行时接收工具目录和可选的插件参数；通过 `source` 调用时依次接收工具目录、插件参数、中间 AppImage 路径和 runtime 路径，下载成功后加载通用环境。插件参数支持空字符串、`gtk`、`qt`、`gstreamer`、`gtk,gstreamer` 和 `qt,gstreamer`。GTK / GStreamer 脚本从官方默认分支动态取得并核对 Git blob SHA，Qt 插件继续使用官方 continuous Release。该入口只准备工具，linuxdeploy 的 `--plugin` 参数决定实际启用哪些插件。 直接 appimagetool 封装使用独立执行的 `--appimagetool <appimagetool 输出路径> <runtime 输出路径>`，一次完成两项官方下载、SHA-256 校验和执行权限设置，不下载 linuxdeploy 或插件；原有独立执行和四参数 source 调用保持不变。
@@ -29,6 +30,21 @@
 - `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
 - `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../docs/appimage-scheme-handler.md)。
+
+### 本地 DEB 元数据校验
+
+入口为 `archive/check_deb_metadata.sh`，依赖 Bash 和 `dpkg-deb`。四个位置参数依次是 DEB 文件、预期完整版本、预期包名、预期架构；不检查的字段传空字符串，至少指定一项。只读取指定字段并逐字比较，保留版本的 epoch、预发布标记和 Debian 修订号，不把 Release tag 或文件名猜作 DEB 版本。
+
+来源入口已核对这些字段时，应用不要再次校验。仅当当前下载入口不负责 DEB 身份检查时，在安装或解包前单行调用；所有预期值由调用方根据已核实的本次来源传入，不在公共脚本中固定应用名称或架构。
+
+```bash
+# 安装前核对本次来源对应的 DEB 完整版本、包名和架构。
+"$SCRIPT_DIR/../common/archive/check_deb_metadata.sh" "<DEB 文件>" "<预期完整版本>" "<预期包名>" "<预期架构>"
+```
+
+成功时返回 0 且不输出内容；参数数量错误或三个预期值全空时返回 2，文件无法读取、字段不符或工具失败时返回非零状态，诊断写入 stderr。本入口不下载、安装、解包、修改文件或执行包内维护脚本；元数据相符也不能代替官方来源和摘要校验。
+
+兼容范围：JSON 下载入口仍核对三个字段；签名 APT 下载入口仍核对签名索引对应的三个字段，全部成功后才替换输出。GitHub 固定资产名与版本模板入口仍仅在显式提供包名和架构时核对这两项，不强求 DEB Version 与 Release tag 一致，也保留未指定检查时下载其他资产的能力。HTML DEB 安装入口仍核对版本及调用方传入的可选包名、架构，失败时不会进入安装与解包；原 GitHub、`--checksum` 和 `--json-html` 调用参数及版本 stdout 均保持原样。
 
 ### 签名 APT 仓库中的官方 DEB
 

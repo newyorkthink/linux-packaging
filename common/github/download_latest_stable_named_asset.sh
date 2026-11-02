@@ -70,15 +70,9 @@ if ! "$SCRIPT_DIR/../download/download_file.sh" "$ASSET_URL" "$OUTPUT" "$ASSET_S
   mv -f -- "$TEMP_FILE" "$OUTPUT"
 fi
 
+# 保留可选的包名和架构检查，不要求 DEB Version 与 Release tag 完全相同。
 if [[ -n "$EXPECTED_DEB_PACKAGE" ]]; then
-  [[ "$(dpkg-deb -f "$OUTPUT" Package)" == "$EXPECTED_DEB_PACKAGE" ]] || {
-    echo "错误：DEB 包名不符合预期：$OUTPUT" >&2
-    exit 1
-  }
-  [[ "$(dpkg-deb -f "$OUTPUT" Architecture)" == "$EXPECTED_DEB_ARCH" ]] || {
-    echo "错误：DEB 架构不符合预期：$OUTPUT" >&2
-    exit 1
-  }
+  "$SCRIPT_DIR/../archive/check_deb_metadata.sh" "$OUTPUT" "" "$EXPECTED_DEB_PACKAGE" "$EXPECTED_DEB_ARCH"
 fi
 
 # stdout 只返回本次官方 Release 版本。

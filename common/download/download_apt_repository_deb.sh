@@ -213,10 +213,12 @@ def main():
         download(f"{repository}/{filename}", staged, digest)
         if staged.stat().st_size != int(size):
             fail("DEB 大小与官方索引不一致。")
-        for field, expected in (("Package", package), ("Architecture", architecture), ("Version", version)):
-            actual = subprocess.check_output(["dpkg-deb", "-f", str(staged), field], text=True).strip()
-            if actual != expected:
-                fail(f"DEB 的 {field} 与官方索引不一致。")
+        # 复用本地 DEB 校验入口，保留签名索引中三个字段的精确匹配。
+        subprocess.run(
+            [str(Path(script_dir).parent / "archive/check_deb_metadata.sh"),
+             str(staged), version, package, architecture],
+            check=True,
+        )
         # 下载、摘要和身份检查全部成功后才替换输出，失败时保留已有文件。
         temporary_version = None
         try:
