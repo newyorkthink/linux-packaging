@@ -93,7 +93,7 @@ TradingView 条目于 2026-11-02 按应用名及 trading-view 别名单独复核
 | [stacher](../stacher/build_stacher.sh) |  |  | [README](../stacher/README.md) |
 | [sunshine](../sunshine/build_sunshine.sh) |  |  | [README](../sunshine/README.md) |
 | [tencent-docs](../tencent-docs/build_tencent-docs.sh) |  |  | [README](../tencent-docs/README.md) |
-| [todesk](../todesk/build_todesk.sh) |  |  | [README](../todesk/README.md) |
+| [todesk](../todesk/build_todesk.sh) |  |  | [模板差异](../todesk/docs/template-deviations.md) · [固定参数](../todesk/docs/hardcoded.md) · [README](../todesk/README.md) |
 | [tradingview](../tradingview/build_tradingview.sh) |  |  | [模板差异](../tradingview/docs/template-deviations.md) · [固定参数](../tradingview/docs/hardcoded.md) · [README](../tradingview/README.md) |
 | [trae](../trae/build_trae.sh) |  |  |  |
 | [trae-work](../trae-work/build_trae-work.sh) |  |  | [README](../trae-work/README.md) |

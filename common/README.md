@@ -17,12 +17,12 @@
 - `linuxdeploy/prepare_locale.sh <locale 源名称> <字符集> <完整输出目录>` 只创建输出父目录并执行 `localedef --no-archive`，把 locale 数据写入调用方指定的位置；不安装软件、不修改宿主 locale、不创建 `.env`，也不改写 AppRun。调用方先安装提供 `localedef`、locale 源与字符集数据的 `locales` 包，在应用解包后、正式 linuxdeploy 部署前单行调用；运行时由 AppRun 设置语言变量及 `LOCPATH`。生成失败直接退出，不回退到宿主 locale。 仅为已判定需要的区域环境生成数据；有中文翻译且明确采用中文界面的 GUI 可使用中文参数，CLI 或没有中文翻译的 GUI 不因此强制中文。locale 不包含软件翻译或输入法模块，语言选择与输入支持分别由应用处理，具体边界见 [linuxdeploy 中文配置](../linuxdeploy_projects.md#中文环境与输入法的适用范围)。
 - `linuxdeploy/linuxdeploy-plugin-appimage.sh` 是构建时的输出包装入口。工具准备脚本动态下载并校验官方 `linuxdeploy-plugin-appimage`，从资产中只提取原始插件程序为 `appimage-output`，使其从同一目录找到本次下载的 appimagetool；将包装入口安装为工具目录中的 `linuxdeploy-plugin-appimage`，并链接现有图标与权限准备脚本。linuxdeploy 按官方优先级选中外部入口；根 desktop 和图标部署完成后先准备 AppDir，再原样转交参数和 LDAI 环境给官方输出插件。插件类型、API 与帮助查询直接转交官方，不提前处理空 AppDir；直接 `--appimagetool` 模式不下载或安装这些输出文件。说明见 [linuxdeploy 更新兼容](../docs/linuxdeploy-update-compatibility.md)。
 - `aur/resolve_deb_source.sh` 接收 AUR 包名、架构、工作目录、元数据输出文件和依赖输出文件；仅接受同名单包 `.SRCINFO` 中唯一的架构专用 HTTPS DEB 及对应的完整摘要。优先沿用 SHA-256，仅在当前架构没有 SHA-256 时读取 SHA-512；无效或 `SKIP` 的 SHA-256 不会因存在 SHA-512 而被跳过。输出可供 Bash 加载的版本、pkgrel、来源、带算法前缀的 `SOURCE_CHECKSUM`，以及去版本约束后的运行依赖。SHA-256 来源继续输出原有 `EXPECTED_SHA256` 字段；SHA-512 来源不输出空的同名字段，新调用统一读取 `SOURCE_CHECKSUM`。不执行 PKGBUILD，不把其他架构或通用 source 的摘要配给当前 DEB。浅克隆和解析只在公共入口完成。
-- `aur/download_deb_source.sh` 接收 AUR 包名、架构和 DEB 输出文件三个参数。复用上述解析入口，在独立临时目录中读取当前来源和 `SOURCE_CHECKSUM`，再调用 `download/download_file.sh` 按指定算法校验并下载；成功或失败后均清理本次临时元数据。原有三个参数保持不变，不安装应用、不解包、不替调用方选择版本元数据，也不写死应用名或下载地址。
+- `aur/download_deb_source.sh` 接收 AUR 包名、架构和 DEB 输出文件三个参数。复用上述解析入口，在独立临时目录中读取当前来源和 `SOURCE_CHECKSUM`，再调用 `download/download_file.sh` 按指定算法校验并下载；成功或失败后均清理本次临时元数据。原有三个参数保持不变，不安装应用、不解包、不替调用方选择版本元数据，也不写死应用名或下载地址。 可在三个位置参数后显式启用 `--user-agent`、`--wayback`、`--deb`、`--version-file` 和 `--package-version-file`；不传选项的调用保持原行为，详见下文。
 - `aur/install_and_extract_deb_source.sh` 接收 AUR 包名、AUR 架构、来源工作目录、DEB 路径、解包目录、预期 DEB 包名和 DEB 架构。组合现有来源解析、摘要下载、版本读取、元数据校验、APT 安装和归档解包入口；全部成功后仅向 stdout 返回一行实际版本。保留同次 AUR 快照、来源元数据和依赖清单，不执行 PKGBUILD，也不改旧入口。参数与使用边界见下文。
 - `download/download_file.sh <HTTPS URL> <输出文件> [摘要] [User-Agent]` 保留原下载、重试、超时和原子替换行为。不传摘要时保持原行为；无前缀的 64 位十六进制摘要和 `sha256:<摘要>` 使用 SHA-256，新增的 `sha512:<128 位十六进制摘要>` 使用 SHA-512。摘要格式错误或校验失败时不替换已有输出文件。该扩展不改变其他专用下载入口各自的摘要格式。 第四个可选参数指定客户端标识，省略或传空字符串时保留 curl 默认行为；不校验摘要而指定客户端标识时，第三个参数传空字符串。客户端标识包含回车或换行时拒绝下载。
 - `download/download_apt_repository_deb.sh` 从调用方指定的 HTTPS APT 仓库读取签名索引，使用指定的官方密钥验证 `InRelease`，核对索引与 DEB 的 SHA-256、大小，以及 DEB 的包名、架构和版本；按 Debian 版本规则选择最高版本，成功后写入 DEB 与来源版本文件，stdout 只返回版本。不安装应用、不配置系统 APT 源；现有下载、版本读取和归档接口保持不变。完整参数与支持范围见下文。
 - `download/download_omaha_package.sh` 查询 Omaha 3.0 XML 更新服务，按调用方提供的应用 ID、渠道、平台、架构、下载源、路径前缀和文件名规则选择完整安装包，复用 `download_file.sh` 校验 SHA-256，并核对响应中的文件大小。成功后写入指定的安装包和版本文件，stdout 只返回版本；不安装或执行软件。完整参数、约束及调用方式见下文。
-- `download/download_verified_with_wayback.sh` 接收官方 HTTPS URL、目标文件、原 SHA-256 和可选的 `--deb`、`--user-agent <客户端标识>`；先调用 `download_file.sh`，未取得匹配摘要的文件时才查同一 URL 的 Internet Archive 快照，所有候选文件仍须通过原摘要，`--deb` 还核对 DEB 文件类型。 两个选项可以组合使用；指定的客户端标识统一传给官方文件、快照列表和归档文件请求，省略时保留 curl 默认行为。客户端标识为空、包含回车或换行、选项重复或参数缺失时退出。
+- `download/download_verified_with_wayback.sh` 接收官方 HTTPS URL、目标文件、原 SHA-256 或显式带 `sha512:` 前缀的 SHA-512 和可选的 `--deb`、`--user-agent <客户端标识>`；先调用 `download_file.sh`，未取得匹配摘要的文件时才查同一 URL 的 Internet Archive 快照，所有候选文件仍须通过原摘要，`--deb` 还核对 DEB 文件类型。 两个选项可以组合使用；指定的客户端标识统一传给官方文件、快照列表和归档文件请求，省略时保留 curl 默认行为。客户端标识为空、包含回车或换行、选项重复或参数缺失时退出。
 - `download/download_html_checksum_asset.sh` 可选接收前置参数 `--json-html <HTML 字段路径>`，随后接收 HTML 校验表或 JSON API 的 URL、完整资产名的 Python 正则、资产目录 URL 和输出文件四个参数。只配对同一表格行中的文件名与 SHA-256，按文件名里的点分数字版本选择最高版本；匹配缺失、摘要冲突或最高版本不唯一时退出。指定 JSON 模式时只读取该字段的非空 HTML 字符串，再执行同一套表格解析；不自动猜测字段。来源和资产均通过 `download_file.sh` 下载，stdout 只返回版本，不安装应用或解包。
 - `github/install_and_extract_latest_stable_release_deb.sh` 保留原 GitHub 与 `--checksum` 接口，提供 `--html-checksum [--json-html <HTML 字段路径>] <校验来源 URL> '<完整资产名的 Python 正则>' <资产目录 URL> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]`。新模式调用上述 HTML 下载入口，在安装前核对 DEB 实际版本及可选的包名、架构；随后复用公共 APT 和归档入口安装并解包同一份 DEB，全部成功后才返回版本。
 - `github/download_latest_stable_named_asset.sh` 接收仓库、固定资产名、目标文件及可选的 DEB 包名和架构。只选择最新正式版本中的唯一资产，核对 GitHub SHA-256；直链失败时用同一资产 ID 和现有认证令牌回退，stdout 仅返回版本。带 `{version}` 的资产仍使用原有模板入口。
@@ -31,6 +31,29 @@
 - `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
 - `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../docs/appimage-scheme-handler.md)。
+
+### AUR 来源的独立 DEB 下载
+
+入口为 `aur/download_deb_source.sh`，前三个位置参数继续是 AUR 包名、架构和 DEB 输出文件。默认仍只解析当前唯一来源、按原算法校验下载并清理临时元数据；不自动启用归档、不改变 curl 默认标识、不新增版本检查或版本输出，也不安装或解包应用。旧调用的 stdout 和返回状态保持原有语义。
+
+| 可选参数 | 行为 |
+| --- | --- |
+| `--user-agent <客户端标识>` | 透传给公共下载入口；归档模式同时用于官方文件、CDX 列表和归档文件。空值、重复参数、回车或换行会被拒绝。 |
+| `--wayback` | 官方文件未通过原摘要时，复用既有归档入口查同一 URL；SHA-256 和显式 SHA-512 均保持原摘要，不改来源或降低版本。 |
+| `--deb` | 下载后通过公共 DEB 元数据入口核对实际完整 Version 与同次 AUR pkgver 相同；不校验调用方未提供的包名或 DEB 架构。 |
+| `--version-file <文件>` | 在上述版本核对通过后写入 pkgver，供公共版本读取入口使用。 |
+| `--package-version-file <文件>` | 同样核对实际 DEB 版本后，写入同次 AUR 的 `pkgver-pkgrel`，供应用判断程序副本是否需要刷新。 |
+
+以下为需要归档和版本文件的组合示例；尖括号参数均按实际来源替换。架构仍由调用方明确提供，客户端标识不在公共代码中固定：
+
+```bash
+# 从同次 AUR 来源下载并校验 DEB，按需启用客户端标识、归档和版本输出。
+"$SCRIPT_DIR/../common/aur/download_deb_source.sh" "<AUR 包名>" "<AUR 架构>" "<DEB 输出文件>" --user-agent "<客户端标识>" --wayback --deb --version-file "<来源版本文件>" --package-version-file "<完整包版本文件>"
+```
+
+请求任意版本输出时都会校验实际 DEB Version 与 AUR pkgver 完全一致；epoch、预发布或版本改写不做自动裁剪，不能满足该规则的来源不能直接启用这些选项。pkgrel 只写入完整包版本文件，不拼到 DEB Version 上比较。摘要或元数据校验失败时保留已有版本文件；两个版本目标分别通过同目录临时文件替换，不能与 DEB 输出或彼此重合。stdout 仍沿用下载入口的日志，不改成只返回版本。
+
+归档和实际 DEB 检查依赖对应公共入口原有工具；调用方提前准备依赖。本入口继续不执行 PKGBUILD、不安装应用、不新增软件源，也不影响下述 APT 组合入口。
 
 ### AUR 来源中的官方 DEB
 

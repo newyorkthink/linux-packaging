@@ -43,15 +43,15 @@
 | `LDAI_NO_APPSTREAM` | linuxdeploy 不生成 AppStream 元数据。 | 3 个脚本，例如 mediainfo、poppler-utils |
 | `LDAI_RUNTIME_FILE` | linuxdeploy 使用的 AppImage runtime 文件。 | common |
 | `DEBIAN_FRONTEND` | apt 安装时不弹问题。非交互构建用 noninteractive。 | 5 个脚本，例如 rainlendar2、realvnc-rvnc-connect、remmina |
-| `NO_STRIP` | 打包时不剥调试符号。 | 21 个脚本，例如 aionui、bluemail、chatgpt |
+| `NO_STRIP` | 打包时不剥调试符号。 | 例如 aionui、bluemail、chatgpt、todesk |
 | `VERSION` | 写进成品的实际软件版本，可包含官方软件包修订号。 | 例如 aionui、alttab、bluemail、tradingview |
 | `OUTNAME` | 最终 AppImage 的文件名。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
 | `OUTPATH` | 最终 AppImage 的输出目录，一般是 ./dist。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
-| `APPNAME` | quick-sharun 用的应用名，用来生成入口和文件名。 | 32 个脚本，例如 aionui、android-tools、bluemail |
-| `MAIN_BIN` | quick-sharun 的主程序文件名。必须是实际存在的程序，不能写错名字。 | 例如 aionui、alttab、android-tools、gemini |
+| `APPNAME` | quick-sharun 用的应用名，用来生成入口和文件名。 | 例如 aionui、android-tools、bluemail、todesk |
+| `MAIN_BIN` | quick-sharun 的主程序文件名。必须是实际存在的程序，不能写错名字。 | 例如 aionui、alttab、android-tools、gemini、todesk |
 | `DESKTOP` | desktop 文件路径。quick-sharun 用它做菜单入口。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
 | `ICON` | 图标文件路径。quick-sharun 用它做 AppImage 图标。 | 例如 Keyviz、adspower-global、aionui；gemini 使用包内官方 PNG |
-| `STARTUPWMCLASS` | desktop 里的 StartupWMClass，让窗口能对上图标。 | 46 个脚本，例如 Keyviz、adspower-global、aionui |
+| `STARTUPWMCLASS` | desktop 里的 StartupWMClass，让窗口能对上图标。 | 例如 Keyviz、adspower-global、aionui、todesk |
 | `UPINFO` | AppImage 的 zsync 更新信息，指向本仓库 latest Release。 | 3 个脚本，例如 android-tools、jriver、virt-manager |
 | `OPTIMIZE_LAUNCH` | quick-sharun 打开启动优化。 | 2 个脚本，例如 jriver、virt-manager |
 | `URUNTIME_PRELOAD` | 使用 uruntime 的 preload。 | 2 个脚本，例如 adspower-global、chromium |
@@ -59,7 +59,7 @@
 | `STRACE_MODE` | quick-sharun 是否用 strace 扫依赖。0 是不用。 | 12 个脚本，例如 aionui、bluemail、chatgpt |
 | `STRACE_BINARY` | quick-sharun 用 strace 跟踪哪个程序来找动态库。只在构建容器里用。 | 3 个脚本，例如 adspower-global、chromium、deepseek-harness |
 | `STRACE_FLAGS` | 上面那个 strace 的附加参数，例如 --no-sandbox。不写进运行入口。 | 3 个脚本，例如 adspower-global、chromium、deepseek-harness |
-| `PATH_MAPPING` | AnyLinux 把宿主路径映射到包内路径。 | 4 个脚本，例如 freerdp、i3wm、parsec、wps-office-cn |
+| `PATH_MAPPING` | AnyLinux 把宿主路径映射到包内路径。 | 例如 freerdp、i3wm、parsec、wps-office-cn、todesk；todesk 构建时对应 bin/todesk，运行 hook 对应包装入口和可写副本 |
 | `PATH_MAPPING_HARDCODED` | AnyLinux 按文件名固定做路径映射，不靠自动扫描。 | obs-studio |
 | `DWARFS_COMP` | dwarfs 压缩方式和级别。 | antigravity-ide |
 | `CSC_IDENTITY_AUTO_DISCOVERY` | electron-builder 不自动找签名证书。这里只打 Linux 包，避免它去找 macOS 证书。 | hermes-desktop |
@@ -80,7 +80,7 @@
 
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
-| `DEPLOY_GTK` | quick-sharun 是否打入 GTK。 | 例如 Keyviz、aionui、antigravity-ide、grok-app、gemini |
+| `DEPLOY_GTK` | quick-sharun 是否打入 GTK。 | 例如 Keyviz、aionui、antigravity-ide、grok-app、gemini、todesk |
 | `DEPLOY_OPENGL` | quick-sharun 是否打入 OpenGL / Mesa。 | 35 个脚本，例如 Keyviz、aionui、antigravity-ide、grok-app |
 | `DEPLOY_VULKAN` | quick-sharun 是否打入 Vulkan。 | 22 个脚本，例如 aionui、antigravity-ide、antigravity |
 | `DEPLOY_PIPEWIRE` | quick-sharun 是否打入 PipeWire。 | 21 个脚本，例如 aionui、chatgpt、cursor |
@@ -99,8 +99,8 @@
 | `DEPLOY_COMMON_LIBS` | quick-sharun 是否打入一批常见系统库。 | chatgpt |
 | `DEPLOY_P11KIT` | quick-sharun 是否打入 p11-kit 证书模块。 | chatgpt |
 | `DEPLOY_DATADIR` | quick-sharun 是否把数据目录打进包。0 是不打。 | deepseek-harness |
-| `SHARUN_WORKING_DIR` | quick-sharun 的工作目录，一般是主程序所在目录。 | 例如 aionui、chatgpt、feishu；tradingview 在 .env 中指向包内 bin |
-| `SHARUN_EXTRA_LIBRARY_PATH` | quick-sharun 额外扫描这些目录里的库。 | 12 个脚本，例如 aionui、chatgpt、feishu |
+| `SHARUN_WORKING_DIR` | quick-sharun 的工作目录，一般是主程序所在目录。 | 例如 aionui、chatgpt、feishu；tradingview 在 .env 中指向包内 bin，todesk 在运行 hook 中指向可写副本 bin |
+| `SHARUN_EXTRA_LIBRARY_PATH` | quick-sharun 额外扫描这些目录里的库。 | 例如 aionui、chatgpt、feishu、todesk；todesk 在运行 hook 中指向可写副本 bin |
 | `SHARUN_ALLOW_QT_PLUGIN_PATH` | 允许 quick-sharun 保留应用自己设的 QT_PLUGIN_PATH，不把它清掉。 | mailmaster。wps-office-cn 改在 AppDir/.env 里设置，构建脚本不再 export 它。 |
 | `NO_AT_BRIDGE` | 不连接无障碍总线，避免启动时卡住或刷警告。 | 3 个脚本，例如 joplin、peazip、ventoy |
 
@@ -109,7 +109,7 @@
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
 | `PATH` | 可执行文件搜索路径。包内 bin 放前面。 | 例如 baidunetdisk、binance、chatgpt；dingtalk 保留包内 usr/bin 与宿主原 PATH |
-| `LD_LIBRARY_PATH` | 动态库搜索路径。包内库放前面。 | 例如 baidunetdisk、binance、dconf-editor；dingtalk 按原顺序使用官方 release、CEF 与专属依赖目录；tradingview 仅在依赖收集命令前临时指定完整程序目录 |
+| `LD_LIBRARY_PATH` | 动态库搜索路径。包内库放前面。 | 例如 baidunetdisk、binance、dconf-editor；dingtalk 按原顺序使用官方 release、CEF 与专属依赖目录；tradingview、todesk 仅在依赖收集命令前临时指定完整程序目录 |
 | `XDG_DATA_DIRS` | 共享数据搜索目录，包括 desktop、locale 和 schema。包内 usr/share 放前面。 | 16 个脚本，例如 baidunetdisk、binance、dconf-editor |
 | `XDG_CONFIG_DIRS` | 配置文件搜索目录。包内目录放前面。 | kde-suite |
 | `APPDIR` | AppImage 解包后的根目录。运行时用来拼包内路径。 | 8 个脚本，例如 dconf-editor、kitty、mission-center |

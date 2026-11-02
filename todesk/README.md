@@ -5,34 +5,36 @@
 本目录把 ToDesk Linux x86_64 客户端重新封装为单一 AppImage。
 
 - 上游程序：ToDesk 官方 Linux 客户端。
-- 版本与校验元数据：AUR `todesk-bin` 的当前 `.SRCINFO`。
-- 程序文件：优先从 `.SRCINFO` 当前指向的 ToDesk 官方 HTTPS x86_64 DEB 获取；如果官方 CDN 返回的内容无法通过 AUR SHA-256，则只允许从 Internet Archive 取得同一个官方 URL 的历史响应，并继续要求 SHA-256 完全一致。
+- 版本与校验元数据：AUR `todesk-bin` 的当前 `.SRCINFO`，不固定版本、Tag 或 Commit。
+- 程序文件：独立下载本次元数据指向的官方 HTTPS DEB，始终校验原摘要；只有官方文件校验失败时才查同一 URL 的 Internet Archive 快照。
 - 构建环境：Arch Linux AnyLinux 容器。
 - 打包工具：`quick-sharun`。
-- 最终产物：`dist/todesk.AppImage`。
-- Release 资产名：`todesk.AppImage`。
-- 构建版本、官方 URL、pkgrel 和 SHA-256 都从本次 AUR `.SRCINFO` 动态读取，不写死 Version / Tag / Commit；成功生成 AppImage 后把软件版本写入 `dist/version.txt`。
+- 最终产物与 Release 资产名：`dist/todesk.AppImage`、`todesk.AppImage`。
+- 来源版本及完整包版本由公共 AUR 下载入口写入 `work/source-version.txt`、`work/package-version.txt`；成功封装后由公共入口写入 `dist/version.txt`。
 
-AUR 当前包保留 ToDesk 官方 `/opt/todesk` 布局，主要运行组件包括 `ToDesk`、`ToDesk_Service`、`ToDesk_Session`、`CrashReport`、`bin/*.so*` 和 `res/`。当前官方 DEB 本身不带空的 `/opt/todesk/config`；AUR 通过 `emptydirs` 并在 `package()` 中显式创建该目录，因此本项目直接解包官方 DEB 后也按同样方式补回。AUR 同时明确使用 `!strip`，因此本项目也保持官方闭源二进制和私有库不 strip。
+完整官方目录放在 `AppDir/bin/todesk/`，保留 `bin / lib / res / config` 的相对布局。`config` 空目录按 AUR 的安装行为补回；`!strip` 沿用 AUR 要求。当前实际核对的官方 DEB 为 4.9.8.1，固定快照仅用于记录证据，构建仍动态查询当前 AUR 来源。
 
 ## 打包方式
 
-ToDesk 采用 **Arch Linux + quick-sharun**，不使用 linuxdeploy，也不安装 AppImage 自己的 systemd 服务。
+ToDesk 采用 **Arch Linux + quick-sharun**。主流程遵守仓库标准，专属检查和运行目录准备分别保存在 `patches/prepare_appdir.sh` 与 `patches/90-todesk-runtime.hook`。
 
-构建过程：
+1. 安装公共基础工具，再安装 `todesk-bin` 及原有运行依赖、输入模块和 DEB 工具；`libpipewire` 对应当前真实 ELF 的直接依赖，不切换系统音频服务。
+2. 在项目目录准备 `work / AppDir / dist`。
+3. 单行调用 `common/aur/download_deb_source.sh`，传入 `Mozilla` 客户端标识、同 URL 归档回退、DEB 检查及两个版本输出路径；应用不再自行解析、source 或写入来源版本元数据。
+4. 通过公共归档入口解包同一份 DEB，完整复制 `opt/todesk` 到 `AppDir/bin/`，不从系统安装目录取得最终程序。
+5. 准备脚本补回配置目录，核对四入口、GTK3 输入模块及托盘库，一次汇总直接动态库错误。官方 desktop 只在工作目录的副本中完整改为 `Exec=ToDesk`，避免把新版 `env` 后的赋值残留为程序参数。
+6. 设置主程序、系统图标、便携 desktop、输出名称、GTK 部署、`NO_STRIP` 与路径映射；版本由公共入口读取同次下载记录。
+7. 同一次 quick-sharun 收集四个真实入口、完整程序目录、`pulseaudio` 和三项 AppIndicator / dbusmenu 库；GTK3 输入模块由工具按 `DEPLOY_GTK=1` 收集。
+8. 生成包内中文 locale，保留工具已写入的 `.env`，并核对四个包装入口及对应真实程序。
+9. 安装公共入口提供的完整包版本标记和独立运行 hook；hook 保留已有配置、注册信息及用户目录布局，按包版本刷新程序副本。
+10. 使用 `quick-sharun --make-appimage` 封装，随后调用公共保存入口写入版本。
 
-1. 通过仓库统一 Arch 基础环境安装构建依赖。
-2. 调用公共 AUR 来源入口浅克隆 `todesk-bin`，从当前 `.SRCINFO` 动态读取并校验 `pkgver / pkgrel / source_x86_64 / sha256sums_x86_64 / depends`。
-3. 按当前 `.SRCINFO` 安装 ToDesk 声明的 Arch 运行依赖，再补 Fcitx5 GTK3 中文输入模块、ToDesk 4.9.6.0 实际 ELF 所需的 XCB helper 运行库、公共 DEB 解包入口所需的 `dpkg` 和上游程序会调用的 `pulseaudio`；IBus 来自统一基础环境。
-4. 通过公共已校验下载入口优先取得当前 AUR 指向的 ToDesk 官方 DEB，并在落盘前强制校验当前 AUR SHA-256。
-5. 如果官方 CDN 返回 HTML 或其他错误内容，公共下载入口不跳过校验、不降低版本；只查同一个官方 URL 的 Internet Archive 快照，且仅接受 SHA-256 与当前 AUR 完全一致的那一份。
-6. 通过仓库公共 DEB 解包入口解包已经校验通过的官方 DEB，完整复制其中 `/opt/todesk` 到 `AppDir/shared/bin/todesk/`，保持官方 `bin / res / config` 相对布局。
-7. 在同一次 `quick-sharun` 调用中收集 `ToDesk`、`ToDesk_Service`、`ToDesk_Session`、`CrashReport`、`/usr/bin/pulseaudio` 和 GTK3 IBus/Fcitx5 输入模块。
-8. 不自制 `AppRun`。使用 quick-sharun 默认入口按 AppImage/软链接文件名选择 `AppDir/bin/` 中的同名程序。
-9. 加入独立 `zh_CN.UTF-8` locale，并通过 quick-sharun hook 处理固定 `/opt/todesk`、可写 `config` 和服务日志路径。
-10. 最终由 `quick-sharun --make-appimage` 生成一个 `todesk.AppImage`。
+AppRun 继续由工具生成。不固定封装宿主 GPU 驱动，不强制设置 `LIBVA_DRIVER_NAME=iHD`；官方私有编码库及新增 `lib/` 目录完整保留，实际硬件加速仍取决于宿主显卡与驱动。
 
-不固定封装 Intel、NVIDIA 或 AMD 的宿主 GPU 驱动，也不强制设置 `LIBVA_DRIVER_NAME=iHD`。ToDesk 官方随包提供的私有编码相关 `.so` 保持原样，实际硬件加速继续取决于宿主显卡与驱动环境。
+## 维护说明
+
+- [模板差异与来源依据](./docs/template-deviations.md)
+- [固定配置及故障证据](./docs/hardcoded.md)
 
 ## 单 AppImage 多入口
 
@@ -114,6 +116,8 @@ ln -sfn todesk.AppImage CrashReport
 ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服务。若需要开机即启动、系统级无人值守或官方 systemd 服务语义，应使用 ToDesk 官方发行版安装方式；本 AppImage 不伪装成系统安装包。
 
 ## 当前验证状态
+
+2026-11-02 本次标准化重写完成 478 项隔离验证，覆盖公共旧接口对照、两种摘要、User-Agent、归档回退、主脚本组合顺序，以及运行副本刷新和配置保留。网络、包管理器、依赖收集和封装使用替身；DEB 元数据读取、摘要、解包及目录准备使用真实工具。本轮没有执行完整 AppImage 构建或真实 GUI / 服务。旧版核心远控仍按已实机通过记录，具体范围如下。
 
 2026-09-24 已完成构建和实机核心远控验证：
 
@@ -209,3 +213,14 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 修改：新增 `common/aur/resolve_deb_source.sh` 统一获取并解析 AUR 当前架构专用 DEB 来源、摘要和依赖；新增 `common/download/download_verified_with_wayback.sh` 复用既有 `download_file.sh`，只对同一官方 URL 的历史快照使用原 AUR SHA-256 严格校验。`build_todesk.sh` 保持原有安装、下载、解包顺序，改为单行调用上述两个入口；公共接口同步写入公共 README 和维护指南。
 - 提交前核对：三个涉及的 Bash 脚本通过 `bash -n`；仓库外临时样例已覆盖 AUR 元数据解析、官方直连、同 URL 归档回退、错误摘要拒绝和非 DEB 拒绝。ShellCheck 仅报告原脚本已有的两处 SC2155 和一处 SC2016；未进行新脚本的正式 Actions 构建或新产物实机运行。
 - 验证边界：本次仅复用下载流程，不据此宣称音频、打印、托盘或新产物远控功能已经通过实测。
+
+### 2026-11-02：标准化重写并接入完整公共 AUR 下载入口
+
+- 现象：run `41420975694` 的 ToDesk 下载收到约 985 字节的非 DEB 内容，摘要失败后没有可用归档；故障发生在依赖收集之前。
+- 核对：当前 AUR `4d59901f7b559b0b363819ba9a9150878a4b1935` 的 PKGBUILD 使用 `wget -U 'Mozilla'`。本次完整读取官方 4.9.8.1 DEB，长度 115086264 字节，SHA-256 为 `a257916c32ca792826dd1027596395278259050fee42ca8fd0a0aaa8851940e1`，与同次 AUR 元数据相同；只读取包内容，没有运行安装脚本或程序。
+- 公共复用：扩展现有 AUR 下载入口的可选 User-Agent、归档和版本文件参数；旧三参数调用保持原行为。ToDesk 主脚本单行调用该入口，不再展开解析、source、printf 或自行组合摘要下载。
+- 标准重写：保留先安装应用及依赖、再独立下载和解包的两个阶段；完整程序迁到 `AppDir/bin/todesk`，版本读取与保存均复用公共入口。
+- 新版布局：真实 ELF 直接依赖 `libpipewire-0.3.so.0`，构建安装 `libpipewire`；官方 desktop 的 Exec 已使用 env，便携副本完整替换整行，避免旧的首词替换留下环境赋值和绝对路径。
+- 既有行为：保留四入口、PulseAudio 命令、托盘库、中文环境、No Strip、按包版本刷新副本和保留配置的逻辑。适配嵌套 ELF 被工具包装后的布局时，先解除临时副本中的包装器硬链接，再复制四个独立真实 ELF。
+- 提交前验证：478 项隔离验证通过，包含旧调用方接口、SHA-256 / SHA-512 官方及归档下载、错误参数、元数据拒绝、完整主流程替身验证，以及同版本不刷新、升级保留配置和注册信息。五份 Shell 文件语法核对通过。
+- 验证边界：网络、包安装、quick-sharun 和 locale 生成使用替身；真实工具完成摘要、DEB 读取、解包和目录准备。没有运行 ToDesk GUI、服务或完整真实 AppImage 构建；旧版核心远控的已实机结论继续保留，不把本次静态与隔离结果扩展为新产物实机验收。

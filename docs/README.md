@@ -53,7 +53,7 @@
 | [AppDir / appimagetool 规范（含 linuxdeploy）](../linuxdeploy_projects.md) | 同一体系的两种模式、直接 appimagetool、尽量对齐与必要差异、工具准备与版本读取、三个 linuxdeploy 标准参考、Ubuntu runner、禁止 Docker、公共流程、项目专属差异 |
 | [AppDir / appimagetool 固定注释标准](./linuxdeploy-comments.md) | 两种模式的适用注释、同用途逐字一致、直接模式对齐边界、版本读取、工具准备、APT 同版本解包、GTK、Qt、固定分区、逐字复用；不收录软件专属注释 |
 | [AppImage 构建依赖清单](./appimage-build-dependency-list.md) | 基础包、Qt5 / Qt6、GTK、功能依赖 |
-| [公共脚本入口](../common/README.md) | 下载、AUR DEB 来源 / 摘要 / 安装解包与版本返回、签名 APT 仓库、DEB 版本 / 包名 / 架构校验、SHA-256、解包、依赖、来源版本、可选构建元数据、版本保存 |
+| [公共脚本入口](../common/README.md) | 下载、AUR DEB 来源 / 摘要 / 安装解包与版本返回、签名 APT 仓库、DEB 版本 / 包名 / 架构校验、SHA-256 / SHA-512、User-Agent、同 URL 归档回退、可选 pkgver / pkgrel 输出、解包、依赖、来源版本、可选构建元数据、版本保存 |
 | [appimagetool 图标检查与 SVG 兼容处理](./appimagetool-icon-compatibility.md) | 上游图标变更、.DirIcon、PNG / SVG / XPM、librsvg2-bin、公共准备入口、最终封装 |
 | [linuxdeploy 更新与中间封装兼容](./linuxdeploy-update-compatibility.md) | continuous 工具变化、内置 appimagetool、中间与最终封装、根图标与权限错误、外部输出入口、公共准备、修复与验证边界 |
 | [打包 export 登记表](./packaging-export-registry.md) | 环境变量、用途、登记后使用 |
