@@ -17,6 +17,21 @@ mkdir -p "$OUTPUT_DIR"
 
 # 归档格式判断和解包命令统一保留在公共入口；项目脚本只传入文件与目标目录。
 case "$ARCHIVE" in
+  *.zip)
+    command -v unzip >/dev/null 2>&1 || {
+      echo "错误：解包 ZIP 需要 unzip。" >&2
+      exit 1
+    }
+    unzip -q "$ARCHIVE" -d "$OUTPUT_DIR"
+    ;;
+  *.exe)
+    command -v 7z >/dev/null 2>&1 || {
+      echo "错误：解包 NSIS 安装包需要 7z。" >&2
+      exit 1
+    }
+    # 只提取安装包内容，不执行 Windows 安装程序。
+    7z x -y -o"$OUTPUT_DIR" "$ARCHIVE" >/dev/null
+    ;;
   *.deb)
     command -v dpkg-deb >/dev/null 2>&1 || {
       echo "错误：解包 DEB 需要 dpkg-deb。" >&2

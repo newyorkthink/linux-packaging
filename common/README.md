@@ -9,7 +9,7 @@
 - 重点检查近期从 PeaZip 等项目下沉到公共函数的逻辑，确认没有把应用专用规则错误公共化，也没有让应用脚本重复做公共入口已经负责的检查。
 - 已经由用户明确确认有效的命令、调用顺序、AppRun 行为和打包基线必须逐字保留；公共化不能成为顺手重写这些稳定内容的理由。
 - 必须同时检查所有受影响调用方，避免只修公共函数后才逐个发现调用参数、路径、返回值或行为不兼容。
-- `archive/extract_archive.sh` 统一支持 DEB、Snap、tar 系列归档和 Brotli 压缩的 `.distro` tar 包；应用脚本只传入归档文件与输出目录，应用专用的文件定位和目录调整仍留在应用脚本。
+- `archive/extract_archive.sh` 统一支持 DEB、Snap、tar 系列归档、Brotli 压缩的 `.distro` tar 包、ZIP 和 NSIS 安装包；应用脚本只传入归档文件与输出目录，应用专用的文件定位和目录调整仍留在应用脚本。ZIP 由 `unzip` 解包，`.exe` 安装包由 `7z` 提取内容，不执行安装程序；调用方提前提供所需工具，原有格式及两个参数的接口保持不变。
 - `apt/extract_installed_package.sh <主软件包名> <AppDir> [附加软件包名 ...]` 先读取各包的已安装版本，再逐包下载同一版本并按原布局解包；成功后仅向 stdout 返回主软件包去掉 epoch / revision 的版本号。安装由调用方提前完成，本入口不重新安装软件。原有两个参数的调用保持兼容。
 - `linuxdeploy/prepare_linuxdeploy_tools.sh` 独立执行时接收工具目录和可选的插件参数；通过 `source` 调用时依次接收工具目录、插件参数、中间 AppImage 路径和 runtime 路径，下载成功后加载通用环境。插件参数支持空字符串、`gtk`、`qt`、`gstreamer`、`gtk,gstreamer` 和 `qt,gstreamer`。GTK / GStreamer 脚本从官方默认分支动态取得并核对 Git blob SHA，Qt 插件继续使用官方 continuous Release。该入口只准备工具，linuxdeploy 的 `--plugin` 参数决定实际启用哪些插件。 直接 appimagetool 封装使用独立执行的 `--appimagetool <appimagetool 输出路径> <runtime 输出路径>`，一次完成两项官方下载、SHA-256 校验和执行权限设置，不下载 linuxdeploy 或插件；原有独立执行和四参数 source 调用保持不变。
 - `linuxdeploy/copy_nss_runtime.sh <目标 lib 目录> [--with-nspr]` 默认继续复制同一 Debian / Ubuntu 环境的 13 个 NSS 核心库、动态加载模块及校验文件，原单参数调用和复制清单保持不变。只有显式传入 `--with-nspr` 时才额外复制 `libnspr4.so`、`libplc4.so`、`libplds4.so`，形成完整 16 文件集合；不安装依赖、不改启动环境、不替调用方执行符号版本检查。调用方须提前安装对应运行库及提供 `dpkg-architecture` 的工具，源文件缺失时直接失败。
@@ -18,6 +18,7 @@
 - `aur/resolve_deb_source.sh` 接收 AUR 包名、架构、工作目录、元数据输出文件和依赖输出文件；仅接受同名单包 `.SRCINFO` 中唯一的架构专用 HTTPS DEB 及对应的完整摘要。优先沿用 SHA-256，仅在当前架构没有 SHA-256 时读取 SHA-512；无效或 `SKIP` 的 SHA-256 不会因存在 SHA-512 而被跳过。输出可供 Bash 加载的版本、pkgrel、来源、带算法前缀的 `SOURCE_CHECKSUM`，以及去版本约束后的运行依赖。SHA-256 来源继续输出原有 `EXPECTED_SHA256` 字段；SHA-512 来源不输出空的同名字段，新调用统一读取 `SOURCE_CHECKSUM`。不执行 PKGBUILD，不把其他架构或通用 source 的摘要配给当前 DEB。浅克隆和解析只在公共入口完成。
 - `aur/download_deb_source.sh` 接收 AUR 包名、架构和 DEB 输出文件三个参数。复用上述解析入口，在独立临时目录中读取当前来源和 `SOURCE_CHECKSUM`，再调用 `download/download_file.sh` 按指定算法校验并下载；成功或失败后均清理本次临时元数据。原有三个参数保持不变，不安装应用、不解包、不替调用方选择版本元数据，也不写死应用名或下载地址。
 - `download/download_file.sh <HTTPS URL> <输出文件> [摘要]` 保留原下载、重试、超时和原子替换行为。不传摘要时保持原行为；无前缀的 64 位十六进制摘要和 `sha256:<摘要>` 使用 SHA-256，新增的 `sha512:<128 位十六进制摘要>` 使用 SHA-512。摘要格式错误或校验失败时不替换已有输出文件。该扩展不改变其他专用下载入口各自的摘要格式。
+- `download/download_omaha_package.sh` 查询 Omaha 3.0 XML 更新服务，按调用方提供的应用 ID、渠道、平台、架构、下载源、路径前缀和文件名规则选择完整安装包，复用 `download_file.sh` 校验 SHA-256，并核对响应中的文件大小。成功后写入指定的安装包和版本文件，stdout 只返回版本；不安装或执行软件。完整参数、约束及调用方式见下文。
 - `download/download_verified_with_wayback.sh` 接收官方 HTTPS URL、目标文件、原 SHA-256 和可选的 `--deb`；先调用 `download_file.sh`，未取得匹配摘要的文件时才查同一 URL 的 Internet Archive 快照，所有候选文件仍须通过原摘要，`--deb` 还核对 DEB 文件类型。
 - `download/download_html_checksum_asset.sh` 可选接收前置参数 `--json-html <HTML 字段路径>`，随后接收 HTML 校验表或 JSON API 的 URL、完整资产名的 Python 正则、资产目录 URL 和输出文件四个参数。只配对同一表格行中的文件名与 SHA-256，按文件名里的点分数字版本选择最高版本；匹配缺失、摘要冲突或最高版本不唯一时退出。指定 JSON 模式时只读取该字段的非空 HTML 字符串，再执行同一套表格解析；不自动猜测字段。来源和资产均通过 `download_file.sh` 下载，stdout 只返回版本，不安装应用或解包。
 - `github/install_and_extract_latest_stable_release_deb.sh` 保留原 GitHub 与 `--checksum` 接口，提供 `--html-checksum [--json-html <HTML 字段路径>] <校验来源 URL> '<完整资产名的 Python 正则>' <资产目录 URL> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]`。新模式调用上述 HTML 下载入口，在安装前核对 DEB 实际版本及可选的包名、架构；随后复用公共 APT 和归档入口安装并解包同一份 DEB，全部成功后才返回版本。
@@ -27,6 +28,23 @@
 - `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
 - `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../docs/appimage-scheme-handler.md)。
+
+### Omaha 更新服务中的完整安装包
+
+适用于 Omaha 3.0 XML 更新服务提供完整安装动作、包名、大小和 SHA-256 的来源。入口依赖 Bash、Python 3 和 curl；应用 ID、渠道、系统信息、来源限制及输出位置全部由调用方传入，不在公共代码中写死应用名称或下载域名。它只查询和下载，不运行安装动作中的程序或参数。
+
+参数依次为：服务 URL、应用 ID、渠道、平台、系统版本、架构、允许的 HTTPS 源、解码后的目录前缀、安装包文件名正则、安装包输出文件、版本输出文件。所有参数均须非空。版本文件是下载阶段的来源元数据，不能代替最终 AppImage 成功后生成的 `dist/version.txt`。
+
+在应用 build 中单行调用；将所有 `<…>` 替换为当前来源的实际参数。文件名使用 Python 正则，必须包含 `{version}`，该占位符以响应版本的字面值替换后匹配完整文件名。其他正则量词不变，不接受路径、差分包或与安装动作不匹配的包。
+
+```bash
+# 查询当前版本，校验并下载完整安装包，同时记录来源版本。
+VERSION="$("$SCRIPT_DIR/../common/download/download_omaha_package.sh" "<服务 URL>" "<应用 ID>" "<渠道>" "<平台>" "<系统版本>" "<架构>" "<允许的 HTTPS 源>" "<解码后的目录前缀>" '<文件名正则，包含 {version}>' "<安装包输出文件>" "<版本输出文件>")"
+```
+
+允许的 HTTPS 源只包含协议、主机和可选端口；目录前缀必须是解码后以 `/` 开始并结束的规范目录。响应须包含唯一匹配所请求应用 ID 的条目和唯一完整安装动作，并且只能有一个地址同时符合下载源和目录限制；不选择不确定的包或自动切换其他来源。
+
+SHA-256 接受 64 位十六进制或解码后恰为 32 字节的标准 / URL 安全 Base64；大小必须为正整数，版本须为一至四段点分数字。无更新、状态错误、匹配不唯一、元数据缺失、摘要无效、下载失败或大小不符均直接失败；协议、下载或校验失败时不覆盖已有安装包与版本文件。下载使用隔离临时目录，退出时清理本次临时文件。
 
 ### HTML 校验表中的官方 DEB
 
