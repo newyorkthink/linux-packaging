@@ -39,6 +39,16 @@
 
 该分类不添加并不存在的 DEB 下载和解包阶段。DeepSeek 保留的 simdjson、兼容库、Python 私有库路径和许可证复制都有本应用的依据，只作为专属差异保留，不加入直接下载基础模板。
 
+### Windows 产品层移植
+
+独立下载官方 Windows 完整安装包，提取 Electron 产品资源，再与实际程序对应版本的官方 Linux Electron runtime 组装到 `AppDir/bin`，由 quick-sharun 收集运行依赖并封装。Windows 安装包只用于解包，不在 Linux 构建系统中执行；系统依赖与兼容补丁按应用专属文档保留。
+
+| 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
+| --- | --- | --- | --- | --- |
+| Gemini | [build_gemini.sh](../gemini/build_gemini.sh) | Google Omaha 动态取得 Windows x64 完整 NSIS 包；产品版本读取同次下载记录，Linux Electron 精确版本取自对应 `Gemini.exe`。 | export DEPLOY_GTK=1<br>export NO_STRIP=1 | [模板差异](../gemini/docs/template-deviations.md) |
+
+Gemini 保留现有中文启动器、已识别 PE 模块移除顺序及非 sticky 修补，直接使用包内 PNG。上游采用与未采用项见其 [上游差异](../gemini/docs/pkgforge-differences.md)，实际验证范围见 [README](../gemini/README.md)。
+
 ## 用 quick-sharun 打包的 Tauri / GTK 程序
 
 ### 直接下载安装包

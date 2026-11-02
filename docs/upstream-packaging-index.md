@@ -15,6 +15,8 @@
 
 核对日期：2026-10-30。下表中的依赖、封装和 workflow 均属于同一条目所读的上游 commit。
 
+Gemini 条目于 2026-11-02 单独复核，源码快照与本仓库应用差异文档保持一致。
+
 | 本仓库项目 | 上游打包仓库 | 上游构建代码 | 本仓库说明 |
 | --- | --- | --- | --- |
 | [adspower-global](../adspower-global/build_adspower-global.sh) |  |  | [README](../adspower-global/README.md) |
@@ -43,7 +45,7 @@
 | [folo](../folo/build_folo.sh) |  |  | [README](../folo/README.md) |
 | [freedownloadmanager](../freedownloadmanager/build_freedownloadmanager.sh) |  |  | [README](../freedownloadmanager/README.md) |
 | [freerdp](../freerdp/build_freerdp.sh) |  |  | [README](../freerdp/README.md) |
-| [gemini](../gemini/build_gemini.sh) | [Gemini-Desktop-AppImage](https://github.com/pkgforge-dev/Gemini-Desktop-AppImage) | [依赖](https://github.com/pkgforge-dev/Gemini-Desktop-AppImage/blob/64ae1f91381cb139e83156d5dd0b26eb455b2025/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Gemini-Desktop-AppImage/blob/64ae1f91381cb139e83156d5dd0b26eb455b2025/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Gemini-Desktop-AppImage/blob/64ae1f91381cb139e83156d5dd0b26eb455b2025/.github/workflows/appimage.yml) | [README](../gemini/README.md) |
+| [gemini](../gemini/build_gemini.sh) | [Gemini-Desktop-AppImage](https://github.com/pkgforge-dev/Gemini-Desktop-AppImage) | [依赖](https://github.com/pkgforge-dev/Gemini-Desktop-AppImage/blob/e7bf2237e223c0cb8b2625dfdd0b1d2f211ccabc/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Gemini-Desktop-AppImage/blob/e7bf2237e223c0cb8b2625dfdd0b1d2f211ccabc/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Gemini-Desktop-AppImage/blob/e7bf2237e223c0cb8b2625dfdd0b1d2f211ccabc/.github/workflows/appimage.yml) | [上游差异](../gemini/docs/pkgforge-differences.md) · [模板差异](../gemini/docs/template-deviations.md) · [固定参数](../gemini/docs/hardcoded.md) · [README](../gemini/README.md) |
 | [gitkraken](../gitkraken/build_gitkraken.sh) |  |  | [README](../gitkraken/README.md) |
 | [goldendict](../goldendict/build_goldendict.sh) |  |  | [README](../goldendict/README.md) |
 | [grok-app](../grok-app/build_grok-app.sh) |  |  | [模板差异](../grok-app/docs/template-deviations.md) · [README](../grok-app/README.md) |
