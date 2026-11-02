@@ -2,15 +2,54 @@
 set -Eeuo pipefail
 
 # 先下载官方 HTTPS 文件；仅在其未通过原 SHA-256 时查询同一 URL 的归档快照。
-if (( $# < 3 || $# > 4 )); then
-  echo "用法：$0 <官方 HTTPS URL> <输出文件> <SHA-256> [--deb]" >&2
+if (( $# < 3 )); then
+  echo "用法：$0 <官方 HTTPS URL> <输出文件> <SHA-256> [--deb] [--user-agent <客户端标识>]" >&2
   exit 2
 fi
 
 SOURCE_URL="$1"
 OUTPUT="$2"
 EXPECTED_SHA256="${3#sha256:}"
-FORMAT="${4:-}"
+FORMAT=""
+USER_AGENT=""
+shift 3
+
+# 兼容旧接口显式传入的空格式参数。
+if (( $# == 1 )) && [[ -z "$1" ]]; then
+  shift
+fi
+
+# 可选格式检查和客户端标识可以组合，旧参数保持兼容。
+while (( $# > 0 )); do
+  case "$1" in
+    --deb)
+      [[ -z "$FORMAT" ]] || {
+        echo "错误：--deb 不得重复指定。" >&2
+        exit 2
+      }
+      FORMAT=--deb
+      shift
+      ;;
+    --user-agent)
+      if (( $# < 2 )) || [[ -z "${2:-}" || "${2:-}" == --* || -n "$USER_AGENT" ]]; then
+        echo "错误：--user-agent 需要一个非空客户端标识，且不得重复指定。" >&2
+        exit 2
+      fi
+      USER_AGENT="$2"
+      shift 2
+      ;;
+    *)
+      echo "错误：不支持的参数：$1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+# 在发起下载前检查客户端标识，避免无效请求进入归档回退。
+[[ "$USER_AGENT" != *$'\r'* && "$USER_AGENT" != *$'\n'* ]] || {
+  echo "错误：User-Agent 不得包含换行符。" >&2
+  exit 2
+}
 DOWNLOAD_FILE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/download_file.sh"
 
 [[ "$SOURCE_URL" == https://* && -n "$OUTPUT" ]] || {
@@ -30,7 +69,7 @@ DOWNLOAD_FILE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/download_file
   exit 1
 }
 
-if "$DOWNLOAD_FILE" "$SOURCE_URL" "$OUTPUT" "$EXPECTED_SHA256"; then
+if "$DOWNLOAD_FILE" "$SOURCE_URL" "$OUTPUT" "$EXPECTED_SHA256" "$USER_AGENT"; then
   printf '已从官方来源取得并校验文件：%s\n' "$SOURCE_URL" >&2
 else
   # 失败只回退到同一个官方 URL 的历史响应，任何候选文件仍必须通过原 SHA-256。
@@ -46,7 +85,7 @@ else
     rm -f -- "$CDX_JSON"
   }
   trap cleanup EXIT
-  "$DOWNLOAD_FILE" "$CDX_URL" "$CDX_JSON"
+  "$DOWNLOAD_FILE" "$CDX_URL" "$CDX_JSON" "" "$USER_AGENT"
   jq -e 'type == "array" and length > 1' "$CDX_JSON" >/dev/null || {
     echo "错误：Internet Archive 未返回可用快照列表。" >&2
     exit 1
@@ -64,7 +103,7 @@ else
   for timestamp in "${WAYBACK_TIMESTAMPS[@]}"; do
     [[ "$timestamp" =~ ^[0-9]{14}$ ]] || continue
     ARCHIVE_URL="https://web.archive.org/web/${timestamp}id_/${SOURCE_URL}"
-    if "$DOWNLOAD_FILE" "$ARCHIVE_URL" "$OUTPUT" "$EXPECTED_SHA256"; then
+    if "$DOWNLOAD_FILE" "$ARCHIVE_URL" "$OUTPUT" "$EXPECTED_SHA256" "$USER_AGENT"; then
       ARCHIVE_MATCHED=true
       printf '已从同一官方 URL 的归档取得并校验文件：%s\n' "$timestamp" >&2
       break

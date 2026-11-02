@@ -4,13 +4,20 @@ set -Eeuo pipefail
 URL="${1:-}"
 OUTPUT="${2:-}"
 EXPECTED_CHECKSUM="${3:-}"
+USER_AGENT="${4:-}"
 
 [[ -n "$URL" && -n "$OUTPUT" ]] || {
-  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256 或 sha512:<摘要>]" >&2
+  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256 或 sha512:<摘要>] [User-Agent]" >&2
   exit 1
 }
 [[ "$URL" == https://* ]] || {
   echo "错误：只允许从 HTTPS 地址下载：$URL" >&2
+  exit 1
+}
+
+# 客户端标识由调用方指定，拒绝把换行内容带入请求头。
+[[ "$USER_AGENT" != *$'\r'* && "$USER_AGENT" != *$'\n'* ]] || {
+  echo "错误：User-Agent 不得包含换行符。" >&2
   exit 1
 }
 
@@ -26,6 +33,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# 按需传入客户端标识；未指定时保留 curl 默认行为。
+CURL_USER_AGENT_ARGS=()
+if [[ -n "$USER_AGENT" ]]; then
+  CURL_USER_AGENT_ARGS=(--user-agent "$USER_AGENT")
+fi
+
 # 使用统一的失败、重试和超时参数下载到同目录临时文件。
 curl --fail --location \
   --proto '=https' \
@@ -35,6 +48,7 @@ curl --fail --location \
   --retry-delay 2 \
   --connect-timeout 20 \
   --max-time 900 \
+  "${CURL_USER_AGENT_ARGS[@]}" \
   --output "$TEMP_FILE" \
   "$URL"
 
