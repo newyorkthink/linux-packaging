@@ -8,22 +8,32 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 ###### 读取调用参数 ######
 
-# 默认从 GitHub Release 下载，传入 --checksum 时改用官网校验清单。
+# 默认从 GitHub Release 下载，传入 --checksum 或 --html-checksum 时改用官网校验来源。
 DOWNLOAD_SOURCE=github
 if [[ "${1:-}" == --checksum ]]; then
   DOWNLOAD_SOURCE=checksum
   shift
+elif [[ "${1:-}" == --html-checksum ]]; then
+  DOWNLOAD_SOURCE=html-checksum
+  shift
 fi
 
 # 根据下载来源检查参数数量，GitHub 模式保留可选的包名和架构校验。
-if [[ "$DOWNLOAD_SOURCE" == github && $# -ne 4 && $# -ne 6 ]] || [[ "$DOWNLOAD_SOURCE" == checksum && $# -ne 4 ]]; then
+if [[ "$DOWNLOAD_SOURCE" == github && $# -ne 4 && $# -ne 6 ]] || [[ "$DOWNLOAD_SOURCE" == checksum && $# -ne 4 ]] || [[ "$DOWNLOAD_SOURCE" == html-checksum && $# -ne 5 && $# -ne 7 ]]; then
   echo "用法：$0 <owner/repo> '<包含 {version} 的资产名模板>' <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]" >&2
   echo "用法：$0 --checksum <HTTPS 校验清单 URL> '<完整资产名正则>' <下载 DEB 路径> <解包目录>" >&2
+  echo "用法：$0 --html-checksum <HTTPS HTML 校验表 URL> '<完整资产名的 Python 正则>' <HTTPS 资产目录 URL> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]" >&2
   exit 1
 fi
 
 SOURCE_REF="$1"
 ASSET_SELECTOR="$2"
+
+# HTML 来源额外接收资产目录，移除该参数后复用原有 DEB 参数布局。
+if [[ "$DOWNLOAD_SOURCE" == html-checksum ]]; then
+  ASSET_BASE_URL="$3"
+  set -- "$1" "$2" "${@:4}"
+fi
 DEB_FILE="$3"
 OUTPUT_DIR="$4"
 EXPECTED_DEB_PACKAGE="${5:-}"
@@ -38,6 +48,9 @@ case "$DOWNLOAD_SOURCE" in
     ;;
   checksum)
     DOWNLOAD_ASSET="$SCRIPT_DIR/../download/download_latest_checksum_asset.sh"
+    ;;
+  html-checksum)
+    DOWNLOAD_ASSET="$SCRIPT_DIR/../download/download_html_checksum_asset.sh"
     ;;
 esac
 INSTALL_PACKAGES="$SCRIPT_DIR/../apt/install_packages.sh"
@@ -79,7 +92,27 @@ case "$DOWNLOAD_SOURCE" in
   checksum)
     VERSION="$("$DOWNLOAD_ASSET" "$SOURCE_REF" "$ASSET_SELECTOR" "$DEB_FILE")"
     ;;
+  html-checksum)
+    VERSION="$("$DOWNLOAD_ASSET" "$SOURCE_REF" "$ASSET_SELECTOR" "$ASSET_BASE_URL" "$DEB_FILE")"
+    ;;
 esac
+
+# HTML 来源在系统安装前核对 DEB 实际版本，并按调用参数核对包名和架构。
+if [[ "$DOWNLOAD_SOURCE" == html-checksum ]]; then
+  DEB_VERSION="$("$SCRIPT_DIR/../build/read_app_version.sh" command dpkg-deb --field 1 -- -f "$DEB_FILE" Version)"
+  if [[ "$DEB_VERSION" != "$VERSION" ]]; then
+    echo "错误：DEB 版本与校验表资产版本不一致：$DEB_VERSION / $VERSION" >&2
+    exit 1
+  fi
+  if [[ -n "$EXPECTED_DEB_PACKAGE" && "$(dpkg-deb -f "$DEB_FILE" Package)" != "$EXPECTED_DEB_PACKAGE" ]]; then
+    echo "错误：DEB 包名不符合预期：$EXPECTED_DEB_PACKAGE" >&2
+    exit 1
+  fi
+  if [[ -n "$EXPECTED_DEB_ARCHITECTURE" && "$(dpkg-deb -f "$DEB_FILE" Architecture)" != "$EXPECTED_DEB_ARCHITECTURE" ]]; then
+    echo "错误：DEB 架构不符合预期：$EXPECTED_DEB_ARCHITECTURE" >&2
+    exit 1
+  fi
+fi
 
 # 构建依赖和 APT 索引须由调用方预先准备；安装时不重复更新索引，日志统一写入 stderr。
 "$INSTALL_PACKAGES" --no-update "$DEB_FILE" >&2

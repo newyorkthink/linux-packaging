@@ -73,6 +73,7 @@
 | --- | --- |
 | GitHub 正式 Release 的 DEB | `common/github/install_and_extract_latest_stable_release_deb.sh`，返回实际版本。 |
 | 官网校验清单中的 DEB | 同一入口的 `--checksum` 模式；使用同一份已校验 DEB 安装并解包。 |
+| 官网 HTML 校验表中的 DEB | 同一入口的 `--html-checksum` 模式，依次传入校验表 URL、完整资产名 Python 正则、资产目录 URL、下载 DEB 路径、AppDir，以及可选的包名与架构；解析、校验、安装、解包和版本返回均由公共入口完成，具体参数见 [公共入口说明](./common/README.md#html-校验表中的官方-deb)。 |
 | Ubuntu 仓库 | 先通过公共 APT 入口安装，再调用 `common/apt/extract_installed_package.sh <主软件包名> <AppDir> [附加软件包名 ...]`，逐包下载已安装的同一版本并解包，仅返回主软件包去掉 epoch / revision 的版本号。 |
 | 预编译归档 | 通过公共下载入口取得，再调用 `common/archive/extract_archive.sh`；在构建环境安装明确需要的依赖。 |
 
