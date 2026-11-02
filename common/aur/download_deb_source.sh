@@ -19,11 +19,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# 从当前 .SRCINFO 取得唯一的架构专用 DEB 地址和 SHA-256。
+# 从当前 .SRCINFO 取得唯一的架构专用 DEB 地址和对应的完整摘要。
 "$SCRIPT_DIR/resolve_deb_source.sh" "$1" "$2" "$work_dir" "$work_dir/source.env" "$work_dir/dependencies.txt"
 
 # 载入已经由公共解析入口转义的元数据，不在调用方重复解析来源。
 source "$work_dir/source.env"
 
-# 使用公共下载入口校验 SHA-256，并在成功后原子写入调用方指定的文件。
-"$SCRIPT_DIR/../download/download_file.sh" "$SOURCE_URL" "$3" "$EXPECTED_SHA256"
+# 使用公共下载入口校验指定算法的摘要，并在成功后原子写入调用方指定的文件。
+"$SCRIPT_DIR/../download/download_file.sh" "$SOURCE_URL" "$3" "$SOURCE_CHECKSUM"

@@ -62,7 +62,7 @@ mapfile -t PACKAGE_NAMES < <(
   exit 1
 }
 
-# 本入口只接受唯一的架构专用 DEB；多来源需要明确配对，不能猜测第一个摘要。
+# 本入口只接受唯一的架构专用 DEB；优先沿用 SHA-256，缺少时才读取对应 SHA-512。
 mapfile -t SOURCES < <(
   awk -F ' = ' -v target="source_$ARCH" '{
     key=$1
@@ -77,15 +77,21 @@ mapfile -t SHA256S < <(
     if (key == target) print $2
   }' "$SRCINFO"
 )
-(( ${#SOURCES[@]} == 1 && ${#SHA256S[@]} == 1 )) || {
-  echo "错误：AUR $PACKAGE 的 $ARCH DEB 来源与 SHA-256 必须各有且仅有一项。" >&2
+mapfile -t SHA512S < <(
+  awk -F ' = ' -v target="sha512sums_$ARCH" '{
+    key=$1
+    sub(/^[[:space:]]*/, "", key)
+    if (key == target) print $2
+  }' "$SRCINFO"
+)
+(( ${#SOURCES[@]} == 1 && ${#SHA256S[@]} <= 1 && (${#SHA256S[@]} == 1 || ${#SHA512S[@]} == 1) )) || {
+  echo "错误：AUR $PACKAGE 的 $ARCH DEB 来源必须唯一，并有对应的唯一 SHA-256 或 SHA-512。" >&2
   exit 1
 }
 
 PACKAGE_VERSION="$(awk -F ' = ' '/^[[:space:]]*pkgver = / {print $2; exit}' "$SRCINFO")"
 PACKAGE_REL="$(awk -F ' = ' '/^[[:space:]]*pkgrel = / {print $2; exit}' "$SRCINFO")"
 SOURCE_URL="${SOURCES[0]#*::}"
-EXPECTED_SHA256="${SHA256S[0]}"
 
 [[ -n "$PACKAGE_VERSION" && -n "$PACKAGE_REL" ]] || {
   echo "错误：AUR $PACKAGE 缺少版本或 pkgrel。" >&2
@@ -95,10 +101,23 @@ EXPECTED_SHA256="${SHA256S[0]}"
   echo "错误：AUR $PACKAGE 的 $ARCH 来源不是 HTTPS DEB：$SOURCE_URL" >&2
   exit 1
 }
-[[ "$EXPECTED_SHA256" =~ ^[[:xdigit:]]{64}$ ]] || {
-  echo "错误：AUR $PACKAGE 的 $ARCH SHA-256 无效。" >&2
-  exit 1
-}
+
+# 保留 SHA-256 的既有校验规则，不因 SHA-512 存在而回退无效或 SKIP 的 SHA-256。
+if (( ${#SHA256S[@]} == 1 )); then
+  EXPECTED_SHA256="${SHA256S[0]}"
+  [[ "$EXPECTED_SHA256" =~ ^[[:xdigit:]]{64}$ ]] || {
+    echo "错误：AUR $PACKAGE 的 $ARCH SHA-256 无效。" >&2
+    exit 1
+  }
+  SOURCE_CHECKSUM="sha256:$EXPECTED_SHA256"
+else
+  EXPECTED_SHA512="${SHA512S[0]}"
+  [[ "$EXPECTED_SHA512" =~ ^[[:xdigit:]]{128}$ ]] || {
+    echo "错误：AUR $PACKAGE 的 $ARCH SHA-512 无效。" >&2
+    exit 1
+  }
+  SOURCE_CHECKSUM="sha512:$EXPECTED_SHA512"
+fi
 
 mkdir -p -- "$(dirname -- "$METADATA_FILE")" "$(dirname -- "$DEPENDENCIES_FILE")"
 METADATA_TEMP="$(mktemp "${METADATA_FILE}.part.XXXXXX")"
@@ -127,7 +146,10 @@ awk -F ' = ' -v arch="$ARCH" '{
   printf 'PACKAGE_VERSION=%q\n' "$PACKAGE_VERSION"
   printf 'PACKAGE_REL=%q\n' "$PACKAGE_REL"
   printf 'SOURCE_URL=%q\n' "$SOURCE_URL"
-  printf 'EXPECTED_SHA256=%q\n' "$EXPECTED_SHA256"
+  if (( ${#SHA256S[@]} == 1 )); then
+    printf 'EXPECTED_SHA256=%q\n' "$EXPECTED_SHA256"
+  fi
+  printf 'SOURCE_CHECKSUM=%q\n' "$SOURCE_CHECKSUM"
 } > "$METADATA_TEMP"
 mv -f -- "$DEPENDENCIES_TEMP" "$DEPENDENCIES_FILE"
 mv -f -- "$METADATA_TEMP" "$METADATA_FILE"

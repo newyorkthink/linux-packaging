@@ -3,10 +3,10 @@ set -Eeuo pipefail
 
 URL="${1:-}"
 OUTPUT="${2:-}"
-EXPECTED_SHA256="${3:-}"
+EXPECTED_CHECKSUM="${3:-}"
 
 [[ -n "$URL" && -n "$OUTPUT" ]] || {
-  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256]" >&2
+  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256 或 sha512:<摘要>]" >&2
   exit 1
 }
 [[ "$URL" == https://* ]] || {
@@ -38,14 +38,26 @@ curl --fail --location \
   --output "$TEMP_FILE" \
   "$URL"
 
-# 上游提供 SHA-256 时必须在替换正式文件前完成校验。
-if [[ -n "$EXPECTED_SHA256" ]]; then
-  EXPECTED_SHA256="${EXPECTED_SHA256#sha256:}"
-  [[ "$EXPECTED_SHA256" =~ ^[[:xdigit:]]{64}$ ]] || {
-    echo "错误：无效的 SHA-256：$EXPECTED_SHA256" >&2
-    exit 1
-  }
-  printf '%s  %s\n' "$EXPECTED_SHA256" "$TEMP_FILE" | sha256sum -c -
+# 上游提供摘要时必须在替换正式文件前完成校验；无前缀继续按 SHA-256 处理。
+if [[ -n "$EXPECTED_CHECKSUM" ]]; then
+  case "$EXPECTED_CHECKSUM" in
+    sha512:*)
+      EXPECTED_CHECKSUM="${EXPECTED_CHECKSUM#sha512:}"
+      [[ "$EXPECTED_CHECKSUM" =~ ^[[:xdigit:]]{128}$ ]] || {
+        echo "错误：无效的 SHA-512：$EXPECTED_CHECKSUM" >&2
+        exit 1
+      }
+      printf '%s  %s\n' "$EXPECTED_CHECKSUM" "$TEMP_FILE" | sha512sum -c -
+      ;;
+    *)
+      EXPECTED_CHECKSUM="${EXPECTED_CHECKSUM#sha256:}"
+      [[ "$EXPECTED_CHECKSUM" =~ ^[[:xdigit:]]{64}$ ]] || {
+        echo "错误：无效的 SHA-256：$EXPECTED_CHECKSUM" >&2
+        exit 1
+      }
+      printf '%s  %s\n' "$EXPECTED_CHECKSUM" "$TEMP_FILE" | sha256sum -c -
+      ;;
+  esac
 fi
 
 # 校验成功后原子替换目标文件。
