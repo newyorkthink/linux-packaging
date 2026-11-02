@@ -17,6 +17,8 @@
 
 Gemini 条目于 2026-11-02 单独复核，源码快照与本仓库应用差异文档保持一致。
 
+TradingView 条目于 2026-11-02 按应用名及 trading-view 别名单独复核，未查到对应 pkgforge-dev 仓库，两列继续留空；实际来源和模板差异见该行的应用说明。
+
 | 本仓库项目 | 上游打包仓库 | 上游构建代码 | 本仓库说明 |
 | --- | --- | --- | --- |
 | [adspower-global](../adspower-global/build_adspower-global.sh) |  |  | [README](../adspower-global/README.md) |
@@ -90,7 +92,7 @@ Gemini 条目于 2026-11-02 单独复核，源码快照与本仓库应用差异�
 | [sunshine](../sunshine/build_sunshine.sh) |  |  | [README](../sunshine/README.md) |
 | [tencent-docs](../tencent-docs/build_tencent-docs.sh) |  |  | [README](../tencent-docs/README.md) |
 | [todesk](../todesk/build_todesk.sh) |  |  | [README](../todesk/README.md) |
-| [tradingview](../tradingview/build_tradingview.sh) |  |  | [README](../tradingview/README.md) |
+| [tradingview](../tradingview/build_tradingview.sh) |  |  | [模板差异](../tradingview/docs/template-deviations.md) · [固定参数](../tradingview/docs/hardcoded.md) · [README](../tradingview/README.md) |
 | [trae](../trae/build_trae.sh) |  |  |  |
 | [trae-work](../trae-work/build_trae-work.sh) |  |  | [README](../trae-work/README.md) |
 | [v2rayn](../v2rayn/build_v2rayn.sh) |  |  | [README](../v2rayn/README.md) |

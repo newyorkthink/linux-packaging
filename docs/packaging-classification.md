@@ -22,6 +22,7 @@
 | Claude Desktop | [build_claude-desktop.sh](../claude-desktop/build_claude-desktop.sh) | 公共 AUR 下载入口独立取得 DEB 并校验摘要；版本由公共入口读取 AUR 安装结果。 | export DEPLOY_GTK=1 | [模板差异](../claude-desktop/docs/template-deviations.md) |
 | Cursor | [build_cursor.sh](../cursor/build_cursor.sh) | 官方独立下载 DEB；版本由公共入口读取包内 `package.json`。 | export DEPLOY_GTK=1 | [模板差异](../cursor/docs/template-deviations.md) |
 | Grok Bot | [build_grok-bot.sh](../grok-bot/build_grok-bot.sh) | 先安装 grok-bot-bin；独立下载官方 stable JSON 对应 DEB，公共版本入口读取同次下载记录。 | export DEPLOY_GTK=1 | [模板差异](../grok-bot/docs/template-deviations.md) |
+| TradingView | [build_tradingview.sh](../tradingview/build_tradingview.sh) | 先安装 AUR 的 tradingview-bin-latest；从官方签名 APT 仓库独立下载当前 DEB，版本读取同次下载记录。 | export DEPLOY_GTK=1<br>export NO_STRIP=1<br>export STRACE_MODE=0 | [模板差异](../tradingview/docs/template-deviations.md) |
 | Visual Studio Code | [build_vscode.sh](../vscode/build_vscode.sh) | Microsoft 官方 stable tar；版本由公共入口读取包内 `package.json`。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../vscode/docs/template-deviations.md) |
 | WorkBuddy | [build_workbuddy.sh](../workbuddy/build_workbuddy.sh) | 官方更新接口独立下载 DEB 并校验摘要；版本由公共入口读取 AUR 安装结果。 | export DEPLOY_GTK=1 | [模板差异](../workbuddy/docs/template-deviations.md) |
 

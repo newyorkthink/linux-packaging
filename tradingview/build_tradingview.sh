@@ -1,92 +1,87 @@
 #!/usr/bin/env bash
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# 当前应用只清理自身构建目录，避免旧版资源混入新产物。
-rm -rf -- "$SCRIPT_DIR/AppDir" "$SCRIPT_DIR/source" "$SCRIPT_DIR/dist"
-mkdir -p -- "$SCRIPT_DIR/source" "$SCRIPT_DIR/dist" "$SCRIPT_DIR/AppDir/shared/bin"
-
-SOURCE_DIR="$SCRIPT_DIR/source"
-APPDIR="$SCRIPT_DIR/AppDir"
-APP_ROOT="$APPDIR/shared/bin"
-SNAP_FILE="$SOURCE_DIR/tradingview.snap"
-OUTFILE="$SCRIPT_DIR/dist/tradingview.AppImage"
-
-###### 准备 Arch 构建环境 ######
-
-# 公共入口安装 quick-sharun 构建所需的最小基础工具。
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装 AUR 软件包、运行依赖及 DEB 解包工具。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" tradingview-bin-latest dpkg gtk3 libsecret libnotify fcitx5-gtk
 
-# 安装 TradingView 应用级运行库与 GTK3 输入法模块。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" \
-  squashfs-tools openssl gtk3 nss libsecret libnotify ibus fcitx5-gtk
+# 清掉上次的打包目录。
+rm -rf -- AppDir dist source tradingview.deb tradingview-unpacked tradingview-source-version.txt
+mkdir -p AppDir/bin dist
 
-###### 获取官方稳定版 ######
+# 下载官方当前 DEB。
+"$SCRIPT_DIR/../common/download/download_apt_repository_deb.sh" \
+  https://tvd-packages.tradingview.com/ubuntu/stable jammy multiverse tradingview amd64 \
+  https://tvd-packages.tradingview.com/keyring.gpg tradingview.deb tradingview-source-version.txt
 
-# 公共入口动态下载 latest/stable amd64 Snap，并校验官方 SHA3-384。
-VERSION="$("$SCRIPT_DIR/../common/snap/download_stable_snap.sh" \
-  tradingview tradingview amd64 "$SNAP_FILE")"
+# 解包官方 DEB。
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" tradingview.deb tradingview-unpacked
 
-# 公共归档入口把 Snap 解包到真实程序目录，保留 Electron 资源相对布局。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$SNAP_FILE" "$APP_ROOT"
+# 整个程序目录原样放进 AppDir/bin。
+cp -a tradingview-unpacked/opt/TradingView/. AppDir/bin/
 
-###### 整理 TradingView 目录 ######
-
-# 保存官方 desktop 和图标；把 Snap 专用绝对图标路径换成 AppImage 内名称。
-cp -a -- "$APP_ROOT/meta/gui/tradingview.desktop" "$SOURCE_DIR/tradingview.desktop"
-cp -a -- "$APP_ROOT/meta/gui/icon.png" "$SOURCE_DIR/tradingview.png"
-sed -i 's|^Icon=.*|Icon=tradingview|' "$SOURCE_DIR/tradingview.desktop"
-sed -i 's|^Exec=.*|Exec=tradingview %U|' "$SOURCE_DIR/tradingview.desktop"
-if grep -q '^MimeType=' "$SOURCE_DIR/tradingview.desktop"; then
-  sed -i 's|^MimeType=.*|MimeType=x-scheme-handler/tradingview;|' "$SOURCE_DIR/tradingview.desktop"
-else
-  printf '%s\n' 'MimeType=x-scheme-handler/tradingview;' >> "$SOURCE_DIR/tradingview.desktop"
-fi
-
-# 仅移除 Snap 宿主运行时目录，保留程序自己的 Electron 和原生模块。
-rm -rf -- "${APP_ROOT:?}/data-dir" "${APP_ROOT:?}/gnome-platform" \
-  "${APP_ROOT:?}/lib" "${APP_ROOT:?}/meta" "${APP_ROOT:?}/scripts" \
-  "${APP_ROOT:?}/usr"
-rm -f -- "$APP_ROOT/command.sh" "$APP_ROOT/desktop-init.sh" \
-  "$APP_ROOT/desktop-common.sh" "$APP_ROOT/desktop-gnome-specific.sh"
-
-###### 构建 AppImage ######
-
-export ARCH=x86_64
-export VERSION
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 成品里的应用名。
 export APPNAME=TradingView
+# 包里的真实程序名。
 export MAIN_BIN=tradingview
+# 让窗口对上 desktop 里的 StartupWMClass。
 export STARTUPWMCLASS=TradingView
-export ICON="$SOURCE_DIR/tradingview.png"
-export DESKTOP="$SOURCE_DIR/tradingview.desktop"
+# 使用系统里装好的图标。
+export ICON=/usr/share/icons/hicolor/512x512/apps/tradingview.png
+# 使用系统里装好的桌面入口文件。
+export DESKTOP=/usr/share/applications/tradingview.desktop
+# 把 AppImage 写到脚本目录下的 dist。
 export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
 export OUTNAME=tradingview.AppImage
+# 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
+
+# 本仓库兼容处理：保留程序和原生模块的符号。
 export NO_STRIP=1
+# 本仓库兼容处理：沿用原有依赖收集模式。
 export STRACE_MODE=0
 
-# keytar.node 明确依赖 libsecret；同时收集 Electron 按名称加载的通知库。
-LD_LIBRARY_PATH="$APP_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-  quick-sharun "$APP_ROOT/tradingview" "$APP_ROOT/chrome_crashpad_handler" \
-  "$APP_ROOT/resources/app.asar.unpacked/keytar.node" \
-  /usr/lib/libnotify.so.4
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text tradingview-source-version.txt)"
+# 沿用原有版本环境，供打包工具读取。
+export VERSION
 
-# 按 quick-sharun 官方机制追加运行时环境，保留工具已写入的 .env 内容。
-cat >> "$APPDIR/.env" <<'ENV'
-SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/shared/bin:${SHARUN_EXTRA_LIBRARY_PATH}
-SHARUN_WORKING_DIR=${SHARUN_DIR}/shared/bin
+# 收集程序及其运行依赖。
+LD_LIBRARY_PATH="$SCRIPT_DIR/AppDir/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun AppDir/bin/* AppDir/bin/resources/app.asar.unpacked/keytar.node /usr/lib/libnotify.so.4
+
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'ENV'
+LANG=zh_CN.UTF-8
+LANGUAGE=zh_CN:zh
+LC_MESSAGES=zh_CN.UTF-8
+LOCPATH=${SHARUN_DIR}/lib/locale
 ENV
 
-# 在上游内置 hook 之后追加官方 Snap 的固定参数，并保留用户传入参数。
-cat > "$APPDIR/bin/90-tradingview-arguments.hook" <<'HOOK'
+# 本仓库兼容处理：工作目录跟随完整程序目录，保留工具已有的库路径配置。
+cat >> AppDir/.env <<'ENV'
+SHARUN_WORKING_DIR=${SHARUN_DIR}/bin
+ENV
+
+# 本仓库兼容处理：沿用已验证的固定启动参数，并保留用户传入参数。
+cat > AppDir/bin/90-tradingview-arguments.hook <<'HOOK'
 set -- --no-sandbox "$@"
 HOOK
 
 # 启动时注册 tradingview://。包内 desktop 不会进入宿主 applications 目录。
 bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
-  --output "$APPDIR/bin/20-tradingview-protocol.hook" \
+  --output AppDir/bin/20-tradingview-protocol.hook \
   --desktop-file tradingview.desktop \
   --name TradingView \
   --comment "TradingView Desktop" \
@@ -95,17 +90,8 @@ bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
   --categories "Finance;Office;" \
   --scheme tradingview
 
-# Electron 从包装器所在目录寻找 ICU、PAK、locales 和 resources；用包内链接保留原文件。
-for item in "$APP_ROOT"/*; do
-  name="${item##*/}"
-  [[ "$name" == tradingview || -e "$APPDIR/bin/$name" || -L "$APPDIR/bin/$name" ]] && continue
-  ln -s "../shared/bin/$name" "$APPDIR/bin/$name"
-done
-
-# 正式封装并只在产物生成后写入本次实际下载的版本。
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
-[[ -s "$OUTFILE" ]] || {
-  echo "错误：TradingView AppImage 未生成。" >&2
-  exit 1
-}
-printf '%s\n' "$VERSION" > "$SCRIPT_DIR/dist/version.txt"
+
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/tradingview.AppImage "$VERSION" dist/version.txt

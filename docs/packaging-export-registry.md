@@ -44,7 +44,7 @@
 | `LDAI_RUNTIME_FILE` | linuxdeploy 使用的 AppImage runtime 文件。 | common |
 | `DEBIAN_FRONTEND` | apt 安装时不弹问题。非交互构建用 noninteractive。 | 5 个脚本，例如 rainlendar2、realvnc-rvnc-connect、remmina |
 | `NO_STRIP` | 打包时不剥调试符号。 | 21 个脚本，例如 aionui、bluemail、chatgpt |
-| `VERSION` | 写进成品的上游软件版本。 | 23 个脚本，例如 aionui、alttab、bluemail |
+| `VERSION` | 写进成品的实际软件版本，可包含官方软件包修订号。 | 例如 aionui、alttab、bluemail、tradingview |
 | `OUTNAME` | 最终 AppImage 的文件名。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
 | `OUTPATH` | 最终 AppImage 的输出目录，一般是 ./dist。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
 | `APPNAME` | quick-sharun 用的应用名，用来生成入口和文件名。 | 32 个脚本，例如 aionui、android-tools、bluemail |
@@ -99,7 +99,7 @@
 | `DEPLOY_COMMON_LIBS` | quick-sharun 是否打入一批常见系统库。 | chatgpt |
 | `DEPLOY_P11KIT` | quick-sharun 是否打入 p11-kit 证书模块。 | chatgpt |
 | `DEPLOY_DATADIR` | quick-sharun 是否把数据目录打进包。0 是不打。 | deepseek-harness |
-| `SHARUN_WORKING_DIR` | quick-sharun 的工作目录，一般是主程序所在目录。 | 12 个脚本，例如 aionui、chatgpt、feishu |
+| `SHARUN_WORKING_DIR` | quick-sharun 的工作目录，一般是主程序所在目录。 | 例如 aionui、chatgpt、feishu；tradingview 在 .env 中指向包内 bin |
 | `SHARUN_EXTRA_LIBRARY_PATH` | quick-sharun 额外扫描这些目录里的库。 | 12 个脚本，例如 aionui、chatgpt、feishu |
 | `SHARUN_ALLOW_QT_PLUGIN_PATH` | 允许 quick-sharun 保留应用自己设的 QT_PLUGIN_PATH，不把它清掉。 | mailmaster。wps-office-cn 改在 AppDir/.env 里设置，构建脚本不再 export 它。 |
 | `NO_AT_BRIDGE` | 不连接无障碍总线，避免启动时卡住或刷警告。 | 3 个脚本，例如 joplin、peazip、ventoy |
@@ -109,7 +109,7 @@
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
 | `PATH` | 可执行文件搜索路径。包内 bin 放前面。 | 20 个脚本，例如 baidunetdisk、binance、chatgpt |
-| `LD_LIBRARY_PATH` | 动态库搜索路径。包内库放前面。 | 19 个脚本，例如 baidunetdisk、binance、dconf-editor |
+| `LD_LIBRARY_PATH` | 动态库搜索路径。包内库放前面。 | 例如 baidunetdisk、binance、dconf-editor；tradingview 仅在依赖收集命令前临时指定完整程序目录 |
 | `XDG_DATA_DIRS` | 共享数据搜索目录，包括 desktop、locale 和 schema。包内 usr/share 放前面。 | 16 个脚本，例如 baidunetdisk、binance、dconf-editor |
 | `XDG_CONFIG_DIRS` | 配置文件搜索目录。包内目录放前面。 | kde-suite |
 | `APPDIR` | AppImage 解包后的根目录。运行时用来拼包内路径。 | 8 个脚本，例如 dconf-editor、kitty、mission-center |
@@ -159,11 +159,11 @@
 | `GLFW_IM_MODULE` | kitty 的 GLFW 用哪个输入法模块。这里是 ibus。 | kitty |
 | `IBUS_ADDRESS` | 这次启动要连的 IBus 套接字，不用外部环境里可能失效的地址。 | kitty |
 | `IBUS_USE_PORTAL` | 让 Qt 自带 IBus 插件走会话总线上的 org.freedesktop.portal.IBus。Fcitx5 的 IBus 前端提供这个名字，因此不要求宿主安装 ibus-daemon。 | xnviewmp |
-| `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 例如 gitkraken、obs-studio、tencent-docs、grok-app、joplin、remmina、gemini |
-| `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 11 个脚本，例如 gemini、gitkraken、kde-suite、grok-app、joplin |
-| `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | goldendict、grok-app、gemini |
+| `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 例如 gitkraken、obs-studio、tencent-docs、grok-app、joplin、remmina、gemini、tradingview |
+| `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 例如 gemini、gitkraken、kde-suite、grok-app、joplin、tradingview |
+| `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | goldendict、grok-app、gemini、tradingview |
 | `LC_ALL` | 强制整套 locale。有的构建用 C；图形程序要中文时才用 zh_CN.UTF-8。 | 例如 chatgpt、gitkraken |
-| `LOCPATH` | locale 档案目录。腾讯会议用它读包内的 zh_CN.UTF-8。 | wemeet、grok-app、joplin、xnviewmp、remmina、gemini |
+| `LOCPATH` | locale 档案目录。腾讯会议用它读包内的 zh_CN.UTF-8。 | wemeet、grok-app、joplin、xnviewmp、remmina、gemini、tradingview |
 | `TZ` | 时区。腾讯会议按官方脚本设成 Asia/Shanghai。 | wemeet |
 | `XDG_SESSION_TYPE` | 当前会话类型。Wayland 上回退到 X11 时改成 x11。 | 2 个脚本，例如 jriver、wemeet |
 

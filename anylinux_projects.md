@@ -297,10 +297,10 @@ quick-sharun 上游生成的默认 `AppRun.sh` 会先按文件名顺序加载 `A
 
 运行时需要相邻库目录或固定工作目录时，在第一次 `quick-sharun` 之后、`quick-sharun --make-appimage` 之前追加到现有 `.env`；必须使用运行时可解析的 `${SHARUN_DIR}`，并保留 quick-sharun 已经写入的内容。`.env` 是 quick-sharun 的通用运行时环境机制，与上游包是 Snap、DEB、tar 还是发行版 `/usr/bin` 入口无关；具体变量和值必须来自当前应用的真实布局。
 
-`AppDir/shared/bin/` 不是 Snap 内自带的固定路径，也不是 quick-sharun 自动创建的统一目录。它是本仓库处理没有可用 `/usr/bin` 入口的非标准布局时，由当前构建脚本明确创建并选作解包目标的 AppImage 内部目录。对于 [BlueMail](./bluemail/build_bluemail.sh)和 [TradingView](./tradingview/build_tradingview.sh) 这类官方 Snap，构建脚本把需要保持相邻关系的 Electron 程序、库和资源完整解包到该目录，因此两个变量才指向 `shared/bin`。这不是所有 Snap 的固定写法，更不是所有 quick-sharun 项目的默认配置；目录布局不同的应用必须使用自己的真实路径，不需要额外库目录或固定工作目录时不得添加这些变量。
+`AppDir/shared/bin/` 不是 Snap 内自带的固定路径。quick-sharun 会把需要包装的 ELF 可执行文件部署到该目录；把完整 Snap 程序目录提前解包到这里，则是对应构建脚本选择的布局。例如 [BlueMail](./bluemail/build_bluemail.sh) 的官方 Snap 构建把需要保持相邻关系的 Electron 程序、库和资源完整解包到该目录，因此两个变量指向 `shared/bin`。这不是所有 Snap 的固定写法；目录布局不同的应用必须使用自己的真实路径，不需要额外库目录或固定工作目录时不得添加这些变量。
 
 ```bash
-# BlueMail / TradingView 官方 Snap 布局示例：追加运行时环境，保留 quick-sharun 已写入的 .env 内容
+# BlueMail 官方 Snap 布局示例：追加运行时环境，保留 quick-sharun 已写入的 .env 内容
 cat >> "$APPDIR/.env" <<'ENV'
 SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/shared/bin:${SHARUN_EXTRA_LIBRARY_PATH}
 SHARUN_WORKING_DIR=${SHARUN_DIR}/shared/bin

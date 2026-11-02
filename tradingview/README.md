@@ -2,15 +2,25 @@
 
 ## 用途与产物
 
-本目录把 TradingView 官方 Snap 的当前 `latest/stable` amd64 版本重新封装为 `tradingview.AppImage`，由 `.github/workflows/build.yml` 的标准 Arch Linux matrix 构建。AUR 的 [tradingview 配方](https://aur.archlinux.org/packages/tradingview)用作上游目录布局和依赖参考；正式构建直接获取官方 Snap，不依赖 AUR 维护者更新版本。
+本目录把 TradingView 官方稳定渠道 APT 仓库中的当前 amd64 DEB 重新封装为 `tradingview.AppImage`，沿用 `.github/workflows/build.yml` 的标准 Arch Linux matrix。构建先安装 AUR 的 [tradingview-bin-latest](https://aur.archlinux.org/packages/tradingview-bin-latest) 准备应用、依赖和桌面资源，再独立下载经过官方签名索引和 SHA-256 校验的 DEB；最终程序来自这份独立下载的安装包。
 
 ## 打包方式
 
-- `common/snap/download_stable_snap.sh` 从 Snap Store 读取当前稳定版，核对发布者、架构和官方 SHA3-384，再下载 Snap。
-- `common/archive/extract_archive.sh` 解包 Snap。构建脚本保留 TradingView 自带的 Electron/Chromium 程序、相邻库和资源，去掉 Snap 专用宿主运行时目录。
-- Arch Linux 容器中的 quick-sharun 收集主程序及 `keytar.node` 所需的 `libsecret`，生成默认入口。构建脚本把需要保持相邻关系的官方 Snap 程序、库和 Electron 资源解包到自己创建的 `AppDir/shared/bin/`，因此通过 `AppDir/.env` 把该目录设为额外库目录和工作目录；这不是所有 Snap 的固定路径。`90-tradingview-arguments.hook` 通过 quick-sharun 通用 hook 机制保留官方 Snap 使用的 `--no-sandbox` 参数。桌面图标与 desktop 文件来自同一 Snap。
-- 将 ICU、PAK、`locales` 和 `resources` 以包内链接接到启动包装器旁，保持 Electron 按可执行文件目录查找资源的行为。
-- 官方 Snap 自带 Electron/Chromium 运行时，本脚本保留其程序文件和资源，没有另外下载或打包独立的 Chromium 浏览器。构建环境安装 IBus 与 Fcitx5 的 GTK3 输入模块；CI 日志确认 `DEPLOY_GTK=1` 收集了 `im-ibus.so` 和 `im-fcitx5.so`。启动入口不覆盖宿主输入法变量；2026-09-24 Linux 实机已确认观点编辑和商品代码搜索等输入框能够显示中文候选并正常上屏。官方说明 Snap 版在原生 Wayland 下可能不稳定，当前入口使用 X11。
+- `common/arch/install_packages.sh` 分别安装公共基础工具和应用包、GTK3、Fcitx5、libsecret、libnotify 及 DEB 工具。原有 IBus、NSS、OpenSSL、SquashFS 工具继续由公共基础包提供。
+- `common/download/download_apt_repository_deb.sh` 读取官方 `stable / jammy / multiverse` 仓库，验证官方密钥签名、Packages 和 DEB 的 SHA-256 与大小，并核对包名、amd64 架构和实际版本。版本按 Debian 规则动态选择，不使用 AUR 的静态版本字段。
+- 公共归档入口解包 DEB，完整的 `opt/TradingView/` 原样复制到 `AppDir/bin/`，保留 Electron/Chromium、自带库、ICU、PAK、`locales`、`resources` 和 `chrome-sandbox`。不另装独立 Chromium，不再整理 Snap 宿主目录或追加资源链接。
+- quick-sharun 对完整程序目录、`keytar.node` 和 `libnotify.so.4` 收集依赖。临时 `LD_LIBRARY_PATH` 让构建期间从当前程序目录解析私有库；运行时的额外库路径由 quick-sharun 的 Electron 部署机制写入，工作目录通过 `.env` 指向 `bin`。
+- `DEPLOY_GTK=1` 保留 GTK3 和输入模块部署；第一次 quick-sharun 后按标准生成包内中文 locale，并追加语言环境。输入法继续使用宿主已有设置，不额外强制 IBus 或 Fcitx5。
+- 原有 `--no-sandbox` 参数 hook 与 `tradingview://` 登录回调登记继续保留，用户参数原样传递。启动入口仍由 quick-sharun 生成，不自写 AppRun。
+
+## 当前状态
+
+| 范围 | 状态 |
+| --- | --- |
+| 原 Snap 路线的启动、图表、自选列表、中文输入、浏览器登录回调 | 2026-09-24 已有用户实机与虚拟机确认，完整记录保留在下方。 |
+| 本次 DEB 来源、签名与摘要、包内目录、资源组装及构建入口 | 检查结果见本页末尾的 2026-11-02 记录。 |
+| 新 DEB 路线的完整 AppImage 构建与实机运行 | 待验证。旧路线的实测结果保留，不直接代替新来源的验收。 |
+| 真实交易、观点实际发布 | 尚无本项目的实测确认。 |
 
 ## 运行
 
@@ -23,11 +33,19 @@
 
 ## 版本元数据
 
-成功生成 AppImage 后，把本次 Snap Store 稳定版的实际版本写入 `tradingview/dist/version.txt`，供正式工作流更新软件版本清单。
+下载入口把同一份已校验 DEB 的完整 `Version` 写入 `tradingview-source-version.txt`。构建在依赖收集前通过 `read_app_version.sh text` 读取，保留 Debian 修订号，并继续向打包工具导出 `VERSION`。最终 AppImage 生成成功后，公共保存入口才写入 `tradingview/dist/version.txt`；正式工作流继续发布原来的资产名及软件版本清单。
 
 ## 维护说明
 
-TradingView 为专有软件，使用和再分发应遵守其许可条款。构建脚本不固定应用或打包工具版本。迁移后的 quick-sharun 默认入口、GUI 启动、图表加载和中文输入已有 Linux 实机截图及运行日志确认；登录、交易和观点实际发布仍需分别核对。
+TradingView 为专有软件，使用和再分发应遵守其许可条款。构建脚本不固定应用或打包工具版本。2026-11-02 已针对 `tradingview`、`trading-view` 查找 pkgforge-dev，未查到专属打包仓库；本次按本仓库的 Electron 直接下载标准实现，不编造官方专属处理。
+
+- [模板差异](docs/template-deviations.md)：两阶段来源、依赖覆盖、程序布局、中文环境、额外库和协议 hook。
+- [固定参数与来源依据](docs/hardcoded.md)：实际 APT、AUR、目录、版本、运行参数及原始下载故障。
+- [公共 APT 下载接口](../common/README.md#签名-apt-仓库中的官方-deb)：签名、摘要、版本选择和失败保护。
+
+## 既有修复与实测历史
+
+以下记录保留当时的实现及验证范围；其中 Snap 来源和 `shared/bin` 布局已由本次 DEB 标准流程替代。
 
 ## 2026-09-23：中文输入修复待实机验证
 
@@ -56,3 +74,13 @@ Linux 实机运行入口迁移后的 `tradingview.AppImage`，程序能够启动
 Linux 实机重新登录。浏览器打开 `tradingview://browser-auth/?token=...`，并提示使用 TradingView 打开该链接。确认后程序进入已登录界面，图表加载到 `cn.tradingview.com/chart/`。中间仍会先到系统默认浏览器再点一次打开，这不表示回调失败。本次确认登录回调可以回到程序；交易和观点发布仍未在本次范围内验证。
 
 另一台虚拟机同样完成登录并加载图表。交易和观点发布仍未验证。
+
+
+## 2026-11-02：接入官方 DEB 并对齐直接下载标准
+
+- 原始故障：[run 41420975694 的 TradingView Job](https://github.com/newyorkthink/linux-packaging/actions/runs/41420975694/job/125196247712) 在依赖安装后发生 HTTP 429、连接重置及超时，最终退出码为 28；没有运行到 quick-sharun 收集和封装。
+- 修改：保留 quick-sharun 路线，先安装 AUR 的官方 DEB 配方，再通过已提交的公共 APT 入口独立下载并校验当前安装包；完整 `opt/TradingView` 放入 `AppDir/bin`，桌面资源读取系统安装结果。移除旧 Snap 平台清理和资源链接，版本读取、保存、下载与解包均复用公共入口。
+- 保留：原 `NO_STRIP=1`、`STRACE_MODE=0`、临时私有库路径、`keytar.node` 与通知库收集、固定 `--no-sandbox` 命令及协议登记参数；输入法继续使用宿主配置。新增包内中文 locale，生成入口和额外库路径仍交给 quick-sharun。
+- 文档：新增模板差异和固定参数说明，登记 Electron 直接下载分类、相关环境变量和上游核对结果；规范里的旧 Snap 示例不再列入 TradingView。原有 2026-09 修复和实机记录逐字保留。
+- 验证：57 项隔离检查通过。复用已真实下载并校验的官方 `3.5.0-1` DEB 和签名索引，在同一公共入口重新验证签名、摘要及包身份，完成真实解包和 77 个官方程序 / 资源文件的逐项组装对比；实际生成并读取中文 locale；验证两阶段顺序、参数原样传递、移动路径后的协议 desktop、失败退出及最终版本保护，现有 Plan 仅选择 TradingView。Bash、标准注释顺序和原参数对照通过。
+- 验证边界：包管理器安装和 quick-sharun 收集 / 封装在本次调度检查中使用替身，未执行完整 Arch AppImage 构建、GUI、图表或新包登录实测。临时检查不进入仓库，现有 workflow 与发布流程保持原样，提交后不等待或监控 Actions。
