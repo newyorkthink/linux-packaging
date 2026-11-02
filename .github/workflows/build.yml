@@ -908,6 +908,49 @@ jobs:
           github_token: ${{ github.token }}
 
 
+  build_realvnc_connect:
+    name: Build RealVNC Connect
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).realvnc_connect == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Build RealVNC Connect AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          chmod +x realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh
+          ./realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-realvnc_connect
+          path: realvnc-rvnc-connect/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest realvnc-rvnc-connect/dist/rvncconnect.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'realvnc_connect'
+          version_file: 'realvnc-rvnc-connect/dist/version.txt'
+          asset_name: 'rvncconnect.AppImage'
+          artifact_dir: 'realvnc-rvnc-connect/dist'
+          github_token: ${{ github.token }}
+
   build_remmina:
     name: Build Remmina
     needs: plan

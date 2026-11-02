@@ -145,7 +145,7 @@
 | --- | --- | --- |
 | `GTK_IM_MODULE` | GTK 文本框用哪个输入法模块，常见是 ibus 或 fcitx。 | 10 个脚本，例如 aionui、dconf-editor、dingtalk |
 | `GTK_IM_MODULE_FILE` | GTK 输入法模块缓存文件的路径。 | 4 个脚本，例如 dconf-editor、rainlendar2、remmina |
-| `GTK_THEME` | 强制使用的 GTK 主题名。 | 3 个脚本，例如 joplin、rainlendar2、ripdrag |
+| `GTK_THEME` | 强制使用的 GTK 主题名。 | joplin、rainlendar2、ripdrag、realvnc-rvnc-connect |
 | `GTK_PATH` | GTK 模块搜索路径。 | keepass |
 | `GTK_DIR` | GTK 模块所在的目录名，例如 gtk-4.0。 | mission-center |
 | `GTK2_RC_FILES` | GTK2 的主题配置文件。 | keepass |

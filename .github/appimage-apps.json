@@ -564,7 +564,7 @@
     },
     {
       "key": "realvnc_connect",
-      "kind": "standard",
+      "kind": "special",
       "name": "RealVNC Connect",
       "script": "realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh",
       "dir": "realvnc-rvnc-connect",

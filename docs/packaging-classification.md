@@ -103,6 +103,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | --- | --- | --- | --- | --- |
 | Joplin | [build_joplin.sh](../joplin/build_joplin.sh) | 官方 GitHub 正式 Release DEB；公共入口校验后，将同一份包安装并按原布局解包，返回实际版本。 | Electron / GTK3；gtk | [专属差异](../joplin/docs/template-deviations.md) |
 | MediaInfo | [build_mediainfo_linuxdeploy.sh](../mediainfo/build_mediainfo_linuxdeploy.sh) | Ubuntu 24.04 仓库的 mediainfo；公共入口下载已安装的同一版本并解包，返回版本号。 | CLI；无框架插件 | [专属差异](../mediainfo/docs/template-deviations.md) |
+| RealVNC Connect | [build_realvnc-rvnc-connect.sh](../realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh) | 官方校验页面中的最新稳定版 x64 DEB；公共入口核对 SHA-256、安装并解包，返回包内实际版本。 | Flutter / GTK3；gtk | [专属差异](../realvnc-rvnc-connect/docs/template-deviations.md) |
 | Remmina | [build_remmina.sh](../remmina/build_remmina.sh) | Ubuntu 24.04 仓库的 Remmina 与协议插件；各包按已安装版本下载并解包，版本以 remmina 主包为准。 | GTK3 / WebKitGTK；gtk、gstreamer | [专属差异](../remmina/docs/template-deviations.md) |
 | XnView MP | [build_xnviewmp.sh](../xnviewmp/build_xnviewmp.sh) | 官方校验清单中的最新稳定版 x64 DEB；公共入口校验后，将同一份包安装并按原布局解包，返回实际版本。 | Qt6；qt | [专属差异](../xnviewmp/docs/template-deviations.md) |
 
