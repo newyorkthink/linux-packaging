@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev pkgconf libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev librsvg2-dev librsvg2-common libpango1.0-dev ibus-gtk3 libibus-1.0-5 libasound2 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcairo2 libcups2 libdbus-1-3 libdrm2 libgbm1 libgdk-pixbuf-2.0-0 libglib2.0-0 libgtk-3-0 libnotify4 libnspr4 libnss3 libpango-1.0-0 libsecret-1-0 libuuid1 libappindicator3-1 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxinerama1 libxkbcommon0 libxrandr2 libxrender1 libxshmfence1 libxss1 libxtst6 xdg-utils shared-mime-info hicolor-icon-theme
+"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev pkgconf libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev librsvg2-dev librsvg2-common libpango1.0-dev ibus-gtk3 libibus-1.0-5 libasound2 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcairo2 libcups2 libdbus-1-3 libdrm2 libgbm1 libgdk-pixbuf-2.0-0 libglib2.0-0 libgtk-3-0 libnotify4 libnspr4 libnss3 libpango-1.0-0 libsecret-1-0 libuuid1 libappindicator3-1 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxinerama1 libxkbcommon0 libxrandr2 libxrender1 libxshmfence1 libxss1 libxtst6 xdg-utils shared-mime-info hicolor-icon-theme locales
 
 ############# 下载打包工具 #############
 
@@ -33,6 +33,9 @@ VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_relea
 
 ########## 准备桌面资源和运行库 #########
 
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
+
 # 下载并解包应用所需的图标与主题资源。
 "$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
 
@@ -50,6 +53,11 @@ set -Eeuo pipefail
 
 # 获取脚本所在目录的绝对路径。
 HERE="$(dirname "$(readlink -f "${0}")")"
+
+# 设置简体中文界面环境。
+export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
 
 # 设置程序、运行库和共享数据的搜索路径。
 export PATH="$HERE/opt/Joplin:$HERE/usr/bin${PATH:+:$PATH}"

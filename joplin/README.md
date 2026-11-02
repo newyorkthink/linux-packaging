@@ -6,7 +6,7 @@
 
 [build_joplin.sh](./build_joplin.sh) 是 GTK 类型标准参考；Qt 和 CLI 分别使用 XnView MP、MediaInfo，统一规则见 [linuxdeploy 规范](../linuxdeploy_projects.md)。
 
-- 当前 Joplin 为 85 行、29 行空行，不要求其他程序凑成相同行数。
+- 当前 Joplin 为 93 行、31 行空行，不要求其他程序凑成相同行数。
 - 通用注释逐字复用 [固定注释标准](../docs/linuxdeploy-comments.md)。
 - 本项目的依赖、主题、NSS 和 AppRun 说明见 [专属差异](./docs/template-deviations.md)，不作为所有 GTK 程序的固定清单。
 
@@ -39,6 +39,14 @@
 - `AppRun.wrapped` 保留 AppImage 内部的 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、`GSETTINGS_SCHEMA_DIR` 和 `GIO_MODULE_DIR`，避免运行时错误混用宿主机 GTK/GLib/GIO 模块。
 - 固定 `GTK_THEME=Adwaita-dark`，保证 Joplin 使用已打包的 Adwaita 深色主题。
 - 使用动态取得的官方 `linuxdeploy-plugin-gtk` 部署 GTK schemas、GIO modules、GTK input modules、GDK Pixbuf loaders、Pango 等 GTK 运行资源。
+
+## 包内中文 locale
+
+构建依赖增加 `locales`。在应用解包后的资源准备阶段，单行调用 `common/linuxdeploy/prepare_locale.sh zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"`，将中文 locale 数据生成到 AppDir；正式 linuxdeploy 随后部署依赖和运行资源，最终封装入口沿用原有调用。
+
+AppRun 先把包内 `usr/lib/locale` 放在 `LOCPATH` 首位，再设置 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`，确保切换语言时已经能找到包内数据。独立生成的数据用于提供中文 locale；软件翻译继续由 Joplin 官方资源提供，中文输入继续使用既有 IBus 与宿主会话配置。此步骤不生成 quick-sharun 的 `.env`，不更改输入法、主题、GIO、NSS 或已有程序入口。
+
+本轮仅核对 locale 生成、读取和 AppRun 环境设置，未运行完整 AppImage 构建或 GUI 检查；既有用户实测成功的启动、深色主题和普通 IBus 中文输入结论保留。
 
 ## NSS
 
@@ -112,6 +120,10 @@ libnssutil3.so: version `NSSUTIL_...' not found
 - 本次证据来自用户实际运行；没有把仅靠静态检查的结论写成 GUI 验证结果。
 
 ## 变更记录
+
+### 2026-11-02：接入公共中文 locale 生成入口
+
+按用户本次要求新增独立的 `common/linuxdeploy/prepare_locale.sh`，先在 Joplin 接入，其他应用和 quick-sharun 脚本不变。原脚本没有包内中文 locale 生成步骤，也未显式设置中文语言；本次补入资源准备调用与 AppRun 的语言、消息和 locale 搜索路径设置，不把它记录为已经发生的启动或输入法故障修复。公共入口及固定注释、export 登记同步更新。
 
 ### 2026-10-31：确认唯一标准模板并同步公共入口说明
 
