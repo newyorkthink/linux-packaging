@@ -18,6 +18,7 @@
 - `linuxdeploy/linuxdeploy-plugin-appimage.sh` 是构建时的输出包装入口。工具准备脚本动态下载并校验官方 `linuxdeploy-plugin-appimage`，从资产中只提取原始插件程序为 `appimage-output`，使其从同一目录找到本次下载的 appimagetool；将包装入口安装为工具目录中的 `linuxdeploy-plugin-appimage`，并链接现有图标与权限准备脚本。linuxdeploy 按官方优先级选中外部入口；根 desktop 和图标部署完成后先准备 AppDir，再原样转交参数和 LDAI 环境给官方输出插件。插件类型、API 与帮助查询直接转交官方，不提前处理空 AppDir；直接 `--appimagetool` 模式不下载或安装这些输出文件。说明见 [linuxdeploy 更新兼容](../docs/linuxdeploy-update-compatibility.md)。
 - `aur/resolve_deb_source.sh` 接收 AUR 包名、架构、工作目录、元数据输出文件和依赖输出文件；仅接受同名单包 `.SRCINFO` 中唯一的架构专用 HTTPS DEB 及对应的完整摘要。优先沿用 SHA-256，仅在当前架构没有 SHA-256 时读取 SHA-512；无效或 `SKIP` 的 SHA-256 不会因存在 SHA-512 而被跳过。输出可供 Bash 加载的版本、pkgrel、来源、带算法前缀的 `SOURCE_CHECKSUM`，以及去版本约束后的运行依赖。SHA-256 来源继续输出原有 `EXPECTED_SHA256` 字段；SHA-512 来源不输出空的同名字段，新调用统一读取 `SOURCE_CHECKSUM`。不执行 PKGBUILD，不把其他架构或通用 source 的摘要配给当前 DEB。浅克隆和解析只在公共入口完成。
 - `aur/download_deb_source.sh` 接收 AUR 包名、架构和 DEB 输出文件三个参数。复用上述解析入口，在独立临时目录中读取当前来源和 `SOURCE_CHECKSUM`，再调用 `download/download_file.sh` 按指定算法校验并下载；成功或失败后均清理本次临时元数据。原有三个参数保持不变，不安装应用、不解包、不替调用方选择版本元数据，也不写死应用名或下载地址。
+- `aur/install_and_extract_deb_source.sh` 接收 AUR 包名、AUR 架构、来源工作目录、DEB 路径、解包目录、预期 DEB 包名和 DEB 架构。组合现有来源解析、摘要下载、版本读取、元数据校验、APT 安装和归档解包入口；全部成功后仅向 stdout 返回一行实际版本。保留同次 AUR 快照、来源元数据和依赖清单，不执行 PKGBUILD，也不改旧入口。参数与使用边界见下文。
 - `download/download_file.sh <HTTPS URL> <输出文件> [摘要] [User-Agent]` 保留原下载、重试、超时和原子替换行为。不传摘要时保持原行为；无前缀的 64 位十六进制摘要和 `sha256:<摘要>` 使用 SHA-256，新增的 `sha512:<128 位十六进制摘要>` 使用 SHA-512。摘要格式错误或校验失败时不替换已有输出文件。该扩展不改变其他专用下载入口各自的摘要格式。 第四个可选参数指定客户端标识，省略或传空字符串时保留 curl 默认行为；不校验摘要而指定客户端标识时，第三个参数传空字符串。客户端标识包含回车或换行时拒绝下载。
 - `download/download_apt_repository_deb.sh` 从调用方指定的 HTTPS APT 仓库读取签名索引，使用指定的官方密钥验证 `InRelease`，核对索引与 DEB 的 SHA-256、大小，以及 DEB 的包名、架构和版本；按 Debian 版本规则选择最高版本，成功后写入 DEB 与来源版本文件，stdout 只返回版本。不安装应用、不配置系统 APT 源；现有下载、版本读取和归档接口保持不变。完整参数与支持范围见下文。
 - `download/download_omaha_package.sh` 查询 Omaha 3.0 XML 更新服务，按调用方提供的应用 ID、渠道、平台、架构、下载源、路径前缀和文件名规则选择完整安装包，复用 `download_file.sh` 校验 SHA-256，并核对响应中的文件大小。成功后写入指定的安装包和版本文件，stdout 只返回版本；不安装或执行软件。完整参数、约束及调用方式见下文。
@@ -30,6 +31,25 @@
 - `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
 - `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../docs/appimage-scheme-handler.md)。
+
+### AUR 来源中的官方 DEB
+
+入口为 `aur/install_and_extract_deb_source.sh`。在应用 build 的“下载并准备应用”阶段单行调用，依次传入 AUR 包名、AUR 架构、来源工作目录、下载 DEB 路径、解包目录、预期 DEB 包名和 DEB 架构，共七项。所有参数均由调用方明确提供；AUR 与 DEB 的架构名称分别传入，不在公共代码中猜测映射关系或固定应用。
+
+```bash
+# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
+VERSION="$("$SCRIPT_DIR/../common/aur/install_and_extract_deb_source.sh" "<AUR 包名>" "<AUR 架构>" "$SOURCE_DIR" "$SOURCE_DIR/<软件名>.deb" "$APPDIR" "<DEB 包名>" "<DEB 架构>")"
+```
+
+示例中的 `<…>` 须按本次实际来源替换。调用方先通过现有工作区入口准备来源目录，再通过公共 APT 入口安装构建依赖并更新索引；本入口安装本地 DEB 时使用 `--no-update`。依赖沿用现有子入口所需的 Bash、git、curl、dpkg-deb、APT 及基础工具，不另外安装 Arch 环境。
+
+来源选择继续由 `resolve_deb_source.sh` 负责：仅接受同名单包、唯一的架构专用 HTTPS DEB 和对应的有效摘要；沿用 SHA-256 优先及 SHA-512 兼容规则，不执行 PKGBUILD 或 makepkg。下载继续复用 `download_file.sh`；版本读取和包身份核对分别复用 `build/read_app_version.sh`、`archive/check_deb_metadata.sh`。本入口要求 DEB 完整 Version 与 AUR `pkgver` 精确一致，且实际包名、架构与传入值一致；AUR `pkgrel` 不作为 DEB 版本的修订号。版本改写或与此规则不符的 AUR 包不能直接套用该入口。
+
+元数据校验通过后，使用同一份 DEB 依次完成系统安装和原布局解包。只在全部步骤成功后返回一行版本；下载、摘要、版本、包名、架构、安装或解包失败时直接退出，不返回成功版本、不继续后续步骤。日志写入 stderr，应用不再重复解析来源、读取版本、校验、安装或解包。系统安装失败可能留下包管理器的中间状态，解包失败可能留下已写出的文件；本入口不自动回滚这些操作。
+
+来源目录会保留 `<来源工作目录>/<AUR 包名>/`、`source.env` 和 `dependencies.txt`，供应用专属补丁使用同次桌面资源与依赖清单；再次调用时沿用解析入口的规则，重新取得该 AUR 包目录并更新两份元数据。解包目录须与来源工作目录分开；应用的目录布局调整、桌面资源修复及运行库处理仍放在自身 `patches/`。这里的版本返回不写最终 `dist/version.txt`，最终版本保存继续由原封装入口负责。
+
+旧 `aur/resolve_deb_source.sh` 和三参数 `aur/download_deb_source.sh` 的参数、输出、清理与下载行为保持不变；既有应用不会自动转用新入口。本次只补公共组合能力，不变更应用 build、AppRun 或 workflow。
 
 ### 本地 DEB 元数据校验
 
