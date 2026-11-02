@@ -10,7 +10,7 @@
 
 ## 官方来源与实际路径
 
-公共 DEB 入口的 `--html-checksum` 模式读取官方 v8 校验页面，选择最新稳定版 `RealVNC-Connect-<版本>-Linux-x64.deb`，拼接官方下载地址并核对 SHA-256、包名与 amd64 架构。传入公共入口的 v8 页面表示官方产品渠道，不是把应用锁定到某个具体版本。
+公共 DEB 入口使用 `--html-checksum --json-html article.body`，读取 `https://help.realvnc.com/api/v2/help_center/en-us/articles/27252822630301.json` 中同一篇官方 v8 校验文章的 HTML 表格，选择最新稳定版 `RealVNC-Connect-<版本>-Linux-x64.deb`，拼接官方下载地址并核对 SHA-256、包名与 amd64 架构。官方文章仍对应 v8 产品渠道，不是把应用锁定到某个具体版本。网页入口在本次 runner 请求中返回 HTTP 403，因此改用已实测可下载的公开 JSON 接口；字段缺失或表格无效即退出，不绕过摘要校验。故障与验证记录见 [README](../README.md#2026-11-02修正校验来源的-http-403)。
 
 官方包的真实主程序为 `usr/lib/rvncconnect/rvncconnect`，私有库位于同级 `lib`，Flutter 资源位于同级 `data`。AppRun 直接执行真实主程序；不创建多余的 `usr/bin/rvncconnect` 转发入口。依赖搜索使用已核实的目录，不在每次启动时递归扫描 bundle。
 

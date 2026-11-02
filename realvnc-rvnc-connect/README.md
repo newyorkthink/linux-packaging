@@ -8,7 +8,7 @@
 
 直接在 Ubuntu 24.04 runner 构建。沿用本仓库 linuxdeploy 标准：空 AppDir 初始化，公共入口下载、核对官方 SHA-256、安装并解包同一份 DEB，写完整根 AppRun，再运行 GTK3 linuxdeploy 生成中间 AppImage，最后由官方 appimagetool 与明确的 Type 2 runtime 封装发布产物。SVG 图标的 PNG 转换由现有公共封装链路处理。
 
-版本和摘要动态解析自 [RealVNC 官方校验页面](https://help.realvnc.com/hc/en-us/articles/27252822630301-SHA256-checksums-for-RealVNC-Connect-v8)，下载来自 `downloads.realvnc.com`；不经过 AUR，也不固定某个应用版本。统一清单键仍为 `realvnc_connect`。
+版本和摘要动态解析自 [RealVNC 官方校验文章](https://help.realvnc.com/hc/en-us/articles/27252822630301-SHA256-checksums-for-RealVNC-Connect-v8) 的 [公开 JSON 接口](https://help.realvnc.com/api/v2/help_center/en-us/articles/27252822630301.json)，显式读取 `article.body` 中的同一校验表，下载来自 `downloads.realvnc.com`；不经过 AUR，也不固定某个应用版本。统一清单键仍为 `realvnc_connect`。
 
 ## 运行
 
@@ -29,6 +29,14 @@
 已用官方 DEB 验证 bundle 保存与恢复、桌面文件处理、隔离入口及参数传递，并检查脚本和 workflow。启动与浏览器环境使用替身验证，未执行完整应用构建、真实 GUI、登录或远程连接测试；后续 Actions 和实际运行结果另行确认。
 
 ## 变更记录
+
+### 2026-11-02：修正校验来源的 HTTP 403
+
+[本次构建](https://github.com/newyorkthink/linux-packaging/actions/runs/41397410937/job/125121657572) 在读取官方校验网页时连续收到 HTTP 403，curl 最终以 22 退出，尚未下载应用 DEB 或进入正式 GTK 部署。此前空 AppDir 初始化的 `Desktop file not found` 已被初始化入口允许，不是该 job 最终退出的原因。
+
+改用同一篇官方文章的公开 JSON 接口，公共 HTML 校验入口通过显式的 `--json-html article.body` 读取表格。仍按最新稳定版文件名、官方 SHA-256、DEB 版本、包名和 amd64 架构校验，不回退旧版，也不关闭摘要校验。AppRun、两个专属 patches、GTK/输入配置及 workflow 保持原样。
+
+本次使用未替换的公共 curl 入口实际下载官方 JSON 和 DEB，完成 SHA-256、包元数据及原布局解包验证；APT 安装使用替身。JSON 字段失败路径与旧接口回归检查通过，完整构建和真实 GUI 尚未验证。
 
 ### 2026-11-02：对齐 linuxdeploy 标准
 

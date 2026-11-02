@@ -29,7 +29,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_
 ############ 下载并准备应用 #############
 
 # 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
-VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" --html-checksum "https://help.realvnc.com/hc/en-us/articles/27252822630301-SHA256-checksums-for-RealVNC-Connect-v8" '^RealVNC-Connect-[0-9]+([.][0-9]+)+-Linux-x64[.]deb$' "https://downloads.realvnc.com/download/file/realvnc-connect" "$SOURCE_DIR/rvncconnect.deb" "$APPDIR" realvnc-rvncconnect amd64)"
+VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" --html-checksum --json-html article.body "https://help.realvnc.com/api/v2/help_center/en-us/articles/27252822630301.json" '^RealVNC-Connect-[0-9]+([.][0-9]+)+-Linux-x64[.]deb$' "https://downloads.realvnc.com/download/file/realvnc-connect" "$SOURCE_DIR/rvncconnect.deb" "$APPDIR" realvnc-rvncconnect amd64)"
 
 ########## 准备桌面资源和运行库 #########
 

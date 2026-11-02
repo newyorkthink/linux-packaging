@@ -18,11 +18,22 @@ elif [[ "${1:-}" == --html-checksum ]]; then
   shift
 fi
 
+# HTML 校验来源可显式指定 JSON 中保存表格的字段，其他下载模式不受影响。
+HTML_SOURCE_ARGS=()
+if [[ "$DOWNLOAD_SOURCE" == html-checksum && "${1:-}" == --json-html ]]; then
+  [[ -n "${2:-}" ]] || {
+    echo "错误：--json-html 需要指定 HTML 字段。" >&2
+    exit 1
+  }
+  HTML_SOURCE_ARGS=(--json-html "$2")
+  shift 2
+fi
+
 # 根据下载来源检查参数数量，GitHub 模式保留可选的包名和架构校验。
 if [[ "$DOWNLOAD_SOURCE" == github && $# -ne 4 && $# -ne 6 ]] || [[ "$DOWNLOAD_SOURCE" == checksum && $# -ne 4 ]] || [[ "$DOWNLOAD_SOURCE" == html-checksum && $# -ne 5 && $# -ne 7 ]]; then
   echo "用法：$0 <owner/repo> '<包含 {version} 的资产名模板>' <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]" >&2
   echo "用法：$0 --checksum <HTTPS 校验清单 URL> '<完整资产名正则>' <下载 DEB 路径> <解包目录>" >&2
-  echo "用法：$0 --html-checksum <HTTPS HTML 校验表 URL> '<完整资产名的 Python 正则>' <HTTPS 资产目录 URL> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]" >&2
+  echo "用法：$0 --html-checksum [--json-html <JSON HTML 字段>] <HTTPS 校验来源 URL> '<完整资产名的 Python 正则>' <HTTPS 资产目录 URL> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]" >&2
   exit 1
 fi
 
@@ -93,7 +104,7 @@ case "$DOWNLOAD_SOURCE" in
     VERSION="$("$DOWNLOAD_ASSET" "$SOURCE_REF" "$ASSET_SELECTOR" "$DEB_FILE")"
     ;;
   html-checksum)
-    VERSION="$("$DOWNLOAD_ASSET" "$SOURCE_REF" "$ASSET_SELECTOR" "$ASSET_BASE_URL" "$DEB_FILE")"
+    VERSION="$("$DOWNLOAD_ASSET" "${HTML_SOURCE_ARGS[@]}" "$SOURCE_REF" "$ASSET_SELECTOR" "$ASSET_BASE_URL" "$DEB_FILE")"
     ;;
 esac
 

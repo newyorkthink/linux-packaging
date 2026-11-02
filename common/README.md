@@ -17,8 +17,8 @@
 - `aur/resolve_deb_source.sh` 接收 AUR 包名、架构、工作目录、元数据输出文件和依赖输出文件；仅接受同名单包 `.SRCINFO` 中唯一的架构专用 HTTPS DEB 与 SHA-256，输出可供 Bash 加载的版本、pkgrel、来源和摘要，以及去版本约束后的运行依赖。浅克隆和解析只在公共入口完成。
 - `aur/download_deb_source.sh` 接收 AUR 包名、架构和 DEB 输出文件三个参数。复用上述解析入口，在独立临时目录中读取当前来源与 SHA-256，再调用 `download/download_file.sh` 校验并下载；成功或失败后均清理本次临时元数据。不安装应用、不解包、不替调用方选择版本元数据，也不写死应用名或下载地址。
 - `download/download_verified_with_wayback.sh` 接收官方 HTTPS URL、目标文件、原 SHA-256 和可选的 `--deb`；先调用 `download_file.sh`，未取得匹配摘要的文件时才查同一 URL 的 Internet Archive 快照，所有候选文件仍须通过原摘要，`--deb` 还核对 DEB 文件类型。
-- `download/download_html_checksum_asset.sh` 接收 HTML 校验表 URL、完整资产名的 Python 正则、资产目录 URL 和输出文件四个参数。只配对同一表格行中的文件名与 SHA-256，按文件名里的点分数字版本选择最高版本；匹配缺失、摘要冲突或最高版本不唯一时退出。页面和资产均通过 `download_file.sh` 下载，stdout 只返回版本，不安装应用或解包。
-- `github/install_and_extract_latest_stable_release_deb.sh` 保留原 GitHub 与 `--checksum` 接口，新增 `--html-checksum <HTML 校验表 URL> '<完整资产名的 Python 正则>' <资产目录 URL> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]`。新模式调用上述 HTML 下载入口，在安装前核对 DEB 实际版本及可选的包名、架构；随后复用公共 APT 和归档入口安装并解包同一份 DEB，全部成功后才返回版本。
+- `download/download_html_checksum_asset.sh` 可选接收前置参数 `--json-html <HTML 字段路径>`，随后接收 HTML 校验表或 JSON API 的 URL、完整资产名的 Python 正则、资产目录 URL 和输出文件四个参数。只配对同一表格行中的文件名与 SHA-256，按文件名里的点分数字版本选择最高版本；匹配缺失、摘要冲突或最高版本不唯一时退出。指定 JSON 模式时只读取该字段的非空 HTML 字符串，再执行同一套表格解析；不自动猜测字段。来源和资产均通过 `download_file.sh` 下载，stdout 只返回版本，不安装应用或解包。
+- `github/install_and_extract_latest_stable_release_deb.sh` 保留原 GitHub 与 `--checksum` 接口，提供 `--html-checksum [--json-html <HTML 字段路径>] <校验来源 URL> '<完整资产名的 Python 正则>' <资产目录 URL> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]`。新模式调用上述 HTML 下载入口，在安装前核对 DEB 实际版本及可选的包名、架构；随后复用公共 APT 和归档入口安装并解包同一份 DEB，全部成功后才返回版本。
 - `github/download_latest_stable_named_asset.sh` 接收仓库、固定资产名、目标文件及可选的 DEB 包名和架构。只选择最新正式版本中的唯一资产，核对 GitHub SHA-256；直链失败时用同一资产 ID 和现有认证令牌回退，stdout 仅返回版本。带 `{version}` 的资产仍使用原有模板入口。
 - `build/prepare_x86_64_workspace.sh` 接收项目根目录、`--skip-create`、一个清理后不创建的一级目录名，以及其余清理后重建的一级目录名。先检查 x86_64 和全部目录名，再只处理这个项目下明确传入的目录；应用自行决定哪些工作目录需要重建。
 - `arch/get_package_version.sh` 接收一个已安装的 Arch 软件包名，从 `pacman -Q` 读取版本并去掉 epoch 和发行版 `pkgrel`，只向 stdout 输出非空的上游版本。需要保留发行版修订号的应用不要调用该入口。
@@ -39,7 +39,9 @@ VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_relea
 
 版本来自匹配文件名中的首个点分数字版本，并在安装前与 DEB 的 `Version` 严格核对。匹配的每一行均须有唯一摘要，同一文件重复列出时摘要必须一致；最高数字版本必须只对应一个文件。下载或校验失败不会回退到较旧版本，不会转用页面中的其他链接。包名和架构可以同时省略；传入时必须成对提供。
 
-页面 URL、下载目录、程序名称和版本均不写死在公共脚本内。仅当全部下载、元数据检查、系统安装和解包成功时，stdout 才返回一行版本；调用方不再另写来源解析脚本，也不重复安装、解包或读取版本。
+若官网公开 API 将同一校验表放在 JSON 字段中，在 `--html-checksum` 后添加 `--json-html "<HTML 字段路径>"`，并将来源 URL 替换为官方 API 地址。字段路径由点分隔的对象键组成；字段缺失、JSON 无效、值不是非空字符串或表格无有效匹配时直接失败，不回退网页、不猜测字段，也不关闭 SHA-256 校验。原来的普通 HTML、GitHub 和 `--checksum` 调用保持兼容。
+
+页面 URL、JSON 字段、下载目录、程序名称和版本均不写死在公共脚本内。仅当全部下载、元数据检查、系统安装和解包成功时，stdout 才返回一行版本；调用方不再另写来源解析脚本，也不重复安装、解包或读取版本。
 
 ### 可选的最终产物检查与收尾
 
