@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg qmake6 qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n qt6-wayland fcitx5-frontend-qt6 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good libpipewire-0.3-0t64 libpulse0 libpulse-mainloop-glib0 libva2 libva-drm2 libva-x11-2 libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 libudev1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
+"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg qmake6 qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n qt6-wayland fcitx5-frontend-qt6 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good libpipewire-0.3-0t64 libpulse0 libpulse-mainloop-glib0 libva2 libva-drm2 libva-x11-2 libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 libudev1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1 locales
 
 ############# 下载打包工具 #############
 
@@ -32,6 +32,9 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_
 VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" --checksum "https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt" '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$SOURCE_DIR/XnView_MP.deb" "$APPDIR")"
 
 ########## 准备桌面资源和运行库 #########
+
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
 
 # 指定 XnView MP 官方安装包中的桌面入口和图标路径，供图标修正及 linuxdeploy 图标部署使用。
 DESKTOP_FILE="$APPDIR/usr/share/applications/XnView.desktop"
@@ -65,6 +68,7 @@ set -Eeuo pipefail
 HERE="$(dirname "$(readlink -f "${0}")")"
 
 # 设置简体中文界面环境。
+export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
 

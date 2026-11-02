@@ -319,7 +319,7 @@ Plan 的选择规则：
 
 | 范围 | 主要内容 |
 | --- | --- |
-| 文首永久规则 | 禁止擅自扩大任务与检查范围、已知错误禁止写入仓库、修复记录只增不删、GitHub 提交步骤、手动只跑指定应用时禁止默认全量、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、命令行不加中文而 GUI 默认带中文环境和中文输入、打包 export 必须先登记、测试代码边界与必要验证、workflow 只负责打包、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入、没有故障原始记录就禁止写死、新增或更新写死时必须在同一次修改里写好该程序的 `docs/hardcoded.md`、不得等用户提醒、打包分类见 `docs/packaging-classification.md` |
+| 文首永久规则 | 禁止擅自扩大任务与检查范围、已知错误禁止写入仓库、修复记录只增不删、GitHub 提交步骤、手动只跑指定应用时禁止默认全量、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、按程序类型和翻译能力配置中文环境与输入、打包 export 必须先登记、测试代码边界与必要验证、workflow 只负责打包、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入、没有故障原始记录就禁止写死、新增或更新写死时必须在同一次修改里写好该程序的 `docs/hardcoded.md`、不得等用户提醒、打包分类见 `docs/packaging-classification.md` |
 | 第 1～2 节 | 仓库目标、最小修改、应用 README、检查记录、迁移完整性 |
 | 第 3～5 节 | 宿主安全、Shell 与中文说明、上游来源、授权、动态版本和版本元数据 |
 | 第 6 节 | AppImage 内容、AppRun、libunionpreload、打包路线、linuxdeploy、Qt 与 quick-sharun |
@@ -404,14 +404,16 @@ Plan 的选择规则：
 - 已有脚本里的 `export` 保持原样。本规则不授权为了对照登记表批量改写稳定脚本。
 - `export -f` 导出的是函数，不是环境变量，不进登记表。
 
-## 永久规则：命令行不加中文，GUI 默认带中文环境和中文输入（不可豁免）
+## 永久规则：按程序类型和翻译能力配置中文环境与输入（不可豁免）
 
-**用户不用每次再提。** 只在终端运行、没有窗口和输入框的程序，不加简体中文 locale，不装 IBus / Fcitx，不改 `LANG`。有窗口的程序默认同时带上 AppImage 内的 `zh_CN.UTF-8`，以及与该 GUI 版本匹配的 IBus 和 Fcitx5 输入模块。
+**用户不用每次再提，但必须先判断是否适用。** 命令行工具不为界面汉化强加简体中文 locale，不额外安装 IBus / Fcitx，也不擅改 `LANG`。GUI 程序须先核实软件是否提供可用的中文翻译，再按照已确认的语言偏好和本次需求配置；已有中文使用要求可以直接沿用，不必每次询问，不能仅因有窗口就强制设置中文。
 
-- quick-sharun 的命令以 [`anylinux_projects.md`](./anylinux_projects.md) 的「命令行不加中文，GUI 默认要」为准。linuxdeploy 的 GUI 同样要做这两件事，仍遵守 `linuxdeploy_projects.md`，不得因此改路线。
-- 新做、迁移或本次本来就要改的 GUI 构建必须带上。已有稳定脚本不要为了补中文去批量重写或重新发布。
-- 某一套输入模块实机会弄坏该应用时，只在该应用 README 写明并去掉那一套；中文环境仍保留。
-- mpv 本次按用户明确批准的官方 locale 处理执行 `echo 'LC_ALL=C.UTF-8' >> ./AppDir/.env`，不生成中文 locale、不额外部署 GTK / Qt 输入模块；原因和边界见 `mpv/docs/template-deviations.md`。这是当前应用的明确例外，不改变其他 GUI 的默认规则。
+- 已提供中文翻译、且采用中文界面的 GUI，在需要时携带 AppImage 内的 `zh_CN.UTF-8`，由 AppRun 指定语言和包内 locale 路径。软件本身没有中文翻译时，生成 locale 或设置 `LANG` / `LANGUAGE` 都不能制造中文界面，应保留上游语言与用户选择；用户另有中文区域格式需求时，单独说明依据和范围。
+- 包内 locale 数据、软件界面翻译、中文输入模块是三件独立的事。输入模块根据实际输入需求和 GTK / Qt 主版本选择；英文界面也可能需要中文输入，不能因没有中文界面就擅自删除输入支持。不得为统一语言配置改写已确认有效的输入法变量。
+- quick-sharun 的命令继续按 `anylinux_projects.md` 对应模板执行，不因本次 linuxdeploy 接入批量改动 quick-sharun 脚本。linuxdeploy 仍遵守 `linuxdeploy_projects.md`：独立生成所需 locale，先设置 AppRun 的 `LOCPATH`，再设置适用的语言变量；不套用 quick-sharun 的 `.env` 或 `SHARUN_DIR`。
+- 新做、迁移或本次本来就要改的应用，按上述类型、翻译能力和输入需求判断；已有稳定脚本不为补中文而批量重写或重新发布。模板里笼统的 GUI 默认中文表述不能代替这项判断。
+- 某一套输入模块实机会弄坏该应用时，只在该应用 README 写明并去掉那一套；已判定需要的中文 locale 和翻译继续保留。
+- mpv 本次按用户明确批准的官方 locale 处理执行 `echo 'LC_ALL=C.UTF-8' >> ./AppDir/.env`，不生成中文 locale、不额外部署 GTK / Qt 输入模块；原因和边界见 `mpv/docs/template-deviations.md`。该应用的明确例外保持不变，其他应用按本节分别判断。
 
 ## 永久规则：禁止手工创建 linuxdeploy hook 或伪造 AppRun.wrapped（不可豁免）
 

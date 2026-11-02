@@ -36,6 +36,12 @@ XnView MP 当前稳定版是 Qt6 应用，并自带 Qt、MDK 和 FFmpeg 组件�
 
 AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/XnView/XnView`；保留 `usr/bin/xnview` 是为了完整保留官方 DEB 布局，不是本仓库另外增加了一层启动包装。
 
+## 包内中文 locale 与界面翻译
+
+本程序已有中文界面，官方 `opt/XnView/language` 与既有 `usr/translations` 提供翻译；中文界面和 IBus Portal 输入已有用户实测记录。因此本次在资源准备阶段接入 `common/linuxdeploy/prepare_locale.sh`，生成 `usr/lib/locale/zh_CN.UTF-8`，并在 AppRun 原有 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh` 前增加包内 `LOCPATH`。构建依赖只追加 `locales`。
+
+locale 数据用于提供字符、编码和区域格式，不替代应用翻译，也不决定输入法模块是否可用。本次不改 Qt 翻译路径、IBus Portal、显示和视频设置；已有部分视频黑屏记录继续保留。命令行程序或没有中文翻译的 GUI 不照抄本项目的中文环境，适用范围见 [linuxdeploy 中文配置](../linuxdeploy_projects.md#中文环境与输入法的适用范围)。
+
 ## 运行
 
 ```bash
@@ -60,6 +66,12 @@ AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/X
 本节是供后续维护者和 AI 接手的临时当前状态，不属于永久修复记录。后续 XnView / Qt 版本更新后该问题自然消失，或其他 AI 完成修复并获得上述视频的真实播放确认时，应删除本节，并在下面的变更记录中追加新的正式修复记录，写清最终根因、修改内容和实机验证结果；下面已经存在的历史记录继续保留，不得随本节一起删除。
 
 ## 变更记录
+
+### 2026-11-02：接入公共中文 locale 生成入口
+
+- 在已安装同一份官方应用包并解包后、正式 linuxdeploy 前，调用已有公共入口生成包内中文 locale；原 APT 参数末尾只追加 `locales`，AppRun 只在原中文环境前补入 `LOCPATH`。
+- 原 `LANG`、`LANGUAGE`、Qt / QML / 翻译路径、qmake6 隔离、IBus Portal、媒体库清单和两条封装命令逐字保留；workflow 不变。
+- 已完成脚本及生成入口语法、实际 locale 生成和读取、AppRun 环境与参数传递的隔离检查，以及完整 diff 和基线对比。主程序使用替身，本次未执行完整应用构建或 GUI 检查；原有实机确认和视频黑屏记录不因这次补充而改写。
 
 ### 2026-10-31：补齐 PipeWire 和 VA-API 动态加载库
 

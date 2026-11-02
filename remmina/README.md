@@ -14,6 +14,12 @@ Remmina 为 GTK3 / C 桌面应用，RDP 使用 FreeRDP 3。当前构建直接使
 
 `build_remmina.sh` 遵循 [linuxdeploy 标准](../linuxdeploy_projects.md)，在资源准备阶段调用 `patches/prepare_runtime.sh`，在依赖部署后、最终封装前调用 `patches/fix_runtime.sh`。完整 AppRun、本地终端 wrapper、输入法缓存和 RDP 认证设置保留在主 build；用途及位置见 [专属差异](./docs/template-deviations.md)。
 
+## 包内中文 locale 与界面翻译
+
+Remmina 已有简体中文翻译，现有语言包与 `patches/prepare_runtime.sh` 会把 `remmina.mo` 放入 `usr/share/locale/zh_CN/LC_MESSAGES`；已有用户实测确认中文界面及输入正常。本次保留这些文件和处理，在应用解包后的资源阶段单行调用 `common/linuxdeploy/prepare_locale.sh`，另行生成 `usr/lib/locale/zh_CN.UTF-8`，构建依赖只追加 `locales`。
+
+AppRun 在原 `LANGUAGE="zh_CN:zh"` 前增加包内 `LOCPATH` 和 `LANG=zh_CN.UTF-8`。区域数据、程序翻译和 GTK 输入模块分别负责不同功能；不因补 locale 改写原 Fcitx5 / IBus、主题跟随、本地终端、认证、WebKitGTK 或协议配置。没有中文翻译的 GUI 和命令行工具不套用本项目的中文环境，适用范围见 [linuxdeploy 中文配置](../linuxdeploy_projects.md#中文环境与输入法的适用范围)。
+
 ## 当前基线与验收
 
 构建基线为 [7346900](https://github.com/newyorkthink/linux-packaging/commit/7346900ae63d06a4c4cddd353f87f9903acc6be1)。[Actions run 41221937920](https://github.com/newyorkthink/linux-packaging/actions/runs/41221937920) 已成功完成 Remmina 构建、Release 上传和版本元数据发布步骤。
@@ -47,6 +53,12 @@ remmina/patches/fix_runtime.sh
 ## 变更记录
 
 以下检查范围记录各次提交当时执行的检查，当前验收结论以 [当前基线与验收](#当前基线与验收) 为准。
+
+### 2026-11-02：补齐包内中文 locale
+
+- 在资源准备阶段接入既有 `common/linuxdeploy/prepare_locale.sh`，将 locale 数据写入 AppDir；原 APT 安装行只追加 `locales`。AppRun 先补 `LOCPATH`、`LANG`，原 `LANGUAGE="zh_CN:zh"` 保持原样。
+- 原中文翻译复制及路径修正、GTK 输入缓存、Local Terminal wrapper、RDP 认证、WebKitGTK、OpenSSL、插件部署、最终封装和 workflow 全部保留；本次不是对既有已通过实机功能的返修。
+- 已完成主脚本及内嵌入口语法、实际 locale 生成和读取、AppRun 环境与参数传递的隔离检查，以及完整 diff 和基线对比。主程序和会话探测使用替身，配置及缓存只写入临时目录；本次未执行完整应用构建、RDP 或 GUI 检查，已有用户验收范围保持不变。
 
 ### 2026-11-01：避免 GStreamer 部署误选辅助桌面入口
 

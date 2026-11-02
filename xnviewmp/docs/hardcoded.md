@@ -38,6 +38,7 @@
 | QML 目录 | `$HERE/opt/XnView/qml` | 保留原有 QML_IMPORT_PATH 和 QML2_IMPORT_PATH。 |
 | 翻译目录 | `$HERE/usr/translations` | 保留原有 QT_TRANSLATIONS_PATH，应用自己的 language 目录由程序读取。 |
 | 中文环境 | `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh` | 保留已确认的中文界面配置。 |
+| 包内 locale 数据 | `usr/lib/locale/zh_CN.UTF-8`；`LOCPATH` 优先使用 `$HERE/usr/lib/locale` | 本次按用户要求补齐中文区域数据，生成位置与 AppRun 读取位置对应；原中文语言值、翻译目录和输入方案继续保留。 |
 | 显示与输入法 | `QT_QPA_PLATFORM=xcb`、`QT_IM_MODULE=ibus`、`QT_IM_MODULES=ibus`、`IBUS_USE_PORTAL=1` | 沿用 README 记录的 IBus Portal 实测方案，不因安装 fcitx5-frontend-qt6 改动该组合。 |
 | 缩放与字体 | `QT_AUTO_SCREEN_SCALE_FACTOR=1`、`QT_FONT_DPI=96` | 沿用用户确认版本的既有值，不作为所有 Qt 程序的默认要求。 |
 | 视频设置 | `QT_DISABLE_HW_TEXTURES_CONVERSION=1` | 保留既有兼容设置；README 中的部分视频黑屏问题记录不因此删除。 |

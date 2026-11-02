@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev pkgconf bubblewrap dbus-x11 gnome-themes-extra language-pack-gnome-zh-hans-base gstreamer1.0-gl gstreamer1.0-libav gstreamer1.0-plugins-bad gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-x libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev libgirepository1.0-dev libglib2.0-bin libglib2.0-dev libgtk-3-bin libgtk-3-dev libpango1.0-dev librsvg2-bin librsvg2-dev libwebkit2gtk-4.1-dev fcitx5-frontend-gtk3 ibus-gtk3 remmina remmina-common remmina-plugin-rdp remmina-plugin-vnc remmina-plugin-exec remmina-plugin-secret remmina-plugin-www remmina-plugin-spice freerdp3-x11 xdg-dbus-proxy
+"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev pkgconf bubblewrap dbus-x11 gnome-themes-extra language-pack-gnome-zh-hans-base gstreamer1.0-gl gstreamer1.0-libav gstreamer1.0-plugins-bad gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-x libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev libgirepository1.0-dev libglib2.0-bin libglib2.0-dev libgtk-3-bin libgtk-3-dev libpango1.0-dev librsvg2-bin librsvg2-dev libwebkit2gtk-4.1-dev fcitx5-frontend-gtk3 ibus-gtk3 remmina remmina-common remmina-plugin-rdp remmina-plugin-vnc remmina-plugin-exec remmina-plugin-secret remmina-plugin-www remmina-plugin-spice freerdp3-x11 xdg-dbus-proxy locales
 
 ############# 下载打包工具 #############
 
@@ -35,6 +35,9 @@ VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" remmina "$AP
 echo "Remmina 版本：$VERSION"
 
 ########## 准备桌面资源和运行库 #########
+
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
 
 # 下载并解包应用所需的图标与主题资源。
 "$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" adwaita-icon-theme gnome-themes-extra-data
@@ -122,6 +125,8 @@ if [[ -d "$LIBDIR/girepository-1.0" ]]; then
 fi
 
 # 设置简体中文界面环境。
+export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
+export LANG=zh_CN.UTF-8
 export LANGUAGE="zh_CN:zh"
 
 # 本 AppImage 面向本地/工作组 Windows RDP：默认禁用 Kerberos/U2U，直接使用可用的 NTLM/NLA。

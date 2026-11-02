@@ -17,6 +17,12 @@
 
 主 build 的工具准备复用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh` 的 `gtk,gstreamer` 组合；APT 原布局解包复用 `common/apt/extract_installed_package.sh` 的附加软件包参数。参数说明见 [公共入口](../../common/README.md)，Remmina 的包名和资源清单由主 build 指定。
 
+## 中文 locale 与翻译的边界
+
+本程序已有可用的中文翻译和中文界面需求。资源准备阶段调用 `common/linuxdeploy/prepare_locale.sh zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"`，AppRun 先指定包内 `LOCPATH`，再设置 `LANG=zh_CN.UTF-8`，原 `LANGUAGE="zh_CN:zh"` 不变。
+
+`usr/lib/locale` 是区域数据，`usr/share/locale/zh_CN/LC_MESSAGES/remmina.mo` 是应用翻译，GTK immodules 则用于输入；不能互相替代。现有两个 patches 的翻译和输入处理不改，不把中文环境块套到 CLI 或没有中文翻译的 GUI；通用判断见 [linuxdeploy 中文配置](../../linuxdeploy_projects.md#中文环境与输入法的适用范围)。
+
 ## 图标与主题资源
 
 准备桌面资源和运行库阶段下载 `adwaita-icon-theme` 和 `gnome-themes-extra-data`。Ubuntu 24.04 的默认 Adwaita 图标由前者提供；该版本不提供 `adwaita-icon-theme-full`，不加入下载清单。依据：[Ubuntu 官方包索引](https://packages.ubuntu.com/adwaita-icon-theme)。
@@ -46,3 +52,5 @@ GStreamer 插件会执行 `"$LINUXDEPLOY" --appdir "$APPDIR"`，没有转交外�
 两个 `patches` 入口已接入主 build，Remmina job 直接使用 `ubuntu-24.04`，不使用 Docker。workflow 已移除旧 `fix_remmina_webkit.sh` 调用；旧脚本保留为历史文件，不与新入口同时执行。
 
 当前构建基线 [7346900](https://github.com/newyorkthink/linux-packaging/commit/7346900ae63d06a4c4cddd353f87f9903acc6be1) 已通过 [Actions run 41221937920](https://github.com/newyorkthink/linux-packaging/actions/runs/41221937920)。用户实机截图确认的功能及剩余告警见 [当前基线与验收](../README.md#当前基线与验收)。本次标准化已收尾，GTK、GLib 和 WebKit 告警暂不处理；后续仅在有明确需求或功能故障并获得授权时按 linuxdeploy 标准调整。
+
+2026-11-02 核对上游打包参考索引及 pkgforge-dev 的 Remmina 名称，未找到对应打包仓库；本次仅接入本仓库已有 locale 公共入口，继续保留现有应用专属 patches。
