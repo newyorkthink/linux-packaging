@@ -18,6 +18,7 @@
 - `aur/resolve_deb_source.sh` 接收 AUR 包名、架构、工作目录、元数据输出文件和依赖输出文件；仅接受同名单包 `.SRCINFO` 中唯一的架构专用 HTTPS DEB 及对应的完整摘要。优先沿用 SHA-256，仅在当前架构没有 SHA-256 时读取 SHA-512；无效或 `SKIP` 的 SHA-256 不会因存在 SHA-512 而被跳过。输出可供 Bash 加载的版本、pkgrel、来源、带算法前缀的 `SOURCE_CHECKSUM`，以及去版本约束后的运行依赖。SHA-256 来源继续输出原有 `EXPECTED_SHA256` 字段；SHA-512 来源不输出空的同名字段，新调用统一读取 `SOURCE_CHECKSUM`。不执行 PKGBUILD，不把其他架构或通用 source 的摘要配给当前 DEB。浅克隆和解析只在公共入口完成。
 - `aur/download_deb_source.sh` 接收 AUR 包名、架构和 DEB 输出文件三个参数。复用上述解析入口，在独立临时目录中读取当前来源和 `SOURCE_CHECKSUM`，再调用 `download/download_file.sh` 按指定算法校验并下载；成功或失败后均清理本次临时元数据。原有三个参数保持不变，不安装应用、不解包、不替调用方选择版本元数据，也不写死应用名或下载地址。
 - `download/download_file.sh <HTTPS URL> <输出文件> [摘要]` 保留原下载、重试、超时和原子替换行为。不传摘要时保持原行为；无前缀的 64 位十六进制摘要和 `sha256:<摘要>` 使用 SHA-256，新增的 `sha512:<128 位十六进制摘要>` 使用 SHA-512。摘要格式错误或校验失败时不替换已有输出文件。该扩展不改变其他专用下载入口各自的摘要格式。
+- `download/download_apt_repository_deb.sh` 从调用方指定的 HTTPS APT 仓库读取签名索引，使用指定的官方密钥验证 `InRelease`，核对索引与 DEB 的 SHA-256、大小，以及 DEB 的包名、架构和版本；按 Debian 版本规则选择最高版本，成功后写入 DEB 与来源版本文件，stdout 只返回版本。不安装应用、不配置系统 APT 源；现有下载、版本读取和归档接口保持不变。完整参数与支持范围见下文。
 - `download/download_omaha_package.sh` 查询 Omaha 3.0 XML 更新服务，按调用方提供的应用 ID、渠道、平台、架构、下载源、路径前缀和文件名规则选择完整安装包，复用 `download_file.sh` 校验 SHA-256，并核对响应中的文件大小。成功后写入指定的安装包和版本文件，stdout 只返回版本；不安装或执行软件。完整参数、约束及调用方式见下文。
 - `download/download_verified_with_wayback.sh` 接收官方 HTTPS URL、目标文件、原 SHA-256 和可选的 `--deb`；先调用 `download_file.sh`，未取得匹配摘要的文件时才查同一 URL 的 Internet Archive 快照，所有候选文件仍须通过原摘要，`--deb` 还核对 DEB 文件类型。
 - `download/download_html_checksum_asset.sh` 可选接收前置参数 `--json-html <HTML 字段路径>`，随后接收 HTML 校验表或 JSON API 的 URL、完整资产名的 Python 正则、资产目录 URL 和输出文件四个参数。只配对同一表格行中的文件名与 SHA-256，按文件名里的点分数字版本选择最高版本；匹配缺失、摘要冲突或最高版本不唯一时退出。指定 JSON 模式时只读取该字段的非空 HTML 字符串，再执行同一套表格解析；不自动猜测字段。来源和资产均通过 `download_file.sh` 下载，stdout 只返回版本，不安装应用或解包。
@@ -28,6 +29,27 @@
 - `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
 - `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../docs/appimage-scheme-handler.md)。
+
+### 签名 APT 仓库中的官方 DEB
+
+入口为 `download/download_apt_repository_deb.sh`，依赖 Bash、Python 3、curl、GnuPG（`gpg`、`gpgv`）、`dpkg` 和 `dpkg-deb`。调用方提前准备依赖；脚本只查询和下载，不安装应用、不执行维护脚本、不添加系统软件源，也不读写宿主机的 GnuPG 密钥目录。
+
+参数依次为：HTTPS 仓库根地址、suite、component、DEB 包名、架构、HTTPS 官方公钥地址、DEB 输出文件和来源版本文件，共八项。应用名称、仓库、密钥、渠道、架构和输出路径均由调用方指定；不存在内置应用或固定版本。下面的调用放在应用 build 中，所有 `<…>` 均须按当前官方来源替换。
+
+```bash
+# 下载并校验官方 APT 仓库中的当前 DEB，同时记录来源版本。
+"$SCRIPT_DIR/../common/download/download_apt_repository_deb.sh" "<HTTPS 仓库根地址>" "<suite>" "<component>" "<DEB 包名>" "<架构>" "<HTTPS 官方公钥地址>" "<DEB 输出文件>" "<来源版本文件>"
+```
+
+支持常规 `dists/<suite>/` 布局中的 `InRelease`，以及所选 component、架构对应的 Packages、Packages.xz、Packages.gz；优先使用明文索引，缺少该记录时才选择 XZ 或 gzip。索引中的 DEB 路径须位于仓库根目录下的 `pool/`。不支持 flat 仓库、未签名仓库或仅提供 `Release` 与独立签名的来源，不自动切换其他仓库。
+
+公钥地址须来自调用方核实的官方来源，可提供二进制或 ASCII armored 公钥。先验证签名，再核对 suite、component 和架构；存在 `Valid-Until` 时同时检查有效期。Packages 的摘要与大小取自已验证的 Release；仓库声明 `Acquire-By-Hash: yes` 时使用相应摘要地址，避免索引更新时混入其他快照。签名、索引摘要或下载失败时直接退出，不关闭校验，也不退回其他格式或旧版本。
+
+只匹配传入的包名和精确架构，不自动改用其他架构或 `all` 包；版本通过 `dpkg` 校验并比较，保留 epoch、预发布标记和 Debian 修订号。同一版本的路径、摘要或大小冲突，以及最高版本存在多种等价写法时直接失败。最终 DEB 必须同时符合签名索引中的 SHA-256、大小、Package、Architecture 和 Version。
+
+全部校验通过后才替换两个输出文件。参数、元数据、签名、下载或校验失败时保留已有 DEB 和来源版本文件，并清理本次临时目录；下载仍复用原有 `download_file.sh` 的重试、超时及摘要处理。成功时 stdout 只有一行版本，诊断和摘要日志写入 stderr。
+
+来源版本文件只描述本次实际下载的 DEB，可在打包元数据阶段用原有 `build/read_app_version.sh text "<来源版本文件>"` 读取；不能代替最终 AppImage 生成后才写入的 `dist/version.txt`。安装和解包继续由调用方分别使用已有公共入口完成。本次新增入口不改变旧接口和既有应用调用。
 
 ### Omaha 更新服务中的完整安装包
 
