@@ -126,6 +126,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 
 | 已整理项目 | 构建脚本 | 程序及版本来源 | 工具与封装入口 | 专属差异说明 |
 | --- | --- | --- | --- | --- |
+| DingTalk | [build_dingtalk.sh](../dingtalk/build_dingtalk.sh) | 当前 AUR 指向的官方 DEB；公共组合入口校验摘要与包身份、安装并解包，返回实际版本。 | Qt/CEF 完整 bundle；工具准备与最终封装均使用公共入口，不调用 linuxdeploy。 | [专属差异](../dingtalk/docs/template-deviations.md) |
 | kitty | [build_kitty.sh](../kitty/build_kitty.sh) | 官方 installer 提供的预编译目录；公共版本入口执行当前程序的 `--version` 并按指定字段取版本。 | 工具准备入口的 `--appimagetool` 模式一次取得两个工具并设置权限；公共封装入口统一处理 PNG、封装和版本。 | [专属差异](../kitty/docs/template-deviations.md) |
 
-kitty 保留既有构建顺序、独立 AppRun、kitten 分派和专属资源准备；本次只统一公共版本、工具准备和封装调用。其他直接封装项目未按本次整理，不提前登记为已标准化。
+kitty 保留既有构建顺序、独立 AppRun、kitten 分派和专属资源准备。DingTalk 保留 Qt/CEF 布局、完整 NSS/NSPR、可执行栈和依赖收集处理，按统一分区维护；当前来源与验证范围见其 README。其他尚未整理的直接封装项目不提前登记为已标准化。

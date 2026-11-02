@@ -108,8 +108,8 @@
 
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
-| `PATH` | 可执行文件搜索路径。包内 bin 放前面。 | 20 个脚本，例如 baidunetdisk、binance、chatgpt |
-| `LD_LIBRARY_PATH` | 动态库搜索路径。包内库放前面。 | 例如 baidunetdisk、binance、dconf-editor；tradingview 仅在依赖收集命令前临时指定完整程序目录 |
+| `PATH` | 可执行文件搜索路径。包内 bin 放前面。 | 例如 baidunetdisk、binance、chatgpt；dingtalk 保留包内 usr/bin 与宿主原 PATH |
+| `LD_LIBRARY_PATH` | 动态库搜索路径。包内库放前面。 | 例如 baidunetdisk、binance、dconf-editor；dingtalk 按原顺序使用官方 release、CEF 与专属依赖目录；tradingview 仅在依赖收集命令前临时指定完整程序目录 |
 | `XDG_DATA_DIRS` | 共享数据搜索目录，包括 desktop、locale 和 schema。包内 usr/share 放前面。 | 16 个脚本，例如 baidunetdisk、binance、dconf-editor |
 | `XDG_CONFIG_DIRS` | 配置文件搜索目录。包内目录放前面。 | kde-suite |
 | `APPDIR` | AppImage 解包后的根目录。运行时用来拼包内路径。 | 8 个脚本，例如 dconf-editor、kitty、mission-center |
