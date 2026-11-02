@@ -19,7 +19,9 @@
 | 最终封装 | 采用，标准步骤与上游同一命令 | `quick-sharun --make-appimage`，[build_gemini.sh](../build_gemini.sh#L150) | 仅最终 AppImage 成功后由现有公共入口保存版本。 |
 | package.json 读取 Electron 版本 | 官方命令未启用 | [本页实际替代代码](#本仓库精确运行时识别)，[build_gemini.sh](../build_gemini.sh#L41) | 1.17.0 声明 `^42.4.1`，实际程序为 `44.5.1`；不以开发依赖范围替代精确 runtime。 |
 | 提取时排除所有 .node | 官方命令未启用 | 保留完整提取与既有 PE 模块移除，[build_gemini.sh](../build_gemini.sh#L81) | 本仓库还需非 sticky 修补；先删除外置文件再提取 ASAR 曾报 `ENOENT`。 |
-| 系统升级、libnss_nis 与瘦身包替换 | 未启用 | 无现有执行代码 | 使用本仓库基础包及既有精确依赖；当前故障来自日志断言，没有新增这些处理的必要证据。 |
+| 构建容器软件包升级 | 由公共准备阶段处理 | [构建环境说明](#构建环境与可选依赖) | 现有共享 Action 包含软件包升级，作用于 Actions 的 Arch 容器；Gemini 脚本不重复执行。 |
+| 额外安装 libnss_nis | 未额外指定安装 | [构建环境说明](#构建环境与可选依赖)，[build_gemini.sh](../build_gemini.sh#L13) | 该包提供 glibc 的 NIS 名称服务支持；目前没有本项目需要 NIS 的证据，保留既有依赖。 |
+| 调用 get-debloated-pkgs 替换依赖 | 未启用此调用 | [构建环境说明](#构建环境与可选依赖) | 该工具安装 pkgforge 的精简运行依赖，以减小 AppImage 体积；Gemini 继续使用原有依赖。 |
 | 小写 gemini 入口 | 未启用 | 继续安装既有 `patches/Gemini`，[build_gemini.sh](../build_gemini.sh#L94) | 保留已确认的大写入口，避免与命令行工具重名。 |
 | 额外 hicolor PNG 副本 | 官方复制命令未启用 | 由已采用的 `ICON` 设置交给 quick-sharun 部署，[build_gemini.sh](../build_gemini.sh#L121) | 不手工添加重复图标文件；未恢复窗口图标注入。 |
 | 自更新 hook 与 UPINFO | 未启用 | 无现有执行代码 | 沿用本仓库统一 Release 发布；上游 README 说明这些设置用于自更新，本次不增加新的运行时行为。 |
@@ -79,6 +81,14 @@ quick-sharun AppDir/bin/* /usr/bin/hostname /usr/lib/libnss* /usr/lib/libsoftokn
 
 quick-sharun --make-appimage
 ```
+
+## 构建环境与可选依赖
+
+现有 [正式 workflow](../../.github/workflows/build.yml) 在 Arch 容器中调用 [共享准备 Action](https://github.com/pkgforge-dev/anylinux-setup-action/blob/8872fabe63f9a00b35e25b2f46da62a05afc9a7d/action.yml)。该 Action 包含软件包升级和基础依赖安装，因此 Gemini 不再重复上游应用脚本中的升级命令。这些操作作用于构建容器。
+
+`libnss_nis` 是 glibc 的 NIS 名称服务插件，作用见 [Arch 包说明](https://archlinux.org/packages/extra/x86_64/libnss_nis/)。Gemini 的安装行和公共基础包清单未显式添加该包；当前没有本项目需要 NIS 的证据，因此不额外指定安装。这里记录的是安装请求，不据此断言构建镜像或其他依赖一定没有提供该库。
+
+`get-debloated-pkgs --add-common --prefer-nano` 会安装 pkgforge 提供的精简版 GTK、Qt、Mesa 等运行依赖，以减小最终 AppImage 的体积。共享准备 Action 只下载该工具并设置执行权限，Gemini 脚本未调用它；本项目继续使用已保留的依赖。
 
 ## 上游原始代码与原因
 

@@ -56,4 +56,4 @@
 
 ## 适用范围
 
-以上处理只作用于 GitHub Actions 的本项目构建目录；普通用户运行 AppImage 不执行构建目录清理或系统依赖安装。对应上游原文、未启用项与验证边界见 [pkgforge-differences.md](pkgforge-differences.md) 和 [template-deviations.md](template-deviations.md)。
+以上参数用于构建阶段。目录清理仅限本项目明确指定的工作目录；依赖安装作用于所使用的 Arch 构建环境，Actions 中为构建容器，本地复现时为执行脚本的 Arch 环境。普通用户运行 AppImage 不执行这些构建操作。对应上游原文、未启用项与验证边界见 [pkgforge-differences.md](pkgforge-differences.md) 和 [template-deviations.md](template-deviations.md)。

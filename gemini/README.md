@@ -211,6 +211,14 @@ dist/Gemini.AppImage
 
 ## 变更记录
 
+### 2026-11-02：澄清构建环境与可选依赖说明
+
+- 现象：上游差异表把容器升级、`libnss_nis` 和精简依赖混列为未启用，未区分公共准备阶段与应用脚本。
+- 核对：正式 workflow 的共享 Action 包含容器软件包升级；Gemini 未额外指定安装 `libnss_nis`，也未调用 `get-debloated-pkgs`。
+- 处理：拆分三项状态，补齐代码来源、用途和取舍依据；明确目录清理与依赖安装的作用范围，涵盖 Actions 容器和本地 Arch 构建环境。
+- 修改文件：`gemini/README.md`、`gemini/docs/pkgforge-differences.md`、`gemini/docs/template-deviations.md`、`gemini/docs/hardcoded.md`。构建脚本、启动器、补丁和 workflow 均未修改。
+- 验证：对照现有 workflow、共享 Action 和安装入口核对说明，检查完整 diff、链接及文档一致性；保留全部既有历史、原始命令和验证边界。
+
 ### 2026-11-02：接入公共入口并移除过时的回退日志断言
 
 - 现象：[Actions run 41279519905 的 Gemini Job](https://github.com/newyorkthink/linux-packaging/actions/runs/41279519905/job/124775779381) 已下载并校验 1.17.0 及 Electron 44.5.1，却因 `Gemini product layer no longer declares the safe fallback for the optional Windows native addon` 中止。实际产品仍捕获模块加载失败，日志已改为 `Will use fallbacks`。

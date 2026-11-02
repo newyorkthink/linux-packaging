@@ -43,7 +43,7 @@
 
 当前所读 pkgforge commit 为 `e7bf2237e223c0cb8b2625dfdd0b1d2f211ccabc`。逐项原文、采用理由与未启用项见 [pkgforge-differences.md](pkgforge-differences.md)；固定参数及原始故障见 [hardcoded.md](hardcoded.md)。
 
-未启用 pkgforge 的开发依赖版本读取、解包时直接排除所有 `.node`、瘦身包替换、额外 NSS 安装命令、小写程序重命名、自更新 hook、额外图标副本和正式 `--test` 步骤；不把记录原文视为启用这些处理。
+容器软件包升级由现有公共准备阶段处理；Gemini 不重复执行升级命令，也不额外指定安装 `libnss_nis` 或调用 `get-debloated-pkgs`。pkgforge 的开发依赖版本读取、解包时直接排除所有 `.node`、小写程序重命名、自更新 hook、额外图标副本和正式 `--test` 步骤仍未启用；不把记录原文视为启用这些处理。
 
 ## 验证边界
 
