@@ -38,8 +38,10 @@ linuxdeploy 会递归收集 `usr/lib` 中各个 ELF 的依赖，不逐个构造 
 
 **以后确认其他程序有相同需求，再考虑提取到公共脚本。** 当前不新增公共浏览器隔离接口，不改变其他应用。
 
-## workflow 与验证边界
+## workflow 与验证结果
 
 清单将 `realvnc_connect` 从 Arch 标准矩阵移为专用 job，保持原选择键、Release 资产名和版本元数据接口。专用 job 直接使用 Ubuntu 24.04；不新增手动触发、轮询或构建期 GUI 测试。
 
-本次使用官方 DEB 检查资源与辅助入口，模拟 linuxdeploy 改写后的恢复，使用替身核对 AppRun 和浏览器环境及参数，并验证 YAML、清单和任务选择。未执行完整应用构建、真实 GUI、登录、服务端或远程连接测试。
+前期已用官方 DEB 检查资源与辅助入口、恢复逻辑、AppRun 环境及参数，并验证 YAML、清单和任务选择。[Actions 运行 41398751168](https://github.com/newyorkthink/linux-packaging/actions/runs/41398751168) 随后完成了实际构建、发布和版本元数据写入。
+
+用户已实测启动、界面显示、深色主题、中文输入和连接正常，本轮验收通过。此前 `resetSettings` 引起的 `MissingPluginException` 经用户确认不影响实际使用，不再作为待修复或验收阻塞项；现有脚本和专属处理作为已验证基线保留。

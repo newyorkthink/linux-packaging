@@ -26,9 +26,19 @@
 
 ## 验证状态
 
-已用官方 DEB 验证 bundle 保存与恢复、桌面文件处理、隔离入口及参数传递，并检查脚本和 workflow。启动与浏览器环境使用替身验证，未执行完整应用构建、真实 GUI、登录或远程连接测试；后续 Actions 和实际运行结果另行确认。
+[Actions 运行 41398751168](https://github.com/newyorkthink/linux-packaging/actions/runs/41398751168) 已成功完成 RealVNC Connect 的构建、Release 发布、版本元数据上传与写入。
+
+用户已实测程序启动、界面显示、深色主题、中文输入和连接正常，**本轮验收通过**。以该次构建对应的 `a57ea7b` 代码及产物作为已验证基线，保留现有 build、AppRun 和专属 patches。
+
+曾出现的 `MissingPluginException`（`com.realvnc.connect/serverUi` 的 `resetSettings`）经用户明确确认不影响实际使用，本轮无需为此修复，也不再作为验收或收尾的阻塞项。
 
 ## 变更记录
+
+### 2026-11-02：构建与实机验收通过
+
+官方校验来源修正后的 Actions 运行 41398751168 已成功完成构建与发布，同次 Joplin、XnView MP 构建也通过。用户进一步提供实际连接截图，并确认启动、输入和连接均正常，本轮按实测通过完成验收。
+
+更新当前验证状态，移除已被实际结果覆盖的待验证表述；保留此前 SVG 图标和 HTTP 403 的故障、原因及修复记录。`resetSettings` 异常按用户确认不影响使用处理，不为此改动程序、公共脚本或工作流。
 
 ### 2026-11-02：修正校验来源的 HTTP 403
 
@@ -36,13 +46,13 @@
 
 改用同一篇官方文章的公开 JSON 接口，公共 HTML 校验入口通过显式的 `--json-html article.body` 读取表格。仍按最新稳定版文件名、官方 SHA-256、DEB 版本、包名和 amd64 架构校验，不回退旧版，也不关闭摘要校验。AppRun、两个专属 patches、GTK/输入配置及 workflow 保持原样。
 
-本次使用未替换的公共 curl 入口实际下载官方 JSON 和 DEB，完成 SHA-256、包元数据及原布局解包验证；APT 安装使用替身。JSON 字段失败路径与旧接口回归检查通过，完整构建和真实 GUI 尚未验证。
+本次使用未替换的公共 curl 入口实际下载官方 JSON 和 DEB，完成 SHA-256、包元数据及原布局解包验证；APT 安装使用替身。JSON 字段失败路径与旧接口回归检查通过。完整构建与实机结果已由后续验收记录确认通过。
 
 ### 2026-11-02：对齐 linuxdeploy 标准
 
 移除 Arch/AUR 与 Ubuntu 容器流程，改用 Ubuntu 24.04 专用 job 和官方 DEB 公共入口。根 AppRun 直接运行原始 Flutter 程序，两个专属 patches 保留 bundle 恢复、宿主浏览器隔离及既有 glibc/GPU 排除规则。构建阶段使用 `NO_STRIP=1`，避免破坏 Flutter AOT；最终封装与版本保存复用公共入口。
 
-此前失败出在最终 appimagetool 拒收指向 SVG 的 `.DirIcon`，报错为 `appimagetool: no AppImage was created because .DirIcon is not valid.`。现在复用已修正的公共 PNG 处理链路，不在本项目重复下载工具或另写图标转换逻辑；本次完整构建结果尚待确认。
+此前失败出在最终 appimagetool 拒收指向 SVG 的 `.DirIcon`，报错为 `appimagetool: no AppImage was created because .DirIcon is not valid.`。现在复用已修正的公共 PNG 处理链路，不在本项目重复下载工具或另写图标转换逻辑；完整构建结果已由后续 Actions 成功运行确认。
 
 ### 2026-09-16：接入统一软件版本元数据
 
