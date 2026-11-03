@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" curl dconf-cli dconf-editor dconf-gsettings-backend jq libgdk-pixbuf2.0-bin libgtk-3-bin libgtk-3-dev librsvg2-bin pkgconf
+"$SCRIPT_DIR/../common/apt/install_packages.sh" curl dconf-cli dconf-editor dconf-gsettings-backend fcitx5-frontend-gtk3 jq libgdk-pixbuf2.0-bin libgtk-3-bin libgtk-3-dev librsvg2-bin pkgconf
 
 ############# 下载打包工具 #############
 
