@@ -62,12 +62,12 @@ LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
 ENV
 
-# 保留原有启动兼容处理，绕过部分系统的 Electron 沙箱启动限制。
+# 本仓库兼容处理：保留原有启动兼容处理，绕过部分系统的 Electron 沙箱启动限制。
 cat > AppDir/bin/90-grok-bot-arguments.hook <<'HOOK'
 set -- --no-sandbox "$@"
 HOOK
 
-# 启动时注册登录回调协议，使浏览器能够把登录结果交回当前 AppImage。
+# 本仓库兼容处理：启动时注册登录回调协议，使浏览器能够把登录结果交回当前 AppImage。
 bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
   --output AppDir/bin/20-grok-bot-protocol.hook \
   --desktop-file grok-bot.desktop \

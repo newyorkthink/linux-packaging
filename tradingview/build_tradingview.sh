@@ -79,7 +79,7 @@ cat > AppDir/bin/90-tradingview-arguments.hook <<'HOOK'
 set -- --no-sandbox "$@"
 HOOK
 
-# 启动时注册 tradingview://。包内 desktop 不会进入宿主 applications 目录。
+# 本仓库兼容处理：启动时注册 tradingview://。包内 desktop 不会进入宿主 applications 目录。
 bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
   --output AppDir/bin/20-tradingview-protocol.hook \
   --desktop-file tradingview.desktop \

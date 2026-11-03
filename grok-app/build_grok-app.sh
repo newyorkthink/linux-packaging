@@ -86,14 +86,14 @@ ln -sfn filechooser/zenity AppDir/bin/zenity
 # Grok CLI 用 PATH 上的第一个 bwrap。quick-sharun 把包内 bin 放在最前时，
 # 打包工具带入的 bwrap 会把 --proc 当成 capability：bwrap: unknown cap: --proc。
 # 不覆盖 AppRun。宿主没有 /usr/bin/bwrap 时保持原 PATH。
-# 宿主有 bwrap 时，只把 filechooser 放在 /usr/bin 前面。宿主日后装上的 GTK 4 zenity 不能再抢走选目录。
+# 本仓库兼容处理：宿主有 bwrap 时，只把 filechooser 放在 /usr/bin 前面。宿主日后装上的 GTK 4 zenity 不能再抢走选目录。
 cat > AppDir/bin/15-grok-host-bwrap.hook <<'HOOK'
 if [ -x /usr/bin/bwrap ]; then
   export PATH="$APPDIR/bin/filechooser:/usr/bin:/bin${HOSTPATH:+:$HOSTPATH}:$APPDIR/bin"
 fi
 HOOK
 
-# 启动时把 grok:// 和官方皮肤 MIME 指到当前 AppImage。
+# 本仓库兼容处理：启动时把 grok:// 和官方皮肤 MIME 指到当前 AppImage。
 bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
   --output AppDir/bin/20-grok-app-protocol.hook \
   --desktop-file grok-app.desktop \

@@ -65,12 +65,12 @@ LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
 ENV
 
-# 保留宿主命令的优先级，避免命令沙箱调用包内的 bwrap 包装器。
+# 本仓库兼容处理：保留宿主命令的优先级，避免命令沙箱调用包内的 bwrap 包装器。
 cat > AppDir/bin/15-chatgpt-host-bwrap.hook <<'HOOK'
 export PATH="/usr/bin:/bin${PATH:+:$PATH}:$APPDIR/bin"
 HOOK
 
-# 保留原有的 Electron 启动兼容参数，不改变 Codex 命令沙箱。
+# 本仓库兼容处理：保留原有的 Electron 启动兼容参数，不改变 Codex 命令沙箱。
 cat > AppDir/bin/90-chatgpt-arguments.hook <<'HOOK'
 set -- --no-sandbox --disable-setuid-sandbox "$@"
 HOOK
