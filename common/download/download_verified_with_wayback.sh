@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 # 先下载官方 HTTPS 文件；仅在其未通过原摘要时查询同一 URL 的归档快照。
 if (( $# < 3 )); then
-  echo "用法：$0 <官方 HTTPS URL> <输出文件> <SHA-256 或 sha512:摘要> [--deb] [--user-agent <客户端标识>]" >&2
+  echo "用法：$0 <官方 HTTPS URL> <输出文件> <SHA-256 或 sha512:摘要> [--deb] [--user-agent <客户端标识>] [--downloader curl|wget]" >&2
   exit 2
 fi
 
@@ -14,6 +14,7 @@ CHECKSUM_COMMAND=sha256sum
 CHECKSUM_NAME=SHA-256
 FORMAT=""
 USER_AGENT=""
+DOWNLOADER=""
 shift 3
 
 # 兼容旧接口显式传入的空格式参数。
@@ -31,6 +32,14 @@ while (( $# > 0 )); do
       }
       FORMAT=--deb
       shift
+      ;;
+    --downloader)
+      if (( $# < 2 )) || [[ -n "$DOWNLOADER" || ( "$2" != curl && "$2" != wget ) ]]; then
+        echo "错误：--downloader 需要唯一的 curl 或 wget。" >&2
+        exit 2
+      fi
+      DOWNLOADER="$2"
+      shift 2
       ;;
     --user-agent)
       if (( $# < 2 )) || [[ -z "${2:-}" || "${2:-}" == --* || -n "$USER_AGENT" ]]; then
@@ -83,7 +92,10 @@ DOWNLOAD_CHECKSUM="$EXPECTED_CHECKSUM"
   exit 1
 }
 
-if "$DOWNLOAD_FILE" "$SOURCE_URL" "$OUTPUT" "$DOWNLOAD_CHECKSUM" "$USER_AGENT"; then
+# 只为官方文件选择下载器，CDX 与归档请求保持既有 curl 行为。
+SOURCE_DOWNLOAD_OPTIONS=()
+[[ -z "$DOWNLOADER" ]] || SOURCE_DOWNLOAD_OPTIONS+=("$DOWNLOADER")
+if "$DOWNLOAD_FILE" "$SOURCE_URL" "$OUTPUT" "$DOWNLOAD_CHECKSUM" "$USER_AGENT" "${SOURCE_DOWNLOAD_OPTIONS[@]}"; then
   printf '已从官方来源取得并校验文件：%s\n' "$SOURCE_URL" >&2
 else
   # 失败只回退到同一个官方 URL 的历史响应，任何候选文件仍必须通过原摘要。

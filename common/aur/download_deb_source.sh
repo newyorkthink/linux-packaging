@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 保留原三个位置参数；额外能力由调用方明确启用。
 if (( $# < 3 )) || [[ -z "$1" || -z "$2" || -z "$3" ]]; then
-  echo "用法：$0 <AUR 包名> <架构> <DEB 输出文件> [--user-agent <客户端标识>] [--wayback] [--deb] [--version-file <文件>] [--package-version-file <文件>] [--makepkg-source-dir <目录>] [--source-filename <DEB 文件名>]" >&2
+  echo "用法：$0 <AUR 包名> <架构> <DEB 输出文件> [--user-agent <客户端标识>] [--downloader curl|wget] [--wayback] [--deb] [--version-file <文件>] [--package-version-file <文件>] [--makepkg-source-dir <目录>] [--source-filename <DEB 文件名>]" >&2
   exit 2
 fi
 AUR_PACKAGE="$1"
@@ -14,6 +14,7 @@ AUR_ARCH="$2"
 OUTPUT="$3"
 shift 3
 USER_AGENT=""
+DOWNLOADER=""
 USE_WAYBACK=false
 CHECK_DEB=false
 VERSION_FILE=""
@@ -24,6 +25,14 @@ SELECTED_FILENAME=""
 # 只解析本入口新增的可选参数，旧调用不改变下载方式或输出。
 while (( $# > 0 )); do
   case "$1" in
+    --downloader)
+      if (( $# < 2 )) || [[ -n "$DOWNLOADER" || ( "$2" != curl && "$2" != wget ) ]]; then
+        echo "错误：--downloader 需要唯一的 curl 或 wget。" >&2
+        exit 2
+      fi
+      DOWNLOADER="$2"
+      shift 2
+      ;;
     --user-agent|--version-file|--package-version-file|--makepkg-source-dir|--source-filename)
       (( $# >= 2 )) && [[ -n "$2" && "$2" != --* ]] || {
         echo "错误：$1 需要一个非空参数。" >&2
@@ -152,7 +161,10 @@ if [[ "$USE_WAYBACK" == true ]]; then
   DOWNLOAD_OPTIONS=()
   [[ "$CHECK_DEB" == false ]] || DOWNLOAD_OPTIONS+=(--deb)
   [[ -z "$USER_AGENT" ]] || DOWNLOAD_OPTIONS+=(--user-agent "$USER_AGENT")
+  [[ -z "$DOWNLOADER" ]] || DOWNLOAD_OPTIONS+=(--downloader "$DOWNLOADER")
   "$SCRIPT_DIR/../download/download_verified_with_wayback.sh" "$SOURCE_URL" "$OUTPUT" "$SOURCE_CHECKSUM" "${DOWNLOAD_OPTIONS[@]}"
+elif [[ -n "$DOWNLOADER" ]]; then
+  "$SCRIPT_DIR/../download/download_file.sh" "$SOURCE_URL" "$OUTPUT" "$SOURCE_CHECKSUM" "$USER_AGENT" "$DOWNLOADER"
 elif [[ -n "$USER_AGENT" ]]; then
   "$SCRIPT_DIR/../download/download_file.sh" "$SOURCE_URL" "$OUTPUT" "$SOURCE_CHECKSUM" "$USER_AGENT"
 else

@@ -12,6 +12,7 @@
 | desktop | 系统来源 /usr/share/applications/todesk.desktop；工作副本 work/todesk.desktop。 | 当前官方 Exec 原文为 `Exec=env LIBVA_DRIVER_NAME=iHD LIBVA_DRIVERS_PATH=/opt/todesk/bin GDK_BACKEND=x11 /opt/todesk/bin/ToDesk`。旧的首词替换会残留参数，因此只在工作副本把完整 Exec 改为 ToDesk，TryExec 按既有处理调整。 |
 | 完整程序 | AppDir/bin/todesk，内部保留 bin、lib、res、config。 | DEB 的 opt/todesk 布局及 AUR 的空 config 目录要求；旧构建曾因误认为 DEB 自带 config 而失败。 |
 | 安装来源缓存 | 公共入口为本次安装创建临时 sources / build 目录；只对这次 yay 设置 SRCDEST 和 --builddir。 | AUR 安装收到 989 字节 HTML；makepkg 优先查构建目录中的同名文件，所以需要新目录和来源缓存一起使用。文件名来自同次 .SRCINFO，支持 source 别名；不固定构建用户、版本、URL、摘要或旧缓存路径。退出后清理本次目录。 |
+| 下载器 | wget，仅由 ToDesk 的两个公共调用显式传入。 | AUR PKGBUILD 的 DLAGENTS 使用 wget；公共默认 curl 保持不变。完整官方下载、原摘要、DEB 版本及来源缓存已核对。 |
 | 客户端标识 | Mozilla，仅由 ToDesk 的公共调用传入。 | AUR PKGBUILD 固定快照使用 wget -U 'Mozilla'；普通请求曾取得非 DEB 内容，实际带该标识的完整包请求通过原 SHA-256。上游未说明选择此标识的原因。 |
 | NO_STRIP | 1。 | AUR !strip 注释记录部分闭源 ELF 无正常 sections，禁止在本次重写中剥离。 |
 | DEPLOY_GTK | 1。 | 当前真实入口直接依赖 GTK3；IBus / Fcitx5 GTK3 模块已由原构建要求保留。 |

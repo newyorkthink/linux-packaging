@@ -5,7 +5,7 @@ set -Eeuo pipefail
 if [[ "${1:-}" == --aur-deb ]]; then
   shift
   if (( $# < 2 )) || [[ ! "$1" =~ ^[a-z0-9][a-z0-9@._+-]*$ || "$1" == *..* || ! "$2" =~ ^[a-zA-Z0-9_]+$ ]]; then
-    echo "用法：$0 --aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]" >&2
+    echo "用法：$0 --aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--downloader curl|wget] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]" >&2
     exit 2
   fi
   AUR_PACKAGE="$1"
@@ -13,6 +13,7 @@ if [[ "${1:-}" == --aur-deb ]]; then
   shift 2
   DOWNLOAD_OPTIONS=()
   USER_AGENT=""
+  DOWNLOADER=""
   SELECTED_FILENAME=""
   USE_WAYBACK=false
   SEPARATOR=false
@@ -25,6 +26,15 @@ if [[ "${1:-}" == --aur-deb ]]; then
         }
         USER_AGENT="$2"
         DOWNLOAD_OPTIONS+=(--user-agent "$USER_AGENT")
+        shift 2
+        ;;
+      --downloader)
+        if (( $# < 2 )) || [[ -n "$DOWNLOADER" || ( "$2" != curl && "$2" != wget ) ]]; then
+          echo "错误：--downloader 需要唯一的 curl 或 wget。" >&2
+          exit 2
+        fi
+        DOWNLOADER="$2"
+        DOWNLOAD_OPTIONS+=(--downloader "$DOWNLOADER")
         shift 2
         ;;
       --source-filename)

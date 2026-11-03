@@ -5,9 +5,16 @@ URL="${1:-}"
 OUTPUT="${2:-}"
 EXPECTED_CHECKSUM="${3:-}"
 USER_AGENT="${4:-}"
+DOWNLOADER="${5:-curl}"
+
+# 只有显式选择时使用 wget，原有调用继续使用 curl。
+[[ "$DOWNLOADER" == curl || "$DOWNLOADER" == wget ]] || {
+  echo "错误：下载器只能为 curl 或 wget。" >&2
+  exit 2
+}
 
 [[ -n "$URL" && -n "$OUTPUT" ]] || {
-  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256 或 sha512:<摘要>] [User-Agent]" >&2
+  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256 或 sha512:<摘要>] [User-Agent] [curl|wget]" >&2
   exit 1
 }
 [[ "$URL" == https://* ]] || {
@@ -39,18 +46,30 @@ if [[ -n "$USER_AGENT" ]]; then
   CURL_USER_AGENT_ARGS=(--user-agent "$USER_AGENT")
 fi
 
-# 使用统一的失败、重试和超时参数下载到同目录临时文件。
-curl --fail --location \
-  --proto '=https' \
-  --tlsv1.2 \
-  --retry 5 \
-  --retry-all-errors \
-  --retry-delay 2 \
-  --connect-timeout 20 \
-  --max-time 900 \
-  "${CURL_USER_AGENT_ARGS[@]}" \
-  --output "$TEMP_FILE" \
-  "$URL"
+# 使用指定下载器写入同目录临时文件，校验与原子替换共用后续流程。
+if [[ "$DOWNLOADER" == wget ]]; then
+  # 只接受直达 HTTPS 文件；重定向交由既有 curl 模式处理，不允许降级到 HTTP。
+  timeout 900 wget --no-config --no-netrc --no-hsts --no-verbose \
+    --max-redirect=0 --secure-protocol=TLSv1_2 \
+    --tries=6 --retry-connrefused --retry-on-http-error=429,500,502,503,504 \
+    --waitretry=2 --connect-timeout=20 --read-timeout=900 \
+    "${CURL_USER_AGENT_ARGS[@]}" \
+    --output-document "$TEMP_FILE" \
+    "$URL"
+else
+  # 使用统一的失败、重试和超时参数下载到同目录临时文件。
+  curl --fail --location \
+    --proto '=https' \
+    --tlsv1.2 \
+    --retry 5 \
+    --retry-all-errors \
+    --retry-delay 2 \
+    --connect-timeout 20 \
+    --max-time 900 \
+    "${CURL_USER_AGENT_ARGS[@]}" \
+    --output "$TEMP_FILE" \
+    "$URL"
+fi
 
 # 上游提供摘要时必须在替换正式文件前完成校验；无前缀继续按 SHA-256 处理。
 if [[ -n "$EXPECTED_CHECKSUM" ]]; then

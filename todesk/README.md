@@ -6,7 +6,7 @@
 
 - 上游程序：ToDesk 官方 Linux 客户端。
 - 版本与校验元数据：AUR `todesk-bin` 的当前 `.SRCINFO`，不固定版本、Tag 或 Commit。
-- 程序文件：独立下载本次元数据指向的官方 HTTPS DEB，始终校验原摘要；只有官方文件校验失败时才查同一 URL 的 Internet Archive 快照。
+- 程序文件：通过公共入口显式使用 wget 与 Mozilla 标识，独立下载本次元数据指向的官方 HTTPS DEB，始终校验原摘要；只有官方文件校验失败时才查同一 URL 的 Internet Archive 快照。
 - 构建环境：Arch Linux AnyLinux 容器。
 - 打包工具：`quick-sharun`。
 - 最终产物与 Release 资产名：`dist/todesk.AppImage`、`todesk.AppImage`。
@@ -20,7 +20,7 @@ ToDesk 采用 **Arch Linux + quick-sharun**。主流程遵守仓库标准，专�
 
 1. 安装公共基础工具，再通过 `common/arch/install_packages.sh --aur-deb` 安装 `todesk-bin` 及原有运行依赖、输入模块和 DEB 工具。该显式模式先复用公共下载入口校验 DEB，交给独立的 makepkg 来源缓存和 yay 构建目录，再按原 AUR PKGBUILD 安装；`libpipewire` 对应当前真实 ELF 的直接依赖，不切换系统音频服务。
 2. 在项目目录准备 `work / AppDir / dist`。
-3. 单行调用 `common/aur/download_deb_source.sh`，传入 `Mozilla` 客户端标识、同 URL 归档回退、DEB 检查及两个版本输出路径；应用不再自行解析、source 或写入来源版本元数据。
+3. 单行调用 `common/aur/download_deb_source.sh`，传入 `wget` 下载器、`Mozilla` 客户端标识、同 URL 归档回退、DEB 检查及两个版本输出路径；应用不再自行解析、source 或写入来源版本元数据。
 4. 通过公共归档入口解包同一份 DEB，完整复制 `opt/todesk` 到 `AppDir/bin/`，不从系统安装目录取得最终程序。
 5. 准备脚本补回配置目录，核对四入口、GTK3 输入模块及托盘库，一次汇总直接动态库错误。官方 desktop 只在工作目录的副本中完整改为 `Exec=ToDesk`，避免把新版 `env` 后的赋值残留为程序参数。
 6. 设置主程序、系统图标、便携 desktop、输出名称、GTK 部署、`NO_STRIP` 与路径映射；版本由公共入口读取同次下载记录。
@@ -116,6 +116,10 @@ ln -sfn todesk.AppImage CrashReport
 ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服务。若需要开机即启动、系统级无人值守或官方 systemd 服务语义，应使用 ToDesk 官方发行版安装方式；本 AppImage 不伪装成系统安装包。
 
 ## 当前验证状态
+
+2026-11-03 本次下载器调整已通过真实官方下载：公共 AUR 入口取得完整 4.9.8.1 DEB，长度 115086264 字节，原 SHA-256 校验通过；DEB 版本、两个版本文件及 makepkg 来源缓存一致。42 项场景检查覆盖旧 curl 参数与调用结果、新 wget 路径、SHA-256 / SHA-512、失败清理、归档回退和安装缓存交接。此次仅在安装与独立下载两处传入 `--downloader wget`，没有新增浏览器、JS 验证处理或更换打包路线；完整 Actions 构建与新产物实机功能尚未验证。
+
+以下保留此前安装缓存修复时的验证记录，不能替代本次变更的正式构建与实机结果。
 
 2026-11-03 本轮完成 584 项验证，覆盖公共旧接口对照、两种摘要、User-Agent、归档回退、来源原文件名及别名、安装缓存交接和失败清理。使用与失败 runner 同版本的官方 pacman `7.1.0.r9.g54d9411-3` 中未改动的 libmakepkg 来源处理与校验代码、未改动的 AUR PKGBUILD 和完整官方 DEB，复现了旧目录中 989 字节 HTML 导致的校验失败，并确认独立构建目录读取正确缓存后通过原 SHA-256；错误缓存仍被拒绝。
 
@@ -236,3 +240,11 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - ToDesk 接入：主脚本只替换一行公共安装调用，传入 `--user-agent Mozilla --wayback` 和原额外依赖。后续独立下载、解包、四入口、依赖收集、locale、运行 hook 和版本保存不变。安装前的预取属于安装阶段，不用系统安装目录替代最终程序来源。
 - 验证：584 项检查通过。完整官方下载为 115086264 字节，SHA-256 仍为 `a257916c32ca792826dd1027596395278259050fee42ca8fd0a0aaa8851940e1`；使用原 AUR PKGBUILD 和官方 libmakepkg 代码确认新缓存被采用、原摘要通过、989 字节 HTML 及错误缓存被拒绝。普通包名、基础包清单和旧下载接口通过对照；参数错误、依赖失败、下载失败、应用安装失败及临时目录清理有覆盖。
 - 边界：没有执行真实包安装、非 root 完整 makepkg、完整 AppImage 构建或新产物实机测试；本次提交不代表后续 Actions 已成功。旧实机结论和未验证功能按原记录保留。公共参数详见 [公共入口](../common/README.md#arch-安装时复用已校验的-aur-deb)。
+
+### 2026-11-03：按 AUR 下载器参数接入公共入口
+
+- 故障：[run 41549667495 / job 125633909890](https://github.com/newyorkthink/linux-packaging/actions/runs/41549667495/job/125633909890) 在安装前的公共预取阶段只收到 986 字节响应，摘要失败后 CDX 查询没有可用快照列表，尚未执行 quick-sharun。另一次只读请求取得同量级的 EdgeOne JS 验证页，说明 HTTP 请求成功不等于获得安装包。
+- 对照：分类表中 ChatGPT、Claude Desktop 和 MailMaster 都使用现有公共安装及 AUR 下载入口；继续保持先安装、再独立下载解包的两阶段结构。ToDesk 的 AUR 配方明确指定 `wget -U 'Mozilla'`；同一客户端标识经 curl 发送，不能称为使用了原下载器。
+- 修改：公共下载入口增加显式 wget 选项，并透传经过 AUR 下载、安装预取及官方文件归档入口。ToDesk 只在两个原调用中增加 `--downloader wget`；其他代码、依赖、来源、原摘要、运行 hook 与版本处理不变。未指定新选项的调用继续执行原 curl 参数；CDX 与归档文件继续使用原 curl 行为。
+- 实际验证：直接执行修改后的公共 AUR 下载入口，从当前元数据指向的官方 URL 取得完整 115086264 字节 DEB，SHA-256 为 `a257916c32ca792826dd1027596395278259050fee42ca8fd0a0aaa8851940e1`，与同次 AUR 元数据一致；DEB Version、来源版本、完整包版本和来源缓存检查通过。另有 42 项隔离场景通过，旧 curl 调用和两处应用参数差异均已核对。
+- 验证边界：完整 AppImage 构建、发布和新产物实机功能尚未验证；此前旧版核心远控的实测结论仍按原范围保留。

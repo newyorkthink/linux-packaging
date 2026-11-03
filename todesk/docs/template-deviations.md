@@ -18,14 +18,16 @@ pkgforge-dev 当前未找到 ToDesk 专属打包仓库；上游参考索引保�
 
 | 阶段 | 处理与实际位置 | 必要性和边界 |
 | --- | --- | --- |
-| 安装 | [build_todesk.sh](../build_todesk.sh) 调用 `arch/install_packages.sh --aur-deb todesk-bin "$(uname -m)" --user-agent Mozilla --wayback --`，随后传原有 XCB / PulseAudio / 输入模块、dpkg 和 libpipewire。 | run 41466283245 在 AUR wget 阶段取到 989 字节 HTML，后续公共下载尚未执行。公共入口先校验来源并填入 SRCDEST，再通过独立 builddir 让原 AUR 规则复核和安装，避免旧错误源文件盖过缓存。应用安装及 AUR 运行依赖处理保留；额外依赖不变，不增加服务切换。此衔接属于本仓库兼容处理。 |
-| 下载 | 主脚本单行调用 `aur/download_deb_source.sh`，传入 `--user-agent Mozilla --wayback --deb --version-file work/source-version.txt --package-version-file work/package-version.txt`。 | PKGBUILD 原文为 `DLAGENTS=("https::/usr/bin/wget -U 'Mozilla' -O %o %u")`；本仓库通过公共 curl 入口传入相同标识，属于兼容集成，不冒称逐字复用 wget 命令。上游未说明该客户端标识的具体原因；本次实际请求确认能取得摘要匹配的完整 DEB。 |
+| 安装 | [build_todesk.sh](../build_todesk.sh) 调用 `arch/install_packages.sh --aur-deb todesk-bin "$(uname -m)" --user-agent Mozilla --downloader wget --wayback --`，随后传原有 XCB / PulseAudio / 输入模块、dpkg 和 libpipewire。 | run 41466283245 在 AUR wget 阶段取到 989 字节 HTML，后续公共下载尚未执行。公共入口先校验来源并填入 SRCDEST，再通过独立 builddir 让原 AUR 规则复核和安装，避免旧错误源文件盖过缓存。应用安装及 AUR 运行依赖处理保留；额外依赖不变，不增加服务切换。此衔接属于本仓库兼容处理。 |
+| 下载 | 主脚本单行调用 `aur/download_deb_source.sh`，传入 `--user-agent Mozilla --downloader wget --wayback --deb --version-file work/source-version.txt --package-version-file work/package-version.txt`。 | PKGBUILD 原文为 `DLAGENTS=("https::/usr/bin/wget -U 'Mozilla' -O %o %u")`；本仓库通过公共入口显式选择 wget 并传入同一标识，共用原摘要校验与失败清理，属于兼容集成，不冒称逐字复用完整 DLAGENTS 命令。上游未说明该客户端标识的具体原因；本次实际请求确认能取得摘要匹配的完整 DEB。 |
 | 布局 | `cp -a work/todesk-unpacked/opt/todesk AppDir/bin/`。 | 完整保留 bin、lib、res 和配置相对布局；最终程序来自独立下载包。没有使用系统安装目录复制替代第二阶段。 |
 | 准备 | [prepare_appdir.sh](../patches/prepare_appdir.sh) 补 config、核对组件和全部直接缺库、准备 desktop 副本。 | config 空目录由 AUR 创建；四入口预检及输入 / 托盘库检查沿用已记录需求。当前 desktop 的 Exec 带 env，必须完整替换为便携入口，不保留 GPU 强制赋值。系统 desktop 不修改。 |
 | 元数据 | MAIN_BIN、NO_STRIP、PATH_MAPPING。 | 明确真实入口，保留闭源二进制，并让工具收集路径映射库；固定值见 [配置依据](./hardcoded.md)。 |
 | 依赖收集 | 主脚本同一次传入完整目录、四个真实入口、pulseaudio 和三项托盘库。 | 目录参数负责相邻资源和自带库，显式 ELF 参数参与工具早期依赖识别；GTK3 输入模块改由 DEPLOY_GTK 自动收集，准备脚本仍核对两套模块已安装。构建命令前的 LD_LIBRARY_PATH 只服务于这一条依赖收集命令。 |
 | 运行准备 | [90-todesk-runtime.hook](../patches/90-todesk-runtime.hook)。 | 保留同名入口选择、可写 config、etc/reg.conf 和既有用户状态目录。官方程序目录由 bin/todesk 提供；工具会包装嵌套 ELF，刷新临时副本时先删除包装器硬链接，再复制 shared/bin 中四个独立真实 ELF。否则四个目标可能共享同一 inode，被最后一次复制全部覆盖。 |
 | 版本 | 公共入口写 pkgver 和 pkgver-pkgrel；主脚本分别读取来源版本、复制完整包版本标记，成功后公共保存。 | 不在应用解析 .SRCINFO、source 元数据或用 printf 再拼来源版本；pkgrel 仅控制副本刷新，不与 DEB Version 混为一谈。 |
+
+下载器仅为公共调用参数。此次对照分类表中已标准化的 AUR 项目，保留现有两阶段及公共入口，没有增加浏览器、JS 验证解析或替代来源。42 项场景及完整官方 DEB 的实际下载、摘要、版本与来源缓存核对通过；完整构建和实机验证范围见 README。
 
 ## 保持的运行边界
 
