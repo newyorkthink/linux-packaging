@@ -54,8 +54,9 @@ export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
 
+# 本程序专属处理：清除 GSETTINGS_SCHEMA_DIR，避免读取 schema 路径时发生越界。
 # 启动包内程序，并保留传入的命令行参数。
-exec "$HERE/usr/bin/dconf-editor" "$@"
+exec env -u GSETTINGS_SCHEMA_DIR "$HERE/usr/bin/dconf-editor" "$@"
 APPRUN
 
 # 为启动脚本添加执行权限。

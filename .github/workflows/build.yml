@@ -336,7 +336,7 @@ jobs:
     name: Build dconf Editor
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).dconf_editor == 'true'
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     concurrency:
       group: build-dconf-editor
