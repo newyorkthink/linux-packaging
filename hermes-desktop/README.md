@@ -58,6 +58,13 @@
 - 同一版把 `icon-tool.js` 复制到 `apps/desktop` 下面后，Node 会按 ES 模块执行它，`require` 直接报错。复制后补一个 CommonJS 的 `package.json`。
 - `v0.21.6` 的 electron-builder 读取 `electron-builder.config.cjs`。只改 `package.json` 时，内置 `libsecret` 和 AppImage hook 都不会进包。补丁改这个配置文件。
 
+## 上游兼容修复记录（2026-11-03）
+
+- 故障：[Run 41592310499 / Job 125785327437](https://github.com/newyorkthink/linux-packaging/actions/runs/41592310499/job/125785327437) 在上游 `v0.22.6` 的专属补丁阶段失败，原始错误为 `无法确认上游 Desktop 系统语言回退逻辑，停止构建，避免覆盖新的 i18n 实现。`；尚未进入 AppImage 封装。
+- 原因：上游仍保留机器语言回退，但 `resolveInitialLocale` 的第一个参数已从 `undefined` 改为 `requestedRef.current`；旧补丁只接受原来的完整字符串，因此把新的有效实现判为未知结构。
+- 修复：仅调整 `patch_hermes_desktop.py` 的检查，精确接受上述两种调用，并要求总共只匹配一次；后续自检使用本次实际匹配到的完整调用。缺失、未知写法、重复调用或两种写法同时出现时仍停止，不改写上游 i18n 源码。现有构建脚本、工作流、公共入口及其他兼容补丁保持原样。
+- 验证：Python 语法及七个语言回退接受 / 拒绝场景通过；在隔离目录中对 `v0.22.6` 的必要源码文件执行完整补丁成功，`src/i18n/context.tsx` 的字节内容保持不变。本次未执行 npm 构建、AppImage 封装或新产物实机运行，原有实测成功记录及验证范围继续保留。
+
 ## 构建文件
 
 ```text

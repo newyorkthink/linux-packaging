@@ -270,9 +270,14 @@ else:
 
 context_path = root / "apps/desktop/src/i18n/context.tsx"
 context_text = context_path.read_text(encoding="utf-8")
-native_locale_fallback = "setLocaleState(resolveInitialLocale(undefined, machineProfile?.locale))"
-if context_text.count(native_locale_fallback) != 1:
+# 只接受已核实的两种回退调用，并继续要求唯一匹配。
+native_locale_fallbacks = re.findall(
+    r"setLocaleState\(resolveInitialLocale\((?:undefined|requestedRef\.current), machineProfile\?\.locale\)\)",
+    context_text,
+)
+if len(native_locale_fallbacks) != 1:
     die("无法确认上游 Desktop 系统语言回退逻辑，停止构建，避免覆盖新的 i18n 实现。")
+native_locale_fallback = native_locale_fallbacks[0]
 
 preload_path = root / "apps/desktop/electron/preload.ts"
 preload_text = disable_preload_self_update(preload_path.read_text(encoding="utf-8"))
