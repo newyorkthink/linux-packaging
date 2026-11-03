@@ -2,13 +2,11 @@
 
 ## 用途与产物
 
-本目录在 Ubuntu 24.04 构建 dconf Editor AppImage，固定产物为 `dist/dconf-editor.AppImage`；同一个 AppImage 同时保留 dconf Editor GUI 与 dconf CLI。
+本目录在 Ubuntu 24.04 构建 dconf Editor AppImage，固定产物为 `dist/dconf-editor.AppImage`。
 
 ## 技术栈与打包方式
 
-dconf Editor 为 GTK3 / GLib 应用，使用 Ubuntu 24.04 仓库的 dconf Editor 45.0.1。公共 APT 入口下载并解包与构建环境已安装版本一致的 dconf Editor 和 dconf CLI。linuxdeploy 部署依赖并通过 GTK 插件生成中间 AppImage，公共封装入口再调用官方 appimagetool 和 Type 2 runtime 生成最终产物。
-
-AppImage 继续内置简体中文 locale、dconf GSettings backend 和 Fcitx5 GTK3 输入模块，并使用宿主 dconf 数据库及 D-Bus 会话。专属处理、保留理由及验证范围见 [模板差异](./docs/template-deviations.md)。
+dconf Editor 为 GTK3 / GLib 应用。构建脚本由仓库生成器从 [GTK Ubuntu 仓库模板](../templates/appimage/linuxdeploy-gtk-apt.sh) 生成。公共 APT 入口解包构建环境已安装版本的 dconf Editor 和 dconf CLI，linuxdeploy 通过 GTK 插件部署资源，公共封装入口生成最终 AppImage。适用范围和旧版记录见 [模板差异](./docs/template-deviations.md)。
 
 ## 运行
 
@@ -16,11 +14,9 @@ AppImage 继续内置简体中文 locale、dconf GSettings backend 和 Fcitx5 GT
 ./dist/dconf-editor.AppImage
 ```
 
-需要 CLI 时可将同一 AppImage 建立名为 `dconf` 的软链接，由现有 AppRun 按 ARGV0 分派。
-
 ## 版本元数据
 
-构建脚本保留 45.0.1 版本基线。公共 APT 解包入口返回实际主包版本，公共封装入口将它写入 `dist/version.txt`。GitHub Actions 在构建脚本成功退出后直接使用该文件上传版本元数据和更新发布清单。
+公共 APT 解包入口返回实际主包版本，公共封装入口将它写入 `dist/version.txt`。GitHub Actions 在构建脚本成功退出后直接使用该文件上传版本元数据和更新发布清单。
 
 ## 变更记录
 

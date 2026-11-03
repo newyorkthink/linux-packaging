@@ -1,8 +1,14 @@
 # dconf Editor 模板差异
 
-GTK 构建流程以 [Joplin](../../joplin/build_joplin.sh) 为参考，Ubuntu 仓库软件包的解包入口沿用 [MediaInfo](../../mediainfo/build_mediainfo_linuxdeploy.sh) 的标准用法。
+## 当前模板
 
-### 原有稳定打包基线
+构建脚本由仓库生成器从 [GTK Ubuntu 仓库模板](../../templates/appimage/linuxdeploy-gtk-apt.sh) 生成，只替换模板参数。使用 Ubuntu 24.04 仓库的 dconf Editor 和 dconf CLI，产物版本以实际解包的主包为准。
+
+AppRun 采用模板的 GSettings schema 和 GIO 模块目录配置，直接启动图形程序。最终封装和版本保存使用公共入口的默认方式。
+
+本次按模板移除了原有 CLI 软链接分派、Fcitx5 专用缓存、强制中文处理、专属运行检查和显式封装参数。已完成生成器的 Bash 语法检查，实际构建和运行待验证。
+
+## 旧脚本的历史基线
 
 1. 固定使用 Ubuntu 24.04 构建，直接采用发行版官方 dconf-editor 45.0.1。
 2. 不打包 glibc 与动态加载器，最终 AppImage 的 GLIBC 运行基线不高于 Ubuntu 24.04 的 2.39。
@@ -13,7 +19,7 @@ GTK 构建流程以 [Joplin](../../joplin/build_joplin.sh) 为参考，Ubuntu �
 7. linuxdeploy、appimagetool 与 Type 2 runtime 均通过公共脚本从官方 continuous Release 动态取得，并按当前 Release digest 校验。
 8. 同一个 AppImage 同时内置 dconf Editor GUI 和 dconf CLI；外部软链接名为 dconf 时由 Type 2 runtime 的 ARGV0 直接分派到 CLI。
 
-### 保留的应用专属处理
+### 旧脚本的专属处理
 
 | 阶段 | 处理 | 依据与影响 |
 | --- | --- | --- |
