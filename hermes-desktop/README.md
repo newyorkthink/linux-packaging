@@ -63,7 +63,8 @@
 - 故障：[Run 41592310499 / Job 125785327437](https://github.com/newyorkthink/linux-packaging/actions/runs/41592310499/job/125785327437) 在上游 `v0.22.6` 的专属补丁阶段失败，原始错误为 `无法确认上游 Desktop 系统语言回退逻辑，停止构建，避免覆盖新的 i18n 实现。`；尚未进入 AppImage 封装。
 - 原因：上游仍保留机器语言回退，但 `resolveInitialLocale` 的第一个参数已从 `undefined` 改为 `requestedRef.current`；旧补丁只接受原来的完整字符串，因此把新的有效实现判为未知结构。
 - 修复：仅调整 `patch_hermes_desktop.py` 的检查，精确接受上述两种调用，并要求总共只匹配一次；后续自检使用本次实际匹配到的完整调用。缺失、未知写法、重复调用或两种写法同时出现时仍停止，不改写上游 i18n 源码。现有构建脚本、工作流、公共入口及其他兼容补丁保持原样。
-- 验证：Python 语法及七个语言回退接受 / 拒绝场景通过；在隔离目录中对 `v0.22.6` 的必要源码文件执行完整补丁成功，`src/i18n/context.tsx` 的字节内容保持不变。本次未执行 npm 构建、AppImage 封装或新产物实机运行，原有实测成功记录及验证范围继续保留。
+- 验证：Python 语法及七个语言回退接受 / 拒绝场景通过；在隔离目录中对 `v0.22.6` 的必要源码文件执行完整补丁成功，`src/i18n/context.tsx` 的字节内容保持不变。
+- 实机验收：修复提交 [e6aa5cb](https://github.com/newyorkthink/linux-packaging/commit/e6aa5cbde49d522bab8008348b5ea71c9660172f) 对应的新产物已在 Linux 实机启动，中文界面正常，启动日志确认已识别并选择 `gnome-libsecret` 后端。本次语言回退检查失配问题已修复，现有打包方案继续保留。
 
 ## 构建文件
 
