@@ -89,6 +89,14 @@ pkgforge-dev 的实现须先核实是否必要和适用，再决定采用或不�
 
 ## 用 quick-sharun 打包的 Qt 程序
 
+### 直接下载安装包
+
+安装 AUR 应用及依赖后，通过公共入口独立下载、校验并解包主 DEB。匹配 Qt 主版本的输入法模块随程序收集，保留应用自带 Qt 和 CEF 的相对布局。
+
+| 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
+| --- | --- | --- | --- | --- |
+| MailMaster | [build_mailmaster.sh](../mailmaster/build_mailmaster.sh) | 按当前 AUR 配方安装，独立校验并解包主 DEB，公共入口读取同次下载的版本。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1<br>export DEPLOY_PIPEWIRE=1 | [模板差异](../mailmaster/docs/template-deviations.md) |
+
 ### 从系统真实入口收集
 
 先安装 Arch 官方仓库的应用及运行依赖，再将真实程序入口、必要辅助程序和运行资源交给 quick-sharun 收集。有窗口的程序同时保留匹配 Qt 主版本的输入模块和包内中文环境。

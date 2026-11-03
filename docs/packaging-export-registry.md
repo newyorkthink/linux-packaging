@@ -100,9 +100,9 @@
 | `DEPLOY_COMMON_LIBS` | quick-sharun 是否打入一批常见系统库。 | chatgpt |
 | `DEPLOY_P11KIT` | quick-sharun 是否打入 p11-kit 证书模块。 | chatgpt |
 | `DEPLOY_DATADIR` | quick-sharun 是否把数据目录打进包。0 是不打。 | deepseek-harness |
-| `SHARUN_WORKING_DIR` | quick-sharun 的工作目录，一般是主程序所在目录。 | 例如 aionui、chatgpt、feishu；tradingview 在 .env 中指向包内 bin，todesk 在运行 hook 中指向可写副本 bin |
-| `SHARUN_EXTRA_LIBRARY_PATH` | quick-sharun 额外扫描这些目录里的库。 | 例如 aionui、chatgpt、feishu、todesk；todesk 在运行 hook 中指向可写副本 bin |
-| `SHARUN_ALLOW_QT_PLUGIN_PATH` | 允许 quick-sharun 保留应用自己设的 QT_PLUGIN_PATH，不把它清掉。 | mailmaster。wps-office-cn 改在 AppDir/.env 里设置，构建脚本不再 export 它。 |
+| `SHARUN_WORKING_DIR` | quick-sharun 的工作目录，一般是主程序所在目录。 | 例如 aionui、chatgpt、feishu；tradingview 和 mailmaster 在 `.env` 中指向包内 `bin`，todesk 在运行 hook 中指向可写副本 bin |
+| `SHARUN_EXTRA_LIBRARY_PATH` | quick-sharun 额外扫描这些目录里的库。 | 例如 aionui、chatgpt、feishu。mailmaster 在 `.env` 中加入包内 `bin` 和 `bin/lib`，todesk 在运行 hook 中指向可写副本 `bin` |
+| `SHARUN_ALLOW_QT_PLUGIN_PATH` | 允许 quick-sharun 保留应用自己设的 QT_PLUGIN_PATH，不把它清掉。 | mailmaster 和 wps-office-cn 在 `AppDir/.env` 中设置。 |
 | `NO_AT_BRIDGE` | 不连接无障碍总线，避免启动时卡住或刷警告。 | 3 个脚本，例如 joplin、peazip、ventoy |
 
 ## 启动路径

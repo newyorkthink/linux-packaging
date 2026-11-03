@@ -63,7 +63,7 @@ TradingView 条目于 2026-11-02 按应用名及 trading-view 别名单独复核
 | [keepassxc](../keepassxc/build_keepassxc.sh) | [KeePassXC-AppImage-Enhanced](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced) | [依赖](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced/blob/2e6a99da59e75f2614bb1c8f0800c6b883fe148a/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced/blob/2e6a99da59e75f2614bb1c8f0800c6b883fe148a/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced/blob/2e6a99da59e75f2614bb1c8f0800c6b883fe148a/.github/workflows/appimage.yml) | [README](../keepassxc/README.md) |
 | [Keyviz](../Keyviz/build_keyviz.sh) |  |  | [README](../Keyviz/README.md) |
 | [kitty](../kitty/build_kitty.sh) |  |  | [README](../kitty/README.md) |
-| [mailmaster](../mailmaster/build_mailmaster.sh) |  |  | [README](../mailmaster/README.md) |
+| [mailmaster](../mailmaster/build_mailmaster.sh) |  |  | [模板差异](../mailmaster/docs/template-deviations.md) · [固定参数](../mailmaster/docs/hardcoded.md) · [README](../mailmaster/README.md) |
 | [mediainfo](../mediainfo/build_mediainfo_linuxdeploy.sh) |  |  | [README](../mediainfo/README.md) |
 | [mission-center](../mission-center/build_mission-center.sh) |  |  | [README](../mission-center/README.md) |
 | [moderncsv](../moderncsv/build_moderncsv.sh) |  |  | [README](../moderncsv/README.md) |
