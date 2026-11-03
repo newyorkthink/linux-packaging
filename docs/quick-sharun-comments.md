@@ -19,6 +19,7 @@
 | ARCH | `# 把当前机器架构传给 quick-sharun。` |
 | ICON | `# 使用系统里装好的图标。` |
 | DESKTOP | `# 使用系统里装好的桌面入口文件。` |
+| DESKTOP 使用仓库维护的文件 | `# 使用仓库提供的桌面入口文件。` |
 | OUTPATH | `# 把 AppImage 写到脚本目录下的 dist。` |
 | OUTNAME | `# 固定最终 AppImage 的文件名。` |
 | 打包前读取版本 | `# 读取本次打包使用的版本。` |

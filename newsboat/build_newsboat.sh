@@ -1,45 +1,42 @@
 #!/usr/bin/env bash
-set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
 
-# 安装统一的 Arch AppImage 基础包
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-cd "$ROOT"
+# 安装官方软件包及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" newsboat json-c libxml2 sqlite stfl buku kitty ruby asciidoctor rust swig
 
-rm -rf AppDir || true
+# 清掉上次的打包目录。
+rm -rf -- AppDir dist
+mkdir -p dist
 
-ARCH="$(uname -m)"
-export ARCH
-
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 保留原有的启动窗口类设置。
 export STARTUPWMCLASS=newsboat
+# 使用系统里装好的图标。
 export ICON=/usr/share/icons/hicolor/scalable/apps/newsboat.svg
+# 使用仓库提供的桌面入口文件。
 export DESKTOP="$SCRIPT_DIR/newsboat.desktop"
-export OUTPATH=./dist
-export OUTNAME="newsboat.AppImage"
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
+export OUTNAME=newsboat.AppImage
 
-# 基本依赖
-yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux zsync
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman newsboat)"
 
-# newsboat 及用户提供的依赖
-yay -S --noconfirm newsboat curl hicolor-icon-theme json-c libxml2 sqlite stfl buku kitty perl python ruby asciidoctor git rust swig
-
-# 读取本次实际安装的 Arch 包版本，并去掉仅用于 Arch 打包排序的 epoch / pkgrel。
-NEWSBOAT_PACKAGE_VERSION="$(pacman -Q newsboat | awk '{print $2}')"
-NEWSBOAT_VERSION="${NEWSBOAT_PACKAGE_VERSION#*:}"
-NEWSBOAT_VERSION="${NEWSBOAT_VERSION%-*}"
-[[ -n "$NEWSBOAT_VERSION" ]] || {
-  echo "错误：无法解析 Newsboat 版本。" >&2
-  exit 1
-}
-
+# 收集程序及其运行依赖。
 quick-sharun /usr/bin/newsboat /usr/bin/podboat
 
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-# 确认最终 AppImage 文件已经生成且不为空。
-test -s ./dist/newsboat.AppImage
-
-# 构建成功后输出统一的软件版本元数据。
-printf '%s\n' "$NEWSBOAT_VERSION" > ./dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/newsboat.AppImage "$VERSION" dist/version.txt

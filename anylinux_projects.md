@@ -200,9 +200,11 @@ quick-sharun --make-appimage
 "$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/<应用名>.AppImage "$VERSION" dist/version.txt
 ```
 
-版本在第一次 quick-sharun 之前通过公共入口读取；最终 AppImage 成功生成后单行调用公共保存入口。ICON、DESKTOP 从当前软件包真实路径读取。APPNAME、MAIN_BIN、STARTUPWMCLASS、DEPLOY_GTK 等仅在当前程序确有需要时设置，不为凑齐 Electron 模板加入。
+版本在第一次 quick-sharun 之前通过公共入口读取；最终 AppImage 成功生成后单行调用公共保存入口。ICON、DESKTOP 优先使用当前软件包实际提供的资源。软件包缺少桌面入口时，使用项目维护的 desktop，并注明来源。APPNAME、MAIN_BIN、STARTUPWMCLASS、DEPLOY_GTK 等仅在当前程序确有需要时设置，不为凑齐 Electron 模板加入。
 
-一次 quick-sharun 调用可以包含已确认必需的多个真实入口、辅助命令或 dlopen 库；没有依据时不添加。[htop/build_htop.sh](./htop/build_htop.sh) 已按本类标准完成整理：保留原有 MAIN_BIN 明确入口，以及 lsof、strace、libsensors、libnl 的完整收集参数；两行 MAIN_BIN 元数据之外的公共结构、注释和空行遵守上面模板。专属用途与官方静态源码构建的差异见 [htop 模板差异](./htop/docs/template-deviations.md) 和 [pkgforge 取舍](./htop/docs/pkgforge-differences.md)。newsboat 等未重写项目仍只提供布局参考，不在分类表中提前登记。
+一次 quick-sharun 调用可以包含已确认必需的多个真实入口、辅助命令或 dlopen 库；没有依据时不添加。[htop/build_htop.sh](./htop/build_htop.sh) 已按本类标准完成整理：保留原有 MAIN_BIN 明确入口，以及 lsof、strace、libsensors、libnl 的完整收集参数；两行 MAIN_BIN 元数据之外的公共结构、注释和空行遵守上面模板。专属用途与官方静态源码构建的差异见 [htop 模板差异](./htop/docs/template-deviations.md) 和 [pkgforge 取舍](./htop/docs/pkgforge-differences.md)。
+
+[Newsboat](./newsboat/build_newsboat.sh) 是同一 Arch 官方包提供多个真实终端入口时的基础参考。两个入口在同一次 quick-sharun 调用中收集，构建、版本和封装阶段沿用本节模板。仓库自带 desktop 和原有 `STARTUPWMCLASS` 属于 Newsboat 的专属元数据，其他项目按各自实际来源选用。见 [模板差异](./newsboat/docs/template-deviations.md)。
 
 [mpv/build_mpv.sh](./mpv/build_mpv.sh) 的基础部分遵守上面模板，另有三段经批准的专属处理，不能复制给其他应用：
 

@@ -280,11 +280,11 @@
       "name": "Newsboat",
       "script": "newsboat/build_newsboat.sh",
       "dir": "newsboat",
-      "artifact_dir": "dist",
+      "artifact_dir": "newsboat/dist",
       "release_name": "newsboat.AppImage",
       "software_key": "newsboat",
       "timeout_minutes": 60,
-      "run_from_root": "true"
+      "run_from_root": "false"
     },
     {
       "key": "zotero",

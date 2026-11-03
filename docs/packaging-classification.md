@@ -72,10 +72,13 @@ Grok App 尚未核实同源 Arch/AUR 应用包，本次采用用户明确确认�
 
 基础结构、通用注释及空行以 [原生程序系统入口标准](../anylinux_projects.md#arch-官方仓库原生程序系统入口标准) 为准。只登记已经实际完成标准化重写的项目；尚未重写的项目不提前加入。
 
+[Newsboat](../newsboat/build_newsboat.sh) 是同一 Arch 官方包提供多个真实终端入口时的基础参考。脚本使用的仓库 desktop 和窗口类设置按应用差异说明维护。
+
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
 | htop | [build_htop.sh](../htop/build_htop.sh) | 安装 Arch 官方 htop 及原有依赖，直接收集 `/usr/bin/htop` 与既有辅助程序、动态库；公共入口读取实际安装版本。 | 无 | [模板差异](../htop/docs/template-deviations.md) |
 | mpv | [build_mpv.sh](../mpv/build_mpv.sh) | 安装 Arch 官方 mpv 及依赖，直接收集 `/usr/bin/mpv`；公共入口读取实际安装版本。 | 无 | [模板差异](../mpv/docs/template-deviations.md) |
+| Newsboat | [build_newsboat.sh](../newsboat/build_newsboat.sh) | 安装 Arch 官方 newsboat 及原有依赖，一次收集同包的 newsboat 和 podboat，公共入口读取实际安装版本。 | export STARTUPWMCLASS=newsboat | [模板差异](../newsboat/docs/template-deviations.md) |
 | Xephyr | [build_xephyr.sh](../xephyr/build_xephyr.sh) | 安装 Arch 官方 xorg-server-xephyr 及原有依赖，直接收集 Xephyr 和 xkbcomp；公共入口读取实际安装版本。 | export STRACE_MODE=0<br>export PATH_MAPPING（XKB 路径映射） | [模板差异](../xephyr/docs/template-deviations.md) |
 
 mpv 的 yt-dlp 继续在构建时下载、校验并内置，未启用官方运行时 yt-dlp 安装与自更新 hooks；locale 和独立无参数窗口 hook 的来源及取舍见其应用文档。这些专属段不属于本类通用模板。
