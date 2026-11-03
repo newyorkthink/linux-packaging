@@ -76,6 +76,7 @@ Grok App 尚未核实同源 Arch/AUR 应用包，本次采用用户明确确认�
 | --- | --- | --- | --- | --- |
 | htop | [build_htop.sh](../htop/build_htop.sh) | 安装 Arch 官方 htop 及原有依赖，直接收集 `/usr/bin/htop` 与既有辅助程序、动态库；公共入口读取实际安装版本。 | 无 | [模板差异](../htop/docs/template-deviations.md) |
 | mpv | [build_mpv.sh](../mpv/build_mpv.sh) | 安装 Arch 官方 mpv 及依赖，直接收集 `/usr/bin/mpv`；公共入口读取实际安装版本。 | 无 | [模板差异](../mpv/docs/template-deviations.md) |
+| Xephyr | [build_xephyr.sh](../xephyr/build_xephyr.sh) | 安装 Arch 官方 xorg-server-xephyr 及原有依赖，直接收集 Xephyr 和 xkbcomp；公共入口读取实际安装版本。 | export STRACE_MODE=0<br>export PATH_MAPPING（XKB 路径映射） | [模板差异](../xephyr/docs/template-deviations.md) |
 
 mpv 的 yt-dlp 继续在构建时下载、校验并内置，未启用官方运行时 yt-dlp 安装与自更新 hooks；locale 和独立无参数窗口 hook 的来源及取舍见其应用文档。这些专属段不属于本类通用模板。
 

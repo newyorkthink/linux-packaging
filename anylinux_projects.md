@@ -212,6 +212,8 @@ quick-sharun --make-appimage
 
 完整来源、原文、采用与未采用原因见 [mpv 的 pkgforge 差异说明](./mpv/docs/pkgforge-differences.md)。固定配置、依赖覆盖和当前验证范围分别由 mpv 的配置说明及 README 记录。
 
+[Xephyr](./xephyr/build_xephyr.sh) 同样从 Arch 系统真实入口收集，临时 desktop 和 XKB 路径映射在收集前准备，键盘规则和许可证在收集后补入。这些专属处理和中文配置边界见 [Xephyr 模板差异](./xephyr/docs/template-deviations.md)。
+
 ## 命令行不加中文，GUI 默认要
 
 不用再等用户提醒。新做、迁移或这次本来就要改的构建，按程序有没有窗口决定：

@@ -106,7 +106,7 @@ TradingView 条目于 2026-11-02 按应用名及 trading-view 别名单独复核
 | [winpodx](../winpodx/build_winpodx_release.sh) |  |  | [README](../winpodx/README.md) |
 | [workbuddy](../workbuddy/build_workbuddy.sh) |  |  | [模板差异](../workbuddy/docs/template-deviations.md) · [README](../workbuddy/README.md) |
 | [wps-office-cn](../wps-office-cn/build_wps-office-cn.sh) |  |  | [README](../wps-office-cn/README.md) |
-| [xephyr](../xephyr/build_xephyr.sh) |  |  | [README](../xephyr/README.md) |
+| [xephyr](../xephyr/build_xephyr.sh) |  |  | [模板差异](../xephyr/docs/template-deviations.md) · [README](../xephyr/README.md) |
 | [xmind](../xmind/build_xmind.sh) |  |  |  |
 | [xnviewmp](../xnviewmp/build_xnviewmp.sh) |  |  | [README](../xnviewmp/README.md) |
 | [zotero](../zotero/build_zotero.sh) |  |  | [README](../zotero/README.md) |
