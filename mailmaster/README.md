@@ -44,11 +44,12 @@ quick-sharun 生成启动入口。包内 `.env` 设置 Qt 插件路径、工作�
 - 故障：[Build MailMaster 日志](https://github.com/newyorkthink/linux-packaging/actions/runs/41263573517/job/124733830878)显示 GitHub Actions 连接山东大学镜像超时，主 DEB 下载失败。
 - 处理：构建入口接入公共安装、下载、解包、版本读取和保存脚本。公共多来源选择能力见 [156618d](https://github.com/newyorkthink/linux-packaging/commit/156618d8c5ceab8d0f97c3c9a5c76deca94dcc1f)。主包按 AUR 原摘要校验，Qt 5 / CEF 扁平布局和兼容库继续保留。
 - 已核对：从 AUR 所列镜像下载并解包真实 DEB，SHA-256、版本与目录布局匹配。核对了两种 Qt 5 输入法模块所需的 Qt 符号、Bash 语法及 hook 参数传递。
-- 待验证：GitHub Actions 的镜像连通性、完整 AppImage 构建、启动及实机中文输入。当前构建使用 AUR 配方给出的主包地址。
+- 构建与发布：[Build MailMaster #1137](https://github.com/newyorkthink/linux-packaging/actions/runs/41554193964/job/125651424164) 已完成 AppImage 构建和发布。当前构建使用 AUR 配方给出的主包地址。
 
 ### 2026-11-03：修正附件选择器的起始目录
 
 - 用户实机确认主界面和邮件正文可以显示，搜索框和附件文件名框均能显示中文候选。附件选择器可以打开，但起始目录落在 AppImage 的临时挂载目录。
 - 核对 DEB 中的 `libmastercore.so` 后确认，「选择附件」入口向 Qt 传入空目录。Qt 在没有可用的最近目录时会回退到进程工作目录。
 - 构建时接入 MailMaster 专属兼容层。仅在「选择附件」收到空目录且当前工作目录是包内 `bin` 时，改用用户主目录。进程工作目录、显式路径和「插入图片」沿用原行为。
-- 已核对真实 ELF 的导入与兼容库导出，并用包内 Qt 验证五种目录和窗口标题组合。补丁产物的完整构建和附件实机复测待验证。
+- 已核对真实 ELF 的导入与兼容库导出，并用包内 Qt 验证五种目录和窗口标题组合。包含附件补丁的 [Build MailMaster](https://github.com/newyorkthink/linux-packaging/actions/runs/41558186995/job/125662182362) 已完成构建、发布和版本登记。
+- 修复后实机复测通过：添加附件窗口默认打开当前用户的主目录。附件文件名框和邮件搜索框均可显示中文候选，主界面、邮件列表和邮件正文正常显示。本次实测范围为附件窗口、输入法候选和界面显示。
