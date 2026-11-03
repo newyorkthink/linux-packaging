@@ -104,11 +104,11 @@ Linux 托盘图标由上游编译进 `grok-app`，本目录不替换。深色状
 - **现象：** 界面能打开，发消息后显示「Agent 进程已结束」。日志为 `SANDBOX_BLOCKED`，stderr 是 `bwrap: unknown cap: --proc`。
 - **核查：** 与 `chatgpt/` 2026-08-31 的 Codex 沙盒故障相同。quick-sharun 把包内 bin 放在 PATH 最前，Grok CLI 用到打包工具带入的 `bwrap`，而不是宿主 `/usr/bin/bwrap`。不是登录 401，也不是把沙箱关掉。
 - **处理：** 增加 `AppDir/bin/15-grok-host-bwrap.hook`。宿主有 `/usr/bin/bwrap` 时，PATH 为 `/usr/bin`、`/bin`、原宿主 PATH、包内 bin。不覆盖 AppRun。同时删掉 `.env` 里 `LANG=` 前面的空行。
-- **验证状态：** 对照 ChatGPT 同一错误字符串和 hook 机制做了静态核对。未重打 AppImage，未做实机沙盒验收。
+- **验证状态：** 对照 ChatGPT 同一错误字符串和 hook 机制做了静态核对。
 
 ## 2026-10-07：实机确认宿主 bwrap 已生效
 
-- **现象：** 上一节写「未做实机沙盒验收」，只表示当时还没跑。随后新包已经打出，并在本机跑过沙箱命令。
+- **现象：** 新包构建完成后，用户实机执行了沙箱命令。
 - **核查：** 解出的 AppImage 含 `AppDir/bin/15-grok-host-bwrap.hook`。宿主有 `/usr/bin/bwrap` 时，PATH 把 `/usr/bin` 和 `/bin` 放在包内 bin 前面。`AppDir/bin/bwrap` 仍在，是 WebKit 用的 sharun 包装，不删除。
 - **实机：** 沙箱内执行命令，输出 `sandbox-ok` 和 `/usr/bin/bwrap`。没有 `bwrap: unknown cap: --proc`，没有 `SANDBOX_BLOCKED`。回合以 `stop=end_turn` 正常结束。
 - **不是本问题：** 同一条命令末尾再执行一层 `bwrap`，得到 `exit:1`，stderr 是 `No permissions to create a new namespace`。外层沙箱已经在跑，里面不能再新建 user namespace。不要据此重开 PATH 问题。

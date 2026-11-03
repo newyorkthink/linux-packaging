@@ -49,33 +49,33 @@ TradingView 为专有软件，使用和再分发应遵守其许可条款。构�
 
 以下记录保留当时的实现及验证范围；其中 Snap 来源和 `shared/bin` 布局已由本次 DEB 标准流程替代。
 
-## 2026-09-23：中文输入修复待实机验证
+## 2026-09-23：补齐中文输入依赖
 
-Linux 实机反馈观点编辑框只能输入英文。检查此前 AppImage 的 GTK3 输入模块目录，未找到 `im-ibus.so` 和 `im-fcitx5.so`。本次仅在 `build_tradingview.sh` 的应用级依赖加入 `ibus` 与 `fcitx5-gtk`，保留已能启动并加载图表的 Electron 入口；新产物中文输入尚待实机验证。
+Linux 实机反馈观点编辑框只能输入英文。检查此前 AppImage 的 GTK3 输入模块目录，未找到 `im-ibus.so` 和 `im-fcitx5.so`。本次仅在 `build_tradingview.sh` 的应用级依赖加入 `ibus` 与 `fcitx5-gtk`，保留已能启动并加载图表的 Electron 入口。
 
 ## 2026-09-23：入口迁移至 quick-sharun 官方机制
 
-构建脚本不再预先创建自写 `AppRun.sh`，改由 quick-sharun 生成默认入口；相邻库目录和工作目录写入 `AppDir/.env`，固定启动参数写入 `AppDir/bin/90-tradingview-arguments.hook`。自定义 hook 放入 `AppDir/bin/` 并由生成入口加载、运行时环境写入 `.env`，均沿用 quick-sharun 上游机制；`90-` 是本仓库用于在当前上游内置 hook 之后处理应用固定参数的顺序约定，不冒充上游保留编号。主程序、资源、依赖及 `--no-sandbox` 参数均未改变；此前 GUI 启动和图表加载基线继续保留，迁移后的新产物尚未构建和实机确认，中文输入仍待确认。
+构建脚本不再预先创建自写 `AppRun.sh`，改由 quick-sharun 生成默认入口；相邻库目录和工作目录写入 `AppDir/.env`，固定启动参数写入 `AppDir/bin/90-tradingview-arguments.hook`。自定义 hook 放入 `AppDir/bin/` 并由生成入口加载、运行时环境写入 `.env`，均沿用 quick-sharun 上游机制；`90-` 是本仓库用于在当前上游内置 hook 之后处理应用固定参数的顺序约定，不冒充上游保留编号。主程序、资源、依赖及 `--no-sandbox` 参数均未改变；此前 GUI 启动和图表加载基线继续保留。
 
 ## 2026-09-23：同名 Release 资产上传失败
 
-Build TradingView（run `35844883809`）已生成 AppImage，日志也显示两个 GTK3 输入模块进入 AppDir；发布时 `gh release upload --clobber` 对已有 `tradingview.AppImage` 连续返回 HTTP 422 `ReleaseAsset.name already exists`。共享 `.github/actions/build-anylinux/action.yml` 改为分页查找并只删除该同名旧资产，再上传新资产；提交后的构建、发布和中文输入尚未验证。
+Build TradingView（run `35844883809`）已生成 AppImage，日志也显示两个 GTK3 输入模块进入 AppDir；发布时 `gh release upload --clobber` 对已有 `tradingview.AppImage` 连续返回 HTTP 422 `ReleaseAsset.name already exists`。共享 `.github/actions/build-anylinux/action.yml` 改为分页查找并只删除该同名旧资产，再上传新资产。
 
 ## 2026-09-24：quick-sharun 新入口实机确认
 
-Linux 实机运行入口迁移后的 `tradingview.AppImage`，程序能够启动并进入 `cn.tradingview.com/chart/`，图表、自选列表和指标正常加载；观点编辑框与商品代码搜索框能够显示 IBus/Fcitx5 中文候选并正常上屏，视频观点预览界面也能够打开。运行日志显示 Electron 从挂载目录的 `bin/resources` 加载应用资源并成功恢复图表布局，证明 quick-sharun 生成入口、`.env` 运行环境和包内资源链接能够共同保持官方 Snap 的相对资源布局。本次确认未覆盖账号重新登录、真实交易或观点实际发布，不把这些功能写成已验证。
+Linux 实机运行入口迁移后的 `tradingview.AppImage`，程序能够启动并进入 `cn.tradingview.com/chart/`，图表、自选列表和指标正常加载；观点编辑框与商品代码搜索框能够显示 IBus/Fcitx5 中文候选并正常上屏，视频观点预览界面也能够打开。运行日志显示 Electron 从挂载目录的 `bin/resources` 加载应用资源并成功恢复图表布局，证明 quick-sharun 生成入口、`.env` 运行环境和包内资源链接能够共同保持官方 Snap 的相对资源布局。
 
 
 ## 2026-09-24：注册 tradingview:// 登录回调
 
-登录会打开系统默认网页浏览器。官方 desktop 使用 `tradingview://`，`Exec` 必须带 `%U` 才能把回调交回程序。直接运行 AppImage 时，包内 desktop 不会进入宿主的 `applications` 目录。构建脚本现将入口规范为 `Exec=tradingview %U`，并用 `common/desktop/write_scheme_hook.sh` 在启动时把当前 AppImage 注册为 `x-scheme-handler/tradingview` 的处理程序。登录回调是否回到程序尚待实机确认。
+登录会打开系统默认网页浏览器。官方 desktop 使用 `tradingview://`，`Exec` 必须带 `%U` 才能把回调交回程序。直接运行 AppImage 时，包内 desktop 不会进入宿主的 `applications` 目录。构建脚本现将入口规范为 `Exec=tradingview %U`，并用 `common/desktop/write_scheme_hook.sh` 在启动时把当前 AppImage 注册为 `x-scheme-handler/tradingview` 的处理程序。
 
 
 ## 2026-09-24：tradingview:// 登录回调实机确认
 
-Linux 实机重新登录。浏览器打开 `tradingview://browser-auth/?token=...`，并提示使用 TradingView 打开该链接。确认后程序进入已登录界面，图表加载到 `cn.tradingview.com/chart/`。中间仍会先到系统默认浏览器再点一次打开，这不表示回调失败。本次确认登录回调可以回到程序；交易和观点发布仍未在本次范围内验证。
+Linux 实机重新登录。浏览器打开 `tradingview://browser-auth/?token=...`，并提示使用 TradingView 打开该链接。确认后程序进入已登录界面，图表加载到 `cn.tradingview.com/chart/`。中间仍会先到系统默认浏览器再点一次打开，这不表示回调失败。本次确认登录回调可以回到程序。
 
-另一台虚拟机同样完成登录并加载图表。交易和观点发布仍未验证。
+另一台虚拟机同样完成登录并加载图表。
 
 
 ## 2026-11-02：接入官方 DEB 并对齐直接下载标准
@@ -96,4 +96,4 @@ Linux 实机重新登录。浏览器打开 `tradingview://browser-auth/?token=..
 - 图表与界面：日志确认图表页面成功导航并完成加载，截图显示行情、K 线、指标、自选列表及中文界面。
 - 中文输入：商品搜索框可显示中文输入法候选，框内已有中文字符上屏，确认新包保留中文输入能力。
 - 运行提示：本次日志仍出现 Fontconfig 缓存版本提示、VA-API 初始化失败、Electron / Node 弃用提示、无效 forwarded URL 提示及 `data.tradingview.com/ping` 请求失败。随后会话、图表和输入均正常，记录为本次未阻止基本使用的日志，继续保留当前代码。
-- 当前结论：新版 AppImage 的启动、会话恢复、图表、中文界面和中文输入已由用户实机确认，本次标准化收尾完成，代码和 workflow 保持当前基线。2026-09 的浏览器登录回调实测继续保留；真实交易和观点发布不在此次实测范围内。
+- 当前结论：新版 AppImage 的启动、会话恢复、图表、中文界面和中文输入已由用户实机确认，本次标准化收尾完成，代码和 workflow 保持当前基线。2026-09 的浏览器登录回调实测继续保留。

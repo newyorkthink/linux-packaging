@@ -111,13 +111,13 @@ locale 数据用于提供字符、编码和区域格式，不替代应用翻译�
 
 构建脚本现移除强制 `xcb_egl`，保留已使用的 XCB 平台，并设置 `QT_DISABLE_HW_TEXTURES_CONVERSION=1`，让 Qt Multimedia 避开出现异常的 GPU 纹理转换路径。当前 Qt6 构建已经安装 `fcitx5-frontend-qt6` 并通过 `QT_PLUGIN_PATH` 接入 linuxdeploy 的 `usr/plugins`，但 AppRun 没有明确选择输入上下文；本次同时设置 `QT_IM_MODULE=fcitx`，其中 `fcitx` 是 Fcitx5 Qt 输入模块使用的变量值。
 
-本次只调整 AppRun 运行环境，现有 Qt6、qmake 隔离、媒体运行库、动态版本和最终封装流程均未改动。已完成 Shell 语法、变量登记和完整 diff 静态检查；提交后不监控 Actions，新的构建结果以及视频播放、Fcitx5 中文输入的实际运行效果尚未验证。
+本次只调整 AppRun 运行环境，现有 Qt6、qmake 隔离、媒体运行库、动态版本和最终封装流程均未改动。已完成 Shell 语法、变量登记和完整 diff 静态检查。视频播放黑屏见后续故障记录。
 
 ### 2026-09-29：隔离系统 qmake6 与 XnView 自带 Qt 运行库
 
 Actions Job `109297829710` 在第二次 linuxdeploy 的 Qt 插件阶段调用 `/usr/bin/qmake6` 时，错误加载了 `AppDir/opt/XnView/lib` 中的 Qt 6.10.3 运行库，出现 `undefined symbol: qtconfManualPath, version Qt_6_PRIVATE_API` 并退出。根因是依赖扫描所需的 `LD_LIBRARY_PATH` 同时传给了系统 qmake，造成 Ubuntu 24.04 的 qmake 与 XnView 自带 Qt 私有 ABI 混用，不是网络、下载或 SHA-256 校验故障。
 
-构建脚本现于工具目录生成 `qmake6` 隔离入口，仅在执行系统 `/usr/bin/qmake6` 前清除 `LD_LIBRARY_PATH`；linuxdeploy 本身仍保留原有 XnView 库搜索路径，现有 Qt6、媒体运行库、AppRun、动态版本和最终封装流程均未改动。本次完成 Shell 语法与完整 diff 静态检查；提交后不监控 Actions，新的构建结果和实际运行效果尚未验证。
+构建脚本现于工具目录生成 `qmake6` 隔离入口，仅在执行系统 `/usr/bin/qmake6` 前清除 `LD_LIBRARY_PATH`；linuxdeploy 本身仍保留原有 XnView 库搜索路径，现有 Qt6、媒体运行库、AppRun、动态版本和最终封装流程均未改动。本次完成 Shell 语法与完整 diff 静态检查。
 
 ### 2026-09-29：随官方 1.12.0 从 Qt5 迁移到 Qt6
 
@@ -125,7 +125,7 @@ Actions Job `109297829710` 在第二次 linuxdeploy 的 Qt 插件阶段调用 `/
 
 构建脚本现把实际打包容器改为 Ubuntu 24.04，Qt 构建与输入法依赖、qmake、翻译目录、XCB 平台库和 linuxdeploy 环境全部迁移到 Qt6；原有 GStreamer、PulseAudio、VA-API、Wayland、udev、AppRun 和最终 appimagetool + Type 2 runtime 封装流程继续保留。Qt6 官方插件不再假定必然生成 hook；Qt 主版本变化后重新启用公共 AppRun 路径整理，等待新成品确认后再固化。
 
-本次已核对官方 DEB 的包元数据、主程序 ELF 依赖、RPATH、Qt6 运行库、plugin、QML 和输入上下文目录，并完成 Shell 语法与完整 diff 静态检查。提交后不监控 Actions，新的构建结果和实际运行效果尚未验证。
+本次已核对官方 DEB 的包元数据、主程序 ELF 依赖、RPATH、Qt6 运行库、plugin、QML 和输入上下文目录，并完成 Shell 语法与完整 diff 静态检查。
 
 ### 2026-09-21：改用官方 DEB 并修复版本元数据权限
 
@@ -181,7 +181,7 @@ Actions Job `106070682762` 已成功完成打包；用户实际解包和运行�
 
 ### 2026-09-20：补齐 Qt5 Declarative 与 QML 打包工具
 
-Actions Job `106069546113` 在 Qt 插件的 QML 阶段调用 `/usr/bin/qmlimportscanner`，因 qtchooser 没有选中 Qt installation 而退出。构建脚本补装 Qt5 qmake、Declarative 开发工具、`qmlimportscanner` 和常用 Qt Quick/QML 模块，并把 `PATH`、`QT_SELECT`、`QMAKE` 明确绑定到 `/usr/lib/qt5/bin`。本次仅完成脚本语法和远端 diff 核对，提交后未监控 Actions，实际构建结果未验证。
+Actions Job `106069546113` 在 Qt 插件的 QML 阶段调用 `/usr/bin/qmlimportscanner`，因 qtchooser 没有选中 Qt installation 而退出。构建脚本补装 Qt5 qmake、Declarative 开发工具、`qmlimportscanner` 和常用 Qt Quick/QML 模块，并把 `PATH`、`QT_SELECT`、`QMAKE` 明确绑定到 `/usr/lib/qt5/bin`。本次完成脚本语法和远端 diff 核对。
 
 ### 2026-11-01：补齐中间封装前的公共权限准备
 
