@@ -55,10 +55,10 @@ env -u I3SOCK DISPLAY=:99 i3-msg -t get_version
 
 ## 修正记录
 
-2026-09-27：初次提交 `c311e1f` 为 Xephyr 加入了无关的中文 locale 和启动 hook，且 `-no-host-grab` 会禁止手动抓取键鼠，不适合内外都用 i3 的快捷键。修正 `build_xephyr.sh` 和本 README：删除上述内容，将 XKB 的编译时路径映射到包内，运行时由用户指定显示编号。静态检查完成；CI 构建及实机运行仍待验证。
+2026-09-27：初次提交 `c311e1f` 为 Xephyr 加入了无关的中文 locale 和启动 hook，且 `-no-host-grab` 会禁止手动抓取键鼠，不适合内外都用 i3 的快捷键。修正 `build_xephyr.sh` 和本 README：删除上述内容，将 XKB 的编译时路径映射到包内，运行时由用户指定显示编号。静态检查完成。
 
-2026-09-27：提交 `56334e5` 仍在 Xephyr 脚本中重复检查产物并直接写入 `version.txt`，没有复用现有公共入口。修正 `build_xephyr.sh` 和本 README：保留 Arch 包版本解析，改用 `common/build/save_appimage_version.sh` 检查最终 AppImage 并保存版本；静态检查完成，CI 构建及实机运行仍待验证。
+2026-09-27：提交 `56334e5` 仍在 Xephyr 脚本中重复检查产物并直接写入 `version.txt`，没有复用现有公共入口。修正 `build_xephyr.sh` 和本 README：保留 Arch 包版本解析，改用 `common/build/save_appimage_version.sh` 检查最终 AppImage 并保存版本；静态检查完成。
 
-2026-09-27：初次产物命名为小写 `xephyr.AppImage`，不符合上游程序 `Xephyr` 的大小写。修正 `build_xephyr.sh`、`README.md` 和 `.github/appimage-apps.json`：统一使用 `Xephyr.AppImage`；静态检查完成，CI 构建仍待验证。
+2026-09-27：初次产物命名为小写 `xephyr.AppImage`，不符合上游程序 `Xephyr` 的大小写。修正 `build_xephyr.sh`、`README.md` 和 `.github/appimage-apps.json`：统一使用 `Xephyr.AppImage`；静态检查完成。
 
-2026-09-27：前次修正只复用了版本保存入口，`build_xephyr.sh` 仍自行解析 `pacman -Q` 返回的 epoch 与 `pkgrel`。新增 `common/arch/get_package_version.sh` 统一读取已安装 Arch 包的上游版本，Xephyr 构建改为调用该入口；原有产物检查和版本保存入口不变。静态检查完成，CI 构建仍待验证。
+2026-09-27：前次修正只复用了版本保存入口，`build_xephyr.sh` 仍自行解析 `pacman -Q` 返回的 epoch 与 `pkgrel`。新增 `common/arch/get_package_version.sh` 统一读取已安装 Arch 包的上游版本，Xephyr 构建改为调用该入口；原有产物检查和版本保存入口不变。静态检查完成。
