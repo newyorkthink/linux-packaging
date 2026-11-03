@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+############# 初始化脚本 #############
+
 # 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
 set -Eeuo pipefail
 
@@ -13,7 +15,7 @@ trap 'rc=$?; echo "::error file=build_kitty.sh,line=${LINENO}::命令失败（�
 
 cd "$(dirname "$0")"
 
-# 保持现有 x86_64 构建架构和无需 FUSE 的工具执行方式。
+# 本程序专属处理：保持现有 x86_64 构建架构和无需 FUSE 的工具执行方式。
 export ARCH=x86_64
 export APPIMAGE_EXTRACT_AND_RUN=1
 
@@ -25,7 +27,7 @@ OUTDIR="$ROOT/dist"
 OUTFILE="$OUTDIR/kitty.AppImage"
 KITTY_DIR="$APPDIR/usr/lib/kitty.app"
 
-# 清理并重建本应用的打包目录，移除上次的同名产物。
+# 本程序专属处理：清理并重建本应用的打包目录，移除上次的同名产物。
 rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/lib" "$OUTDIR"
 rm -f "$OUTFILE" "$OUTFILE.zsync"
@@ -37,14 +39,14 @@ rm -f "$OUTFILE" "$OUTFILE.zsync"
 
 ############ 下载并准备应用 #############
 
-# 使用 kitty 官方预编译包，并保持 bin、lib、share 的相对目录不变。
+# 本程序专属处理：使用 kitty 官方预编译包，并保持 bin、lib、share 的相对目录不变。
 "$SCRIPT_DIR/../common/download/download_file.sh" https://sw.kovidgoyal.net/kitty/installer.sh /tmp/kitty-installer.sh
 
 sh /tmp/kitty-installer.sh \
   dest="$APPDIR/usr/lib" \
   launch=n
 
-# kitten 是独立的软链接入口，保留这项检查，避免生成缺少该入口的产物。
+# 本程序专属处理：kitten 是独立的软链接入口，保留这项检查，避免生成缺少该入口的产物。
 test -x "$KITTY_DIR/bin/kitten"
 
 # 读取本次打包使用的版本。
@@ -52,12 +54,12 @@ KITTY_VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" command "$KIT
 
 ########## 准备桌面资源和运行库 #########
 
-# 准备程序专属的运行库、terminfo、桌面入口和图标。
+# 本程序专属处理：准备程序专属的运行库、terminfo、桌面入口和图标。
 "$SCRIPT_DIR/patches/prepare_appdir.sh" "$APPDIR"
 
 ############# 准备 AppRun ##############
 
-# 安装独立保存的启动脚本，保持原有运行逻辑。
+# 本程序专属处理：安装独立保存的启动脚本，保持原有运行逻辑。
 cp "$SCRIPT_DIR/AppRun" "$APPDIR/AppRun"
 
 # 为启动脚本添加执行权限。

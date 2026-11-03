@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+############# 初始化脚本 #############
+
 # 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
 set -Eeuo pipefail
 
@@ -31,7 +33,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_
 # 下载已安装版本的软件包并解包到 AppDir，成功后返回版本号。
 VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" remmina "$APPDIR" remmina-common remmina-plugin-rdp remmina-plugin-vnc remmina-plugin-exec remmina-plugin-secret remmina-plugin-www remmina-plugin-spice)"
 
-# 输出 Remmina 版本，供现有工作流读取版本元数据。
+# 本程序专属处理：输出 Remmina 版本，供现有工作流读取版本元数据。
 echo "Remmina 版本：$VERSION"
 
 ########## 准备桌面资源和运行库 #########
@@ -42,10 +44,10 @@ echo "Remmina 版本：$VERSION"
 # 下载并解包应用所需的图标与主题资源。
 "$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" adwaita-icon-theme gnome-themes-extra-data
 
-# Remmina 需要补齐协议插件、翻译、WebKitGTK、FreeRDP、OpenSSL provider 和 GTK 输入模块。
+# 本程序专属处理：Remmina 需要补齐协议插件、翻译、WebKitGTK、FreeRDP、OpenSSL provider 和 GTK 输入模块。
 "$SCRIPT_DIR/patches/prepare_runtime.sh" "$APPDIR"
 
-# Remmina 和 WebKitGTK 的模块按需加载，显式收集这些模块的运行依赖。
+# 本程序专属处理：Remmina 和 WebKitGTK 的模块按需加载，显式收集这些模块的运行依赖。
 LINUXDEPLOY_LIBRARIES=()
 while IFS= read -r library; do
   LINUXDEPLOY_LIBRARIES+=(-l "$library")
@@ -53,12 +55,12 @@ done < <(find "$APPDIR/plugins" "$APPDIR/webkit" -type f -name '*.so*' -print | 
 
 ############# 准备 AppRun ##############
 
-# Remmina Local Terminal 调用 $SHELL 时不会指定工作目录，会继承 Remmina 进程当前目录。
-# Remmina 又必须进入 AppDir 才能加载 /proc/self/cwd/plugins，因此使用 shell wrapper 恢复 AppImage 启动目录。
+# 本程序专属处理：Remmina Local Terminal 调用 $SHELL 时不会指定工作目录，会继承 Remmina 进程当前目录。
+# 本程序专属处理：Remmina 又必须进入 AppDir 才能加载 /proc/self/cwd/plugins，因此使用 shell wrapper 恢复 AppImage 启动目录。
 cat > "$APPDIR/usr/bin/remmina-local-shell" <<'LOCAL_SHELL'
 #!/bin/sh
 
-# 在命令执行失败时退出。
+# 本程序专属处理：在命令执行失败时退出。
 set -e
 
 host_shell="${REMMINA_HOST_SHELL:-/bin/sh}"
@@ -73,7 +75,7 @@ export SHELL="$host_shell"
 exec "$host_shell" "$@"
 LOCAL_SHELL
 
-# 为 Local Terminal 的 shell wrapper 添加执行权限。
+# 本程序专属处理：为 Local Terminal 的 shell wrapper 添加执行权限。
 chmod +x "$APPDIR/usr/bin/remmina-local-shell"
 
 # 在 AppDir 根目录创建完整的 AppRun 启动脚本。
@@ -88,10 +90,10 @@ HERE="$(dirname "$(readlink -f "${0}")")"
 APPDIR="$HERE"
 export APPDIR
 
-# 保存 AppImage 启动时的当前目录；Local Terminal 通过 wrapper 回到这里。
+# 本程序专属处理：保存 AppImage 启动时的当前目录；Local Terminal 通过 wrapper 回到这里。
 export REMMINA_LAUNCH_CWD="$PWD"
 
-# 保存宿主原始 shell，随后把 SHELL 指向 Local Terminal wrapper。
+# 本程序专属处理：保存宿主原始 shell，随后把 SHELL 指向 Local Terminal wrapper。
 if [[ -n "${SHELL:-}" && -x "$SHELL" ]]; then
   export REMMINA_HOST_SHELL="$SHELL"
 elif [[ -x /bin/bash ]]; then
@@ -101,7 +103,7 @@ else
 fi
 export SHELL="$APPDIR/usr/bin/remmina-local-shell"
 
-# linuxdeploy GTK hook 会强制 Adwaita:light；取消强制值，让应用跟随宿主主题。
+# 本程序专属处理：linuxdeploy GTK hook 会强制 Adwaita:light；取消强制值，让应用跟随宿主主题。
 unset GTK_DATA_PREFIX
 unset GTK_THEME
 unset APPIMAGE_GTK_THEME
@@ -119,7 +121,7 @@ if [[ -d "$LIBDIR/gio/modules" ]]; then
   export GIO_MODULE_DIR="$LIBDIR/gio/modules"
 fi
 
-# Remmina 的 GObject Introspection 组件使用包内 typelib。
+# 本程序专属处理：Remmina 的 GObject Introspection 组件使用包内 typelib。
 if [[ -d "$LIBDIR/girepository-1.0" ]]; then
   export GI_TYPELIB_PATH="$LIBDIR/girepository-1.0:${GI_TYPELIB_PATH:-}"
 fi
@@ -129,8 +131,8 @@ export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
 export LANG=zh_CN.UTF-8
 export LANGUAGE="zh_CN:zh"
 
-# 本 AppImage 面向本地/工作组 Windows RDP：默认禁用 Kerberos/U2U，直接使用可用的 NTLM/NLA。
-# 只在 rdp_auth_filter 不存在或为空时写入；已有非空自定义值保持原样。
+# 本程序专属处理：本 AppImage 面向本地/工作组 Windows RDP：默认禁用 Kerberos/U2U，直接使用可用的 NTLM/NLA。
+# 本程序专属处理：只在 rdp_auth_filter 不存在或为空时写入；已有非空自定义值保持原样。
 REMMINA_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME:-/tmp}/.config}"
 REMMINA_PREF_FILE="$REMMINA_CONFIG_HOME/remmina/remmina.pref"
 mkdir -p "$(dirname "$REMMINA_PREF_FILE")"
@@ -148,10 +150,10 @@ elif ! grep -Eq '^[[:space:]]*rdp_auth_filter[[:space:]]*=' "$REMMINA_PREF_FILE"
 fi
 unset REMMINA_CONFIG_HOME REMMINA_PREF_FILE
 
-# 固定使用 AppImage 内与 libcrypto.so.3 配套的 OpenSSL provider，保证 FreeRDP 能加载 legacy MD4/RC4。
+# 本程序专属处理：固定使用 AppImage 内与 libcrypto.so.3 配套的 OpenSSL provider，保证 FreeRDP 能加载 legacy MD4/RC4。
 export OPENSSL_MODULES="$LIBDIR/ossl-modules"
 
-# 为 fcitx5/IBus 生成包含当前 AppImage 挂载路径的 GTK3 模块缓存。
+# 本程序专属处理：为 fcitx5/IBus 生成包含当前 AppImage 挂载路径的 GTK3 模块缓存。
 GTK_IMMODULE_DIR=""
 for candidate in "$APPDIR/usr/lib/gtk-3.0/3.0.0/immodules" "$APPDIR/usr/lib/"*/gtk-3.0/3.0.0/immodules; do
   if [[ -d "$candidate" ]]; then
@@ -195,20 +197,20 @@ EOF
 esac
 unset candidate IM_HINT IM_CACHE_DIR IM_CACHE_FILE
 
-# WebKitGTK 的编译路径已改为包内 webkit 目录，子进程使用同一目录。
+# 本程序专属处理：WebKitGTK 的编译路径已改为包内 webkit 目录，子进程使用同一目录。
 export WEBKIT_EXEC_PATH="$APPDIR/webkit"
 
-# Remmina 的 RDP 插件从包内 FreeRDP 模块目录加载组件。
+# 本程序专属处理：Remmina 的 RDP 插件从包内 FreeRDP 模块目录加载组件。
 FREERDP_DIR="$(find "$APPDIR/usr/lib" -type d -name 'freerdp[0-9]*' -print -quit)"
 if [[ -n "$FREERDP_DIR" ]]; then
   export FREERDP_PLUGIN_PATH="$FREERDP_DIR"
 fi
 
-# 保留 Remmina 已采用的 WebKitGTK 和 GDK 图形兼容设置。
+# 本程序专属处理：保留 Remmina 已采用的 WebKitGTK 和 GDK 图形兼容设置。
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
 export GDK_GL=disable
 
-# 清除显式驱动目录设置，交由宿主环境选择图形驱动。
+# 本程序专属处理：清除显式驱动目录设置，交由宿主环境选择图形驱动。
 unset LIBGL_DRIVERS_PATH
 unset LIBVA_DRIVERS_PATH
 unset VDPAU_DRIVER_PATH
@@ -217,7 +219,7 @@ unset __EGL_VENDOR_LIBRARY_FILENAMES
 unset VK_DRIVER_FILES
 unset VK_ICD_FILENAMES
 
-# Remmina 的插件、翻译和 WebKitGTK 路径依赖 AppDir 工作目录。
+# 本程序专属处理：Remmina 的插件、翻译和 WebKitGTK 路径依赖 AppDir 工作目录。
 cd "$APPDIR"
 
 # 启动包内程序，并保留传入的命令行参数。
@@ -232,10 +234,10 @@ chmod +x "$APPDIR/AppRun"
 # 指定 GTK 主版本。
 export DEPLOY_GTK_VERSION=3
 
-# 部署 Remmina 已使用的 GStreamer bad 插件。
+# 本程序专属处理：部署 Remmina 已使用的 GStreamer bad 插件。
 export GSTREAMER_INCLUDE_BAD_PLUGINS=1
 
-# 部署 Remmina 及其运行组件时不剥离符号。
+# 本程序专属处理：部署 Remmina 及其运行组件时不剥离符号。
 export NO_STRIP=1
 
 # 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
@@ -243,7 +245,7 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --plugin gstreamer 
 
 ############### 整理产物 ###############
 
-# Remmina 的编译路径需要在依赖部署后修正，同时移除临时扫描副本和不随包发布的运行库。
+# 本程序专属处理：Remmina 的编译路径需要在依赖部署后修正，同时移除临时扫描副本和不随包发布的运行库。
 "$SCRIPT_DIR/patches/fix_runtime.sh" "$APPDIR"
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。

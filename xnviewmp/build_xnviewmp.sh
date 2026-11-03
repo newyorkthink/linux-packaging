@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+############# 初始化脚本 #############
+
 # 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
 set -Eeuo pipefail
 
@@ -36,23 +38,23 @@ VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_relea
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
 "$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
 
-# 指定 XnView MP 官方安装包中的桌面入口和图标路径，供图标修正及 linuxdeploy 图标部署使用。
+# 本程序专属处理：指定 XnView MP 官方安装包中的桌面入口和图标路径，供图标修正及 linuxdeploy 图标部署使用。
 DESKTOP_FILE="$APPDIR/usr/share/applications/XnView.desktop"
 ICON_FILE="$APPDIR/opt/XnView/xnview.png"
 
-# XnView MP 官方桌面入口使用绝对图标路径，需改为图标名称才能通过公共封装检查。
+# 本程序专属处理：XnView MP 官方桌面入口使用绝对图标路径，需改为图标名称才能通过公共封装检查。
 sed -i 's|^Icon=.*|Icon=xnview|' "$DESKTOP_FILE"
 
-# 复制应用自带的 Qt XCB 平台库，供 Qt 插件识别模块。
+# 本程序专属处理：复制应用自带的 Qt XCB 平台库，供 Qt 插件识别模块。
 cp -a "$APPDIR/opt/XnView/lib"/libQt6XcbQpa.so* "$APPDIR/usr/lib/"
 
-# XnView MP 的包内组件依赖 PulseAudio、Wayland，Qt 多媒体还会动态加载 PipeWire 和 VA-API，因此一并补入对应运行库。
+# 本程序专属处理：XnView MP 的包内组件依赖 PulseAudio、Wayland，Qt 多媒体还会动态加载 PipeWire 和 VA-API，因此一并补入对应运行库。
 for runtime_lib in libpulse.so.0 libwayland-client.so.0 libwayland-cursor.so.0 libwayland-egl.so.1 libpipewire-0.3.so.0 libva.so.2 libva-drm.so.2 libva-x11.so.2; do
-  # 复制当前运行库及其版本文件。
+  # 本程序专属处理：复制当前运行库及其版本文件。
   cp -a "/usr/lib/x86_64-linux-gnu/${runtime_lib}"* "$APPDIR/usr/lib/"
 done
 
-# 为 XnView MP 补入的 PulseAudio 库还依赖 libpulsecommon，因此同时复制该配套库。
+# 本程序专属处理：为 XnView MP 补入的 PulseAudio 库还依赖 libpulsecommon，因此同时复制该配套库。
 cp -a /usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-*.so "$APPDIR/usr/lib/"
 
 ############# 准备 AppRun ##############
@@ -107,18 +109,18 @@ chmod +x "$APPDIR/AppRun"
 
 ############### 核心打包 ###############
 
-# 创建独立的 Qt 查询工具入口，避免应用自带运行库影响系统工具。
+# 本程序专属处理：创建独立的 Qt 查询工具入口，避免应用自带运行库影响系统工具。
 cat > "$TOOLS_DIR/qmake6" <<'EOF_QMAKE'
 #!/usr/bin/env bash
 
-# 清除运行库搜索路径。
+# 本程序专属处理：清除运行库搜索路径。
 unset LD_LIBRARY_PATH
 
-# 启动系统工具，并保留传入的命令行参数。
+# 本程序专属处理：启动系统工具，并保留传入的命令行参数。
 exec /usr/bin/qmake6 "$@"
 EOF_QMAKE
 
-# 为工具入口添加执行权限。
+# 本程序专属处理：为工具入口添加执行权限。
 chmod +x "$TOOLS_DIR/qmake6"
 
 # 指定 Qt 查询工具。

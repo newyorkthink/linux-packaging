@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+############# 初始化脚本 #############
+
 # 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
 set -Eeuo pipefail
 
@@ -33,10 +35,10 @@ VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" mediainfo "$
 
 ########## 准备桌面资源和运行库 #########
 
-# MediaInfo CLI 包没有自带图标，下载官方 SVG 到 AppDir，供桌面入口和最终封装使用。
+# 本程序专属处理：MediaInfo CLI 包没有自带图标，下载官方 SVG 到 AppDir，供桌面入口和最终封装使用。
 "$SCRIPT_DIR/../common/download/download_file.sh" "https://raw.githubusercontent.com/MediaArea/MediaInfo/master/Source/Resource/Image/MediaInfo.svg" "$APPDIR/usr/share/icons/hicolor/scalable/apps/mediainfo.svg"
 
-# 检查 MediaInfo CLI 包中的桌面入口，仅在缺失时生成支持终端运行的入口。
+# 本程序专属处理：检查 MediaInfo CLI 包中的桌面入口，仅在缺失时生成支持终端运行的入口。
 mapfile -t MEDIAINFO_DESKTOP_FILES < <(dpkg -L mediainfo | awk '/\/usr\/share\/applications\/.*\.desktop$/ {print}')
 if (( ${#MEDIAINFO_DESKTOP_FILES[@]} == 0 )); then
   cat > "$SOURCE_DIR/mediainfo.desktop" <<'EOF'
@@ -56,7 +58,7 @@ else
   exit 1
 fi
 
-# 将选定的桌面入口放入 AppDir。
+# 本程序专属处理：将选定的桌面入口放入 AppDir。
 cp "$SOURCE_DIR/mediainfo.desktop" "$APPDIR/usr/share/applications/mediainfo.desktop"
 
 ############# 准备 AppRun ##############

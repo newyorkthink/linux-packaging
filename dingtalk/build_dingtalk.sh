@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+############# 初始化脚本 #############
+
 # 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
 set -Eeuo pipefail
 
@@ -28,13 +30,13 @@ VERSION="$("$SCRIPT_DIR/../common/aur/install_and_extract_deb_source.sh" dingtal
 
 ########## 准备桌面资源和运行库 #########
 
-# 沿用必要的 AUR 布局调整和组件清理，准备官方运行目录、桌面入口和图标。
+# 本程序专属处理：沿用必要的 AUR 布局调整和组件清理，准备官方运行目录、桌面入口和图标。
 "$SCRIPT_DIR/patches/prepare_appdir.sh" "$APPDIR" "$SOURCE_DIR/dingtalk-bin"
 
 # 复制构建环境中的 NSS 核心库及其配套动态加载模块。
 "$SCRIPT_DIR/../common/linuxdeploy/copy_nss_runtime.sh" "$APPDIR/opt/dingtalk/release" --with-nspr
 
-# 保留钉钉的 NSS 符号检查、可执行栈清理、递归依赖收集及缺失依赖检查。
+# 本程序专属处理：保留钉钉的 NSS 符号检查、可执行栈清理、递归依赖收集及缺失依赖检查。
 "$SCRIPT_DIR/patches/collect_runtime.sh" "$APPDIR"
 
 ############# 准备 AppRun ##############
@@ -52,22 +54,22 @@ RELEASE_DIR="$APPDIR/opt/dingtalk/release"
 CEF_LIB_DIR="$RELEASE_DIR/plugins/dtwebview"
 RUNTIME_LIB="$APPDIR/usr/lib/dingtalk-runtime"
 
-# 保留程序和私有运行库的搜索路径。
+# 本程序专属处理：保留程序和私有运行库的搜索路径。
 export PATH="$APPDIR/usr/bin:${PATH:-/usr/bin:/bin}"
 export LD_LIBRARY_PATH="$RELEASE_DIR:$CEF_LIB_DIR:$RUNTIME_LIB"
 
-# 预加载内置 CEF，保持与钉钉官方 Elevator.sh 的启动方式一致。
+# 本程序专属处理：预加载内置 CEF，保持与钉钉官方 Elevator.sh 的启动方式一致。
 export LD_PRELOAD="$CEF_LIB_DIR/libcef.so${LD_PRELOAD:+:$LD_PRELOAD}"
-# 保留原有显示后端选择顺序。
+# 本程序专属处理：保留原有显示后端选择顺序。
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland;xcb}"
 # 设置界面自动缩放。
 export QT_AUTO_SCREEN_SCALE_FACTOR="${QT_AUTO_SCREEN_SCALE_FACTOR:-1}"
-# 沿用输入法默认值，允许宿主环境覆盖。
+# 本程序专属处理：沿用输入法默认值，允许宿主环境覆盖。
 export QT_IM_MODULE="${QT_IM_MODULE:-fcitx}"
 export GTK_IM_MODULE="${GTK_IM_MODULE:-fcitx}"
 export XMODIFIERS="${XMODIFIERS:-@im=fcitx}"
 
-# 保留官方 Qt 插件目录及原有搜索顺序。
+# 本程序专属处理：保留官方 Qt 插件目录及原有搜索顺序。
 if [[ -d "$RELEASE_DIR/plugins" ]]; then
     export QT_PLUGIN_PATH="$RELEASE_DIR/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
 fi
@@ -75,7 +77,7 @@ if [[ -d "$RELEASE_DIR/plugins/platforms" ]]; then
     export QT_QPA_PLATFORM_PLUGIN_PATH="$RELEASE_DIR/plugins/platforms"
 fi
 
-# 在官方运行目录中启动程序，保持相邻资源的相对路径。
+# 本程序专属处理：在官方运行目录中启动程序，保持相邻资源的相对路径。
 cd "$RELEASE_DIR"
 
 # 启动包内程序，并保留传入的命令行参数。

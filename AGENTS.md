@@ -397,7 +397,7 @@ Plan 的选择规则：
 **所有实际调用 linuxdeploy 的项目，均须先完整阅读并严格遵守 [linuxdeploy_projects.md](./linuxdeploy_projects.md)。** 标准参考为 [Joplin（GTK）](./joplin/build_joplin.sh)、[XnView MP（Qt）](./xnviewmp/build_xnviewmp.sh) 和 [MediaInfo（CLI）](./mediainfo/build_mediainfo_linuxdeploy.sh)，不得另造模板或混用其他打包路线。
 
 - 通用命令、注释、顺序、缩进和空行逐字保留；命令保持单行，不加反斜杠续行。依赖、路径、AppRun 及框架配置按程序实际需要确定，不照抄其他应用的专属修复，也不为凑行数加入无关内容。
-- [linuxdeploy-comments.md](./docs/linuxdeploy-comments.md) 只收录跨项目共用的固定注释。软件专属的修复、路径调整、补库及其注释放在本项目的 `docs/template-deviations.md`，不加入公共表，也不要求先在公共表登记。
+- [linuxdeploy-comments.md](./docs/linuxdeploy-comments.md) 只收录跨项目共用的固定注释。程序专属注释在构建脚本中使用 `# 本程序专属处理：`，修复、路径调整和补库的依据记录在本项目的 `docs/template-deviations.md`，无需在公共注释表登记。
 - linuxdeploy 专属差异和配置只简记处理位置、原因、必要代码或依据，由 README 提供入口；不重复整份脚本或 AppRun。既有 `hardcoded.md` 和故障历史保留，不重复扩写同一说明。此项为 linuxdeploy 文档约定，其他打包路线不变。
 - linuxdeploy 项目的专属补丁和修复脚本统一放入本项目的 `patches/`：源码或文本补丁使用 `.patch`，资源准备和运行时修复按任务使用 `.sh` 或 `.py`。公共机制仍放在 `common/`，不把单个应用的修复公共化，也不要求每个项目创建相同脚本。
 - 主 build 按实际阶段单行调用 `patches/` 脚本；源码补丁在下载并准备应用时应用，资源准备放在准备桌面资源和运行库，依赖部署后的修复放在整理产物且先于最终封装。AppRun 按上文规则完整内联在主 build，仅允许经批准的长脚本例外。旧入口须在调用方获准迁移后再移除，不同时执行新旧修复。
@@ -565,6 +565,8 @@ linuxdeploy 项目的记录位置与简写格式按前述 linuxdeploy 专属文�
 **既定模板是唯一允许的格式。必须以仓库当前版本中对应的标准脚本为底稿，逐字逐行保留通用内容。分区、命令、参数顺序、注释、标点、缩进、空格和空行必须逐处对应。严禁另起格式、拼接其他模板或做等价改写。仅可替换模板明确允许变化的参数，并在规定位置保留经用户逐项批准且已记录的专属技术处理。**
 
 AppDir / 官方 appimagetool 体系有四个通用标准参考。[Kitty](./kitty/build_kitty.sh) 对应直接封装，[Joplin](./joplin/build_joplin.sh)、[XnView MP](./xnviewmp/build_xnviewmp.sh) 和 [MediaInfo](./mediainfo/build_mediainfo_linuxdeploy.sh) 分别对应 linuxdeploy 的 GTK、Qt 和 CLI / 无框架插件流程。拟稿前必须核对当前任务适用的参考。直接封装以 Kitty 为底稿，同时对照其余三个参考中适用的共用分区、固定注释和公共调用。
+
+**linuxdeploy 和直接 appimagetool 的标准构建脚本必须在 shebang 下方保留固定分区 `############# 初始化脚本 #############`，并在该分区启用严格模式、定位脚本目录。程序专属注释必须以 `# 本程序专属处理：` 开头，冒号后直接说明具体操作。固定注释和已有来源标注必须逐字保留。**
 
 凡按照同一标准模板编写的文件，必须严格保持模板规定的代码结构、分区顺序、命令位置和注释位置。已经确定的模板内容不得擅自移动、拆分、合并、增加、删除或改写。
 
