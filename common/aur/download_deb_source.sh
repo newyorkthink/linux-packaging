@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 保留原三个位置参数；额外能力由调用方明确启用。
 if (( $# < 3 )) || [[ -z "$1" || -z "$2" || -z "$3" ]]; then
-  echo "用法：$0 <AUR 包名> <架构> <DEB 输出文件> [--user-agent <客户端标识>] [--wayback] [--deb] [--version-file <文件>] [--package-version-file <文件>] [--makepkg-source-dir <目录>]" >&2
+  echo "用法：$0 <AUR 包名> <架构> <DEB 输出文件> [--user-agent <客户端标识>] [--wayback] [--deb] [--version-file <文件>] [--package-version-file <文件>] [--makepkg-source-dir <目录>] [--source-filename <DEB 文件名>]" >&2
   exit 2
 fi
 AUR_PACKAGE="$1"
@@ -19,11 +19,12 @@ CHECK_DEB=false
 VERSION_FILE=""
 PACKAGE_VERSION_FILE=""
 MAKEPKG_SOURCE_DIR=""
+SELECTED_FILENAME=""
 
 # 只解析本入口新增的可选参数，旧调用不改变下载方式或输出。
 while (( $# > 0 )); do
   case "$1" in
-    --user-agent|--version-file|--package-version-file|--makepkg-source-dir)
+    --user-agent|--version-file|--package-version-file|--makepkg-source-dir|--source-filename)
       (( $# >= 2 )) && [[ -n "$2" && "$2" != --* ]] || {
         echo "错误：$1 需要一个非空参数。" >&2
         exit 2
@@ -33,6 +34,7 @@ while (( $# > 0 )); do
         --version-file) target=VERSION_FILE ;;
         --package-version-file) target=PACKAGE_VERSION_FILE ;;
         --makepkg-source-dir) target=MAKEPKG_SOURCE_DIR ;;
+        --source-filename) target=SELECTED_FILENAME ;;
       esac
       [[ -z "${!target}" ]] || {
         echo "错误：$1 不得重复指定。" >&2
@@ -125,8 +127,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# 从当前 .SRCINFO 取得唯一的架构专用 DEB 地址和对应的完整摘要。
+# 从当前 .SRCINFO 取得默认或显式选中的 DEB 地址及对应摘要。
 RESOLVE_OPTIONS=()
+[[ -z "$SELECTED_FILENAME" ]] || RESOLVE_OPTIONS+=(--source-filename "$SELECTED_FILENAME")
 [[ -z "$MAKEPKG_SOURCE_DIR" ]] || RESOLVE_OPTIONS+=(--with-source-filename)
 "$SCRIPT_DIR/resolve_deb_source.sh" "$AUR_PACKAGE" "$AUR_ARCH" "$work_dir" "$work_dir/source.env" "$work_dir/dependencies.txt" "${RESOLVE_OPTIONS[@]}"
 

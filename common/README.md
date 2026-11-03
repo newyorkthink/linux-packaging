@@ -16,8 +16,8 @@
 - `linuxdeploy/copy_nss_runtime.sh <目标 lib 目录> [--with-nspr]` 默认继续复制同一 Debian / Ubuntu 环境的 13 个 NSS 核心库、动态加载模块及校验文件，原单参数调用和复制清单保持不变。只有显式传入 `--with-nspr` 时才额外复制 `libnspr4.so`、`libplc4.so`、`libplds4.so`，形成完整 16 文件集合；不安装依赖、不改启动环境、不替调用方执行符号版本检查。`libnssckbi.so`、`libnssdbm3.so`、`libsoftokn3.so` 及后两者的 `.chk` 优先从完整的 `/usr/lib/<multiarch>/nss/` 取得；该组不完整时，整组改用 `/usr/lib/<multiarch>/`，不跨目录拼接。调用方须提前安装对应运行库及提供 `dpkg-architecture` 的工具，源文件缺失时直接失败。
 - `linuxdeploy/prepare_locale.sh <locale 源名称> <字符集> <完整输出目录>` 只创建输出父目录并执行 `localedef --no-archive`，把 locale 数据写入调用方指定的位置；不安装软件、不修改宿主 locale、不创建 `.env`，也不改写 AppRun。调用方先安装提供 `localedef`、locale 源与字符集数据的 `locales` 包，在应用解包后、正式 linuxdeploy 部署前单行调用；运行时由 AppRun 设置语言变量及 `LOCPATH`。生成失败直接退出，不回退到宿主 locale。 仅为已判定需要的区域环境生成数据；有中文翻译且明确采用中文界面的 GUI 可使用中文参数，CLI 或没有中文翻译的 GUI 不因此强制中文。locale 不包含软件翻译或输入法模块，语言选择与输入支持分别由应用处理，具体边界见 [linuxdeploy 中文配置](../linuxdeploy_projects.md#中文环境与输入法的适用范围)。
 - `linuxdeploy/linuxdeploy-plugin-appimage.sh` 是构建时的输出包装入口。工具准备脚本动态下载并校验官方 `linuxdeploy-plugin-appimage`，从资产中只提取原始插件程序为 `appimage-output`，使其从同一目录找到本次下载的 appimagetool；将包装入口安装为工具目录中的 `linuxdeploy-plugin-appimage`，并链接现有图标与权限准备脚本。linuxdeploy 按官方优先级选中外部入口；根 desktop 和图标部署完成后先准备 AppDir，再原样转交参数和 LDAI 环境给官方输出插件。插件类型、API 与帮助查询直接转交官方，不提前处理空 AppDir；直接 `--appimagetool` 模式不下载或安装这些输出文件。说明见 [linuxdeploy 更新兼容](../docs/linuxdeploy-update-compatibility.md)。
-- `aur/resolve_deb_source.sh` 接收 AUR 包名、架构、工作目录、元数据输出文件和依赖输出文件；仅接受同名单包 `.SRCINFO` 中唯一的架构专用 HTTPS DEB 及对应的完整摘要。优先沿用 SHA-256，仅在当前架构没有 SHA-256 时读取 SHA-512；无效或 `SKIP` 的 SHA-256 不会因存在 SHA-512 而被跳过。输出可供 Bash 加载的版本、pkgrel、来源、带算法前缀的 `SOURCE_CHECKSUM`，以及去版本约束后的运行依赖。SHA-256 来源继续输出原有 `EXPECTED_SHA256` 字段；SHA-512 来源不输出空的同名字段，新调用统一读取 `SOURCE_CHECKSUM`。不执行 PKGBUILD，不把其他架构或通用 source 的摘要配给当前 DEB。浅克隆和解析只在公共入口完成。 显式追加第六参数 `--with-source-filename` 时才输出 `SOURCE_FILENAME`；按同次 source 的 `名称::URL` 别名或 URL 末段取名，并拒绝空名、路径和换行。原五参数调用不新增字段。
-- `aur/download_deb_source.sh` 接收 AUR 包名、架构和 DEB 输出文件三个参数。复用上述解析入口，在独立临时目录中读取当前来源和 `SOURCE_CHECKSUM`，再调用 `download/download_file.sh` 按指定算法校验并下载；成功或失败后均清理本次临时元数据。原有三个参数保持不变，不安装应用、不解包、不替调用方选择版本元数据，也不写死应用名或下载地址。 可在三个位置参数后显式启用 `--user-agent`、`--wayback`、`--deb`、`--version-file`、`--package-version-file` 和 `--makepkg-source-dir`；不传选项的调用保持原行为，详见下文。
+- `aur/resolve_deb_source.sh` 接收 AUR 包名、架构、工作目录、元数据输出文件和依赖输出文件；默认仅接受同名单包 `.SRCINFO` 中唯一的架构专用 HTTPS DEB 及对应的完整摘要。优先沿用 SHA-256，仅在当前架构没有 SHA-256 时读取 SHA-512；无效或 `SKIP` 的 SHA-256 不会因存在 SHA-512 而被跳过。输出可供 Bash 加载的版本、pkgrel、来源、带算法前缀的 `SOURCE_CHECKSUM`，以及去版本约束后的运行依赖。SHA-256 来源继续输出原有 `EXPECTED_SHA256` 字段；SHA-512 来源不输出空的同名字段，新调用统一读取 `SOURCE_CHECKSUM`。不执行 PKGBUILD，不把其他架构或通用 source 的摘要配给当前 DEB。浅克隆和解析只在公共入口完成。 显式传入 `--with-source-filename` 时才输出 `SOURCE_FILENAME`；按同次 source 的 `名称::URL` 别名或 URL 末段取名，并拒绝空名、路径和换行。原五参数调用不新增字段。可显式传入 `--source-filename <DEB 文件名>`，在通用与当前架构来源中按缓存文件名唯一匹配，并按该组的原索引读取摘要。文件名可用 `{version}` 代表同次快照的 `pkgver`。
+- `aur/download_deb_source.sh` 接收 AUR 包名、架构和 DEB 输出文件三个参数。复用上述解析入口，在独立临时目录中读取当前来源和 `SOURCE_CHECKSUM`，再调用 `download/download_file.sh` 按指定算法校验并下载；成功或失败后均清理本次临时元数据。原有三个参数保持不变，不安装应用、不解包、不替调用方选择版本元数据，也不写死应用名或下载地址。 可在三个位置参数后显式启用 `--user-agent`、`--wayback`、`--deb`、`--version-file`、`--package-version-file`、`--makepkg-source-dir` 和 `--source-filename`；不传选项的调用保持原行为，详见下文。
 - `aur/install_and_extract_deb_source.sh` 接收 AUR 包名、AUR 架构、来源工作目录、DEB 路径、解包目录、预期 DEB 包名和 DEB 架构。组合现有来源解析、摘要下载、版本读取、元数据校验、APT 安装和归档解包入口；全部成功后仅向 stdout 返回一行实际版本。保留同次 AUR 快照、来源元数据和依赖清单，不执行 PKGBUILD，也不改旧入口。参数与使用边界见下文。
 - `download/download_file.sh <HTTPS URL> <输出文件> [摘要] [User-Agent]` 保留原下载、重试、超时和原子替换行为。不传摘要时保持原行为；无前缀的 64 位十六进制摘要和 `sha256:<摘要>` 使用 SHA-256，新增的 `sha512:<128 位十六进制摘要>` 使用 SHA-512。摘要格式错误或校验失败时不替换已有输出文件。该扩展不改变其他专用下载入口各自的摘要格式。 第四个可选参数指定客户端标识，省略或传空字符串时保留 curl 默认行为；不校验摘要而指定客户端标识时，第三个参数传空字符串。客户端标识包含回车或换行时拒绝下载。
 - `download/download_apt_repository_deb.sh` 从调用方指定的 HTTPS APT 仓库读取签名索引，使用指定的官方密钥验证 `InRelease`，核对索引与 DEB 的 SHA-256、大小，以及 DEB 的包名、架构和版本；按 Debian 版本规则选择最高版本，成功后写入 DEB 与来源版本文件，stdout 只返回版本。不安装应用、不配置系统 APT 源；现有下载、版本读取和归档接口保持不变。完整参数与支持范围见下文。
@@ -27,7 +27,7 @@
 - `github/install_and_extract_latest_stable_release_deb.sh` 保留原 GitHub 与 `--checksum` 接口，提供 `--html-checksum [--json-html <HTML 字段路径>] <校验来源 URL> '<完整资产名的 Python 正则>' <资产目录 URL> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]`。新模式调用上述 HTML 下载入口，在安装前核对 DEB 实际版本及可选的包名、架构；随后复用公共 APT 和归档入口安装并解包同一份 DEB，全部成功后才返回版本。
 - `github/download_latest_stable_named_asset.sh` 接收仓库、固定资产名、目标文件及可选的 DEB 包名和架构。只选择最新正式版本中的唯一资产，核对 GitHub SHA-256；直链失败时用同一资产 ID 和现有认证令牌回退，stdout 仅返回版本。带 `{version}` 的资产仍使用原有模板入口。
 - `build/prepare_x86_64_workspace.sh` 接收项目根目录、`--skip-create`、一个清理后不创建的一级目录名，以及其余清理后重建的一级目录名。先检查 x86_64 和全部目录名，再只处理这个项目下明确传入的目录；应用自行决定哪些工作目录需要重建。
-- `arch/install_packages.sh` 保留 `--base` 和普通包名调用。只有显式指定 `--aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--wayback] -- [额外软件包...]` 时，才先安装额外软件包、复用公共 AUR 下载入口准备已校验 DEB，再交由 yay / makepkg 按原 PKGBUILD 校验和安装；使用独立来源缓存及构建目录，详见下文。
+- `arch/install_packages.sh` 保留 `--base` 和普通包名调用。只有显式指定 `--aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]` 时，才先安装额外软件包、复用公共 AUR 下载入口准备已校验 DEB，再交由 yay / makepkg 按原 PKGBUILD 校验和安装；使用独立来源缓存及构建目录，详见下文。
 - `arch/get_package_version.sh` 接收一个已安装的 Arch 软件包名，从 `pacman -Q` 读取版本并去掉 epoch 和发行版 `pkgrel`，只向 stdout 输出非空的上游版本。需要保留发行版修订号的应用不要调用该入口。
 - `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
@@ -40,6 +40,7 @@
 | 可选参数 | 行为 |
 | --- | --- |
 | `--user-agent <客户端标识>` | 透传给公共下载入口；归档模式同时用于官方文件、CDX 列表和归档文件。空值、重复参数、回车或换行会被拒绝。 |
+| `--source-filename <DEB 文件名>` | 在通用 `source` 和当前架构 `source_<arch>` 中按 makepkg 缓存文件名精确选择一项。支持 `名称::URL` 别名及 `{version}` 占位符。只读取匹配来源组同索引的摘要，来源重复、数组长度不符或选中摘要无效时失败。 |
 | `--wayback` | 官方文件未通过原摘要时，复用既有归档入口查同一 URL；SHA-256 和显式 SHA-512 均保持原摘要，不改来源或降低版本。 |
 | `--deb` | 下载后通过公共 DEB 元数据入口核对实际完整 Version 与同次 AUR pkgver 相同；不校验调用方未提供的包名或 DEB 架构。 |
 | `--version-file <文件>` | 在上述版本核对通过后写入 pkgver，供公共版本读取入口使用。 |
@@ -59,7 +60,7 @@
 
 ### Arch 安装时复用已校验的 AUR DEB
 
-入口为 `arch/install_packages.sh` 的显式 `--aur-deb` 模式。使用场景是 AUR 当前架构只有一个可由现有解析器识别的 DEB，且安装阶段也需要公共下载的客户端标识或同 URL 归档能力。其他来源继续使用原包名接口；不把此模式自动应用到全部 AUR 包。
+入口为 `arch/install_packages.sh` 的显式 `--aur-deb` 模式。默认读取唯一的架构专用 DEB。配方包含通用来源或多个文件时，可以显式传入 `--source-filename` 选择主 DEB。其他来源由原配方下载和校验。安装阶段也可按需启用公共下载的客户端标识或同 URL 归档能力。其他 AUR 包可继续使用原包名接口。
 
 ```bash
 # 安装阶段先校验官方来源，再按原 AUR PKGBUILD 安装应用及依赖。

@@ -5,7 +5,7 @@ set -Eeuo pipefail
 if [[ "${1:-}" == --aur-deb ]]; then
   shift
   if (( $# < 2 )) || [[ ! "$1" =~ ^[a-z0-9][a-z0-9@._+-]*$ || "$1" == *..* || ! "$2" =~ ^[a-zA-Z0-9_]+$ ]]; then
-    echo "用法：$0 --aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--wayback] -- [额外软件包...]" >&2
+    echo "用法：$0 --aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]" >&2
     exit 2
   fi
   AUR_PACKAGE="$1"
@@ -13,6 +13,7 @@ if [[ "${1:-}" == --aur-deb ]]; then
   shift 2
   DOWNLOAD_OPTIONS=()
   USER_AGENT=""
+  SELECTED_FILENAME=""
   USE_WAYBACK=false
   SEPARATOR=false
   while (( $# > 0 )); do
@@ -24,6 +25,15 @@ if [[ "${1:-}" == --aur-deb ]]; then
         }
         USER_AGENT="$2"
         DOWNLOAD_OPTIONS+=(--user-agent "$USER_AGENT")
+        shift 2
+        ;;
+      --source-filename)
+        if (( $# < 2 )) || [[ -n "$SELECTED_FILENAME" || "$2" != *.deb || "$2" == --* || "$2" == */* || "$2" == *$'\r'* || "$2" == *$'\n'* ]]; then
+          echo "错误：--source-filename 需要唯一的 DEB 文件名，可用 {version} 代表 pkgver。" >&2
+          exit 2
+        fi
+        SELECTED_FILENAME="$2"
+        DOWNLOAD_OPTIONS+=(--source-filename "$SELECTED_FILENAME")
         shift 2
         ;;
       --wayback)
