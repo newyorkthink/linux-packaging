@@ -1,6 +1,86 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# 已校验 DEB 来源模式只在显式请求时启用；原基础包和包名参数保持原样。
+if [[ "${1:-}" == --aur-deb ]]; then
+  shift
+  if (( $# < 2 )) || [[ ! "$1" =~ ^[a-z0-9][a-z0-9@._+-]*$ || "$1" == *..* || ! "$2" =~ ^[a-zA-Z0-9_]+$ ]]; then
+    echo "用法：$0 --aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--wayback] -- [额外软件包...]" >&2
+    exit 2
+  fi
+  AUR_PACKAGE="$1"
+  AUR_ARCH="$2"
+  shift 2
+  DOWNLOAD_OPTIONS=()
+  USER_AGENT=""
+  USE_WAYBACK=false
+  SEPARATOR=false
+  while (( $# > 0 )); do
+    case "$1" in
+      --user-agent)
+        (( $# >= 2 )) && [[ -n "$2" && "$2" != --* && -z "$USER_AGENT" && "$2" != *$'\r'* && "$2" != *$'\n'* ]] || {
+          echo "错误：--user-agent 需要唯一且不含换行的非空值。" >&2
+          exit 2
+        }
+        USER_AGENT="$2"
+        DOWNLOAD_OPTIONS+=(--user-agent "$USER_AGENT")
+        shift 2
+        ;;
+      --wayback)
+        [[ "$USE_WAYBACK" == false ]] || {
+          echo "错误：--wayback 不得重复指定。" >&2
+          exit 2
+        }
+        USE_WAYBACK=true
+        DOWNLOAD_OPTIONS+=(--wayback)
+        shift
+        ;;
+      --)
+        SEPARATOR=true
+        shift
+        break
+        ;;
+      *)
+        echo "错误：不支持的安装选项：$1" >&2
+        exit 2
+        ;;
+    esac
+  done
+  [[ "$SEPARATOR" == true ]] || {
+    echo "错误：请用 -- 分隔来源选项与额外软件包。" >&2
+    exit 2
+  }
+  SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  DOWNLOAD_DEB="$SCRIPT_DIR/../aur/download_deb_source.sh"
+  command -v yay >/dev/null 2>&1 && [[ -x "$DOWNLOAD_DEB" ]] || {
+    echo "错误：缺少 yay 或公共 AUR 下载入口。" >&2
+    exit 1
+  }
+
+  # 先安装调用方原有的运行依赖，应用安装仍在同一公共阶段完成。
+  if (( $# > 0 )); then
+    yay -S --noconfirm --needed "$@"
+  fi
+
+  # 使用独立缓存和构建目录，避免旧的错误响应被 makepkg 当成已下载源文件。
+  INSTALL_WORK="$(mktemp -d "${TMPDIR:-/tmp}/arch-aur-deb.XXXXXXXX")"
+  cleanup() {
+    rm -rf -- "$INSTALL_WORK"
+  }
+  trap cleanup EXIT
+  mkdir -p "$INSTALL_WORK/sources" "$INSTALL_WORK/build"
+  # 仅调整本次临时目录：非 root 构建用户可进入，并可在带粘滞位的子目录工作。
+  chmod 711 "$INSTALL_WORK"
+  chmod 1777 "$INSTALL_WORK/sources" "$INSTALL_WORK/build"
+
+  # 原摘要通过后才填入 makepkg 期望的文件名，不改 PKGBUILD 或校验值。
+  "$DOWNLOAD_DEB" "$AUR_PACKAGE" "$AUR_ARCH" "$INSTALL_WORK/verified.deb" "${DOWNLOAD_OPTIONS[@]}" --makepkg-source-dir "$INSTALL_WORK/sources"
+
+  # SRCDEST 是 makepkg 的来源缓存；只作用于本次 yay，仍由 AUR 规则再次校验和安装。
+  SRCDEST="$INSTALL_WORK/sources" yay -S --noconfirm --needed --builddir "$INSTALL_WORK/build" "$AUR_PACKAGE"
+  exit 0
+fi
+
 if [[ "${1:-}" == --base ]]; then
   shift
   (( $# == 0 )) || {

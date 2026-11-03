@@ -18,7 +18,7 @@ pkgforge-dev 当前未找到 ToDesk 专属打包仓库；上游参考索引保�
 
 | 阶段 | 处理与实际位置 | 必要性和边界 |
 | --- | --- | --- |
-| 安装 | [build_todesk.sh](../build_todesk.sh) 安装 todesk-bin、原有 XCB / PulseAudio / 输入模块，以及 libpipewire。 | 应用安装负责 AUR 声明的 gtk3、AppIndicator 和中文字体依赖；IBus 来自公共基础包。原有额外依赖保留；libpipewire 来自当前四入口中三个 ELF 的直接依赖。只安装客户端库，不增加服务切换。 |
+| 安装 | [build_todesk.sh](../build_todesk.sh) 调用 `arch/install_packages.sh --aur-deb todesk-bin "$(uname -m)" --user-agent Mozilla --wayback --`，随后传原有 XCB / PulseAudio / 输入模块、dpkg 和 libpipewire。 | run 41466283245 在 AUR wget 阶段取到 989 字节 HTML，后续公共下载尚未执行。公共入口先校验来源并填入 SRCDEST，再通过独立 builddir 让原 AUR 规则复核和安装，避免旧错误源文件盖过缓存。应用安装及 AUR 运行依赖处理保留；额外依赖不变，不增加服务切换。此衔接属于本仓库兼容处理。 |
 | 下载 | 主脚本单行调用 `aur/download_deb_source.sh`，传入 `--user-agent Mozilla --wayback --deb --version-file work/source-version.txt --package-version-file work/package-version.txt`。 | PKGBUILD 原文为 `DLAGENTS=("https::/usr/bin/wget -U 'Mozilla' -O %o %u")`；本仓库通过公共 curl 入口传入相同标识，属于兼容集成，不冒称逐字复用 wget 命令。上游未说明该客户端标识的具体原因；本次实际请求确认能取得摘要匹配的完整 DEB。 |
 | 布局 | `cp -a work/todesk-unpacked/opt/todesk AppDir/bin/`。 | 完整保留 bin、lib、res 和配置相对布局；最终程序来自独立下载包。没有使用系统安装目录复制替代第二阶段。 |
 | 准备 | [prepare_appdir.sh](../patches/prepare_appdir.sh) 补 config、核对组件和全部直接缺库、准备 desktop 副本。 | config 空目录由 AUR 创建；四入口预检及输入 / 托盘库检查沿用已记录需求。当前 desktop 的 Exec 带 env，必须完整替换为便携入口，不保留 GPU 强制赋值。系统 desktop 不修改。 |
@@ -31,4 +31,4 @@ pkgforge-dev 当前未找到 ToDesk 专属打包仓库；上游参考索引保�
 
 AppRun 继续由 quick-sharun 生成。没有加入宿主 systemd 安装、服务启动、GPU 驱动固定封装或 LIBVA_DRIVER_NAME 强制设置。日志路径映射沿用既有尝试，旧实测仍存在部分宿主 /var/log 访问未拦截；本次没有宣称解决该边界。
 
-原有核心远控实机通过结论保留。478 项隔离验证覆盖组合流程和运行目录准备，不等于真实依赖收集、完整 AppImage 构建或新产物实机验证；完整状态见 [README](../README.md#当前验证状态)。
+原有核心远控实机通过结论保留。本轮 584 项验证包含未改动的官方 libmakepkg 来源处理与原 AUR 摘要复核，补上此前安装替身漏检的下载链；包安装仍使用替身，未运行非 root 完整 makepkg、真实依赖收集、完整 AppImage 构建或新产物实机验证。完整状态见 [README](../README.md#当前验证状态)。

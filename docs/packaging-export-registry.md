@@ -34,6 +34,7 @@
 
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
+| `SRCDEST` | makepkg 来源缓存。公共 Arch 安装入口仅在显式 --aur-deb 模式为单次 yay 传入，并配合独立 --builddir 使用；不写入 AppDir/.env 或改变宿主运行环境。 | common/arch/install_packages.sh；当前由 todesk 显式启用 |
 | `ARCH` | 向打包工具传入目标架构。 | 例如 Keyviz、adspower-global、aionui、gemini |
 | `QMAKE` | 告诉 linuxdeploy 的 Qt 插件用哪个 qmake。Qt5 和 Qt6 不能混。 | 4 个脚本，例如 goldendict、peazip、wemeet、xnviewmp |
 | `QT_SELECT` | 构建机上有多套 Qt 时，指定用 qt5 还是 qt6。 | 3 个脚本，例如 goldendict、wemeet、xnviewmp |

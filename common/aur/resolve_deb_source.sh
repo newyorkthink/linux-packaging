@@ -2,8 +2,8 @@
 set -Eeuo pipefail
 
 # 从 AUR 当前 .SRCINFO 解析唯一的架构专用 DEB 来源，并输出已规范化的构建元数据。
-if (( $# != 5 )); then
-  echo "用法：$0 <AUR 包名> <架构> <工作目录> <元数据输出文件> <依赖输出文件>" >&2
+if (( $# != 5 && $# != 6 )) || { (( $# == 6 )) && [[ "$6" != --with-source-filename ]]; }; then
+  echo "用法：$0 <AUR 包名> <架构> <工作目录> <元数据输出文件> <依赖输出文件> [--with-source-filename]" >&2
   exit 2
 fi
 
@@ -12,6 +12,8 @@ ARCH="$2"
 WORKDIR="$3"
 METADATA_FILE="$4"
 DEPENDENCIES_FILE="$5"
+WITH_SOURCE_FILENAME=false
+[[ "${6:-}" != --with-source-filename ]] || WITH_SOURCE_FILENAME=true
 
 [[ "$PACKAGE" =~ ^[a-z0-9][a-z0-9@._+-]*$ && "$PACKAGE" != *..* ]] || {
   echo "错误：无效 AUR 包名：$PACKAGE" >&2
@@ -102,6 +104,19 @@ SOURCE_URL="${SOURCES[0]#*::}"
   exit 1
 }
 
+# 仅为请求 makepkg 缓存的调用保留原始文件名，兼容 source 中的名称::URL 别名。
+if [[ "$WITH_SOURCE_FILENAME" == true ]]; then
+  if [[ "${SOURCES[0]}" == *::* ]]; then
+    SOURCE_FILENAME="${SOURCES[0]%%::*}"
+  else
+    SOURCE_FILENAME="${SOURCE_URL##*/}"
+  fi
+  [[ -n "$SOURCE_FILENAME" && "$SOURCE_FILENAME" != . && "$SOURCE_FILENAME" != .. && "$SOURCE_FILENAME" != */* && "$SOURCE_FILENAME" != *$'\r'* && "$SOURCE_FILENAME" != *$'\n'* ]] || {
+    echo "错误：AUR 来源缓存文件名必须是安全的单个文件名。" >&2
+    exit 1
+  }
+fi
+
 # 保留 SHA-256 的既有校验规则，不因 SHA-512 存在而回退无效或 SKIP 的 SHA-256。
 if (( ${#SHA256S[@]} == 1 )); then
   EXPECTED_SHA256="${SHA256S[0]}"
@@ -150,6 +165,9 @@ awk -F ' = ' -v arch="$ARCH" '{
     printf 'EXPECTED_SHA256=%q\n' "$EXPECTED_SHA256"
   fi
   printf 'SOURCE_CHECKSUM=%q\n' "$SOURCE_CHECKSUM"
+  if [[ "$WITH_SOURCE_FILENAME" == true ]]; then
+    printf 'SOURCE_FILENAME=%q\n' "$SOURCE_FILENAME"
+  fi
 } > "$METADATA_TEMP"
 mv -f -- "$DEPENDENCIES_TEMP" "$DEPENDENCIES_FILE"
 mv -f -- "$METADATA_TEMP" "$METADATA_FILE"

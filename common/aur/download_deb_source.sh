@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 保留原三个位置参数；额外能力由调用方明确启用。
 if (( $# < 3 )) || [[ -z "$1" || -z "$2" || -z "$3" ]]; then
-  echo "用法：$0 <AUR 包名> <架构> <DEB 输出文件> [--user-agent <客户端标识>] [--wayback] [--deb] [--version-file <文件>] [--package-version-file <文件>]" >&2
+  echo "用法：$0 <AUR 包名> <架构> <DEB 输出文件> [--user-agent <客户端标识>] [--wayback] [--deb] [--version-file <文件>] [--package-version-file <文件>] [--makepkg-source-dir <目录>]" >&2
   exit 2
 fi
 AUR_PACKAGE="$1"
@@ -18,11 +18,12 @@ USE_WAYBACK=false
 CHECK_DEB=false
 VERSION_FILE=""
 PACKAGE_VERSION_FILE=""
+MAKEPKG_SOURCE_DIR=""
 
 # 只解析本入口新增的可选参数，旧调用不改变下载方式或输出。
 while (( $# > 0 )); do
   case "$1" in
-    --user-agent|--version-file|--package-version-file)
+    --user-agent|--version-file|--package-version-file|--makepkg-source-dir)
       (( $# >= 2 )) && [[ -n "$2" && "$2" != --* ]] || {
         echo "错误：$1 需要一个非空参数。" >&2
         exit 2
@@ -31,6 +32,7 @@ while (( $# > 0 )); do
         --user-agent) target=USER_AGENT ;;
         --version-file) target=VERSION_FILE ;;
         --package-version-file) target=PACKAGE_VERSION_FILE ;;
+        --makepkg-source-dir) target=MAKEPKG_SOURCE_DIR ;;
       esac
       [[ -z "${!target}" ]] || {
         echo "错误：$1 不得重复指定。" >&2
@@ -61,6 +63,15 @@ while (( $# > 0 )); do
       ;;
   esac
 done
+
+# 缓存目录是调用方显式提供的独立输出，不改变默认下载目标。
+if [[ -n "$MAKEPKG_SOURCE_DIR" ]]; then
+  MAKEPKG_SOURCE_DIR="$(readlink -m -- "$MAKEPKG_SOURCE_DIR")"
+  [[ "$MAKEPKG_SOURCE_DIR" != / && ! -f "$MAKEPKG_SOURCE_DIR" ]] || {
+    echo "错误：makepkg 来源缓存必须是非根目录。" >&2
+    exit 2
+  }
+fi
 
 # 在联网和创建临时目录前拒绝无效请求头及相互覆盖的输出路径。
 [[ "$USER_AGENT" != *$'\r'* && "$USER_AGENT" != *$'\n'* ]] || {
@@ -102,6 +113,7 @@ fi
 # 为本次解析创建独立的临时目录，避免把中间元数据留在应用目录。
 work_dir="$(mktemp -d "${TMPDIR:-/tmp}/aur-deb-download.XXXXXXXX")"
 METADATA_TEMPS=()
+SOURCE_CACHE_TEMP=""
 
 # 无论成功或失败，都只清理本次创建的临时目录。
 cleanup() {
@@ -109,14 +121,28 @@ cleanup() {
   if (( ${#METADATA_TEMPS[@]} > 0 )); then
     rm -f -- "${METADATA_TEMPS[@]}"
   fi
+  [[ -z "$SOURCE_CACHE_TEMP" ]] || rm -f -- "$SOURCE_CACHE_TEMP"
 }
 trap cleanup EXIT
 
 # 从当前 .SRCINFO 取得唯一的架构专用 DEB 地址和对应的完整摘要。
-"$SCRIPT_DIR/resolve_deb_source.sh" "$AUR_PACKAGE" "$AUR_ARCH" "$work_dir" "$work_dir/source.env" "$work_dir/dependencies.txt"
+RESOLVE_OPTIONS=()
+[[ -z "$MAKEPKG_SOURCE_DIR" ]] || RESOLVE_OPTIONS+=(--with-source-filename)
+"$SCRIPT_DIR/resolve_deb_source.sh" "$AUR_PACKAGE" "$AUR_ARCH" "$work_dir" "$work_dir/source.env" "$work_dir/dependencies.txt" "${RESOLVE_OPTIONS[@]}"
 
 # 载入已经由公共解析入口转义的元数据，不在调用方重复解析来源。
 source "$work_dir/source.env"
+
+# 原文件名只来自同次 .SRCINFO；禁止让缓存文件覆盖版本元数据。
+if [[ -n "$MAKEPKG_SOURCE_DIR" ]]; then
+  SOURCE_CACHE_FILE="$MAKEPKG_SOURCE_DIR/$SOURCE_FILENAME"
+  for existing in "${METADATA_PATHS[@]}"; do
+    [[ "$SOURCE_CACHE_FILE" != "$existing" ]] || {
+      echo "错误：makepkg 来源缓存不能与版本输出重合。" >&2
+      exit 2
+    }
+  done
+fi
 
 # 使用公共下载入口校验指定算法的摘要，并在成功后原子写入调用方指定的文件。
 if [[ "$USE_WAYBACK" == true ]]; then
@@ -135,7 +161,17 @@ if [[ "$CHECK_DEB" == true || -n "$VERSION_FILE$PACKAGE_VERSION_FILE" ]]; then
   "$SCRIPT_DIR/../archive/check_deb_metadata.sh" "$OUTPUT" "$PACKAGE_VERSION" "" ""
 fi
 
-# 所有校验通过后才准备版本文件；先完成全部临时写入，再替换目标文件。
+# 所有校验通过后才原子写入显式请求的来源缓存。
+if [[ -n "$MAKEPKG_SOURCE_DIR" ]]; then
+  mkdir -p -- "$MAKEPKG_SOURCE_DIR"
+  SOURCE_CACHE_TEMP="$(mktemp "$MAKEPKG_SOURCE_DIR/.source.part.XXXXXX")"
+  # makepkg 由非 root 用户执行，只向显式缓存输出提供可读的公共安装包。
+  install -m 644 -- "$OUTPUT" "$SOURCE_CACHE_TEMP"
+  mv -f -- "$SOURCE_CACHE_TEMP" "$SOURCE_CACHE_FILE"
+  SOURCE_CACHE_TEMP=""
+fi
+
+# 版本文件仍按原有显式选项写入。
 for metadata_path in "$VERSION_FILE" "$PACKAGE_VERSION_FILE"; do
   [[ -n "$metadata_path" ]] || continue
   mkdir -p -- "$(dirname -- "$metadata_path")"
