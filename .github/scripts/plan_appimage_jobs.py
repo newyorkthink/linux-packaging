@@ -142,6 +142,7 @@ def main() -> None:
         raise SystemExit(1)
 
     selected_standard = [app for app in catalog if app.get("kind") == "standard" and build[app["key"]]]
+    selected_standard.sort(key=lambda app: app["name"].casefold())
     builds_json = {key: ("true" if build[key] else "false") for key in keys}
     should_build = any(build.values())
     matrix = {
