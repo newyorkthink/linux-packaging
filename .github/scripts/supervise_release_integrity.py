@@ -70,17 +70,36 @@ def main() -> None:
     repair_keys: list[str] = []
     mapping_errors: list[str] = []
 
-    for software_key, entry in sorted(manifest.items()):
+    # 已上传的正式资产即使没有版本条目，也必须纳入监督。
+    missing_entries: dict[str, str] = {}
+    for software_key, apps in catalog_by_software_key.items():
+        if software_key in manifest:
+            continue
+        for app in apps:
+            release_name = app.get("release_name")
+            if isinstance(release_name, str) and any(
+                asset.get("state") == "uploaded"
+                for asset in assets_by_name.get(release_name, [])
+            ):
+                missing_entries[software_key] = release_name
+                break
+
+    for software_key in sorted(manifest.keys() | missing_entries.keys()):
         reasons: list[str] = []
+        entry = manifest.get(software_key)
         asset_name = entry.get("asset") if isinstance(entry, dict) else None
         manifest_sha256 = entry.get("sha256") if isinstance(entry, dict) else None
 
-        if not isinstance(entry, dict):
-            reasons.append("条目不是 JSON 对象")
-        if not isinstance(asset_name, str) or not asset_name:
-            reasons.append("asset 为空或类型无效")
-        if not isinstance(manifest_sha256, str) or not SHA256_RE.fullmatch(manifest_sha256):
-            reasons.append("sha256 不是 64 位十六进制值")
+        if software_key in missing_entries:
+            asset_name = missing_entries[software_key]
+            reasons.append("已上传的 Release Asset 缺少版本清单条目")
+        else:
+            if not isinstance(entry, dict):
+                reasons.append("条目不是 JSON 对象")
+            if not isinstance(asset_name, str) or not asset_name:
+                reasons.append("asset 为空或类型无效")
+            if not isinstance(manifest_sha256, str) or not SHA256_RE.fullmatch(manifest_sha256):
+                reasons.append("sha256 不是 64 位十六进制值")
 
         matching_assets = assets_by_name.get(asset_name, []) if isinstance(asset_name, str) else []
         release_digest = ""
