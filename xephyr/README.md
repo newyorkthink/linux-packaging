@@ -14,14 +14,21 @@ chmod +x Xephyr.AppImage
 ./Xephyr.AppImage :99 -screen 1600x900
 ```
 
-另开一个 Linux 终端，把已安装的 i3 启动到该显示器，无需新增 i3 配置：
+保持 Xephyr 运行，在另一个 Linux 终端启动已安装的 i3。清除继承的 `I3SOCK` 可让嵌套 i3 使用自己的默认 IPC 路径。如果 i3 配置中写了固定的 `ipc-socket`，嵌套会话需要使用独立的 socket 路径。
 
 ```bash
-# 把 i3 启动在 :99，而非宿主显示器。
-DISPLAY=:99 i3
+# 清除继承的宿主 IPC 路径，在 :99 启动嵌套 i3。
+env -u I3SOCK DISPLAY=:99 i3
 ```
 
-`:99` 已被占用时，将两条命令中的显示编号改为同一个未占用编号。按 Ctrl+Shift 可切换 Xephyr 的键盘、鼠标抓取状态；在嵌套 i3 内使用与宿主 i3 相同的快捷键时可能需要先抓取，结束后再按 Ctrl+Shift 释放。两个桌面仍共用当前用户的文件和配置，已有 i3 配置的自动启动命令也会照常执行。
+嵌套 i3 启动后，在第三个 Linux 终端执行以下只读检查。返回版本 JSON 表示该显示器上的 i3 响应了 IPC 查询。
+
+```bash
+# 查询 :99 上运行的 i3 版本。
+env -u I3SOCK DISPLAY=:99 i3-msg -t get_version
+```
+
+如果 `:99` 已被占用，改用其他空闲编号，并在启动和验证命令中使用同一编号。按 Ctrl+Shift 可切换 Xephyr 的键盘、鼠标抓取状态；在嵌套 i3 内使用与宿主 i3 相同的快捷键时可能需要先抓取，结束后再按 Ctrl+Shift 释放。两个桌面仍共用当前用户的文件和配置，已有 i3 配置的自动启动命令也会照常执行。
 
 ## 打包
 
@@ -38,7 +45,9 @@ DISPLAY=:99 i3
 
 ## 验证状态
 
-本次按 quick-sharun 的 Arch 原生程序系统入口标准整理，已通过 Bash 语法、静态差异和文档链接检查。完整 AppImage 构建及 X11 会话中的实际运行仍待验证。
+本次按 quick-sharun 的 Arch 原生程序系统入口标准整理，已通过 Bash 语法、静态差异和文档链接检查。用户在 Kali Linux 的 i3 会话中运行 `Xephyr :99 -screen 1920x1040`，随后使用 `env -u I3SOCK DISPLAY=:99 i3` 成功显示嵌套桌面及 i3bar，之前的 IPC socket 占用错误未再出现。该次截图未显示 `Xephyr` 命令解析到的文件路径，无法据此确认具体 AppImage 版本或 CI 构建状态。
+
+实测仍有 `xkbcomp` 无法解析部分 `XF86` 特殊键的警告。宿主 i3 配置中的 `dex`、物理显示器、Synaptics 触摸板和重复注册的 Polkit 代理也有提示。这些提示没有阻止本次嵌套桌面启动。
 
 2026-09-27：已检查源码入口、XKB 辅助程序、构建参数与工作流接入；完整 CI 构建和目标桌面上的运行效果尚未验证。
 
