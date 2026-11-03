@@ -221,6 +221,7 @@ runs:
         require_own_lock() {
           local row digest created_epoch now_epoch remaining attempt status
           local lock_listing listed_id listed_digest
+          local wait_for_visibility="${1:-false}"
           for attempt in 1 2 3 4 5; do
             printf '写锁校验：资产=%s ID=%s（第 %s/5 轮）。\n' "$lock_name" "$lock_asset_id" "$attempt" >&2
             if row="$(read_release_api \
@@ -245,6 +246,12 @@ runs:
               listed_id="${lock_listing%%$'\t'*}"
               listed_digest="${lock_listing#*$'\t'}"
               if [[ "$listed_id" != "$lock_asset_id" || ( -n "$listed_digest" && "$listed_digest" != "sha256:$lock_sha256" ) ]]; then
+                # 仅首次拿锁时等待上传结果与读取视图一致，期间尚未读取或修改清单。
+                if [[ "$wait_for_visibility" == true ]] && (( attempt < 5 )); then
+                  printf '首次写锁确认尚未一致：上传 ID=%s，列表 ID=%s（第 %s/5 轮）；等待后重新确认。\n' "$lock_asset_id" "$listed_id" "$attempt" >&2
+                  sleep 2
+                  continue
+                fi
                 echo '清单写锁已变化，禁止继续写入。' >&2
                 return 1
               fi
@@ -274,7 +281,12 @@ runs:
         # 取得锁后按唯一资产 ID 下载，并在合并前核对原清单摘要及快照是否仍有效。
         snapshot_ready=false
         for snapshot_attempt in 1 2 3 4 5; do
-          require_own_lock
+          # 只有首次拿锁后的确认允许等待可见性，后续失锁仍立即停止。
+          if (( snapshot_attempt == 1 )); then
+            require_own_lock true
+          else
+            require_own_lock
+          fi
           # 每轮按名称重新定位，404 或快照变化后不得继续下载旧 ID。
           base_row="$(read_manifest_row true)"
           if [[ -n "$base_row" ]]; then
