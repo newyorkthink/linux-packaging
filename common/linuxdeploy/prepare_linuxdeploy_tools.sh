@@ -43,11 +43,15 @@ GITHUB_API="$SCRIPT_DIR/../github/github_api.sh"
 APPIMAGETOOL_ONLY=0
 APPIMAGETOOL_OUTPUT=
 RUNTIME_OUTPUT=
+RELEASE_ENDPOINT=tags/continuous
 
 # 直接封装模式接收两个输出路径；原有工具目录和插件参数保持不变。
 if [[ "${1:-}" == --appimagetool ]]; then
-  if (( $# != 3 )) || [[ -z "${2:-}" || -z "${3:-}" || "$2" == "$3" ]]; then
-    echo "用法：$0 --appimagetool <appimagetool 输出路径> <runtime 输出路径>" >&2
+  if (( $# == 5 )) && [[ "$4" == --release-ref && "$5" == latest ]]; then
+    RELEASE_ENDPOINT=latest
+  fi
+  if { (( $# != 3 )) && [[ "$RELEASE_ENDPOINT" != latest ]]; } || [[ -z "${2:-}" || -z "${3:-}" || "$2" == "$3" ]]; then
+    echo "用法：$0 --appimagetool <appimagetool 输出路径> <runtime 输出路径> [--release-ref latest]" >&2
     exit 1
   fi
   APPIMAGETOOL_ONLY=1
@@ -105,7 +109,7 @@ fi
 # shellcheck source=common/github/github_api.sh
 source "$GITHUB_API"
 
-# 从官方 continuous Release 解析指定资产及摘要，再交给公共下载脚本取得文件。
+# 从指定的官方 Release 解析资产及摘要，再交给公共下载脚本取得文件。
 # 若上游正在替换 continuous 资产，重新获取 Release 元数据后整体重试，避免旧摘要与新资产短暂错配。
 download_release_asset() {
   local repo="$1" asset="$2" output="$3"
@@ -113,7 +117,8 @@ download_release_asset() {
   local max_attempts=3
 
   for ((attempt = 1; attempt <= max_attempts; attempt++)); do
-    if metadata="$(github_api_get "https://api.github.com/repos/$repo/releases/tags/continuous")" &&
+    if metadata="$(github_api_get "https://api.github.com/repos/$repo/releases/$RELEASE_ENDPOINT")" &&
+       { [[ "$RELEASE_ENDPOINT" != latest ]] || jq -e '.draft == false and .prerelease == false' <<< "$metadata" >/dev/null; } &&
        url="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .browser_download_url' <<< "$metadata")" &&
        digest="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .digest' <<< "$metadata")" &&
        [[ "$digest" =~ ^sha256:[[:xdigit:]]{64}$ ]] &&
@@ -122,12 +127,12 @@ download_release_asset() {
     fi
 
     if (( attempt < max_attempts )); then
-      echo "警告：取得或校验官方资产失败，将重新获取 continuous Release 元数据后重试：$repo/$asset（$attempt/$max_attempts）。" >&2
+      echo "警告：取得或校验官方资产失败，将重新获取 $RELEASE_ENDPOINT Release 元数据后重试：$repo/$asset（$attempt/$max_attempts）。" >&2
       sleep 2
     fi
   done
 
-  echo "错误：连续 $max_attempts 次无法取得并校验官方 continuous Release 资产：$repo/$asset" >&2
+  echo "错误：连续 $max_attempts 次无法取得并校验官方 $RELEASE_ENDPOINT Release 资产：$repo/$asset" >&2
   return 1
 }
 
@@ -141,9 +146,13 @@ download_release_asset AppImage/appimagetool appimagetool-x86_64.AppImage \
 download_release_asset AppImage/type2-runtime runtime-x86_64 \
   "$RUNTIME_OUTPUT"
 
-# 直接封装需要的两个文件在公共入口内统一赋予执行权限。
+# 默认模式为两个工具赋予执行权限，latest 模式沿用只执行 appimagetool 的方式。
 if [[ "$APPIMAGETOOL_ONLY" == 1 ]]; then
-  chmod +x "$APPIMAGETOOL_OUTPUT" "$RUNTIME_OUTPUT"
+  if [[ "$RELEASE_ENDPOINT" == latest ]]; then
+    chmod +x "$APPIMAGETOOL_OUTPUT"
+  else
+    chmod +x "$APPIMAGETOOL_OUTPUT" "$RUNTIME_OUTPUT"
+  fi
   exit 0
 fi
 

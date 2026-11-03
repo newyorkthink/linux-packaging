@@ -37,6 +37,32 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# 显式启用时，在同一 latest 响应中定位主资产和官方校验清单。
+if [[ "${3:-}" == --latest-with-checksum ]]; then
+  CHECKSUM_NAME="${4:-}"
+  [[ $# == 4 && "$CHECKSUM_NAME" =~ ^[A-Za-z0-9_.-]+$ ]] || {
+    echo "用法：$0 <owner/repo> <资产名模板> --latest-with-checksum <校验清单资产名>" >&2
+    exit 1
+  }
+  github_api_get "https://api.github.com/repos/$REPO/releases/latest" "$RELEASES_JSON"
+  jq -er --arg repo "$REPO" --arg template "$ASSET_TEMPLATE" --arg checksum "$CHECKSUM_NAME" '
+    def asset($name; $tag):
+      [.assets[]? | select(.name == $name)]
+      | select(length == 1) | .[0]
+      | select(.browser_download_url == ("https://github.com/" + $repo + "/releases/download/" + $tag + "/" + $name))
+      | select((.digest // "") | test("^sha256:[0-9a-fA-F]{64}$"));
+    select(.draft == false and .prerelease == false)
+    | .tag_name as $tag
+    | select($tag | strings | test("^v[0-9][0-9A-Za-z._+-]*$"))
+    | ($tag | ltrimstr("v")) as $version
+    | ($template | gsub("\\{version\\}"; $version)) as $name
+    | asset($name; $tag) as $main
+    | asset($checksum; $tag) as $sums
+    | $version, $main.browser_download_url, $main.digest, $sums.browser_download_url, $sums.digest, $tag, $name
+  ' "$RELEASES_JSON"
+  exit
+fi
+
 # 读取最近 100 个 Release，避免只依赖 latest 指针或匿名 API 配额。
 github_api_get "https://api.github.com/repos/$REPO/releases?per_page=100" "$RELEASES_JSON"
 
