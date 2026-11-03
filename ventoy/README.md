@@ -58,7 +58,6 @@ Ventoy 的核心功能是向用户选择的 USB / 磁盘设备安装或更新 Ve
 - 封装成功后，公共入口检查 AppImage 非空，输出 SHA-256 并写入 `dist/version.txt`。
 - 2026-11-03 实机验证通过。Ventoy 1.1.18 AppImage 下载后通过 SHA-256 校验，上传用于核对的成品与 [GitHub Release](https://github.com/newyorkthink/linux-packaging/releases/tag/latest) 中的资产摘要一致。
 - 执行 `sudo ventoy` 后，GTK3 界面显示简体中文并识别 U 盘。设备上的 Ventoy 从 1.1.17 升级到 1.1.18，界面提示更新成功，随后显示设备版本为 1.1.18。
-- 本次运行仍出现 GTK locale 回退和 `gtk_widget_grab_default` 诊断，中文界面正常显示，U 盘升级成功。原始提示见[固定配置说明](./docs/hardcoded.md#默认简体中文)。
 
 ## 变更记录
 
