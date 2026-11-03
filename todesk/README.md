@@ -6,7 +6,7 @@
 
 - 上游程序：ToDesk 官方 Linux 客户端。
 - 版本与校验元数据：AUR `todesk-bin` 的当前 `.SRCINFO`，不固定版本、Tag 或 Commit。
-- 程序文件：通过公共入口显式使用 wget 与 Mozilla 标识，独立下载本次元数据指向的官方 HTTPS DEB，始终校验原摘要；只有官方文件校验失败时才查同一 URL 的 Internet Archive 快照。
+- 程序文件：通过公共入口显式使用 aria2c，不覆盖其默认客户端标识，独立下载本次元数据指向的官方 HTTPS DEB，始终校验原摘要；只有官方文件校验失败时才查同一 URL 的 Internet Archive 快照。
 - 构建环境：Arch Linux AnyLinux 容器。
 - 打包工具：`quick-sharun`。
 - 最终产物与 Release 资产名：`dist/todesk.AppImage`、`todesk.AppImage`。
@@ -18,9 +18,9 @@
 
 ToDesk 采用 **Arch Linux + quick-sharun**。主流程遵守仓库标准，专属检查和运行目录准备分别保存在 `patches/prepare_appdir.sh` 与 `patches/90-todesk-runtime.hook`。
 
-1. 安装公共基础工具，再通过 `common/arch/install_packages.sh --aur-deb` 安装 `todesk-bin` 及原有运行依赖、输入模块和 DEB 工具。该显式模式先复用公共下载入口校验 DEB，交给独立的 makepkg 来源缓存和 yay 构建目录，再按原 AUR PKGBUILD 安装；`libpipewire` 对应当前真实 ELF 的直接依赖，不切换系统音频服务。
+1. 安装公共基础工具，再通过 `common/arch/install_packages.sh --aur-deb` 安装 `todesk-bin` 及原有运行依赖、输入模块和 DEB 工具，另安装仅用于构建下载的 `aria2`。该显式模式先复用公共下载入口校验 DEB，交给独立的 makepkg 来源缓存和 yay 构建目录，再按原 AUR PKGBUILD 安装；`libpipewire` 对应当前真实 ELF 的直接依赖，不切换系统音频服务。
 2. 在项目目录准备 `work / AppDir / dist`。
-3. 单行调用 `common/aur/download_deb_source.sh`，传入 `wget` 下载器、`Mozilla` 客户端标识、同 URL 归档回退、DEB 检查及两个版本输出路径；应用不再自行解析、source 或写入来源版本元数据。
+3. 单行调用 `common/aur/download_deb_source.sh`，传入 `aria2c` 下载器、同 URL 归档回退、DEB 检查及两个版本输出路径；应用不再自行解析、source 或写入来源版本元数据。
 4. 通过公共归档入口解包同一份 DEB，完整复制 `opt/todesk` 到 `AppDir/bin/`，不从系统安装目录取得最终程序。
 5. 准备脚本补回配置目录，核对四入口、GTK3 输入模块及托盘库，一次汇总直接动态库错误。官方 desktop 只在工作目录的副本中完整改为 `Exec=ToDesk`，避免把新版 `env` 后的赋值残留为程序参数。
 6. 设置主程序、系统图标、便携 desktop、输出名称、GTK 部署、`NO_STRIP` 与路径映射；版本由公共入口读取同次下载记录。
@@ -117,9 +117,11 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 
 ## 当前验证状态
 
-2026-11-03 最新正式构建仍失败：[run 41567549690 / job 125695136759](https://github.com/newyorkthink/linux-packaging/actions/runs/41567549690/job/125695136759) 中，wget 仅取得 988 字节响应，未通过当前 AUR 原 SHA-256，随后没有可用的 Internet Archive 快照。失败发生在安装前的来源预取阶段，尚未执行 quick-sharun。此前隔离环境取得完整 DEB，不代表 GitHub runner 已能稳定下载；上一轮“更换下载器即可解决”的方案已被这次正式构建否定。
+2026-11-03 当前通过公共入口显式使用 `aria2c`，不再强制 `Mozilla` 标识。先执行直接下载命令取得完整 115086264 字节 DEB，SHA-256 与当前 AUR 原记录一致；随后核对公共 AUR 下载链、DEB 版本、两个版本输出及安装来源缓存。构建仍按先安装、再独立下载解包的标准执行顺序，不增加浏览器或 Release 原包缓存。完整 Actions 构建及新产物实机功能尚无本次变更后的验证结果。
 
-同一官方 URL 的隔离浏览器实验也进入腾讯 EdgeOne 的 `Security Verification` 页面，要求人工勾选验证，没有取得 DEB。浏览器实验未接入构建；当前下载阻塞尚未解决，不能把现有构建或新产物标为通过。
+2026-11-03 本次改动前最近一次已核实的正式构建失败：[run 41567549690 / job 125695136759](https://github.com/newyorkthink/linux-packaging/actions/runs/41567549690/job/125695136759) 中，wget 仅取得 988 字节响应，未通过当前 AUR 原 SHA-256，随后没有可用的 Internet Archive 快照。失败发生在安装前的来源预取阶段，尚未执行 quick-sharun。此前隔离环境取得完整 DEB，不代表 GitHub runner 已能稳定下载；上一轮“更换下载器即可解决”的方案已被这次正式构建否定。
+
+此前同一官方 URL 的隔离浏览器实验进入腾讯 EdgeOne 的 `Security Verification` 页面，要求人工勾选验证，没有取得 DEB。该实验未接入构建，其结果不能推广为直接命令下载不可用；当前 aria2c 下载已另行通过原摘要校验，完整 CI 与新产物运行仍按各自实际证据记录。
 
 以下保留上述失败之前的下载与隔离验证记录，其验证范围不扩大为正式 CI 成功。
 
@@ -269,3 +271,12 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 更正：前一条下载器调整中，完整官方下载和 42 项隔离检查确实通过，但这些结果不能证明 GitHub runner 的官网下载验证已解除。上一方案作为 CI 修复已被后续正式构建结果否定，不得重复把切换 curl / wget 或增加无界面浏览器当作已验证方案。
 - 当前边界：未修改构建脚本、公共下载入口、原摘要、固定注释或工作流。没有跳过校验，没有把验证页当作 DEB，也没有宣布本次构建已修好。
 - 后续恢复条件：必须先取得 CI 可访问、且能通过当前 AUR 原摘要的官方安装包；若采用原始安装包归档，应保留官方来源及摘要校验，不能以旧版或摘要不同的文件代替。当前尚未建立这份可用归档。
+
+### 2026-11-03：公共下载入口显式使用 aria2c
+
+- 直接下载：使用 `aria2c 'https://dl.todesk.com/linux/todesk-v4.9.8.1-amd64.deb'` 取得完整 115086264 字节文件；SHA-256 为 `a257916c32ca792826dd1027596395278259050fee42ca8fd0a0aaa8851940e1`，与同次当前 AUR 元数据一致，DEB Version 为 4.9.8.1。没有使用浏览器验证或更换来源。
+- 公共复用：现有下载器选项新增显式 `aria2c`，安装预取和后续独立下载均通过原有公共链路透传；默认 curl、已有 wget、原摘要校验、版本输出及来源缓存语义保留。aria2c 仅写入本次临时文件，下载失败时清理对应控制文件。
+- ToDesk 接入：两个原调用改为 `--downloader aria2c`，移除 `--user-agent Mozilla`；在原依赖安装行增加构建工具包 `aria2`。两阶段顺序、原有依赖、固定注释、GTK 部署、程序目录、运行 hook 与版本保存保持原样。
+- 验证：公共 AUR 入口实际下载、原摘要及 DEB 版本检查通过；核对来源版本、完整包版本和 makepkg 来源缓存。另检查旧 curl / wget 接口、新下载器参数透传、错误摘要拒绝、失败清理和安装顺序。
+- 结论更正：前文隔离浏览器进入人工验证页，只能代表那次请求，不能推出直接命令下载不可用，也不能推出必须先建立 Release 原包缓存。当前直接下载结果已否定该必要性判断。
+- 验证边界：本次没有运行完整真实 AUR 安装、quick-sharun 封装或新产物实机功能；直接下载和公共入口检查不扩大为 GitHub runner 或完整 AppImage 已通过。

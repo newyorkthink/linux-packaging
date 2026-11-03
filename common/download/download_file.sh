@@ -7,14 +7,14 @@ EXPECTED_CHECKSUM="${3:-}"
 USER_AGENT="${4:-}"
 DOWNLOADER="${5:-curl}"
 
-# 只有显式选择时使用 wget，原有调用继续使用 curl。
-[[ "$DOWNLOADER" == curl || "$DOWNLOADER" == wget ]] || {
-  echo "错误：下载器只能为 curl 或 wget。" >&2
+# 只有显式选择时使用其他下载器，原有调用继续使用 curl。
+[[ "$DOWNLOADER" == curl || "$DOWNLOADER" == wget || "$DOWNLOADER" == aria2c ]] || {
+  echo "错误：下载器只能为 curl、wget 或 aria2c。" >&2
   exit 2
 }
 
 [[ -n "$URL" && -n "$OUTPUT" ]] || {
-  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256 或 sha512:<摘要>] [User-Agent] [curl|wget]" >&2
+  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256 或 sha512:<摘要>] [User-Agent] [curl|wget|aria2c]" >&2
   exit 1
 }
 [[ "$URL" == https://* ]] || {
@@ -37,10 +37,13 @@ TEMP_FILE="$(mktemp "${OUTPUT}.part.XXXXXX")"
 # 下载失败时删除未完成的临时文件，不覆盖原有完整文件。
 cleanup() {
   rm -f -- "$TEMP_FILE"
+  if [[ "$DOWNLOADER" == aria2c ]]; then
+    rm -f -- "${TEMP_FILE}.aria2"
+  fi
 }
 trap cleanup EXIT
 
-# 按需传入客户端标识；未指定时保留 curl 默认行为。
+# 按需传入客户端标识；未指定时使用所选下载器的默认标识。
 CURL_USER_AGENT_ARGS=()
 if [[ -n "$USER_AGENT" ]]; then
   CURL_USER_AGENT_ARGS=(--user-agent "$USER_AGENT")
@@ -56,6 +59,15 @@ if [[ "$DOWNLOADER" == wget ]]; then
     "${CURL_USER_AGENT_ARGS[@]}" \
     --output-document "$TEMP_FILE" \
     "$URL"
+elif [[ "$DOWNLOADER" == aria2c ]]; then
+  # 直接下载单个文件，不加载个人配置；沿用后续原摘要校验。
+  timeout 900 aria2c --no-conf --no-netrc \
+    --allow-overwrite=true --auto-file-renaming=false \
+    --follow-torrent=false --follow-metalink=false \
+    "${CURL_USER_AGENT_ARGS[@]}" \
+    --dir "$OUTPUT_DIR" --out "$(basename -- "$TEMP_FILE")" \
+    "$URL"
+  rm -f -- "${TEMP_FILE}.aria2"
 else
   # 使用统一的失败、重试和超时参数下载到同目录临时文件。
   curl --fail --location \

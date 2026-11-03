@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 保留原三个位置参数；额外能力由调用方明确启用。
 if (( $# < 3 )) || [[ -z "$1" || -z "$2" || -z "$3" ]]; then
-  echo "用法：$0 <AUR 包名> <架构> <DEB 输出文件> [--user-agent <客户端标识>] [--downloader curl|wget] [--wayback] [--deb] [--version-file <文件>] [--package-version-file <文件>] [--makepkg-source-dir <目录>] [--source-filename <DEB 文件名>]" >&2
+  echo "用法：$0 <AUR 包名> <架构> <DEB 输出文件> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--deb] [--version-file <文件>] [--package-version-file <文件>] [--makepkg-source-dir <目录>] [--source-filename <DEB 文件名>]" >&2
   exit 2
 fi
 AUR_PACKAGE="$1"
@@ -26,8 +26,8 @@ SELECTED_FILENAME=""
 while (( $# > 0 )); do
   case "$1" in
     --downloader)
-      if (( $# < 2 )) || [[ -n "$DOWNLOADER" || ( "$2" != curl && "$2" != wget ) ]]; then
-        echo "错误：--downloader 需要唯一的 curl 或 wget。" >&2
+      if (( $# < 2 )) || [[ -n "$DOWNLOADER" || ( "$2" != curl && "$2" != wget && "$2" != aria2c ) ]]; then
+        echo "错误：--downloader 需要唯一的 curl、wget 或 aria2c。" >&2
         exit 2
       fi
       DOWNLOADER="$2"

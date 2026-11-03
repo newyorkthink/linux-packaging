@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 # 先下载官方 HTTPS 文件；仅在其未通过原摘要时查询同一 URL 的归档快照。
 if (( $# < 3 )); then
-  echo "用法：$0 <官方 HTTPS URL> <输出文件> <SHA-256 或 sha512:摘要> [--deb] [--user-agent <客户端标识>] [--downloader curl|wget]" >&2
+  echo "用法：$0 <官方 HTTPS URL> <输出文件> <SHA-256 或 sha512:摘要> [--deb] [--user-agent <客户端标识>] [--downloader curl|wget|aria2c]" >&2
   exit 2
 fi
 
@@ -34,8 +34,8 @@ while (( $# > 0 )); do
       shift
       ;;
     --downloader)
-      if (( $# < 2 )) || [[ -n "$DOWNLOADER" || ( "$2" != curl && "$2" != wget ) ]]; then
-        echo "错误：--downloader 需要唯一的 curl 或 wget。" >&2
+      if (( $# < 2 )) || [[ -n "$DOWNLOADER" || ( "$2" != curl && "$2" != wget && "$2" != aria2c ) ]]; then
+        echo "错误：--downloader 需要唯一的 curl、wget 或 aria2c。" >&2
         exit 2
       fi
       DOWNLOADER="$2"

@@ -10,7 +10,7 @@ cd "$SCRIPT_DIR"
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-deb todesk-bin "$(uname -m)" --user-agent Mozilla --downloader wget --wayback -- fcitx5-gtk dpkg pulseaudio xcb-util xcb-util-keysyms xcb-util-wm xcb-util-image xcb-util-renderutil xcb-util-cursor libpipewire
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-deb todesk-bin "$(uname -m)" --downloader aria2c --wayback -- aria2 fcitx5-gtk dpkg pulseaudio xcb-util xcb-util-keysyms xcb-util-wm xcb-util-image xcb-util-renderutil xcb-util-cursor libpipewire
 
 # 清掉上次的打包目录。
 "$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create work AppDir dist
@@ -19,7 +19,7 @@ mkdir -p AppDir/bin work
 # 下载官方当前 DEB。
 "$SCRIPT_DIR/../common/aur/download_deb_source.sh" \
   todesk-bin "$(uname -m)" work/todesk.deb \
-  --user-agent Mozilla --downloader wget --wayback --deb --version-file work/source-version.txt --package-version-file work/package-version.txt
+  --downloader aria2c --wayback --deb --version-file work/source-version.txt --package-version-file work/package-version.txt
 
 # 解包官方 DEB。
 "$SCRIPT_DIR/../common/archive/extract_archive.sh" work/todesk.deb work/todesk-unpacked
