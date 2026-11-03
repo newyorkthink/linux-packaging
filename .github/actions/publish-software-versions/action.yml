@@ -46,11 +46,36 @@ runs:
         }
         local_sha256="$(sha256sum "${artifacts[0]}" | awk '{print tolower($1)}')"
 
+        # 只重试读取时的 HTTP 404，并在请求成功后才返回响应。
+        read_release_api() (
+          local endpoint="$1"
+          local temp_dir attempt status
+          shift
+          temp_dir="$(mktemp -d)" || return 1
+          trap 'rm -rf -- "$temp_dir"' EXIT
+
+          for attempt in 1 2 3; do
+            if LC_ALL=C gh api "$endpoint" "$@" > "$temp_dir/body" 2> "$temp_dir/error"; then
+              cat "$temp_dir/error" >&2
+              cat "$temp_dir/body"
+              return
+            else
+              status=$?
+            fi
+            printf 'GitHub API GET /%s 失败（第 %s/3 次，退出码 %s）\n' "${endpoint%%\?*}" "$attempt" "$status" >&2
+            cat "$temp_dir/error" >&2
+            if (( attempt == 3 )) || ! grep -Fq '(HTTP 404)' "$temp_dir/error"; then
+              return "$status"
+            fi
+            sleep 2
+          done
+        )
+
         # 先确认当前 Build 已上传到 latest Release 的 AppImage 与本地产物完全一致。
         release_json="$RUNNER_TEMP/latest-release.json"
         matched=false
         for attempt in $(seq 1 12); do
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" > "$release_json"
+          read_release_api "repos/$GITHUB_REPOSITORY/releases/tags/latest" > "$release_json"
           release_sha256="$(python3 - "$release_json" "$ASSET_NAME" <<'PY'
         import json, re, sys
         path, asset_name = sys.argv[1:]
@@ -135,16 +160,14 @@ runs:
             break
           fi
 
-          mapfile -t lock_rows < <(
-            gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" --paginate \
-              --jq ".[] | select(.name == \"$lock_name\") | [.id,.created_at] | @tsv" \
-              || true
-          )
+          lock_listing="$(read_release_api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" --paginate \
+            --jq ".[] | select(.name == \"$lock_name\") | [.id,.created_at] | @tsv")"
+          mapfile -t lock_rows <<< "$lock_listing"
           if (( ${#lock_rows[@]} > 1 )); then
             echo "latest Release 中存在多个 $lock_name，禁止继续写入清单。" >&2
             exit 1
           fi
-          if (( ${#lock_rows[@]} == 0 )); then
+          if [[ -z "$lock_listing" ]]; then
             # 422 already_exists：别人刚抢到锁，列表还没刷新。
             # 404/5xx：全量并发打 uploads.github.com 时的瞬时失败，锁并不存在。
             # 这两种都继续等，不要当成“锁系统坏了”直接退出。
@@ -169,9 +192,10 @@ runs:
         # 每次读取独立快照并传递 API 失败，禁止把失败或短暂缺失误认为可以从空清单开始。
         read_manifest_row() {
           local rows
-          rows="$(gh api -H 'Cache-Control: no-cache' \
+          rows="$(read_release_api \
             "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
-            --paginate --jq ".[] | select(.name == \"$manifest_name\") | [.id, (.digest // \"\")] | @tsv")" || return 1
+            -H 'Cache-Control: no-cache' --paginate \
+            --jq ".[] | select(.name == \"$manifest_name\") | [.id, (.digest // \"\")] | @tsv")" || return 1
           if [[ -z "$rows" && "${1:-false}" == true ]]; then
             return 0
           fi
@@ -185,9 +209,9 @@ runs:
         # 复核锁资产内容属于本次写入，防止失去锁的旧写入者继续覆盖新清单。
         require_own_lock() {
           local row digest created_epoch now_epoch remaining
-          row="$(gh api -H 'Cache-Control: no-cache' \
+          row="$(read_release_api \
             "repos/$GITHUB_REPOSITORY/releases/assets/$lock_asset_id?publication_read=$(date +%s%N)" \
-            --jq '[.digest, .created_at] | @tsv')" || return 1
+            -H 'Cache-Control: no-cache' --jq '[.digest, .created_at] | @tsv')" || return 1
           digest="${row%%$'\t'*}"
           [[ "$digest" == "sha256:$lock_sha256" ]] || {
             echo '清单写锁已变化，禁止继续写入。' >&2
@@ -213,9 +237,9 @@ runs:
           echo '原版本清单缺少有效 SHA-256，禁止合并。' >&2
           exit 1
         }
-        gh api -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' \
+        read_release_api \
           "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
-          > "$manifest"
+          -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' > "$manifest"
         [[ "sha256:$(sha256sum "$manifest" | awk '{print tolower($1)}')" == "$base_digest" ]] || {
           echo '原版本清单内容与资产摘要不一致，禁止用旧内容覆盖。' >&2
           exit 1
@@ -278,22 +302,20 @@ runs:
             manifest_digest="${manifest_rows[0]#*$'\t'}"
             if [[ "$manifest_digest" == "sha256:$manifest_sha256" ]]; then
               rm -f "$verified_manifest"
-              if gh api -H 'Cache-Control: no-cache' \
-                -H 'Accept: application/octet-stream' \
+              read_release_api \
                 "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
-                > "$verified_manifest"; then
-                if [[ "$(sha256sum "$verified_manifest" | awk '{print tolower($1)}')" == "$manifest_sha256" ]] && \
-                  python3 - "$verified_manifest" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
+                -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' > "$verified_manifest"
+              if [[ "$(sha256sum "$verified_manifest" | awk '{print tolower($1)}')" == "$manifest_sha256" ]] && \
+                python3 - "$verified_manifest" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
         import json, sys
         path, key, version, asset, sha256 = sys.argv[1:]
         data = json.load(open(path, encoding='utf-8'))
         expected = {'version': version, 'asset': asset, 'sha256': sha256}
         raise SystemExit(0 if data.get(key) == expected else 1)
         PY
-                then
-                  verified=true
-                  break
-                fi
+              then
+                verified=true
+                break
               fi
             fi
           fi
