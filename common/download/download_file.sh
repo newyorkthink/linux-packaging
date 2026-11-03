@@ -43,7 +43,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# 按需传入客户端标识；未指定时使用所选下载器的默认标识。
+# 按需传入客户端标识；显式参数优先于下载器的默认或公共配置。
 CURL_USER_AGENT_ARGS=()
 if [[ -n "$USER_AGENT" ]]; then
   CURL_USER_AGENT_ARGS=(--user-agent "$USER_AGENT")
@@ -60,8 +60,15 @@ if [[ "$DOWNLOADER" == wget ]]; then
     --output-document "$TEMP_FILE" \
     "$URL"
 elif [[ "$DOWNLOADER" == aria2c ]]; then
-  # 直接下载单个文件，不加载个人配置；沿用后续原摘要校验。
-  timeout 900 aria2c --no-conf --no-netrc \
+  # 只读取仓库内公共下载配置，不加载个人配置。
+  SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  ARIA2_CONFIG="$SCRIPT_DIR/../config/download/aria2.conf"
+  [[ -f "$ARIA2_CONFIG" && -r "$ARIA2_CONFIG" ]] || {
+    echo "错误：缺少可读的公共 aria2 下载配置：$ARIA2_CONFIG" >&2
+    exit 1
+  }
+  # 直接下载单个文件，保留临时输出、总超时与后续原摘要校验。
+  timeout 900 aria2c --conf-path "$ARIA2_CONFIG" --no-netrc \
     --allow-overwrite=true --auto-file-renaming=false \
     --follow-torrent=false --follow-metalink=false \
     "${CURL_USER_AGENT_ARGS[@]}" \

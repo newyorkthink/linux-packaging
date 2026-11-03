@@ -6,7 +6,7 @@
 
 - 上游程序：ToDesk 官方 Linux 客户端。
 - 版本与校验元数据：AUR `todesk-bin` 的当前 `.SRCINFO`，不固定版本、Tag 或 Commit。
-- 程序文件：通过公共入口显式使用 aria2c，不覆盖其默认客户端标识，独立下载本次元数据指向的官方 HTTPS DEB，始终校验原摘要；只有官方文件校验失败时才查同一 URL 的 Internet Archive 快照。
+- 程序文件：通过公共入口显式使用 aria2c，并读取仓库公共 HTTP 下载配置，独立下载本次元数据指向的官方 HTTPS DEB，始终校验原摘要；只有官方文件校验失败时才查同一 URL 的 Internet Archive 快照。
 - 构建环境：Arch Linux AnyLinux 容器。
 - 打包工具：`quick-sharun`。
 - 最终产物与 Release 资产名：`dist/todesk.AppImage`、`todesk.AppImage`。
@@ -20,7 +20,7 @@ ToDesk 采用 **Arch Linux + quick-sharun**。主流程遵守仓库标准，专�
 
 1. 安装公共基础工具，再通过 `common/arch/install_packages.sh --aur-deb` 安装 `todesk-bin` 及原有运行依赖、输入模块和 DEB 工具，另安装仅用于构建下载的 `aria2`。该显式模式先复用公共下载入口校验 DEB，交给独立的 makepkg 来源缓存和 yay 构建目录，再按原 AUR PKGBUILD 安装；`libpipewire` 对应当前真实 ELF 的直接依赖，不切换系统音频服务。
 2. 在项目目录准备 `work / AppDir / dist`。
-3. 单行调用 `common/aur/download_deb_source.sh`，传入 `aria2c` 下载器、同 URL 归档回退、DEB 检查及两个版本输出路径；应用不再自行解析、source 或写入来源版本元数据。
+3. 单行调用 `common/aur/download_deb_source.sh`，传入 `aria2c` 下载器、同 URL 归档回退、DEB 检查及两个版本输出路径；公共下载入口显式读取 [公共配置](../common/config/download/aria2.conf)，使用 16 连接 / 16 分段；应用不再自行解析、source 或写入来源版本元数据。
 4. 通过公共归档入口解包同一份 DEB，完整复制 `opt/todesk` 到 `AppDir/bin/`，不从系统安装目录取得最终程序。
 5. 准备脚本补回配置目录，核对四入口、GTK3 输入模块及托盘库，一次汇总直接动态库错误。官方 desktop 只在工作目录的副本中完整改为 `Exec=ToDesk`，避免把新版 `env` 后的赋值残留为程序参数。
 6. 设置主程序、系统图标、便携 desktop、输出名称、GTK 部署、`NO_STRIP` 与路径映射；版本由公共入口读取同次下载记录。
@@ -117,9 +117,13 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 
 ## 当前验证状态
 
-2026-11-03 当前通过公共入口显式使用 `aria2c`，不再强制 `Mozilla` 标识。先执行直接下载命令取得完整 115086264 字节 DEB，SHA-256 与当前 AUR 原记录一致；随后核对公共 AUR 下载链、DEB 版本、两个版本输出及安装来源缓存。构建仍按先安装、再独立下载解包的标准执行顺序，不增加浏览器或 Release 原包缓存。完整 Actions 构建及新产物实机功能尚无本次变更后的验证结果。
+2026-11-03 当前 aria2c 入口显式读取仓库的 `common/config/download/aria2.conf`：单服务器连接上限与分段数均为 16，最小分段及分块大小均为 1M，使用有公开来源的模拟浏览器 User-Agent、IPv4 和 gzip 请求设置。普通 aria2 的参数解析、公共 AUR 入口的真实下载及原摘要校验已核对；本次配置变更后的完整 Actions 构建和新产物实机结果尚未验证。
 
-2026-11-03 本次改动前最近一次已核实的正式构建失败：[run 41567549690 / job 125695136759](https://github.com/newyorkthink/linux-packaging/actions/runs/41567549690/job/125695136759) 中，wget 仅取得 988 字节响应，未通过当前 AUR 原 SHA-256，随后没有可用的 Internet Archive 快照。失败发生在安装前的来源预取阶段，尚未执行 quick-sharun。此前隔离环境取得完整 DEB，不代表 GitHub runner 已能稳定下载；上一轮“更换下载器即可解决”的方案已被这次正式构建否定。
+此前已核实的正式构建 [run 41573638599 / job 125712133076](https://github.com/newyorkthink/linux-packaging/actions/runs/41573638599/job/125712133076) 中，aria2 已安装且执行了下载，但文件未通过原 SHA-256；CDX 查询没有可用列表。日志没有保存响应正文、文件类型或精确字节数，不能把 `Download complete` 等同于取得正确 DEB，也不能只凭 `11KiB/s` 推断文件大小或具体响应类型。
+
+2026-11-03 上一轮改为通过公共入口显式使用 `aria2c`，不再强制裸 `Mozilla` 标识。先执行直接下载命令取得完整 115086264 字节 DEB，SHA-256 与当前 AUR 原记录一致；随后核对公共 AUR 下载链、DEB 版本、两个版本输出及安装来源缓存。构建仍按先安装、再独立下载解包的标准执行顺序，不增加浏览器或 Release 原包缓存。该轮正式构建随后在源文件摘要校验阶段失败（run `41573638599`），未生成新产物。
+
+2026-11-03 在上一轮 aria2c 接入前核实的正式构建失败：[run 41567549690 / job 125695136759](https://github.com/newyorkthink/linux-packaging/actions/runs/41567549690/job/125695136759) 中，wget 仅取得 988 字节响应，未通过当前 AUR 原 SHA-256，随后没有可用的 Internet Archive 快照。失败发生在安装前的来源预取阶段，尚未执行 quick-sharun。此前隔离环境取得完整 DEB，不代表 GitHub runner 已能稳定下载；上一轮“更换下载器即可解决”的方案已被这次正式构建否定。
 
 此前同一官方 URL 的隔离浏览器实验进入腾讯 EdgeOne 的 `Security Verification` 页面，要求人工勾选验证，没有取得 DEB。该实验未接入构建，其结果不能推广为直接命令下载不可用；当前 aria2c 下载已另行通过原摘要校验，完整 CI 与新产物运行仍按各自实际证据记录。
 
@@ -280,3 +284,13 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 验证：公共 AUR 入口实际下载、原摘要及 DEB 版本检查通过；核对来源版本、完整包版本和 makepkg 来源缓存。另检查旧 curl / wget 接口、新下载器参数透传、错误摘要拒绝、失败清理和安装顺序。
 - 结论更正：前文隔离浏览器进入人工验证页，只能代表那次请求，不能推出直接命令下载不可用，也不能推出必须先建立 Release 原包缓存。当前直接下载结果已否定该必要性判断。
 - 验证边界：本次没有运行完整真实 AUR 安装、quick-sharun 封装或新产物实机功能；直接下载和公共入口检查不扩大为 GitHub runner 或完整 AppImage 已通过。
+
+### 2026-11-03：公共 aria2 HTTP 配置补齐请求设置并兼容标准版本
+
+- 故障：[run 41573638599 / job 125712133076](https://github.com/newyorkthink/linux-packaging/actions/runs/41573638599/job/125712133076) 已先安装 aria2 1.37.0-3，之后显示下载完成，仍在原 SHA-256 校验时失败；没有可用的 CDX 回退列表。失败仍位于安装预取阶段，尚未进入 quick-sharun。
+- 请求差异：上一版显式使用 `--no-conf`，因此没有读取配置中的浏览器客户端标识等 HTTP 设置。直接命令采用配置时的请求不能视为默认客户端请求；前一轮只核对默认客户端的隔离下载，未覆盖这一差异。配置差异已经核实，但不能据此宣称它是 CI 失败的唯一原因。
+- 公共配置：新增 [common/config/](../common/config/README.md)，按用途保存可复用配置。[download/aria2.conf](../common/config/download/aria2.conf) 只保留构建 HTTP 下载需要的通用项。User-Agent 取自 [P3TERX/aria2.conf 的公开固定快照](https://github.com/P3TERX/aria2.conf/blob/9cc45956ceee02d553adff67a7e296f06fd62946/aria2.conf#L167)，是模拟客户端标识，不代表构建或运行环境；配置不含个人路径、代理、RPC 凭据、会话文件或 BT 设置。
+- 标准兼容：连接上限和分段数均为 16；最小分段及分块大小均为 1M。标准 aria2 1.37.0 的实际参数帮助确认其上限为 16、上述大小下限为 1048576 字节；没有沿用增强版的 256 连接或 512k 参数，也没有要求使用增强版程序。
+- 接入：只在现有 aria2c 分支改为显式 `--conf-path`，保留原临时输出、900 秒总时限、原摘要校验及失败清理。显式 User-Agent 参数继续覆盖公共配置；curl、wget、公共安装阶段和 ToDesk 主脚本均保持原样。
+- 实际验证：普通 aria2 加载公共配置后，日志达到 `CN:16`，公共 AUR 入口取得完整 115086264 字节 DEB，并通过当前 AUR 原 SHA-256；版本输出和来源缓存一致。52 项检查覆盖旧接口、请求头、显式标识覆盖、配置缺失拒绝、摘要拒绝与失败清理。
+- 验证边界：普通 aria2 的真实下载、公共 AUR 入口、原摘要、DEB 版本及来源缓存与隔离兼容检查分别核对。未运行完整真实 AUR 安装、quick-sharun 封装或新产物实机功能；本次配置调整不等于正式 CI 已验收。
