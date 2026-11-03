@@ -42,7 +42,7 @@ runs:
         done
         test -f /tmp/yay-bin/PKGBUILD
         su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
-        # 在统一 yay 入口处理仓库包低速超时，应用构建脚本继续使用原安装命令。
+        # 在统一 yay 入口处理仓库包下载失败，应用构建脚本继续使用原安装命令。
         cat > /usr/local/bin/yay <<'YAY_EOF'
         #!/bin/bash
         set -Eeuo pipefail
@@ -69,8 +69,8 @@ runs:
             exit "${download_status[1]}"
           fi
 
-          # 只重试仓库包下载过慢且尚未安装任何软件包的失败事务。
-          if ! grep -Eq "failed retrieving file '[^']+[.]pkg[.]tar[.][^']+' from .* : Operation too slow[.]" "$download_log" ||
+          # 只重试仓库包或签名下载失败的事务，包括低速超时和 TLS 断连。
+          if ! grep -Eq "failed retrieving file '[^']+[.]pkg[.]tar[.][^']+' from " "$download_log" ||
              ! grep -Fq 'failed to retrieve some files' "$download_log" ||
              ! grep -Fq 'Errors occurred, no packages were upgraded.' "$download_log" ||
              ! grep -Fq 'error installing repo packages' "$download_log"; then
@@ -79,13 +79,13 @@ runs:
 
           # 达到尝试上限时仍以原安装失败状态退出。
           if (( attempt == 5 )); then
-            printf '仓库软件包下载过慢，已尝试 5 次，停止安装。\n' >&2
+            printf '仓库软件包下载失败，已尝试 5 次，停止安装。\n' >&2
             exit "${download_status[0]}"
           fi
 
           # 依次等待 5、10、15、20 秒，再用原参数重试安装。
           delay=$((attempt * 5))
-          printf '仓库软件包下载过慢，%d 秒后重试（第 %d/5 次尝试失败）。\n' "$delay" "$attempt" >&2
+          printf '仓库软件包下载失败，%d 秒后重试（第 %d/5 次尝试失败）。\n' "$delay" "$attempt" >&2
           sleep "$delay"
         done
         YAY_EOF

@@ -180,7 +180,28 @@ jobs:
       RUN_FROM_ROOT: ${{ matrix.run_from_root }}
       SOFTWARE_KEY: ${{ matrix.software_key }}
     steps: &arch_steps
-      - {name: Pre-install Git, run: 'pacman -Sy --noconfirm git'}
+      - &arch_git_install
+        name: Pre-install Git
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for attempt in 1 2 3 4 5; do
+            # 保留原有 Git 预安装命令，索引同步或下载失败后重新尝试。
+            if pacman -Sy --noconfirm git; then
+              break
+            else
+              install_status=$?
+            fi
+            # 达到尝试上限后保留原失败状态，禁止跳过 Git 安装继续构建。
+            if (( attempt == 5 )); then
+              printf 'Git 预安装失败，已尝试 5 次。\n' >&2
+              exit "$install_status"
+            fi
+            # 依次等待 5、10、15、20 秒，再重试原安装命令。
+            delay=$((attempt * 5))
+            printf 'Git 预安装失败，%d 秒后重试（第 %d/5 次尝试失败）。\n' "$delay" "$attempt" >&2
+            sleep "$delay"
+          done
       - {name: Checkout Code, uses: 'actions/checkout@v4', with: {fetch-depth: 0}}
       - {name: Preparing Container, uses: 'pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d'} # v1
       - name: Build and publish AppImage
@@ -595,8 +616,7 @@ jobs:
       packages: read
 
     steps:
-      - name: Pre-install Git
-        run: pacman -Sy --noconfirm git
+      - *arch_git_install
 
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -692,9 +712,25 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          gh release upload latest mediainfo/dist/mediainfo.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
+          for attempt in 1 2 3 4 5 6 7 8; do
+            # 沿用原上传命令；同名资产处理或上传失败后重新执行完整发布。
+            if gh release upload latest mediainfo/dist/mediainfo.AppImage \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber; then
+              break
+            else
+              publish_status=$?
+            fi
+            # 达到尝试上限后仍报告发布失败。
+            if (( attempt == 8 )); then
+              printf '发布 MediaInfo Release 资产失败，已尝试 8 次。\n' >&2
+              exit "$publish_status"
+            fi
+            # 沿用共享发布入口的退避间隔。
+            delay=$((attempt * 5))
+            printf '发布 MediaInfo Release 资产失败，%d 秒后重试（第 %d/8 次尝试失败）。\n' "$delay" "$attempt" >&2
+            sleep "$delay"
+          done
 
       - name: Publish software version immediately
         uses: ./.github/actions/publish-software-versions
@@ -765,8 +801,7 @@ jobs:
       contents: write
       packages: read
     steps:
-      - name: Pre-install Git
-        run: pacman -Sy --noconfirm git
+      - *arch_git_install
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
@@ -1186,8 +1221,7 @@ jobs:
       packages: read
 
     steps:
-      - name: Pre-install Git
-        run: pacman -Sy --noconfirm git
+      - *arch_git_install
 
       - name: Checkout Code
         uses: actions/checkout@v4
