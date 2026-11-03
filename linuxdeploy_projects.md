@@ -2,15 +2,16 @@
 
 本文件统一 AppDir / 官方 appimagetool 体系的风格。下面保留 linuxdeploy 项目的强制规范；直接 appimagetool 项目遵循文末的直接封装补充。两种模式均适用于聊天拟稿、修改方案和实际文件。
 
-## 三个标准参考
+## 四个通用标准参考
 
 | 类型 | 标准脚本 | 专属差异 |
 | --- | --- | --- |
 | GTK | [Joplin](./joplin/build_joplin.sh) | [Joplin 专属差异](./joplin/docs/template-deviations.md) |
 | Qt | [XnView MP](./xnviewmp/build_xnviewmp.sh) | [XnView MP 专属差异](./xnviewmp/docs/template-deviations.md) |
 | CLI / 无框架插件 | [MediaInfo](./mediainfo/build_mediainfo_linuxdeploy.sh) | [MediaInfo 专属差异](./mediainfo/docs/template-deviations.md) |
+| 直接 appimagetool | [Kitty](./kitty/build_kitty.sh) | [Kitty 专属差异](./kitty/docs/template-deviations.md) |
 
-三个脚本共同确定公共结构；按技术栈选择参考，不从不同项目中任意拼接代码。文档不重复抄写完整脚本，开始修改时读取最新 main 中的对应脚本、应用 README 和实际 workflow。
+前三个脚本用于核对 linuxdeploy 的共用结构，并按 GTK、Qt 或 CLI / 无框架插件选择底稿。直接封装以 Kitty 为底稿，同时对照前三个脚本中适用的共用分区、固定注释和公共调用。各项目按适用阶段复用标准，禁止任意拼接代码。文档不重复抄写完整脚本。开始拟稿或修改时，读取最新 `main` 中所有适用的参考脚本、应用 README 和实际 workflow。
 
 - 通用部分的命令写法、固定注释、顺序、缩进和空行逐字保留。命令保持单行，禁止反斜杠续行；已确认的 `export ARCH=x86_64; linuxdeploy ...` 整行保留。
 - 软件包、依赖、来源、路径、启动参数和 AppRun 配置按当前程序的实际需要确定，不复制参考项目的专属修复。
@@ -184,6 +185,8 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 ## 直接 appimagetool 模式：同一体系的精简流程
 
 直接 appimagetool 和 linuxdeploy 属于同一套 AppDir / 官方 appimagetool 打包体系，按相同的分区、通用注释、单行公共调用和空行风格维护；quick-sharun / sharun 继续使用另一套规范。直接模式不执行 linuxdeploy，也不下载它的插件，不增加空 AppDir 初始化、第二次部署或中间 AppImage。
+
+直接封装的底稿是 Kitty。逐字逐行核对共用内容时，按阶段查阅[四个通用标准参考](#四个通用标准参考)。
 
 | 阶段 | 直接模式的处理 |
 | --- | --- |

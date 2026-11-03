@@ -131,6 +131,8 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 
 遵循同一规范的 [直接封装补充](../linuxdeploy_projects.md#直接-appimagetool-模式同一体系的精简流程)，省略 linuxdeploy、插件、初始化和中间输出。构建环境与程序专属差异沿用各自已确认的基线，不因归类强制迁移环境或重写入口。
 
+[Kitty](../kitty/build_kitty.sh) 是本类通用标准参考。下表同时收录已整理项目。共用分区、注释和公共调用的对照范围见[四个通用标准参考](../linuxdeploy_projects.md#四个通用标准参考)。
+
 | 已整理项目 | 构建脚本 | 程序及版本来源 | 工具与封装入口 | 专属差异说明 |
 | --- | --- | --- | --- | --- |
 | DingTalk | [build_dingtalk.sh](../dingtalk/build_dingtalk.sh) | 当前 AUR 指向的官方 DEB；公共组合入口校验摘要与包身份、安装并解包，返回实际版本。 | Qt/CEF 完整 bundle；工具准备与最终封装均使用公共入口，不调用 linuxdeploy。 | [专属差异](../dingtalk/docs/template-deviations.md) |

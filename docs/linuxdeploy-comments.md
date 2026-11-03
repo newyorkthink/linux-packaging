@@ -9,6 +9,8 @@
 
 直接 appimagetool 模式复用适用的分区及通用注释，省略 linuxdeploy 初始化、部署、插件和中间输出。既有 linuxdeploy 固定原文保持不变，不为直接模式增加无关步骤。
 
+直接封装的通用参考是 [Kitty](../kitty/build_kitty.sh)。两种模式共用的分区和注释同时对照 Joplin、XnView MP 和 MediaInfo 的适用阶段。参见[四个通用标准参考](../linuxdeploy_projects.md#四个通用标准参考)。
+
 直接模式与 linuxdeploy 对同一用途使用同一条固定原文，不因省略部署步骤就改写注释、另起分区名称或放宽排版要求。没有对应操作的标题和注释省略；描述与实际行为不符时，不为逐字套用而改变已确认的命令或专属说明。
 
 阶段顺序在实际依赖允许时尽量对齐，已验证的必要顺序继续保留，并在应用差异说明中写明原因。适用范围和具体边界见 [与 linuxdeploy 标准尽量对齐](../linuxdeploy_projects.md#与-linuxdeploy-标准尽量对齐)。

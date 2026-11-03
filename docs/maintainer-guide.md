@@ -50,6 +50,8 @@
 | RunImage | 需要共享运行环境或项目已经采用 RunImage | 使用 `.github/workflows/build_runimage.yml`，不要混入普通 AppImage workflow |
 | Termux 原生工具 | Android / Termux 原生工具 | 使用 `.github/workflows/termux.yml` 和 `termux/<工具名>/` |
 
+选定路线后，按技术栈核对适用的参考脚本。直接 appimagetool 以 Kitty 为底稿，linuxdeploy 按 GTK、Qt 或 CLI / 无框架插件分别参考 Joplin、XnView MP 或 MediaInfo。直接封装也需核对三份 linuxdeploy 脚本中适用的共用段。参见[四个通用标准参考](../linuxdeploy_projects.md#四个通用标准参考)。
+
 ### linuxdeploy 插件
 
 - Qt 应用按实际 Qt 主版本选择 `linuxdeploy-plugin-qt`，通过 `--plugin qt` 部署 Qt plugins、QML 和翻译；非 Qt 应用不添加。
