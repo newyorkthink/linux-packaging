@@ -27,6 +27,45 @@
 5. 删除 Release 中已经核实的该应用产物。若 `latest/software_versions.json` 含对应记录，同次按现有写锁和独立清理机制仅移除匹配条目；本来没有记录就不新增，不覆盖其他应用的并发更新。独立清理只删版本条目，不替代产物删除。
 6. 提交前核对完整 diff、整目录文件及权限保留、JSON / YAML、清单与手动选项一致性，以及所有活动入口均已移除。核实 Release 产物和版本条目已移除；任何未完成的删除或未验证结果必须如实说明，不能把提交成功当作构建成功。
 
+## 删除 Release 附件
+
+Release 附件与 Git 仓库文件是两类对象。移动源码目录、删除仓库路径或提交归档，都不会删除已经发布的附件。
+
+AI 应先检查 GitHub 工具是否支持删除 Release 附件。连接器缺少此接口时，优先使用已授权的本机 `gh`，可通过 WebCodex 的原生命令工具执行；不要直接改走云浏览器。先确认本机连接可用，再检查 `gh` 登录状态及对目标仓库的发布写权限。浏览器登录与 `gh` 登录相互独立，不能互相代替。
+
+以下命令在已安装 Bash、`gh` 和 `jq` 的 **Linux 终端**执行。本仓库持续发布的产物位于 `latest`；仓库和附件名称须按当次归档清单替换。附件名称使用已核实的完整文件名，不按应用名猜测，也不沿用以前查询到的 asset ID。
+
+```bash
+# 关键命令失败时立即退出，防止把查询失败误判为删除成功。
+set -Eeuo pipefail
+
+# 指定目标仓库，按实际情况替换占位符。
+REPOSITORY="<所有者>/<仓库>"
+# 指定当次归档清单中已经核实的完整附件名。
+ASSET_NAME="<附件名>"
+
+# 确认本机 gh 当前使用的 GitHub 账户及登录状态。
+gh auth status
+# 从目标仓库动态读取 latest Release 的编号。
+RELEASE_ID="$(gh api "repos/$REPOSITORY/releases/tags/latest" --jq '.id')"
+# 完整读取所有附件分页，并拒绝无效响应。
+ASSETS_JSON="$(gh api --paginate "repos/$REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" | jq -s -e 'if length > 0 and all(.[]; type == "array") then add else error("附件列表响应无效") end')"
+# 确认目标附件唯一存在；不满足时停止删除。
+jq -e --arg name "$ASSET_NAME" '[.[] | select(.name == $name)] | length == 1' <<< "$ASSETS_JSON"
+
+# 只删除 latest 中精确命名的这个附件。
+gh release delete-asset latest "$ASSET_NAME" -R "$REPOSITORY" --yes
+
+# 删除后重新读取全部分页，不能复用删除前的列表。
+ASSETS_JSON="$(gh api --paginate "repos/$REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" | jq -s -e 'if length > 0 and all(.[]; type == "array") then add else error("附件列表响应无效") end')"
+# 查询成功且目标匹配数为零，才确认附件已删除。
+jq -e --arg name "$ASSET_NAME" '[.[] | select(.name == $name)] | length == 0' <<< "$ASSETS_JSON"
+```
+
+最后一条检查返回 `true` 且退出码为 0 才算通过。若目标原本不存在，须通过成功、完整的查询确认后直接说明，无需重复删除；查询失败必须保留为失败，不能用 `grep ... || echo gone` 把它变成“已删除”。
+
+`gh release delete-asset` 只处理指定附件；不要换成 `gh release delete latest`，后者会删除整个 Release。`software_versions.json` 中的对应记录仍按上文归档步骤和现有写锁机制处理，附件删除不能替代版本清单清理。
+
 ## 重新启用
 
 先阅读该应用 README 中的原始故障、已确认基线和恢复待办，再核对当前官方来源、包布局与上游打包代码。将完整目录移回原位置，同步恢复应用清单、workflow 手动选项及必要的独立 Job、活动索引，并移除本页停用条目和归档映射。
