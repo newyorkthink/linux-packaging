@@ -33,38 +33,16 @@ Release 附件与 Git 仓库文件是两类对象。移动源码目录、删除�
 
 AI 应先检查 GitHub 工具是否支持删除 Release 附件。连接器缺少此接口时，优先使用已授权的本机 `gh`，可通过 WebCodex 的原生命令工具执行；不要直接改走云浏览器。先确认本机连接可用，再检查 `gh` 登录状态及对目标仓库的发布写权限。浏览器登录与 `gh` 登录相互独立，不能互相代替。
 
-以下命令在已安装 Bash、`gh` 和 `jq` 的 **Linux 终端**执行。本仓库持续发布的产物位于 `latest`；仓库和附件名称须按当次归档清单替换。附件名称使用已核实的完整文件名，不按应用名猜测，也不沿用以前查询到的 asset ID。
+使用 [仓库维护脚本](../scripts/README.md#删除单个-release-附件)统一执行，不在归档文档中维护第二套删除逻辑。需要 Bash、`gh`、`jq` 和目标仓库的发布写权限。在仓库根目录的 Linux 终端执行，替换仓库及附件名；本仓库持续发布的产物使用 `latest` 标签：
 
 ```bash
-# 关键命令失败时立即退出，防止把查询失败误判为删除成功。
-set -Eeuo pipefail
-
-# 指定目标仓库，按实际情况替换占位符。
-REPOSITORY="<所有者>/<仓库>"
-# 指定当次归档清单中已经核实的完整附件名。
-ASSET_NAME="<附件名>"
-
-# 确认本机 gh 当前使用的 GitHub 账户及登录状态。
-gh auth status
-# 从目标仓库动态读取 latest Release 的编号。
-RELEASE_ID="$(gh api "repos/$REPOSITORY/releases/tags/latest" --jq '.id')"
-# 完整读取所有附件分页，并拒绝无效响应。
-ASSETS_JSON="$(gh api --paginate "repos/$REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" | jq -s -e 'if length > 0 and all(.[]; type == "array") then add else error("附件列表响应无效") end')"
-# 确认目标附件唯一存在；不满足时停止删除。
-jq -e --arg name "$ASSET_NAME" '[.[] | select(.name == $name)] | length == 1' <<< "$ASSETS_JSON"
-
-# 只删除 latest 中精确命名的这个附件。
-gh release delete-asset latest "$ASSET_NAME" -R "$REPOSITORY" --yes
-
-# 删除后重新读取全部分页，不能复用删除前的列表。
-ASSETS_JSON="$(gh api --paginate "repos/$REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" | jq -s -e 'if length > 0 and all(.[]; type == "array") then add else error("附件列表响应无效") end')"
-# 查询成功且目标匹配数为零，才确认附件已删除。
-jq -e --arg name "$ASSET_NAME" '[.[] | select(.name == $name)] | length == 0' <<< "$ASSETS_JSON"
+# 按当次归档清单填写已核实的完整附件名，并确认只删除这个附件。
+bash scripts/release/delete_asset.sh --repo "<所有者>/<仓库>" --tag latest --asset "<完整附件名>" --yes
 ```
 
-最后一条检查返回 `true` 且退出码为 0 才算通过。若目标原本不存在，须通过成功、完整的查询确认后直接说明，无需重复删除；查询失败必须保留为失败，不能用 `grep ... || echo gone` 把它变成“已删除”。
+脚本动态读取 Release 和附件 ID，完整读取所有分页，只删除唯一精确匹配的附件，并重新完整查询确认。目标已不存在且查询成功时报告“无需删除”；查询失败、匹配不唯一、Release 变化或删除后仍有同名附件时返回失败，不能把这些情况当作删除成功。参数、退出码和并发处理见 [脚本说明](../scripts/README.md)。
 
-`gh release delete-asset` 只处理指定附件；不要换成 `gh release delete latest`，后者会删除整个 Release。`software_versions.json` 中的对应记录仍按上文归档步骤和现有写锁机制处理，附件删除不能替代版本清单清理。
+只处理已经授权的指定附件，不删除整个 Release。`software_versions.json` 中的对应记录仍按上文归档步骤和现有写锁机制处理，附件删除不能替代版本清单清理。
 
 ## 重新启用
 

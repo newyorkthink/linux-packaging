@@ -681,6 +681,13 @@ AI 必须遵守最小修改原则。
 - 新增应用时，应创建独立应用目录，并优先参考仓库中最相近的现有项目实现。
 - 如果现有方案可复用，应复用，不要重新设计整套构建系统。
 
+### 仓库维护脚本的目录分工
+
+- 根目录 `scripts/` 存放人工或 AI 经授权后在终端中明确调用、以参数复用的仓库维护工具，入口和调用约定见 [scripts/README.md](./scripts/README.md)。`common/` 继续负责应用构建公共入口，`.github/scripts/` 继续负责 Actions 脚本。
+- 删除已授权的单个 Release 附件时，统一调用 `scripts/release/delete_asset.sh`，明确传入仓库、标签、已核实的完整附件名和 `--yes`。该维护入口使用本机已有 `gh` 认证、完整分页及按本次查询所得 ID 删除；查询、删除或复查失败不得宣称成功，不删除整个 Release。
+- `scripts/` 中的维护工具保持显式调用，不自动接入应用构建或定时任务。应用构建与打包下载继续使用 `common/`，不得借维护脚本绕过公共入口规则。
+- 代码、注释和示例使用通用参数或占位符，不记录个人路径、主机、设备、网络、账号配置或凭据；本机认证输出、截图与日志不得直接复制进公共仓库。
+
 ### 不再使用的项目移入 archive
 
 确认不再使用的应用，整目录移动到仓库根目录 `archive/`，不要直接删除脚本和修复记录。
@@ -872,7 +879,7 @@ GitHub Actions 的临时 CI 容器 / runner 内可以使用 `pacman`、`yay`、`
 - 不允许静默吞掉关键错误；`|| true` 只能用于明确允许失败且后续有正常构建处理的非关键步骤。
 - 路径和变量必须正确引用，避免 word splitting 和 glob 意外展开。
 
-仓库内简单 HTTPS 文件下载优先复用 `common/download/download_file.sh`，由应用脚本传入当前上游 URL、输出路径和可选 SHA-256；不得在每个项目中重复维护相同的 curl 重试、超时、临时文件和摘要校验逻辑。GitHub API 请求统一复用 `common/github/github_api.sh` 的认证与请求入口；符合“正式 semver Release + 包含 `{version}` 的资产名 + GitHub SHA-256 digest”模式时，优先调用 `common/github/resolve_latest_stable_release_asset.sh`。linuxdeploy 项目准备 linuxdeploy、appimagetool、Type 2 runtime 及当前已支持的 GTK / Qt 插件时，优先调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh`。需要其他特殊请求头、API 解析、认证或上游协议时可以保留项目专用逻辑，但实际资产下载仍应尽量复用公共入口。已经稳定且本次未涉及的项目不为统一形式批量重构。
+仓库内简单 HTTPS 文件下载优先复用 `common/download/download_file.sh`，由应用脚本传入当前上游 URL、输出路径和可选 SHA-256；不得在每个项目中重复维护相同的 curl 重试、超时、临时文件和摘要校验逻辑。应用构建与打包下载中的 GitHub API 请求统一复用 `common/github/github_api.sh` 的认证与请求入口；符合“正式 semver Release + 包含 `{version}` 的资产名 + GitHub SHA-256 digest”模式时，优先调用 `common/github/resolve_latest_stable_release_asset.sh`。linuxdeploy 项目准备 linuxdeploy、appimagetool、Type 2 runtime 及当前已支持的 GTK / Qt 插件时，优先调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh`。需要其他特殊请求头、API 解析、认证或上游协议时可以保留项目专用逻辑，但实际资产下载仍应尽量复用公共入口。已经稳定且本次未涉及的项目不为统一形式批量重构。
 
 ### 构建脚本必须使用中文分区注释
 

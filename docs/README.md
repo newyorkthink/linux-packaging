@@ -46,6 +46,7 @@
 | --- | --- |
 | [AI 仓库规范](../AGENTS.md) | 授权、稳定基线、完整阅读、提交、验证边界 |
 | [维护者指南](./maintainer-guide.md) | 人工维护、入口、打包路线、提交前核对 |
+| [仓库维护脚本](../scripts/README.md) | scripts / common / Actions 分工、参数调用、gh 认证、完整分页、精确删除 Release 附件、删除后复查、公开示例 |
 | [项目归档与恢复](../archive/README.md) | 停用登记、完整目录保留、活动构建移除、Release 产物与版本条目清理、未解决错误、恢复待办 |
 | [Anylinux / quick-sharun 规范](../anylinux_projects.md) | Arch、sharun、AppDir、中文环境、输入模块、platforminputcontexts、自动收集、`.env`、Qt 主题插件、qt6ct、kvantum、lxqt-qtplugin、有窗口的 Qt 程序、Electron、程序目录、直接下载标准模板、公共版本读取、单行保存、行数与空行、暂不采用官方处理、加入前重新核实 |
 | [quick-sharun 固定注释标准](./quick-sharun-comments.md) | 标准原文、通用流程、按来源选用、元数据、GUI 中文环境、按需部署、来源标注；不收录应用专属注释 |
