@@ -2,7 +2,7 @@
 
 本文件只收录跨项目需要统一复用的注释，适用于脚本、聊天拟稿和修改方案。流程遵循 [anylinux_projects.md](../anylinux_projects.md)。
 
-标准原文来自 [Cursor](../cursor/build_cursor.sh)、[WorkBuddy](../workbuddy/build_workbuddy.sh)、[mpv](../mpv/build_mpv.sh)、[htop](../htop/build_htop.sh) 和 [OBS Studio](../obs-studio/build_obs-studio.sh)，按各自分类使用，不混拼不同模板。
+按标准重写时，固定注释及位置以 [quick-sharun 唯一标准模板](../anylinux_projects.md#唯一标准模板) 为准。
 
 - 同一用途逐字复用原文，包括 `# `、术语和标点；代码、注释位置、缩进及空行仍以对应标准模板为准。
 - 按已确认的程序来源、技术栈及实际配置选用，不为套用注释增加变量或步骤；命令行程序不添加 GUI 中文配置，既有批准的例外保持原样。
@@ -34,6 +34,7 @@ DEB 注释仅用于 DEB；其他归档格式按对应模板及已批准原文处
 | 用途 | 固定注释原文 |
 | --- | --- |
 | Arch 官方软件包及运行依赖 | `# 安装官方软件包及运行依赖。` |
+| 安装应用本身及其声明的依赖 | `# 应用本身。包管理器会拉入它声明的依赖。` |
 | AUR 软件包及 DEB 解包工具 | `# 安装 AUR 软件包、运行依赖及 DEB 解包工具。` |
 | 独立下载官方 DEB | `# 下载官方当前 DEB。` |
 | 解包官方 DEB | `# 解包官方 DEB。` |

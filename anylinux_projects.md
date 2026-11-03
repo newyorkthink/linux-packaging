@@ -10,6 +10,36 @@
 
 已经验证稳定的脚本继续以自身为准。不要为了套本文去批量改写 mpv、htop、newsboat。
 
+## 唯一标准模板
+
+| 模板 | 适用场景 |
+| --- | --- |
+| [arch-native.sh](./templates/quick-sharun/arch-native.sh) | Arch 官方仓库原生程序，从系统入口收集 |
+| [electron-deb.sh](./templates/quick-sharun/electron-deb.sh) | Electron，官方当前 DEB，版本取自包内 package.json |
+| [electron-installed.sh](./templates/quick-sharun/electron-installed.sh) | Electron，使用系统已安装的完整程序目录 |
+| [tauri-gtk-deb.sh](./templates/quick-sharun/tauri-gtk-deb.sh) | Tauri / GTK3，GitHub 正式 Release 的 DEB |
+| [qt-deb.sh](./templates/quick-sharun/qt-deb.sh) | Qt，AUR 指向的预编译官方 DEB |
+| [qt-installed.sh](./templates/quick-sharun/qt-installed.sh) | Qt 6，Arch 官方仓库程序，从系统入口收集 |
+
+在 Arch Linux 构建环境使用。先按软件来源、框架、实际入口和所需运行配置选定一份完整模板，再复制到应用的一级目录。`../common/` 相对于应用目录。模板应替换完全部占位参数后再运行。原生及系统安装模板重建当前应用的 `AppDir` 与 `dist`，DEB 模板还会重建 `work`。这些目录中的旧内容会被删除。
+
+只替换下表允许变化的参数值，注释、顺序、缩进和空行逐字保留。不存在对应模板时，先核实依据并新增一份完整模板，禁止拼接旧脚本或其他模板。软件来源和上游打包核实要求仍按本文执行。
+
+| 占位参数 | 替换内容 |
+| --- | --- |
+| `__SYSTEM_PACKAGE__`、`__DEPENDENCY_ARGS__` | 构建系统安装的主包名及实际依赖参数。依赖按独立参数填写，空列表只清空占位文本。 |
+| `__APP_NAME__`、`__MAIN_BIN__`、`__STARTUPWMCLASS__` | 成品应用名、包内主程序名和已核实的 StartupWMClass。 |
+| `__ICON__`、`__DESKTOP__` | 安装后实际存在的图标和桌面入口路径。 |
+| `__APP_BASENAME__` | 最终文件名主体，保留模板固定的 `.AppImage` 后缀。 |
+| `__SYSTEM_SCAN_ARGS__`、`__EXTRA_SCAN_ARGS__` | 交给 quick-sharun 的真实程序、辅助程序及已核实的库或资源。系统扫描至少有一个入口，额外扫描参数可以为空。需要展开通配符时保持 Shell 展开语义。 |
+| `__DEB_URL__`、`__DEB_PROGRAM_DIR__` | 当前官方 DEB 的稳定下载入口，以及解包目录内完整程序目录的相对路径。 |
+| `__PACKAGE_JSON__`、`__INSTALLED_PROGRAM_DIR__` | 相对 `AppDir/bin` 的版本元数据路径，或系统中已安装的完整程序目录。 |
+| `__GITHUB_REPOSITORY__`、`__RELEASE_ASSET_PATTERN__` | 官方 `owner/repo` 和带 `{version}` 的资产名模板。 |
+| `__DEB_PACKAGE__`、`__DEB_ARCH__` | 官方 DEB 包名和包架构，用于校验资产。 |
+| `__AUR_DEB_FILENAME__` | 与 AUR 元数据匹配的 DEB 源文件名模板，保留公共入口支持的版本占位写法。 |
+
+带中文配置的 GUI 模板仅用于已核实有对应翻译并采用包内中文环境的应用。Qt 6 系统入口模板固定安装对应输入与主题插件。Qt DEB 模板以 AUR 指向的官方 DEB 为来源，依赖参数须填写与实际 Qt 主版本匹配的输入法及适用主题包。Gemini 的 Windows 产品层移植及已有应用专属流程继续在各自目录维护。
+
 ## 公共注释
 
 通用注释逐字复用 [quick-sharun 固定注释标准](./docs/quick-sharun-comments.md)，位置、顺序和空行遵循对应分类模板。公共表只收录跨项目需要统一的表述，不收录应用专属注释，也不授权批量改写既有稳定脚本。下文的来源注释表保持原文，继续说明来源标注及已确认的专项用途。
@@ -155,7 +185,7 @@
 
 适用于选择 Arch 官方仓库原生二进制包、且 `/usr/bin/<主程序>` 为真实可执行程序的路线。先安装基础包、应用及已确认依赖，再从系统入口收集；不另行下载同一主程序，不预复制程序到 `AppDir/bin`，不把 Electron 的 shell launcher 当成原生入口。本类已标准化项目见 [打包分类](./docs/packaging-classification.md)。
 
-以下为基础模板。尖括号内容按当前应用实际值替换；没有额外运行依赖时只保留应用包参数，不保留占位符。同类项目必须逐字逐行保持公共代码、通用注释、缩进和空行，仅替换参数。应用专属段放在依赖收集之后、最终封装之前，并在应用的 `docs/template-deviations.md` 记录；不要求与 Electron 下载模板具有相同总行数。
+以下是系统入口流程的既有示例。按标准重写时使用 [arch-native.sh](./templates/quick-sharun/arch-native.sh)，参数替换和适用条件以上面的模板表为准。
 
 ```bash
 #!/usr/bin/env bash
@@ -290,7 +320,7 @@ Qt 6 程序打包前安装 qt6ct、kvantum、lxqt-qtplugin。装上后由 quick-
 
 ## 有窗口的 Qt 程序
 
-有窗口且使用 Qt 6 的程序，标准脚本是 [obs-studio/build_obs-studio.sh](./obs-studio/build_obs-studio.sh)。相对 mpv 的默认形状，这个脚本增加了中文环境、Qt 主题插件，以及同一次交给 quick-sharun 的录制程序、模块目录、模块数据和脚本模块。图标、desktop、DEPLOY_* 和传给 quick-sharun 的路径来自该程序自己的官方包。
+有窗口且使用 Qt 6 的程序，从系统入口收集时使用 [qt-installed.sh](./templates/quick-sharun/qt-installed.sh)。[OBS Studio](./obs-studio/build_obs-studio.sh) 保留为既有实现参考。相对 mpv 的默认形状，这个脚本增加了中文环境、Qt 主题插件，以及同一次交给 quick-sharun 的录制程序、模块目录、模块数据和脚本模块。图标、desktop、DEPLOY_* 和传给 quick-sharun 的路径来自该程序自己的官方包。
 
 ## 非必要不要自己写 AppRun.sh
 
@@ -363,7 +393,7 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 
 ### 直接下载安装包的标准模板
 
-**后续使用 quick-sharun、需要直接下载官方 Electron 安装包的应用，以 [Cursor](./cursor/build_cursor.sh) 和 [WorkBuddy](./workbuddy/build_workbuddy.sh) 这两个构建脚本为标准。** 当前两份模板都下载官方 DEB；其他归档格式沿用相同执行阶段，按真实包格式选择公共入口，并在应用的差异文档中说明。分类入口见 [打包分类](./docs/packaging-classification.md)。
+**直接下载官方 DEB、从包内 `package.json` 读取版本的 Electron 应用，按标准重写时采用 [electron-deb.sh](./templates/quick-sharun/electron-deb.sh)。** [Cursor](./cursor/build_cursor.sh) 和 [WorkBuddy](./workbuddy/build_workbuddy.sh) 用于查阅既有实现。其他归档格式或版本来源先新增对应模板。分类入口见 [打包分类](./docs/packaging-classification.md)。
 
 这项分类按最终程序文件的来源划分：先安装 Arch / AUR 软件包，准备依赖、图标、desktop 或既定版本元数据；再从已核实的 AUR 下载来源、软件官方网站等单独下载并解包安装包，取得最终程序文件。两个阶段都必须保留，不得从系统安装目录直接复制程序来替代第二阶段。
 
@@ -388,7 +418,7 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 
 **总行数、代码结构、执行阶段、通用注释全文以及空行的位置和数量都属于模板。** 对照时逐行核对，不得忽略空行后宣布一致。软件名称、软件包、下载接口、路径、版本来源、元数据选项和必要辅助命令可以不同；具体原因写入该应用的 `docs/template-deviations.md`，固定配置依据写入 `docs/hardcoded.md`。不得把某个应用的专属参数机械复制给其他程序。
 
-通用注释直接沿用两份标准脚本，保持泛化表述和原位置。版本读取统一使用 `# 读取本次打包使用的版本。`，保存统一使用 `# 打包成功后用公共脚本记下版本。`，注释均紧贴对应的单行调用。
+符合官方 DEB 和包内 `package.json` 来源的标准重写使用 [electron-deb.sh](./templates/quick-sharun/electron-deb.sh)。既有应用脚本用于查阅技术依据。通用注释和位置以选定模板为准。版本读取统一使用 `# 读取本次打包使用的版本。`，保存统一使用 `# 打包成功后用公共脚本记下版本。`，注释均紧贴对应的单行调用。
 
 ### 公共版本读取与保存
 

@@ -6,13 +6,15 @@
 
 同类项目共用标准阶段、通用注释、代码结构和空行。软件名、包名、路径及允许变化的参数在原位置替换；经核实并保留的专属差异必须有应用文档，不要求不同来源和专属段强行具有相同总行数。
 
+quick-sharun 按标准重写时，从 [唯一标准模板](../anylinux_projects.md#唯一标准模板) 按软件来源和技术栈选择完整底稿。所有模板见 [模板索引](../templates/README.md)。
+
 ## 用 quick-sharun 打包的 Electron 程序
 
 ### 直接下载安装包
 
 必须先在构建系统安装应用及运行依赖，再从 AUR 元数据、软件官方网站等核实的来源独立下载 DEB 或预编译 tar 等安装包，解包后把完整程序目录放入 `AppDir/bin`。系统安装结果用于依赖、图标、desktop 或既定版本元数据；不得用系统程序目录复制替代独立下载。
 
-**本分类的基础模板是 [Cursor](../cursor/build_cursor.sh) 和 [WorkBuddy](../workbuddy/build_workbuddy.sh)。** 后续同类项目按两份脚本的共同结构、执行顺序、通用注释及对应空行编写，允许的参数变化和专属差异按 [Electron 直接下载标准](../anylinux_projects.md#直接下载安装包的标准模板) 记录。
+**官方 DEB 且版本来自包内 `package.json` 的标准底稿为 [electron-deb.sh](../templates/quick-sharun/electron-deb.sh)。** 其他来源或版本布局先登记适用模板。Cursor 和 WorkBuddy 保留为既有实现参考。
 
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
@@ -26,7 +28,7 @@
 | Visual Studio Code | [build_vscode.sh](../vscode/build_vscode.sh) | Microsoft 官方 stable tar；版本由公共入口读取包内 `package.json`。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../vscode/docs/template-deviations.md) |
 | WorkBuddy | [build_workbuddy.sh](../workbuddy/build_workbuddy.sh) | 官方更新接口独立下载 DEB 并校验摘要；版本由公共入口读取 AUR 安装结果。 | export DEPLOY_GTK=1 | [模板差异](../workbuddy/docs/template-deviations.md) |
 
-两份基础模板当前使用 DEB；其他归档格式保持同一执行阶段，按真实格式选择公共入口。原样采用的 pkgforge-dev 专属代码及其必要性、来源和影响由对应应用文档说明，不复制到其他应用。
+当前登记模板使用 DEB，其他归档格式按实际来源新增相应模板。原样采用的 pkgforge-dev 专属代码及其必要性、来源和影响由对应应用文档说明，不复制到其他应用。
 
 版本读取保留在第一次 quick-sharun 之前；最终 AppImage 成功生成后，统一单行调用公共保存入口写入 `dist/version.txt`。包名、下载接口、路径、版本来源及必要运行参数可以不同，不能把参数差异误判为模板失配。
 

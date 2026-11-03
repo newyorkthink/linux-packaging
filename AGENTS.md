@@ -423,6 +423,8 @@ Plan 的选择规则：
 
 **凡构建脚本或正式流程使用 quick-sharun / sharun，无论是新增应用、迁移、修复还是重做打包，都必须先完整阅读并严格遵守根目录 [`anylinux_projects.md`](./anylinux_projects.md)。该文件是本仓库 Anylinux 打包的强制规范，不是可选示例。**
 
+按标准重写时，只能从 [quick-sharun 唯一标准模板](./anylinux_projects.md#唯一标准模板) 选择一份完整底稿。遇到未覆盖的来源或布局，先提出新增模板及适用条件，取得明确同意并登记后再使用。模板总入口见 [templates/README.md](./templates/README.md)。
+
 强制范围：
 
 - 不得只看本节摘要。先核实 pkgforge-dev 打包及 AUR、软件官方网站等现成包来源；Arch 官方仓库原生程序按该文件的系统入口标准直接收集真实 `/usr/bin/<主程序>`，不预复制主程序。其他已有适用二进制包的项目必须先安装到构建系统，再独立下载、解包并把完整程序目录放入 `AppDir/bin`；仅未找到适用现成包时，才按对应一般示例判断。
