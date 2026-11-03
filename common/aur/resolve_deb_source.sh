@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# 从 AUR 当前 .SRCINFO 解析唯一的架构专用 DEB 来源，并输出已规范化的构建元数据。
+# 从 AUR 当前 .SRCINFO 解析唯一的架构专用来源，默认处理 DEB。
 if (( $# < 5 )); then
-  echo "用法：$0 <AUR 包名> <架构> <工作目录> <元数据输出文件> <依赖输出文件> [--with-source-filename] [--source-filename <DEB 文件名>]" >&2
+  echo "用法：$0 <AUR 包名> <架构> <工作目录> <元数据输出文件> <依赖输出文件> [--with-source-filename] [--source-filename <DEB 文件名>] [--tar-gz]" >&2
   exit 2
 fi
 
@@ -14,11 +14,20 @@ METADATA_FILE="$4"
 DEPENDENCIES_FILE="$5"
 WITH_SOURCE_FILENAME=false
 SELECTED_FILENAME=""
+TAR_GZ=false
 shift 5
 
 # 保留原有文件名输出选项，只有显式指定文件名时才解析多来源配方。
 while (( $# > 0 )); do
   case "$1" in
+    --tar-gz)
+      [[ "$TAR_GZ" == false ]] || {
+        echo "错误：--tar-gz 不得重复指定。" >&2
+        exit 2
+      }
+      TAR_GZ=true
+      shift
+      ;;
     --with-source-filename)
       if [[ "$WITH_SOURCE_FILENAME" == true ]]; then
         echo "错误：--with-source-filename 不得重复指定。" >&2
@@ -41,6 +50,11 @@ while (( $# > 0 )); do
       ;;
   esac
 done
+
+if [[ "$TAR_GZ" == true && ( "$WITH_SOURCE_FILENAME" == true || -n "$SELECTED_FILENAME" ) ]]; then
+  echo "错误：--tar-gz 不能与 DEB 文件名选项同时使用。" >&2
+  exit 2
+fi
 
 [[ "$PACKAGE" =~ ^[a-z0-9][a-z0-9@._+-]*$ && "$PACKAGE" != *..* ]] || {
   echo "错误：无效 AUR 包名：$PACKAGE" >&2
@@ -94,7 +108,16 @@ mapfile -t PACKAGE_NAMES < <(
 PACKAGE_VERSION="$(awk -F ' = ' '/^[[:space:]]*pkgver = / {print $2; exit}' "$SRCINFO")"
 PACKAGE_REL="$(awk -F ' = ' '/^[[:space:]]*pkgrel = / {print $2; exit}' "$SRCINFO")"
 
-if [[ -n "$SELECTED_FILENAME" ]]; then
+if [[ "$TAR_GZ" == true ]]; then
+  # 只配对当前架构下唯一的来源和 BLAKE2b 摘要，拒绝缺失、SKIP 或歧义。
+  mapfile -t SOURCES < <(awk -F ' = ' -v target="source_$ARCH" '{sub(/^[[:space:]]*/, "", $1); if ($1 == target) print $2}' "$SRCINFO")
+  mapfile -t BLAKE2BS < <(awk -F ' = ' -v target="b2sums_$ARCH" '{sub(/^[[:space:]]*/, "", $1); if ($1 == target) print $2}' "$SRCINFO")
+  if (( ${#SOURCES[@]} != 1 || ${#BLAKE2BS[@]} != 1 )) || [[ ! "${BLAKE2BS[0]}" =~ ^[[:xdigit:]]{128}$ ]]; then
+    echo "错误：AUR $PACKAGE 的 $ARCH tar.gz 来源必须唯一，并有对应的有效 BLAKE2b-512 摘要。" >&2
+    exit 1
+  fi
+  SHA256S=()
+elif [[ -n "$SELECTED_FILENAME" ]]; then
   # 从同次快照展开版本占位符，再按 makepkg 的实际缓存文件名精确匹配。
   SELECTED_FILENAME="${SELECTED_FILENAME//\{version\}/"$PACKAGE_VERSION"}"
   if [[ -z "$PACKAGE_VERSION" || "$SELECTED_FILENAME" == */* || "$SELECTED_FILENAME" == *$'\r'* || "$SELECTED_FILENAME" == *$'\n'* ]]; then
@@ -171,7 +194,7 @@ else
     }' "$SRCINFO"
   )
 fi
-(( ${#SOURCES[@]} == 1 && ${#SHA256S[@]} <= 1 && (${#SHA256S[@]} == 1 || ${#SHA512S[@]} == 1) )) || {
+[[ "$TAR_GZ" == true ]] || (( ${#SOURCES[@]} == 1 && ${#SHA256S[@]} <= 1 && (${#SHA256S[@]} == 1 || ${#SHA512S[@]} == 1) )) || {
   echo "错误：AUR $PACKAGE 的 $ARCH DEB 来源必须唯一，并有对应的唯一 SHA-256 或 SHA-512。" >&2
   exit 1
 }
@@ -182,8 +205,14 @@ SOURCE_URL="${SOURCES[0]#*::}"
   echo "错误：AUR $PACKAGE 缺少版本或 pkgrel。" >&2
   exit 1
 }
-[[ "$SOURCE_URL" == https://* && "$SOURCE_URL" == *.deb ]] || {
-  echo "错误：AUR $PACKAGE 的 $ARCH 来源不是 HTTPS DEB：$SOURCE_URL" >&2
+SOURCE_EXTENSION=.deb
+SOURCE_FORMAT=DEB
+if [[ "$TAR_GZ" == true ]]; then
+  SOURCE_EXTENSION=.tar.gz
+  SOURCE_FORMAT=tar.gz
+fi
+[[ "$SOURCE_URL" == https://* && "$SOURCE_URL" == *"$SOURCE_EXTENSION" ]] || {
+  echo "错误：AUR $PACKAGE 的 $ARCH 来源不是 HTTPS $SOURCE_FORMAT：$SOURCE_URL" >&2
   exit 1
 }
 
@@ -201,7 +230,9 @@ if [[ "$WITH_SOURCE_FILENAME" == true ]]; then
 fi
 
 # 保留 SHA-256 的既有校验规则，不因 SHA-512 存在而回退无效或 SKIP 的 SHA-256。
-if (( ${#SHA256S[@]} == 1 )); then
+if [[ "$TAR_GZ" == true ]]; then
+  SOURCE_CHECKSUM="blake2b:${BLAKE2BS[0]}"
+elif (( ${#SHA256S[@]} == 1 )); then
   EXPECTED_SHA256="${SHA256S[0]}"
   [[ "$EXPECTED_SHA256" =~ ^[[:xdigit:]]{64}$ ]] || {
     echo "错误：AUR $PACKAGE 的 $ARCH SHA-256 无效。" >&2
