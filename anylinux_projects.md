@@ -16,6 +16,7 @@
 | --- | --- |
 | [arch-native.sh](./templates/quick-sharun/arch-native.sh) | Arch 官方仓库原生程序，从系统入口收集 |
 | [electron-deb.sh](./templates/quick-sharun/electron-deb.sh) | Electron，官方当前 DEB，版本取自包内 package.json |
+| [electron-github-deb.sh](./templates/quick-sharun/electron-github-deb.sh) | Electron，带标签前缀的 GitHub 正式 Release DEB，版本取自同次下载 |
 | [electron-installed.sh](./templates/quick-sharun/electron-installed.sh) | Electron，使用系统已安装的完整程序目录 |
 | [tauri-gtk-deb.sh](./templates/quick-sharun/tauri-gtk-deb.sh) | Tauri / GTK3，GitHub 正式 Release 的 DEB |
 | [qt-deb.sh](./templates/quick-sharun/qt-deb.sh) | Qt，AUR 指向的预编译官方 DEB |
@@ -35,6 +36,7 @@
 | `__DEB_URL__`、`__DEB_PROGRAM_DIR__` | 当前官方 DEB 的稳定下载入口，以及解包目录内完整程序目录的相对路径。 |
 | `__PACKAGE_JSON__`、`__INSTALLED_PROGRAM_DIR__` | 相对 `AppDir/bin` 的版本元数据路径，或系统中已安装的完整程序目录。 |
 | `__GITHUB_REPOSITORY__`、`__RELEASE_ASSET_PATTERN__` | 官方 `owner/repo` 和带 `{version}` 的资产名模板。 |
+| `__RELEASE_TAG_PREFIX__` | 调用方明确提供的非空标签前缀；按字面值匹配并移除后，继续使用原有正式版本规则。 |
 | `__DEB_PACKAGE__`、`__DEB_ARCH__` | 官方 DEB 包名和包架构，用于校验资产。 |
 | `__AUR_DEB_FILENAME__` | 与 AUR 元数据匹配的 DEB 源文件名模板，保留公共入口支持的版本占位写法。 |
 
@@ -394,6 +396,8 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 ### 直接下载安装包的标准模板
 
 **直接下载官方 DEB、从包内 `package.json` 读取版本的 Electron 应用，按标准重写时采用 [electron-deb.sh](./templates/quick-sharun/electron-deb.sh)。** [Cursor](./cursor/build_cursor.sh) 和 [WorkBuddy](./workbuddy/build_workbuddy.sh) 用于查阅既有实现。其他归档格式或版本来源先新增对应模板。分类入口见 [打包分类](./docs/packaging-classification.md)。
+
+带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](./templates/quick-sharun/electron-github-deb.sh)。公共入口按调用方指定的前缀筛选正式版本、校验 GitHub SHA-256 及 DEB 包名和架构，版本读取同次下载保存的文本；完整程序目录仍原样复制，不为读取版本解开或修改 ASAR。该模板只扫描完整程序目录，不增加额外扫描参数。
 
 这项分类按最终程序文件的来源划分：先安装 Arch / AUR 软件包，准备依赖、图标、desktop 或既定版本元数据；再从已核实的 AUR 下载来源、软件官方网站等单独下载并解包安装包，取得最终程序文件。两个阶段都必须保留，不得从系统安装目录直接复制程序来替代第二阶段。
 

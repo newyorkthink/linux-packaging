@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# 可选前缀只传给公共解析入口，不改变原有位置参数。
+TAG_ARGS=()
+if [[ "${1:-}" == --tag-prefix ]]; then
+  (( $# >= 2 )) || {
+    echo "用法：$0 [--tag-prefix <标签前缀>] <owner/repo> '<包含 {version} 的资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
+    exit 2
+  }
+  TAG_ARGS=("$1" "$2")
+  shift 2
+fi
+
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 RESOLVER="$SCRIPT_DIR/resolve_latest_stable_release_asset.sh"
 DOWNLOAD_FILE="$SCRIPT_DIR/../download/download_file.sh"
@@ -31,6 +42,10 @@ fi
 
 # 只有归档和清单双重校验通过后，才交付资产和对应 tag 的 commit。
 if [[ "${4:-}" == --latest-with-checksum ]]; then
+  (( ${#TAG_ARGS[@]} == 0 )) || {
+    echo "错误：--tag-prefix 不能与 --latest-with-checksum 一起使用。" >&2
+    exit 2
+  }
   CHECKSUM_NAME="${5:-}"
   COMMIT_FILE="${6:-}"
   [[ $# == 6 && -n "$CHECKSUM_NAME" && -n "$COMMIT_FILE" && "$COMMIT_FILE" != "$OUTPUT" ]] || {
@@ -83,7 +98,7 @@ if [[ "${4:-}" == --latest-with-checksum ]]; then
 fi
 
 # 统一解析正式 semver Release、唯一匹配资产和 GitHub SHA-256 digest。
-mapfile -t RELEASE_META < <("$RESOLVER" "$REPO" "$ASSET_TEMPLATE")
+mapfile -t RELEASE_META < <("$RESOLVER" "${TAG_ARGS[@]}" "$REPO" "$ASSET_TEMPLATE")
 [[ ${#RELEASE_META[@]} -eq 3 ]] || {
   echo "错误：无法解析唯一的正式 Release 资产元数据：$REPO / $ASSET_TEMPLATE" >&2
   exit 1

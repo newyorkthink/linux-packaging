@@ -14,7 +14,7 @@ quick-sharun 按标准重写时，从 [唯一标准模板](../anylinux_projects.
 
 必须先在构建系统安装应用及运行依赖，再从 AUR 元数据、软件官方网站等核实的来源独立下载 DEB 或预编译 tar 等安装包，解包后把完整程序目录放入 `AppDir/bin`。系统安装结果用于依赖、图标、desktop 或既定版本元数据；不得用系统程序目录复制替代独立下载。
 
-**官方 DEB 且版本来自包内 `package.json` 的标准底稿为 [electron-deb.sh](../templates/quick-sharun/electron-deb.sh)。** 其他来源或版本布局先登记适用模板。Cursor 和 WorkBuddy 保留为既有实现参考。
+**官方 DEB 且版本来自包内 `package.json` 的标准底稿为 [electron-deb.sh](../templates/quick-sharun/electron-deb.sh)。** 带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](../templates/quick-sharun/electron-github-deb.sh)，版本读取同次校验下载的记录。其他来源或版本布局先登记适用模板。Cursor 和 WorkBuddy 保留为既有实现参考。
 
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
@@ -23,6 +23,7 @@ quick-sharun 按标准重写时，从 [唯一标准模板](../anylinux_projects.
 | ChatGPT | [build_chatgpt.sh](../chatgpt/build_chatgpt.sh) | 先安装 chatgpt-desktop；公共 AUR 入口独立下载 OpenAI 官方 DEB 并校验 SHA-256，版本读取本次包内 Linux 元数据。 | export DEPLOY_GTK=1 | [模板差异](../chatgpt/docs/template-deviations.md) |
 | Claude Desktop | [build_claude-desktop.sh](../claude-desktop/build_claude-desktop.sh) | 公共 AUR 下载入口独立取得 DEB 并校验摘要；版本由公共入口读取 AUR 安装结果。 | export DEPLOY_GTK=1 | [模板差异](../claude-desktop/docs/template-deviations.md) |
 | Cursor | [build_cursor.sh](../cursor/build_cursor.sh) | 官方独立下载 DEB；版本由公共入口读取包内 `package.json`。 | export DEPLOY_GTK=1 | [模板差异](../cursor/docs/template-deviations.md) |
+| Folo | [build_folo.sh](../folo/build_folo.sh) | 先安装 folo-bin；公共入口按 `desktop/` 前缀独立选择官方正式 Release DEB，核对 GitHub SHA-256、包名和架构，版本读取同次下载记录。 | export DEPLOY_GTK=1 | [模板参数](../folo/docs/template-deviations.md) |
 | Grok Bot | [build_grok-bot.sh](../grok-bot/build_grok-bot.sh) | 先安装 grok-bot-bin；独立下载官方 stable JSON 对应 DEB，公共版本入口读取同次下载记录。 | export DEPLOY_GTK=1 | [模板差异](../grok-bot/docs/template-deviations.md) |
 | TradingView | [build_tradingview.sh](../tradingview/build_tradingview.sh) | 先安装 AUR 的 tradingview-bin-latest；从官方签名 APT 仓库独立下载当前 DEB，版本读取同次下载记录。 | export DEPLOY_GTK=1<br>export NO_STRIP=1<br>export STRACE_MODE=0 | [模板差异](../tradingview/docs/template-deviations.md) |
 | Visual Studio Code | [build_vscode.sh](../vscode/build_vscode.sh) | Microsoft 官方 stable tar；版本由公共入口读取包内 `package.json`。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../vscode/docs/template-deviations.md) |

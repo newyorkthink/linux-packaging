@@ -23,6 +23,7 @@
 | --- | --- |
 | [arch-native.sh](./quick-sharun/arch-native.sh) | Arch 官方仓库原生程序，从系统入口收集 |
 | [electron-deb.sh](./quick-sharun/electron-deb.sh) | Electron，官方当前 DEB，版本取自包内 package.json |
+| [electron-github-deb.sh](./quick-sharun/electron-github-deb.sh) | Electron，带标签前缀的 GitHub 正式 Release DEB，版本取自同次下载 |
 | [electron-installed.sh](./quick-sharun/electron-installed.sh) | Electron，使用系统已安装的完整程序目录 |
 | [tauri-gtk-deb.sh](./quick-sharun/tauri-gtk-deb.sh) | Tauri / GTK3，GitHub 正式 Release 的 DEB |
 | [qt-deb.sh](./quick-sharun/qt-deb.sh) | Qt，AUR 指向的预编译官方 DEB |
