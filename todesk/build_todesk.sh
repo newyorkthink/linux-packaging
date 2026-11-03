@@ -40,7 +40,7 @@ export MAIN_BIN=ToDesk
 export STARTUPWMCLASS=ToDesk
 # 使用系统里装好的图标。
 export ICON=/usr/share/icons/hicolor/512x512/apps/todesk.png
-# 使用官方 desktop 作为元数据，只把启动命令改成 AppImage 内实际主入口。
+# 使用系统里装好的桌面入口文件。
 export DESKTOP="$SCRIPT_DIR/work/todesk.desktop"
 # 把 AppImage 写到脚本目录下的 dist。
 export OUTPATH="$SCRIPT_DIR/dist"
@@ -48,7 +48,7 @@ export OUTPATH="$SCRIPT_DIR/dist"
 export OUTNAME=todesk.AppImage
 # 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
-# AUR 明确使用 !strip；保持 ToDesk 闭源二进制和官方私有库原样。
+# 本仓库兼容处理：保持闭源二进制和官方私有库原样。
 export NO_STRIP=1
 # 本仓库兼容处理：收集路径映射运行库，运行时由专属 hook 指向可写目录。
 export PATH_MAPPING='/opt/todesk:${SHARUN_DIR}/bin/todesk'
@@ -69,7 +69,7 @@ LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
 ENV
 
-# 核对四个便携入口与运行副本需要的真实程序都已收集。
+# 本仓库兼容处理：核对四个便携入口与运行副本需要的真实程序都已收集。
 for binary in ToDesk ToDesk_Service ToDesk_Session CrashReport; do
   [[ -x "AppDir/bin/$binary" && -x "AppDir/shared/bin/$binary" ]] || {
     echo "错误：缺少 ToDesk 包内入口或真实程序：$binary" >&2
@@ -77,7 +77,7 @@ for binary in ToDesk ToDesk_Service ToDesk_Session CrashReport; do
   }
 done
 
-# 保存完整包版本，沿用升级时刷新程序副本并保留配置的判断。
+# 本仓库兼容处理：保存完整包版本，沿用升级时刷新程序副本并保留配置的判断。
 mkdir -p AppDir/share/todesk-appimage
 install -m 644 work/package-version.txt AppDir/share/todesk-appimage/package-version
 # 本仓库兼容处理：保留多入口、可写配置目录和固定路径映射。
