@@ -1,3 +1,33 @@
+# 已归档
+
+2026-11-03 起暂停使用，整个目录从 `remotedesktopmanager/` 移到 `archive/remotedesktopmanager/`。停用原因：暂不使用，按需恢复；替代：无。
+
+当前不再参与构建和发布。构建脚本、IME 钩子及以下修复历史完整保留；本次只归档并记录故障，没有修复构建错误。
+
+## 归档时尚未解决的构建错误
+
+- 失败记录：[Run 41549667495 / Build Remote Desktop Manager](https://github.com/newyorkthink/linux-packaging/actions/runs/41549667495/job/125633909602)。
+- 构建源码：`887fdb676b1a824e5dad6b4b1f77bfc24d0bd489`；当次 AUR 包为 `remote-desktop-manager 2026.3.2.1-1`。版本只记录故障证据，恢复时仍需核对当前来源。
+- 失败阶段：应用及依赖已安装，第一次 `quick-sharun` 依赖收集因脚本指定的 WebView 桥接库不存在而退出，尚未完成 AppImage 封装。
+- 原始错误：
+
+```text
+'/usr/lib/devolutions/RemoteDesktopManager/libWebView-4.1.so' is NOT present!
+Error: Process completed with exit code 1.
+```
+
+日志只能确认这个固定路径不存在；当前包是否移动、更名或移除该库，以及程序实际需要的桥接库，尚未核实。
+
+## 重新启用前必须处理
+
+1. 先阅读下方完整历史和现有脚本，按当前 AUR / 官方包的真实文件清单、加载需求及 pkgforge-dev 当前实现，修复 WebView 桥接库路径与实际依赖收集；不能只跳过现有检查。
+2. 保留已实机解决的 libc 泄漏基线，不重新引入 `LD_LIBRARY_PATH`。LocalTerm 的 Fcitx5 候选键泄漏及已失败的 IME 钩子尝试继续按原记录处理，不重复包装层试错。
+3. 按 [归档与恢复说明](../README.md#重新启用) 恢复原目录、应用清单、手动选项和上游索引，并移除归档映射；构建、发布和实际所需功能分别验证后再登记结果。
+
+归档前的上游参考为 [pkgforge-dev/Remote-Desktop-Manager-AppImage](https://github.com/pkgforge-dev/Remote-Desktop-Manager-AppImage)：[依赖](https://github.com/pkgforge-dev/Remote-Desktop-Manager-AppImage/blob/1054846c394258f658841f5ebc6c8528483e3e82/get-dependencies.sh)、[封装](https://github.com/pkgforge-dev/Remote-Desktop-Manager-AppImage/blob/1054846c394258f658841f5ebc6c8528483e3e82/make-appimage.sh)、[workflow](https://github.com/pkgforge-dev/Remote-Desktop-Manager-AppImage/blob/1054846c394258f658841f5ebc6c8528483e3e82/.github/workflows/appimage.yml)。这些链接仅保留原索引的历史快照，重新启用时核对当前实现。
+
+下面原文保留，只作归档前历史记录；其中的活动路径、构建及产物描述不代表当前仍启用。
+
 # Remote Desktop Manager
 
 ## 用途与产物

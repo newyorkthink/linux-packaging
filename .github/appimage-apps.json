@@ -575,18 +575,6 @@
       "run_from_root": "false"
     },
     {
-      "key": "remotedesktopmanager",
-      "kind": "standard",
-      "name": "Remote Desktop Manager",
-      "script": "remotedesktopmanager/build_remotedesktopmanager.sh",
-      "dir": "remotedesktopmanager",
-      "artifact_dir": "remotedesktopmanager/dist",
-      "release_name": "remotedesktopmanager.AppImage",
-      "software_key": "",
-      "timeout_minutes": 60,
-      "run_from_root": "false"
-    },
-    {
       "key": "gemini",
       "kind": "standard",
       "name": "Gemini",

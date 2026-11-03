@@ -84,7 +84,6 @@ on:
           - rainlendar2/build_rainlendar2.sh
           - realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh
           - remmina/build_remmina.sh
-          - remotedesktopmanager/build_remotedesktopmanager.sh
           - ripdrag/build_ripdrag.sh
           - rofi/build_rofi.sh
           - rustdesk/build_rustdesk.sh

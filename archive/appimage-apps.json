@@ -22,6 +22,11 @@
       "release_name": "goldendict-ng.AppImage"
     },
     {
+      "dir": "remotedesktopmanager",
+      "script": "remotedesktopmanager/build_remotedesktopmanager.sh",
+      "release_name": "remotedesktopmanager.AppImage"
+    },
+    {
       "dir": "virt-manager",
       "script": "virt-manager/build_virt-manager.sh",
       "release_name": "virt-manager.AppImage"
