@@ -88,14 +88,19 @@ runs:
         printf '%s\n' "key=$SOFTWARE_KEY nonce=$(date +%s%N)-$$-$RANDOM" >> "$lock_file"
         lock_sha256="$(sha256sum "$lock_file" | awk '{print tolower($1)}')"
 
-        release_id="$(python3 - "$release_json" <<'PY'
+        release_info="$(python3 - "$release_json" "$GITHUB_REPOSITORY" <<'PY'
         import json, sys
-        release_id = json.load(open(sys.argv[1], encoding='utf-8')).get('id')
-        if not release_id:
-            raise SystemExit('无法取得 latest Release ID')
-        print(release_id)
+        path, repo = sys.argv[1:]
+        release = json.load(open(path, encoding='utf-8'))
+        release_id = release.get('id')
+        upload_url = (release.get('upload_url') or '').removesuffix('{?name,label}')
+        expected_url = f'https://uploads.github.com/repos/{repo}/releases/{release_id}/assets'
+        if type(release_id) is not int or release_id <= 0 or upload_url.lower() != expected_url.lower():
+            raise SystemExit('无法取得 latest Release ID 或有效的资产上传地址。')
+        print(release_id, upload_url, sep='\t')
         PY
         )"
+        IFS=$'\t' read -r release_id lock_upload_url <<< "$release_info"
 
         # 所有构建、Release 上传和当前资产校验都已完成；只在清单读改写临界区等待锁。
         lock_asset_id=''
@@ -110,28 +115,21 @@ runs:
         acquired=false
         for attempt in $(seq 1 180); do
           : > "$lock_upload_error"
-          if gh release upload latest "$lock_file" --repo "$GITHUB_REPOSITORY" \
-            >/dev/null 2>"$lock_upload_error"; then
-            lock_asset_id=''
-            for visibility_attempt in $(seq 1 15); do
-              mapfile -t lock_ids < <(
-                gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" --paginate \
-                  --jq ".[] | select(.name == \"$lock_name\" and .digest == \"sha256:$lock_sha256\") | .id"
-              )
-              if (( ${#lock_ids[@]} == 1 )); then
-                lock_asset_id="${lock_ids[0]}"
-                break
-              fi
-              if (( ${#lock_ids[@]} > 1 )); then
-                echo "latest Release 中存在多个 $lock_name，禁止继续写入清单。" >&2
-                exit 1
-              fi
-              sleep 1
-            done
-            [[ -n "$lock_asset_id" ]] || {
-              echo '已取得 software_versions.json 写锁，但无法读取锁资产 ID。' >&2
-              exit 1
-            }
+          # 直接使用上传响应返回的 ID，避免依赖资产列表的可见性。
+          if lock_response="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'Content-Type: application/octet-stream' \
+            --data-binary "@$lock_file" "$lock_upload_url?name=$lock_name" \
+            2>"$lock_upload_error")"; then
+            lock_asset_id="$(python3 -c '
+        import json, sys
+        asset = json.load(sys.stdin)
+        asset_id = asset.get("id")
+        if type(asset_id) is not int or asset_id <= 0 or asset.get("name") != sys.argv[1] or asset.get("state") != "uploaded":
+            raise SystemExit("锁上传响应未返回有效的锁资产 ID。")
+        print(asset_id)
+        ' "$lock_name" <<< "$lock_response")"
             lock_owned=true
             acquired=true
             break
