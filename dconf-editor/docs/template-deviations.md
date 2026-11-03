@@ -2,7 +2,7 @@
 
 ## 当前模板
 
-构建脚本由仓库生成器从 [GTK Ubuntu 仓库模板](../../templates/appimage/linuxdeploy-gtk-apt.sh) 生成，只替换模板参数。使用 Ubuntu 24.04 仓库的 dconf Editor 和 dconf CLI，产物版本以实际解包的主包为准。
+构建脚本由仓库生成器从 [GTK Ubuntu 仓库模板](../../templates/appimage/linuxdeploy-gtk-apt.sh) 生成，只替换模板参数。使用 Ubuntu 26.04 官方 APT 仓库的 dconf Editor 和 dconf CLI，产物版本以实际解包的主包为准。Ubuntu 24.04 和 glibc 2.39 是下文的历史基线，当前产物的最低运行要求以实际依赖为准。
 
 AppRun 采用模板的 GSettings schema 和 GIO 模块目录配置，直接启动图形程序。最终封装和版本保存使用公共入口的默认方式。
 

@@ -2,7 +2,7 @@
 
 ## 用途与产物
 
-本目录在 Ubuntu 24.04 构建 dconf Editor AppImage，固定产物为 `dist/dconf-editor.AppImage`。
+本目录在 Ubuntu 26.04 构建 dconf Editor AppImage，固定产物为 `dist/dconf-editor.AppImage`。构建时从 Ubuntu 官方 APT 仓库获取当前版本，应用版本不固定。已知报错见 [故障记录](./docs/errors.md)。
 
 ## 技术栈与打包方式
 
