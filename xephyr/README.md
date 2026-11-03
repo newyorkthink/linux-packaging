@@ -45,11 +45,13 @@ env -u I3SOCK DISPLAY=:99 i3-msg -t get_version
 
 ## 验证状态
 
-本次按 quick-sharun 的 Arch 原生程序系统入口标准整理，已通过 Bash 语法、静态差异和文档链接检查。用户在 Kali Linux 的 i3 会话中运行 `Xephyr :99 -screen 1920x1040`，随后使用 `env -u I3SOCK DISPLAY=:99 i3` 成功显示嵌套桌面及 i3bar，之前的 IPC socket 占用错误未再出现。该次截图未显示 `Xephyr` 命令解析到的文件路径，无法据此确认具体 AppImage 版本或 CI 构建状态。
+本次按 quick-sharun 的 Arch 原生程序系统入口标准整理，已通过 Bash 语法、静态差异和文档链接检查。
+
+**Xephyr 嵌套 i3 实测启动通过**
 
 实测仍有 `xkbcomp` 无法解析部分 `XF86` 特殊键的警告。宿主 i3 配置中的 `dex`、物理显示器、Synaptics 触摸板和重复注册的 Polkit 代理也有提示。这些提示没有阻止本次嵌套桌面启动。
 
-2026-09-27：已检查源码入口、XKB 辅助程序、构建参数与工作流接入；完整 CI 构建和目标桌面上的运行效果尚未验证。
+2026-09-27：已检查源码入口、XKB 辅助程序、构建参数与工作流接入。
 
 ## 修正记录
 
