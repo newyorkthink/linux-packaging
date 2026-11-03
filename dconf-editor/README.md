@@ -6,7 +6,9 @@
 
 ## 技术栈与打包方式
 
-dconf Editor 为 GTK3 / GLib 应用。构建脚本固定使用 Ubuntu 24.04 的 dconf Editor 45.0.1；linuxdeploy、appimagetool 与 Type 2 runtime 统一通过公共脚本从官方 continuous Release 动态取得，并使用同一 Release 元数据提供的 SHA-256 digest 校验。AppImage 内置简体中文 locale、dconf GSettings backend 和 Fcitx5 GTK3 输入模块，同时保持宿主 dconf 数据库与 D-Bus 会话。
+dconf Editor 为 GTK3 / GLib 应用，使用 Ubuntu 24.04 仓库的 dconf Editor 45.0.1。公共 APT 入口下载并解包与构建环境已安装版本一致的 dconf Editor 和 dconf CLI。linuxdeploy 部署依赖并通过 GTK 插件生成中间 AppImage，公共封装入口再调用官方 appimagetool 和 Type 2 runtime 生成最终产物。
+
+AppImage 继续内置简体中文 locale、dconf GSettings backend 和 Fcitx5 GTK3 输入模块，并使用宿主 dconf 数据库及 D-Bus 会话。专属处理、保留理由及验证范围见 [模板差异](./docs/template-deviations.md)。
 
 ## 运行
 
@@ -18,7 +20,7 @@ dconf Editor 为 GTK3 / GLib 应用。构建脚本固定使用 Ubuntu 24.04 的 
 
 ## 版本元数据
 
-软件版本继续以构建脚本中的 `EXPECTED_DCONF_EDITOR_VERSION` 为唯一基线。workflow 在正式构建完成后读取该值并生成 `dist/version.txt`，随后上传 `software-version-dconf-editor` artifact；不修改现有打包脚本中的运行与兼容逻辑。
+构建脚本保留 45.0.1 版本基线。公共 APT 解包入口返回实际主包版本，公共封装入口将它写入 `dist/version.txt`。GitHub Actions 在构建脚本成功退出后直接使用该文件上传版本元数据和更新发布清单。
 
 ## 变更记录
 

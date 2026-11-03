@@ -356,17 +356,6 @@ jobs:
           chmod +x build_dconf-editor.sh
           ./build_dconf-editor.sh
 
-      - name: Prepare software version metadata
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          version="$(sed -nE 's/^readonly EXPECTED_DCONF_EDITOR_VERSION="([^"]+)"/\1/p' dconf-editor/build_dconf-editor.sh | head -n 1)"
-          [[ -n "$version" ]] || {
-            echo "无法从 dconf-editor/build_dconf-editor.sh 解析版本。" >&2
-            exit 1
-          }
-          printf '%s\n' "$version" > dconf-editor/dist/version.txt
-
       - name: Upload software version metadata
         uses: actions/upload-artifact@v4
         with:
