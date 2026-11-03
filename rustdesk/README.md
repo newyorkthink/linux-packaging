@@ -41,9 +41,3 @@ Linux 实机运行重封装产物报 `APPRUN ERROR: Unable to open file: (null)`
 - 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build RustDesk。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报 513 处权限错误，`var/lib/systemd` 和 `var/lib/dbus` 为 `0700`，没有生成 AppImage。
 - 处理：`common/linuxdeploy/package_appimage.sh` 在原封装命令前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。`build_rustdesk.sh` 的调用参数和官方 ELF AppRun 未改。
 - 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 RustDesk，没有重跑 Actions。
-
-## 2026-11-03：发布前 GitHub API 返回 502
-
-- 故障依据：[Build RustDesk 日志](https://github.com/newyorkthink/linux-packaging/actions/runs/41647928327/job/125958179737)。本次 AppImage 已生成并输出 SHA-256，随后发布前的 GitHub API 请求返回 HTTP 502，Job 退出。
-- 处理：公共发布 Action 将 Release 查询、附件分页查询和旧附件删除纳入现有 8 次重试；保留原上传命令、超时与退避间隔。完整报错、原因边界和处理状态见 [报错记录](./docs/errors.md)。
-- 核对范围：只读核对现有日志、发布控制流和完整 diff，未执行主机测试或复现；修复后的在线发布结果尚未确认。
