@@ -51,6 +51,9 @@ EOF_DESKTOP
 # 本程序专属处理：图标固定读取当前 Ventoy Release tag 对应的不可变 commit，避免跟随 main 漂移。
 "$SCRIPT_DIR/../common/download/download_file.sh" "https://raw.githubusercontent.com/ventoy/Ventoy/$(<"$SOURCE_DIR/ventoy-commit")/ICON/logo_72.png" "$APPDIR/ventoy.png"
 
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
+
 ############# 准备 AppRun ##############
 
 # 在 AppDir 根目录创建完整的 AppRun 启动脚本。
@@ -62,6 +65,10 @@ set -Eeuo pipefail
 
 # 获取脚本所在目录的绝对路径。
 HERE="$(dirname "$(readlink -f "${0}")")"
+
+# 设置简体中文界面环境。
+export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
+export LANG=zh_CN.UTF-8
 
 # 本程序专属处理：指定 Ventoy 的 GUI 入口。
 MAIN="$HERE/ventoy/VentoyGUI.x86_64"

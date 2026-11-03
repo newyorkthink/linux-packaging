@@ -27,7 +27,7 @@ Ventoy Linux 包不是单一 GTK 程序。其 x86_64 图形入口为原生 `Vent
 1. 公共工作目录入口使用独立临时目录下载和解包，重建本应用的 `AppDir` 和 `dist`。
 2. 公共下载入口读取 `ventoy/Ventoy` 的 `/releases/latest`，从同一稳定 Release 取得 Linux 归档和 `sha256.txt`。入口校验两个资产的 GitHub SHA-256，再用官方清单复核归档，并返回版本号和 tag 对应的提交信息。
 3. 公共解包入口解开归档。构建脚本把完整发行目录复制到 `AppDir/ventoy/`，生成桌面入口，并从 tag 对应的提交获取图标。
-4. 构建脚本内联生成根 `AppDir/AppRun`。启动时设置 `LD_LIBRARY_PATH`、`PATH` 和 `NO_AT_BRIDGE=1`，再执行官方 `VentoyGUI.x86_64`。
+4. 公共入口生成包内简体中文 locale。构建脚本内联生成根 `AppDir/AppRun`，设置 locale、程序及运行库的搜索路径和无障碍桥接选项，再执行官方 `VentoyGUI.x86_64`。
 5. 公共工具入口从官方 `/releases/latest` 下载并校验 appimagetool 和 Type 2 runtime。公共封装入口处理 AppDir 权限和图标，生成 `ventoy.AppImage`，输出 SHA-256 并写入 `dist/version.txt`。
 6. 仓库统一的 `.github/workflows/build.yml` 构建并发布 `ventoy.AppImage`。软件版本来自本次下载的 Release。
 
@@ -48,7 +48,7 @@ sudo ./ventoy.AppImage
 
 命令示例统一以“当前目录”为基准，不假设 AppImage 位于 `Downloads` 或其他固定路径。
 
-如果当前 Linux 图形会话本身已经使用中文 locale，则无需额外执行 `export LANG=...`、`export LC_ALL=...` 等环境变量命令，直接执行上面的 `sudo ./ventoy.AppImage` 即可。需要手动切换界面语言时，可在 Ventoy GUI 的 `Language` 菜单中选择 `Chinese Simplified (简体中文)`。
+GTK 和 Qt 界面在没有保存语言选择时默认使用简体中文。已有语言选择优先，也可在界面的语言菜单中切换。包内中文环境的配置依据见[固定配置说明](./docs/hardcoded.md)。
 
 Ventoy 的核心功能是向用户选择的 USB / 磁盘设备安装或更新 Ventoy。实际安装 / 更新过程中，官方 worker 会进行分区和块设备写入。因此，执行安装、更新等磁盘操作前应确认 GUI 中选中的目标设备；这些操作可能重建分区或写入块设备。CI 执行下载校验和封装，不执行磁盘安装或更新。
 
