@@ -114,16 +114,21 @@ def main() -> None:
         if any(path.startswith(".github/actions/build-anylinux/") for path in files):
             select_all()
         else:
-            changed_common_helpers = [path for path in files if path.startswith("common/")]
-            if changed_common_helpers:
+            markers = [path for path in files if path.startswith("common/")]
+            if "common/download/download_file.sh" in markers:
+                markers.append("common/linuxdeploy/prepare_linuxdeploy_tools.sh")
+            # 图标准备脚本由 linuxdeploy 中间封装和最终封装入口共同调用。
+            if "common/appimage/prepare_appdir_for_appimagetool.sh" in markers:
+                markers.extend((
+                    "common/linuxdeploy/prepare_linuxdeploy_tools.sh",
+                    "common/linuxdeploy/package_appimage.sh",
+                ))
+            if markers:
                 for app in catalog:
                     script_path = Path(app["script"])
                     if not script_path.is_file():
                         continue
                     script_text = script_path.read_text(encoding="utf-8")
-                    markers = list(changed_common_helpers)
-                    if "common/download/download_file.sh" in changed_common_helpers:
-                        markers.append("common/linuxdeploy/prepare_linuxdeploy_tools.sh")
                     if any(marker in script_text for marker in markers):
                         build[app["key"]] = True
 
