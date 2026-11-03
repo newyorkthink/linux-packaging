@@ -81,13 +81,23 @@ require_own_lock() {
 
 # 读取唯一清单的实际内容，核对摘要和快照后再判断是否存在归档残留。
 read_snapshot() {
-  base_row="$(read_manifest_row)"
-  manifest_asset_id="${base_row%%$'\t'*}"
-  base_digest="${base_row#*$'\t'}"
-  [[ "$base_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
-    echo '原版本清单缺少有效 SHA-256，禁止清理。' >&2
-    return 1
-  }
+  local attempt
+  # 仅在摘要无效时重新读取唯一资产元数据，最多读取五次，不跳过摘要校验。
+  for attempt in 1 2 3 4 5; do
+    base_row="$(read_manifest_row)"
+    manifest_asset_id="${base_row%%$'\t'*}"
+    base_digest="${base_row#*$'\t'}"
+    if [[ "$base_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+      break
+    fi
+    printf '版本清单摘要无效（第 %s/5 次，资产 ID=%s，digest=%q）。\n' \
+      "$attempt" "$manifest_asset_id" "$base_digest" >&2
+    if (( attempt == 5 )); then
+      echo '原版本清单缺少有效 SHA-256，禁止清理。' >&2
+      return 1
+    fi
+    sleep 2
+  done
   gh api -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' \
     "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
     > "$base_manifest"
