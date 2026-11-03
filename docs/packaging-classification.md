@@ -81,12 +81,6 @@ mpv 的 yt-dlp 继续在构建时下载、校验并内置，未启用官方运�
 
 htop 保留原有 MAIN_BIN、Open Files / Trace 辅助命令和运行时动态加载库，未照搬 pkgforge-dev 的静态源码构建、UPINFO 或 simple-test；仍使用 Arch 官方二进制和本仓库公共版本接口，具体依据见其应用文档。
 
-## 专属处理与维护入口
-
-pkgforge-dev 的实现须先核实是否必要和适用，再决定采用或不采用；具体原文、官方原因、依据、影响及未启用状态放在对应应用的 `docs/pkgforge-differences.md`。没有对应处理时不创建空清单。后续拟加入历史未启用项时，先核实官方当前是否仍保留且仍适用，不能直接恢复旧快照。
-
-固定配置及原始故障放在对应应用的 `docs/hardcoded.md`，当前模板差异放在 `docs/template-deviations.md`，运行状态和完整修复历史从应用 README 查找。新增分类条目时先核对实际重写提交、当前脚本及说明；只改版本、仅有旧打包脚本或尚未重写的项目不补入本页。
-
 ## 用 quick-sharun 打包的 Qt 程序
 
 ### 直接下载安装包
@@ -139,3 +133,9 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | kitty | [build_kitty.sh](../kitty/build_kitty.sh) | 官方 installer 提供的预编译目录；公共版本入口执行当前程序的 `--version` 并按指定字段取版本。 | 工具准备入口的 `--appimagetool` 模式一次取得两个工具并设置权限；公共封装入口统一处理 PNG、封装和版本。 | [专属差异](../kitty/docs/template-deviations.md) |
 
 kitty 保留既有构建顺序、独立 AppRun、kitten 分派和专属资源准备。DingTalk 保留 Qt/CEF 布局、完整 NSS/NSPR、可执行栈和依赖收集处理，按统一分区维护；当前来源与验证范围见 [DingTalk README](../dingtalk/README.md#本次核对与验证)。其他尚未整理的直接封装项目不提前登记为已标准化。
+
+## 专属处理与维护入口
+
+pkgforge-dev 的实现须先核实是否必要和适用，再决定采用或不采用；具体原文、官方原因、依据、影响及未启用状态放在对应应用的 `docs/pkgforge-differences.md`。没有对应处理时不创建空清单。后续拟加入历史未启用项时，先核实官方当前是否仍保留且仍适用，不能直接恢复旧快照。
+
+固定配置及原始故障放在对应应用的 `docs/hardcoded.md`，当前模板差异放在 `docs/template-deviations.md`，运行状态和完整修复历史从应用 README 查找。新增分类条目时先核对实际重写提交、当前脚本及说明；只改版本、仅有旧打包脚本或尚未重写的项目不补入本页。
