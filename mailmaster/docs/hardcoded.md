@@ -14,3 +14,5 @@
 | `zh_CN.UTF-8`、`zh_CN:zh`、`lib/locale` | quick-sharun 中文环境约定，供包内运行时读取。 |
 | `--no-sandbox`、`chrome-sandbox` 权限 0755 | 沿用原 AppImage 的 CEF 启动参数和权限处理。 |
 | `dist/mailmaster.AppImage`、`dist/version.txt` | 沿用现有 workflow、Release 资产名和版本元数据路径。 |
+| `libmastercore.so`、`QFileDialog::getOpenFileNames@Qt_5`、「选择附件」 | 在真实 DEB 中核对了动态导入和附件调用的标题、空目录参数。用它们限定兼容层的作用范围。 |
+| 构建依赖 `qt5-base` | 提供 Qt 5 头文件。兼容库链接的是 DEB 自带的 Qt，而非构建环境的 Qt。 |

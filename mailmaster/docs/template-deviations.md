@@ -20,4 +20,10 @@ MailMaster 是自带 Qt 5 和 CEF 的程序，使用 [quick-sharun 流程](../..
 | 启动环境 | 在第一次 quick-sharun 后向 `.env` 追加 locale、Qt 插件路径、库路径和工作目录。 | 运行时路径以 `SHARUN_DIR` 为基准，继续使用包内相邻资源。 |
 | 启动参数 | `90-mailmaster-arguments.hook` 清除宿主 Qt 主题覆盖，保留宿主设置的 `QT_IM_MODULE`，默认使用 IBus，并在用户参数前加入 `--no-sandbox`。 | 保留原启动行为，由 quick-sharun 生成入口。包内 `chrome-sandbox` 权限为 0755。 |
 
+## 附件选择器
+
+在收集依赖前单行调用 `patches/prepare_attachment_dialog.sh`。该脚本用 Arch `qt5-base` 的头文件编译仓库自己的兼容层，链接 DEB 自带的 Qt 库。使用 patchelf 只重定向包内 `libmastercore.so` 对 `QFileDialog::getOpenFileNames` 的导入，保留原 `Qt_5` 符号版本，不设置全局预加载。缺少该导入时跳过补丁并输出提示。
+
+兼容层用同一 QObject 翻译上下文匹配「选择附件」标题，只处理空目录与包内工作目录同时出现的情况，保留筛选条件、用户选择和其他对话框。该处理依赖 MailMaster 的 Qt 5 调用方式，不推广到其他应用。
+
 以上运行兼容处理依赖 MailMaster 的 AUR 配方、私有 Qt / CEF 及目录布局，适用范围为 MailMaster。固定值依据见[固定配置](./hardcoded.md)，验证范围见 [README](../README.md)。

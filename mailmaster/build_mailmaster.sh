@@ -10,7 +10,7 @@ cd "$SCRIPT_DIR"
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-deb mailmaster "$(uname -m)" --source-filename 'mailmaster-{version}.deb' -- dpkg fcitx5-qt xorg-server xorg-server-common xorg-server-xvfb alsa-lib cups gtk3 libnotify libsecret adwaita-icon-theme libx11 libxext libxi libxrender libxrandr libxinerama libxcomposite libxdamage libxfixes libxss libxtst libxcb xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm libxkbcommon-x11 mesa libglvnd libva libvdpau pulseaudio pulseaudio-alsa pipewire-audio
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-deb mailmaster "$(uname -m)" --source-filename 'mailmaster-{version}.deb' -- dpkg fcitx5-qt qt5-base xorg-server xorg-server-common xorg-server-xvfb alsa-lib cups gtk3 libnotify libsecret adwaita-icon-theme libx11 libxext libxi libxrender libxrandr libxinerama libxcomposite libxdamage libxfixes libxss libxtst libxcb xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm libxkbcommon-x11 mesa libglvnd libva libvdpau pulseaudio pulseaudio-alsa pipewire-audio
 
 # 清掉上次的打包目录。
 "$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create work AppDir dist
@@ -51,6 +51,9 @@ cp -a /usr/share/licenses/mailmaster "$SCRIPT_DIR/AppDir/share/licenses/"
 
 # 本仓库兼容处理：把 Qt 5 Fcitx5 模块放入程序实际读取的输入法插件目录。
 install -m 644 /usr/lib/qt/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so "AppDir/bin/plugins/platforminputcontexts/"
+
+# 本仓库兼容处理：修正附件选择器的起始目录。
+bash "$SCRIPT_DIR/patches/prepare_attachment_dialog.sh" AppDir/bin work
 
 # 把当前机器架构传给 quick-sharun。
 export ARCH="$(uname -m)"
