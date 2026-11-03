@@ -46,15 +46,19 @@ runs:
         }
         local_sha256="$(sha256sum "${artifacts[0]}" | awk '{print tolower($1)}')"
 
-        # 只重试读取时的 HTTP 404，并在请求成功后才返回响应。
+        # 按 ID 读取资产时将 HTTP 404 交给上层重新定位，其他读取保留原有三次重试。
         read_release_api() (
           local endpoint="$1"
-          local temp_dir attempt status
+          local temp_dir attempt status max_attempts=3 asset_read=false
           shift
+          if [[ "$endpoint" == "repos/$GITHUB_REPOSITORY/releases/assets/"* ]]; then
+            max_attempts=1
+            asset_read=true
+          fi
           temp_dir="$(mktemp -d)" || return 1
           trap 'rm -rf -- "$temp_dir"' EXIT
 
-          for attempt in 1 2 3; do
+          for (( attempt=1; attempt<=max_attempts; attempt++ )); do
             if LC_ALL=C gh api "$endpoint" "$@" > "$temp_dir/body" 2> "$temp_dir/error"; then
               cat "$temp_dir/error" >&2
               cat "$temp_dir/body"
@@ -62,9 +66,16 @@ runs:
             else
               status=$?
             fi
-            printf 'GitHub API GET /%s 失败（第 %s/3 次，退出码 %s）\n' "${endpoint%%\?*}" "$attempt" "$status" >&2
+            printf 'GitHub API GET /%s 失败（第 %s/%s 次，退出码 %s）\n' "${endpoint%%\?*}" "$attempt" "$max_attempts" "$status" >&2
             cat "$temp_dir/error" >&2
-            if (( attempt == 3 )) || ! grep -Fq '(HTTP 404)' "$temp_dir/error"; then
+            if ! grep -Fq '(HTTP 404)' "$temp_dir/error"; then
+              return "$status"
+            fi
+            # 44 仅表示本次按 ID 读取返回 404，不能据此假定锁仍有效或清单为空。
+            if [[ "$asset_read" == true ]]; then
+              return 44
+            fi
+            if (( attempt == max_attempts )); then
               return "$status"
             fi
             sleep 2
@@ -208,10 +219,42 @@ runs:
 
         # 复核锁资产内容属于本次写入，防止失去锁的旧写入者继续覆盖新清单。
         require_own_lock() {
-          local row digest created_epoch now_epoch remaining
-          row="$(read_release_api \
-            "repos/$GITHUB_REPOSITORY/releases/assets/$lock_asset_id?publication_read=$(date +%s%N)" \
-            -H 'Cache-Control: no-cache' --jq '[.digest, .created_at] | @tsv')" || return 1
+          local row digest created_epoch now_epoch remaining attempt status
+          local lock_listing listed_id listed_digest
+          for attempt in 1 2 3 4 5; do
+            printf '写锁校验：资产=%s ID=%s（第 %s/5 轮）。\n' "$lock_name" "$lock_asset_id" "$attempt" >&2
+            if row="$(read_release_api \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$lock_asset_id?publication_read=$(date +%s%N)" \
+              -H 'Cache-Control: no-cache' --jq '[.digest, .created_at] | @tsv')"; then
+              break
+            else
+              status=$?
+            fi
+            [[ "$status" == 44 ]] || return "$status"
+
+            # 404 后按名称重新核对锁；发现其他锁即停止，不能凭旧 ID 继续写入。
+            lock_listing="$(read_release_api \
+              "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
+              -H 'Cache-Control: no-cache' --paginate \
+              --jq ".[] | select(.name == \"$lock_name\") | [.id, (.digest // \"\")] | @tsv")" || return 1
+            [[ "$lock_listing" != *$'\n'* ]] || {
+              echo "latest Release 中存在多个 $lock_name，禁止继续写入清单。" >&2
+              return 1
+            }
+            if [[ -n "$lock_listing" ]]; then
+              listed_id="${lock_listing%%$'\t'*}"
+              listed_digest="${lock_listing#*$'\t'}"
+              if [[ "$listed_id" != "$lock_asset_id" || ( -n "$listed_digest" && "$listed_digest" != "sha256:$lock_sha256" ) ]]; then
+                echo '清单写锁已变化，禁止继续写入。' >&2
+                return 1
+              fi
+            fi
+            if (( attempt == 5 )); then
+              echo '无法确认当前 Job 的清单写锁，停止写入。' >&2
+              return 1
+            fi
+            sleep 2
+          done
           digest="${row%%$'\t'*}"
           [[ "$digest" == "sha256:$lock_sha256" ]] || {
             echo '清单写锁已变化，禁止继续写入。' >&2
@@ -229,23 +272,45 @@ runs:
         }
 
         # 取得锁后按唯一资产 ID 下载，并在合并前核对原清单摘要及快照是否仍有效。
-        require_own_lock
-        base_row="$(read_manifest_row)"
-        manifest_asset_id="${base_row%%$'\t'*}"
-        base_digest="${base_row#*$'\t'}"
-        [[ "$base_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
-          echo '原版本清单缺少有效 SHA-256，禁止合并。' >&2
-          exit 1
-        }
-        read_release_api \
-          "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
-          -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' > "$manifest"
-        [[ "sha256:$(sha256sum "$manifest" | awk '{print tolower($1)}')" == "$base_digest" ]] || {
-          echo '原版本清单内容与资产摘要不一致，禁止用旧内容覆盖。' >&2
-          exit 1
-        }
-        [[ "$(read_manifest_row)" == "$base_row" ]] || {
-          echo '原版本清单在读取期间已变化，禁止覆盖。' >&2
+        snapshot_ready=false
+        for snapshot_attempt in 1 2 3 4 5; do
+          require_own_lock
+          # 每轮按名称重新定位，404 或快照变化后不得继续下载旧 ID。
+          base_row="$(read_manifest_row true)"
+          if [[ -n "$base_row" ]]; then
+            manifest_asset_id="${base_row%%$'\t'*}"
+            base_digest="${base_row#*$'\t'}"
+            [[ "$base_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+              echo '原版本清单缺少有效 SHA-256，禁止合并。' >&2
+              exit 1
+            }
+            printf '合并前读取：资产=%s ID=%s（第 %s/5 轮）。\n' "$manifest_name" "$manifest_asset_id" "$snapshot_attempt" >&2
+            if read_release_api \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
+              -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' > "$manifest"; then
+              [[ "sha256:$(sha256sum "$manifest" | awk '{print tolower($1)}')" == "$base_digest" ]] || {
+                echo '原版本清单内容与资产摘要不一致，禁止用旧内容覆盖。' >&2
+                exit 1
+              }
+              confirmed_row="$(read_manifest_row true)"
+              if [[ "$confirmed_row" == "$base_row" ]]; then
+                snapshot_ready=true
+                break
+              fi
+              echo '原版本清单在读取期间已变化，禁止覆盖。' >&2
+            else
+              read_status=$?
+              [[ "$read_status" == 44 ]] || exit "$read_status"
+            fi
+          else
+            printf '合并前读取：资产=%s ID=未取得（第 %s/5 轮），等待重新定位。\n' "$manifest_name" "$snapshot_attempt" >&2
+          fi
+          if (( snapshot_attempt < 5 )); then
+            sleep 2
+          fi
+        done
+        [[ "$snapshot_ready" == true ]] || {
+          echo '五轮内无法取得有效的版本清单快照，禁止合并。' >&2
           exit 1
         }
         echo "$SOFTWARE_KEY 合并清单：base_asset=$manifest_asset_id base_digest=$base_digest lock_asset=$lock_asset_id"
@@ -294,32 +359,40 @@ runs:
 
         # 重新取得刚写入的唯一 Release 资产 ID，并校验 digest、内容和当前软件条目。
         verified=false
-        for attempt in $(seq 1 12); do
-          manifest_row="$(read_manifest_row)"
+        for attempt in 1 2 3 4 5; do
+          require_own_lock
+          manifest_row="$(read_manifest_row true)"
           mapfile -t manifest_rows <<< "$manifest_row"
-          if (( ${#manifest_rows[@]} == 1 )); then
+          if [[ -n "$manifest_row" ]] && (( ${#manifest_rows[@]} == 1 )); then
             manifest_asset_id="${manifest_rows[0]%%$'\t'*}"
             manifest_digest="${manifest_rows[0]#*$'\t'}"
             if [[ "$manifest_digest" == "sha256:$manifest_sha256" ]]; then
               rm -f "$verified_manifest"
-              read_release_api \
+              printf '上传后校验：资产=%s ID=%s（第 %s/5 轮）。\n' "$manifest_name" "$manifest_asset_id" "$attempt" >&2
+              if read_release_api \
                 "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
-                -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' > "$verified_manifest"
-              if [[ "$(sha256sum "$verified_manifest" | awk '{print tolower($1)}')" == "$manifest_sha256" ]] && \
-                python3 - "$verified_manifest" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
+                -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' > "$verified_manifest"; then
+                if [[ "$(sha256sum "$verified_manifest" | awk '{print tolower($1)}')" == "$manifest_sha256" ]] && \
+                  python3 - "$verified_manifest" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
         import json, sys
         path, key, version, asset, sha256 = sys.argv[1:]
         data = json.load(open(path, encoding='utf-8'))
         expected = {'version': version, 'asset': asset, 'sha256': sha256}
         raise SystemExit(0 if data.get(key) == expected else 1)
         PY
-              then
-                verified=true
-                break
+                then
+                  verified=true
+                  break
+                fi
+              else
+                read_status=$?
+                [[ "$read_status" == 44 ]] || exit "$read_status"
               fi
             fi
           fi
-          sleep 2
+          if (( attempt < 5 )); then
+            sleep 2
+          fi
         done
         [[ "$verified" == true ]] || {
           echo "$SOFTWARE_KEY 写入 latest Release/$manifest_name 后校验失败。" >&2
