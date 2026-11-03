@@ -2,7 +2,7 @@
 
 ## 标准与来源
 
-主流程遵守 [Anylinux / quick-sharun 规范](../../anylinux_projects.md) 和 [固定注释](../../docs/quick-sharun-comments.md)，采用先安装应用及依赖、再独立下载官方 DEB、完整放入 AppDir/bin、收集依赖、生成中文环境、封装和保存版本的顺序。ToDesk 为闭源原生 GTK3 程序，不归为 Electron。
+主流程遵守 [Anylinux / quick-sharun 规范](../../../anylinux_projects.md) 和 [固定注释](../../../docs/quick-sharun-comments.md)，采用先安装应用及依赖、再独立下载官方 DEB、完整放入 AppDir/bin、收集依赖、生成中文环境、封装和保存版本的顺序。ToDesk 为闭源原生 GTK3 程序，不归为 Electron。
 
 pkgforge-dev 当前未找到 ToDesk 专属打包仓库；上游参考索引保留空白，不虚构专属处理。通用流程核对自 [HOW-TO-MAKE-THESE.md，1930c50](https://github.com/pkgforge-dev/Anylinux-AppImages/blob/1930c50cc7e0e524165afc67233f0693e5e73da8/HOW-TO-MAKE-THESE.md)，原始核心命令为 `./quick-sharun /usr/bin/myapp` 和 `./quick-sharun --make-appimage`。本仓库使用构建容器已有命令，不另行下载工具、不增加系统升级或瘦身包替换。
 
@@ -33,7 +33,7 @@ pkgforge-dev 当前未找到 ToDesk 专属打包仓库；上游参考索引保�
 
 ## 主脚本注释
 
-通用注释逐字采用 [固定注释标准](../../docs/quick-sharun-comments.md)，包括 `DEPLOY_GTK` 和 `DESKTOP` 的注释、标点、位置及相邻空行。`DESKTOP` 引用系统安装提供的官方 desktop 的工作副本，副本调整仍由已记录的准备脚本负责。
+通用注释逐字采用 [固定注释标准](../../../docs/quick-sharun-comments.md)，包括 `DEPLOY_GTK` 和 `DESKTOP` 的注释、标点、位置及相邻空行。`DESKTOP` 引用系统安装提供的官方 desktop 的工作副本，副本调整仍由已记录的准备脚本负责。
 
 以下是本应用的专属注释，统一使用本仓库兼容处理前缀；来源依据保存在本文和 [固定配置](./hardcoded.md)，不把 AUR 原因或上游链接插入脚本注释。
 

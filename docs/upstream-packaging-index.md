@@ -45,7 +45,6 @@ TradingView 条目于 2026-11-02 按应用名及 trading-view 别名单独复核
 | [discord](../discord/build_discord.sh) | [Discord-AppImage](https://github.com/pkgforge-dev/Discord-AppImage) | [依赖](https://github.com/pkgforge-dev/Discord-AppImage/blob/1c4d7852f9272339885497587d2b5f6eb2829ae3/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Discord-AppImage/blob/1c4d7852f9272339885497587d2b5f6eb2829ae3/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Discord-AppImage/blob/1c4d7852f9272339885497587d2b5f6eb2829ae3/.github/workflows/appimage.yml) | [README](../discord/README.md) |
 | [escrcpy](../escrcpy/build_escrcpy.sh) |  |  | [README](../escrcpy/README.md) |
 | [feishu](../feishu/build_feishu.sh) |  |  | [README](../feishu/README.md) |
-| [flameshot](../flameshot/build_flameshot.sh) |  |  |  |
 | [folo](../folo/build_folo.sh) |  |  | [README](../folo/README.md) |
 | [freedownloadmanager](../freedownloadmanager/build_freedownloadmanager.sh) |  |  | [README](../freedownloadmanager/README.md) |
 | [freerdp](../freerdp/build_freerdp.sh) |  |  | [README](../freerdp/README.md) |
@@ -92,10 +91,8 @@ TradingView 条目于 2026-11-02 按应用名及 trading-view 别名单独复核
 | [stacher](../stacher/build_stacher.sh) |  |  | [README](../stacher/README.md) |
 | [sunshine](../sunshine/build_sunshine.sh) |  |  | [README](../sunshine/README.md) |
 | [tencent-docs](../tencent-docs/build_tencent-docs.sh) |  |  | [README](../tencent-docs/README.md) |
-| [todesk](../todesk/build_todesk.sh) |  |  | [模板差异](../todesk/docs/template-deviations.md) · [固定参数](../todesk/docs/hardcoded.md) · [README](../todesk/README.md) |
 | [tradingview](../tradingview/build_tradingview.sh) |  |  | [模板差异](../tradingview/docs/template-deviations.md) · [固定参数](../tradingview/docs/hardcoded.md) · [README](../tradingview/README.md) |
 | [trae](../trae/build_trae.sh) |  |  |  |
-| [trae-work](../trae-work/build_trae-work.sh) |  |  | [README](../trae-work/README.md) |
 | [v2rayn](../v2rayn/build_v2rayn.sh) |  |  | [README](../v2rayn/README.md) |
 | [ventoy](../ventoy/build_ventoy.sh) |  |  | [README](../ventoy/README.md) |
 | [vscode](../vscode/build_vscode.sh) | [Visual-Studio-Code-AppImage](https://github.com/pkgforge-dev/Visual-Studio-Code-AppImage) | [依赖](https://github.com/pkgforge-dev/Visual-Studio-Code-AppImage/blob/0016f8465bfeb37d7bb557eeab0c8469a41cf0de/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Visual-Studio-Code-AppImage/blob/0016f8465bfeb37d7bb557eeab0c8469a41cf0de/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Visual-Studio-Code-AppImage/blob/0016f8465bfeb37d7bb557eeab0c8469a41cf0de/.github/workflows/appimage.yml) | [模板差异](../vscode/docs/template-deviations.md) · [README](../vscode/README.md) |

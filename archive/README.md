@@ -17,6 +17,9 @@
 | [github-desktop](./github-desktop/README.md) | 2026-10-29 | 确认不再使用 | 无 |
 | [goldendict-ng](./goldendict-ng/README.md) | 2026-10-29 | 确认不再使用 | 无 |
 | [remotedesktopmanager](./remotedesktopmanager/README.md) | 2026-11-03 | 暂不使用；保留 WebView 桥接库缺失的构建错误和恢复待办 | 无 |
+| [flameshot](./flameshot/README.md) | 2026-11-03 | 暂停使用，按需恢复 | 无 |
+| [trae-work](./trae-work/README.md) | 2026-11-03 | 暂停使用，按需恢复 | 无 |
+| [todesk](./todesk/README.md) | 2026-11-03 | 暂停使用，按需恢复 | 无 |
 
 ## 归档步骤
 
@@ -68,6 +71,6 @@ bash scripts/release/delete_asset.sh --repo "<所有者>/<仓库>" --tag latest 
 
 清理使用 `contents: write` 权限，并与逐项发布 Action 共用 `software_versions.json.lock`。取得锁后重新读取最新清单和资产列表，保留等待期间其他 Job 写入的记录；写入后校验整个文件的摘要和内容。预检查没有变化就不创建写锁，也不上传。上传失败且原清单被替换操作移除时，仅在仍持有锁的前提下尝试恢复原快照，清理仍按失败处理。
 
-只删除符合条件的软件记录，不删除 AppImage、归档源码或整个版本清单。结果写入日志和运行摘要。当前登记八个固定资产名；JRiver 的历史资产名会随主版本变化，未登记，也不会匹配仍在使用的 RunImage 资产。恢复项目时同步移除归档映射并恢复构建入口。
+只删除符合条件的软件记录，不删除 AppImage、归档源码或整个版本清单。结果写入日志和运行摘要。当前登记11个固定资产名；JRiver 的历史资产名会随主版本变化，未登记，也不会匹配仍在使用的 RunImage 资产。恢复项目时同步移除归档映射并恢复构建入口。
 
 此工作流与构建、监督分别调度，没有建立先后依赖，也不会把已经失败的运行自动改为成功。GitHub 不会为重跑发送 `workflow_run: requested` 事件；需要重试清理时，直接手动运行本工作流。

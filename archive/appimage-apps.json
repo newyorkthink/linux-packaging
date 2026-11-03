@@ -12,6 +12,11 @@
       "release_name": "deepseek-harness.AppImage"
     },
     {
+      "dir": "flameshot",
+      "script": "flameshot/build_flameshot.sh",
+      "release_name": "flameshot.AppImage"
+    },
+    {
       "dir": "github-desktop",
       "script": "github-desktop/build_github-desktop.sh",
       "release_name": "github-desktop.AppImage"
@@ -25,6 +30,16 @@
       "dir": "remotedesktopmanager",
       "script": "remotedesktopmanager/build_remotedesktopmanager.sh",
       "release_name": "remotedesktopmanager.AppImage"
+    },
+    {
+      "dir": "todesk",
+      "script": "todesk/build_todesk.sh",
+      "release_name": "todesk.AppImage"
+    },
+    {
+      "dir": "trae-work",
+      "script": "trae-work/build_trae-work.sh",
+      "release_name": "trae-work.AppImage"
     },
     {
       "dir": "virt-manager",

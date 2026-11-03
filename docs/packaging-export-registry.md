@@ -1,5 +1,7 @@
 # 打包 export 登记表
 
+已归档项目的 export 记录仅保留为历史依据，启用状态以[归档索引](../archive/README.md)和活动应用清单为准。
+
 本表登记仓库 `.sh` 里已经出现的 `export` 环境变量。2026-09-24 对照 `384b663` 扫描，共 155 个。每个只说明它干什么。
 
 以后打包要新增或修改 `export`，必须先把变量写进本表，写清用途和用在哪个程序。表里没有的不准用。用不到的变量不要为了凑齐硬加。已有脚本保持原样，不用为了对照本表去批量改。
@@ -34,7 +36,7 @@
 
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
-| `SRCDEST` | makepkg 来源缓存。公共 Arch 安装入口仅在显式 --aur-deb 模式为单次 yay 传入，并配合独立 --builddir 使用；不写入 AppDir/.env 或改变宿主运行环境。 | common/arch/install_packages.sh；当前由 todesk 显式启用 |
+| `SRCDEST` | makepkg 来源缓存。公共 Arch 安装入口仅在显式 --aur-deb 模式为单次 yay 传入，并配合独立 --builddir 使用；不写入 AppDir/.env 或改变宿主运行环境。 | common/arch/install_packages.sh；归档前由 todesk 显式启用 |
 | `ARCH` | 向打包工具传入目标架构。 | 例如 Keyviz、adspower-global、aionui、gemini |
 | `QMAKE` | 告诉 linuxdeploy 的 Qt 插件用哪个 qmake。Qt5 和 Qt6 不能混。 | 4 个脚本，例如 goldendict、peazip、wemeet、xnviewmp |
 | `QT_SELECT` | 构建机上有多套 Qt 时，指定用 qt5 还是 qt6。 | 3 个脚本，例如 goldendict、wemeet、xnviewmp |

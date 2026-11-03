@@ -13,7 +13,7 @@
 | 完整程序 | AppDir/bin/todesk，内部保留 bin、lib、res、config。 | DEB 的 opt/todesk 布局及 AUR 的空 config 目录要求；旧构建曾因误认为 DEB 自带 config 而失败。 |
 | 安装来源缓存 | 公共入口为本次安装创建临时 sources / build 目录；只对这次 yay 设置 SRCDEST 和 --builddir。 | AUR 安装收到 989 字节 HTML；makepkg 优先查构建目录中的同名文件，所以需要新目录和来源缓存一起使用。文件名来自同次 .SRCINFO，支持 source 别名；不固定构建用户、版本、URL、摘要或旧缓存路径。退出后清理本次目录。 |
 | 下载器 | aria2c，仅由 ToDesk 的两个公共调用显式传入；构建阶段安装标准 aria2。 | wget 与默认 aria2c 均有正式构建摘要失败记录。当前通过公共入口读取仓库 HTTP 配置；原地址使用该配置，备用源站使用公共默认 curl。后续正式 ToDesk job 已确认安装预取和独立打包下载均从官方备用源取得并校验 DEB，完整构建与发布通过。 |
-| 客户端标识 | 使用 [公共配置](../../common/config/download/aria2.conf) 中的模拟浏览器标识；显式公共参数仍可覆盖。 | 原文来自 [P3TERX/aria2.conf 固定快照](https://github.com/P3TERX/aria2.conf/blob/9cc45956ceee02d553adff67a7e296f06fd62946/aria2.conf#L167)，不表示维护者的实际系统。此前 `--no-conf` 未覆盖配置中的 HTTP 请求设置；这是已核实的差异，不是已确认的唯一故障原因。 |
+| 客户端标识 | 使用 [公共配置](../../../common/config/download/aria2.conf) 中的模拟浏览器标识；显式公共参数仍可覆盖。 | 原文来自 [P3TERX/aria2.conf 固定快照](https://github.com/P3TERX/aria2.conf/blob/9cc45956ceee02d553adff67a7e296f06fd62946/aria2.conf#L167)，不表示维护者的实际系统。此前 `--no-conf` 未覆盖配置中的 HTTP 请求设置；这是已核实的差异，不是已确认的唯一故障原因。 |
 | 官方备用源站 | `https://update.todesk.com`，只用于 ToDesk 原地址下载失败时。 | 保留 AUR 提供的文件路径和当前原摘要。完整 DEB 校验、正式构建与发布已通过，证据见 [README 成功基线](../README.md#当前验证状态) 和[正式通过记录](../README.md#2026-11-03官方备用源正式构建与发布通过)。 |
 | 下载连接与分段 | 公共配置使用 16 连接、16 分段；最小分段和分块大小均为 1M。 | 标准 aria2 1.37.0 的实际参数帮助确认最大连接数为 16、大小下限为 1048576 字节；[官方手册](https://aria2.github.io/manual/en/html/aria2c.html) 提供参数定义。真实下载按原摘要校验；不固定 ToDesk 或工具包版本。 |
 | NO_STRIP | 1。 | AUR !strip 注释记录部分闭源 ELF 无正常 sections，禁止在本次重写中剥离。 |

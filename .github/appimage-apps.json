@@ -83,18 +83,6 @@
       "run_from_root": "false"
     },
     {
-      "key": "flameshot",
-      "kind": "standard",
-      "name": "Flameshot",
-      "script": "flameshot/build_flameshot.sh",
-      "dir": "flameshot",
-      "artifact_dir": "flameshot/dist",
-      "release_name": "flameshot.AppImage",
-      "software_key": "",
-      "timeout_minutes": 60,
-      "run_from_root": "false"
-    },
-    {
       "key": "goldendict",
       "kind": "special",
       "name": "GoldenDict",
@@ -443,15 +431,6 @@
       "run_from_root": "false"
     },
     {
-      "key": "trae_work",
-      "kind": "special",
-      "name": "TraeWork",
-      "script": "trae-work/build_trae-work.sh",
-      "dir": "trae-work",
-      "release_name": "trae-work.AppImage",
-      "software_key": "trae-work"
-    },
-    {
       "key": "deepseek_harness_desktop",
       "kind": "standard",
       "name": "DeepSeek Harness Desktop",
@@ -659,18 +638,6 @@
       "release_name": "bluemail.AppImage",
       "software_key": "bluemail",
       "timeout_minutes": 90,
-      "run_from_root": "false"
-    },
-    {
-      "key": "todesk",
-      "kind": "standard",
-      "name": "ToDesk",
-      "script": "todesk/build_todesk.sh",
-      "dir": "todesk",
-      "artifact_dir": "todesk/dist",
-      "release_name": "todesk.AppImage",
-      "software_key": "todesk",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {

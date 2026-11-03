@@ -1,3 +1,17 @@
+# 已归档
+
+2026-11-03 起暂停维护，从 `trae-work/` 移到 `archive/trae-work/`。停用原因：暂停使用，按需恢复；替代：无；后续按需恢复。
+
+归档前构建入口：`trae-work/build_trae-work.sh`；固定发布附件：`trae-work.AppImage`。
+
+脚本、配置和既有历史保留，不再参与构建与发布。恢复前先阅读下方记录，再按[归档与恢复说明](../README.md#重新启用)恢复原目录、构建登记及活动索引。归档不表示原有错误已修复，也不扩大已有验证范围。
+
+## 归档备注
+
+归档前已有 Linux Trae 运行时下载失败记录，原始报错为 Unable to establish SSL connection；Windows 产品层为 0.1.54 / 2.3.76123，失败时的 Linux 运行时版本未核实。归档源码基线为 6712b271de740a3a23b84fc9acc37c22e4dde7cb。该故障未修复；恢复前找回该次完整日志，重新核实 AUR 来源、官方下载链路和原生组件兼容性。原有构建与实机记录完整保留，不能据历史成功认定最新下载链路正常。
+
+以下为归档前原有记录；其中的活动路径和发布状态仅作为历史保留。
+
 # TraeWork Linux 移植
 
 本目录用于构建 **TraeWork Linux x86_64 AppImage**。当前方案已接入仓库统一 `.github/workflows/build.yml`，与其他 AppImage 使用同一个主构建入口、同一个 `latest` Release。

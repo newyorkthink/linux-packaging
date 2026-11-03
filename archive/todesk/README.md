@@ -1,3 +1,17 @@
+# 已归档
+
+2026-11-03 起暂停维护，从 `todesk/` 移到 `archive/todesk/`。停用原因：暂停使用，按需恢复；替代：无；后续按需恢复。
+
+归档前构建入口：`todesk/build_todesk.sh`；固定发布附件：`todesk.AppImage`。
+
+脚本、配置和既有历史保留，不再参与构建与发布。恢复前先阅读下方记录，再按[归档与恢复说明](../README.md#重新启用)恢复原目录、构建登记及活动索引。归档不表示原有错误已修复，也不扩大已有验证范围。
+
+## 归档备注
+
+官方备用源方案的 4.9.8.1 正式构建、发布和版本更新已通过，完整证据见下方成功记录；4.9.6.0 的核心远控实测及其他功能边界按原记录保留，不扩大为 4.9.8.1 新产物实机验收。归档未修改已通过的脚本、公共下载入口或配置。
+
+以下为归档前原有记录；其中的活动路径和发布状态仅作为历史保留。
+
 # ToDesk AppImage
 
 ## 用途与来源
@@ -20,7 +34,7 @@ ToDesk 采用 **Arch Linux + quick-sharun**。主流程遵守仓库标准，专�
 
 1. 安装公共基础工具，再通过 `common/arch/install_packages.sh --aur-deb` 安装 `todesk-bin` 及原有运行依赖、输入模块和 DEB 工具，另安装仅用于构建下载的 `aria2`。该显式模式先复用公共下载入口校验 DEB，交给独立的 makepkg 来源缓存和 yay 构建目录，再按原 AUR PKGBUILD 安装；`libpipewire` 对应当前真实 ELF 的直接依赖，不切换系统音频服务。
 2. 在项目目录准备 `work / AppDir / dist`。
-3. 单行调用 `common/aur/download_deb_source.sh`，传入 `aria2c` 下载器、官方备用源站、原 URL 归档回退、DEB 检查及两个版本输出路径；公共下载入口显式读取 [公共配置](../common/config/download/aria2.conf)，使用 16 连接 / 16 分段；应用不再自行解析、source 或写入来源版本元数据。
+3. 单行调用 `common/aur/download_deb_source.sh`，传入 `aria2c` 下载器、官方备用源站、原 URL 归档回退、DEB 检查及两个版本输出路径；公共下载入口显式读取 [公共配置](../../common/config/download/aria2.conf)，使用 16 连接 / 16 分段；应用不再自行解析、source 或写入来源版本元数据。
 4. 通过公共归档入口解包同一份 DEB，完整复制 `opt/todesk` 到 `AppDir/bin/`，不从系统安装目录取得最终程序。
 5. 准备脚本补回配置目录，核对四入口、GTK3 输入模块及托盘库，一次汇总直接动态库错误。官方 desktop 只在工作目录的副本中完整改为 `Exec=ToDesk`，避免把新版 `env` 后的赋值残留为程序参数。
 6. 设置主程序、系统图标、便携 desktop、输出名称、GTK 部署、`NO_STRIP` 与路径映射；版本由公共入口读取同次下载记录。
@@ -263,7 +277,7 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 修复：公共 Arch 安装入口新增显式 `--aur-deb` 模式，复用现有 AUR 下载入口预取并按原摘要校验；以同次来源的原文件名填入 `SRCDEST`，同时给 yay 指定全新的 `--builddir`。makepkg 会先查构建目录，再查来源缓存，所以只设置缓存不能消除旧 HTML 的影响。源码、校验值和安装步骤保持原规则；额外依赖、来源下载或安装失败均中止。
 - ToDesk 接入：主脚本只替换一行公共安装调用，传入 `--user-agent Mozilla --wayback` 和原额外依赖。后续独立下载、解包、四入口、依赖收集、locale、运行 hook 和版本保存不变。安装前的预取属于安装阶段，不用系统安装目录替代最终程序来源。
 - 验证：584 项检查通过。完整官方下载为 115086264 字节，SHA-256 仍为 `a257916c32ca792826dd1027596395278259050fee42ca8fd0a0aaa8851940e1`；使用原 AUR PKGBUILD 和官方 libmakepkg 代码确认新缓存被采用、原摘要通过、989 字节 HTML 及错误缓存被拒绝。普通包名、基础包清单和旧下载接口通过对照；参数错误、依赖失败、下载失败、应用安装失败及临时目录清理有覆盖。
-- 边界：没有执行真实包安装、非 root 完整 makepkg、完整 AppImage 构建或新产物实机测试；本次提交不代表后续 Actions 已成功。旧实机结论和未验证功能按原记录保留。公共参数详见 [公共入口](../common/README.md#arch-安装时复用已校验的-aur-deb)。
+- 边界：没有执行真实包安装、非 root 完整 makepkg、完整 AppImage 构建或新产物实机测试；本次提交不代表后续 Actions 已成功。旧实机结论和未验证功能按原记录保留。公共参数详见 [公共入口](../../common/README.md#arch-安装时复用已校验的-aur-deb)。
 
 ### 2026-11-03：按 AUR 下载器参数接入公共入口
 
@@ -301,7 +315,7 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 
 - 故障：[run 41573638599 / job 125712133076](https://github.com/newyorkthink/linux-packaging/actions/runs/41573638599/job/125712133076) 已先安装 aria2 1.37.0-3，之后显示下载完成，仍在原 SHA-256 校验时失败；没有可用的 CDX 回退列表。失败仍位于安装预取阶段，尚未进入 quick-sharun。
 - 请求差异：上一版显式使用 `--no-conf`，因此没有读取配置中的浏览器客户端标识等 HTTP 设置。直接命令采用配置时的请求不能视为默认客户端请求；前一轮只核对默认客户端的隔离下载，未覆盖这一差异。配置差异已经核实，但不能据此宣称它是 CI 失败的唯一原因。
-- 公共配置：新增 [common/config/](../common/config/README.md)，按用途保存可复用配置。[download/aria2.conf](../common/config/download/aria2.conf) 只保留构建 HTTP 下载需要的通用项。User-Agent 取自 [P3TERX/aria2.conf 的公开固定快照](https://github.com/P3TERX/aria2.conf/blob/9cc45956ceee02d553adff67a7e296f06fd62946/aria2.conf#L167)，是模拟客户端标识，不代表构建或运行环境；配置不含个人路径、代理、RPC 凭据、会话文件或 BT 设置。
+- 公共配置：新增 [common/config/](../../common/config/README.md)，按用途保存可复用配置。[download/aria2.conf](../../common/config/download/aria2.conf) 只保留构建 HTTP 下载需要的通用项。User-Agent 取自 [P3TERX/aria2.conf 的公开固定快照](https://github.com/P3TERX/aria2.conf/blob/9cc45956ceee02d553adff67a7e296f06fd62946/aria2.conf#L167)，是模拟客户端标识，不代表构建或运行环境；配置不含个人路径、代理、RPC 凭据、会话文件或 BT 设置。
 - 标准兼容：连接上限和分段数均为 16；最小分段及分块大小均为 1M。标准 aria2 1.37.0 的实际参数帮助确认其上限为 16、上述大小下限为 1048576 字节；没有沿用增强版的 256 连接或 512k 参数，也没有要求使用增强版程序。
 - 接入：只在现有 aria2c 分支改为显式 `--conf-path`，保留原临时输出、900 秒总时限、原摘要校验及失败清理。显式 User-Agent 参数继续覆盖公共配置；curl、wget、公共安装阶段和 ToDesk 主脚本均保持原样。
 - 实际验证：普通 aria2 加载公共配置后，日志达到 `CN:16`，公共 AUR 入口取得完整 115086264 字节 DEB，并通过当前 AUR 原 SHA-256；版本输出和来源缓存一致。52 项检查覆盖旧接口、请求头、显式标识覆盖、配置缺失拒绝、摘要拒绝与失败清理。

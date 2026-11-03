@@ -60,7 +60,6 @@ Gemini 保留现有中文启动器、已识别 PE 模块移除顺序及非 stick
 | --- | --- | --- | --- | --- |
 | CC Switch | [build_cc-switch.sh](../cc-switch/build_cc-switch.sh) | 独立下载官方正式 Release DEB，核对 GitHub SHA-256、包名和架构；公共版本入口读取同一下载操作记录的版本文本。 | export DEPLOY_GTK=1 | [模板差异](../cc-switch/docs/template-deviations.md) |
 | Grok App | [build_grok-app.sh](../grok-app/build_grok-app.sh) | 独立下载 RongleCat/grok-app 正式 Release DEB；版本由同次下载记录。按用户确认的 DEB 例外只安装真实运行依赖，桌面资源取自 DEB。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_WEBKIT2GTK=1<br>export WEBKIT2GTK_DIR=/usr/lib/webkit2gtk-4.1 | [模板差异](../grok-app/docs/template-deviations.md) |
-| ToDesk | [build_todesk.sh](../todesk/build_todesk.sh) | 先安装 todesk-bin；公共 AUR 入口独立下载并按原摘要校验官方 DEB，版本读取同次下载记录。 | export DEPLOY_GTK=1<br>export NO_STRIP=1<br>export PATH_MAPPING='/opt/todesk:${SHARUN_DIR}/bin/todesk' | [模板差异](../todesk/docs/template-deviations.md) |
 
 Grok App 尚未核实同源 Arch/AUR 应用包，本次采用用户明确确认的官方 DEB 路线，作为安装阶段的应用专属例外；不改变其他项目先安装应用、再独立下载的默认要求。其选目录工具、宿主 bwrap 和协议登记保留原有依据。Grok Bot 则完整执行标准两阶段，并保留音频、启动兼容及登录回调；这些专属段不加入通用模板。
 
