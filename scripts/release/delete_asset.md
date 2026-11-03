@@ -6,6 +6,8 @@
 
 脚本只删除指定附件，不删除整个 Release、Tag 或仓库文件，也不改写 `software_versions.json`。归档时的版本条目清理仍按 [现有写锁与独立清理机制](../../archive/README.md#独立归档清理)执行。
 
+完整应用归档统一使用 [archive_apps.sh](../archive/archive_apps.md)；该入口已经调用本脚本和现有版本清理入口，不需要手工重复删除。本页只说明独立删除单个附件的用法。
+
 ## 运行条件
 
 需要 Bash、GitHub CLI（`gh`）和 `jq`，以及本机已有的 GitHub.com 认证和目标仓库的发布写权限。脚本检查现有依赖与认证，不安装软件或自动登录。浏览器登录不能代替 `gh` 登录。

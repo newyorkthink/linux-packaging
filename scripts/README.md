@@ -6,6 +6,7 @@
 
 | 分类 | 用途 |
 | --- | --- |
+| [归档](./archive/README.md) | 项目归档与发布清理 |
 | [Release](./release/README.md) | Release 与附件维护 |
 
 ## 统一组织方式
