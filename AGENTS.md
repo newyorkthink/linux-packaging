@@ -378,12 +378,14 @@ Plan 的选择规则：
 
 直接 appimagetool 模式省略 linuxdeploy 的下载、插件、空 AppDir 初始化、第二次部署和中间 AppImage，不得为套用格式下载或执行不需要的 linuxdeploy。既有 linuxdeploy 项目的 Ubuntu runner、禁止 Docker、完整根 AppRun 和插件规则继续原样适用；直接模式保留本项目已确认的构建环境与 AppRun 来源，不据此批量迁移环境或改写稳定启动逻辑。
 
+**自定义 AppRun 必须完整内联在 `build_*.sh`，由构建脚本写入 `AppDir/AppRun`。只有正文过长、确有必要独立维护时，才允许拆成单独文件。拆分前必须说明依据、取得用户明确同意，并记录到应用的 `docs/template-deviations.md`。禁止为了套模板、统一风格或缩短主脚本而拆分。**
+
 直接模式新增或修改对应操作时：
 
 1. 命令输出的版本读取、字段提取和格式校验复用 `common/build/read_app_version.sh` 的 `command` 来源；字段和查询参数由当前应用明确传入，不在主脚本重复写 awk、grep 或版本正则。
 2. 一次调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh --appimagetool <appimagetool 输出路径> <runtime 输出路径>`，统一下载、核对官方摘要并设置两个文件的执行权限；主脚本不再分别下载工具或补 `chmod +x`。
 3. 最终调用 `common/linuxdeploy/package_appimage.sh`，统一完成 PNG / 权限准备、正式封装、有效产物检查、SHA-256 输出和版本保存；不重复实现这些步骤。
-4. 分区、通用注释和空行沿用同一体系的对应阶段，只保留真实需要的步骤。程序专属资源放在当前应用的 `patches/`，已确认的独立 AppRun 可以逐字复制到 AppDir 根目录；差异记入本应用说明。
+4. 分区、通用注释和空行沿用同一体系的对应阶段，只保留真实需要的步骤。程序专属资源放在当前应用的 `patches/`，仅经批准的长 AppRun 可独立保存并逐字复制到 `AppDir/AppRun`。
 5. 公共入口已经提供必要结果输出时，不再在主脚本末尾添加仅表示“已生成”的重复 echo；不借此删除程序实际需要的输出或其他已验证运行逻辑。
 
 本节不授权批量修改其他应用。既有稳定命令、必须保留的执行顺序和程序专属差异仍按当前任务的授权范围处理。
@@ -396,7 +398,7 @@ Plan 的选择规则：
 - [linuxdeploy-comments.md](./docs/linuxdeploy-comments.md) 只收录跨项目共用的固定注释。软件专属的修复、路径调整、补库及其注释放在本项目的 `docs/template-deviations.md`，不加入公共表，也不要求先在公共表登记。
 - linuxdeploy 专属差异和配置只简记处理位置、原因、必要代码或依据，由 README 提供入口；不重复整份脚本或 AppRun。既有 `hardcoded.md` 和故障历史保留，不重复扩写同一说明。此项为 linuxdeploy 文档约定，其他打包路线不变。
 - linuxdeploy 项目的专属补丁和修复脚本统一放入本项目的 `patches/`：源码或文本补丁使用 `.patch`，资源准备和运行时修复按任务使用 `.sh` 或 `.py`。公共机制仍放在 `common/`，不把单个应用的修复公共化，也不要求每个项目创建相同脚本。
-- 主 build 按实际阶段单行调用 `patches/` 脚本；源码补丁在下载并准备应用时应用，资源准备放在准备桌面资源和运行库，依赖部署后的修复放在整理产物且先于最终封装。完整 AppRun 保留在主 build。旧入口须在调用方获准迁移后再移除，不同时执行新旧修复。
+- 主 build 按实际阶段单行调用 `patches/` 脚本；源码补丁在下载并准备应用时应用，资源准备放在准备桌面资源和运行库，依赖部署后的修复放在整理产物且先于最终封装。AppRun 按上文规则完整内联在主 build，仅允许经批准的长脚本例外。旧入口须在调用方获准迁移后再移除，不同时执行新旧修复。
 - 增删步骤或调整已确认配置，须先说明具体改动、原因与依据并取得本次明确同意；不得借标准化批量修改未指定的项目。已验证代码、命令和未涉及的注释保持原样。
 - **任何 linuxdeploy 打包一律禁止使用 Docker。** 脚本、workflow、公共入口和应用 helper 均不得直接或间接通过 Docker、Compose 或容器 Action 执行；构建直接使用已确认的 GitHub Actions Ubuntu runner。
 - 按固定顺序复用公共入口：工作区、依赖安装、工具准备、空 AppDir 初始化、应用安装与原布局解包、必要资源、完整根 AppRun、第二次 linuxdeploy、最终 appimagetool 封装。

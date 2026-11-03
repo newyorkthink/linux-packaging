@@ -61,6 +61,8 @@
 
 ### AppRun 与 libunionpreload
 
+- 自定义 AppRun 完整内联在 `build_*.sh`。仅正文过长且经用户批准、已记录的情况可独立保存。见 [AppRun 内联规则](../linuxdeploy_projects.md#apprun-与框架配置)。
+
 - AppRun 只保留当前应用需要的入口和环境，不使用万能模板，不统一强制语言、浏览器、主题、显示后端、字体 DPI、输入法或用户目录。
 - `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`、Qt / QML / GTK 路径变量的用途，以及首次打包时的 linuxdeploy 路径整理方式，见 [AppRun 路径型环境变量说明](./apprun-path-environment.md)。首次成品尚未由用户确认时保留 `normalize_apprun_paths.sh`；确认没有问题后，通过当前仓库 Release 成品的实际解包结果或用户提供的最终成品解包截图取得已确认的路径型 export，原样固化到构建脚本生成的根 AppRun，再删除整理调用并同步应用 README。
 - 启动链只保留一条真实可到达的 `exec ... "$@"`，路径和参数必须正确引用。
@@ -118,6 +120,7 @@ AUR 同名单包且唯一架构专用 DEB 的来源解析调用 `common/aur/reso
 - [ ] 构建环境与打包路线一致：quick-sharun 在 Arch，linuxdeploy + appimagetool 在 Ubuntu。
 - [ ] Qt 主版本、Qt plugins 和输入法 plugin 一致，没有混用 Qt 5 / Qt 6。
 - [ ] AppRun 只有当前应用需要的环境和唯一入口，没有万能模板或无证据 preload。
+- [ ] 自定义 AppRun 已完整内联。若独立保存，已核对正文过长的依据、用户授权和应用差异记录。
 - [ ] 第一次空 AppDir 初始化只单行调用 `common/linuxdeploy/initialize_appdir.sh`，没有在应用脚本重复命令。
 - [ ] 首次或未确认项目仍保留 `normalize_apprun_paths.sh`；已确认项目已有 Release 解包结果或用户截图作为证据，路径型 export 已原样固化，整理调用已删除，应用 README 已同步。
 - [ ] 没有宽泛通配安装、`dist-upgrade`、`chmod 777`、整个 `/usr/lib` 复制或无关系统修改。

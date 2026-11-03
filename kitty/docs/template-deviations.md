@@ -59,7 +59,7 @@
 
 直接模式与 linuxdeploy 归入同一 AppDir / 官方 appimagetool 体系，复用适用的风格与公共入口；quick-sharun 另按其规范。kitty 保留已验证的 Arch 构建环境、installer 执行顺序、独立 AppRun、kitten 入口及资源准备，不为风格一致套用 linuxdeploy 的 Ubuntu / 插件 / 中间产物步骤。
 
-AppRun 的 169 行正文保持原样，公共接口扩展不修改其他应用脚本。固定取值及历史依据见 [hardcoded.md](./hardcoded.md)。
+Kitty 的 AppRun 正文有 169 行，包含 kitten 分派、输入法、terminfo 和 tmux 等逻辑。独立保存属于[内联规则](../../linuxdeploy_projects.md#apprun-与框架配置)的长脚本特例。正文保持原样，公共接口扩展不修改其他应用脚本。固定取值及历史依据见 [hardcoded.md](./hardcoded.md)。
 
 ## 2026-11-02：主脚本注释与分区对齐
 

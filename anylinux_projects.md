@@ -294,6 +294,8 @@ Qt 6 程序打包前安装 qt6ct、kvantum、lxqt-qtplugin。装上后由 quick-
 
 ## 非必要不要自己写 AppRun.sh
 
+[AppRun 内联规则](./linuxdeploy_projects.md#apprun-与框架配置)只约束确需自定义 AppRun 的项目。quick-sharun 继续使用工具生成的入口。
+
 quick-sharun 生成的 `AppRun` 就是启动入口。一般情况禁止再创建或覆盖：
 
 - `AppRun.sh`
