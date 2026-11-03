@@ -42,7 +42,53 @@ runs:
         done
         test -f /tmp/yay-bin/PKGBUILD
         su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
-        printf '%s\n' '#!/bin/bash' 'sudo -HE -u builduser /usr/bin/yay "$@"' > /usr/local/bin/yay
+        # 在统一 yay 入口处理仓库包低速超时，应用构建脚本继续使用原安装命令。
+        cat > /usr/local/bin/yay <<'YAY_EOF'
+        #!/bin/bash
+        set -Eeuo pipefail
+
+        # 非标准安装调用保持原有参数、环境和返回码。
+        if [[ "${1:-}" != -S && "${1:-}" != --sync ]]; then
+          exec sudo -HE -u builduser /usr/bin/yay "$@"
+        fi
+
+        # 仅在本次安装期间保留临时输出，退出时删除，不清理软件包缓存。
+        download_log="$(mktemp "${TMPDIR:-/tmp}/yay-download.XXXXXXXX")"
+        trap 'rm -f -- "$download_log"' EXIT
+
+        for attempt in 1 2 3 4 5; do
+          # 保留原有构建用户和完整参数，实时输出每次安装的日志。
+          if sudo -HE -u builduser /usr/bin/yay "$@" 2>&1 | tee "$download_log"; then
+            exit 0
+          else
+            download_status=("${PIPESTATUS[@]}")
+          fi
+
+          # 日志写入失败时保留该错误，不将其误判为下载超时。
+          if (( download_status[1] != 0 )); then
+            exit "${download_status[1]}"
+          fi
+
+          # 只重试仓库包下载过慢且尚未安装任何软件包的失败事务。
+          if ! grep -Eq "failed retrieving file '[^']+[.]pkg[.]tar[.][^']+' from .* : Operation too slow[.]" "$download_log" ||
+             ! grep -Fq 'failed to retrieve some files' "$download_log" ||
+             ! grep -Fq 'Errors occurred, no packages were upgraded.' "$download_log" ||
+             ! grep -Fq 'error installing repo packages' "$download_log"; then
+            exit "${download_status[0]}"
+          fi
+
+          # 达到尝试上限时仍以原安装失败状态退出。
+          if (( attempt == 5 )); then
+            printf '仓库软件包下载过慢，已尝试 5 次，停止安装。\n' >&2
+            exit "${download_status[0]}"
+          fi
+
+          # 依次等待 5、10、15、20 秒，再用原参数重试安装。
+          delay=$((attempt * 5))
+          printf '仓库软件包下载过慢，%d 秒后重试（第 %d/5 次尝试失败）。\n' "$delay" "$attempt" >&2
+          sleep "$delay"
+        done
+        YAY_EOF
         chmod +x /usr/local/bin/yay
 
     - name: Build and publish AppImage
