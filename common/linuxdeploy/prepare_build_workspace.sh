@@ -10,11 +10,25 @@ APPIMAGE_BASENAME="$2"
 }
 
 cd "$BUILD_ROOT" || return 1
+APPDIR="$BUILD_ROOT/AppDir"
 
+# 直接封装使用已准备好的 AppDir，保留现有工作目录。
+if (( $# == 4 )) && [[ "$3" == --prepared-appdir ]]; then
+  BUILD_ROOT="$(pwd -P)" || return 1
+  if [[ -z "$4" || "$4" == /* || "$BUILD_ROOT" == / ]]; then
+    echo "错误：已准备的 AppDir 必须是构建根目录内的相对路径。" >&2
+    return 1
+  fi
+  APPDIR="$(cd -- "$BUILD_ROOT/$4" && pwd -P)" || return 1
+  if [[ "$APPDIR" != "$BUILD_ROOT/"* ]]; then
+    echo "错误：已准备的 AppDir 必须位于构建根目录内。" >&2
+    return 1
+  fi
+  SOURCE_DIR="$BUILD_ROOT/source"
 # 临时模式只清理本次创建的源目录，并保留项目原有的 source 目录。
-if (( $# > 2 )); then
+elif (( $# > 2 )); then
   if [[ $# != 3 || "$3" != --temporary-source ]]; then
-    echo "用法：source ${BASH_SOURCE[0]} <构建根目录> <产物名> [--temporary-source]" >&2
+    echo "用法：source ${BASH_SOURCE[0]} <构建根目录> <产物名> [--temporary-source | --prepared-appdir <相对路径>]" >&2
     return 1
   fi
   if [[ -n "$(trap -p EXIT)" ]]; then
@@ -28,7 +42,6 @@ if (( $# > 2 )); then
 else
   SOURCE_DIR="$BUILD_ROOT/source"
 fi
-APPDIR="$BUILD_ROOT/AppDir"
 DIST_DIR="$BUILD_ROOT/dist"
 TOOLS_DIR="$SOURCE_DIR/tools"
 OUTFILE="$DIST_DIR/$APPIMAGE_BASENAME.AppImage"
@@ -38,7 +51,7 @@ INTERMEDIATE_APPIMAGE="$SOURCE_DIR/$APPIMAGE_BASENAME-linuxdeploy-intermediate.A
 
 if (( $# == 2 )); then
   rm -rf "$SOURCE_DIR" "$APPDIR" "$DIST_DIR"
-else
+elif (( $# == 3 )); then
   rm -rf "$APPDIR" "$DIST_DIR"
 fi
 mkdir -p "$TOOLS_DIR" "$DIST_DIR"

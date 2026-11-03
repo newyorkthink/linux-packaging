@@ -13,7 +13,7 @@
 | [linuxdeploy-cli-apt.sh](./templates/appimage/linuxdeploy-cli-apt.sh) | CLI / 无框架插件，Ubuntu 仓库包 |
 | [appimagetool-direct.sh](./templates/appimage/appimagetool-direct.sh) | 已有完整 AppDir，直接封装 |
 
-按标准重写时，先从本表选择一份完整模板，复制到应用的一级目录作为构建脚本。模板中的 `../common/` 相对于应用目录，不能在 `templates/appimage/` 内直接运行。linuxdeploy 模板会重建该应用的 `source`、`AppDir` 和 `dist`，应用所需的持久输入应保存在这些目录之外。
+按标准重写时，先从本表选择一份完整模板，复制到应用的一级目录作为构建脚本。模板中的 `../common/` 相对于应用目录，不能在 `templates/appimage/` 内直接运行。linuxdeploy 模板会重建该应用的 `source`、`AppDir` 和 `dist`，应用所需的持久输入应保存在这些目录之外。直接封装模板使用公共工作区入口的 `--prepared-appdir` 模式，只创建缺少的 `source/tools` 和 `dist` 目录，保留现有目录及内容。
 
 除下表中的占位参数外，代码、注释、分区、命令及参数顺序、缩进、空格和空行逐字保留。禁止从其他模板或现有应用脚本拼接代码。模板选用还须符合实际包格式、构建系统、插件、入口和资源布局。
 
@@ -29,7 +29,7 @@
 | `__GIO_MODULE_DIR__` | 相对 AppDir 的实际 GIO 模块目录。GTK 模板使用包内 GSettings schema 与 GIO 模块。 |
 | `__QT_PLUGIN_DIR__`、`__QML_DIR__`、`__QT_TRANSLATIONS_DIR__` | 相对 AppDir 的 Qt 插件、QML 和翻译目录。 |
 | `__QMAKE__` | 与实际打包 Qt 主版本一致的 qmake 可执行文件名或路径。 |
-| `__PREPARED_APPDIR__` | 应用目录下已准备完成的 AppDir 路径。该目录须已有可用的 AppRun、桌面入口、图标及依赖。 |
+| `__PREPARED_APPDIR__` | 相对于应用目录的已准备 AppDir 路径，解析后必须位于该应用目录内。该目录须已有可用的 AppRun、桌面入口、图标及依赖。 |
 | `__VERSION_FIELD__`、`__VERSION_OPTION__` | 直接封装模板的版本输出字段编号与已核实的单个查询参数。 |
 
 linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标、且所选模板的运行目录设置适用的情况。遇到其他来源、插件组合、资源布局或必要步骤，先核实依据，单独列出拟新增模板、适用条件及文档变更，取得本次明确同意后增加完整模板，再按该模板重写。现有模板不作临时拼接，也不为单个应用擅自修改。
@@ -226,7 +226,7 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 | 阶段 | 直接模式的处理 |
 | --- | --- |
 | 初始化脚本 | 复用固定分区标题和初始化注释。 |
-| 准备构建目录和环境 | 沿用本项目已确认的隔离环境、目录布局和清理范围；安装依赖仍按当前系统选择公共入口，不混用 Arch 与 Ubuntu。 |
+| 准备构建目录和环境 | 标准模板调用公共工作区入口的 `--prepared-appdir` 模式；安装依赖仍按当前系统选择公共入口，不混用 Arch 与 Ubuntu。 |
 | 下载并准备应用 | 使用官方预编译包和公共下载 / 解包入口，保留程序真实布局。 |
 | 准备桌面资源和运行库 | 只保留有当前应用依据的资源、补库及专属修复。 |
 | 准备 AppRun | 在 `build_*.sh` 内联完整启动脚本并写入 `AppDir/AppRun`。经批准的长 AppRun 可原样复制到该位置。 |

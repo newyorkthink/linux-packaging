@@ -10,13 +10,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 ############# 准备构建目录 #############
 
-APPDIR="$SCRIPT_DIR/__PREPARED_APPDIR__"
-OUTFILE="$SCRIPT_DIR/dist/__APP_NAME__.AppImage"
-APPIMAGETOOL="$SCRIPT_DIR/.appimage-tools/appimagetool"
-RUNTIME_FILE="$SCRIPT_DIR/.appimage-tools/runtime-x86_64"
-
-# 创建打包工具和最终产物的输出目录。
-mkdir -p "$SCRIPT_DIR/.appimage-tools" "$SCRIPT_DIR/dist"
+# 设置构建路径，并保留已准备的 AppDir 和现有工作目录。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "__APP_NAME__" --prepared-appdir "__PREPARED_APPDIR__"
 
 ############ 下载并准备应用 #############
 
