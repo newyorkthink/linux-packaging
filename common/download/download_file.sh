@@ -14,7 +14,7 @@ DOWNLOADER="${5:-curl}"
 }
 
 [[ -n "$URL" && -n "$OUTPUT" ]] || {
-  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256 或 sha512:<摘要>] [User-Agent] [curl|wget|aria2c]" >&2
+  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256、sha512:<摘要> 或 blake2b:<摘要>] [User-Agent] [curl|wget|aria2c]" >&2
   exit 1
 }
 [[ "$URL" == https://* ]] || {
@@ -93,6 +93,14 @@ fi
 # 上游提供摘要时必须在替换正式文件前完成校验；无前缀继续按 SHA-256 处理。
 if [[ -n "$EXPECTED_CHECKSUM" ]]; then
   case "$EXPECTED_CHECKSUM" in
+    blake2b:*)
+      EXPECTED_CHECKSUM="${EXPECTED_CHECKSUM#blake2b:}"
+      [[ "$EXPECTED_CHECKSUM" =~ ^[[:xdigit:]]{128}$ ]] || {
+        echo "错误：无效的 BLAKE2b-512：$EXPECTED_CHECKSUM" >&2
+        exit 1
+      }
+      b2sum -c <(printf '%s  -\n' "$EXPECTED_CHECKSUM") < "$TEMP_FILE"
+      ;;
     sha512:*)
       EXPECTED_CHECKSUM="${EXPECTED_CHECKSUM#sha512:}"
       [[ "$EXPECTED_CHECKSUM" =~ ^[[:xdigit:]]{128}$ ]] || {
