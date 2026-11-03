@@ -7,6 +7,7 @@
 | 分类 | 用途 |
 | --- | --- |
 | [归档](./archive/README.md) | 项目归档与发布清理 |
+| [构建脚本](./build/README.md) | 从标准模板预览和生成应用构建脚本 |
 | [Release](./release/README.md) | Release 与附件维护 |
 
 ## 统一组织方式

@@ -13,7 +13,7 @@
 | [linuxdeploy-cli-apt.sh](./templates/appimage/linuxdeploy-cli-apt.sh) | CLI / 无框架插件，Ubuntu 仓库包 |
 | [appimagetool-direct.sh](./templates/appimage/appimagetool-direct.sh) | 已有完整 AppDir，直接封装 |
 
-按标准重写时，先从本表选择一份完整模板，复制到应用的一级目录作为构建脚本。模板中的 `../common/` 相对于应用目录，不能在 `templates/appimage/` 内直接运行。linuxdeploy 模板会重建该应用的 `source`、`AppDir` 和 `dist`，应用所需的持久输入应保存在这些目录之外。直接封装模板使用公共工作区入口的 `--prepared-appdir` 模式，只创建缺少的 `source/tools` 和 `dist` 目录，保留现有目录及内容。
+按标准重写时，先从本表选择一份完整模板，通过 [统一生成脚本](./scripts/build/generate_build_script.md) 生成应用一级目录下的构建脚本。模板中的 `../common/` 相对于应用目录，不能在 `templates/appimage/` 内直接运行。linuxdeploy 模板会重建该应用的 `source`、`AppDir` 和 `dist`，应用所需的持久输入应保存在这些目录之外。直接封装模板使用公共工作区入口的 `--prepared-appdir` 模式，只创建缺少的 `source/tools` 和 `dist` 目录，保留现有目录及内容。
 
 除下表中的占位参数外，代码、注释、分区、命令及参数顺序、缩进、空格和空行逐字保留。禁止从其他模板或现有应用脚本拼接代码。模板选用还须符合实际包格式、构建系统、插件、入口和资源布局。
 
