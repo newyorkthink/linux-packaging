@@ -755,18 +755,6 @@
       "run_from_root": "false"
     },
     {
-      "key": "xmind",
-      "kind": "standard",
-      "name": "Xmind",
-      "script": "xmind/build_xmind.sh",
-      "dir": "xmind",
-      "artifact_dir": "xmind/dist",
-      "release_name": "xmind.AppImage",
-      "software_key": "",
-      "timeout_minutes": 90,
-      "run_from_root": "false"
-    },
-    {
       "key": "postman",
       "kind": "standard",
       "name": "Postman",

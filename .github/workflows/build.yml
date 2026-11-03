@@ -106,7 +106,6 @@ on:
           - workbuddy/build_workbuddy.sh
           - wps-office-cn/build_wps-office-cn.sh
           - xephyr/build_xephyr.sh
-          - xmind/build_xmind.sh
           - xnviewmp/build_xnviewmp.sh
           - zotero/build_zotero.sh
       script_search:

@@ -47,6 +47,11 @@
       "release_name": "virt-manager.AppImage"
     },
     {
+      "dir": "xmind",
+      "script": "xmind/build_xmind.sh",
+      "release_name": "xmind.AppImage"
+    },
+    {
       "dir": "xnconvert",
       "script": "xnconvert/build_xnconvert.sh",
       "release_name": "xnconvert.AppImage"
