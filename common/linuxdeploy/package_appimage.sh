@@ -34,6 +34,8 @@ if [[ -n "$VERIFY_SCRIPT" ]]; then
       --runtime-file "$RUNTIME_FILE" \
       "$APPDIR" \
       "$OUTFILE"
+elif (( $# == 7 )) && [[ "$7" == --no-appstream ]]; then
+  "$APPIMAGETOOL" --no-appstream --runtime-file "$RUNTIME_FILE" "$APPDIR" "$OUTFILE"
 else
   "$APPIMAGETOOL" -n "$APPDIR" "$OUTFILE" --runtime-file "$RUNTIME_FILE"
 fi
