@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 保留原三个位置参数；额外能力由调用方明确启用。
 if (( $# < 3 )) || [[ -z "$1" || -z "$2" || -z "$3" ]]; then
-  echo "用法：$0 <AUR 包名> <架构> <DEB 输出文件> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--deb] [--version-file <文件>] [--package-version-file <文件>] [--makepkg-source-dir <目录>] [--source-filename <DEB 文件名>]" >&2
+  echo "用法：$0 <AUR 包名> <架构> <DEB 输出文件> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--fallback-origin <HTTPS 源站>] [--deb] [--version-file <文件>] [--package-version-file <文件>] [--makepkg-source-dir <目录>] [--source-filename <DEB 文件名>]" >&2
   exit 2
 fi
 AUR_PACKAGE="$1"
@@ -16,6 +16,7 @@ shift 3
 USER_AGENT=""
 DOWNLOADER=""
 USE_WAYBACK=false
+FALLBACK_ORIGIN=""
 CHECK_DEB=false
 VERSION_FILE=""
 PACKAGE_VERSION_FILE=""
@@ -52,6 +53,14 @@ while (( $# > 0 )); do
       printf -v "$target" '%s' "$2"
       shift 2
       ;;
+    --fallback-origin)
+      (( $# >= 2 )) && [[ "$2" =~ ^https://[[:alnum:]]([[:alnum:].-]*[[:alnum:]])?$ ]] && [[ -z "$FALLBACK_ORIGIN" ]] || {
+        echo "错误：--fallback-origin 需要唯一的 HTTPS 源站，仅包含协议和域名。" >&2
+        exit 2
+      }
+      FALLBACK_ORIGIN="$2"
+      shift 2
+      ;;
     --wayback|--deb)
       if [[ "$1" == --wayback ]]; then
         [[ "$USE_WAYBACK" == false ]] || {
@@ -74,6 +83,11 @@ while (( $# > 0 )); do
       ;;
   esac
 done
+
+[[ -z "$FALLBACK_ORIGIN" || "$USE_WAYBACK" == true ]] || {
+  echo "错误：--fallback-origin 需要与 --wayback 一起使用。" >&2
+  exit 2
+}
 
 # 缓存目录是调用方显式提供的独立输出，不改变默认下载目标。
 if [[ -n "$MAKEPKG_SOURCE_DIR" ]]; then
@@ -162,6 +176,7 @@ if [[ "$USE_WAYBACK" == true ]]; then
   [[ "$CHECK_DEB" == false ]] || DOWNLOAD_OPTIONS+=(--deb)
   [[ -z "$USER_AGENT" ]] || DOWNLOAD_OPTIONS+=(--user-agent "$USER_AGENT")
   [[ -z "$DOWNLOADER" ]] || DOWNLOAD_OPTIONS+=(--downloader "$DOWNLOADER")
+  [[ -z "$FALLBACK_ORIGIN" ]] || DOWNLOAD_OPTIONS+=(--fallback-origin "$FALLBACK_ORIGIN")
   "$SCRIPT_DIR/../download/download_verified_with_wayback.sh" "$SOURCE_URL" "$OUTPUT" "$SOURCE_CHECKSUM" "${DOWNLOAD_OPTIONS[@]}"
 elif [[ -n "$DOWNLOADER" ]]; then
   "$SCRIPT_DIR/../download/download_file.sh" "$SOURCE_URL" "$OUTPUT" "$SOURCE_CHECKSUM" "$USER_AGENT" "$DOWNLOADER"

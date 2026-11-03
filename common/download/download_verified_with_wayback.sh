@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# 先下载官方 HTTPS 文件；仅在其未通过原摘要时查询同一 URL 的归档快照。
+# 先下载官方 HTTPS 文件，再按需尝试备用源站和原 URL 的归档快照。
 if (( $# < 3 )); then
-  echo "用法：$0 <官方 HTTPS URL> <输出文件> <SHA-256 或 sha512:摘要> [--deb] [--user-agent <客户端标识>] [--downloader curl|wget|aria2c]" >&2
+  echo "用法：$0 <官方 HTTPS URL> <输出文件> <SHA-256 或 sha512:摘要> [--deb] [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--fallback-origin <HTTPS 源站>]" >&2
   exit 2
 fi
 
@@ -15,6 +15,7 @@ CHECKSUM_NAME=SHA-256
 FORMAT=""
 USER_AGENT=""
 DOWNLOADER=""
+FALLBACK_ORIGIN=""
 shift 3
 
 # 兼容旧接口显式传入的空格式参数。
@@ -39,6 +40,14 @@ while (( $# > 0 )); do
         exit 2
       fi
       DOWNLOADER="$2"
+      shift 2
+      ;;
+    --fallback-origin)
+      (( $# >= 2 )) && [[ "$2" =~ ^https://[[:alnum:]]([[:alnum:].-]*[[:alnum:]])?$ ]] && [[ -z "$FALLBACK_ORIGIN" ]] || {
+        echo "错误：--fallback-origin 需要唯一的 HTTPS 源站，仅包含协议和域名。" >&2
+        exit 2
+      }
+      FALLBACK_ORIGIN="$2"
       shift 2
       ;;
     --user-agent)
@@ -92,13 +101,26 @@ DOWNLOAD_CHECKSUM="$EXPECTED_CHECKSUM"
   exit 1
 }
 
+# 备用源站只替换协议和域名，保留上游提供的文件路径及参数。
+FALLBACK_URL=""
+if [[ -n "$FALLBACK_ORIGIN" ]]; then
+  [[ "$SOURCE_URL" =~ ^https://[^/?#]+(/[^#]*)$ ]] || {
+    echo "错误：官方 URL 缺少可用于备用源站的文件路径。" >&2
+    exit 2
+  }
+  FALLBACK_URL="$FALLBACK_ORIGIN${BASH_REMATCH[1]}"
+  [[ "$FALLBACK_URL" != "$SOURCE_URL" ]] || FALLBACK_URL=""
+fi
+
 # 只为官方文件选择下载器，CDX 与归档请求保持既有 curl 行为。
 SOURCE_DOWNLOAD_OPTIONS=()
 [[ -z "$DOWNLOADER" ]] || SOURCE_DOWNLOAD_OPTIONS+=("$DOWNLOADER")
 if "$DOWNLOAD_FILE" "$SOURCE_URL" "$OUTPUT" "$DOWNLOAD_CHECKSUM" "$USER_AGENT" "${SOURCE_DOWNLOAD_OPTIONS[@]}"; then
   printf '已从官方来源取得并校验文件：%s\n' "$SOURCE_URL" >&2
+elif [[ -n "$FALLBACK_URL" ]] && "$DOWNLOAD_FILE" "$FALLBACK_URL" "$OUTPUT" "$DOWNLOAD_CHECKSUM" "$USER_AGENT"; then
+  printf '已从备用源站取得并校验文件：%s\n' "$FALLBACK_URL" >&2
 else
-  # 失败只回退到同一个官方 URL 的历史响应，任何候选文件仍必须通过原摘要。
+  # 归档仍查询原官方 URL，任何候选文件都必须通过原摘要。
   rm -f -- "$OUTPUT"
   SOURCE_URL_ENCODED="$(jq -rn --arg value "$SOURCE_URL" '$value|@uri')"
   [[ -n "$SOURCE_URL_ENCODED" ]] || {

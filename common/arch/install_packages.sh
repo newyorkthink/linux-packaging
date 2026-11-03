@@ -5,7 +5,7 @@ set -Eeuo pipefail
 if [[ "${1:-}" == --aur-deb ]]; then
   shift
   if (( $# < 2 )) || [[ ! "$1" =~ ^[a-z0-9][a-z0-9@._+-]*$ || "$1" == *..* || ! "$2" =~ ^[a-zA-Z0-9_]+$ ]]; then
-    echo "用法：$0 --aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]" >&2
+    echo "用法：$0 --aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--fallback-origin <HTTPS 源站>] [--source-filename <DEB 文件名>] -- [额外软件包...]" >&2
     exit 2
   fi
   AUR_PACKAGE="$1"
@@ -16,6 +16,7 @@ if [[ "${1:-}" == --aur-deb ]]; then
   DOWNLOADER=""
   SELECTED_FILENAME=""
   USE_WAYBACK=false
+  FALLBACK_ORIGIN=""
   SEPARATOR=false
   while (( $# > 0 )); do
     case "$1" in
@@ -46,6 +47,15 @@ if [[ "${1:-}" == --aur-deb ]]; then
         DOWNLOAD_OPTIONS+=(--source-filename "$SELECTED_FILENAME")
         shift 2
         ;;
+      --fallback-origin)
+        (( $# >= 2 )) && [[ "$2" =~ ^https://[[:alnum:]]([[:alnum:].-]*[[:alnum:]])?$ ]] && [[ -z "$FALLBACK_ORIGIN" ]] || {
+          echo "错误：--fallback-origin 需要唯一的 HTTPS 源站，仅包含协议和域名。" >&2
+          exit 2
+        }
+        FALLBACK_ORIGIN="$2"
+        DOWNLOAD_OPTIONS+=(--fallback-origin "$FALLBACK_ORIGIN")
+        shift 2
+        ;;
       --wayback)
         [[ "$USE_WAYBACK" == false ]] || {
           echo "错误：--wayback 不得重复指定。" >&2
@@ -68,6 +78,10 @@ if [[ "${1:-}" == --aur-deb ]]; then
   done
   [[ "$SEPARATOR" == true ]] || {
     echo "错误：请用 -- 分隔来源选项与额外软件包。" >&2
+    exit 2
+  }
+  [[ -z "$FALLBACK_ORIGIN" || "$USE_WAYBACK" == true ]] || {
+    echo "错误：--fallback-origin 需要与 --wayback 一起使用。" >&2
     exit 2
   }
   SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"

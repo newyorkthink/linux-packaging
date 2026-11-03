@@ -6,7 +6,7 @@
 
 - 上游程序：ToDesk 官方 Linux 客户端。
 - 版本与校验元数据：AUR `todesk-bin` 的当前 `.SRCINFO`，不固定版本、Tag 或 Commit。
-- 程序文件：通过公共入口显式使用 aria2c，并读取仓库公共 HTTP 下载配置，独立下载本次元数据指向的官方 HTTPS DEB，始终校验原摘要；只有官方文件校验失败时才查同一 URL 的 Internet Archive 快照。
+- 程序文件：通过公共入口使用 aria2c 下载 AUR 指向的官方 DEB。失败时按原文件路径尝试 ToDesk 官方更新域名，随后才查询原 URL 的 Internet Archive 快照。所有来源均须通过当前 AUR 摘要校验。
 - 构建环境：Arch Linux AnyLinux 容器。
 - 打包工具：`quick-sharun`。
 - 最终产物与 Release 资产名：`dist/todesk.AppImage`、`todesk.AppImage`。
@@ -20,7 +20,7 @@ ToDesk 采用 **Arch Linux + quick-sharun**。主流程遵守仓库标准，专�
 
 1. 安装公共基础工具，再通过 `common/arch/install_packages.sh --aur-deb` 安装 `todesk-bin` 及原有运行依赖、输入模块和 DEB 工具，另安装仅用于构建下载的 `aria2`。该显式模式先复用公共下载入口校验 DEB，交给独立的 makepkg 来源缓存和 yay 构建目录，再按原 AUR PKGBUILD 安装；`libpipewire` 对应当前真实 ELF 的直接依赖，不切换系统音频服务。
 2. 在项目目录准备 `work / AppDir / dist`。
-3. 单行调用 `common/aur/download_deb_source.sh`，传入 `aria2c` 下载器、同 URL 归档回退、DEB 检查及两个版本输出路径；公共下载入口显式读取 [公共配置](../common/config/download/aria2.conf)，使用 16 连接 / 16 分段；应用不再自行解析、source 或写入来源版本元数据。
+3. 单行调用 `common/aur/download_deb_source.sh`，传入 `aria2c` 下载器、官方备用源站、原 URL 归档回退、DEB 检查及两个版本输出路径；公共下载入口显式读取 [公共配置](../common/config/download/aria2.conf)，使用 16 连接 / 16 分段；应用不再自行解析、source 或写入来源版本元数据。
 4. 通过公共归档入口解包同一份 DEB，完整复制 `opt/todesk` 到 `AppDir/bin/`，不从系统安装目录取得最终程序。
 5. 准备脚本补回配置目录，核对四入口、GTK3 输入模块及托盘库，一次汇总直接动态库错误。官方 desktop 只在工作目录的副本中完整改为 `Exec=ToDesk`，避免把新版 `env` 后的赋值残留为程序参数。
 6. 设置主程序、系统图标、便携 desktop、输出名称、GTK 部署、`NO_STRIP` 与路径映射；版本由公共入口读取同次下载记录。
@@ -294,3 +294,11 @@ ToDesk 官方发行版安装包使用 `todeskd.service` 提供系统级后台服
 - 接入：只在现有 aria2c 分支改为显式 `--conf-path`，保留原临时输出、900 秒总时限、原摘要校验及失败清理。显式 User-Agent 参数继续覆盖公共配置；curl、wget、公共安装阶段和 ToDesk 主脚本均保持原样。
 - 实际验证：普通 aria2 加载公共配置后，日志达到 `CN:16`，公共 AUR 入口取得完整 115086264 字节 DEB，并通过当前 AUR 原 SHA-256；版本输出和来源缓存一致。52 项检查覆盖旧接口、请求头、显式标识覆盖、配置缺失拒绝、摘要拒绝与失败清理。
 - 验证边界：普通 aria2 的真实下载、公共 AUR 入口、原摘要、DEB 版本及来源缓存与隔离兼容检查分别核对。未运行完整真实 AUR 安装、quick-sharun 封装或新产物实机功能；本次配置调整不等于正式 CI 已验收。
+
+
+### 2026-11-03：增加官方更新域名作为 DEB 备用源站
+
+- [GitHub Actions run 41578212763 / job 125726622354](https://github.com/newyorkthink/linux-packaging/actions/runs/41578212763/job/125726622354) 在 AUR 安装预取阶段下载完成后报 SHA-256 不匹配，原 URL 无可用归档快照。
+- 安装预取和打包下载均在原地址失败后尝试 `https://update.todesk.com`。公共入口沿用 AUR 提供的文件路径和原摘要。备用地址失败后仍查询原 URL 的归档。
+- 从官方更新域名取得完整 x86_64 DEB，共 115086264 字节。SHA-256 与当前 AUR 记录一致，DEB 元数据为 `todesk` 4.9.8.1 amd64。
+- 隔离验证覆盖原地址返回验证页后的备用下载、AUR 来源缓存交接、DEB 版本检查和两个版本文件输出；安装命令使用替身核对交接。
