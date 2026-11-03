@@ -112,7 +112,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 
 ### linuxdeploy
 
-本类遵循 [linuxdeploy 规范](../linuxdeploy_projects.md) 和 [固定注释标准](./linuxdeploy-comments.md)。基础标准参考为 Joplin（GTK）、XnView MP（Qt）和 MediaInfo（CLI）；Remmina 是已按该标准整理的 GTK / GStreamer 项目。
+本类遵循 [linuxdeploy 规范](../linuxdeploy_projects.md) 和 [固定注释标准](./linuxdeploy-comments.md)。标准重写的底稿按来源及技术栈从 [唯一标准模板](../linuxdeploy_projects.md#唯一标准模板) 选择。下表登记已整理的应用。
 
 构建直接使用各项目已确认的 Ubuntu runner，不使用 Docker。linuxdeploy 负责依赖部署和中间输出，最终由官方 appimagetool 配合明确的 Type 2 runtime 封装。
 
@@ -131,7 +131,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 
 遵循同一规范的 [直接封装补充](../linuxdeploy_projects.md#直接-appimagetool-模式同一体系的精简流程)，省略 linuxdeploy、插件、初始化和中间输出。构建环境与程序专属差异沿用各自已确认的基线，不因归类强制迁移环境或重写入口。
 
-[Kitty](../kitty/build_kitty.sh) 是本类通用标准参考。下表同时收录已整理项目。共用分区、注释和公共调用的对照范围见[四个通用标准参考](../linuxdeploy_projects.md#四个通用标准参考)。
+[appimagetool-direct.sh](../templates/appimage/appimagetool-direct.sh) 是直接封装的标准底稿。下表登记已整理的应用。
 
 | 已整理项目 | 构建脚本 | 程序及版本来源 | 工具与封装入口 | 专属差异说明 |
 | --- | --- | --- | --- | --- |

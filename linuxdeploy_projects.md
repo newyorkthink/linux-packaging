@@ -2,6 +2,38 @@
 
 本文件统一 AppDir / 官方 appimagetool 体系的风格。下面保留 linuxdeploy 项目的强制规范；直接 appimagetool 项目遵循文末的直接封装补充。两种模式均适用于聊天拟稿、修改方案和实际文件。
 
+## 唯一标准模板
+
+| 模板 | 适用条件 |
+| --- | --- |
+| [linuxdeploy-gtk-deb.sh](./templates/appimage/linuxdeploy-gtk-deb.sh) | GTK3，GitHub 正式 Release DEB |
+| [linuxdeploy-gtk-apt.sh](./templates/appimage/linuxdeploy-gtk-apt.sh) | GTK3，Ubuntu 仓库包 |
+| [linuxdeploy-gtk-gstreamer-apt.sh](./templates/appimage/linuxdeploy-gtk-gstreamer-apt.sh) | GTK3 + GStreamer，Ubuntu 仓库包 |
+| [linuxdeploy-qt-deb.sh](./templates/appimage/linuxdeploy-qt-deb.sh) | Qt，官网校验清单中的 DEB |
+| [linuxdeploy-cli-apt.sh](./templates/appimage/linuxdeploy-cli-apt.sh) | CLI / 无框架插件，Ubuntu 仓库包 |
+| [appimagetool-direct.sh](./templates/appimage/appimagetool-direct.sh) | 已有完整 AppDir，直接封装 |
+
+按标准重写时，先从本表选择一份完整模板，复制到应用的一级目录作为构建脚本。模板中的 `../common/` 相对于应用目录，不能在 `templates/appimage/` 内直接运行。linuxdeploy 模板会重建该应用的 `source`、`AppDir` 和 `dist`，应用所需的持久输入应保存在这些目录之外。
+
+除下表中的占位参数外，代码、注释、分区、命令及参数顺序、缩进、空格和空行逐字保留。禁止从其他模板或现有应用脚本拼接代码。模板选用还须符合实际包格式、构建系统、插件、入口和资源布局。
+
+| 占位参数 | 替换内容 |
+| --- | --- |
+| `__APP_NAME__` | 产物名主体，使用不带目录和扩展名的应用名称。 |
+| `__APT_PACKAGES__` | 构建工具和实际依赖的 APT 包名，逐个作为参数填写。Ubuntu 仓库模板须包括主包和各附加包。 |
+| `__APT_MAIN_PACKAGE__`、`__APT_EXTRA_PACKAGES__` | 用于解包的主包名和附加包参数。无附加包时，把后者替换为空文本，保留模板原有分隔空格。 |
+| `__GITHUB_REPOSITORY__`、`__RELEASE_ASSET_PATTERN__` | 官方仓库的 `owner/repo` 和正式 Release 的 DEB 资产名模板，保留公共入口所需的 `{version}`。 |
+| `__CHECKSUM_URL__`、`__DEB_ASSET_REGEX__` | 官方校验清单 URL 和完整 DEB 资产名的正则，保持模板的引号和转义。 |
+| `__DEB_FILENAME__` | 下载到 `source` 的本地 DEB 文件名。 |
+| `__MAIN_EXECUTABLE__`、`__APP_BIN_DIR__`、`__APP_LIB_DIR__` | 相对 AppDir 的真实程序入口及程序、运行库目录。 |
+| `__GIO_MODULE_DIR__` | 相对 AppDir 的实际 GIO 模块目录。GTK 模板使用包内 GSettings schema 与 GIO 模块。 |
+| `__QT_PLUGIN_DIR__`、`__QML_DIR__`、`__QT_TRANSLATIONS_DIR__` | 相对 AppDir 的 Qt 插件、QML 和翻译目录。 |
+| `__QMAKE__` | 与实际打包 Qt 主版本一致的 qmake 可执行文件名或路径。 |
+| `__PREPARED_APPDIR__` | 应用目录下已准备完成的 AppDir 路径。该目录须已有可用的 AppRun、桌面入口、图标及依赖。 |
+| `__VERSION_FIELD__`、`__VERSION_OPTION__` | 直接封装模板的版本输出字段编号与已核实的单个查询参数。 |
+
+linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标、且所选模板的运行目录设置适用的情况。遇到其他来源、插件组合、资源布局或必要步骤，先核实依据，单独列出拟新增模板、适用条件及文档变更，取得本次明确同意后增加完整模板，再按该模板重写。现有模板不作临时拼接，也不为单个应用擅自修改。
+
 ## 四个通用标准参考
 
 | 类型 | 标准脚本 | 专属差异 |
@@ -11,11 +43,11 @@
 | CLI / 无框架插件 | [MediaInfo](./mediainfo/build_mediainfo_linuxdeploy.sh) | [MediaInfo 专属差异](./mediainfo/docs/template-deviations.md) |
 | 直接 appimagetool | [Kitty](./kitty/build_kitty.sh) | [Kitty 专属差异](./kitty/docs/template-deviations.md) |
 
-前三个脚本用于核对 linuxdeploy 的共用结构，并按 GTK、Qt 或 CLI / 无框架插件选择底稿。直接封装以 Kitty 为底稿，同时对照前三个脚本中适用的共用分区、固定注释和公共调用。各项目按适用阶段复用标准，禁止任意拼接代码。文档不重复抄写完整脚本。开始拟稿或修改时，读取最新 `main` 中所有适用的参考脚本、应用 README 和实际 workflow。
+下列现有应用用于查阅既有实现和历史技术依据。按标准重写的底稿统一从上面的模板表选取。开始拟稿或修改时，读取最新 `main` 中所选模板、应用 README 和实际 workflow。
 
 - 通用部分的命令写法、固定注释、顺序、缩进和空行逐字保留。命令保持单行，禁止反斜杠续行；已确认的 `export ARCH=x86_64; linuxdeploy ...` 整行保留。
 - 软件包、依赖、来源、路径、启动参数和 AppRun 配置按当前程序的实际需要确定，不复制参考项目的专属修复。
-- 行数和空行以对应参考脚本的当前版本为准；其他项目按各自实际代码核对，不用无关配置或空行凑数。
+- 行数和空行以选定标准模板为准，参数占位替换按本页规定执行。
 - 已确认有效的代码和注释保持原样。增删步骤或调整配置前，说明具体改动、原因和依据，取得本次明确同意；不得借标准化批量修改其他项目。
 
 ## 禁止使用 Docker
@@ -34,7 +66,7 @@
 
 ## 固定流程
 
-各阶段的标题、注释和空行以参考脚本为准；分区标题逐字复用 [固定分区标题](./docs/linuxdeploy-comments.md#固定分区标题)，不自行增减两侧的 `#`。顺序如下：
+各阶段的标题、注释和空行以选定的标准模板为准；分区标题逐字复用 [固定分区标题](./docs/linuxdeploy-comments.md#固定分区标题)，不自行增减两侧的 `#`。顺序如下：
 
 | 阶段 | 公共入口或处理 |
 | --- | --- |
@@ -189,7 +221,7 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 
 直接 appimagetool 和 linuxdeploy 属于同一套 AppDir / 官方 appimagetool 打包体系，按相同的分区、通用注释、单行公共调用和空行风格维护；quick-sharun / sharun 继续使用另一套规范。直接模式不执行 linuxdeploy，也不下载它的插件，不增加空 AppDir 初始化、第二次部署或中间 AppImage。
 
-直接封装的底稿是 Kitty。逐字逐行核对共用内容时，按阶段查阅[四个通用标准参考](#四个通用标准参考)。
+直接封装使用 [appimagetool-direct.sh](./templates/appimage/appimagetool-direct.sh) 作为唯一底稿。Kitty 保留为既有实现参考。
 
 | 阶段 | 直接模式的处理 |
 | --- | --- |

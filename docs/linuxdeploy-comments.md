@@ -1,6 +1,6 @@
 # AppDir / appimagetool 固定注释标准（含 linuxdeploy）
 
-本文件只收录需要跨项目统一复用的注释，适用于脚本、聊天拟稿和修改方案。标准参考为 [Joplin（GTK）](../joplin/build_joplin.sh)、[XnView MP（Qt）](../xnviewmp/build_xnviewmp.sh) 和 [MediaInfo（CLI）](../mediainfo/build_mediainfo_linuxdeploy.sh)，流程见 [linuxdeploy 规范](../linuxdeploy_projects.md)。
+本文件只收录需要跨项目统一复用的注释，适用于脚本、聊天拟稿和修改方案。按标准重写时，固定注释及位置以 [唯一标准模板](../linuxdeploy_projects.md#唯一标准模板) 为准。
 
 - 同一用途逐字复用固定原文，包括 `# `、术语和标点；已确认的注释不改写。
 - GTK、Qt 及资源注释按实际需要使用，不为套用注释增加配置。
@@ -9,7 +9,7 @@
 
 直接 appimagetool 模式复用适用的分区及通用注释，省略 linuxdeploy 初始化、部署、插件和中间输出。既有 linuxdeploy 固定原文保持不变，不为直接模式增加无关步骤。
 
-直接封装的通用参考是 [Kitty](../kitty/build_kitty.sh)。两种模式共用的分区和注释同时对照 Joplin、XnView MP 和 MediaInfo 的适用阶段。参见[四个通用标准参考](../linuxdeploy_projects.md#四个通用标准参考)。
+直接封装使用 [appimagetool-direct.sh](../templates/appimage/appimagetool-direct.sh)。既有应用及历史依据见 [四个通用标准参考](../linuxdeploy_projects.md#四个通用标准参考)。
 
 自定义 AppRun 必须内联在 `build_*.sh`，并使用生成完整根 AppRun 的固定注释。仅正文过长且经用户批准、已记录的情况可独立保存，届时按实际复制操作使用注释。见 [AppRun 内联规则](../linuxdeploy_projects.md#apprun-与框架配置)。
 
@@ -45,6 +45,7 @@
 | 构建脚本及生成的 AppRun 的严格模式 | `# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。` |
 | 获取构建脚本或 AppRun 所在目录 | `# 获取脚本所在目录的绝对路径。` |
 | 安装统一的 Arch AppImage 基础包 | `# 安装统一的 Arch AppImage 基础包` |
+| 创建直接封装的工具和产物目录 | `# 创建打包工具和最终产物的输出目录。` |
 | 准备构建工作目录 | `# 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。` |
 | 安装构建工具及当前应用的依赖 | `# 安装构建工具和应用所需的依赖包。` |
 | 下载打包工具并加载环境配置 | `# 下载并校验打包工具及所需插件，随后加载构建环境配置。` |
