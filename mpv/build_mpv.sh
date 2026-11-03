@@ -41,8 +41,8 @@ mkdir -p AppDir/usr/bin
 "$SCRIPT_DIR/../common/github/download_latest_stable_named_asset.sh" yt-dlp/yt-dlp yt-dlp_linux AppDir/usr/bin/yt-dlp
 chmod +x AppDir/usr/bin/yt-dlp
 
-# 文件内容复用官方代码：未传入参数时启用窗口模式。
 mkdir -p AppDir/bin
+# 文件内容复用官方代码：未传入参数时启用窗口模式。
 cp "$SCRIPT_DIR/mpv-launch-gui.src.hook" AppDir/bin/mpv-launch-gui.src.hook
 
 # 把 AppDir 打成 AppImage。

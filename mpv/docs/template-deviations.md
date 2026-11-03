@@ -47,11 +47,11 @@ chmod +x AppDir/usr/bin/yt-dlp
 
 ### 官方独立无参数窗口 hook
 
-[build_mpv.sh 第 44 行](https://github.com/newyorkthink/linux-packaging/blob/main/mpv/build_mpv.sh#L44)：
+[build_mpv.sh 第 45 行](https://github.com/newyorkthink/linux-packaging/blob/main/mpv/build_mpv.sh#L45)：
 
 ```bash
-# 文件内容复用官方代码：未传入参数时启用窗口模式。
 mkdir -p AppDir/bin
+# 文件内容复用官方代码：未传入参数时启用窗口模式。
 cp "$SCRIPT_DIR/mpv-launch-gui.src.hook" AppDir/bin/mpv-launch-gui.src.hook
 ```
 

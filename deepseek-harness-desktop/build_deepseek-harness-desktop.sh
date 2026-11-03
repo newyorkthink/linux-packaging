@@ -53,8 +53,8 @@ export DEPLOY_GTK=1
 # 读取本次打包使用的版本。
 VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman deepseek-harness-desktop)"
 
-# 收集程序及其运行依赖。
 # 内置 Python 的库不在系统路径上。只给这一次扫描使用。
+# 收集程序及其运行依赖。
 LD_LIBRARY_PATH="AppDir/bin/resources/runtime/primary-runtime/dependencies/python/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
 quick-sharun AppDir/bin/*
 

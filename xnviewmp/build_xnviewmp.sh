@@ -86,7 +86,7 @@ export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_
 # 设置界面自动缩放。
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 
-# 使用 XCB 后端，并通过包内 IBus 插件和 IBus Portal 接入 Fcitx5。
+# 设置显示后端和输入法兼容选项。
 export QT_QPA_PLATFORM=xcb
 export QT_IM_MODULE=ibus
 export QT_IM_MODULES=ibus
