@@ -136,6 +136,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | --- | --- | --- | --- | --- |
 | DingTalk | [build_dingtalk.sh](../dingtalk/build_dingtalk.sh) | 当前 AUR 指向的官方 DEB；公共组合入口校验摘要与包身份、安装并解包，返回实际版本。 | Qt/CEF 完整 bundle；工具准备与最终封装均使用公共入口，不调用 linuxdeploy。 | [专属差异](../dingtalk/docs/template-deviations.md) |
 | kitty | [build_kitty.sh](../kitty/build_kitty.sh) | 官方 installer 提供的预编译目录；公共版本入口执行当前程序的 `--version` 并按指定字段取版本。 | 工具准备入口的 `--appimagetool` 模式一次取得两个工具并设置权限；公共封装入口统一处理 PNG、封装和版本。 | [专属差异](../kitty/docs/template-deviations.md) |
+| Ventoy | [build_ventoy.sh](../ventoy/build_ventoy.sh) | 官方最新稳定 Linux 归档。公共入口校验 GitHub SHA-256 与同一 Release 的官方校验清单，并返回版本。 | 保留完整官方目录与内联 AppRun。工具准备和最终封装复用公共入口。 | [专属差异](../ventoy/docs/template-deviations.md) |
 
 自定义 AppRun 按[内联规则](../linuxdeploy_projects.md#apprun-与框架配置)写入 `build_*.sh`。Kitty 保留独立的 169 行 AppRun，属于长脚本特例，并继续保留既有构建顺序、kitten 分派和专属资源准备。DingTalk 保留 Qt/CEF 布局、完整 NSS/NSPR、可执行栈和依赖收集处理，按统一分区维护；当前来源与验证范围见 [DingTalk README](../dingtalk/README.md#本次核对与验证)。其他尚未整理的直接封装项目不提前登记为已标准化。
 

@@ -16,23 +16,22 @@ AppImage 内保留官方 Linux Release 的完整 `ventoy/` 目录，包括 `Vent
 
 Ventoy Linux 包不是单一 GTK 程序。其 x86_64 图形入口为原生 `VentoyGUI.x86_64` launcher，launcher 会根据可用环境选择 GTK2、GTK3 或 Qt5 GUI 后端；同时整个发行包还包含 Shell worker、原生工具、WebUI、boot image 和多架构辅助文件。
 
-当前 AppImage 以官方 x86_64 Linux tarball 为输入，并在 CI 中以 `Ventoy2Disk.gtk3` 作为可检查的 GTK3 后端验证动态库加载情况。
+当前 AppImage 以官方 Linux tarball 为输入，目标架构为 x86_64。
 
 ## 打包方式
 
 本项目采用“官方完整 Linux Release + 顶层 AppRun + 官方 appimagetool 直接封装”的路线，不使用 linuxdeploy 或 quick-sharun 重排 Ventoy 官方目录。
 
-构建流程：
+构建流程如下。
 
-1. 读取 `ventoy/Ventoy` 的 GitHub `releases/latest`，只接受非 draft、非 prerelease 的最新稳定版本。
-2. 动态选择该版本的 `ventoy-<版本>-linux.tar.gz` 和 `sha256.txt`，同时校验 GitHub Release asset digest 与上游 `sha256.txt`。
-3. 将 Release tag 解析到实际 Git commit，并从该不可变 commit 获取官方 Ventoy 图标。
-4. 完整复制官方 Linux Release 到 `AppDir/ventoy/`。
-5. 顶层 `AppRun` 只设置 Ventoy 运行需要的 `LD_LIBRARY_PATH`、`PATH` 和 `NO_AT_BRIDGE=1`，随后启动官方 `VentoyGUI.x86_64`。
-6. 动态读取官方 `AppImage/appimagetool` 和 `AppImage/type2-runtime` Release，校验各自 SHA-256 digest 后，以明确的 x86_64 type2 runtime 生成 `ventoy.AppImage`。
-7. 正式构建由仓库统一 `.github/workflows/build.yml` 中的独立 Ventoy Job 执行并上传到 `latest` Release。
+1. 公共工作目录入口使用独立临时目录下载和解包，重建本应用的 `AppDir` 和 `dist`。
+2. 公共下载入口读取 `ventoy/Ventoy` 的 `/releases/latest`，从同一稳定 Release 取得 Linux 归档和 `sha256.txt`。入口校验两个资产的 GitHub SHA-256，再用官方清单复核归档，并返回版本号和 tag 对应的提交信息。
+3. 公共解包入口解开归档。构建脚本把完整发行目录复制到 `AppDir/ventoy/`，生成桌面入口，并从 tag 对应的提交获取图标。
+4. 构建脚本内联生成根 `AppDir/AppRun`。启动时设置 `LD_LIBRARY_PATH`、`PATH` 和 `NO_AT_BRIDGE=1`，再执行官方 `VentoyGUI.x86_64`。
+5. 公共工具入口从官方 `/releases/latest` 下载并校验 appimagetool 和 Type 2 runtime。公共封装入口处理 AppDir 权限和图标，生成 `ventoy.AppImage`，输出 SHA-256 并写入 `dist/version.txt`。
+6. 仓库统一的 `.github/workflows/build.yml` 构建并发布 `ventoy.AppImage`。软件版本来自本次下载的 Release。
 
-应用版本没有写死；上游发布新的稳定版本后，后续构建会自动选择新的稳定 Release。
+应用专属处理及模板差异见[专属差异说明](./docs/template-deviations.md)。
 
 ## 运行与权限
 
@@ -51,24 +50,13 @@ sudo ./ventoy.AppImage
 
 如果当前 Linux 图形会话本身已经使用中文 locale，则无需额外执行 `export LANG=...`、`export LC_ALL=...` 等环境变量命令，直接执行上面的 `sudo ./ventoy.AppImage` 即可。需要手动切换界面语言时，可在 Ventoy GUI 的 `Language` 菜单中选择 `Chinese Simplified (简体中文)`。
 
-Ventoy 的核心功能是向用户选择的 USB / 磁盘设备安装或更新 Ventoy。实际安装 / 更新过程中，官方 worker 会进行分区和块设备写入。因此，执行安装、更新等磁盘操作前应确认 GUI 中选中的目标设备；这些操作可能重建分区或写入块设备。CI 只做非破坏性的静态、ELF、封装和提取验证，不执行任何实际磁盘安装 / 更新操作。
+Ventoy 的核心功能是向用户选择的 USB / 磁盘设备安装或更新 Ventoy。实际安装 / 更新过程中，官方 worker 会进行分区和块设备写入。因此，执行安装、更新等磁盘操作前应确认 GUI 中选中的目标设备；这些操作可能重建分区或写入块设备。CI 执行下载校验和封装，不执行磁盘安装或更新。
 
 ## 构建与验证
 
-`build_ventoy.sh` 包含以下检查：
-
-- 最新稳定 Release / tag / asset 名称与 URL 校验；
-- GitHub Release SHA-256 digest 校验；
-- 上游 `sha256.txt` 二次校验；
-- Linux 包内部 `ventoy/version` 与 Release tag 一致性校验；
-- `VentoyGUI.x86_64` 和 `Ventoy2Disk.gtk3` ELF 类型检查；
-- GTK3 后端 `ldd` 缺失库检查；
-- `desktop-file-validate`；
-- appimagetool 与 type2 runtime Release digest 校验；
-- 最终 AppImage 非空、ELF 类型、`--appimage-extract`、关键文件、版本和 AppRun / desktop 一致性检查；
-- 最终 `ventoy.AppImage` SHA-256 输出。
-
-由于 Ventoy 会操作真实块设备，自动验证刻意不触发安装 / 更新动作。
+- 公共入口校验最新稳定 Release 的两个资产摘要和官方 `sha256.txt`，并校验两个封装工具的摘要。
+- 封装成功后，公共入口检查 AppImage 非空，输出 SHA-256 并写入 `dist/version.txt`。
+- 新脚本的实际打包、成品内容及 GTK3 后端加载待验证。日常构建使用公共封装流程。
 
 ## 变更记录
 
