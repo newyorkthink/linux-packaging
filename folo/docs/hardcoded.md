@@ -39,6 +39,7 @@
 | 系统图标 | `/usr/share/pixmaps/folo.png` | 来自 AUR 安装提供的官方 PNG。 |
 | 系统 desktop | `/usr/share/applications/folo.desktop` | 来自 AUR 安装提供的官方桌面入口。 |
 | 产物名 | `folo.AppImage` | 保持现有 workflow 的发布资产名。 |
+| 完整扫描列表 | `AppDir/bin/*`、`/usr/bin/hostname` | 保留现有应用目录扫描，并恢复[旧构建脚本](https://github.com/newyorkthink/linux-packaging/blob/41250121cdaa8c7471ade14596733a63bd0a1df0/folo/build_folo.sh)已有的辅助命令；`hostname` 由基础包 `inetutils` 提供。 |
 
 本次读取官方 DEB 得到的元数据与关键文件记录如下：
 

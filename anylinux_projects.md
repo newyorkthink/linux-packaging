@@ -397,7 +397,7 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 
 **直接下载官方 DEB、从包内 `package.json` 读取版本的 Electron 应用，按标准重写时采用 [electron-deb.sh](./templates/quick-sharun/electron-deb.sh)。** [Cursor](./cursor/build_cursor.sh) 和 [WorkBuddy](./workbuddy/build_workbuddy.sh) 用于查阅既有实现。其他归档格式或版本来源先新增对应模板。分类入口见 [打包分类](./docs/packaging-classification.md)。
 
-带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](./templates/quick-sharun/electron-github-deb.sh)。公共入口按调用方指定的前缀筛选正式版本、校验 GitHub SHA-256 及 DEB 包名和架构，版本读取同次下载保存的文本；完整程序目录仍原样复制，不为读取版本解开或修改 ASAR。该模板只扫描完整程序目录，不增加额外扫描参数。
+带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](./templates/quick-sharun/electron-github-deb.sh)。公共入口按调用方指定的前缀筛选正式版本、校验 GitHub SHA-256 及 DEB 包名和架构，版本读取同次下载保存的文本；完整程序目录仍原样复制，不为读取版本解开或修改 ASAR。该模板用 `__SYSTEM_SCAN_ARGS__` 接收完整扫描列表，由应用按实际程序目录、辅助命令及所需资源填写，不固定 `AppDir/bin/*` 再拼接额外扫描参数。
 
 这项分类按最终程序文件的来源划分：先安装 Arch / AUR 软件包，准备依赖、图标、desktop 或既定版本元数据；再从已核实的 AUR 下载来源、软件官方网站等单独下载并解包安装包，取得最终程序文件。两个阶段都必须保留，不得从系统安装目录直接复制程序来替代第二阶段。
 

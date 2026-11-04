@@ -8,7 +8,7 @@
 
 Folo 为 Electron / GTK3 桌面应用。构建脚本由 [Electron GitHub DEB 标准模板](../templates/quick-sharun/electron-github-deb.sh) 通过仓库生成器生成，在正式 Arch 构建环境中先安装 `folo-bin` 及运行依赖，再由公共入口按 `desktop/` 标签前缀选择官方稳定 DEB，核对 GitHub SHA-256、包名 `folo` 和架构 `amd64`。
 
-解包后的 `usr/lib/folo` 整个目录原样放入 `AppDir/bin`，保留官方 Electron、ASAR 和相邻资源。图标与 desktop 使用 AUR 安装提供的系统资源；`DEPLOY_GTK=1` 由 quick-sharun 部署 GTK 和已安装的输入模块，并按模板生成包内中文 locale。启动入口由 quick-sharun 生成，现有统一 [Build AppImages](../.github/workflows/build.yml) 继续构建和发布。
+解包后的 `usr/lib/folo` 整个目录原样放入 `AppDir/bin`，保留官方 Electron、ASAR 和相邻资源。图标与 desktop 使用 AUR 安装提供的系统资源；`DEPLOY_GTK=1` 由 quick-sharun 部署 GTK 和已安装的输入模块，并按模板生成包内中文 locale。启动入口由 quick-sharun 生成，现有统一 [Build AppImages](../.github/workflows/build.yml) 继续构建和发布。完整扫描列表由本应用填写，当前为 `AppDir/bin/*` 和 `/usr/bin/hostname`。
 
 模板参数、旧处理移除范围和验证边界见 [模板参数与重写说明](./docs/template-deviations.md)，具体取值和兼容依据见 [固定配置说明](./docs/hardcoded.md)。本次按 Folo、Follow 查找 pkgforge-dev，未找到对应打包仓库。
 
@@ -43,3 +43,9 @@ Folo 为 Electron / GTK3 桌面应用。构建脚本由 [Electron GitHub DEB 标
 - 修改内容：公共入口新增显式 `--tag-prefix`，不传选项的旧调用保持原规则；登记完整 Electron GitHub DEB 模板，并由生成器重写本脚本。模板外的旧处理全部移除，历史变更记录保留。
 - 验证：29 项离线检查通过，覆盖旧接口对比、前缀筛选、摘要拒绝、真实 DEB 身份检查和生成器逐字节复现；官方 DEB 的 SHA-256、目录、desktop 和图标已核对。Bash 语法检查通过；ShellCheck 在生成稿和新模板上仅提示既有 `export ARCH="$(uname -m)"` 的 SC2155，按模板保留。
 - 验证边界：本轮未执行完整 AppImage 构建或 Folo 运行测试；本次修改不作为音频、中文输入、协议回调或跨发行版功能验收的依据。
+
+### 2026-11-04：按实际目标生成扫描行并恢复 hostname
+
+- 模板改用完整的 `SYSTEM_SCAN_ARGS` 参数，不固定应用目录后再附加通用扫描参数；通过仓库生成器重新生成本脚本。
+- 保留原有 `AppDir/bin/*`，恢复旧脚本已有的 `/usr/bin/hostname` 扫描项；不重复加入 quick-sharun 已自动部署的 NSS 和音频库。
+- 检查：在禁网临时容器中运行仓库生成器，通过其内置 Bash 语法检查；完整差异确认构建脚本仅变更扫描行。未运行应用或执行完整打包，新增扫描项后的在线产物尚未确认。
