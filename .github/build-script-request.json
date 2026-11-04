@@ -1,5 +1,23 @@
 {
-  "template": "",
-  "output": "",
-  "params": {}
+  "template": "quick-sharun/qt-deb.sh",
+  "output": "adspower-global/build_adspower-global.sh",
+  "params": {
+    "SYSTEM_PACKAGE": "adspower-global-bin",
+    "DEPENDENCY_ARGS": [
+      "fcitx5-gtk"
+    ],
+    "AUR_DEB_FILENAME": "AdsPower-Global-{version}-x64.deb",
+    "DEB_PROGRAM_DIR": "opt/AdsPower Global",
+    "APP_NAME": "AdsPower Global",
+    "MAIN_BIN": "adspower_global",
+    "STARTUPWMCLASS": "AdsPower Global",
+    "ICON": "/usr/share/icons/hicolor/256x256/apps/adspower_global.png",
+    "DESKTOP": "/usr/share/applications/adspower_global.desktop",
+    "APP_BASENAME": "adspower-global",
+    "SCAN_ARGS": [
+      {
+        "glob": "AppDir/bin/*"
+      }
+    ]
+  }
 }
