@@ -6,7 +6,7 @@
 
 打包成品统一发布在 [latest Release](https://github.com/newyorkthink/linux-packaging/releases/tag/latest)。软件版本保存在该 Release 的 `software_versions.json` 中；这份清单不提交到 Git 仓库，也不放入 AppImage。
 
-各应用的用途、运行方法、当前状态和修复历史，查看对应应用目录的 `README.md`。已完成标准化整理的项目可从 [打包分类](./docs/packaging-classification.md) 查找；该分类不是全仓应用清单。
+各应用的用途、运行方法、当前状态和修复历史，查看对应应用目录的 `README.md`。[打包分类](./docs/packaging-classification.md) 汇总已完成标准化整理的项目和经核实的专用打包流程。
 
 ## 手动构建
 
@@ -38,7 +38,7 @@
 | 人工维护流程 | [维护者指南](./docs/maintainer-guide.md) |
 | 仓库维护脚本与参数 | [scripts 说明](./scripts/README.md) |
 | AI 操作、修改授权与提交规则 | [AGENTS.md](./AGENTS.md) |
-| 已标准化项目与打包分类 | [打包分类](./docs/packaging-classification.md) |
+| 标准化项目与专用打包流程 | [打包分类](./docs/packaging-classification.md) |
 | AppImage 对应上游仓库与构建代码 | [上游打包参考索引](./docs/upstream-packaging-index.md) |
 | Anylinux / quick-sharun 规范 | [anylinux_projects.md](./anylinux_projects.md) |
 | linuxdeploy 规范 | [linuxdeploy_projects.md](./linuxdeploy_projects.md) |

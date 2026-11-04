@@ -48,8 +48,11 @@
 | quick-sharun / sharun | Arch 官方仓库或 AUR 可安装、标准 `/usr/bin` 入口，或已有同类应用使用该路线 | 实际依赖收集和 AppDir 构建在 Arch Linux 完成，由 quick-sharun 生成 AppImage |
 | linuxdeploy + 官方 appimagetool | Ubuntu / Debian 来源、需要 linuxdeploy 收集 ELF 依赖，或需要 Qt / GTK / GStreamer 输入插件 | 在 Ubuntu 中用 linuxdeploy 整理 AppDir，最后单独使用官方 appimagetool 和明确 runtime 封装 |
 | 官方 appimagetool 直接封装 | 上游或现有逻辑已经提供完整 AppDir，依赖无需再自动收集 | appimagetool 只负责把完整 AppDir 转为 AppImage |
+| 已有专用打包流程 | 项目已有可追溯的稳定基线，且套件结构、共享运行组件或分阶段部署超出现有模板的适用范围 | 沿用应用 README 记录的打包方式，按[专用打包流程](./packaging-classification.md#专用打包流程)登记 |
 | RunImage | 需要共享运行环境或项目已经采用 RunImage | 使用 `.github/workflows/build_runimage.yml`，不要混入普通 AppImage workflow |
 | Termux 原生工具 | Android / Termux 原生工具 | 使用 `.github/workflows/termux.yml` 和 `termux/<工具名>/` |
+
+打包分类记录构建方式，应用清单中的 `kind` 用于 GitHub Actions 调度。
 
 选定路线后，按技术栈核对适用的参考脚本。直接 appimagetool 以 Kitty 为底稿，linuxdeploy 按 GTK、Qt 或 CLI / 无框架插件分别参考 Joplin、XnView MP 或 MediaInfo。直接封装也需核对三份 linuxdeploy 脚本中适用的共用段。参见[四个通用标准参考](../linuxdeploy_projects.md#四个通用标准参考)。
 
