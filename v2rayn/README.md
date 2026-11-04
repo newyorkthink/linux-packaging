@@ -35,6 +35,26 @@ v2rayN Linux 客户端使用 .NET/Avalonia。构建脚本校验官方 Release SH
 
 对应的[构建与发布记录](https://github.com/newyorkthink/linux-packaging/actions/runs/41772916703/job/126386596444)显示构建发布、版本元数据上传和版本清单更新成功。当前标准构建脚本及 `quick-sharun AppDir/bin/v2rayN` 保持原样，不恢复旧版代码。
 
+### 2026-11-04：Hysteria2 TUN 实机验证通过（7.25.6）
+
+用户已确认 v2rayN 7.25.6 的 Hysteria2 TUN 通过 Linux 实机验证。在「设置 → Core 类型」中，仅将 Hysteria2 改为 `sing_box`，其他协议保持 Xray；保存后重新开启 TUN。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| TUN 网卡 | `singbox_tun` 已创建，标志包含 `UP,LOWER_UP`。 |
+| IPv4 出口 | 移除大小写 HTTP、HTTPS 和 ALL 代理环境变量后，`curl` 返回当前节点的出口地址。 |
+| 关闭 TUN | 日志显示核心收到 SIGTERM 后正常结束，随后查询不再显示 `singbox_tun`。 |
+
+#### 运行观察
+
+此前使用 Xray 26.10.31 启动 TUN 时，出现以下错误：
+
+```text
+exec: "resolvectl": executable file not found in $PATH
+```
+
+v2rayN 7.25.6 的[上游实现](https://github.com/2dust/v2rayN/blob/7.25.6/v2rayN/ServiceLib/Services/CoreConfig/V2ray/V2rayInboundService.cs#L95-L98)在 Linux 的 Xray TUN 配置中启用 `autoSystemDnsToGateway`。此次失败发生在运行时配置系统 DNS 的阶段，Xray 的启动环境找不到 `resolvectl`；该报错不是共享库加载失败。改用上述已实测通过的 sing-box 方案后，TUN 已正常工作，当前打包脚本及上游程序保持原样。
+
 ## 变更记录
 
 ### 2026-09-16：接入统一软件版本元数据
