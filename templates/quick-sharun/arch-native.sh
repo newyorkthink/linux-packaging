@@ -31,7 +31,7 @@ export OUTNAME="__APP_BASENAME__.AppImage"
 VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman "__SYSTEM_PACKAGE__")"
 
 # 收集程序及其运行依赖。
-quick-sharun __SYSTEM_SCAN_ARGS__
+quick-sharun __SCAN_ARGS__
 
 # 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage

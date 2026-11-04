@@ -21,7 +21,7 @@
   "ICON": "/usr/share/icons/<图标相对路径>",
   "DESKTOP": "/usr/share/applications/<桌面入口文件名>",
   "APP_BASENAME": "<产物名主体>",
-  "SYSTEM_SCAN_ARGS": ["/usr/bin/<程序名>"]
+  "SCAN_ARGS": ["/usr/bin/<程序名>"]
 }
 ```
 
@@ -50,7 +50,13 @@ python3 scripts/build/generate_build_script.py --template "<模板相对路径>"
 | `--stdout` | 输出完整生成稿。 |
 | `--write` | 写入目标脚本。与 `--stdout` 互斥。 |
 
-普通占位参数使用字符串，`VERSION_FIELD` 使用正整数。包名列表和扫描参数使用 JSON 数组，允许为空的参数用 `[]`。扫描参数的字符串按字面路径处理，确需展开通配符时使用 `{"glob": "/usr/lib/<库名>*.so"}` 形式，将示例中的占位内容换成实际名称。占位参数的完整定义见 [linuxdeploy 规范](../../linuxdeploy_projects.md#唯一标准模板) 和 [quick-sharun 规范](../../anylinux_projects.md#唯一标准模板)。
+普通占位参数使用字符串，`VERSION_FIELD` 使用正整数。包名列表使用 JSON 数组，模板允许为空的依赖列表用 `[]`。
+
+全部 quick-sharun 模板统一使用 `SCAN_ARGS`，必须显式提供非空数组，包含当前应用需要的完整初始扫描列表。需要程序目录时必须将该目录一并填写，不能只迁移旧的额外目标，也不能省略或提供空数组。生成器不默认追加 `AppDir/bin/*`、系统程序或库，不扫描系统来补齐参数。
+
+扫描参数中的字符串按字面路径处理。确需展开通配符时使用 `{"glob": "<实际程序目录>/*"}` 形式，并将占位内容替换为实际的绝对路径或 `AppDir/` 路径。生成脚本中保留该通配符，由构建时的 Shell 展开。
+
+占位参数的完整定义见 [linuxdeploy 规范](../../linuxdeploy_projects.md#唯一标准模板) 和 [quick-sharun 规范](../../anylinux_projects.md#唯一标准模板)。
 
 ## 执行结果
 

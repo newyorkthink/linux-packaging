@@ -20,14 +20,14 @@
 | `ICON` | `/usr/share/pixmaps/folo.png` |
 | `DESKTOP` | `/usr/share/applications/folo.desktop` |
 | `APP_BASENAME` | `folo` |
-| `SYSTEM_SCAN_ARGS` | `AppDir/bin/* /usr/bin/hostname`，作为完整扫描列表提供。 |
+| `SCAN_ARGS` | `AppDir/bin/* /usr/bin/hostname`，作为完整扫描列表提供。 |
 | `DEPENDENCY_ARGS` | 保留原脚本中公共基础包以外的 30 个包，并增加 `fcitx5-gtk`；完整参数见生成脚本的安装行。 |
 
 上述名称和路径的实际来源、原始元数据与标签兼容复现见 [固定配置说明](./hardcoded.md)。AUR 当前快照为 1.16.0，官方稳定 DEB 为 1.17.0；安装阶段只用来准备依赖和桌面资源，最终程序与版本均取自第二阶段独立下载，不锁定这两个核对版本。
 
 ## 完整扫描列表
 
-模板的收集命令为 `quick-sharun __SYSTEM_SCAN_ARGS__`，扫描目标全部由应用按实际情况提供，不固定 `AppDir/bin/*` 再拼接额外列表。Folo 保留此前已验证的目录扫描，并恢复旧脚本已有的 `/usr/bin/hostname`；该命令由基础包中的 `inetutils` 提供，无需新增安装命令。
+模板的收集命令为 `quick-sharun __SCAN_ARGS__`，扫描目标全部由应用按实际情况提供，不固定 `AppDir/bin/*` 再拼接额外列表。Folo 保留此前已验证的目录扫描，并恢复旧脚本已有的 `/usr/bin/hostname`；该命令由基础包中的 `inetutils` 提供，无需新增安装命令。
 
 ## 版本、GTK 与中文环境
 

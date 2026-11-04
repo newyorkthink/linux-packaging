@@ -21,6 +21,8 @@
 
 适用条件和占位参数见 [quick-sharun 规范](../anylinux_projects.md#唯一标准模板)。模板在 Arch Linux 构建环境使用。
 
+全部 quick-sharun 模板的收集行统一使用 `quick-sharun __SCAN_ARGS__`，对应 JSON 参数 `SCAN_ARGS` 必须是非空的完整扫描列表，不固定目录后再拼接额外参数。
+
 扫描目标必须由调用方按当前应用的真实布局和已核实需要明确提供；生成器只校验和替换参数，不扫描系统来生成或追加目标。完整要求见 [扫描目标必须按应用实际提供](../anylinux_projects.md#扫描目标必须按应用实际提供)。
 
 | 模板 | 适用场景 |

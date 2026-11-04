@@ -32,7 +32,7 @@
 | `__APP_NAME__`、`__MAIN_BIN__`、`__STARTUPWMCLASS__` | 成品应用名、包内主程序名和已核实的 StartupWMClass。 |
 | `__ICON__`、`__DESKTOP__` | 安装后实际存在的图标和桌面入口路径。 |
 | `__APP_BASENAME__` | 最终文件名主体，保留模板固定的 `.AppImage` 后缀。 |
-| `__SYSTEM_SCAN_ARGS__`、`__EXTRA_SCAN_ARGS__` | 交给 quick-sharun 的真实程序、辅助程序及已核实的库或资源。系统扫描至少有一个入口，额外扫描参数可以为空。需要展开通配符时保持 Shell 展开语义。 |
+| `__SCAN_ARGS__` | quick-sharun 的完整初始扫描列表，必须由调用方显式提供且至少包含一个目标。程序入口、目录及确有需要的附加目标按当前应用填写，不自动补目录或库。需要展开通配符时按生成器的 `glob` 参数提供。 |
 | `__DEB_URL__`、`__DEB_PROGRAM_DIR__` | 当前官方 DEB 的稳定下载入口，以及解包目录内完整程序目录的相对路径。 |
 | `__PACKAGE_JSON__`、`__INSTALLED_PROGRAM_DIR__` | 相对 `AppDir/bin` 的版本元数据路径，或系统中已安装的完整程序目录。 |
 | `__GITHUB_REPOSITORY__`、`__RELEASE_ASSET_PATTERN__` | 官方 `owner/repo` 和带 `{version}` 的资产名模板。 |
@@ -52,11 +52,11 @@
 - 应用名称、包名、下载地址、真实扫描目标、路径和已批准专属参数按实际情况填写；统一公共写法不要求这些取值相同。技术栈或来源专属步骤仅用于对应模板，不为凑齐内容强加给其他模板。
 - 已有应用脚本仍按当前授权范围通过仓库生成器更新；同步模板不构成批量重写其他稳定应用的授权。本要求同样适用于聊天草稿和修改方案。
 
-以下收集阶段属于需要统一维护的公共部分。`__SYSTEM_SCAN_ARGS__` 是由生成器替换的模板占位符，示例不能直接执行：
+以下收集阶段属于需要统一维护的公共部分。`__SCAN_ARGS__` 是由生成器替换的模板占位符，示例不能直接执行：
 
 ```bash
 # 收集程序及其运行依赖。
-quick-sharun __SYSTEM_SCAN_ARGS__
+quick-sharun __SCAN_ARGS__
 ```
 
 **不得只给一份模板新增上述注释、调整该行调用形式或改名扫描占位符。** 采用完整扫描列表时，系统入口、应用目录、辅助程序及已核实资源由各应用实际填写，不能为了统一而给所有应用固定同一路径或附加相同库。
@@ -427,7 +427,7 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 
 **直接下载官方 DEB、从包内 `package.json` 读取版本的 Electron 应用，按标准重写时采用 [electron-deb.sh](./templates/quick-sharun/electron-deb.sh)。** [Cursor](./cursor/build_cursor.sh) 和 [WorkBuddy](./workbuddy/build_workbuddy.sh) 用于查阅既有实现。其他归档格式或版本来源先新增对应模板。分类入口见 [打包分类](./docs/packaging-classification.md)。
 
-带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](./templates/quick-sharun/electron-github-deb.sh)。公共入口按调用方指定的前缀筛选正式版本、校验 GitHub SHA-256 及 DEB 包名和架构，版本读取同次下载保存的文本；完整程序目录仍原样复制，不为读取版本解开或修改 ASAR。该模板用 `__SYSTEM_SCAN_ARGS__` 接收完整扫描列表，由应用按实际程序目录、辅助命令及所需资源填写，不固定 `AppDir/bin/*` 再拼接额外扫描参数。
+带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](./templates/quick-sharun/electron-github-deb.sh)。公共入口按调用方指定的前缀筛选正式版本、校验 GitHub SHA-256 及 DEB 包名和架构，版本读取同次下载保存的文本；完整程序目录仍原样复制，不为读取版本解开或修改 ASAR。该模板用 `__SCAN_ARGS__` 接收完整扫描列表，由应用按实际程序目录、辅助命令及所需资源填写，不固定 `AppDir/bin/*` 再拼接额外扫描参数。
 
 这项分类按最终程序文件的来源划分：先安装 Arch / AUR 软件包，准备依赖、图标、desktop 或既定版本元数据；再从已核实的 AUR 下载来源、软件官方网站等单独下载并解包安装包，取得最终程序文件。两个阶段都必须保留，不得从系统安装目录直接复制程序来替代第二阶段。
 

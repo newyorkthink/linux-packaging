@@ -23,7 +23,7 @@ PACKAGE = re.compile(r"[A-Za-z0-9][A-Za-z0-9@._+:-]*")
 BASENAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*")
 GLOB = re.compile(r"[A-Za-z0-9_./+!*?\[\]-]+")
 PACKAGE_LISTS = {"APT_PACKAGES", "APT_EXTRA_PACKAGES", "DEPENDENCY_ARGS"}
-SCAN_LISTS = {"SYSTEM_SCAN_ARGS", "EXTRA_SCAN_ARGS"}
+SCAN_LISTS = {"SCAN_ARGS"}
 SINGLE_QUOTED = {"RELEASE_ASSET_PATTERN", "DEB_ASSET_REGEX", "AUR_DEB_FILENAME"}
 RELATIVE_PATHS = {
     "APP_BIN_DIR", "APP_LIB_DIR", "DEB_PROGRAM_DIR", "GIO_MODULE_DIR",
@@ -72,7 +72,7 @@ def scan_argument(value, name):
 
 def render_parameter(name, value, family):
     if name in PACKAGE_LISTS | SCAN_LISTS:
-        if not isinstance(value, list) or (name in {"APT_PACKAGES", "SYSTEM_SCAN_ARGS"} and not value):
+        if not isinstance(value, list) or (name in {"APT_PACKAGES", "SCAN_ARGS"} and not value):
             raise ValueError(f"{name} 必须是符合模板要求的参数数组。")
         if name in SCAN_LISTS:
             return " ".join(scan_argument(item, name) for item in value)

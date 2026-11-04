@@ -49,7 +49,7 @@ export DEPLOY_GTK=1
 VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text work/source-version.txt)"
 
 # 收集程序及其运行依赖。
-quick-sharun __SYSTEM_SCAN_ARGS__
+quick-sharun __SCAN_ARGS__
 
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
 mkdir -p AppDir/lib/locale
