@@ -110,7 +110,15 @@ def main() -> None:
             changed = git_out(["git", "show", "--pretty=", "--name-only", after_sha])
         else:
             changed = git_out(["git", "diff", "--name-only", before_sha, after_sha])
-        files = [line for line in changed.splitlines() if line]
+        # 应用根目录内未登记的构建脚本不触发正式构建，不依赖备份后缀。
+        files = [
+            line for line in changed.splitlines()
+            if line and not (
+                Path(line).parent.as_posix() in dir_key
+                and Path(line).match("build_*.sh")
+                and line not in script_key
+            )
+        ]
         if any(path.startswith(".github/actions/build-anylinux/") for path in files):
             select_all()
         else:

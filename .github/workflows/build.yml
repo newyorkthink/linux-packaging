@@ -14,6 +14,8 @@ on:
       - '.github/appimage-apps.json'
       - '.github/scripts/**'
       - '*/**'
+      # 标准备份在触发入口忽略；其他未登记构建脚本由计划阶段统一过滤。
+      - '!**/build_*_old.sh'
   schedule:
     - cron: '17 0 * * *'
   workflow_dispatch:
