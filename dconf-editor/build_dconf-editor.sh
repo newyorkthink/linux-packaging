@@ -45,7 +45,7 @@ mkdir -p "$APPDIR/usr/share/locale"
 cp -a "/usr/share/locale-langpack/zh_CN" "$APPDIR/usr/share/locale/zh_CN"
 
 # 下载并解包应用所需的图标与主题资源。
-"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
+"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" adwaita-icon-theme gnome-themes-extra-data
 
 ############# 准备 AppRun ##############
 
@@ -76,15 +76,13 @@ export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
 
-# 本程序专属处理：统一使用包内的简体中文 locale。
-export LC_ALL=zh_CN.UTF-8
-
 # 本程序专属处理：切换到包内根目录，使程序能读取相对路径下的译文。
 cd "$HERE"
 
 # 本程序专属处理：清除 GSETTINGS_SCHEMA_DIR，避免读取 schema 路径时发生越界。
+# 本程序专属处理：仅向应用进程传入 LC_ALL，避免启动脚本设置 locale 时发出警告。
 # 启动包内程序，并保留传入的命令行参数。
-exec env -u GSETTINGS_SCHEMA_DIR "$HERE/usr/bin/dconf-editor" "$@"
+exec env -u GSETTINGS_SCHEMA_DIR LC_ALL=zh_CN.UTF-8 "$HERE/usr/bin/dconf-editor" "$@"
 APPRUN
 
 # 为启动脚本添加执行权限。
