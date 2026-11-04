@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 
 
@@ -43,8 +44,10 @@ def decode_json(data):
     return json.loads(data, object_pairs_hook=unique_object)
 
 
-def run(argv, *, data=None, env=None, quiet=False):
+def run(argv, *, data=None, env=None, quiet=False, allow_missing_asset=False):
     result = subprocess.run(argv, cwd=root, input=data, env=env, capture_output=True)
+    if allow_missing_asset and result.returncode != 0 and re.search(rb"\bHTTP 404\b", result.stderr):
+        return None
     require(result.returncode == 0, "命令失败，停止处理：" + " ".join(argv[:3]))
     # 不转发认证、Git remote 或工具环境的原始诊断。
     return result.stdout
@@ -97,14 +100,35 @@ def gh_json(endpoint, *options):
 
 
 def assets(release_id):
-    pages = gh_json(f"repos/{args.repo}/releases/{release_id}/assets?per_page=100",
-                    "--paginate", "--slurp")
+    pages = gh_json(f"repos/{args.repo}/releases/{release_id}/assets?per_page=100&publication_read={time.time_ns()}",
+                    "-H", "Cache-Control: no-cache", "--paginate", "--slurp")
     require(isinstance(pages, list) and pages and all(isinstance(p, list) for p in pages),
             "Release 附件分页无效。")
     result = [item for page in pages for item in page]
     require(all(isinstance(a, dict) and isinstance(a.get("name"), str) for a in result),
             "Release 附件元数据无效。")
     return result
+
+
+def archive_manifest_snapshot(release_id, names):
+    latest = gh_json(f"repos/{args.repo}/releases/tags/latest?publication_read={time.time_ns()}",
+                     "-H", "Cache-Control: no-cache")
+    require(isinstance(latest, dict) and latest.get("tag_name") == "latest" and latest.get("id") == release_id,
+            "操作期间 Release 已变化，无法确认结果。")
+    remaining = assets(release_id)
+    require(not names & {asset["name"] for asset in remaining}, "仍有目标附件，归档清理未完成。")
+    manifests = [a for a in remaining if a["name"] == "software_versions.json"]
+    require(len(manifests) <= 1, "存在多个同名版本清单，无法确认结果。")
+    if not manifests:
+        return None
+    manifest = manifests[0]
+    asset_id, digest = manifest.get("id"), manifest.get("digest")
+    require(type(asset_id) is int and asset_id > 0, "版本清单附件 ID 无效。")
+    if digest in (None, ""):
+        return None
+    require(isinstance(digest, str) and re.fullmatch(r"sha256:[0-9a-f]{64}", digest),
+            "版本清单附件摘要无效。")
+    return asset_id, digest
 
 
 def public_text(value):
@@ -369,20 +393,30 @@ def main():
                            GITHUB_JOB="archive-apps", GITHUB_RUN_ATTEMPT="1")
         cleanup_env.pop("GITHUB_STEP_SUMMARY", None)
         run(["bash", helpers[1]], env=cleanup_env)
-    latest = gh_json(f"repos/{args.repo}/releases/tags/latest")
-    require(latest.get("id") == release["id"], "操作期间 Release 已变化，无法确认结果。")
-    remaining = assets(release["id"])
+    # 清单替换期间可能暂缺或返回旧附件 ID，只重复读取和校验。
     names = {app["release_name"] for app in selected}
-    require(not names & {asset["name"] for asset in remaining}, "仍有目标附件，归档清理未完成。")
-    manifests = [a for a in remaining if a["name"] == "software_versions.json"]
-    require(len(manifests) == 1, "版本清单不存在或不唯一。")
-    manifest = manifests[0]
-    body = run(["gh", "api", "--hostname", "github.com", "-H", "Accept: application/octet-stream",
-                f"repos/{args.repo}/releases/assets/{manifest['id']}"])
-    require(manifest.get("digest") == "sha256:" + hashlib.sha256(body).hexdigest(), "版本清单摘要不一致。")
-    versions = decode_json(body)
-    require(isinstance(versions, dict) and not any(isinstance(v, dict) and v.get("asset") in names
-                                                for v in versions.values()), "版本清单仍有目标条目。")
+    for attempt in range(5):
+        if attempt:
+            time.sleep(2)
+        manifest = archive_manifest_snapshot(release["id"], names)
+        if manifest is None:
+            continue
+        asset_id, digest = manifest
+        body = run(["gh", "api", "--hostname", "github.com",
+                    "-H", "Cache-Control: no-cache", "-H", "Accept: application/octet-stream",
+                    f"repos/{args.repo}/releases/assets/{asset_id}?publication_read={time.time_ns()}"],
+                   allow_missing_asset=True)
+        if body is None:
+            continue
+        require(digest == "sha256:" + hashlib.sha256(body).hexdigest(), "版本清单摘要不一致。")
+        if archive_manifest_snapshot(release["id"], names) != manifest:
+            continue
+        versions = decode_json(body)
+        require(isinstance(versions, dict) and not any(isinstance(v, dict) and v.get("asset") in names
+                                                    for v in versions.values()), "版本清单仍有目标条目。")
+        break
+    else:
+        raise ArchiveError("五轮内未能确认稳定的版本清单。")
     require(not run(["git", "status", "--porcelain", "--untracked-files=all"]).strip(), "归档后工作区不干净。")
     print("归档完成：目录、构建登记、指定附件和版本条目均已核对；未等待 Actions。")
 
@@ -391,6 +425,6 @@ root = None
 try:
     main()
 except (ArchiveError, OSError, ValueError, KeyError, TypeError) as error:
-    print("错误：" + str(error) + "\n未确认归档完成；不自动重试、回滚或扩大操作范围。", file=sys.stderr)
+    print("错误：" + str(error) + "\n未确认归档完成；不会自动重跑归档、回滚或扩大操作范围。", file=sys.stderr)
     sys.exit(1)
 PY
