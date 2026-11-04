@@ -12,6 +12,10 @@ AppRun 保留模板的 GIO 模块和共享数据路径配置。最终启动图�
 
 [译文路径重定位脚本](../patches/relocate_locale_paths.py)在整理产物阶段、最终封装前运行，将 ELF 中的绝对翻译目录改成包内相对路径。AppRun 从包内根目录启动，程序因此可以读取随包部署的中文译文。此处理沿用原有逻辑，适用于 dconf Editor 的 Ubuntu 包。
 
+### Adwaita 深色主题
+
+构建时用公共 APT 入口部署 Adwaita 图标和 GTK 主题资源，AppRun 使用 `GTK_THEME=Adwaita-dark`。固定值的依据见 [写死项记录](./hardcoded.md)。
+
 ## 旧脚本的历史基线
 
 1. 固定使用 Ubuntu 24.04 构建，直接采用发行版官方 dconf-editor 45.0.1。

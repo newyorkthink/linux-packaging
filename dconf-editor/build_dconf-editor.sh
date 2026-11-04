@@ -44,6 +44,9 @@ mkdir -p "$APPDIR/usr/share/locale"
 # 本程序专属处理：将 Ubuntu 简体中文译文放入包内翻译目录。
 cp -a "/usr/share/locale-langpack/zh_CN" "$APPDIR/usr/share/locale/zh_CN"
 
+# 下载并解包应用所需的图标与主题资源。
+"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" adwaita-icon-theme adwaita-icon-theme-full gnome-themes-extra-data
+
 ############# 准备 AppRun ##############
 
 # 在 AppDir 根目录创建完整的 AppRun 启动脚本。
@@ -64,6 +67,9 @@ export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 # GTK 运行环境：指定 GSettings schema 和 GIO 动态模块的目录。
 export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
+
+# 本程序专属处理：为 dconf Editor 启用 Adwaita 深色主题。
+export GTK_THEME=Adwaita-dark
 
 # 设置简体中文界面环境。
 export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
