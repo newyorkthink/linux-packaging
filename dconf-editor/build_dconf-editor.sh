@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" curl dconf-cli dconf-editor dconf-gsettings-backend fcitx5-frontend-gtk3 jq libgdk-pixbuf2.0-bin libgtk-3-bin libgtk-3-dev librsvg2-bin pkgconf
+"$SCRIPT_DIR/../common/apt/install_packages.sh" curl dconf-cli dconf-editor dconf-gsettings-backend fcitx5-frontend-gtk3 jq libgdk-pixbuf2.0-bin libgtk-3-bin libgtk-3-dev librsvg2-bin pkgconf locales
 
 ############# 下载打包工具 #############
 
@@ -32,6 +32,11 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_
 
 # 下载已安装版本的软件包并解包到 AppDir，成功后返回版本号。
 VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "dconf-editor" "$APPDIR" dconf-cli)"
+
+########## 准备桌面资源和运行库 #########
+
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
 
 ############# 准备 AppRun ##############
 
@@ -53,6 +58,11 @@ export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 # GTK 运行环境：指定 GSettings schema 和 GIO 动态模块的目录。
 export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
+
+# 设置简体中文界面环境。
+export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
 
 # 本程序专属处理：清除 GSETTINGS_SCHEMA_DIR，避免读取 schema 路径时发生越界。
 # 启动包内程序，并保留传入的命令行参数。
