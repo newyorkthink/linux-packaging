@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
-# 当前项目目录与产物路径。
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 APPDIR="$SCRIPT_DIR/AppDir"
 DIST_DIR="$SCRIPT_DIR/dist"
@@ -19,7 +22,6 @@ fail() {
 # 只清理本项目的构建目录；AppDir 留给 quick-sharun 创建。
 "$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" \
   "$SCRIPT_DIR" --skip-create AppDir dist source verify work
-cd "$SCRIPT_DIR"
 
 # 安装官方自包含 Avalonia 程序、短时图形检查及后续发布所需的精确依赖。
 # 以前提前安装整套统一基础包会使图形检查出现 free(): invalid pointer。
