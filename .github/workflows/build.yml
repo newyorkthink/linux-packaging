@@ -171,6 +171,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    concurrency:
+      group: build-appimage-${{ matrix.release_name }}
+      queue: max
     runs-on: *arch_runner
     timeout-minutes: ${{ matrix.timeout_minutes }}
     container: &arch_container ghcr.io/pkgforge-dev/archlinux:latest
