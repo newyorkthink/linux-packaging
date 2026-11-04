@@ -5,7 +5,7 @@ set -Eeuo pipefail
 TAG_ARGS=()
 if [[ "${1:-}" == --tag-prefix ]]; then
   (( $# >= 2 )) || {
-    echo "用法：$0 [--tag-prefix <标签前缀>] <owner/repo> '<包含 {version} 的资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
+    echo "用法：$0 [--tag-prefix <标签前缀>] <owner/repo> '<固定资产名或含 {version} 的资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
     exit 2
   }
   TAG_ARGS=("$1" "$2")
@@ -22,7 +22,7 @@ EXPECTED_DEB_PACKAGE="${4:-}"
 EXPECTED_DEB_ARCHITECTURE="${5:-}"
 
 [[ -n "$REPO" && -n "$ASSET_TEMPLATE" && -n "$OUTPUT" ]] || {
-  echo "用法：$0 <owner/repo> '<包含 {version} 的资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
+  echo "用法：$0 <owner/repo> '<固定资产名或含 {version} 的资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
   exit 1
 }
 if [[ "${4:-}" != --latest-with-checksum && ( -n "$EXPECTED_DEB_PACKAGE" || -n "$EXPECTED_DEB_ARCHITECTURE" ) ]]; then

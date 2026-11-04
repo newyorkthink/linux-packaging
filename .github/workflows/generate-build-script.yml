@@ -1,18 +1,25 @@
-name: Generate v2rayN build script
+name: Generate build script
 
 on:
   push:
     branches:
       - main
     paths:
-      - '.github/workflows/generate-build-script.yml'
+      - '.github/build-script-request.json'
+  workflow_dispatch:
+    inputs:
+      request:
+        description: '完整请求 JSON：request_id、template、output、params'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  generate-v2rayn:
-    name: Generate v2rayN with GTK DEB template
+  generate:
+    name: Generate from registered template
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -23,60 +30,74 @@ jobs:
 
       - name: Generate build script
         shell: bash
+        env:
+          GENERATION_REQUEST: ${{ inputs.request }}
         run: |
           set -Eeuo pipefail
 
-          # 运行仓库生成器并保留原始输出。
-          python3 scripts/build/generate_build_script.py --template quick-sharun/tauri-gtk-deb.sh --params - --output v2rayn/build_v2rayn.sh --stdout > "$RUNNER_TEMP/build_v2rayn.sh" <<'PARAMS'
-          {
-            "SYSTEM_PACKAGE": "v2rayn-bin",
-            "DEPENDENCY_ARGS": [
-              "bash",
-              "curl",
-              "jq",
-              "github-cli",
-              "file",
-              "patchelf",
-              "coreutils",
-              "desktop-file-utils",
-              "xdg-utils",
-              "glibc",
-              "gcc-libs",
-              "zlib",
-              "fontconfig",
-              "freetype2",
-              "libx11",
-              "libxext",
-              "libxrender",
-              "libxrandr",
-              "libxi",
-              "libxcb",
-              "libxfixes",
-              "libxinerama",
-              "libxcomposite",
-              "libxcursor",
-              "libxdamage",
-              "libxkbcommon",
-              "dbus",
-              "xorg-server-xvfb",
-              "xorg-xauth"
-            ],
-            "GITHUB_REPOSITORY": "2dust/v2rayN",
-            "RELEASE_ASSET_PATTERN": "v2rayN-linux-64.deb",
-            "DEB_PACKAGE": "v2rayn",
-            "DEB_ARCH": "amd64",
-            "DEB_PROGRAM_DIR": "opt/v2rayN",
-            "APP_NAME": "v2rayN",
-            "MAIN_BIN": "v2rayN",
-            "STARTUPWMCLASS": "v2rayN",
-            "ICON": "/usr/share/pixmaps/v2rayN.png",
-            "DESKTOP": "/usr/share/applications/v2rayN-bin.desktop",
-            "APP_BASENAME": "v2rayn",
-            "SCAN_ARGS": [
-              "AppDir/bin/v2rayN"
-            ]
-          }
-          PARAMS
+          # 在 GitHub runner 中读取统一请求，并原样保存仓库生成器输出。
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import subprocess
+          import sys
 
-          # 将生成结果编码为一行，便于从 Job 日志逐字取回。
-          printf 'V2RAYN_GENERATOR_BASE64=%s\n' "$(base64 -w 0 "$RUNNER_TEMP/build_v2rayn.sh")"
+          sys.path.insert(0, str(Path("scripts/build").resolve()))
+          from generate_build_script import unique_object
+
+          if os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch":
+              raw = os.environ["GENERATION_REQUEST"]
+          else:
+              raw = Path(".github/build-script-request.json").read_text(encoding="utf-8")
+          request = json.loads(raw, object_pairs_hook=unique_object)
+          if not isinstance(request, dict) or set(request) != {"request_id", "template", "output", "params"}:
+              raise ValueError("请求必须且只能包含 request_id、template、output 和 params。")
+          for key in ("request_id", "template", "output"):
+              if not isinstance(request[key], str) or not request[key].strip():
+                  raise ValueError(f"{key} 必须是非空字符串。")
+          if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", request["request_id"]):
+              raise ValueError("request_id 只能使用字母、数字、点、下划线和连字符。")
+          if not isinstance(request["params"], dict):
+              raise ValueError("params 必须是当前模板的参数对象。")
+          if Path(request["output"]).name.endswith("_old.sh"):
+              raise ValueError("旧版备份不得作为生成目标或构建入口。")
+
+          directory = Path(os.environ["RUNNER_TEMP"]) / "build-script-generation"
+          directory.mkdir()
+          script = directory / "generated-build-script.sh"
+          with script.open("wb") as output:
+              subprocess.run(
+                  [sys.executable, "scripts/build/generate_build_script.py",
+                   "--template", request["template"], "--params", "-",
+                   "--output", request["output"], "--stdout"],
+                  input=json.dumps(request["params"], ensure_ascii=False).encode("utf-8"),
+                  stdout=output, check=True,
+              )
+          content = script.read_bytes()
+          if not content:
+              raise ValueError("仓库生成器没有输出构建脚本。")
+          metadata = {
+              "request_id": request["request_id"],
+              "template": request["template"],
+              "output": request["output"],
+              "source_commit": os.environ["GITHUB_SHA"],
+              "sha256": hashlib.sha256(content).hexdigest(),
+          }
+          (directory / "metadata.json").write_text(
+              json.dumps(metadata, ensure_ascii=False, indent=2) + chr(10), encoding="utf-8",
+          )
+          print("BUILD_SCRIPT_GENERATOR_METADATA=" + json.dumps(metadata, ensure_ascii=False))
+          print("BUILD_SCRIPT_GENERATOR_BASE64=" + base64.b64encode(content).decode("ascii"))
+          PY
+
+      - name: Upload generated script
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-build-script-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/build-script-generation/
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,53 @@
+{
+  "request_id": "20261104-v2rayn-standard",
+  "template": "quick-sharun/tauri-gtk-deb.sh",
+  "output": "v2rayn/build_v2rayn.sh",
+  "params": {
+    "SYSTEM_PACKAGE": "v2rayn-bin",
+    "DEPENDENCY_ARGS": [
+      "bash",
+      "curl",
+      "jq",
+      "github-cli",
+      "file",
+      "patchelf",
+      "coreutils",
+      "desktop-file-utils",
+      "xdg-utils",
+      "glibc",
+      "gcc-libs",
+      "zlib",
+      "fontconfig",
+      "freetype2",
+      "libx11",
+      "libxext",
+      "libxrender",
+      "libxrandr",
+      "libxi",
+      "libxcb",
+      "libxfixes",
+      "libxinerama",
+      "libxcomposite",
+      "libxcursor",
+      "libxdamage",
+      "libxkbcommon",
+      "dbus",
+      "xorg-server-xvfb",
+      "xorg-xauth"
+    ],
+    "GITHUB_REPOSITORY": "2dust/v2rayN",
+    "RELEASE_ASSET_PATTERN": "v2rayN-linux-64.deb",
+    "DEB_PACKAGE": "v2rayn",
+    "DEB_ARCH": "amd64",
+    "DEB_PROGRAM_DIR": "opt/v2rayN",
+    "APP_NAME": "v2rayN",
+    "MAIN_BIN": "v2rayN",
+    "STARTUPWMCLASS": "v2rayN",
+    "ICON": "/usr/share/pixmaps/v2rayN.png",
+    "DESKTOP": "/usr/share/applications/v2rayN-bin.desktop",
+    "APP_BASENAME": "v2rayn",
+    "SCAN_ARGS": [
+      "AppDir/bin/v2rayN"
+    ]
+  }
+}

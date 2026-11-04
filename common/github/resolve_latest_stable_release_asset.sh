@@ -5,7 +5,7 @@ set -Eeuo pipefail
 TAG_PREFIX=""
 if [[ "${1:-}" == --tag-prefix ]]; then
   if (( $# < 2 )) || [[ -z "$2" || "$2" == *[[:space:]]* ]]; then
-    echo "用法：$0 [--tag-prefix <非空标签前缀>] <owner/repo> '<包含 {version} 的资产名模板>'" >&2
+    echo "用法：$0 [--tag-prefix <非空标签前缀>] <owner/repo> '<固定资产名或含 {version} 的资产名模板>'" >&2
     exit 2
   fi
   TAG_PREFIX="$2"
@@ -22,11 +22,11 @@ ASSET_TEMPLATE="${2:-}"
   exit 1
 }
 [[ "$REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || {
-  echo "用法：$0 <owner/repo> '<包含 {version} 的资产名模板>'" >&2
+  echo "用法：$0 <owner/repo> '<固定资产名或含 {version} 的资产名模板>'" >&2
   exit 1
 }
-[[ "$ASSET_TEMPLATE" == *'{version}'* ]] || {
-  echo "错误：资产名模板必须包含 {version}：$ASSET_TEMPLATE" >&2
+[[ "$ASSET_TEMPLATE" == *'{version}'* || "$ASSET_TEMPLATE" =~ ^[A-Za-z0-9_.-]+$ ]] || {
+  echo "错误：资产名必须是固定文件名或包含 {version} 的模板：$ASSET_TEMPLATE" >&2
   exit 1
 }
 

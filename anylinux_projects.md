@@ -35,7 +35,7 @@
 | `__SCAN_ARGS__` | quick-sharun 的完整初始扫描列表，必须由调用方显式提供且至少包含一个目标。程序入口、目录及确有需要的附加目标按当前应用填写，不自动补目录或库。需要展开通配符时按生成器的 `glob` 参数提供。 |
 | `__DEB_URL__`、`__DEB_PROGRAM_DIR__` | 当前官方 DEB 的稳定下载入口，以及解包目录内完整程序目录的相对路径。 |
 | `__PACKAGE_JSON__`、`__INSTALLED_PROGRAM_DIR__` | 相对 `AppDir/bin` 的版本元数据路径，或系统中已安装的完整程序目录。 |
-| `__GITHUB_REPOSITORY__`、`__RELEASE_ASSET_PATTERN__` | 官方 `owner/repo` 和带 `{version}` 的资产名模板。 |
+| `__GITHUB_REPOSITORY__`、`__RELEASE_ASSET_PATTERN__` | 官方 `owner/repo` 和固定资产名或含 `{version}` 的资产名模板；两种名称共用公共正式版本筛选和摘要校验。 |
 | `__RELEASE_TAG_PREFIX__` | 调用方明确提供的非空标签前缀；按字面值匹配并移除后，继续使用原有正式版本规则。 |
 | `__DEB_PACKAGE__`、`__DEB_ARCH__` | 官方 DEB 包名和包架构，用于校验资产。 |
 | `__AUR_DEB_FILENAME__` | 与 AUR 元数据匹配的 DEB 源文件名模板，保留公共入口支持的版本占位写法。 |
