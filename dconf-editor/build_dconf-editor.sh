@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" curl dconf-cli dconf-editor dconf-gsettings-backend fcitx5-frontend-gtk3 jq libgdk-pixbuf2.0-bin libgtk-3-bin libgtk-3-dev librsvg2-bin pkgconf locales
+"$SCRIPT_DIR/../common/apt/install_packages.sh" curl dconf-cli dconf-editor dconf-gsettings-backend fcitx5-frontend-gtk3 jq libgdk-pixbuf2.0-bin libgtk-3-bin libgtk-3-dev librsvg2-bin pkgconf locales language-pack-gnome-zh-hans-base python3
 
 ############# 下载打包工具 #############
 
@@ -37,6 +37,12 @@ VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "dconf-edito
 
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
 "$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
+
+# 本程序专属处理：创建包内翻译目录。
+mkdir -p "$APPDIR/usr/share/locale"
+
+# 本程序专属处理：将 Ubuntu 简体中文译文放入包内翻译目录。
+cp -a "/usr/share/locale-langpack/zh_CN" "$APPDIR/usr/share/locale/zh_CN"
 
 ############# 准备 AppRun ##############
 
@@ -64,6 +70,12 @@ export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
 
+# 本程序专属处理：统一使用包内的简体中文 locale。
+export LC_ALL=zh_CN.UTF-8
+
+# 本程序专属处理：切换到包内根目录，使程序能读取相对路径下的译文。
+cd "$HERE"
+
 # 本程序专属处理：清除 GSETTINGS_SCHEMA_DIR，避免读取 schema 路径时发生越界。
 # 启动包内程序，并保留传入的命令行参数。
 exec env -u GSETTINGS_SCHEMA_DIR "$HERE/usr/bin/dconf-editor" "$@"
@@ -81,6 +93,51 @@ export DEPLOY_GTK_VERSION=3
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 
 ############### 整理产物 ###############
+
+# 本程序专属处理：将 AppImage 内 ELF 的绝对 locale 路径改成相对路径。
+# AppRun 会先 cd 到 AppImage 根目录，因此 usr/share/locale 会稳定解析为 AppImage 内置中文目录。
+PATCH_APPDIR="$APPDIR" python3 <<'PY'
+from pathlib import Path
+import os
+
+appdir = Path(os.environ["PATCH_APPDIR"])
+elf_magic = b"\x7fELF"
+replacements = (
+    (b"/usr/share/locale-langpack\x00", b"usr/share/locale\x00"),
+    (b"/usr/share/locale\x00", b"usr/share/locale\x00"),
+)
+patched = []
+
+for path in appdir.rglob("*"):
+    if not path.is_file() or path.is_symlink():
+        continue
+    try:
+        data = path.read_bytes()
+    except OSError:
+        continue
+    if not data.startswith(elf_magic):
+        continue
+
+    original = data
+    for old, new in replacements:
+        if old not in data:
+            continue
+        if len(new) > len(old):
+            raise SystemExit(f"replacement is longer than source for {path}")
+        padded = new + (b"\x00" * (len(old) - len(new)))
+        data = data.replace(old, padded)
+
+    if data != original:
+        path.write_bytes(data)
+        patched.append(str(path.relative_to(appdir)))
+
+if "usr/bin/dconf-editor" not in patched:
+    raise SystemExit("dconf-editor 主程序没有发现可重定位的 locale 路径")
+
+print("已重定位 locale 路径的 ELF：")
+for item in patched:
+    print(item)
+PY
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
