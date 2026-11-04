@@ -119,10 +119,6 @@ runs:
         lock_upload_error="$workdir/lock-upload-error.txt"
         rm -rf "$workdir"
         mkdir -p "$workdir"
-        printf '%s\n' "run=$GITHUB_RUN_ID job=$GITHUB_JOB attempt=$GITHUB_RUN_ATTEMPT" > "$lock_file"
-        # matrix 共用 GITHUB_JOB，额外加入软件键和本次随机标识，不能把另一软件的锁当作自己的。
-        printf '%s\n' "key=$SOFTWARE_KEY nonce=$(date +%s%N)-$$-$RANDOM" >> "$lock_file"
-        lock_sha256="$(sha256sum "$lock_file" | awk '{print tolower($1)}')"
 
         release_info="$(python3 - "$release_json" "$GITHUB_REPOSITORY" <<'PY'
         import json, sys
@@ -181,9 +177,100 @@ runs:
         }
         trap cleanup_lock EXIT
 
+        # 每次读取独立快照并传递 API 失败，禁止把失败或短暂缺失误认为可以从空清单开始。
+        read_manifest_row() {
+          local rows
+          rows="$(read_release_api \
+            "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
+            -H 'Cache-Control: no-cache' --paginate \
+            --jq ".[] | select(.name == \"$manifest_name\") | [.id, (.digest // \"\")] | @tsv")" || return 1
+          if [[ -z "$rows" && "${1:-false}" == true ]]; then
+            return 0
+          fi
+          [[ -n "$rows" && "$rows" != *$'\n'* ]] || {
+            echo "$manifest_name 不存在或不唯一，禁止覆盖已有清单。" >&2
+            return 1
+          }
+          printf '%s\n' "$rows"
+        }
+
+        # 复核锁资产内容属于本次写入，防止失去锁的旧写入者继续覆盖新清单。
+        # 75 仅表示首次确认窗口内始终无法按 ID 读到候选锁；此时尚未读取清单，可重新获取锁。
+        require_own_lock() {
+          local row digest created_epoch now_epoch remaining attempt status
+          local lock_listing listed_id listed_digest
+          local wait_for_visibility="${1:-false}"
+          for attempt in 1 2 3 4 5; do
+            printf '写锁校验：资产=%s ID=%s（第 %s/5 轮）。\n' "$lock_name" "$lock_asset_id" "$attempt" >&2
+            if row="$(read_release_api \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$lock_asset_id?publication_read=$(date +%s%N)" \
+              -H 'Cache-Control: no-cache' --jq '[.digest, .created_at] | @tsv')"; then
+              break
+            else
+              status=$?
+            fi
+            [[ "$status" == 44 ]] || return "$status"
+
+            # 404 后按名称重新核对锁；发现其他锁即停止，不能凭旧 ID 继续写入。
+            lock_listing="$(read_release_api \
+              "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
+              -H 'Cache-Control: no-cache' --paginate \
+              --jq ".[] | select(.name == \"$lock_name\") | [.id, (.digest // \"\")] | @tsv")" || return 1
+            [[ "$lock_listing" != *$'\n'* ]] || {
+              echo "latest Release 中存在多个 $lock_name，禁止继续写入清单。" >&2
+              return 1
+            }
+            if [[ -n "$lock_listing" ]]; then
+              listed_id="${lock_listing%%$'\t'*}"
+              listed_digest="${lock_listing#*$'\t'}"
+              if [[ "$listed_id" != "$lock_asset_id" || ( -n "$listed_digest" && "$listed_digest" != "sha256:$lock_sha256" ) ]]; then
+                # 仅首次拿锁时等待上传结果与读取视图一致，期间尚未读取或修改清单。
+                if [[ "$wait_for_visibility" == true ]]; then
+                  if (( attempt == 5 )); then
+                    return 75
+                  fi
+                  printf '首次写锁确认尚未一致：上传 ID=%s，列表 ID=%s（第 %s/5 轮）；等待后重新确认。\n' "$lock_asset_id" "$listed_id" "$attempt" >&2
+                  sleep 2
+                  continue
+                fi
+                echo '清单写锁已变化，禁止继续写入。' >&2
+                return 1
+              fi
+            fi
+            if (( attempt == 5 )); then
+              if [[ "$wait_for_visibility" == true ]]; then
+                return 75
+              fi
+              echo '无法确认当前 Job 的清单写锁，停止写入。' >&2
+              return 1
+            fi
+            sleep 2
+          done
+          digest="${row%%$'\t'*}"
+          [[ "$digest" == "sha256:$lock_sha256" ]] || {
+            echo '清单写锁已变化，禁止继续写入。' >&2
+            return 1
+          }
+          # 保留原有 300 秒过期锁回收；本次上传必须在该期限前结束，避免旧写入者越过锁期限。
+          created_epoch="$(date -u -d "${row#*$'\t'}" +%s)" || return 1
+          now_epoch="$(date -u +%s)" || return 1
+          remaining=$((created_epoch + 290 - now_epoch))
+          (( remaining > 0 )) || {
+            echo '清单写锁即将到期，停止旧快照写入。' >&2
+            return 1
+          }
+          upload_timeout=$((remaining < 120 ? remaining : 120))
+        }
+
         acquired=false
+        initial_lock_failures=0
         for attempt in $(seq 1 180); do
           : > "$lock_upload_error"
+          # 每次申请使用新的随机标识，旧候选锁不能充当本次确认成功的依据。
+          printf '%s\n' "run=$GITHUB_RUN_ID job=$GITHUB_JOB attempt=$GITHUB_RUN_ATTEMPT" > "$lock_file"
+          # matrix 共用 GITHUB_JOB，额外加入软件键和本次随机标识，不能把另一软件的锁当作自己的。
+          printf '%s\n' "key=$SOFTWARE_KEY nonce=$(date +%s%N)-$$-$RANDOM" >> "$lock_file"
+          lock_sha256="$(sha256sum "$lock_file" | awk '{print tolower($1)}')"
           # 直接使用上传响应返回的 ID，避免依赖资产列表的可见性。
           if lock_response="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
             -H "Authorization: Bearer $GH_TOKEN" \
@@ -200,8 +287,27 @@ runs:
         print(asset_id)
         ' "$lock_name" <<< "$lock_response")"
             lock_owned=true
-            acquired=true
-            break
+            # 必须确认本次 ID、摘要和有效期后，才算取得锁并允许读取清单。
+            if require_own_lock true; then
+              acquired=true
+              break
+            else
+              lock_status=$?
+            fi
+            # 其他 API、摘要、唯一性或有效期错误仍立即停止，不套用重新获取锁。
+            [[ "$lock_status" == 75 ]] || exit "$lock_status"
+            initial_lock_failures=$((initial_lock_failures + 1))
+            printf '首次写锁确认失败：ID=%s（第 %s/5 次）；释放本次候选锁后重新获取。\n' "$lock_asset_id" "$initial_lock_failures" >&2
+            # 仅释放上传响应返回的本次 ID；释放失败时退出，不带着未清理的候选锁继续。
+            release_own_lock
+            lock_owned=false
+            lock_asset_id=''
+            if (( initial_lock_failures == 5 )); then
+              echo '首次写锁确认连续失败 5 次，停止获取锁，未读取或修改清单。' >&2
+              exit 1
+            fi
+            sleep 2
+            continue
           fi
 
           lock_listing="$(read_release_api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" --paginate \
@@ -233,91 +339,11 @@ runs:
           exit 1
         }
 
-        # 每次读取独立快照并传递 API 失败，禁止把失败或短暂缺失误认为可以从空清单开始。
-        read_manifest_row() {
-          local rows
-          rows="$(read_release_api \
-            "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
-            -H 'Cache-Control: no-cache' --paginate \
-            --jq ".[] | select(.name == \"$manifest_name\") | [.id, (.digest // \"\")] | @tsv")" || return 1
-          if [[ -z "$rows" && "${1:-false}" == true ]]; then
-            return 0
-          fi
-          [[ -n "$rows" && "$rows" != *$'\n'* ]] || {
-            echo "$manifest_name 不存在或不唯一，禁止覆盖已有清单。" >&2
-            return 1
-          }
-          printf '%s\n' "$rows"
-        }
-
-        # 复核锁资产内容属于本次写入，防止失去锁的旧写入者继续覆盖新清单。
-        require_own_lock() {
-          local row digest created_epoch now_epoch remaining attempt status
-          local lock_listing listed_id listed_digest
-          local wait_for_visibility="${1:-false}"
-          for attempt in 1 2 3 4 5; do
-            printf '写锁校验：资产=%s ID=%s（第 %s/5 轮）。\n' "$lock_name" "$lock_asset_id" "$attempt" >&2
-            if row="$(read_release_api \
-              "repos/$GITHUB_REPOSITORY/releases/assets/$lock_asset_id?publication_read=$(date +%s%N)" \
-              -H 'Cache-Control: no-cache' --jq '[.digest, .created_at] | @tsv')"; then
-              break
-            else
-              status=$?
-            fi
-            [[ "$status" == 44 ]] || return "$status"
-
-            # 404 后按名称重新核对锁；发现其他锁即停止，不能凭旧 ID 继续写入。
-            lock_listing="$(read_release_api \
-              "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
-              -H 'Cache-Control: no-cache' --paginate \
-              --jq ".[] | select(.name == \"$lock_name\") | [.id, (.digest // \"\")] | @tsv")" || return 1
-            [[ "$lock_listing" != *$'\n'* ]] || {
-              echo "latest Release 中存在多个 $lock_name，禁止继续写入清单。" >&2
-              return 1
-            }
-            if [[ -n "$lock_listing" ]]; then
-              listed_id="${lock_listing%%$'\t'*}"
-              listed_digest="${lock_listing#*$'\t'}"
-              if [[ "$listed_id" != "$lock_asset_id" || ( -n "$listed_digest" && "$listed_digest" != "sha256:$lock_sha256" ) ]]; then
-                # 仅首次拿锁时等待上传结果与读取视图一致，期间尚未读取或修改清单。
-                if [[ "$wait_for_visibility" == true ]] && (( attempt < 5 )); then
-                  printf '首次写锁确认尚未一致：上传 ID=%s，列表 ID=%s（第 %s/5 轮）；等待后重新确认。\n' "$lock_asset_id" "$listed_id" "$attempt" >&2
-                  sleep 2
-                  continue
-                fi
-                echo '清单写锁已变化，禁止继续写入。' >&2
-                return 1
-              fi
-            fi
-            if (( attempt == 5 )); then
-              echo '无法确认当前 Job 的清单写锁，停止写入。' >&2
-              return 1
-            fi
-            sleep 2
-          done
-          digest="${row%%$'\t'*}"
-          [[ "$digest" == "sha256:$lock_sha256" ]] || {
-            echo '清单写锁已变化，禁止继续写入。' >&2
-            return 1
-          }
-          # 保留原有 300 秒过期锁回收；本次上传必须在该期限前结束，避免旧写入者越过锁期限。
-          created_epoch="$(date -u -d "${row#*$'\t'}" +%s)" || return 1
-          now_epoch="$(date -u +%s)"
-          remaining=$((created_epoch + 290 - now_epoch))
-          (( remaining > 0 )) || {
-            echo '清单写锁即将到期，停止旧快照写入。' >&2
-            return 1
-          }
-          upload_timeout=$((remaining < 120 ? remaining : 120))
-        }
-
         # 取得锁后按唯一资产 ID 下载，并在合并前核对原清单摘要及快照是否仍有效。
         snapshot_ready=false
         for snapshot_attempt in 1 2 3 4 5; do
-          # 只有首次拿锁后的确认允许等待可见性，后续失锁仍立即停止。
-          if (( snapshot_attempt == 1 )); then
-            require_own_lock true
-          else
+          # 首轮已在获取锁时完成确认；后续快照重读仍按原规则严格复核锁。
+          if (( snapshot_attempt > 1 )); then
             require_own_lock
           fi
           # 每轮按名称重新定位，404 或快照变化后不得继续下载旧 ID。

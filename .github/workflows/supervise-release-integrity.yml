@@ -98,36 +98,114 @@ jobs:
           set -Eeuo pipefail
           release_json="$RUNNER_TEMP/latest-release.json"
           assets_json="$RUNNER_TEMP/latest-release-assets.json"
+          confirmed_assets_json="$RUNNER_TEMP/confirmed-release-assets.json"
           manifest="$RUNNER_TEMP/software_versions.json"
 
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" > "$release_json"
-          release_id="$(python3 - "$release_json" <<'PY'
-          import json, sys
+          # 每次请求只输出完整成功响应；资产 ID 返回 404 时交给外层重新定位。
+          read_release_api() (
+            local endpoint="$1" temp_dir request_attempt status
+            shift
+            temp_dir="$(mktemp -d)" || return 1
+            trap 'rm -rf -- "$temp_dir"' EXIT
+            for request_attempt in 1 2 3; do
+              if LC_ALL=C gh api "$endpoint" "$@" > "$temp_dir/body" 2> "$temp_dir/error"; then
+                cat "$temp_dir/body"
+                return
+              else
+                status=$?
+              fi
+              printf '监督读取 API 失败：/%s（第 %s/3 次，退出码 %s）。\n' "$endpoint" "$request_attempt" "$status" >&2
+              cat "$temp_dir/error" >&2
+              if [[ "$endpoint" == "repos/$GITHUB_REPOSITORY/releases/assets/"* ]] &&
+                 grep -Fq 'HTTP 404' "$temp_dir/error"; then
+                return 44
+              fi
+              if (( request_attempt == 3 )) ||
+                 ! grep -Eq 'HTTP (408|429|5[0-9]{2})|unexpected end of JSON input' "$temp_dir/error"; then
+                return "$status"
+              fi
+              sleep $((request_attempt * 2))
+            done
+          )
 
-          release_id = json.load(open(sys.argv[1], encoding='utf-8')).get('id')
-          if not release_id:
-              raise SystemExit('无法取得 latest Release ID。')
-          print(release_id)
-          PY
-          )"
-
-          gh api --paginate --slurp \
-            "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" \
-            > "$assets_json"
-          manifest_asset_id="$(python3 - "$assets_json" <<'PY'
-          import json, sys
+          # 清单暂时缺失或摘要尚未就绪时重读；多份同名资产和无效摘要仍明确失败。
+          select_manifest_row() {
+            python3 - "$1" <<'PY'
+          import json, re, sys
 
           pages = json.load(open(sys.argv[1], encoding='utf-8'))
           rows = [asset for page in pages for asset in page if asset.get('name') == 'software_versions.json']
-          if len(rows) != 1:
+          if len(rows) > 1:
               raise SystemExit(f'latest Release 中 software_versions.json 数量为 {len(rows)}，必须恰好为 1。')
-          print(rows[0]['id'])
+          if not rows:
+              raise SystemExit(0)
+          asset_id = rows[0].get('id')
+          digest = rows[0].get('digest') or ''
+          if type(asset_id) is not int or asset_id <= 0:
+              raise SystemExit('software_versions.json 的资产 ID 无效。')
+          if not digest:
+              raise SystemExit(0)
+          if not isinstance(digest, str) or not re.fullmatch(r'sha256:[0-9a-fA-F]{64}', digest):
+              raise SystemExit('software_versions.json 的资产摘要无效。')
+          print(asset_id, digest.lower(), sep='\t')
           PY
-          )"
-          gh api \
-            -H 'Accept: application/octet-stream' \
-            "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id" \
-            > "$manifest"
+          }
+
+          snapshot_ready=false
+          for snapshot_attempt in 1 2 3 4 5; do
+            # 每轮重新取得 Release 和完整资产列表，不沿用已失效的清单 ID。
+            read_release_api \
+              "repos/$GITHUB_REPOSITORY/releases/tags/latest?publication_read=$(date +%s%N)" \
+              -H 'Cache-Control: no-cache' > "$release_json"
+            release_id="$(python3 - "$release_json" <<'PY'
+          import json, sys
+
+          release_id = json.load(open(sys.argv[1], encoding='utf-8')).get('id')
+          if type(release_id) is not int or release_id <= 0:
+              raise SystemExit('无法取得 latest Release ID。')
+          print(release_id)
+          PY
+            )"
+            read_release_api \
+              "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
+              -H 'Cache-Control: no-cache' --paginate --slurp > "$assets_json"
+            manifest_row="$(select_manifest_row "$assets_json")"
+            if [[ -n "$manifest_row" ]]; then
+              IFS=$'\t' read -r manifest_asset_id manifest_digest <<< "$manifest_row"
+              printf '监督读取清单：ID=%s（第 %s/5 轮）。\n' "$manifest_asset_id" "$snapshot_attempt" >&2
+              # 只下载本轮定位的 ID，404 后进入下一轮重新获取列表。
+              if read_release_api \
+                "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
+                -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' > "$manifest"; then
+                if [[ "sha256:$(sha256sum "$manifest" | awk '{print tolower($1)}')" == "$manifest_digest" ]]; then
+                  # 下载完成后再次确认同一资产 ID 和摘要，避免把已变化的清单交给监督。
+                  read_release_api \
+                    "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
+                    -H 'Cache-Control: no-cache' --paginate --slurp > "$confirmed_assets_json"
+                  confirmed_row="$(select_manifest_row "$confirmed_assets_json")"
+                  if [[ "$confirmed_row" == "$manifest_row" ]]; then
+                    snapshot_ready=true
+                    break
+                  fi
+                  echo '监督读取期间清单已变化，重新定位。' >&2
+                else
+                  echo '监督读取的清单内容与资产摘要不一致，重新定位。' >&2
+                fi
+              else
+                read_status=$?
+                [[ "$read_status" == 44 ]] || exit "$read_status"
+              fi
+            else
+              printf '监督暂未取得唯一且带有效摘要的清单（第 %s/5 轮），等待重新定位。\n' "$snapshot_attempt" >&2
+            fi
+            if (( snapshot_attempt < 5 )); then
+              sleep 2
+            fi
+          done
+          [[ "$snapshot_ready" == true ]] || {
+            echo '五轮内无法取得有效且稳定的版本清单快照，停止监督，禁止使用空清单或部分响应。' >&2
+            exit 1
+          }
 
       - name: Supervise software version manifest
         if: steps.source.outputs.should_supervise == 'true'
