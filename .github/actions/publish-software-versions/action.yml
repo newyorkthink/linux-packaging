@@ -113,6 +113,7 @@ runs:
         manifest_name='software_versions.json'
         workdir="$RUNNER_TEMP/software-versions-$SOFTWARE_KEY"
         manifest="$workdir/$manifest_name"
+        base_manifest="$workdir/base-$manifest_name"
         verified_manifest="$workdir/verified-$manifest_name"
         lock_name='software_versions.json.lock'
         lock_file="$workdir/$lock_name"
@@ -386,6 +387,42 @@ runs:
         }
         echo "$SOFTWARE_KEY 合并清单：base_asset=$manifest_asset_id base_digest=$base_digest lock_asset=$lock_asset_id"
 
+        cp "$manifest" "$base_manifest"
+
+        # 仅在本次替换已开始、清单缺失且仍持有写锁时恢复经过校验的原文件。
+        manifest_upload_started=false
+        finish_publish() {
+          local status=$? current_row attempt
+          trap - EXIT
+          if (( status != 0 )) && [[ "$manifest_upload_started" == true && "$lock_owned" == true ]]; then
+            if require_own_lock && current_row="$(read_manifest_row true)" && [[ -z "$current_row" ]]; then
+              if cp "$base_manifest" "$manifest" && require_own_lock; then
+                # 不覆盖可能已上传的正式清单，即使上一次请求的返回状态不明确。
+                timeout "$upload_timeout" gh release upload latest "$manifest" --repo "$GITHUB_REPOSITORY" || true
+                for attempt in 1 2 3 4 5; do
+                  if ! require_own_lock || ! current_row="$(read_manifest_row true)"; then
+                    break
+                  fi
+                  if [[ "${current_row#*$'\t'}" == "$base_digest" ]]; then
+                    echo '清单发布失败，已恢复原版本清单。' >&2
+                    break
+                  fi
+                  if [[ -n "$current_row" ]] || (( attempt == 5 )); then
+                    break
+                  fi
+                  sleep 2
+                done
+              fi
+              if [[ "${current_row#*$'\t'}" != "$base_digest" ]]; then
+                echo '清单发布失败，未能确认原版本清单已恢复。' >&2
+              fi
+            fi
+          fi
+          cleanup_lock
+          exit "$status"
+        }
+        trap finish_publish EXIT
+
         python3 - "$manifest" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
         import json, sys
         path, key, version, asset, sha256 = sys.argv[1:]
@@ -417,6 +454,7 @@ runs:
             exit 1
           fi
           require_own_lock
+          manifest_upload_started=true
           if timeout "$upload_timeout" gh release upload latest "$manifest" --repo "$GITHUB_REPOSITORY" --clobber; then
             uploaded=true
             break

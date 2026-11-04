@@ -256,6 +256,9 @@ jobs:
     name: Build Alacritty
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).alacritty == 'true'
+    concurrency:
+      group: build-appimage-alacritty.AppImage
+      queue: max
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -307,6 +310,9 @@ jobs:
     name: Build Binance
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).binance == 'true'
+    concurrency:
+      group: build-appimage-binance.AppImage
+      queue: max
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     permissions:
@@ -351,6 +357,9 @@ jobs:
     name: Build ChatGPT
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).chatgpt == 'true'
+    concurrency:
+      group: build-appimage-chatgpt.AppImage
+      queue: max
     runs-on: *arch_runner
     timeout-minutes: 90
     container:
@@ -368,8 +377,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     concurrency:
-      group: build-dconf-editor
-      cancel-in-progress: true
+      group: build-appimage-dconf-editor.AppImage
+      queue: max
     permissions:
       contents: write
 
@@ -418,6 +427,9 @@ jobs:
     name: Build DingTalk
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).dingtalk == 'true'
+    concurrency:
+      group: build-appimage-dingtalk.AppImage
+      queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -462,6 +474,9 @@ jobs:
     name: Build GoldenDict
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).goldendict == 'true'
+    concurrency:
+      group: build-appimage-goldendict.AppImage
+      queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     permissions:
@@ -506,6 +521,9 @@ jobs:
     name: Build Hermes Desktop
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).hermes_desktop == 'true'
+    concurrency:
+      group: build-appimage-hermes-desktop.AppImage
+      queue: max
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
@@ -572,6 +590,9 @@ jobs:
     name: Build Joplin
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).joplin == 'true'
+    concurrency:
+      group: build-appimage-joplin.AppImage
+      queue: max
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     permissions:
@@ -616,6 +637,9 @@ jobs:
     name: Build Keyviz
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).keyviz == 'true'
+    concurrency:
+      group: build-appimage-keyviz.AppImage
+      queue: max
     runs-on: ubuntu-latest
     container: ghcr.io/pkgforge-dev/archlinux:latest
     timeout-minutes: 60
@@ -690,6 +714,9 @@ jobs:
     name: Build MediaInfo
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).mediainfo == 'true'
+    concurrency:
+      group: build-appimage-mediainfo.AppImage
+      queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -754,6 +781,9 @@ jobs:
     name: Build poppler-utils
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).poppler_utils == 'true'
+    concurrency:
+      group: build-appimage-poppler-utils.AppImage
+      queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -802,6 +832,9 @@ jobs:
     name: Build OBS Studio
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).obs_studio == 'true'
+    concurrency:
+      group: build-appimage-obs-studio.AppImage
+      queue: max
     runs-on: ubuntu-latest
     container: ghcr.io/pkgforge-dev/archlinux:latest
     timeout-minutes: 120
@@ -875,6 +908,9 @@ jobs:
     name: Build PeaZip
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).peazip == 'true'
+    concurrency:
+      group: build-appimage-peazip.AppImage
+      queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -927,6 +963,9 @@ jobs:
     name: Build RealVNC Connect
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).realvnc_connect == 'true'
+    concurrency:
+      group: build-appimage-rvncconnect.AppImage
+      queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -970,6 +1009,9 @@ jobs:
     name: Build Remmina
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).remmina == 'true'
+    concurrency:
+      group: build-appimage-remmina.AppImage
+      queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -1054,6 +1096,9 @@ jobs:
     name: Build Tencent Docs
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).tencent_docs == 'true'
+    concurrency:
+      group: build-appimage-tencent-docs.AppImage
+      queue: max
     runs-on: *arch_runner
     container: *arch_container
     permissions: *arch_permissions
@@ -1071,6 +1116,9 @@ jobs:
     name: Build Tencent Meeting
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).wemeet == 'true'
+    concurrency:
+      group: build-appimage-wemeet.AppImage
+      queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     permissions:
@@ -1115,6 +1163,9 @@ jobs:
     name: Build Wine Staging
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).wine == 'true'
+    concurrency:
+      group: build-appimage-wine.AppImage
+      queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     permissions:
@@ -1164,6 +1215,9 @@ jobs:
     name: Build WinPodX
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).winpodx == 'true'
+    concurrency:
+      group: build-appimage-winpodx.AppImage
+      queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -1221,6 +1275,9 @@ jobs:
     name: Build WorkBuddy AppImage
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).workbuddy == 'true'
+    concurrency:
+      group: build-appimage-workbuddy.AppImage
+      queue: max
     runs-on: ubuntu-latest
     timeout-minutes: 90
     container: ghcr.io/pkgforge-dev/archlinux:latest
@@ -1341,6 +1398,9 @@ jobs:
     name: Build XnView MP
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).xnviewmp == 'true'
+    concurrency:
+      group: build-appimage-xnviewmp.AppImage
+      queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     permissions:

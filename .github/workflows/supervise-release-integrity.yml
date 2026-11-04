@@ -89,8 +89,9 @@ jobs:
         if: steps.source.outputs.should_supervise == 'true'
         uses: actions/checkout@v4
 
-      - name: Read latest Release state
+      - name: Confirm latest Release integrity
         if: steps.source.outputs.should_supervise == 'true'
+        id: integrity
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -151,13 +152,14 @@ jobs:
           PY
           }
 
-          snapshot_ready=false
-          for snapshot_attempt in 1 2 3 4 5; do
-            # 每轮重新取得 Release 和完整资产列表，不沿用已失效的清单 ID。
-            read_release_api \
-              "repos/$GITHUB_REPOSITORY/releases/tags/latest?publication_read=$(date +%s%N)" \
-              -H 'Cache-Control: no-cache' > "$release_json"
-            release_id="$(python3 - "$release_json" <<'PY'
+          read_release_snapshot() {
+            local snapshot_attempt release_id manifest_row manifest_asset_id manifest_digest confirmed_row read_status
+            for snapshot_attempt in 1 2 3 4 5; do
+              # 每轮重新取得 Release 和完整资产列表，不沿用已失效的清单 ID。
+              read_release_api \
+                "repos/$GITHUB_REPOSITORY/releases/tags/latest?publication_read=$(date +%s%N)" \
+                -H 'Cache-Control: no-cache' > "$release_json"
+              release_id="$(python3 - "$release_json" <<'PY'
           import json, sys
 
           release_id = json.load(open(sys.argv[1], encoding='utf-8')).get('id')
@@ -165,63 +167,125 @@ jobs:
               raise SystemExit('无法取得 latest Release ID。')
           print(release_id)
           PY
-            )"
-            read_release_api \
-              "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
-              -H 'Cache-Control: no-cache' --paginate --slurp > "$assets_json"
-            manifest_row="$(select_manifest_row "$assets_json")"
-            if [[ -n "$manifest_row" ]]; then
-              IFS=$'\t' read -r manifest_asset_id manifest_digest <<< "$manifest_row"
-              printf '监督读取清单：ID=%s（第 %s/5 轮）。\n' "$manifest_asset_id" "$snapshot_attempt" >&2
-              # 只下载本轮定位的 ID，404 后进入下一轮重新获取列表。
-              if read_release_api \
-                "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
-                -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' > "$manifest"; then
-                if [[ "sha256:$(sha256sum "$manifest" | awk '{print tolower($1)}')" == "$manifest_digest" ]]; then
-                  # 下载完成后再次确认同一资产 ID 和摘要，避免把已变化的清单交给监督。
-                  read_release_api \
-                    "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
-                    -H 'Cache-Control: no-cache' --paginate --slurp > "$confirmed_assets_json"
-                  confirmed_row="$(select_manifest_row "$confirmed_assets_json")"
-                  if [[ "$confirmed_row" == "$manifest_row" ]]; then
-                    snapshot_ready=true
-                    break
+              )"
+              read_release_api \
+                "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
+                -H 'Cache-Control: no-cache' --paginate --slurp > "$assets_json"
+              manifest_row="$(select_manifest_row "$assets_json")"
+              if [[ -n "$manifest_row" ]]; then
+                IFS=$'\t' read -r manifest_asset_id manifest_digest <<< "$manifest_row"
+                printf '监督读取清单：ID=%s（第 %s/5 轮）。\n' "$manifest_asset_id" "$snapshot_attempt" >&2
+                # 只下载本轮定位的 ID，404 后进入下一轮重新获取列表。
+                if read_release_api \
+                  "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
+                  -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' > "$manifest"; then
+                  if [[ "sha256:$(sha256sum "$manifest" | awk '{print tolower($1)}')" == "$manifest_digest" ]]; then
+                    # 下载完成后再次确认同一资产 ID 和摘要，避免把已变化的清单交给监督。
+                    read_release_api \
+                      "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
+                      -H 'Cache-Control: no-cache' --paginate --slurp > "$confirmed_assets_json"
+                    confirmed_row="$(select_manifest_row "$confirmed_assets_json")"
+                    if [[ "$confirmed_row" == "$manifest_row" ]]; then
+                      mv "$confirmed_assets_json" "$assets_json"
+                      return 0
+                    fi
+                    echo '监督读取期间清单已变化，重新定位。' >&2
+                  else
+                    echo '监督读取的清单内容与资产摘要不一致，重新定位。' >&2
                   fi
-                  echo '监督读取期间清单已变化，重新定位。' >&2
                 else
-                  echo '监督读取的清单内容与资产摘要不一致，重新定位。' >&2
+                  read_status=$?
+                  [[ "$read_status" == 44 ]] || exit "$read_status"
                 fi
               else
-                read_status=$?
-                [[ "$read_status" == 44 ]] || exit "$read_status"
+                printf '监督暂未取得唯一且带有效摘要的清单（第 %s/5 轮），等待重新定位。\n' "$snapshot_attempt" >&2
               fi
-            else
-              printf '监督暂未取得唯一且带有效摘要的清单（第 %s/5 轮），等待重新定位。\n' "$snapshot_attempt" >&2
-            fi
-            if (( snapshot_attempt < 5 )); then
-              sleep 2
-            fi
-          done
-          [[ "$snapshot_ready" == true ]] || {
+              if (( snapshot_attempt < 5 )); then
+                sleep 2
+              fi
+            done
             echo '五轮内无法取得有效且稳定的版本清单快照，停止监督，禁止使用空清单或部分响应。' >&2
-            exit 1
+            return 1
           }
 
-      - name: Supervise software version manifest
-        if: steps.source.outputs.should_supervise == 'true'
-        id: integrity
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 .github/scripts/supervise_release_integrity.py \
-            --manifest "$RUNNER_TEMP/software_versions.json" \
-            --assets "$RUNNER_TEMP/latest-release-assets.json" \
-            --catalog .github/appimage-apps.json
+          # 有差异时只检查正在执行的构建。无法识别的构建名称按仍可能发布处理。
+          related_build_running() {
+            local repair_keys="$1" run_ids run_id status
+            local runs="$RUNNER_TEMP/active-appimage-runs.json"
+            local jobs="$RUNNER_TEMP/active-appimage-jobs.json"
+            read_release_api \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/build.yml/runs?branch=main&status=in_progress&per_page=100" \
+              -H 'Cache-Control: no-cache' --paginate --slurp > "$runs" || return $?
+            run_ids="$(jq -r '.[].workflow_runs[].id' "$runs")" || return $?
+            while IFS= read -r run_id; do
+              [[ -n "$run_id" ]] || continue
+              read_release_api \
+                "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100&filter=latest" \
+                -H 'Cache-Control: no-cache' --paginate --slurp > "$jobs" || return $?
+              if jq -e --argjson keys "$repair_keys" --slurpfile catalog .github/appimage-apps.json '
+                ($catalog[0].apps | map("Build " + .name)) as $known
+                | ($catalog[0].apps | map(select(.key as $key | $keys | index($key)) | "Build " + .name)) as $targets
+                | any(.[].jobs[]; . as $job
+                    | $job.status != "completed"
+                      and ($job.name | startswith("Build "))
+                      and (($targets | index($job.name)) != null or ($known | index($job.name)) == null))
+              ' "$jobs" > /dev/null; then
+                printf 'true\n'
+                return 0
+              else
+                status=$?
+                [[ "$status" == 1 ]] || return "$status"
+              fi
+            done <<< "$run_ids"
+            printf 'false\n'
+          }
+
+          # 两次读取仍报告同一组异常，且中间未发现对应应用正在发布，才允许自愈。
+          result="$RUNNER_TEMP/release-integrity-result.txt"
+          summary="$RUNNER_TEMP/release-integrity-summary.md"
+          confirmed=false
+          build_running=false
+          for confirmation_attempt in 1 2 3; do
+            read_release_snapshot
+            : > "$result"
+            : > "$summary"
+            GITHUB_OUTPUT="$result" GITHUB_STEP_SUMMARY="$summary" \
+              python3 .github/scripts/supervise_release_integrity.py \
+                --manifest "$manifest" --assets "$assets_json" --catalog .github/appimage-apps.json
+            if ! grep -Fxq 'has_mismatches=true' "$result"; then
+              confirmed=true
+              build_running=false
+              break
+            fi
+            if (( confirmation_attempt > 1 )) && cmp -s "$result" "$result.previous" && \
+              cmp -s "$summary" "$summary.previous"; then
+              confirmed=true
+              break
+            fi
+            if (( confirmation_attempt == 3 )); then
+              break
+            fi
+            cp "$result" "$result.previous"
+            cp "$summary" "$summary.previous"
+            build_running=false
+            if grep -Fxq 'repairable=true' "$result"; then
+              repair_keys="$(sed -n 's/^repair_keys=//p' "$result")"
+              build_running="$(related_build_running "$repair_keys")"
+            fi
+            sleep 2
+          done
+          cat "$result" >> "$GITHUB_OUTPUT"
+          cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$confirmed" != true || "$build_running" == true ]]; then
+            echo 'repair_deferred=true' >> "$GITHUB_OUTPUT"
+            echo '对应构建仍在执行或异常尚未稳定，本次暂缓自愈。'
+          fi
 
       - name: Start one repair build for mismatched applications
         if: >-
           steps.source.outputs.should_supervise == 'true' &&
           steps.integrity.outputs.has_mismatches == 'true' &&
+          steps.integrity.outputs.repair_deferred != 'true' &&
           steps.integrity.outputs.repairable == 'true' &&
           env.IS_REPAIR_RUN != 'true'
         shell: bash
@@ -241,6 +305,7 @@ jobs:
         if: >-
           steps.source.outputs.should_supervise == 'true' &&
           steps.integrity.outputs.has_mismatches == 'true' &&
+          steps.integrity.outputs.repair_deferred != 'true' &&
           steps.integrity.outputs.repairable != 'true'
         shell: bash
         run: |
@@ -251,6 +316,7 @@ jobs:
         if: >-
           steps.source.outputs.should_supervise == 'true' &&
           steps.integrity.outputs.has_mismatches == 'true' &&
+          steps.integrity.outputs.repair_deferred != 'true' &&
           steps.integrity.outputs.repairable == 'true' &&
           env.IS_REPAIR_RUN == 'true'
         shell: bash

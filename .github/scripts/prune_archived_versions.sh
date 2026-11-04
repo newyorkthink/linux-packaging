@@ -47,11 +47,15 @@ read_manifest_row() {
   rows="$(gh api -H 'Cache-Control: no-cache' \
     "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100&publication_read=$(date +%s%N)" \
     --paginate --jq ".[] | select(.name == \"$manifest_name\") | [.id, (.digest // \"\")] | @tsv")" || return 1
-  if [[ -z "$rows" && "${1:-false}" == true ]]; then
-    return 0
+  if [[ -z "$rows" ]]; then
+    if [[ "${1:-false}" == true ]]; then
+      return 0
+    fi
+    echo "$manifest_name 不存在，禁止覆盖已有清单。" >&2
+    return 1
   fi
-  [[ -n "$rows" && "$rows" != *$'\n'* ]] || {
-    echo "$manifest_name 不存在或不唯一，禁止覆盖已有清单。" >&2
+  [[ "$rows" != *$'\n'* ]] || {
+    echo "$manifest_name 存在多个同名附件，禁止覆盖已有清单。" >&2
     return 1
   }
   printf '%s\n' "$rows"
@@ -81,35 +85,46 @@ require_own_lock() {
 
 # 读取唯一清单的实际内容，核对摘要和快照后再判断是否存在归档残留。
 read_snapshot() {
-  local attempt
-  # 仅在摘要无效时重新读取唯一资产元数据，最多读取五次，不跳过摘要校验。
+  local attempt confirmed_row download_status
+  local download_error="$workdir/manifest-download-error.txt"
   for attempt in 1 2 3 4 5; do
-    base_row="$(read_manifest_row)"
-    manifest_asset_id="${base_row%%$'\t'*}"
-    base_digest="${base_row#*$'\t'}"
-    if [[ "$base_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-      break
+    base_row="$(read_manifest_row true)" || return 1
+    if [[ -z "$base_row" ]]; then
+      printf '暂未找到 %s（第 %s/5 轮），重新定位。\n' "$manifest_name" "$attempt" >&2
+    else
+      manifest_asset_id="${base_row%%$'\t'*}"
+      base_digest="${base_row#*$'\t'}"
+      if [[ ! "$base_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+        printf '版本清单摘要无效（第 %s/5 轮，资产 ID=%s，digest=%q）。\n' \
+          "$attempt" "$manifest_asset_id" "$base_digest" >&2
+      elif gh api -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' \
+        "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
+        > "$base_manifest" 2> "$download_error"; then
+        [[ "sha256:$(sha256sum "$base_manifest" | awk '{print tolower($1)}')" == "$base_digest" ]] || {
+          echo '原版本清单内容与资产摘要不一致，禁止清理。' >&2
+          return 1
+        }
+        confirmed_row="$(read_manifest_row true)" || return 1
+        if [[ "$confirmed_row" == "$base_row" ]]; then
+          refresh_assets
+          return $?
+        fi
+        echo '版本清单在读取期间已变化，重新定位。' >&2
+      else
+        download_status=$?
+        cat "$download_error" >&2
+        if ! grep -Fq 'HTTP 404' "$download_error"; then
+          return "$download_status"
+        fi
+        printf '版本清单附件 ID=%s 已不可读，重新定位。\n' "$manifest_asset_id" >&2
+      fi
     fi
-    printf '版本清单摘要无效（第 %s/5 次，资产 ID=%s，digest=%q）。\n' \
-      "$attempt" "$manifest_asset_id" "$base_digest" >&2
-    if (( attempt == 5 )); then
-      echo '原版本清单缺少有效 SHA-256，禁止清理。' >&2
-      return 1
+    if (( attempt < 5 )); then
+      sleep 2
     fi
-    sleep 2
   done
-  gh api -H 'Cache-Control: no-cache' -H 'Accept: application/octet-stream' \
-    "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id?publication_read=$(date +%s%N)" \
-    > "$base_manifest"
-  [[ "sha256:$(sha256sum "$base_manifest" | awk '{print tolower($1)}')" == "$base_digest" ]] || {
-    echo '原版本清单内容与资产摘要不一致，禁止清理。' >&2
-    return 1
-  }
-  [[ "$(read_manifest_row)" == "$base_row" ]] || {
-    echo '版本清单在读取期间已变化，停止使用旧快照。' >&2
-    return 1
-  }
-  refresh_assets
+  echo '五轮内无法取得有效且稳定的版本清单，停止清理。' >&2
+  return 1
 }
 
 # 按精确归档映射生成候选清单，不修改其他软件记录。
@@ -282,11 +297,10 @@ done
 # 重新下载正式清单，核对 digest 和完整内容，确认其他条目没有丢失。
 verified=false
 for attempt in $(seq 1 12); do
-  manifest_row="$(read_manifest_row)"
-  mapfile -t manifest_rows <<< "$manifest_row"
-  if (( ${#manifest_rows[@]} == 1 )); then
-    manifest_asset_id="${manifest_rows[0]%%$'\t'*}"
-    manifest_digest="${manifest_rows[0]#*$'\t'}"
+  manifest_row="$(read_manifest_row true)"
+  if [[ -n "$manifest_row" ]]; then
+    manifest_asset_id="${manifest_row%%$'\t'*}"
+    manifest_digest="${manifest_row#*$'\t'}"
     if [[ "$manifest_digest" == "sha256:$manifest_sha256" ]]; then
       rm -f "$verified_manifest"
       if gh api -H 'Cache-Control: no-cache' \
