@@ -35,20 +35,6 @@ v2rayN Linux 客户端使用 .NET/Avalonia。构建脚本校验官方 Release SH
 
 对应的[构建与发布记录](https://github.com/newyorkthink/linux-packaging/actions/runs/41772916703/job/126386596444)显示构建发布、版本元数据上传和版本清单更新成功。当前标准构建脚本及 `quick-sharun AppDir/bin/v2rayN` 保持原样，不恢复旧版代码。
 
-## 后续运行反馈
-
-### 2026-11-04：启用 TUN 时自动系统 DNS 接管失败
-
-用户随后启用 TUN 时，Xray 26.10.31 在设置系统 DNS 阶段退出，日志中的直接失败原文为：
-
-```text
-Failed to start: app/proxyman/inbound: failed to start proxy > proxy/tun: unable to set the system DNS (remove autoSystemDnsToGateway to run without) > proxy/tun: resolvectl dns failed > proxy/tun: resolvectl dns failed > exec: "resolvectl": executable file not found in $PATH
-```
-
-[v2rayN 7.25.6 的 Linux TUN 配置生成逻辑](https://github.com/2dust/v2rayN/blob/1883178b5f1e222b6c6db2782e7a3d989b7cc18f/v2rayN/ServiceLib/Services/CoreConfig/V2ray/V2rayInboundService.cs#L95)会将 `autoSystemDnsToGateway` 设置为 `true`。[Xray 26.10.31 的说明](https://github.com/XTLS/Xray-core/blob/a4a3dff5b20c2faae567b742c172c7b95e75c083/proxy/tun/README.md#L30)明确要求 `resolvectl` 在运行路径中可用，且宿主的 `systemd-resolved` 已启用并实际管理 DNS；仅有客户端命令不足以满足这项功能的条件。
-
-这次日志直接指向 DNS 接管命令在当前运行路径中不可用，不是新增的动态库扫描错误。现有 `quick-sharun AppDir/bin/v2rayN` 保持原样；不通过扩大通配扫描或直接关闭 DNS 接管来替代该问题的处理。
-
 ## 变更记录
 
 ### 2026-09-16：接入统一软件版本元数据
