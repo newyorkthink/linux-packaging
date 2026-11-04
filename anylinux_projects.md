@@ -24,7 +24,7 @@
 
 在 Arch Linux 构建环境使用。先按软件来源、框架、实际入口和所需运行配置选定一份完整模板，再用生成器生成应用一级目录下的构建脚本。`../common/` 相对于应用目录。模板应替换完全部占位参数后再运行。原生及系统安装模板重建当前应用的 `AppDir` 与 `dist`，DEB 模板还会重建 `work`。这些目录中的旧内容会被删除。
 
-只替换下表允许变化的参数值，注释、顺序、缩进和空行逐字保留。不存在对应模板时，先核实依据并新增一份完整模板，禁止拼接旧脚本或其他模板。软件来源和上游打包核实要求仍按本文执行。
+只替换下表允许变化的参数值，注释、顺序、缩进和空行逐字保留。只允许使用 [固定模板清单](./templates/README.md) 中的现有模板。没有适用模板时，说明具体冲突并保留已有构建脚本，禁止提出、新增或登记其他模板，也不得拼接旧脚本或其他模板。软件来源和上游打包核实要求仍按本文执行。
 
 | 占位参数 | 替换内容 |
 | --- | --- |
@@ -425,7 +425,7 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 
 ### 直接下载安装包的标准模板
 
-**直接下载官方 DEB、从包内 `package.json` 读取版本的 Electron 应用，按标准重写时采用 [electron-deb.sh](./templates/quick-sharun/electron-deb.sh)。** [Cursor](./cursor/build_cursor.sh) 和 [WorkBuddy](./workbuddy/build_workbuddy.sh) 用于查阅既有实现。其他归档格式或版本来源先新增对应模板。分类入口见 [打包分类](./docs/packaging-classification.md)。
+**直接下载官方 DEB、从包内 `package.json` 读取版本的 Electron 应用，按标准重写时采用 [electron-deb.sh](./templates/quick-sharun/electron-deb.sh)。** [Cursor](./cursor/build_cursor.sh) 和 [WorkBuddy](./workbuddy/build_workbuddy.sh) 用于查阅既有实现。其他归档格式或版本来源按固定模板清单核对，现有模板不适用时说明具体冲突。分类入口见 [打包分类](./docs/packaging-classification.md)。
 
 带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](./templates/quick-sharun/electron-github-deb.sh)。公共入口按调用方指定的前缀筛选正式版本、校验 GitHub SHA-256 及 DEB 包名和架构，版本读取同次下载保存的文本；完整程序目录仍原样复制，不为读取版本解开或修改 ASAR。该模板用 `__SCAN_ARGS__` 接收完整扫描列表，由应用按实际程序目录、辅助命令及所需资源填写，不固定 `AppDir/bin/*` 再拼接额外扫描参数。
 

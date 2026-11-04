@@ -1,5 +1,32 @@
 # AGENTS.md
 
+## 永久置顶规则：打包模板固定为以下 13 份（不可豁免）
+
+本仓库仅允许使用以下打包模板，适用于正式构建脚本、生成器输入、迁移方案和聊天草稿。
+
+### linuxdeploy / appimagetool
+
+- `templates/appimage/linuxdeploy-gtk-deb.sh`
+- `templates/appimage/linuxdeploy-gtk-apt.sh`
+- `templates/appimage/linuxdeploy-gtk-gstreamer-apt.sh`
+- `templates/appimage/linuxdeploy-qt-deb.sh`
+- `templates/appimage/linuxdeploy-cli-apt.sh`
+- `templates/appimage/appimagetool-direct.sh`
+
+### quick-sharun
+
+- `templates/quick-sharun/arch-native.sh`
+- `templates/quick-sharun/electron-deb.sh`
+- `templates/quick-sharun/electron-github-deb.sh`
+- `templates/quick-sharun/electron-installed.sh`
+- `templates/quick-sharun/tauri-gtk-deb.sh`
+- `templates/quick-sharun/qt-deb.sh`
+- `templates/quick-sharun/qt-installed.sh`
+
+**禁止以任何名义或形式提出、创建、派生或登记清单外的打包模板。** 应用特例、专属处理、打包来源、技术栈、依赖或目录布局差异均无例外。禁止把新增或登记模板当作解决方案或后续前提。
+
+按来源、技术栈与实际入口选用清单内的一份完整模板，仅填写允许变化的参数。现有模板确实不适用时，只说明具体冲突并保留已有构建脚本。专属处理继续遵守既有授权和记录规则，不改变本清单。
+
 ## 永久置顶规则：禁止任何本地操作，非本地任务只能使用连接器（不可豁免）
 
 **禁止任何本地相关的命令、程序、脚本、工具、服务、资源访问和文件系统操作。本禁令针对全部本地操作，不是只禁止 `gh`；包括 Docker 在内的任何本地命令一律不允许，只读查询也不允许。**
@@ -50,7 +77,7 @@
 
 **任何 `build_*.sh` 的新建、重写、修改和草稿输出，有且仅有 [仓库生成器](./scripts/build/generate_build_script.md) 这一种生成方式。** 必须选用已登记的完整模板，提交列明的参数，由 `scripts/build/generate_build_script.py` 生成结果。任何 AI 一律禁止手写、拼接、临时编程生成、复制旧脚本作为成品，或在生成后手工改动。禁止通过其他脚本、编辑器、API、自动化或任何方式绕过生成器。
 
-没有适用模板或参数时，先按仓库授权规则补齐正式模板并登记，再通过生成器产出。生成器是代码来源，原有仓库修改、提交与发布的授权规则仍然适用。
+生成器只能使用文首固定清单中的模板。没有适用模板或参数时，说明具体冲突并保留已有构建脚本。仓库修改、提交与发布继续遵守授权规则。
 
 ## 永久置顶规则：按标准重写必须逐字逐行照搬模板（不可豁免）
 
@@ -477,7 +504,7 @@ Plan 的选择规则：
 
 **凡构建脚本或正式流程使用 quick-sharun / sharun，无论是新增应用、迁移、修复还是重做打包，都必须先完整阅读并严格遵守根目录 [`anylinux_projects.md`](./anylinux_projects.md)。该文件是本仓库 Anylinux 打包的强制规范，不是可选示例。**
 
-按标准重写时，只能从 [quick-sharun 唯一标准模板](./anylinux_projects.md#唯一标准模板) 选择一份完整底稿。遇到未覆盖的来源或布局，先提出新增模板及适用条件，取得明确同意并登记后再使用。模板总入口见 [templates/README.md](./templates/README.md)。
+按标准重写时，只能从 [quick-sharun 唯一标准模板](./anylinux_projects.md#唯一标准模板) 选择一份完整底稿。遇到未覆盖的来源或布局，按文首固定清单规则说明冲突。模板总入口见 [templates/README.md](./templates/README.md)。
 
 **所有 quick-sharun 标准模板的公共相同部分必须统一维护。任何新增、修改或删除，都必须在同一次修改、同一提交中同步覆盖 `templates/quick-sharun/` 下全部涉及该公共部分的模板，禁止只改其中一份。** 公共命令写法、参数占位符的名称与含义、通用注释、执行顺序、缩进和空行均受此约束；所有模板共有的步骤必须全部同步，不得以技术栈或来源不同为由单独改写公共部分。
 
@@ -634,7 +661,7 @@ linuxdeploy 项目的记录位置与简写格式按前述 linuxdeploy 专属文�
 
 **既定模板是唯一允许的格式。必须以仓库当前版本中对应的标准模板为底稿，逐字逐行保留通用内容。分区、命令、参数顺序、注释、标点、缩进、空格和空行必须逐处对应。严禁另起格式、拼接其他模板或做等价改写。仅可替换模板明确允许变化的参数，并在规定位置保留经用户逐项批准且已记录的专属技术处理。**
 
-AppDir / 官方 appimagetool 体系的标准底稿统一存放在 `templates/appimage/`。拟稿前必须从 [唯一标准模板](./linuxdeploy_projects.md#唯一标准模板) 按来源与技术栈选择一份完整模板。没有适用模板时，须先提出新增模板及适用条件，取得明确同意并登记后再使用。现有应用脚本仅供核对实现和历史依据。
+AppDir / 官方 appimagetool 体系的标准底稿统一存放在 `templates/appimage/`。拟稿前必须从 [唯一标准模板](./linuxdeploy_projects.md#唯一标准模板) 按来源与技术栈选择一份完整模板。没有适用模板时，按文首固定清单规则说明冲突。现有应用脚本仅供核对实现和历史依据。
 
 **linuxdeploy 和直接 appimagetool 的标准构建脚本必须在 shebang 下方保留固定分区 `############# 初始化脚本 #############`，并在该分区启用严格模式、定位脚本目录。程序专属注释必须以 `# 本程序专属处理：` 开头，冒号后直接说明具体操作。固定注释和已有来源标注必须逐字保留。**
 
