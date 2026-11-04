@@ -96,48 +96,7 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 
 # 本程序专属处理：将 AppImage 内 ELF 的绝对 locale 路径改成相对路径。
 # AppRun 会先 cd 到 AppImage 根目录，因此 usr/share/locale 会稳定解析为 AppImage 内置中文目录。
-PATCH_APPDIR="$APPDIR" python3 <<'PY'
-from pathlib import Path
-import os
-
-appdir = Path(os.environ["PATCH_APPDIR"])
-elf_magic = b"\x7fELF"
-replacements = (
-    (b"/usr/share/locale-langpack\x00", b"usr/share/locale\x00"),
-    (b"/usr/share/locale\x00", b"usr/share/locale\x00"),
-)
-patched = []
-
-for path in appdir.rglob("*"):
-    if not path.is_file() or path.is_symlink():
-        continue
-    try:
-        data = path.read_bytes()
-    except OSError:
-        continue
-    if not data.startswith(elf_magic):
-        continue
-
-    original = data
-    for old, new in replacements:
-        if old not in data:
-            continue
-        if len(new) > len(old):
-            raise SystemExit(f"replacement is longer than source for {path}")
-        padded = new + (b"\x00" * (len(old) - len(new)))
-        data = data.replace(old, padded)
-
-    if data != original:
-        path.write_bytes(data)
-        patched.append(str(path.relative_to(appdir)))
-
-if "usr/bin/dconf-editor" not in patched:
-    raise SystemExit("dconf-editor 主程序没有发现可重定位的 locale 路径")
-
-print("已重定位 locale 路径的 ELF：")
-for item in patched:
-    print(item)
-PY
+PATCH_APPDIR="$APPDIR" python3 "$SCRIPT_DIR/patches/relocate_locale_paths.py"
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
