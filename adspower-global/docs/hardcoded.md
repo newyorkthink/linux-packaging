@@ -13,7 +13,7 @@
 | desktop | `/usr/share/applications/adspower_global.desktop` | AUR 配方保留该 desktop 路径，并调整其中的 Exec；正式脚本读取安装结果。 |
 | 图标 | `/usr/share/icons/hicolor/256x256/apps/adspower_global.png` | 按获批生成稿选择 hicolor 中的同名图标；旧脚本按尺寸查找同名资源，本稿使用模板参数指定路径。 |
 | 成品名 | `adspower-global.AppImage` | 保持既有构建清单与 Release 资产名称一致。 |
-| 扫描目标 | `AppDir/bin/*` | 沿用完整程序目录的收集范围，包含主程序、辅助程序及随包运行库；不扫描无关系统目录。 |
+| 扫描目标 | `AppDir/bin/*`、`/usr/bin/xdg-open`、`/usr/bin/xdg-mime` | 保留完整程序目录的收集范围，并沿用仓库 Keyviz 的方式显式收集外部打开和 MIME 查询工具；`xdg-utils` 已由公共基础依赖安装。 |
 
 AUR 配方依据为 [PKGBUILD](https://github.com/archlinux/aur/blob/071f26a3236e92008e0ecbd51f8cb588d29e38ef/PKGBUILD) 和 [.SRCINFO](https://github.com/archlinux/aur/blob/071f26a3236e92008e0ecbd51f8cb588d29e38ef/.SRCINFO)。
 

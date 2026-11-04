@@ -11,14 +11,20 @@
 | 项目 | 内容 |
 | --- | --- |
 | 生成工作流 | `.github/workflows/generate-build-script.yml` |
-| 生成任务 | [41879128128，运行次数 1](https://github.com/newyorkthink/linux-packaging/actions/runs/41879128128) |
-| 源码提交 | `7a99949516d90aecd942eec744dba5cb90004ff9` |
+| 生成任务 | [41936166281，运行次数 1](https://github.com/newyorkthink/linux-packaging/actions/runs/41936166281) |
+| 源码提交 | `3fc153624a8dfd1f43eb8fd943c70141226a9a83` |
 | 模板 | `quick-sharun/qt-deb.sh` |
 | 输出路径 | `adspower-global/build_adspower-global.sh` |
-| 输出 SHA-256 | `9af6631ecfbb6c77041fe5ae2d7b0096f99b3b495110d2b44cfb29e1d4754610` |
+| 输出 SHA-256 | `94331577c10a8c9f43d3b765a0f731f88239fbe5b31c427b55fe5041393ca071` |
 | 已执行检查 | 生成器的参数、路径和 Bash 语法检查；生成稿与模板固定内容逐字核对 |
 
 生成任务仅输出脚本，不执行依赖安装、DEB 下载或应用打包。公共请求文件已恢复为空任务结构。
+
+## 外部打开工具收集
+
+本次只在生成器的 `SCAN_ARGS` 中保留原有 `AppDir/bin/*`，追加 `/usr/bin/xdg-open` 和 `/usr/bin/xdg-mime`，沿用 [Keyviz 的现有收集方式](https://github.com/newyorkthink/linux-packaging/blob/f47eef2df23b5d3e2cf720b28c2201e666bf02dd/Keyviz/build_keyviz.sh#L187)。`xdg-utils` 已由公共基础依赖安装，未修改公共脚本、模板或现有中文环境与输入法配置。
+
+这两项用于提供外部打开和 MIME 查询工具，不启动或替换宿主桌面会话的 Portal 服务。
 
 ## 来源与版本
 

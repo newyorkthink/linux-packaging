@@ -23,7 +23,7 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 依赖来源：先安装统一 Arch 基础包，再用公共安装入口安装 `adspower-global-bin`、其声明的运行依赖以及 `dpkg`、`fcitx5-gtk`；应用安装与独立下载、解包分为两个阶段。
 - 程序布局：解包官方 DEB 后将完整 `/opt/AdsPower Global/` 复制到 `AppDir/bin/`，由 quick-sharun 将真实 ELF 部署到 `shared/bin/` 并在 `bin/` 生成对应入口；`icudtl.dat`、PAK、快照、`locales/`、`resources/` 与随包运行库保留在 `bin/`，匹配 Chromium / Electron 通过 `/proc/self/exe` 定位资源的行为。
 - desktop / 图标：读取 AUR 包安装后的 `/usr/share/applications/adspower_global.desktop` 和 `/usr/share/icons/hicolor/256x256/apps/adspower_global.png`，由 quick-sharun 准备成品桌面资源和启动入口。
-- 依赖部署：通过 `MAIN_BIN=adspower_global` 指明主程序，并将完整的 `AppDir/bin/*` 交给 quick-sharun，收集主程序、辅助程序及随包运行库的依赖。
+- 依赖部署：通过 `MAIN_BIN=adspower_global` 指明主程序，将完整的 `AppDir/bin/*` 及 `/usr/bin/xdg-open`、`/usr/bin/xdg-mime` 交给 quick-sharun，收集应用及外部打开工具的依赖。基础依赖已提供 `xdg-utils`，不新增公共脚本。
 - 标准模板：正式脚本原样采用仓库生成器的 AUR DEB 模板输出；原有 `URUNTIME_PRELOAD`、`STRACE_BINARY`、`STRACE_FLAGS` 及其他模板外处理保存在同目录旧版备份中。本次模板选择与生成记录见 [模板记录](./docs/template-deviations.md)。
 - 中文输入法：在构建环境安装 `fcitx5-gtk`，由 quick-sharun 收集运行依赖；输入模块通过宿主已有的 Fcitx5 会话工作，本项目不启动输入法守护进程，也不覆盖宿主输入法配置。
 - 中文环境：依赖收集完成后生成包内 `zh_CN.utf8`，在 `AppDir/.env` 设置 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_MESSAGES=zh_CN.UTF-8` 与 `LOCPATH=${SHARUN_DIR}/lib/locale`，不修改宿主机全局 locale。
