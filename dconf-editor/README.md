@@ -18,9 +18,19 @@ dconf Editor 为 GTK3 / GLib 应用。构建脚本以 [GTK Ubuntu 仓库模板](
 
 公共 APT 解包入口返回实际主包版本，公共封装入口将它写入 `dist/version.txt`。GitHub Actions 在构建脚本成功退出后直接使用该文件上传版本元数据和更新发布清单。
 
-## 最终实机验证
+## 实机验证
 
-2026-11-04 实测发布版 `dconf-editor.AppImage` 45.0.1。下载后可正常启动，主窗口、菜单和关于页面显示简体中文，Adwaita 深色主题正常，路径输入框可调出中文输入法候选。本次启动未出现先前的 GSettings 崩溃或 `LC_ALL` 警告。
+### 2026-11-04：用户实机验证通过
+
+用户已确认 dconf Editor 45.0.1 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| AppImage 下载与启动 | 发布版 `dconf-editor.AppImage` 下载完成，可正常启动。 |
+| 简体中文界面 | 主窗口、菜单和关于页面显示简体中文。 |
+| Adwaita 深色主题 | 窗口显示为深色。 |
+| 中文输入法 | 路径输入框可调出中文候选。 |
+| 启动稳定性 | 本次启动未出现先前的 GSettings 崩溃或 `LC_ALL` 警告。 |
 
 ## 变更记录
 
@@ -28,13 +38,13 @@ dconf Editor 为 GTK3 / GLib 应用。构建脚本以 [GTK Ubuntu 仓库模板](
 
 - 故障依据：[Actions run 41022743379](https://github.com/newyorkthink/linux-packaging/actions/runs/41022743379) 的 Build dconf Editor。日志原文：`错误：没有可用的 SVG 转 PNG 工具，需要 rsvg-convert、magick 或 convert。` 已安装的是 `librsvg2-2` 和 `librsvg2-common`，没有 `rsvg-convert`。
 - 处理：安装列表增加 `librsvg2-bin`。原 appimagetool 命令未改。
-- 验证范围：只做了 `bash -n`。这次构建结果尚未验证。
+- 验证范围：只做了 `bash -n`。
 
 ### 2026-10-30：补齐 appimagetool 要求的 PNG 图标
 
 - 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build dconf Editor。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报根目录没有 `ca.desrt.dconf-editor.png`，`.DirIcon` 无效，退出码 1。发行版图标是 SVG。
 - 处理：封装前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。原命令仍是 `"$APPIMAGETOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$OUTPUT_FILE"`。AppRun 未改。
-- 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 dconf Editor，没有重跑 Actions。构建环境需要 `rsvg-convert`、`magick` 或 `convert` 才能把 SVG 转成 PNG；本次没有在正式构建里确认该工具是否已安装。
+- 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 dconf Editor，没有重跑 Actions。构建环境需要 `rsvg-convert`、`magick` 或 `convert` 才能把 SVG 转成 PNG。
 
 ### 2026-09-16：接入统一软件版本元数据
 
