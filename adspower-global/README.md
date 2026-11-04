@@ -5,9 +5,9 @@
 ## 用途与产物
 
 - 打包对象：AdsPower Global，多账号管理与指纹浏览器桌面应用。
-- 最终产物：`adspower-global.AppImage`，由统一 `build.yml` 中的 `build_adspower_global` Job 构建并发布到仓库 `latest` Release。
-- 上游来源：AdsPower 官方下载页及官方 `version.adspower.net` Linux x64 DEB。
-- AUR `adspower-global` 仅用于核对 Linux 依赖、`/opt/AdsPower Global/` 程序布局、desktop / icon 名称和启动入口，不作为程序二进制来源。
+- 最终产物：`adspower-global.AppImage`，由统一 `build.yml` 的标准 matrix 任务 `Build AdsPower Global` 构建并发布到仓库 `latest` Release。
+- 上游来源：AUR `adspower-global-bin` 当前元数据指向的 AdsPower 官方 Linux x64 DEB；下载地址和摘要均随配方动态读取。
+- AUR `adspower-global-bin` 提供版本、官方 DEB 地址、摘要、运行依赖及系统桌面资源的打包配置；最终程序文件来自独立下载并校验的官方 DEB。
 
 ## 技术栈
 
@@ -18,25 +18,25 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 ## 打包方式
 
 - 路线：Arch Linux AnyLinux 构建环境 + quick-sharun。
-- 版本：不锁版本。脚本每次从 AdsPower 官方下载页解析当前 Linux x64 稳定版 DEB 地址，并从官方文件名取得实际版本号。
-- 程序来源：直接下载 `version.adspower.net` 官方 DEB，不重新编译、不修改应用业务代码。
-- 依赖来源：运行依赖名称参考当前 AUR `adspower-global` 配方，在构建容器内通过 Arch 软件包安装；AUR 本身不提供本项目的应用二进制。针对已反馈的 Fcitx5 中文输入缺失，单独补装 `fcitx5-gtk`。
+- 版本：不锁版本，跟随 AUR `adspower-global-bin` 当前配方。公共入口动态读取版本、官方 DEB 地址及摘要，并核对实际 DEB 版本；最终封装使用同次下载保存的 `work/source-version.txt`。AUR 配方更新可能滞后于官网。
+- 程序来源：通过公共 AUR 下载入口取得配方指向的官方 DEB，并校验配方提供的摘要；不重新编译、不修改应用业务代码。
+- 依赖来源：先安装统一 Arch 基础包，再用公共安装入口安装 `adspower-global-bin`、其声明的运行依赖以及 `dpkg`、`fcitx5-gtk`；应用安装与独立下载、解包分为两个阶段。
 - 程序布局：解包官方 DEB 后将完整 `/opt/AdsPower Global/` 复制到 `AppDir/bin/`，由 quick-sharun 将真实 ELF 部署到 `shared/bin/` 并在 `bin/` 生成对应入口；`icudtl.dat`、PAK、快照、`locales/`、`resources/` 与随包运行库保留在 `bin/`，匹配 Chromium / Electron 通过 `/proc/self/exe` 定位资源的行为。
-- desktop / 图标：从官方 DEB 提取 `adspower_global.desktop` 和 hicolor 官方 PNG 图标，只把 `Exec` / `Icon` 调整为 AppImage 内入口，并写入动态版本元数据。
-- 依赖部署：将 `AppDir/bin/*` 交给 quick-sharun，覆盖主程序、`chrome-sandbox`、`chrome_crashpad_handler` 与随包运行库；设置 `STRACE_BINARY=adspower_global`、`STRACE_FLAGS='--no-sandbox'`，仅在构建容器中探测主程序动态依赖，不改变最终入口的 sandbox 参数。
-- Chromium / Electron runtime：保留 `URUNTIME_PRELOAD=1`，让 uruntime 在程序多进程运行期间持续保留 AppImage 挂载点；该设置不能替代正确的 ICU 和应用资源布局。
-- 中文输入法：安装 `fcitx5-gtk` 后继续沿用 quick-sharun 已启用的 GTK3 部署逻辑，由其自动收集 `im-fcitx5.so`、客户端运行库及输入模块缓存；不启动输入法守护进程，也不覆盖宿主输入法配置。
-- 中文环境：依赖部署完成后向 `AppDir/.env` 写入 `LANGUAGE=zh-CN`，让 AppImage 运行时优先使用简体中文 locale，不修改宿主机全局 locale。
-- workflow：通过 `.github/workflows/build.yml` 的独立 `build_adspower_global` Job 构建，沿用仓库统一 AnyLinux 构建与 `latest` Release 发布流程。
+- desktop / 图标：读取 AUR 包安装后的 `/usr/share/applications/adspower_global.desktop` 和 `/usr/share/icons/hicolor/256x256/apps/adspower_global.png`，由 quick-sharun 准备成品桌面资源和启动入口。
+- 依赖部署：通过 `MAIN_BIN=adspower_global` 指明主程序，并将完整的 `AppDir/bin/*` 交给 quick-sharun，收集主程序、辅助程序及随包运行库的依赖。
+- 标准模板：正式脚本原样采用仓库生成器的 AUR DEB 模板输出；原有 `URUNTIME_PRELOAD`、`STRACE_BINARY`、`STRACE_FLAGS` 及其他模板外处理保存在同目录旧版备份中。本次模板选择与生成记录见 [模板记录](./docs/template-deviations.md)。
+- 中文输入法：在构建环境安装 `fcitx5-gtk`，由 quick-sharun 收集运行依赖；输入模块通过宿主已有的 Fcitx5 会话工作，本项目不启动输入法守护进程，也不覆盖宿主输入法配置。
+- 中文环境：依赖收集完成后生成包内 `zh_CN.utf8`，在 `AppDir/.env` 设置 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_MESSAGES=zh_CN.UTF-8` 与 `LOCPATH=${SHARUN_DIR}/lib/locale`，不修改宿主机全局 locale。
+- workflow：由 `.github/appimage-apps.json` 的 `adspower_global` 标准应用条目接入 `.github/workflows/build.yml`，沿用统一 AnyLinux 构建与 `latest` Release 发布流程。旧版备份未登记为构建入口。
 
 ## 运行与兼容说明
 
 - 仅支持 x86_64。
 - 默认保持 AdsPower 官方程序和授权机制，不破解、不绕过订阅、许可证、账号或其他访问控制。
 - 不修改宿主系统的内核参数、浏览器 sandbox 策略或其他全局配置。
-- 当前 ICU 与应用资源部署已由最新 AppImage 实机启动确认可进入登录页；登录行为与输入法支持分别处理。
+- 既有 AppImage 的 ICU 与应用资源部署已由实机启动确认可进入登录页；该通过记录保留在下方旧版流程历史中。
 - Fcitx5 中文输入通过包内 GTK3 前端连接宿主已经运行的 Fcitx5 会话；本 AppImage 不启动输入法守护进程，也不覆盖输入法环境变量。
-- AppImage 内设置 `LANGUAGE=zh-CN` 作为简体中文运行环境偏好；AdsPower 页面自身若另有语言设置，仍以其实际行为为准。
+- AppImage 使用包内简体中文 locale；AdsPower 页面自身若另有语言设置，仍以其实际行为为准。
 - AdsPower 为专有软件，使用、账号、订阅及其他权利义务仍受 AdsPower 官方许可协议与服务条款约束。
 
 ### 直接运行
@@ -87,3 +87,11 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 构建脚本复用本次从官方 Linux x64 DEB 文件名解析出的 `VERSION`，在 AppImage 成功生成后写入 `dist/version.txt`。
 - workflow 使用 `SOFTWARE_KEY=adspower-global` 上传该文件，并在对应构建成功后增量写入 `latest/software_versions.json`。
 - 本次仅增加版本元数据，不改动现有 AdsPower 稳定打包、ICU、输入法、locale、runtime 或 sandbox 处理。
+
+## 标准生成稿写入（2026-11-05）
+
+- 故障：旧脚本从官网下载页提取 Linux x64 DEB 地址时输出 `Error: failed to resolve the current AdsPower Linux x64 package URL.`。官网已使用 `version-v2.adspower.net`，旧正则仅匹配 `version.adspower.net`。
+- 处理：按已确认的生成稿改用 AUR `adspower-global-bin` 的官方 DEB 来源。安装、独立下载、摘要校验、解包、版本读取和保存均调用现有公共入口，未修改公共脚本或标准模板。
+- 正式脚本：原样写入生成任务 [41879128128](https://github.com/newyorkthink/linux-packaging/actions/runs/41879128128) 的输出，SHA-256 为 `9af6631ecfbb6c77041fe5ae2d7b0096f99b3b495110d2b44cfb29e1d4754610`。生成器已完成 Bash 语法检查，该任务未执行应用打包。
+- 旧版备份：[build_adspower-global_old.sh](./build_adspower-global_old.sh) 与写入前脚本的 Git blob SHA `c4d41bb4e90d5a6e5b41103270658a68d40a291b` 一致，仅供追溯，不参与 Actions。后续只根据实际问题定向恢复必要处理，最终确认全部正常后移除备份。
+- 相关说明：[模板与生成记录](./docs/template-deviations.md)、[固定参数依据](./docs/hardcoded.md)、[pkgforge 上游核对](./docs/pkgforge-differences.md)。
