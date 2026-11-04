@@ -18,6 +18,10 @@ dconf Editor 为 GTK3 / GLib 应用。构建脚本以 [GTK Ubuntu 仓库模板](
 
 公共 APT 解包入口返回实际主包版本，公共封装入口将它写入 `dist/version.txt`。GitHub Actions 在构建脚本成功退出后直接使用该文件上传版本元数据和更新发布清单。
 
+## 最终实机验证
+
+2026-11-04 实测发布版 `dconf-editor.AppImage` 45.0.1。下载后可正常启动，主窗口、菜单和关于页面显示简体中文，Adwaita 深色主题正常，路径输入框可调出中文输入法候选。本次启动未出现先前的 GSettings 崩溃或 `LC_ALL` 警告。
+
 ## 变更记录
 
 ### 2026-10-30：安装 rsvg-convert

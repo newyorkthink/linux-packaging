@@ -22,7 +22,7 @@ libc.so.6: version `GLIBC_2.43' not found (required by …/usr/lib/libglib-2.0.s
 libm.so.6: version `GLIBC_2.43' not found (required by …/usr/lib/liblcms2.so.2)
 ```
 
-构建恢复到 Ubuntu 24.04，采用官方 APT 提供的 45.0.1 DEB。AppRun 通过 `exec env -u GSETTINGS_SCHEMA_DIR` 启动包内图形程序，绕过上文记录的上游缺陷。此处记录配置变更，新产物的运行结果待验证。
+构建恢复到 Ubuntu 24.04，采用官方 APT 提供的 45.0.1 DEB。AppRun 通过 `exec env -u GSETTINGS_SCHEMA_DIR` 启动包内图形程序，绕过上文记录的上游缺陷。后续发布的 45.0.1 AppImage 已通过实机启动检查。
 
 ## 45.0.1 启动后显示英文，GTK 回退到 C locale
 
@@ -30,9 +30,9 @@ libm.so.6: version `GLIBC_2.43' not found (required by …/usr/lib/liblcms2.so.2
 - 译文：此前只接入标准中文 locale 配置，未恢复旧包的中文译文部署和路径重定位。构建时从 Ubuntu 中文语言包复制译文，封装前复用旧版 ELF 路径补丁，AppRun 从包内根目录启动。
 - locale：保留标准 locale 生成和语言设置，恢复旧版使用的 `LC_ALL=zh_CN.UTF-8`。新产物已实测可启动，简体中文界面显示正常。启动时仍出现 Bash 警告 `setlocale: LC_ALL: cannot change locale (zh_CN.UTF-8): No such file or directory`，本次未影响中文显示。
 - 防崩溃入口继续清除 `GSETTINGS_SCHEMA_DIR`。
-- 后续处理：将 `LC_ALL=zh_CN.UTF-8` 从 Bash 的独立导出移到最终启动命令，仅传给应用进程。中文资源和防崩溃处理继续沿用。修改后是否仍出现 locale 警告待验证。
+- 后续处理：将 `LC_ALL=zh_CN.UTF-8` 从 Bash 的独立导出移到最终启动命令，仅传给应用进程。中文资源和防崩溃处理继续沿用。2026-11-04 实测发布版启动时未再出现该警告，简体中文界面显示正常。
 
 ## Ubuntu 24.04 构建无法下载完整 Adwaita 图标包
 
 - 现象：[构建日志](https://github.com/newyorkthink/linux-packaging/actions/runs/41749188382/job/126309773462)中 APT 报错 `Can't select candidate version from package adwaita-icon-theme-full as it has no candidate`，构建以状态码 100 退出。
-- 处理：从 dconf Editor 的主题下载清单移除 `adwaita-icon-theme-full`，保留 `adwaita-icon-theme`、`gnome-themes-extra-data` 和 `GTK_THEME=Adwaita-dark`。修正后的打包和主题显示待验证。
+- 处理：从 dconf Editor 的主题下载清单移除 `adwaita-icon-theme-full`，保留 `adwaita-icon-theme`、`gnome-themes-extra-data` 和 `GTK_THEME=Adwaita-dark`。2026-11-04 实测修正后的发布产物可下载并启动，Adwaita 深色主题显示正常。
