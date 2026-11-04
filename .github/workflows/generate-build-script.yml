@@ -1,0 +1,82 @@
+name: Generate v2rayN build script
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/generate-build-script.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  generate-v2rayn:
+    name: Generate v2rayN with GTK DEB template
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Generate build script
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          # 运行仓库生成器并保留原始输出。
+          python3 scripts/build/generate_build_script.py --template quick-sharun/tauri-gtk-deb.sh --params - --output v2rayn/build_v2rayn.sh --stdout > "$RUNNER_TEMP/build_v2rayn.sh" <<'PARAMS'
+          {
+            "SYSTEM_PACKAGE": "v2rayn-bin",
+            "DEPENDENCY_ARGS": [
+              "bash",
+              "curl",
+              "jq",
+              "github-cli",
+              "file",
+              "patchelf",
+              "coreutils",
+              "desktop-file-utils",
+              "xdg-utils",
+              "glibc",
+              "gcc-libs",
+              "zlib",
+              "fontconfig",
+              "freetype2",
+              "libx11",
+              "libxext",
+              "libxrender",
+              "libxrandr",
+              "libxi",
+              "libxcb",
+              "libxfixes",
+              "libxinerama",
+              "libxcomposite",
+              "libxcursor",
+              "libxdamage",
+              "libxkbcommon",
+              "dbus",
+              "xorg-server-xvfb",
+              "xorg-xauth"
+            ],
+            "GITHUB_REPOSITORY": "2dust/v2rayN",
+            "RELEASE_ASSET_PATTERN": "v2rayN-linux-64.deb",
+            "DEB_PACKAGE": "v2rayn",
+            "DEB_ARCH": "amd64",
+            "DEB_PROGRAM_DIR": "opt/v2rayN",
+            "APP_NAME": "v2rayN",
+            "MAIN_BIN": "v2rayN",
+            "STARTUPWMCLASS": "v2rayN",
+            "ICON": "/usr/share/pixmaps/v2rayN.png",
+            "DESKTOP": "/usr/share/applications/v2rayN-bin.desktop",
+            "APP_BASENAME": "v2rayn",
+            "SCAN_ARGS": [
+              "AppDir/bin/v2rayN"
+            ]
+          }
+          PARAMS
+
+          # 将生成结果编码为一行，便于从 Job 日志逐字取回。
+          printf 'V2RAYN_GENERATOR_BASE64=%s\n' "$(base64 -w 0 "$RUNNER_TEMP/build_v2rayn.sh")"
