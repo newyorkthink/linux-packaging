@@ -28,5 +28,5 @@ libm.so.6: version `GLIBC_2.43' not found (required by …/usr/lib/liblcms2.so.2
 
 - 现象：AppImage 可以打开，界面显示英文，终端提示 `Using the fallback 'C' locale.`。
 - 译文：此前只接入标准中文 locale 配置，未恢复旧包的中文译文部署和路径重定位。构建时从 Ubuntu 中文语言包复制译文，封装前复用旧版 ELF 路径补丁，AppRun 从包内根目录启动。
-- locale：保留标准 locale 生成和语言设置，恢复旧版使用的 `LC_ALL=zh_CN.UTF-8`。GTK 回退的具体原因和新产物中文显示效果待验证。
+- locale：保留标准 locale 生成和语言设置，恢复旧版使用的 `LC_ALL=zh_CN.UTF-8`。新产物已实测可启动，简体中文界面显示正常。启动时仍出现 Bash 警告 `setlocale: LC_ALL: cannot change locale (zh_CN.UTF-8): No such file or directory`，本次未影响中文显示。
 - 防崩溃入口继续清除 `GSETTINGS_SCHEMA_DIR`。
