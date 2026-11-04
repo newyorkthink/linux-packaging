@@ -21,6 +21,8 @@
 
 适用条件和占位参数见 [quick-sharun 规范](../anylinux_projects.md#唯一标准模板)。模板在 Arch Linux 构建环境使用。
 
+扫描目标必须由调用方按当前应用的真实布局和已核实需要明确提供；生成器只校验和替换参数，不扫描系统来生成或追加目标。完整要求见 [扫描目标必须按应用实际提供](../anylinux_projects.md#扫描目标必须按应用实际提供)。
+
 | 模板 | 适用场景 |
 | --- | --- |
 | [arch-native.sh](./quick-sharun/arch-native.sh) | Arch 官方仓库原生程序，从系统入口收集 |
