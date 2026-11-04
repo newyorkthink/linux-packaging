@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       request:
-        description: '完整请求 JSON：request_id、template、output、params'
+        description: '完整请求 JSON：template、output、params'
         required: true
         type: string
 
@@ -29,6 +29,7 @@ jobs:
           persist-credentials: false
 
       - name: Generate build script
+        id: generate
         shell: bash
         env:
           GENERATION_REQUEST: ${{ inputs.request }}
@@ -42,7 +43,6 @@ jobs:
           import json
           import os
           from pathlib import Path
-          import re
           import subprocess
           import sys
 
@@ -54,13 +54,14 @@ jobs:
           else:
               raw = Path(".github/build-script-request.json").read_text(encoding="utf-8")
           request = json.loads(raw, object_pairs_hook=unique_object)
-          if not isinstance(request, dict) or set(request) != {"request_id", "template", "output", "params"}:
-              raise ValueError("请求必须且只能包含 request_id、template、output 和 params。")
-          for key in ("request_id", "template", "output"):
+          if not isinstance(request, dict) or set(request) != {"template", "output", "params"}:
+              raise ValueError("请求必须且只能包含 template、output 和 params。")
+          if request == {"template": "", "output": "", "params": {}}:
+              print("当前没有生成请求，跳过生成。")
+              raise SystemExit(0)
+          for key in ("template", "output"):
               if not isinstance(request[key], str) or not request[key].strip():
                   raise ValueError(f"{key} 必须是非空字符串。")
-          if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", request["request_id"]):
-              raise ValueError("request_id 只能使用字母、数字、点、下划线和连字符。")
           if not isinstance(request["params"], dict):
               raise ValueError("params 必须是当前模板的参数对象。")
           if Path(request["output"]).name.endswith("_old.sh"):
@@ -81,10 +82,11 @@ jobs:
           if not content:
               raise ValueError("仓库生成器没有输出构建脚本。")
           metadata = {
-              "request_id": request["request_id"],
               "template": request["template"],
               "output": request["output"],
               "source_commit": os.environ["GITHUB_SHA"],
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
               "sha256": hashlib.sha256(content).hexdigest(),
           }
           (directory / "metadata.json").write_text(
@@ -92,9 +94,12 @@ jobs:
           )
           print("BUILD_SCRIPT_GENERATOR_METADATA=" + json.dumps(metadata, ensure_ascii=False))
           print("BUILD_SCRIPT_GENERATOR_BASE64=" + base64.b64encode(content).decode("ascii"))
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as outputs:
+              print("generated=true", file=outputs)
           PY
 
       - name: Upload generated script
+        if: steps.generate.outputs.generated == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: generated-build-script-${{ github.run_id }}-${{ github.run_attempt }}

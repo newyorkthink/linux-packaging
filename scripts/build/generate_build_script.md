@@ -10,9 +10,11 @@
 
 所有应用使用 [同一个生成工作流](../../.github/workflows/generate-build-script.yml)，不创建应用专用工作流或内置默认应用。通过 GitHub 连接器更新 [统一请求文件](../../.github/build-script-request.json) 后，在 `main` 上触发生成；也可以在 GitHub Actions 页面手动输入同样的完整请求 JSON。
 
-请求只包含四个字段：`request_id` 为本次唯一请求标识，`template` 为固定清单内的模板相对路径，`output` 为正式脚本路径，`params` 为该模板的参数对象。每次新请求更换 `request_id`；已有应用目录必须存在，`build_*_old.sh` 不得作为生成目标。
+公共请求文件默认只有空任务结构：`{"template":"","output":"","params":{}}`，不预填任何应用、日期或示例任务。请求只包含三个字段：`template` 为固定清单内的模板相对路径，`output` 为正式脚本路径，`params` 为该模板的参数对象。只为当前已获授权的生成任务填写实际值；已有应用目录必须存在，`build_*_old.sh` 不得作为生成目标。
 
-工作流在 GitHub runner 运行仓库生成器，只输出脚本，不自动覆盖仓库文件。日志统一使用 `BUILD_SCRIPT_GENERATOR_METADATA=` 和 `BUILD_SCRIPT_GENERATOR_BASE64=`，同时提供生成脚本及元数据产物；元数据包含请求标识、模板、目标路径、源码提交和输出的 SHA-256。通过连接器取回生成器原始输出，核对后按用户要求原样覆盖正式脚本。
+空任务会跳过生成和产物上传。完整请求在 GitHub runner 运行仓库生成器，只输出脚本，不自动覆盖仓库文件。日志统一使用 `BUILD_SCRIPT_GENERATOR_METADATA=` 和 `BUILD_SCRIPT_GENERATOR_BASE64=`，同时提供生成脚本及元数据产物；元数据包含模板、目标路径、源码提交、GitHub 原生 run ID、运行次数和输出的 SHA-256，不自造任务标识。
+
+通过连接器取回生成器原始输出，核对后按用户要求原样覆盖正式脚本。任务完成或停止后，将请求还原为空任务结构；需要覆盖脚本时，与覆盖同次提交清空请求，不把本次应用参数留成公共默认。
 
 按标准重写时，先将旧版原样保存为同目录的 `build_*_old.sh` 并排除所有 Action，再全新生成正式脚本。出现实际报错或用户反馈后才恢复对应必要内容并注明专属；用户最终确认全部正常后删除旧版备份，不继续保留。
 
