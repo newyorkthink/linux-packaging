@@ -60,4 +60,4 @@
 - 已完成：官方 DEB SHA-256 与实际程序目录、desktop、图标核对；Bash 语法检查通过。
 - 静态分析：公共脚本无 ShellCheck 告警；新模板和生成稿仅有继承的 `export ARCH="$(uname -m)"` 所对应的 SC2155，按模板保持原样。
 - 后续构建：已核对 [Folo 成功构建日志](https://github.com/newyorkthink/linux-packaging/actions/runs/41739769283/job/126282889116)，其中可见 Electron、PipeWire、PulseAudio 及相关库的自动部署记录。
-- 用户实测：2026-11-04 用户实机验证通过，启动、中文界面、深色显示、订阅与内容展示、AI 摘要卡片展示、中文输入候选及上屏、视频页面画面等结果和终端观察见 [README 实机验证](../README.md#实机验证)。
+- 用户实测记录统一见 [README 实机验证](../README.md#实机验证)。

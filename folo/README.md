@@ -24,11 +24,13 @@ Folo 为 Electron / GTK3 桌面应用。构建脚本由 [Electron GitHub DEB 标
 
 ## 实机验证
 
+记录格式采用[实机验证通过记录模板](../docs/templates/documentation/real-machine-validation.md)。
+
 ### 2026-11-04：用户实机验证通过（1.17.0）
 
 用户已确认 Folo 1.17.0 实机验证通过。以下记录来自用户提供的运行界面及终端截图。
 
-| 项目 | 已确认结果 |
+| 实测项目 | 通过结果 |
 | --- | --- |
 | 启动 | 主界面正常打开；终端记录 `Initialize Folo done` 和 `App is ready`。 |
 | 中文界面与深色主题 | 导航、发现页和文章页显示中文，深色界面正常呈现。 |
@@ -38,7 +40,7 @@ Folo 为 Electron / GTK3 桌面应用。构建脚本由 [Electron GitHub DEB 标
 | 视频页面 | 视频条目页面可打开并显示画面。 |
 | 服务连接与设置同步 | 终端记录 `API Response: 200`、`PushReceiver connected` 和设置同步完成信息。 |
 
-运行观察：
+#### 运行观察
 
 - Fontconfig 提示已有字体缓存由较新版本生成，其后程序完成初始化并展示上述界面。
 - 终端出现 `first model result confidence is less than expected relative confidence` 提示。
