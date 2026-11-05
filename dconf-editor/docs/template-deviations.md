@@ -16,6 +16,14 @@ AppRun 保留模板的 GIO 模块和共享数据路径配置。最终启动图�
 
 构建时用公共 APT 入口部署 Adwaita 图标和 GTK 主题资源，AppRun 使用 `GTK_THEME=Adwaita-dark`。固定值的依据见 [写死项记录](./hardcoded.md)。
 
+### dconf CLI 软链接分派
+
+2026-11-05 恢复此前在模板重写中移除的 CLI 分派。`ENTRY_NAME` 赋值、调用名判断和 `exec` 分支的四行代码原样复用[旧版实现](https://github.com/newyorkthink/linux-packaging/blob/df8280edf658c477b66aa209198c221f132e1e3d/dconf-editor/build_dconf-editor.sh#L223)，仅将用途注释改为“本程序专属处理”。
+
+该分支放在 AppRun 的三个基础搜索路径设置之后、GTK 环境配置之前，将名为 `dconf` 的外部软链接调用直接交给包内 `usr/bin/dconf`，其他调用继续进入现有 GUI。CLI 由当前已有的 `dconf-cli` 软件包解包步骤提供。
+
+Microsoft 的 [Linux 代理监视实现](https://github.com/microsoft/os-proxy-resolver/blob/b04aadf31ffc1a16e7b628f7631213424aef9d84/src/platform/linux.rs#L135) 会启动 `dconf watch /system/proxy/`，此类调用需要进入 CLI。故障现象及处理见 [故障记录](./errors.md#dconf-cli-软链接误启动图形界面)。
+
 ## 旧脚本的历史基线
 
 1. 固定使用 Ubuntu 24.04 构建，直接采用发行版官方 dconf-editor 45.0.1。

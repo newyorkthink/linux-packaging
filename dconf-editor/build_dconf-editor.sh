@@ -64,6 +64,12 @@ export PATH="$HERE/usr/bin${PATH:+:$PATH}"
 export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
+# 本程序专属处理：将名为 dconf 的外部软链接调用分派到包内 CLI。
+ENTRY_NAME="$(basename -- "${ARGV0:-${APPIMAGE:-$0}}")"
+if [[ "$ENTRY_NAME" == "dconf" ]]; then
+  exec "$HERE/usr/bin/dconf" "$@"
+fi
+
 # GTK 运行环境：指定 GSettings schema 和 GIO 动态模块的目录。
 export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"

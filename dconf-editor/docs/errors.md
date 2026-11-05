@@ -36,3 +36,11 @@ libm.so.6: version `GLIBC_2.43' not found (required by …/usr/lib/liblcms2.so.2
 
 - 现象：[构建日志](https://github.com/newyorkthink/linux-packaging/actions/runs/41749188382/job/126309773462)中 APT 报错 `Can't select candidate version from package adwaita-icon-theme-full as it has no candidate`，构建以状态码 100 退出。
 - 处理：从 dconf Editor 的主题下载清单移除 `adwaita-icon-theme-full`，保留 `adwaita-icon-theme`、`gnome-themes-extra-data` 和 `GTK_THEME=Adwaita-dark`。最终结果见 [实机验证](../README.md#实机验证)。
+
+## dconf CLI 软链接误启动图形界面
+
+- 现象：启动 VS Code 时，额外打开 dconf Editor 图形窗口。
+- 触发条件：名为 dconf 的外部软链接指向本 AppImage，而其他程序通过该入口调用 dconf CLI。
+- 调用依据：VS Code 的系统代理组件会执行 `dconf watch /system/proxy/`。
+- 原因：模板重写删除了原有的 ARGV0 分派，导致命令行调用进入图形界面。
+- 修复：原样恢复旧版四行分派代码，放在三个基础搜索路径设置之后、GTK 配置之前，并采用“本程序专属处理”注释。现有图形界面配置保持原样。

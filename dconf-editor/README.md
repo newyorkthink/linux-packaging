@@ -14,6 +14,8 @@ dconf Editor 为 GTK3 / GLib 应用。构建脚本以 [GTK Ubuntu 仓库模板](
 ./dist/dconf-editor.AppImage
 ```
 
+同一个 AppImage 保留 dconf CLI。通过名为 `dconf` 的外部软链接调用时，AppRun 按 `ARGV0` 分派到包内 CLI，并原样传递参数；其他调用继续启动图形界面。
+
 ## 版本元数据
 
 公共 APT 解包入口返回实际主包版本，公共封装入口将它写入 `dist/version.txt`。GitHub Actions 在构建脚本成功退出后直接使用该文件上传版本元数据和更新发布清单。
@@ -33,6 +35,10 @@ dconf Editor 为 GTK3 / GLib 应用。构建脚本以 [GTK Ubuntu 仓库模板](
 | 启动稳定性 | 本次启动未出现先前的 GSettings 崩溃或 `LC_ALL` 警告。 |
 
 ## 变更记录
+
+### 2026-11-05：恢复 dconf CLI 软链接分派
+
+原样恢复旧版四行入口分派代码，并采用“本程序专属处理”注释。此前模板重写移除了该分派，使指向本 AppImage 的 `dconf` 软链接调用进入图形界面。现有图形界面配置保持原样；调用依据、原因和修复位置见 [故障记录](./docs/errors.md#dconf-cli-软链接误启动图形界面)。
 
 ### 2026-10-30：安装 rsvg-convert
 
