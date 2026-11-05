@@ -75,7 +75,7 @@ cat > AppDir/bin/90-chatgpt-arguments.hook <<'HOOK'
 set -- --no-sandbox --disable-setuid-sandbox "$@"
 HOOK
 
-# 本仓库兼容处理：启动时注册登录回调协议，使浏览器能够把登录结果交回当前 AppImage。
+# 本仓库兼容处理：启动时注册 codex://。包内 desktop 不会进入宿主 applications 目录。
 bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
   --output AppDir/bin/20-chatgpt-protocol.hook \
   --desktop-file chatgpt.desktop \
