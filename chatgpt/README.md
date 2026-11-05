@@ -26,6 +26,39 @@
 
 详细配置见 [模板差异与代码位置](docs/template-deviations.md)、[固定配置依据](docs/hardcoded.md)、[官方处理的采用与不采用](docs/pkgforge-differences.md)。
 
+## GitHub 授权回跳处理
+
+Linux 实机连接 GitHub 时，浏览器停在 `codex://connector/oauth_callback?...` 空白页，Codex 主窗口继续提示“在浏览器中完成 GitHub 的连接”。协议登记已指向当前 AppImage，用户级 desktop 的 `Exec` 带有 `%U`；同次排查中，`xdg-open` 返回：
+
+```text
+/usr/bin/xdg-open: 1032: x-www-browser: not found
+```
+
+此时使用已实测成功的手动回跳方法：保持发起授权的 Codex 窗口运行，完成当前 GitHub 授权后，复制浏览器地址栏中的完整回调地址。在 Linux 终端进入 `chatgpt.AppImage` 所在目录，执行：
+
+```bash
+# 将完整授权回调传给 AppImage，由正在运行的 Codex 接收。
+"./chatgpt.AppImage" '<本次授权生成的完整回调地址>'
+```
+
+将占位符替换为本次授权生成的完整 `codex://connector/oauth_callback?...` 地址，保留全部查询参数及原始编码。地址外层的单引号保持原样，使包含 `&` 的完整 URI 作为一个参数传入。
+
+连接结果查看 Codex 主窗口：等待连接的横幅消失，环境菜单不再显示“连接 GitHub”按钮。本次连接后，环境列表显示“暂无已发布的环境”。
+
+本节记录手动完成回调的方法，不将其记作浏览器自动交接修复。现有打包脚本、协议 hook、desktop 和 `%U` 保持原样。
+
+## 实机验证
+
+### 2026-11-05：用户实机验证通过
+
+用户已确认 ChatGPT / Codex AppImage 的 GitHub 授权手动回跳实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 协议登记 | `x-scheme-handler/codex` 的默认处理程序为 `chatgpt.desktop`，用户级 desktop 的 `Exec` 指向当前 AppImage 并带有 `%U`。 |
+| 已运行实例接收回调 | 将 URI 作为启动参数传给 AppImage 后，正在运行的 Codex 接收并处理回调。 |
+| GitHub 真实授权 | 手动传入完整真实回调后，等待连接的横幅及“连接 GitHub”按钮消失，环境列表显示“暂无已发布的环境”。 |
+
 ## Codex / bubblewrap PATH 陷阱
 
 这是 ChatGPT AppImage 重打包时需要特别注意的一个坑：Codex 在 Linux 上会使用 `PATH` 中找到的第一个 `bwrap`。如果 AppImage 启动入口把自身工具目录放在系统目录前面，例如：
@@ -100,4 +133,4 @@ OpenAI 当前将 Linux 桌面版标记为预览版，并正式支持指定版本
 - 在 Codex 桌面端连接 GitHub 插件时，浏览器将 `codex://connector/oauth_callback` 当成搜索，桌面端仍提示在浏览器完成连接。
 - 原构建只将 desktop 带入 AppImage，直接运行时缺少在宿主登记 `x-scheme-handler/codex` 的步骤。
 - 在 [构建脚本](build_chatgpt.sh#L79-L87) 的最终封装前调用 [公共协议入口](../common/desktop/write_scheme_hook.sh)，生成 `20-chatgpt-protocol.hook`。启动时按当前 AppImage 的实际路径写入用户级 desktop，通过 `%U` 将回调 URI 传给程序。
-- 本次核对了构建参数、封装顺序和 URI 传递链。新产物的 GitHub 授权回跳待实机验证。
+- 本次核对了构建参数、封装顺序和 URI 传递链。GitHub 授权手动回跳已通过 Linux 实机验证，见 [实机验证](#实机验证)。
