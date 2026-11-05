@@ -1,16 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# ==============================================================================
-# Webcamoid AnyLinux AppImage
-# ==============================================================================
-# - 从 Webcamoid 最新稳定 Release 源码构建，不拉取私有 ExtraPlugins 子模块。
-# - 打包 FFmpeg、Qt Multimedia、PipeWire、V4L2、v4l-utils、libuvc 与 Qt6 主题插件。
-# - 默认简体中文、Adwaita Dark、Qt RHI + OpenGL。
-# - 忽略 Dummy/v4l2loopback 设备，优先选择真实摄像头。
-# - 禁用不可靠的 QSharedMemory 单实例检测，避免程序未运行时误报。
-#
-# 输出：dist/webcamoid.AppImage
+# 从最新稳定 Release 源码构建，不拉取私有 ExtraPlugins。
+# 输出 dist/webcamoid.AppImage。保留 V4L2 摄像头和软件编码。
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -68,6 +60,7 @@ WEBCAMOID_REF="$(
 readonly WEBCAMOID_REF
 printf '%s\n' "$WEBCAMOID_REF" > "$OUTDIR/version.txt"
 
+# 补上默认深色主题、真实摄像头优先，并跳过用不上的硬件编码器探测。
 python3 - "$SOURCE_DIR" <<'PY'
 from pathlib import Path
 import sys
@@ -183,6 +176,27 @@ new_set_device = '''void CaptureV4L2::setDevice(const QString &device)
 if old_set_device not in text:
     raise SystemExit("capturev4l2.cpp 中找不到设备选择位置")
 capture_path.write_text(text.replace(old_set_device, new_set_device, 1))
+
+encoder_path = root / "libAvKys/Plugins/Codecs/Video/Encoders/ffmpeg/src/videoencoderffmpegelement.cpp"
+text = encoder_path.read_text()
+old_probe = '''bool VideoEncoderFFmpegElementPrivate::isAvailable(const QString &codec) const
+{
+    qDebug() << "Testing video codec:" << codec;'''
+new_probe = '''bool VideoEncoderFFmpegElementPrivate::isAvailable(const QString &codec) const
+{
+    auto normalizedCodec = codec.toLower();
+    if (normalizedCodec.contains("nvenc")
+        || normalizedCodec.contains("qsv")
+        || normalizedCodec.contains("amf")
+        || normalizedCodec.contains("vaapi")
+        || normalizedCodec.contains("vulkan")
+        || normalizedCodec.contains("v4l2m2m"))
+        return false;
+
+    qDebug() << "Testing video codec:" << codec;'''
+if old_probe not in text:
+    raise SystemExit("videoencoderffmpegelement.cpp 中找不到编码器探测入口")
+encoder_path.write_text(text.replace(old_probe, new_probe, 1))
 PY
 
 QMAKE_EXECUTABLE="$(command -v qmake6 || true)"
@@ -194,6 +208,7 @@ readonly LUPDATE_TOOL=/usr/lib/qt6/bin/lupdate
 [[ -x "$LRELEASE_TOOL" ]] || die "找不到 Qt6 lrelease。"
 [[ -x "$LUPDATE_TOOL" ]] || die "找不到 Qt6 lupdate。"
 
+# 关闭没有运行库的 GStreamer、加载失败的 wlroots，以及会打开 Dummy 设备的 libavdevice。
 cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="$STAGE_DIR" \
@@ -203,14 +218,24 @@ cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" -G Ninja \
   -DDAILY_BUILD=OFF \
   -DNOCHECKUPDATES=ON \
   -DNOFFMPEG=OFF \
+  -DNOGSTREAMER=ON \
+  -DNOLIBAVDEVICE=ON \
   -DNOLIBUVC=OFF \
   -DNOPIPEWIRE=OFF \
   -DNOQTCAMERA=OFF \
   -DNOV4L2=OFF \
-  -DNOV4LUTILS=OFF
+  -DNOV4LUTILS=OFF \
+  -DNOWLROOTS=ON
 
 cmake --build "$BUILD_DIR" --parallel "$(nproc)"
 cmake --install "$BUILD_DIR"
+
+# 去掉加载失败的桌面捕获 PipeWire 插件。音频 PipeWire 保留。
+find "$STAGE_DIR" -type f \( \
+  -name 'libDesktopCapture_pipewire.so*' -o \
+  -name 'libDesktopCapture_wlroots.so*' -o \
+  -name '*[Gg]streamer*.so*' \
+\) -delete
 
 readonly WEBCAMOID_BIN="$STAGE_DIR/bin/webcamoid"
 [[ -x "$WEBCAMOID_BIN" ]] || die "源码安装后没有找到 webcamoid 可执行文件。"
