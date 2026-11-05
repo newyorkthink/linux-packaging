@@ -40,35 +40,29 @@ fi
 # 清掉上次的打包目录。
 "$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
 
-SOURCE_DIR="$SCRIPT_DIR/work/source"
-BUILD_DIR="$SCRIPT_DIR/work/build"
-STAGE_DIR="$SCRIPT_DIR/work/stage"
-
 WEBCAMOID_REF="$(
   bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" \
     webcamoid/webcamoid \
-    "$SOURCE_DIR"
+    "$SCRIPT_DIR/work/source"
 )"
 printf '%s\n' "$WEBCAMOID_REF" > "$SCRIPT_DIR/dist/version.txt"
 
 # 补上默认深色主题、真实摄像头优先，并跳过用不上的硬件编码器探测。
-python3 "$SCRIPT_DIR/patches/default_dark_theme.py" "$SOURCE_DIR"
-python3 "$SCRIPT_DIR/patches/disable_single_instance.py" "$SOURCE_DIR"
-python3 "$SCRIPT_DIR/patches/prefer_real_camera.py" "$SOURCE_DIR"
-python3 "$SCRIPT_DIR/patches/skip_hardware_encoders.py" "$SOURCE_DIR"
+python3 "$SCRIPT_DIR/patches/default_dark_theme.py" "$SCRIPT_DIR/work/source"
+python3 "$SCRIPT_DIR/patches/disable_single_instance.py" "$SCRIPT_DIR/work/source"
+python3 "$SCRIPT_DIR/patches/prefer_real_camera.py" "$SCRIPT_DIR/work/source"
+python3 "$SCRIPT_DIR/patches/skip_hardware_encoders.py" "$SCRIPT_DIR/work/source"
 
 QMAKE_EXECUTABLE="$(command -v qmake6 || true)"
 [[ -n "$QMAKE_EXECUTABLE" ]] || QMAKE_EXECUTABLE=/usr/lib/qt6/bin/qmake
-LRELEASE_TOOL=/usr/lib/qt6/bin/lrelease
-LUPDATE_TOOL=/usr/lib/qt6/bin/lupdate
 
 # 关闭没有运行库的 GStreamer、加载失败的 wlroots，以及会打开 Dummy 设备的 libavdevice。
-cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" -G Ninja \
+cmake -S "$SCRIPT_DIR/work/source" -B "$SCRIPT_DIR/work/build" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX="$STAGE_DIR" \
+  -DCMAKE_INSTALL_PREFIX="$SCRIPT_DIR/work/stage" \
   -DQT_QMAKE_EXECUTABLE="$QMAKE_EXECUTABLE" \
-  -DLRELEASE_TOOL="$LRELEASE_TOOL" \
-  -DLUPDATE_TOOL="$LUPDATE_TOOL" \
+  -DLRELEASE_TOOL=/usr/lib/qt6/bin/lrelease \
+  -DLUPDATE_TOOL=/usr/lib/qt6/bin/lupdate \
   -DDAILY_BUILD=OFF \
   -DNOCHECKUPDATES=ON \
   -DNOFFMPEG=OFF \
@@ -81,21 +75,20 @@ cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" -G Ninja \
   -DNOV4LUTILS=OFF \
   -DNOWLROOTS=ON
 
-cmake --build "$BUILD_DIR" --parallel "$(nproc)"
-cmake --install "$BUILD_DIR"
+cmake --build "$SCRIPT_DIR/work/build" --parallel "$(nproc)"
+cmake --install "$SCRIPT_DIR/work/build"
 
 # 去掉加载失败的桌面捕获 PipeWire 插件。音频 PipeWire 保留。
-find "$STAGE_DIR" -type f \( \
+find "$SCRIPT_DIR/work/stage" -type f \( \
   -name 'libDesktopCapture_pipewire.so*' -o \
   -name 'libDesktopCapture_wlroots.so*' -o \
   -name '*[Gg]streamer*.so*' \
 \) -delete
 
-WEBCAMOID_BIN="$STAGE_DIR/bin/webcamoid"
-[[ -x "$WEBCAMOID_BIN" ]] || die "源码安装后没有找到 webcamoid 可执行文件。"
+[[ -x "$SCRIPT_DIR/work/stage/bin/webcamoid" ]] || die "源码安装后没有找到 webcamoid 可执行文件。"
 
 mapfile -d '' -t STAGE_SHARED_OBJECTS < <(
-  find "$STAGE_DIR/lib" -type f \
+  find "$SCRIPT_DIR/work/stage/lib" -type f \
     \( -name '*.so' -o -name '*.so.*' \) -print0 | sort -z
 )
 [[ "${#STAGE_SHARED_OBJECTS[@]}" -gt 0 ]] \
@@ -115,8 +108,7 @@ for required_plugin in \
   [[ "$plugin_found" -eq 1 ]] || die "缺少必需插件：$required_plugin"
 done
 
-DESKTOP_FILE="$SCRIPT_DIR/work/webcamoid.desktop"
-cat > "$DESKTOP_FILE" <<'DESKTOP_EOF'
+cat > "$SCRIPT_DIR/work/webcamoid.desktop" <<'DESKTOP_EOF'
 [Desktop Entry]
 Type=Application
 Name=Webcamoid
@@ -131,9 +123,9 @@ StartupNotify=true
 StartupWMClass=webcamoid
 DESKTOP_EOF
 
-ICON_FILE="$SOURCE_DIR/StandAlone/share/themes/WebcamoidTheme/icons/hicolor/256x256/webcamoid.png"
+ICON_FILE="$SCRIPT_DIR/work/source/StandAlone/share/themes/WebcamoidTheme/icons/hicolor/256x256/webcamoid.png"
 if [[ ! -f "$ICON_FILE" ]]; then
-  ICON_FILE="$(find "$SOURCE_DIR/StandAlone/share/themes" -type f \
+  ICON_FILE="$(find "$SCRIPT_DIR/work/source/StandAlone/share/themes" -type f \
     \( -iname 'webcamoid.png' -o -iname 'webcamoid.svg' \) \
     -print | sort -V | tail -n 1)"
 fi
@@ -143,7 +135,7 @@ fi
 export OUTPATH="$SCRIPT_DIR/dist"
 # 固定最终 AppImage 的文件名。
 export OUTNAME="webcamoid.AppImage"
-export DESKTOP="$DESKTOP_FILE"
+export DESKTOP="$SCRIPT_DIR/work/webcamoid.desktop"
 export ICON="$ICON_FILE"
 export STARTUPWMCLASS=webcamoid
 export DEPLOY_QT=1
@@ -155,7 +147,7 @@ export DEPLOY_GSTREAMER=0
 export NO_STRIP=1
 
 DEPLOY_INPUTS=(
-  "$WEBCAMOID_BIN"
+  "$SCRIPT_DIR/work/stage/bin/webcamoid"
   /usr/bin/ffmpeg
   /usr/bin/ffprobe
   /usr/bin/v4l2-ctl
@@ -188,15 +180,15 @@ for required_private_lib in libpulsecommon- libpxbackend-; do
 done
 DEPLOY_INPUTS+=("${PRIVATE_RUNTIME_LIBS[@]}")
 
-export LD_LIBRARY_PATH="$STAGE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="$SCRIPT_DIR/work/stage/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # 收集程序及其运行依赖。
 quick-sharun "${DEPLOY_INPUTS[@]}"
 
 mkdir -p "$SCRIPT_DIR/AppDir/lib" "$SCRIPT_DIR/AppDir/share"
-cp -a "$STAGE_DIR/lib/." "$SCRIPT_DIR/AppDir/lib/"
-if [[ -d "$STAGE_DIR/share" ]]; then
-  cp -a "$STAGE_DIR/share/." "$SCRIPT_DIR/AppDir/share/"
+cp -a "$SCRIPT_DIR/work/stage/lib/." "$SCRIPT_DIR/AppDir/lib/"
+if [[ -d "$SCRIPT_DIR/work/stage/share" ]]; then
+  cp -a "$SCRIPT_DIR/work/stage/share/." "$SCRIPT_DIR/AppDir/share/"
 fi
 
 for plugin_root in /usr/lib/qt6/plugins /usr/lib/qt/plugins; do
