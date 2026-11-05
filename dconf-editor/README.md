@@ -34,6 +34,10 @@ dconf Editor 为 GTK3 / GLib 应用。构建脚本以 [GTK Ubuntu 仓库模板](
 | 中文输入法 | 路径输入框可调出中文候选。 |
 | 启动稳定性 | 本次启动未出现先前的 GSettings 崩溃或 `LC_ALL` 警告。 |
 
+### 2026-11-05：用户实机验证通过
+
+用户实机验证通过：启动 VS Code 不再额外弹出 dconf Editor。
+
 ## 变更记录
 
 ### 2026-11-05：恢复 dconf CLI 软链接分派

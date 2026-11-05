@@ -44,3 +44,4 @@ libm.so.6: version `GLIBC_2.43' not found (required by …/usr/lib/liblcms2.so.2
 - 调用依据：VS Code 的系统代理组件会执行 `dconf watch /system/proxy/`。
 - 原因：模板重写删除了原有的 ARGV0 分派，导致命令行调用进入图形界面。
 - 修复：原样恢复旧版四行分派代码，放在三个基础搜索路径设置之后、GTK 配置之前，并采用“本程序专属处理”注释。现有图形界面配置保持原样。
+- 实机验证：已通过，见 [实机验证记录](../README.md#2026-11-05用户实机验证通过)。
