@@ -65,15 +65,9 @@ yay -S --needed --noconfirm \
 
 log "解析 Webcamoid 最新稳定 Release"
 WEBCAMOID_REF="$(
-  curl -fsSL \
-    --retry 3 \
-    --retry-delay 2 \
-    --connect-timeout 15 \
-    --max-time 60 \
-    -H 'Accept: application/vnd.github+json' \
-    -H 'X-GitHub-Api-Version: 2022-11-28' \
-    https://api.github.com/repos/webcamoid/webcamoid/releases/latest \
-  | python3 -c 'import json,sys; data=json.load(sys.stdin); tag=data.get("tag_name", ""); sys.stdout.write(tag if tag and not data.get("draft") and not data.get("prerelease") else "")'
+  bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" \
+    webcamoid/webcamoid \
+    "$SOURCE_DIR"
 )"
 [[ -n "$WEBCAMOID_REF" ]] || die "无法解析 Webcamoid 最新稳定版本。"
 [[ "$WEBCAMOID_REF" =~ ^v?[0-9]+([.][0-9]+){2}([.-][0-9A-Za-z._-]+)?$ ]] \
@@ -82,11 +76,6 @@ readonly WEBCAMOID_REF
 printf '%s\n' "$WEBCAMOID_REF" > "$OUTDIR/version.txt"
 
 log "获取 Webcamoid 上游源码：$WEBCAMOID_REF"
-git clone \
-  --depth 1 \
-  --branch "$WEBCAMOID_REF" \
-  https://github.com/webcamoid/webcamoid.git \
-  "$SOURCE_DIR"
 
 log "应用深色主题、真实摄像头优先与单实例修复补丁"
 python3 - "$SOURCE_DIR" <<'PY'
