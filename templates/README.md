@@ -25,6 +25,8 @@
 
 扫描目标必须由调用方按当前应用的真实布局和已核实需要明确提供；生成器只校验和替换参数，不扫描系统来生成或追加目标。完整要求见 [扫描目标必须按应用实际提供](../anylinux_projects.md#扫描目标必须按应用实际提供)。
 
+需要浏览器回跳时，所有 quick-sharun 模板可在封装前接入 [可选协议登记](../scripts/build/generate_build_script.md#可选协议登记)。调用方通过 `PROTOCOL_HANDLER` 提供桌面元数据与协议列表。
+
 | 模板 | 适用场景 |
 | --- | --- |
 | [arch-native.sh](./quick-sharun/arch-native.sh) | Arch 官方仓库原生程序，从系统入口收集 |

@@ -33,6 +33,7 @@
 | `__ICON__`、`__DESKTOP__` | 安装后实际存在的图标和桌面入口路径。 |
 | `__APP_BASENAME__` | 最终文件名主体，保留模板固定的 `.AppImage` 后缀。 |
 | `__SCAN_ARGS__` | quick-sharun 的完整初始扫描列表，必须由调用方显式提供且至少包含一个目标。程序入口、目录及确有需要的附加目标按当前应用填写，不自动补目录或库。需要展开通配符时按生成器的 `glob` 参数提供。 |
+| `__PROTOCOL_HANDLER__` | [可选协议登记](./scripts/build/generate_build_script.md#可选协议登记)。根据已核实的桌面元数据和协议列表，在最终封装前生成一次公共调用。省略配置时整段省略。 |
 | `__DEB_URL__`、`__DEB_PROGRAM_DIR__` | 当前官方 DEB 的稳定下载入口，以及解包目录内完整程序目录的相对路径。 |
 | `__PACKAGE_JSON__`、`__INSTALLED_PROGRAM_DIR__` | 相对 `AppDir/bin` 的版本元数据路径，或系统中已安装的完整程序目录。 |
 | `__GITHUB_REPOSITORY__`、`__RELEASE_ASSET_PATTERN__` | 官方 `owner/repo` 和固定资产名或含 `{version}` 的资产名模板；两种名称共用公共正式版本筛选和摘要校验。 |
@@ -447,6 +448,7 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 | 读取版本 | 在原有打包前位置，用一行公共调用赋给 VERSION。 |
 | 收集依赖 | 一行调用 quick-sharun，附加参数只保留当前程序已确认需要的运行命令。 |
 | 中文环境 | 在第一次 quick-sharun 后生成包内 locale，并追加到现有 .env。 |
+| 可选协议登记 | 按 `PROTOCOL_HANDLER` 调用公共入口生成回跳 hook。 |
 | 最终封装 | 调用 quick-sharun --make-appimage。 |
 | 保存版本 | 成功后用一行调用公共保存入口，不加续行符。 |
 

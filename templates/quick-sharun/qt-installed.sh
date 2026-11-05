@@ -45,6 +45,7 @@ LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
 ENV
 
+__PROTOCOL_HANDLER__
 # 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 

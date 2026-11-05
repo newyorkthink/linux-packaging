@@ -22,6 +22,10 @@ OUTPUT_PATH = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*/build_[A-Za-z0-9][A-Za-z0
 PACKAGE = re.compile(r"[A-Za-z0-9][A-Za-z0-9@._+:-]*")
 BASENAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*")
 GLOB = re.compile(r"[A-Za-z0-9_./+!*?\[\]-]+")
+PROTOCOL_SCHEME = re.compile(r"[a-z][a-z0-9.+-]*")
+PROTOCOL_MIME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*/[A-Za-z0-9][A-Za-z0-9._+-]*")
+DESKTOP_CATEGORIES = re.compile(r"(?:[A-Za-z0-9-]+;)+")
+SYSTEM_SCHEMES = {"file", "http", "https", "mailto"}
 PACKAGE_LISTS = {"APT_PACKAGES", "APT_EXTRA_PACKAGES", "DEPENDENCY_ARGS"}
 SCAN_LISTS = {"SCAN_ARGS"}
 SINGLE_QUOTED = {"RELEASE_ASSET_PATTERN", "DEB_ASSET_REGEX", "AUR_DEB_FILENAME"}
@@ -105,6 +109,70 @@ def render_parameter(name, value, family):
     raise ValueError(f"生成器未登记该占位参数：{name}")
 
 
+def protocol_text(value, field):
+    label = f"PROTOCOL_HANDLER.{field}"
+    text = clean_text(value, label)
+    # 公共 hook 会直接嵌入这些字段，并替换自身的内部标记。
+    if any(fragment in text for fragment in ("'", "\\", "{{", "}}", "SED_EXPR")):
+        raise ValueError(f"{label} 含有公共协议 hook 无法原样写入的字符或标记。")
+    return text
+
+
+def protocol_list(value, field, pattern):
+    if not isinstance(value, list):
+        raise ValueError(f"PROTOCOL_HANDLER.{field} 必须是数组。")
+    items = [protocol_text(item, field) for item in value]
+    if len(set(items)) != len(items) or any(not pattern.fullmatch(item) for item in items):
+        raise ValueError(f"PROTOCOL_HANDLER.{field} 含有无效或重复的值。")
+    return items
+
+
+def render_protocol_handler(value, template_values):
+    fields = ("desktop_file", "name", "comment", "icon", "wm_class", "categories")
+    required = set(fields) | {"schemes"}
+    allowed = required | {"mime_extra"}
+    if not isinstance(value, dict) or not required <= value.keys() <= allowed:
+        raise ValueError(
+            "PROTOCOL_HANDLER 必须包含 desktop_file、name、comment、icon、wm_class、categories 和 schemes。"
+            "仅可额外提供 mime_extra。"
+        )
+
+    desktop = {field: protocol_text(value[field], field) for field in fields}
+    if not BASENAME.fullmatch(desktop["desktop_file"]) or not desktop["desktop_file"].endswith(".desktop"):
+        raise ValueError("PROTOCOL_HANDLER.desktop_file 必须是单个 .desktop 文件名。")
+    if not BASENAME.fullmatch(desktop["icon"]):
+        raise ValueError("PROTOCOL_HANDLER.icon 必须是单独的图标名。")
+    if not DESKTOP_CATEGORIES.fullmatch(desktop["categories"]):
+        raise ValueError("PROTOCOL_HANDLER.categories 必须用分号分隔分类，并以分号结尾。")
+
+    schemes = protocol_list(value["schemes"], "schemes", PROTOCOL_SCHEME)
+    if not schemes or SYSTEM_SCHEMES.intersection(schemes):
+        raise ValueError("PROTOCOL_HANDLER.schemes 必须包含至少一个应用自定义协议。")
+    mime_extra = protocol_list(value.get("mime_extra", []), "mime_extra", PROTOCOL_MIME)
+    if any(f"x-scheme-handler/{scheme}" in mime_extra for scheme in schemes):
+        raise ValueError("PROTOCOL_HANDLER.mime_extra 不能重复声明 schemes 中的协议。")
+
+    basename = template_values.get("APP_BASENAME")
+    if basename is None:
+        raise ValueError("PROTOCOL_HANDLER 要求模板声明 APP_BASENAME。")
+
+    args = [("output", f"AppDir/bin/20-{basename}-protocol.hook")]
+    args.extend((field.replace("_", "-"), desktop[field]) for field in fields)
+    args.extend(("scheme", scheme) for scheme in schemes)
+    args.extend(("mime-extra", mime) for mime in mime_extra)
+    command = ['bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh"']
+    command.extend(f"  --{flag} {shlex.quote(argument)}" for flag, argument in args)
+
+    protocols = "、".join(f"{scheme}://" for scheme in schemes)
+    comment = f"# 本仓库兼容处理：启动时注册 {protocols}。包内 desktop 不会进入宿主 applications 目录。"
+    return comment + "\n" + " \\\n".join(command)
+
+
+OPTIONAL_SECTIONS = {
+    "PROTOCOL_HANDLER": render_protocol_handler,
+}
+
+
 def load_template(name):
     index = (TEMPLATES / "README.md").read_text(encoding="utf-8")
     if name not in TEMPLATE_LINK.findall(index):
@@ -118,9 +186,11 @@ def load_template(name):
 def render(template, params, family):
     if not isinstance(params, dict):
         raise ValueError("参数文件必须是 JSON 对象。")
-    required = set(TOKEN.findall(template))
+    placeholders = set(TOKEN.findall(template))
+    optional = placeholders & OPTIONAL_SECTIONS.keys()
+    required = placeholders - optional
     missing = required - params.keys()
-    extra = params.keys() - required
+    extra = params.keys() - placeholders
     if missing or extra:
         details = []
         if missing:
@@ -129,7 +199,18 @@ def render(template, params, family):
             details.append("多余参数：" + "、".join(sorted(extra)))
         raise ValueError("。".join(details))
     values = {name: render_parameter(name, params[name], family) for name in required}
-    return TOKEN.sub(lambda match: values[match[1]], template)
+    result = TOKEN.sub(lambda match: values.get(match[1], match[0]), template)
+    for name in sorted(optional):
+        marker = f"__{name}__"
+        line = f"\n{marker}\n"
+        if template.count(marker) != 1 or line not in template:
+            raise ValueError(f"模板中的 {marker} 必须独占一行且只出现一次。")
+        block = ""
+        if name in params:
+            block = OPTIONAL_SECTIONS[name](params[name], values) + "\n\n"
+        # 保留占位行之外的原有换行。
+        result = result.replace(line, "\n" + block, 1)
+    return result
 
 
 def check_bash(content):

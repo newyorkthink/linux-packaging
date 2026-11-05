@@ -59,7 +59,7 @@ python3 scripts/build/generate_build_script.py --template "<模板相对路径>"
 | 参数 | 内容 |
 | --- | --- |
 | `--template` | 相对 `templates/` 的登记路径。 |
-| `--params` | UTF-8 JSON 对象文件，或用 `-` 从标准输入读取。缺少、多出或重复的键均会报错。 |
+| `--params` | UTF-8 JSON 对象文件，或用 `-` 从标准输入读取。缺少必填键、出现未登记键或重复键时会报错。 |
 | `--output` | 相对仓库根目录的目标脚本路径。 |
 | `--stdout` | 输出完整生成稿。 |
 | `--write` | 写入目标脚本。与 `--stdout` 互斥。 |
@@ -71,6 +71,31 @@ python3 scripts/build/generate_build_script.py --template "<模板相对路径>"
 扫描参数中的字符串按字面路径处理。确需展开通配符时使用 `{"glob": "<实际程序目录>/*"}` 形式，并将占位内容替换为实际的绝对路径或 `AppDir/` 路径。生成脚本中保留该通配符，由构建时的 Shell 展开。
 
 占位参数的完整定义见 [linuxdeploy 规范](../../linuxdeploy_projects.md#唯一标准模板) 和 [quick-sharun 规范](../../anylinux_projects.md#唯一标准模板)。
+
+### 可选协议登记
+
+使用 quick-sharun 模板且应用确实需要浏览器回跳时，可在生成请求的 `params` 中加入 `PROTOCOL_HANDLER`。以下是该可选项的结构，尖括号内容按实际应用替换。
+
+```json
+{
+  "PROTOCOL_HANDLER": {
+    "desktop_file": "<桌面入口文件名>.desktop",
+    "name": "<应用显示名>",
+    "comment": "<桌面入口说明>",
+    "icon": "<图标名>",
+    "wm_class": "<窗口类>",
+    "categories": "<分类>;",
+    "schemes": ["<协议名>"],
+    "mime_extra": []
+  }
+}
+```
+
+`schemes` 填已核实的应用自定义协议名，使用小写且省略 `://`。支持一个或多个互不重复的协议。`mime_extra` 可省略，仅声明附加 MIME 类型。桌面字段使用单行文本，`desktop_file` 与 `icon` 分别填写单独的文件名与图标名，`categories` 沿用 desktop 的分号格式。公共 hook 无法原样写入的字段值会在生成时被拒绝。
+
+生成器在最终封装前输出一次 [公共协议登记调用](../../common/desktop/write_scheme_hook.sh)，按 `APP_BASENAME` 生成 `AppDir/bin/20-<产物名主体>-protocol.hook`。省略 `PROTOCOL_HANDLER` 时，该步骤及其注释和空行一起省略。未声明该占位项的模板会拒绝该参数。
+
+以后增加其他可选步骤时，由适用模板在对应构建阶段声明独占一行的占位项，由生成器登记其参数校验和固定输出。生成请求沿用现有 `params` 结构，只提供已登记的配置数据。
 
 ## 执行结果
 
