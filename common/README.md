@@ -30,12 +30,30 @@
 - `github/download_latest_stable_named_asset.sh` 接收仓库、固定资产名、目标文件及可选的 DEB 包名和架构。只选择最新正式版本中的唯一资产，核对 GitHub SHA-256；直链失败时用同一资产 ID 和现有认证令牌回退，stdout 仅返回版本。带 `{version}` 的资产仍使用原有模板入口。
 - `github/resolve_latest_stable_release_asset.sh [--tag-prefix <标签前缀>] <owner/repo> '<固定资产名或含 {version} 的资产名模板>'` 保留原正式版本、唯一资产和 GitHub SHA-256 选择规则。只有显式传入前置的 `--tag-prefix` 时，才按字面值匹配并移除该非空前缀，再解析余下的可选 `v` 与点分数字版本；前缀不得含空白字符。`github/download_latest_stable_release_asset.sh` 同样在仓库名之前接受该选项，随后仍传入仓库、资产名模板、输出文件和可选的成对 DEB 包名、架构。下载、摘要校验、DEB 身份检查及只向 stdout 返回版本的行为不变；不传选项的旧调用保持原规则。前缀模式不能与 `--latest-with-checksum` 混用。 资产名可以是固定文件名，也可以包含 `{version}`；两者共用同一正式版本筛选、唯一资产匹配和 GitHub SHA-256 校验，固定名不另设应用特判。
 - `github/download_latest_stable_release_asset.sh <owner/repo> '<包含 {version} 的资产名模板>' <输出文件> --latest-with-checksum <校验清单资产名> <commit 文件>` 从同一个 `/releases/latest` 响应定位主资产和校验清单，验证两者的 GitHub SHA-256，再用清单中唯一对应的 SHA-256 校验主资产。校验通过并解析 tag 对应的 Git commit 后，写出资产和 commit，stdout 仅返回版本。原资产模板及可选 DEB 参数调用保持原有语义。
+- `github/download_latest_stable_release_source.sh <owner/repo> <目标目录>` 读取最新非草稿、非预发布 Release，校验标签后浅克隆对应源码；成功时 stdout 只返回原始标签。参数、依赖与认证边界见下文的 [GitHub 最新正式 Release 源码](#github-最新正式-release-源码)。
 - `build/prepare_x86_64_workspace.sh` 接收项目根目录、`--skip-create`、一个清理后不创建的一级目录名，以及其余清理后重建的一级目录名。先检查 x86_64 和全部目录名，再只处理这个项目下明确传入的目录；应用自行决定哪些工作目录需要重建。
 - `arch/install_packages.sh` 保留 `--base` 和普通包名调用。只有显式指定 `--aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]` 时，才先安装额外软件包、复用公共 AUR 下载入口准备已校验 DEB，再交由 yay / makepkg 按原 PKGBUILD 校验和安装；使用独立来源缓存及构建目录，详见下文。
 - `arch/get_package_version.sh` 接收一个已安装的 Arch 软件包名，从 `pacman -Q` 读取版本并去掉 epoch 和发行版 `pkgrel`，只向 stdout 输出非空的上游版本。需要保留发行版修订号的应用不要调用该入口。
 - `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
 - `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../docs/appimage-scheme-handler.md)。
+
+### GitHub 最新正式 Release 源码
+
+入口为 `github/download_latest_stable_release_source.sh`，依赖 Bash、curl、jq 和 git。两个位置参数依次是 `owner/repo` 和源码目标目录，由调用方明确提供；目标目录必须非空、不能以 `-` 开头且必须不存在，本入口不清理或覆盖已有目录。
+
+以下调用用于应用构建脚本的下载阶段，由 GitHub Actions 执行。`<owner/repo>` 和 `<源码目标目录>` 均须按实际来源替换：
+
+```bash
+# 下载最新正式 Release 标签的源码，成功后取得原始标签名。
+SOURCE_REF="$(bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" "<owner/repo>" "<源码目标目录>")"
+```
+
+通过 `/releases/latest` 读取最新正式 Release，要求 `draft` 和 `prerelease` 均为 false。标签须为三段点分数字，可带 `v` / `V` 前缀，以及由 `.`、`_`、`+`、`-` 分隔的字母数字后缀；不支持任意分支名或 nightly 标签。随后执行对应标签的浅克隆，不枚举其他标签、不自动初始化子模块，也不安装依赖或编译源码。
+
+Release 查询复用 `github_api.sh`，认证依次取自 `GITHUB_TOKEN`、`GH_TOKEN`、Git 配置中的 checkout 认证头；均未提供时沿用匿名请求。HTTPS 克隆使用 Git 自身的认证配置，本入口不会把 API 令牌另行传给 Git；私有源码克隆所需的 Git 认证须由调用方提前准备。
+
+只有克隆成功后，stdout 才返回一行原始标签，保留前缀与后缀；克隆日志和错误写入 stderr。查询、标签解析或克隆失败时直接返回非零状态，不输出成功标签、不回退旧版本。本入口不下载 Release 二进制资产，也不执行源码摘要或标签签名校验，不能代替需要资产 SHA-256 校验的下载入口。
 
 ### AUR 来源的独立 DEB 下载
 
