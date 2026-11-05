@@ -755,18 +755,6 @@
       "run_from_root": "false"
     },
     {
-      "key": "postman",
-      "kind": "standard",
-      "name": "Postman",
-      "script": "postman/build_postman.sh",
-      "dir": "postman",
-      "artifact_dir": "postman/dist",
-      "release_name": "postman.AppImage",
-      "software_key": "",
-      "timeout_minutes": 90,
-      "run_from_root": "false"
-    },
-    {
       "key": "v2rayn",
       "kind": "standard",
       "name": "v2rayN",

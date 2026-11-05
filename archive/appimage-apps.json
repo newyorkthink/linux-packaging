@@ -27,6 +27,11 @@
       "release_name": "goldendict-ng.AppImage"
     },
     {
+      "dir": "postman",
+      "script": "postman/build_postman.sh",
+      "release_name": "postman.AppImage"
+    },
+    {
       "dir": "remotedesktopmanager",
       "script": "remotedesktopmanager/build_remotedesktopmanager.sh",
       "release_name": "remotedesktopmanager.AppImage"

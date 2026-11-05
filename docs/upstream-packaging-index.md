@@ -75,7 +75,6 @@ TradingView 条目于 2026-11-02 按应用名及 trading-view 别名单独复核
 | [peazip](../peazip/build_peazip.sh) |  |  | [README](../peazip/README.md) |
 | [picom](../picom/build_picom.sh) |  |  | [README](../picom/README.md) |
 | [poppler-utils](../poppler-utils/build_poppler-utils.sh) |  |  | [README](../poppler-utils/README.md) |
-| [postman](../postman/build_postman.sh) |  |  |  |
 | [qemu](../qemu/build_qemu.sh) | [QEMU-AppImage](https://github.com/pkgforge-dev/QEMU-AppImage) | [依赖](https://github.com/pkgforge-dev/QEMU-AppImage/blob/56a5cc40d6b818483e16c20c20b8127b3b91c87c/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/QEMU-AppImage/blob/56a5cc40d6b818483e16c20c20b8127b3b91c87c/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/QEMU-AppImage/blob/56a5cc40d6b818483e16c20c20b8127b3b91c87c/.github/workflows/appimage.yml) | [README](../qemu/README.md) |
 | [qq](../qq/build_qq.sh) |  |  | [README](../qq/README.md) |
 | [rainlendar2](../rainlendar2/build_rainlendar2.sh) |  |  | [README](../rainlendar2/README.md) |

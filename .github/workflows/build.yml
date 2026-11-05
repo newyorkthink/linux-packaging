@@ -79,7 +79,6 @@ on:
           - peazip/build_peazip.sh
           - picom/build_picom.sh
           - poppler-utils/build_poppler-utils.sh
-          - postman/build_postman.sh
           - qemu/build_qemu.sh
           - qq/build_qq.sh
           - rainlendar2/build_rainlendar2.sh
