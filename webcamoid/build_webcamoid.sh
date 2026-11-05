@@ -18,10 +18,6 @@ readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 cd "$SCRIPT_DIR"
 
-log() {
-  echo "[Webcamoid] $*"
-}
-
 die() {
   echo "错误：$*" >&2
   exit 1
@@ -44,7 +40,6 @@ rm -rf "$WORK_DIR" "$APPDIR" "$OUTDIR"
 mkdir -p "$WORK_DIR" "$OUTDIR"
 
 if pacman -Q ffmpeg-mini >/dev/null 2>&1; then
-  log "移除 ffmpeg-mini，改用完整 FFmpeg"
   if [[ "$EUID" -eq 0 ]]; then
     pacman -Rdd --noconfirm ffmpeg-mini
   else
@@ -62,7 +57,6 @@ fi
   libxkbcommon-x11 xcb-util xcb-util-image xcb-util-keysyms \
   xcb-util-renderutil xcb-util-wm xcb-util-cursor
 
-log "解析 Webcamoid 最新稳定 Release"
 WEBCAMOID_REF="$(
   bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" \
     webcamoid/webcamoid \
@@ -74,9 +68,6 @@ WEBCAMOID_REF="$(
 readonly WEBCAMOID_REF
 printf '%s\n' "$WEBCAMOID_REF" > "$OUTDIR/version.txt"
 
-log "获取 Webcamoid 上游源码：$WEBCAMOID_REF"
-
-log "应用深色主题、真实摄像头优先与单实例修复补丁"
 python3 - "$SOURCE_DIR" <<'PY'
 from pathlib import Path
 import sys
@@ -203,7 +194,6 @@ readonly LUPDATE_TOOL=/usr/lib/qt6/bin/lupdate
 [[ -x "$LRELEASE_TOOL" ]] || die "找不到 Qt6 lrelease。"
 [[ -x "$LUPDATE_TOOL" ]] || die "找不到 Qt6 lupdate。"
 
-log "配置并构建 Webcamoid"
 cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="$STAGE_DIR" \
@@ -320,7 +310,6 @@ DEPLOY_INPUTS+=("${PRIVATE_RUNTIME_LIBS[@]}")
 
 export LD_LIBRARY_PATH="$STAGE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-log "使用 quick-sharun 收集运行依赖"
 quick-sharun "${DEPLOY_INPUTS[@]}"
 
 mkdir -p "$APPDIR/lib" "$APPDIR/share"
@@ -379,7 +368,6 @@ ENV_EOF
 mapfile -t APPDIR_LIB_DIRS < <(find "$APPDIR/lib" -type d -print | sort)
 APPDIR_LD_LIBRARY_PATH="$(IFS=:; echo "${APPDIR_LIB_DIRS[*]}")"
 
-log "检查摄像头后端和动态库"
 for required_plugin in \
   VideoCapture_v4l2sys \
   VideoCapture_v4lutils \
@@ -405,13 +393,6 @@ if [[ -s "$missing_file" ]]; then
   die "Webcamoid 插件仍有缺失动态库。"
 fi
 
-log "生成 $OUTFILE"
 quick-sharun --make-appimage
 # 确认最终 AppImage 非空可执行，并写出 SHA-256。
 "$SCRIPT_DIR/../common/build/check_appimage_artifact.sh" "$OUTFILE" "$OUTFILE.sha256"
-
-log "已生成：$OUTFILE"
-log "版本：$WEBCAMOID_REF"
-log "默认界面：简体中文 + Adwaita Dark"
-log "默认摄像头：忽略 Dummy/v4l2loopback，选择真实设备"
-log "单实例检测：已禁用，直接启动无需 --new-instance"
