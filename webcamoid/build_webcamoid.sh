@@ -14,7 +14,7 @@ set -Eeuo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 cd "$SCRIPT_DIR"
 
@@ -52,14 +52,13 @@ if pacman -Q ffmpeg-mini >/dev/null 2>&1; then
   fi
 fi
 
-log "安装构建、摄像头、音视频与 Qt6 主题依赖"
-yay -S --needed --noconfirm \
-  base-devel git cmake ninja pkgconf python curl wget file patchelf binutils \
-  appstream-glib desktop-file-utils util-linux zsync dbus xorg-server-xvfb \
+# 安装官方软件包及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" \
+  xorg-server-xvfb \
   ffmpeg libuvc v4l-utils libusb alsa-lib libpulse libproxy pipewire \
   qt6-base qt6-declarative qt6-multimedia qt6-svg qt6-tools qt6-wayland \
   qt6-imageformats qt6-shadertools qt6ct kvantum lxqt-qtplugin adwaita-qt6 fcitx5-qt \
-  libglvnd mesa libx11 libxext libxfixes libxrender libxcb libxkbcommon \
+  libglvnd mesa libx11 libxext libxfixes libxrender libxcb \
   libxkbcommon-x11 xcb-util xcb-util-image xcb-util-keysyms \
   xcb-util-renderutil xcb-util-wm xcb-util-cursor
 
@@ -408,8 +407,8 @@ fi
 
 log "生成 $OUTFILE"
 quick-sharun --make-appimage
-[[ -x "$OUTFILE" ]] || die "AppImage 生成失败。"
-sha256sum "$OUTFILE" > "$OUTFILE.sha256"
+# 确认最终 AppImage 非空可执行，并写出 SHA-256。
+"$SCRIPT_DIR/../common/build/check_appimage_artifact.sh" "$OUTFILE" "$OUTFILE.sha256"
 
 log "已生成：$OUTFILE"
 log "版本：$WEBCAMOID_REF"
