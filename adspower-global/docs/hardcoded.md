@@ -28,4 +28,4 @@ Error: Process completed with exit code 1.
 
 官网页面中的 Linux DEB 已使用 `version-v2.adspower.net`，旧脚本的匹配和地址校验只允许 `version.adspower.net`。本次改用 AUR 配方中的官方来源和摘要，相关下载行为由已有公共入口处理。
 
-上述原始报错对应旧下载解析失败。其他固定值是已批准的模板参数，并非声称由该次报错逐项证明；旧版 ICU、资源布局与输入法问题的原始记录继续保留在 [README](../README.md) 及 [旧版脚本](../build_adspower-global_old.sh)。
+上述原始报错对应旧下载解析失败。其他固定值是已批准的模板参数，并非声称由该次报错逐项证明；旧版 ICU、资源布局与输入法问题的原始记录继续保留在 [README](../README.md) 及 [首次标准重写提交](https://github.com/newyorkthink/linux-packaging/commit/f47eef2df23b5d3e2cf720b28c2201e666bf02dd)；当前通过结论见 [实机验证](../README.md#实机验证)。

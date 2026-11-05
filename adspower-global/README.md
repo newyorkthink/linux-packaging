@@ -24,10 +24,10 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 程序布局：解包官方 DEB 后将完整 `/opt/AdsPower Global/` 复制到 `AppDir/bin/`，由 quick-sharun 将真实 ELF 部署到 `shared/bin/` 并在 `bin/` 生成对应入口；`icudtl.dat`、PAK、快照、`locales/`、`resources/` 与随包运行库保留在 `bin/`，匹配 Chromium / Electron 通过 `/proc/self/exe` 定位资源的行为。
 - desktop / 图标：读取 AUR 包安装后的 `/usr/share/applications/adspower_global.desktop` 和 `/usr/share/icons/hicolor/256x256/apps/adspower_global.png`，由 quick-sharun 准备成品桌面资源和启动入口。
 - 依赖部署：通过 `MAIN_BIN=adspower_global` 指明主程序，将完整的 `AppDir/bin/*` 及 `/usr/bin/xdg-open`、`/usr/bin/xdg-mime` 交给 quick-sharun，收集应用及外部打开工具的依赖。基础依赖已提供 `xdg-utils`，不新增公共脚本。
-- 标准模板：正式脚本原样采用仓库生成器的 AUR DEB 模板输出；原有 `URUNTIME_PRELOAD`、`STRACE_BINARY`、`STRACE_FLAGS` 及其他模板外处理保存在同目录旧版备份中。本次模板选择与生成记录见 [模板记录](./docs/template-deviations.md)。
+- 标准模板：正式脚本原样采用仓库生成器的 AUR DEB 模板输出；原有 `URUNTIME_PRELOAD`、`STRACE_BINARY`、`STRACE_FLAGS` 及其他模板外处理未追加到当前脚本，旧版实现通过 Git 历史追溯。本次模板选择与生成记录见 [模板记录](./docs/template-deviations.md)。
 - 中文输入法：在构建环境安装 `fcitx5-gtk`，由 quick-sharun 收集运行依赖；输入模块通过宿主已有的 Fcitx5 会话工作，本项目不启动输入法守护进程，也不覆盖宿主输入法配置。
 - 中文环境：依赖收集完成后生成包内 `zh_CN.utf8`，在 `AppDir/.env` 设置 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_MESSAGES=zh_CN.UTF-8` 与 `LOCPATH=${SHARUN_DIR}/lib/locale`，不修改宿主机全局 locale。
-- workflow：由 `.github/appimage-apps.json` 的 `adspower_global` 标准应用条目接入 `.github/workflows/build.yml`，沿用统一 AnyLinux 构建与 `latest` Release 发布流程。旧版备份未登记为构建入口。
+- workflow：由 `.github/appimage-apps.json` 的 `adspower_global` 标准应用条目接入 `.github/workflows/build.yml`，沿用统一 AnyLinux 构建与 `latest` Release 发布流程。旧版备份已在实机验证通过后删除。
 
 ## 运行与兼容说明
 
@@ -48,6 +48,23 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 ./adspower-global.AppImage
 ```
 
+## 实机验证
+
+### 2026-11-05：用户实机验证通过
+
+用户已确认 AdsPower Global 7.12.29 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 启动与界面 | 正常启动并进入环境管理界面。 |
+| 简体中文界面 | 应用界面正常显示简体中文。 |
+| 中文输入 | 输入框中的中文候选显示正常，输入法能够响应。 |
+| 浏览器环境 | 已打开浏览器环境并载入网页。 |
+
+#### 运行观察
+
+点击“打开目录”时未弹出窗口，终端提示 `org.freedesktop.portal.Desktop` 服务不可用。用户已选择不继续处理该功能，保留当前 build。
+
 ## 变更记录
 
 ### 2026-09-06：首次接入 AdsPower Global AppImage 构建
@@ -56,7 +73,7 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 上游：使用 AdsPower 官方下载页动态解析当前 Linux x64 DEB；AUR `adspower-global` 仅作为依赖和文件布局参考。
 - 修改文件：`adspower-global/build_adspower-global.sh`、`adspower-global/README.md`、`.github/workflows/build.yml`。
 - 实现：保留官方 `/opt/AdsPower Global/` 应用目录和官方资源，通过 quick-sharun 收集主程序运行依赖，并接入仓库统一 AnyLinux Job / latest Release 流程。
-- 已知结果：本条记录的是首次构建接入；GitHub Actions 构建结果和最终 AppImage 的真实 Linux 运行结果以后续实际输出为准，不预先视为稳定基准。
+- 已知结果：首次接入后的资源布局与中文输入修复过程见下方历史记录，当前通过结论见 [实机验证](#实机验证)。
 
 ### 2026-09-06：补充 Chromium runtime 挂载保持（未解决 ICU 错误）
 
@@ -72,7 +89,7 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 根因：已有产物的入口为 `bin/adspower_global`，但 `icudtl.dat`、PAK、快照、`locales/` 与 `resources/` 只在 `shared/bin/`。sharun 通过用户态加载器运行主程序，Chromium 从 `/proc/self/exe` 取得的是 `bin/` 入口路径，因而无法打开该目录下缺失的 ICU 数据；产物 `.env` 的随包库搜索路径也指向 `bin/`。
 - 修改文件：`adspower-global/build_adspower-global.sh`、`adspower-global/README.md`。
 - 修复内容：参照仓库 Chromium 与 PkgForge Chrome-AppImage，将完整应用先复制到 `AppDir/bin/`，再以 `AppDir/bin/*` 部署主程序、辅助程序与随包运行库；补充上游 ICU 文件的构建输入检查，并明确主程序动态依赖探测目标。保留 `URUNTIME_PRELOAD=1`，不增加运行时 sandbox 参数或宿主系统修改。
-- 已知结果：已核对既有构建日志、AppImage 文件布局及 sharun / Chromium 源码，并完成 Bash、ShellCheck 和完整 diff 静态检查。本次仅提交修复，Actions 由用户手动运行；尚未确认新产物的实机启动结果。
+- 已知结果：已核对既有构建日志、AppImage 文件布局及 sharun / Chromium 源码，并完成 Bash、ShellCheck 和完整 diff 静态检查。本次仅提交修复，Actions 由用户手动运行；当前产物的启动通过结果见 [实机验证](#实机验证)。
 
 ### 2026-09-06：补齐 Fcitx5 中文输入与简体中文运行环境
 
@@ -80,7 +97,7 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 根因：现有构建没有安装 `fcitx5-gtk`，本次成功构建日志中的 GTK3 输入模块列表也没有 `im-fcitx5.so`；同时 AppImage 没有设置简体中文 locale 偏好，因此不会主动使用中文运行环境。
 - 修改文件：`adspower-global/build_adspower-global.sh`、`adspower-global/README.md`。
 - 修复内容：在既有运行依赖命令之外单独安装 `fcitx5-gtk`，由当前已经工作的 quick-sharun GTK3 部署逻辑自动收集 Fcitx5 输入模块及其依赖；依赖部署后向 `AppDir/.env` 写入 `LANGUAGE=zh-CN`。现有 ICU、`locales/`、`resources/`、`URUNTIME_PRELOAD=1`、sandbox 和启动入口均保持不变。
-- 已知结果：本次只补当前已定位的 Fcitx5 与中文 locale 缺项，没有额外加入 IBus、强制 `GTK_IM_MODULE` 或新的 GTK 部署开关；最终中文界面和中文输入效果以后续正式构建与 Linux 实机反馈为准。
+- 已知结果：本次只补当前已定位的 Fcitx5 与中文 locale 缺项，没有额外加入 IBus、强制 `GTK_IM_MODULE` 或新的 GTK 部署开关；中文界面和中文输入的实机通过结果见 [实机验证](#实机验证)。
 
 ## 版本元数据接入（2026-09-16）
 
@@ -92,6 +109,6 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 
 - 故障：旧脚本从官网下载页提取 Linux x64 DEB 地址时输出 `Error: failed to resolve the current AdsPower Linux x64 package URL.`。官网已使用 `version-v2.adspower.net`，旧正则仅匹配 `version.adspower.net`。
 - 处理：按已确认的生成稿改用 AUR `adspower-global-bin` 的官方 DEB 来源。安装、独立下载、摘要校验、解包、版本读取和保存均调用现有公共入口，未修改公共脚本或标准模板。
-- 正式脚本：原样写入生成任务 [41879128128](https://github.com/newyorkthink/linux-packaging/actions/runs/41879128128) 的输出，SHA-256 为 `9af6631ecfbb6c77041fe5ae2d7b0096f99b3b495110d2b44cfb29e1d4754610`。生成器已完成 Bash 语法检查，该任务未执行应用打包。
-- 旧版备份：[build_adspower-global_old.sh](./build_adspower-global_old.sh) 与写入前脚本的 Git blob SHA `c4d41bb4e90d5a6e5b41103270658a68d40a291b` 一致，仅供追溯，不参与 Actions。后续只根据实际问题定向恢复必要处理，最终确认全部正常后移除备份。
+- 首次生成稿：原样写入生成任务 [41879128128](https://github.com/newyorkthink/linux-packaging/actions/runs/41879128128) 的输出，SHA-256 为 `9af6631ecfbb6c77041fe5ae2d7b0096f99b3b495110d2b44cfb29e1d4754610`。生成器已完成 Bash 语法检查，该任务未执行应用打包。
+- 旧版备份：按标准重写时原样保存的 `build_adspower-global_old.sh` 与写入前脚本的 Git blob SHA `c4d41bb4e90d5a6e5b41103270658a68d40a291b` 一致，未参与 Actions；用户实机验证通过后已删除。旧版实现可由 [首次标准重写提交](https://github.com/newyorkthink/linux-packaging/commit/f47eef2df23b5d3e2cf720b28c2201e666bf02dd) 追溯。
 - 相关说明：[模板与生成记录](./docs/template-deviations.md)、[固定参数依据](./docs/hardcoded.md)、[pkgforge 上游核对](./docs/pkgforge-differences.md)。

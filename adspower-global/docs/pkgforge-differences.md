@@ -11,6 +11,6 @@
 | 处理 | 决定 | 对应代码 | 当前依据、用途与影响 |
 | --- | --- | --- | --- |
 | pkgforge 的 AdsPower 专属代码或配套文件 | 未启用 | 未启用 | 本次未找到对应实现，不虚构官方命令、原始原因或复用关系。 |
-| 旧版应用专属配置 | 本次保留在备份中 | [build_adspower-global_old.sh](../build_adspower-global_old.sh) | 原样保存既有流程和修复依据；正式 build 使用已确认的标准生成稿，后续只按实际问题定向恢复必要部分。 |
+| 旧版应用专属配置 | 旧版备份已在实机验证通过后删除 | [首次标准重写提交](https://github.com/newyorkthink/linux-packaging/commit/f47eef2df23b5d3e2cf720b28c2201e666bf02dd) | 正式 build 保持已确认的生成稿，旧版实现通过 Git 历史追溯；通过结果见 [实机验证](../README.md#实机验证)。 |
 
 本次使用的仓库模板、生成任务、实际入口和版本读取方式见 [模板记录](./template-deviations.md)；历史故障与实机通过结果见 [README](../README.md)。
