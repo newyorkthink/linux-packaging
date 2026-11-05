@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
 # 从最新稳定 Release 源码构建，不拉取私有 ExtraPlugins。
@@ -17,6 +18,7 @@ die() {
 
 ARCH="$(uname -m)"
 [[ "$ARCH" == "x86_64" ]] || die "当前仅支持 x86_64，检测到：$ARCH"
+# 把当前机器架构传给 quick-sharun。
 export ARCH
 
 readonly ROOT="$PWD"
@@ -61,143 +63,10 @@ readonly WEBCAMOID_REF
 printf '%s\n' "$WEBCAMOID_REF" > "$OUTDIR/version.txt"
 
 # 补上默认深色主题、真实摄像头优先，并跳过用不上的硬件编码器探测。
-python3 - "$SOURCE_DIR" <<'PY'
-from pathlib import Path
-import sys
-
-root = Path(sys.argv[1])
-
-palette_files = [
-    root / "libAvKys/Lib/src/qml/akpalette.cpp",
-    root / "libAvKys/Lib/src/qml/akpalettegroup.cpp",
-]
-replacements = (
-    (
-        'config.value("paletteName", "System").toString()',
-        'config.value("paletteName", "Adwaita Dark").toString()',
-    ),
-    (
-        'config.value("paletteName").toString()',
-        'config.value("paletteName", "Adwaita Dark").toString()',
-    ),
-)
-replaced = 0
-for path in palette_files:
-    text = path.read_text()
-    for old, new in replacements:
-        count = text.count(old)
-        text = text.replace(old, new)
-        replaced += count
-    path.write_text(text)
-if replaced != 3:
-    raise SystemExit(f"默认深色配色补丁数量异常：{replaced}，预期为 3")
-
-main_path = root / "StandAlone/src/main.cpp"
-text = main_path.read_text()
-old_include = "#include <QMutex>\n#include <QSysInfo>"
-new_include = "#include <QMutex>\n#include <QSettings>\n#include <QSysInfo>"
-if old_include not in text:
-    raise SystemExit("main.cpp 中找不到 QSettings 插入位置")
-text = text.replace(old_include, new_include, 1)
-old_app = "    QApplication app(argc, argv);\n    CliOptions cliOptions;"
-new_app = '''    QApplication app(argc, argv);
-
-    if (qEnvironmentVariableIntValue("WEBCAMOID_FORCE_DARK") != 0) {
-        QSettings settings;
-        settings.beginGroup("ThemeConfigs");
-        settings.setValue("paletteName", "Adwaita Dark");
-        settings.endGroup();
-        settings.sync();
-    }
-
-    CliOptions cliOptions;'''
-if old_app not in text:
-    raise SystemExit("main.cpp 中找不到应用初始化位置")
-main_path.write_text(text.replace(old_app, new_app, 1))
-
-media_tools_path = root / "StandAlone/src/mediatools.cpp"
-text = media_tools_path.read_text()
-old_single_instance = '''bool MediaToolsPrivate::isSecondInstance()
-{
-#if QT_CONFIG(sharedmemory)
-    return !this->m_singleInstanceSM.create(1024)
-           && this->m_singleInstanceSM.error() == QSharedMemory::AlreadyExists;
-#else
-    return false;
-#endif
-}'''
-new_single_instance = '''bool MediaToolsPrivate::isSecondInstance()
-{
-    return false;
-}'''
-if old_single_instance not in text:
-    raise SystemExit("mediatools.cpp 中找不到 QSharedMemory 单实例检测代码")
-media_tools_path.write_text(text.replace(old_single_instance, new_single_instance, 1))
-
-capture_path = root / "libAvKys/Plugins/VideoCapture/src/capture/v4l2sys/src/capturev4l2.cpp"
-text = capture_path.read_text()
-old_description = '''        if (x_ioctl(fd, VIDIOC_QUERYCAP, &capability) >= 0)
-            description = reinterpret_cast<const char *>(capability.card);
-
-        qInfo() << "Detected camera:" << description << "(" << fileName << ")";'''
-new_description = '''        if (x_ioctl(fd, VIDIOC_QUERYCAP, &capability) >= 0)
-            description = reinterpret_cast<const char *>(capability.card);
-
-        auto normalizedDescription = description.toLower();
-        auto driver = QString(reinterpret_cast<const char *>(capability.driver)).toLower();
-        if (normalizedDescription.contains("dummy")
-            || normalizedDescription.contains("loopback")
-            || driver.contains("v4l2loopback")) {
-            qInfo() << "Skipping virtual or dummy camera:" << description
-                    << "(" << fileName << ")";
-            x_close(fd);
-            continue;
-        }
-
-        qInfo() << "Detected camera:" << description << "(" << fileName << ")";'''
-if old_description not in text:
-    raise SystemExit("capturev4l2.cpp 中找不到摄像头枚举位置")
-text = text.replace(old_description, new_description, 1)
-old_set_device = '''void CaptureV4L2::setDevice(const QString &device)
-{
-    if (this->d->m_device == device)
-        return;'''
-new_set_device = '''void CaptureV4L2::setDevice(const QString &device)
-{
-    if (!device.isEmpty()
-        && !this->d->m_devices.contains(device)
-        && !this->d->m_devices.isEmpty()) {
-        this->setDevice(this->d->m_devices.first());
-        return;
-    }
-
-    if (this->d->m_device == device)
-        return;'''
-if old_set_device not in text:
-    raise SystemExit("capturev4l2.cpp 中找不到设备选择位置")
-capture_path.write_text(text.replace(old_set_device, new_set_device, 1))
-
-encoder_path = root / "libAvKys/Plugins/Codecs/Video/Encoders/ffmpeg/src/videoencoderffmpegelement.cpp"
-text = encoder_path.read_text()
-old_probe = '''bool VideoEncoderFFmpegElementPrivate::isAvailable(const QString &codec) const
-{
-    qDebug() << "Testing video codec:" << codec;'''
-new_probe = '''bool VideoEncoderFFmpegElementPrivate::isAvailable(const QString &codec) const
-{
-    auto normalizedCodec = codec.toLower();
-    if (normalizedCodec.contains("nvenc")
-        || normalizedCodec.contains("qsv")
-        || normalizedCodec.contains("amf")
-        || normalizedCodec.contains("vaapi")
-        || normalizedCodec.contains("vulkan")
-        || normalizedCodec.contains("v4l2m2m"))
-        return false;
-
-    qDebug() << "Testing video codec:" << codec;'''
-if old_probe not in text:
-    raise SystemExit("videoencoderffmpegelement.cpp 中找不到编码器探测入口")
-encoder_path.write_text(text.replace(old_probe, new_probe, 1))
-PY
+python3 "$SCRIPT_DIR/patches/default_dark_theme.py" "$SOURCE_DIR"
+python3 "$SCRIPT_DIR/patches/disable_single_instance.py" "$SOURCE_DIR"
+python3 "$SCRIPT_DIR/patches/prefer_real_camera.py" "$SOURCE_DIR"
+python3 "$SCRIPT_DIR/patches/skip_hardware_encoders.py" "$SOURCE_DIR"
 
 QMAKE_EXECUTABLE="$(command -v qmake6 || true)"
 [[ -n "$QMAKE_EXECUTABLE" ]] || QMAKE_EXECUTABLE=/usr/lib/qt6/bin/qmake
@@ -286,7 +155,9 @@ fi
 [[ -f "$ICON_FILE" ]] || die "找不到 Webcamoid 图标。"
 
 export APPDIR
+# 把 AppImage 写到脚本目录下的 dist。
 export OUTPATH="$OUTDIR"
+# 固定最终 AppImage 的文件名。
 export OUTNAME="webcamoid.AppImage"
 export DESKTOP="$DESKTOP_FILE"
 export ICON="$ICON_FILE"
@@ -335,6 +206,7 @@ DEPLOY_INPUTS+=("${PRIVATE_RUNTIME_LIBS[@]}")
 
 export LD_LIBRARY_PATH="$STAGE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
+# 收集程序及其运行依赖。
 quick-sharun "${DEPLOY_INPUTS[@]}"
 
 mkdir -p "$APPDIR/lib" "$APPDIR/share"
@@ -418,6 +290,7 @@ if [[ -s "$missing_file" ]]; then
   die "Webcamoid 插件仍有缺失动态库。"
 fi
 
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 # 确认最终 AppImage 非空可执行，并写出 SHA-256。
 "$SCRIPT_DIR/../common/build/check_appimage_artifact.sh" "$OUTFILE" "$OUTFILE.sha256"
