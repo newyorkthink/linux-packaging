@@ -75,6 +75,17 @@ cat > AppDir/bin/90-chatgpt-arguments.hook <<'HOOK'
 set -- --no-sandbox --disable-setuid-sandbox "$@"
 HOOK
 
+# 本仓库兼容处理：启动时注册登录回调协议，使浏览器能够把登录结果交回当前 AppImage。
+bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
+  --output AppDir/bin/20-chatgpt-protocol.hook \
+  --desktop-file chatgpt.desktop \
+  --name ChatGPT \
+  --comment "ChatGPT / Codex desktop" \
+  --icon chatgpt \
+  --wm-class ChatGPT \
+  --categories "Office;Development;" \
+  --scheme codex
+
 # 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 

@@ -1,6 +1,6 @@
 # ChatGPT 固定配置依据
 
-核对日期：2026-10-30。本脚本面向隔离的 Arch Linux x86_64 构建环境。
+核对日期：2026-11-05。本脚本面向隔离的 Arch Linux x86_64 构建环境。
 
 | 固定项 | 当前值 | 依据与用途 |
 | --- | --- | --- |
@@ -13,6 +13,7 @@
 | Qt 删除范围 | `./AppDir/bin/libqt*_shim.so` | 官方原命令；作用及 Plasma 边界见 [官方处理记录](pkgforge-differences.md)。 |
 | 运行时 PATH | `/usr/bin:/bin${PATH:+:$PATH}:$APPDIR/bin` | 原有 bwrap 修复原文，保留在运行时 hook；不声明同名构建期变量。 |
 | 启动参数 | `--no-sandbox --disable-setuid-sandbox` | 原有 Electron 启动兼容，仅影响应用的 Chromium 沙箱。 |
+| 授权回跳 | `20-chatgpt-protocol.hook`、`chatgpt.desktop`、`codex` | [回跳故障记录](../README.md#修复记录)中的实际回调使用 `codex://`。登记入口沿用 `ChatGPT` 名称与窗口类、`chatgpt` 图标名及主 desktop 文件名，说明为 `ChatGPT / Codex desktop`，菜单分类为 `Office;Development;`。 |
 | 产物 | `dist/chatgpt.AppImage；dist/version.txt` | 保留发布名；封装成功后通过公共保存入口记录版本。 |
 
 原运行依赖由基础包、AUR 声明或应用安装行覆盖。原 Xorg/Xvfb 三项只服务于已移除的内联图形自测，不再追加。历史沙盒和图形故障见 [README](../README.md)，不因此恢复正式构建自测。

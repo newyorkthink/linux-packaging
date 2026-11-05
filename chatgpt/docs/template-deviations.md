@@ -1,6 +1,6 @@
 # ChatGPT 模板差异
 
-核对日期：2026-10-30。通用骨架沿用 [Electron 直接下载标准](../../anylinux_projects.md#直接下载安装包的标准模板)，基础模板 69 行，加 Qt 清理 3 行和两个 hook 10 行，共 82 行。
+核对日期：2026-11-05。通用骨架沿用 [Electron 直接下载标准](../../anylinux_projects.md#直接下载安装包的标准模板)，基础模板 69 行，加 Qt 清理 3 行、原有启动 hook 10 行和协议登记 11 行，共 93 行。
 
 | 处理 | 决定 | 对应代码 | 当前依据、用途与影响 |
 | --- | --- | --- | --- |
@@ -12,6 +12,7 @@
 | 中文环境 | 采用标准步骤 | [包内 locale](../build_chatgpt.sh#L59-L66) | GTK 输入模块由工具收集，中文 locale 及四项环境变量按模板生成。 |
 | 宿主 bwrap | 保留已有修复 | [PATH hook](../build_chatgpt.sh#L69-L71) | 保留既有 PATH 原文，宿主 /usr/bin、/bin 在前，避免 Codex 调用包内 bwrap 包装器。 |
 | Electron 启动兼容 | 保留已有参数 | [参数 hook](../build_chatgpt.sh#L74-L76) | 保留 --no-sandbox、--disable-setuid-sandbox，不等于禁用 Codex 命令沙箱。 |
+| 授权回跳 | 复用公共协议登记 | [协议 hook](../build_chatgpt.sh#L79-L87) | 最终封装前生成运行时 hook。启动时在用户级登记 `x-scheme-handler/codex`，desktop 的 `Exec` 通过 `%U` 传递回调 URI。 |
 | 旧自检及目录包装 | 不采用 | 未启用。 | 删除旧下载解析、ELF 筛选、额外开关、产物解包与图形/沙盒自测；不把历史 CI 通过写成新稿的验证结果。 |
 
-官方原文及取舍见 [pkgforge 记录](pkgforge-differences.md)，固定值见 [配置依据](hardcoded.md)，完整历史见 [README](../README.md)。本次复用已完成的语法检查，不重复测试；未进行新的完整构建或实机运行。
+官方原文及取舍见 [pkgforge 记录](pkgforge-differences.md)，固定值见 [配置依据](hardcoded.md)，完整历史见 [README](../README.md)。原标准化整理沿用当时已完成的语法检查，未重新构建或运行。此次协议登记的核对结果见 [README 修复记录](../README.md#修复记录)。

@@ -19,6 +19,7 @@
 - 完整复制官方 `/usr/lib/chatgpt/` 到 `AppDir/bin/`；主 desktop 和图标分别读取系统安装的 `/usr/share/applications/chatgpt.desktop`、`/usr/share/pixmaps/chatgpt.png`。
 - 原样采用 pkgforge 的 Qt shim 删除及全目录收集命令。删除范围限于 `AppDir/bin/libqt*_shim.so`；其必要性判断、Qt 依赖影响和 Plasma 验证边界见 [官方处理记录](docs/pkgforge-differences.md)。
 - 保留宿主 bwrap 优先级和 `--no-sandbox --disable-setuid-sandbox`，通过两个运行时 hook 接入标准 AppRun，不再另写 `AppRun.sh`。这些参数只针对 Electron/Chromium，不关闭 Codex 自身的命令沙箱。
+- 启动时由公共协议 hook 将 `codex://` 关联到当前 AppImage。用户级 desktop 通过 `%U` 将浏览器交回的 URI 传给程序。
 - GTK 输入模块交给 quick-sharun 收集；包内按标准生成中文 locale。官方完整程序目录中的 Codex、Code Mode Host、插件及 Computer Use 资源随目录复制，产品功能是否开放仍由上游决定。
 - 取消旧的内联 APT 下载解析、ELF 数组筛选、手工库搜索路径、禁用 Electron 自动部署的开关，以及解包产物、哈希一致性、Codex 沙盒和 Xvfb 冒烟自测。采用工具默认部署后，不再沿用旧脚本的“部署后核心文件摘要与源完全一致”保证。
 - 本次未修改工作流或其他应用。旧 CI 沙盒及图形测试结果继续作为历史记录保留，不写成这份新脚本已经重新完成了这些验证。
@@ -93,3 +94,10 @@ OpenAI 当前将 Linux 桌面版标记为预览版，并正式支持指定版本
 - 根因：这是 CI 构建容器权限限制，不是最终 AppImage 运行时权限问题；默认容器缺少执行这项嵌套 `bubblewrap` 测试所需的 namespace 能力。
 - 修改文件：`.github/workflows/build.yml`、`chatgpt/README.md`
 - 修复内容：仅 ChatGPT Job 使用 `ghcr.io/pkgforge-dev/archlinux:latest` 并增加 `options: --privileged`，用于 CI 中执行真实 Codex 沙盒验证；该权限只属于临时构建容器，不会写入 AppImage，也不会改变终端用户运行时权限模型。
+
+### 2026-11-05 — 补齐 Codex 插件授权回跳
+
+- 在 Codex 桌面端连接 GitHub 插件时，浏览器将 `codex://connector/oauth_callback` 当成搜索，桌面端仍提示在浏览器完成连接。
+- 原构建只将 desktop 带入 AppImage，直接运行时缺少在宿主登记 `x-scheme-handler/codex` 的步骤。
+- 在 [构建脚本](build_chatgpt.sh#L79-L87) 的最终封装前调用 [公共协议入口](../common/desktop/write_scheme_hook.sh)，生成 `20-chatgpt-protocol.hook`。启动时按当前 AppImage 的实际路径写入用户级 desktop，通过 `%U` 将回调 URI 传给程序。
+- 本次核对了构建参数、封装顺序和 URI 传递链。新产物的 GitHub 授权回跳待实机验证。
