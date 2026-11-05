@@ -1,6 +1,8 @@
-# Webcamoid 运行时多余后端
+# Webcamoid 错误与处理记录
 
-这亞不是构建失败。构建已经成功，问题出在启动后的插件和编码器探测。
+本页迁自 `runtime-errors.md`，保留已有运行时故障与处理历史。以下问题发生在启动后的插件和编码器探测阶段，不是构建失败。
+
+原始记录来源：[613548b](https://github.com/newyorkthink/linux-packaging/commit/613548bff377e80ed72bc9cf95bb26fc4a4ee10e)。后续补丁和当前流程见 [模板差异](./template-deviations.md)。
 
 ## 硬件编码器和 Dummy loopback
 
@@ -46,4 +48,4 @@
 
 处理：`-DNOGSTREAMER=ON`，并删除安装结果里名称含 gstreamer 的插件。
 
-处理状态：已改 `webcamoid/build_webcamoid.sh`。这次改动尚未重新构建。
+当前结果：2026-11-05 的实机截图与日志已展示摄像头预览、录像启停和回放通过，完整记录见 [README 实机验证](../README.md#实机验证)。

@@ -355,6 +355,12 @@ Qt 6 程序打包前安装 qt6ct、kvantum、lxqt-qtplugin。装上后由 quick-
 
 有窗口且使用 Qt 6 的程序，从系统入口收集时使用 [qt-installed.sh](./templates/quick-sharun/qt-installed.sh)。[OBS Studio](./obs-studio/build_obs-studio.sh) 保留为既有实现参考。相对 mpv 的默认形状，这个脚本增加了中文环境、Qt 主题插件，以及同一次交给 quick-sharun 的录制程序、模块目录、模块数据和脚本模块。图标、desktop、DEPLOY_* 和传给 quick-sharun 的路径来自该程序自己的官方包。
 
+### 已有源码专用流程
+
+[Webcamoid](./webcamoid/README.md) 当前保留官方正式 Release 源码、四个补丁、CMake + Ninja 暂存安装以及 quick-sharun 封装的既有流程，已登记在 [专用打包流程](./docs/packaging-classification.md#专用打包流程)。这与本节从系统已安装 Qt 程序收集的来源不同，不能标成已逐字套用 qt-installed.sh，也不新增源码编译模板。
+
+源码适配、暂存目录、动态插件、运行配置及注释核对结果见其 [模板差异](./webcamoid/docs/template-deviations.md)，实际通过结果见 [README 实机验证](./webcamoid/README.md#实机验证)。这只是当前实现的登记；后续构建脚本修改继续遵守 AGENTS.md 的生成器、现成二进制优先及稳定基线规则，不据此扩大其他应用的源码构建或专属处理。
+
 ## 非必要不要自己写 AppRun.sh
 
 [AppRun 内联规则](./linuxdeploy_projects.md#apprun-与框架配置)只约束确需自定义 AppRun 的项目。quick-sharun 继续使用工具生成的入口。

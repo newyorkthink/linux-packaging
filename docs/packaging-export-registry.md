@@ -46,7 +46,7 @@
 | `LDAI_NO_APPSTREAM` | linuxdeploy 不生成 AppStream 元数据。 | 3 个脚本，例如 mediainfo、poppler-utils |
 | `LDAI_RUNTIME_FILE` | linuxdeploy 使用的 AppImage runtime 文件。 | common |
 | `DEBIAN_FRONTEND` | apt 安装时不弹问题。非交互构建用 noninteractive。 | 5 个脚本，例如 rainlendar2、realvnc-rvnc-connect、remmina |
-| `NO_STRIP` | 打包时不剥调试符号。 | 例如 aionui、bluemail、chatgpt、todesk |
+| `NO_STRIP` | 打包时不剥调试符号。 | 例如 aionui、bluemail、chatgpt、todesk、webcamoid |
 | `VERSION` | 写进成品的实际软件版本，可包含官方软件包修订号。 | 例如 aionui、alttab、bluemail、tradingview |
 | `OUTNAME` | 最终 AppImage 的文件名。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
 | `OUTPATH` | 最终 AppImage 的输出目录，一般是 ./dist。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
@@ -135,12 +135,31 @@
 | `QML2_IMPORT_PATH` | Qt5 的 QML 模块目录。 | 3 个脚本，例如 kde-suite、xnviewmp |
 | `QML_DISABLE_DISK_CACHE` | 禁止 Qt Quick 写磁盘缓存。 | kde-suite |
 | `QT_QUICK_CONTROLS_STYLE` | Qt Quick Controls 的样式，例如 KDE Breeze。 | kde-suite |
-| `QT_STYLE_OVERRIDE` | 强制 Qt 控件样式，盖过应用默认样式。 | 2 个脚本，例如 flameshot、peazip |
+| `QT_STYLE_OVERRIDE` | 强制 Qt 控件样式，盖过应用默认样式。 | 例如 flameshot、peazip；webcamoid 在 .env 中使用 |
 | `QT_AUTO_SCREEN_SCALE_FACTOR` | 让 Qt 按屏幕缩放界面。 | 4 个脚本，例如 dingtalk、peazip、wechat |
 | `QT_SCALE_FACTOR` | Qt 界面缩放倍数。 | peazip |
 | `QT_FONT_DPI` | 固定 Qt 字体 DPI。 | 2 个脚本，例如 peazip、xnviewmp |
 | `QT_XCB_GL_INTEGRATION` | XCB 下用哪种 OpenGL 集成，例如 xcb_egl。 | mailmaster |
 | `QT_DISABLE_HW_TEXTURES_CONVERSION` | 禁用 Qt Multimedia 的 GPU 纹理转换，避免部分视频渲染黑屏。 | xnviewmp |
+| `QT_MEDIA_BACKEND` | 指定 Qt Multimedia 的媒体后端。 | webcamoid 的 .env 使用 ffmpeg |
+| `QT_QUICK_BACKEND` | 指定 Qt Quick 的场景图后端。 | webcamoid 的 .env 使用 rhi |
+| `QSG_RHI_BACKEND` | 指定 Qt RHI 的图形 API。 | webcamoid 的 .env 使用 opengl |
+| `QSG_RENDER_LOOP` | 指定 Qt Quick 的渲染循环。 | webcamoid 的 .env 使用 basic |
+| `QT_OPENGL` | 指定 Qt 请求的 OpenGL 实现。 | webcamoid 的 .env 使用 desktop |
+
+## 图形驱动路径覆盖
+
+以下条目登记现有 .env 配置；它们清空继承的覆盖值，不代表所有程序都需要设置，也不改变脚本已有的部署与移除顺序。
+
+| 变量 | 干什么 | 哪里在用 |
+| --- | --- | --- |
+| `LIBGL_DRIVERS_PATH` | 覆盖 Mesa OpenGL 驱动搜索路径。 | webcamoid 的 .env 清空该值 |
+| `LIBVA_DRIVERS_PATH` | 覆盖 VA-API 驱动搜索路径。 | webcamoid 的 .env 清空该值 |
+| `VDPAU_DRIVER_PATH` | 覆盖 VDPAU 驱动搜索路径。 | webcamoid 的 .env 清空该值 |
+| `__EGL_VENDOR_LIBRARY_DIRS` | 覆盖 EGL vendor 配置目录。 | webcamoid 的 .env 清空该值 |
+| `__EGL_VENDOR_LIBRARY_FILENAMES` | 覆盖 EGL vendor 配置文件列表。 | webcamoid 的 .env 清空该值 |
+| `VK_DRIVER_FILES` | 覆盖 Vulkan 驱动文件列表。 | webcamoid 的 .env 清空该值 |
+| `VK_ICD_FILENAMES` | 覆盖 Vulkan ICD 文件列表。 | webcamoid 的 .env 清空该值 |
 
 ## GTK、语言和输入法
 
@@ -174,6 +193,7 @@
 
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
+| `WEBCAMOID_FORCE_DARK` | 由本仓库主题补丁读取，非零时在启动阶段写入 Adwaita Dark 配色设置。 | webcamoid 的 .env 与 default_dark_theme.py |
 | `CANBERRA_DRIVER` | libcanberra 用哪个声音后端。这里选 Pulse，兼容 PulseAudio 和 PipeWire。 | rainlendar2 |
 | `PIPEWIRE_MODULE_DIR` | PipeWire 模块目录。 | kde-suite |
 | `SPA_PLUGIN_DIR` | PipeWire SPA 插件目录。 | kde-suite |

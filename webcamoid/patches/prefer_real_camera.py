@@ -1,3 +1,4 @@
+# 本仓库兼容处理：过滤虚拟摄像头输入，并将失效的已保存设备切换为首个可用设备。
 from pathlib import Path
 import sys
 

@@ -1,3 +1,4 @@
+# 本仓库兼容处理：关闭 QSharedMemory 单实例检测，保留其余启动逻辑。
 from pathlib import Path
 import sys
 

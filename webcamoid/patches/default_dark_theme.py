@@ -1,3 +1,4 @@
+# 本仓库兼容处理：设置默认深色配色，并在深色开关启用时写入应用主题设置。
 from pathlib import Path
 import sys
 

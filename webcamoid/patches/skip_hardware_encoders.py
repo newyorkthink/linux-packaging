@@ -1,3 +1,4 @@
+# 本仓库兼容处理：从可用列表中排除指定硬件编码器，保留软件编码器探测。
 from pathlib import Path
 import sys
 
