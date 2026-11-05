@@ -5,7 +5,7 @@ set -Eeuo pipefail
 # 从最新稳定 Release 源码构建，不拉取私有 ExtraPlugins。
 # 输出 dist/webcamoid.AppImage。保留 V4L2 摄像头和软件编码。
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
@@ -40,9 +40,9 @@ fi
 # 清掉上次的打包目录。
 "$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
 
-readonly SOURCE_DIR="$SCRIPT_DIR/work/source"
-readonly BUILD_DIR="$SCRIPT_DIR/work/build"
-readonly STAGE_DIR="$SCRIPT_DIR/work/stage"
+SOURCE_DIR="$SCRIPT_DIR/work/source"
+BUILD_DIR="$SCRIPT_DIR/work/build"
+STAGE_DIR="$SCRIPT_DIR/work/stage"
 
 WEBCAMOID_REF="$(
   bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" \
@@ -59,8 +59,8 @@ python3 "$SCRIPT_DIR/patches/skip_hardware_encoders.py" "$SOURCE_DIR"
 
 QMAKE_EXECUTABLE="$(command -v qmake6 || true)"
 [[ -n "$QMAKE_EXECUTABLE" ]] || QMAKE_EXECUTABLE=/usr/lib/qt6/bin/qmake
-readonly LRELEASE_TOOL=/usr/lib/qt6/bin/lrelease
-readonly LUPDATE_TOOL=/usr/lib/qt6/bin/lupdate
+LRELEASE_TOOL=/usr/lib/qt6/bin/lrelease
+LUPDATE_TOOL=/usr/lib/qt6/bin/lupdate
 
 # 关闭没有运行库的 GStreamer、加载失败的 wlroots，以及会打开 Dummy 设备的 libavdevice。
 cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" -G Ninja \
@@ -91,7 +91,7 @@ find "$STAGE_DIR" -type f \( \
   -name '*[Gg]streamer*.so*' \
 \) -delete
 
-readonly WEBCAMOID_BIN="$STAGE_DIR/bin/webcamoid"
+WEBCAMOID_BIN="$STAGE_DIR/bin/webcamoid"
 [[ -x "$WEBCAMOID_BIN" ]] || die "源码安装后没有找到 webcamoid 可执行文件。"
 
 mapfile -d '' -t STAGE_SHARED_OBJECTS < <(
@@ -115,7 +115,7 @@ for required_plugin in \
   [[ "$plugin_found" -eq 1 ]] || die "缺少必需插件：$required_plugin"
 done
 
-readonly DESKTOP_FILE="$SCRIPT_DIR/work/webcamoid.desktop"
+DESKTOP_FILE="$SCRIPT_DIR/work/webcamoid.desktop"
 cat > "$DESKTOP_FILE" <<'DESKTOP_EOF'
 [Desktop Entry]
 Type=Application
