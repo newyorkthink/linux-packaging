@@ -16,22 +16,8 @@ die() {
   exit 1
 }
 
-ARCH="$(uname -m)"
-[[ "$ARCH" == "x86_64" ]] || die "当前仅支持 x86_64，检测到：$ARCH"
 # 把当前机器架构传给 quick-sharun。
-export ARCH
-
-readonly ROOT="$PWD"
-readonly WORK_DIR="$ROOT/.work"
-readonly SOURCE_DIR="$WORK_DIR/source"
-readonly BUILD_DIR="$WORK_DIR/build"
-readonly STAGE_DIR="$WORK_DIR/stage"
-readonly APPDIR="$ROOT/AppDir"
-readonly OUTDIR="$ROOT/dist"
-readonly OUTFILE="$OUTDIR/webcamoid.AppImage"
-
-rm -rf "$WORK_DIR" "$APPDIR" "$OUTDIR"
-mkdir -p "$WORK_DIR" "$OUTDIR"
+export ARCH="$(uname -m)"
 
 if pacman -Q ffmpeg-mini >/dev/null 2>&1; then
   if [[ "$EUID" -eq 0 ]]; then
@@ -51,16 +37,19 @@ fi
   libxkbcommon-x11 xcb-util xcb-util-image xcb-util-keysyms \
   xcb-util-renderutil xcb-util-wm xcb-util-cursor
 
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
+
+readonly SOURCE_DIR="$SCRIPT_DIR/work/source"
+readonly BUILD_DIR="$SCRIPT_DIR/work/build"
+readonly STAGE_DIR="$SCRIPT_DIR/work/stage"
+
 WEBCAMOID_REF="$(
   bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" \
     webcamoid/webcamoid \
     "$SOURCE_DIR"
 )"
-[[ -n "$WEBCAMOID_REF" ]] || die "无法解析 Webcamoid 最新稳定版本。"
-[[ "$WEBCAMOID_REF" =~ ^v?[0-9]+([.][0-9]+){2}([.-][0-9A-Za-z._-]+)?$ ]] \
-  || die "Webcamoid 最新稳定版本格式异常：$WEBCAMOID_REF"
-readonly WEBCAMOID_REF
-printf '%s\n' "$WEBCAMOID_REF" > "$OUTDIR/version.txt"
+printf '%s\n' "$WEBCAMOID_REF" > "$SCRIPT_DIR/dist/version.txt"
 
 # 补上默认深色主题、真实摄像头优先，并跳过用不上的硬件编码器探测。
 python3 "$SCRIPT_DIR/patches/default_dark_theme.py" "$SOURCE_DIR"
@@ -72,10 +61,6 @@ QMAKE_EXECUTABLE="$(command -v qmake6 || true)"
 [[ -n "$QMAKE_EXECUTABLE" ]] || QMAKE_EXECUTABLE=/usr/lib/qt6/bin/qmake
 readonly LRELEASE_TOOL=/usr/lib/qt6/bin/lrelease
 readonly LUPDATE_TOOL=/usr/lib/qt6/bin/lupdate
-
-[[ -x "$QMAKE_EXECUTABLE" ]] || die "找不到 Qt6 qmake。"
-[[ -x "$LRELEASE_TOOL" ]] || die "找不到 Qt6 lrelease。"
-[[ -x "$LUPDATE_TOOL" ]] || die "找不到 Qt6 lupdate。"
 
 # 关闭没有运行库的 GStreamer、加载失败的 wlroots，以及会打开 Dummy 设备的 libavdevice。
 cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" -G Ninja \
@@ -130,7 +115,7 @@ for required_plugin in \
   [[ "$plugin_found" -eq 1 ]] || die "缺少必需插件：$required_plugin"
 done
 
-readonly DESKTOP_FILE="$WORK_DIR/webcamoid.desktop"
+readonly DESKTOP_FILE="$SCRIPT_DIR/work/webcamoid.desktop"
 cat > "$DESKTOP_FILE" <<'DESKTOP_EOF'
 [Desktop Entry]
 Type=Application
@@ -154,9 +139,8 @@ if [[ ! -f "$ICON_FILE" ]]; then
 fi
 [[ -f "$ICON_FILE" ]] || die "找不到 Webcamoid 图标。"
 
-export APPDIR
 # 把 AppImage 写到脚本目录下的 dist。
-export OUTPATH="$OUTDIR"
+export OUTPATH="$SCRIPT_DIR/dist"
 # 固定最终 AppImage 的文件名。
 export OUTNAME="webcamoid.AppImage"
 export DESKTOP="$DESKTOP_FILE"
@@ -209,28 +193,28 @@ export LD_LIBRARY_PATH="$STAGE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 # 收集程序及其运行依赖。
 quick-sharun "${DEPLOY_INPUTS[@]}"
 
-mkdir -p "$APPDIR/lib" "$APPDIR/share"
-cp -a "$STAGE_DIR/lib/." "$APPDIR/lib/"
+mkdir -p "$SCRIPT_DIR/AppDir/lib" "$SCRIPT_DIR/AppDir/share"
+cp -a "$STAGE_DIR/lib/." "$SCRIPT_DIR/AppDir/lib/"
 if [[ -d "$STAGE_DIR/share" ]]; then
-  cp -a "$STAGE_DIR/share/." "$APPDIR/share/"
+  cp -a "$STAGE_DIR/share/." "$SCRIPT_DIR/AppDir/share/"
 fi
 
 for plugin_root in /usr/lib/qt6/plugins /usr/lib/qt/plugins; do
   [[ -d "$plugin_root" ]] || continue
   for plugin_type in multimedia styles platformthemes; do
     [[ -d "$plugin_root/$plugin_type" ]] || continue
-    mkdir -p "$APPDIR/lib/qt/plugins/$plugin_type"
-    cp -a "$plugin_root/$plugin_type/." "$APPDIR/lib/qt/plugins/$plugin_type/"
+    mkdir -p "$SCRIPT_DIR/AppDir/lib/qt/plugins/$plugin_type"
+    cp -a "$plugin_root/$plugin_type/." "$SCRIPT_DIR/AppDir/lib/qt/plugins/$plugin_type/"
   done
 done
 
 for private_lib in "${PRIVATE_RUNTIME_LIBS[@]}"; do
   relative_lib="${private_lib#/usr/lib/}"
-  mkdir -p "$APPDIR/lib/$(dirname "$relative_lib")"
-  cp -L "$private_lib" "$APPDIR/lib/$relative_lib"
+  mkdir -p "$SCRIPT_DIR/AppDir/lib/$(dirname "$relative_lib")"
+  cp -L "$private_lib" "$SCRIPT_DIR/AppDir/lib/$relative_lib"
 done
 
-find "$APPDIR" \( -type f -o -type l \) -print | while IFS= read -r item; do
+find "$SCRIPT_DIR/AppDir" \( -type f -o -type l \) -print | while IFS= read -r item; do
   case "$(basename "$item")" in
     libEGL.so*|libGL.so*|libGLX.so*|libGLdispatch.so*|libOpenGL.so*|\
     libgbm.so*|libdrm.so*|libvulkan.so*)
@@ -238,11 +222,11 @@ find "$APPDIR" \( -type f -o -type l \) -print | while IFS= read -r item; do
       ;;
   esac
 done
-find "$APPDIR" -type d \
+find "$SCRIPT_DIR/AppDir" -type d \
   \( -name dri -o -path '*/glvnd/egl_vendor.d' -o -path '*/vulkan/icd.d' \) \
   -prune -exec rm -rf {} + 2>/dev/null || true
 
-cat >> "$APPDIR/.env" <<'ENV_EOF'
+cat >> "$SCRIPT_DIR/AppDir/.env" <<'ENV_EOF'
 LANG=zh_CN.UTF-8
 LANGUAGE=zh_CN:zh
 WEBCAMOID_FORCE_DARK=1
@@ -261,15 +245,15 @@ VK_DRIVER_FILES=
 VK_ICD_FILENAMES=
 ENV_EOF
 
-"$APPDIR/sharun" -g
-mapfile -t APPDIR_LIB_DIRS < <(find "$APPDIR/lib" -type d -print | sort)
+"$SCRIPT_DIR/AppDir/sharun" -g
+mapfile -t APPDIR_LIB_DIRS < <(find "$SCRIPT_DIR/AppDir/lib" -type d -print | sort)
 APPDIR_LD_LIBRARY_PATH="$(IFS=:; echo "${APPDIR_LIB_DIRS[*]}")"
 
 for required_plugin in \
   VideoCapture_v4l2sys \
   VideoCapture_v4lutils \
   VideoCapture_ffmpeg; do
-  plugin_path="$(find "$APPDIR" -type f -name "*${required_plugin}*.so*" -print -quit)"
+  plugin_path="$(find "$SCRIPT_DIR/AppDir" -type f -name "*${required_plugin}*.so*" -print -quit)"
   [[ -n "$plugin_path" ]] || die "AppDir 中缺少插件：$required_plugin"
 done
 
@@ -278,12 +262,12 @@ if ! ffmpeg -hide_banner -decoders 2>/dev/null \
   die "当前 FFmpeg 没有 MJPEG 解码器。"
 fi
 
-missing_file="$WORK_DIR/missing-libraries.txt"
+missing_file="$SCRIPT_DIR/work/missing-libraries.txt"
 : > "$missing_file"
 while IFS= read -r -d '' plugin; do
   LD_LIBRARY_PATH="$APPDIR_LD_LIBRARY_PATH" ldd "$plugin" 2>/dev/null \
     | grep 'not found' >> "$missing_file" || true
-done < <(find "$APPDIR/lib/qt/plugins/avkys" -type f -name '*.so*' -print0)
+done < <(find "$SCRIPT_DIR/AppDir/lib/qt/plugins/avkys" -type f -name '*.so*' -print0)
 
 if [[ -s "$missing_file" ]]; then
   sort -u "$missing_file" >&2
@@ -293,4 +277,6 @@ fi
 # 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 # 确认最终 AppImage 非空可执行，并写出 SHA-256。
-"$SCRIPT_DIR/../common/build/check_appimage_artifact.sh" "$OUTFILE" "$OUTFILE.sha256"
+"$SCRIPT_DIR/../common/build/check_appimage_artifact.sh" \
+  "$SCRIPT_DIR/dist/webcamoid.AppImage" \
+  "$SCRIPT_DIR/dist/webcamoid.AppImage.sha256"
