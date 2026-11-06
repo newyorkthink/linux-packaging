@@ -83,6 +83,8 @@ linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标�
 
 第一次 linuxdeploy 创建目录后，因没有 desktop 而在输出阶段返回 1，由初始化公共入口兼容；不得提前塞入应用、desktop、图标或 AppRun。第二次生成的中间 AppImage 不得发布。
 
+`source common/linuxdeploy/prepare_build_workspace.sh` 已在当前 Shell 中切换到传入的构建根目录。后续独立 helper 或子 Shell 中的 `cd` 不改变调用方目录；只有后续代码确实改变了当前 Shell 的工作目录时，才需要再切回。不得为了增加一个阶段而重复添加 `cd "$SCRIPT_DIR"`。
+
 ### 程序专属代码的位置
 
 程序专属代码必须按实际用途放入对应分区，并遵循执行依赖和先后顺序，不得任意插入或集中放到核心打包。
@@ -114,6 +116,8 @@ linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标�
 
 下载、校验、安装、解包、版本读取和初始化由公共入口负责，应用脚本不重复实现。工具准备入口已加载 `configure_environment.sh`，不再单独调用它。软件和打包工具版本按现有官方动态入口取得，不固定旧版本。
 
+已确认需要在元数据中保留完整 Debian 版本的既有项目，不能用去掉 epoch / revision 的返回值替代原版本。保留该项目已验证的完整版本读取命令，并由 `common/apt/download_and_extract_packages.sh` 按明确的 `<包名>=<完整版本>` 下载同版本 DEB；在应用专属差异中说明原因，不复制下载、校验或解包实现。最终 `version.txt` 仍由公共封装入口写入。
+
 工具准备入口的插件参数支持空字符串、`gtk`、`qt`、`gstreamer`、`gtk,gstreamer` 和 `qt,gstreamer`，只选择当前应用需要的组合；该参数负责下载插件，实际启用仍由 linuxdeploy 命令的 `--plugin` 参数指定。
 
 ### AppRun 与框架配置
@@ -132,6 +136,8 @@ linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标�
 
 显示、输入法、缩放、字体和多媒体选项按各项目已确认的需要设置，不作为所有 Qt / GTK 程序的默认配置。额外运行库及 Qt 模块识别修复必须有当前应用依据，保留已获准的精确收集方式，不照抄其他项目的整组库。
 
+Qt 工具选择按实际调用方式核对。已明确指定对应 Qt 主版本的原生 `QMAKE`，且 Qt 插件能从该 qmake 查询的目录找到 `qmlimportscanner` 时，不额外添加 `QT_SELECT`；只有实际调用 qtchooser 且确需显式选择安装时才使用它。`QMAKE`、扫描工具依赖与 Qt5 / Qt6 运行库匹配仍须保留，不能把“不设置 QT_SELECT”误解成不需要扫描工具。已有项目的具体依据保存在其专属差异文档。
+
 ### 中文环境与输入法的适用范围
 
 先判断程序类型、可用翻译和实际语言需求，再选择下面的处理；是否使用 GTK / Qt 插件不决定程序能否显示中文界面。
@@ -144,7 +150,7 @@ linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标�
 
 包内 locale 数据提供字符分类、编码和区域格式；界面翻译来自软件自带资源、发行版语言包或已确认的翻译文件；中文输入依赖匹配框架版本的模块及宿主会话。三者分别核对，不能把 locale 文件存在写成中文界面或中文输入已验证。英文界面同样可能需要中文输入，输入支持不随界面语言一并删除。
 
-适用的 linuxdeploy 项目在应用解包后的“准备桌面资源和运行库”阶段，单行调用 `common/linuxdeploy/prepare_locale.sh <locale 源名称> <字符集> <完整输出目录>`，随后才执行正式依赖部署。该入口只生成调用方指定的数据，不选择界面语言，不改写 AppRun，也不创建 `.env`。
+适用的 linuxdeploy 项目在应用解包后的“准备桌面资源和运行库”阶段，单行调用 `common/linuxdeploy/prepare_locale.sh <locale 源名称> <字符集> <完整输出目录>`，随后才执行正式依赖部署。该入口只生成调用方指定的数据，不选择界面语言，不改写 AppRun，也不创建 `.env`。输出父目录由公共入口创建；主脚本不为同一次 locale 生成重复创建该目录，其他字体、翻译和输入模块目录仍由实际资源准备步骤负责。
 
 AppRun 先设置指向包内数据的 `LOCPATH`，再设置需要的 `LANG` / `LANGUAGE`；已确认的输入法、翻译目录、启动参数及其他兼容配置保持原样。不把 `LC_ALL`、`LC_MESSAGES` 或某一组语言变量作为所有程序必须复制的配置。固定注释仍只在确实执行对应操作时逐字使用，quick-sharun 的现有脚本不随本次接入修改。
 
@@ -185,7 +191,7 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 
 | 项目 | 构建脚本 | 使用方式 |
 | --- | --- | --- |
-| GoldenDict | `goldendict/build_goldendict.sh` | Ubuntu 24.04 官方 DEB，linuxdeploy + Qt / GStreamer 插件 |
+| GoldenDict | `goldendict/build_goldendict.sh` | Ubuntu 24.04 官方 DEB，Qt5 / GStreamer；完整包版本、固定启动路径与发音处理见 [专属差异](./goldendict/docs/template-deviations.md) |
 | Alacritty | `alacritty/build_alacritty_linuxdeploy.sh` | linuxdeploy |
 | MediaInfo | `mediainfo/build_mediainfo_linuxdeploy.sh` | linuxdeploy |
 | PeaZip | `peazip/build_peazip.sh` | linuxdeploy + Qt 插件 |

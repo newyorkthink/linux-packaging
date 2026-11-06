@@ -39,7 +39,7 @@
 | `SRCDEST` | makepkg 来源缓存。公共 Arch 安装入口仅在显式 --aur-deb 模式为单次 yay 传入，并配合独立 --builddir 使用；不写入 AppDir/.env 或改变宿主运行环境。 | common/arch/install_packages.sh；归档前由 todesk 显式启用 |
 | `ARCH` | 向打包工具传入目标架构。 | 例如 Keyviz、adspower-global、aionui、gemini |
 | `QMAKE` | 告诉 linuxdeploy 的 Qt 插件用哪个 qmake。Qt5 和 Qt6 不能混。 | 4 个脚本，例如 goldendict、peazip、wemeet、xnviewmp |
-| `QT_SELECT` | 构建机上有多套 Qt 时，指定用 qt5 还是 qt6。 | 3 个脚本，例如 goldendict、wemeet、xnviewmp |
+| `QT_SELECT` | 为 qtchooser 显式选择已配置的 Qt 安装；仅在实际调用该包装器且需要选择时使用。 | 例如 wemeet；goldendict 使用明确的 Qt5 QMAKE，不设置此变量。 |
 | `DEPLOY_GTK_VERSION` | linuxdeploy 的 GTK 插件打哪一代。现有脚本都是 3。 | 6 个脚本，例如 baidunetdisk、binance、joplin |
 | `APPIMAGE_EXTRACT_AND_RUN` | 让 AppImage 先解包再跑，不靠 FUSE。只在构建机使用，不写进最终包。 | 10 个脚本，例如 kitty、mediainfo、poppler-utils |
 | `LDAI_OUTPUT` | linuxdeploy 中间 AppImage 的输出路径。这个文件不进发布目录。 | 3 个脚本，例如 mediainfo、poppler-utils |
@@ -117,7 +117,7 @@
 | `XDG_CONFIG_DIRS` | 配置文件搜索目录。包内目录放前面。 | kde-suite |
 | `APPDIR` | AppImage 解包后的根目录。运行时用来拼包内路径。 | 8 个脚本，例如 dconf-editor、kitty、mission-center |
 | `LD_PRELOAD` | 程序启动前先加载指定的 so。 | 3 个脚本，例如 dingtalk、peazip、runimage |
-| `FONTCONFIG_FILE` | 用包里的字体配置，避免宿主旧字体缓存影响启动。 | 3 个脚本，例如 github-desktop、keepass、wps-office-cn |
+| `FONTCONFIG_FILE` | 指定字体配置文件，按其中的目录和规则查找字体。 | 例如 goldendict、github-desktop、keepass、wps-office-cn |
 | `FONTCONFIG_PATH` | 字体配置的搜索目录。 | github-desktop |
 
 ## Qt
@@ -181,11 +181,11 @@
 | `GLFW_IM_MODULE` | kitty 的 GLFW 用哪个输入法模块。这里是 ibus。 | kitty |
 | `IBUS_ADDRESS` | 这次启动要连的 IBus 套接字，不用外部环境里可能失效的地址。 | kitty |
 | `IBUS_USE_PORTAL` | 让 Qt 自带 IBus 插件走会话总线上的 org.freedesktop.portal.IBus。Fcitx5 的 IBus 前端提供这个名字，因此不要求宿主安装 ibus-daemon。 | xnviewmp |
-| `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 例如 gitkraken、obs-studio、tencent-docs、grok-app、joplin、remmina、gemini、tradingview、ventoy、folo |
-| `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 例如 gemini、gitkraken、kde-suite、grok-app、joplin、tradingview、folo |
+| `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 例如 goldendict、gitkraken、obs-studio、tencent-docs、grok-app、joplin、remmina、gemini、tradingview、ventoy、folo |
+| `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 例如 goldendict、gemini、gitkraken、kde-suite、grok-app、joplin、tradingview、folo |
 | `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | goldendict、grok-app、gemini、tradingview、folo |
 | `LC_ALL` | 强制整套 locale。有的构建用 C；图形程序要中文时才用 zh_CN.UTF-8。 | 例如 chatgpt、gitkraken |
-| `LOCPATH` | locale 档案目录。腾讯会议用它读包内的 zh_CN.UTF-8。 | wemeet、grok-app、joplin、xnviewmp、remmina、gemini、tradingview、ventoy、folo |
+| `LOCPATH` | 指定 locale 数据搜索目录；界面翻译和输入模块仍分别由应用资源和框架提供。 | goldendict、wemeet、grok-app、joplin、xnviewmp、remmina、gemini、tradingview、ventoy、folo |
 | `TZ` | 时区。腾讯会议按官方脚本设成 Asia/Shanghai。 | wemeet |
 | `XDG_SESSION_TYPE` | 当前会话类型。Wayland 上回退到 X11 时改成 x11。 | 2 个脚本，例如 jriver、wemeet |
 

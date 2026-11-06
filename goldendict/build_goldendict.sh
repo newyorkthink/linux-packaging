@@ -47,8 +47,8 @@ ln -s ../share/goldendict/locale "$APPDIR/usr/bin/locale"
 # 本程序专属处理：保留上游支持的程序旁 help 资源访问路径。
 ln -s ../share/goldendict/help "$APPDIR/usr/bin/help"
 
-# 本程序专属处理：创建中文字体、locale、Qt 输入法和翻译目录。
-mkdir -p "$APPDIR/usr/share/fonts/truetype" "$APPDIR/usr/lib/locale" "$APPDIR/usr/etc/fonts" "$APPDIR/usr/plugins/platforminputcontexts" "$APPDIR/usr/translations"
+# 本程序专属处理：创建中文字体、字体配置、Qt 输入法和翻译目录。
+mkdir -p "$APPDIR/usr/share/fonts/truetype" "$APPDIR/usr/etc/fonts" "$APPDIR/usr/plugins/platforminputcontexts" "$APPDIR/usr/translations"
 
 # 本程序专属处理：带入基础包提供的文泉驿中文字体。
 cp -a /usr/share/fonts/truetype/wqy "$APPDIR/usr/share/fonts/truetype/"
@@ -121,9 +121,6 @@ APPRUN
 chmod +x "$APPDIR/AppRun"
 
 ############### 核心打包 ###############
-
-# 本程序专属处理：回到项目目录，沿用现有 linuxdeploy 相对路径调用。
-cd "$SCRIPT_DIR"
 
 # 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --plugin gstreamer --output appimage --desktop-file "$APPDIR/usr/share/applications/org.goldendict.GoldenDict.desktop" --icon-file "$APPDIR/usr/share/pixmaps/goldendict.png"

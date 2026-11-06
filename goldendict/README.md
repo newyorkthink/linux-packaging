@@ -16,7 +16,7 @@
 
 - 公共分区、固定注释和公共调用按 [linuxdeploy 规范](../linuxdeploy_projects.md) 整理，参考 XnView MP、Remmina 和 MediaInfo；APT 来源、完整版本号、Qt5 / GStreamer 和已验证修复的差异见 [专属差异](./docs/template-deviations.md)。
 - libao 输出模块补齐和路径重定位集中在 [patches/prepare_libao_runtime.sh](./patches/prepare_libao_runtime.sh)，仍在第二次 linuxdeploy 后、最终封装前调用；完整 AppRun 保持内联。
-- [build_goldendict_old.sh](./build_goldendict_old.sh) 是整理前脚本的原样备份，只供查阅，不参与任何构建。正式入口继续使用 `build_goldendict.sh`。
+- 正式入口继续使用 `build_goldendict.sh`；临时旧版备份已删除，原始实现与变更过程从 Git 历史追溯。
 
 ## 中文与用户数据
 
@@ -41,3 +41,4 @@
 - 当前日志中的 `libpng iCCP: known incorrect sRGB profile` 以及 Opus `Could not update timestamps for skipped/discarded samples` 均未影响实际播放，不作为当前音频故障处理。
 - 2026-11-06：按统一 linuxdeploy 分区和固定注释整理构建脚本，参考 XnView MP、Remmina 和 MediaInfo。工具与中文 locale 改用现有公共入口，保留完整 DEB 版本号、Qt5 输入插件与中文翻译，以及 AppRun 的全部原启动命令。libao 原命令逐字迁入 `patches/prepare_libao_runtime.sh`，仍在第二次 linuxdeploy 后、路径整理和最终封装前执行；desktop、图标和版本发布接口不变。旧脚本原样备份为 `build_goldendict_old.sh`，不参与构建。已静态对照注释、调用参数、资源路径、原命令和执行顺序，并核对本次完整差异；具体处理见 [专属差异](./docs/template-deviations.md)。
 - 2026-11-06：根据成品 `AppRun.wrapped` 固化共享数据、Qt 插件和 Qt 翻译的环境变量写法，生成的 AppRun 正文与该成品入口逐字一致；移除上一条标准化记录中保留的 `normalize_apprun_paths.sh` 调用。核对当前官方 Qt 插件的 qmake 选择与扫描器定位源码，并对照 Ubuntu amd64 工具包文件清单后，删除 `QT_SELECT=qt5` 及其“避免混用 Qt6”注释，继续保留明确的 Qt5 QMAKE 和扫描工具依赖。libao 发音修复、输入插件、翻译资源及其他命令保持原样；历史扫描故障与通过记录继续保留，当前依据见 [专属差异](./docs/template-deviations.md)。
+- 2026-11-06：完成本次标准化收尾核对。公共工作区入口已经进入项目目录，移除重复的 `cd "$SCRIPT_DIR"` 及对应注释；locale 公共入口负责创建输出父目录，删除主脚本中重复的目录参数，并使目录注释与实际内容一致。删除临时旧版 `build_goldendict_old.sh`，保留 Git 历史及已有故障、正文和发音实测记录。正式 AppRun 仍与提供的成品入口逐字一致，libao、输入法和翻译处理保留原样。同步打包分类、linuxdeploy 标准、公共入口说明、路径说明、export 登记与文档索引；已按调用链静态核对参数、路径、注释、执行顺序和完整差异。
