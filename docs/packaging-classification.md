@@ -105,6 +105,7 @@ htop 保留原有 MAIN_BIN、Open Files / Trace 辅助命令和运行时动态�
 
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
+| CopyQ | [build_copyq.sh](../copyq/build_copyq.sh) | 安装 Arch 官方 copyq 及原有依赖，同次收集主程序、功能插件和共享资源；公共入口读取实际安装版本。 | export STARTUPWMCLASS=copyq<br>export DEPLOY_OPENGL=1<br>export DEPLOY_QT=1 | [模板差异](../copyq/docs/template-deviations.md) |
 | OBS Studio | [build_obs-studio.sh](../obs-studio/build_obs-studio.sh) | 安装 Arch 官方 obs-studio 及已确认依赖，原样复用官方通配收集命令；公共入口读取实际安装版本。 | export DEPLOY_OPENGL=1<br>export DEPLOY_PIPEWIRE=1<br>export DEPLOY_PYTHON=1<br>export DEPLOY_QT=1<br>export DEPLOY_SDL=1<br>export PATH_MAPPING_HARDCODED='libobs.so*' | [模板差异](../obs-studio/docs/template-deviations.md) |
 
 OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以及 SDL 和 libobs 路径处理配置；共享数据由工具扫描收集。中文环境与 Qt 6 输入、主题插件继续保留，完整原文、用途、取舍和原始故障记录见其应用文档。

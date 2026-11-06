@@ -88,7 +88,7 @@
 | `DEPLOY_VULKAN` | quick-sharun 是否打入 Vulkan。 | 22 个脚本，例如 aionui、antigravity-ide、antigravity |
 | `DEPLOY_PIPEWIRE` | quick-sharun 是否打入 PipeWire。 | 21 个脚本，例如 aionui、chatgpt、cursor |
 | `DEPLOY_PULSE` | quick-sharun 是否打入 PulseAudio。 | webcamoid |
-| `DEPLOY_QT` | quick-sharun 是否打入 Qt。 | 3 个脚本，例如 freedownloadmanager、obs-studio、webcamoid |
+| `DEPLOY_QT` | quick-sharun 是否打入 Qt。 | 4 个脚本：copyq、freedownloadmanager、obs-studio、webcamoid |
 | `DEPLOY_QML` | quick-sharun 是否打入 Qt QML。 | webcamoid |
 | `DEPLOY_LOCALE` | quick-sharun 是否打入 locale。 | 6 个脚本，例如 antigravity-ide、antigravity、freedownloadmanager |
 | `DEPLOY_PYTHON` | quick-sharun 是否打入 Python 运行时。 | 2 个脚本，例如 obs-studio、smplayer |
@@ -181,11 +181,11 @@
 | `GLFW_IM_MODULE` | kitty 的 GLFW 用哪个输入法模块。这里是 ibus。 | kitty |
 | `IBUS_ADDRESS` | 这次启动要连的 IBus 套接字，不用外部环境里可能失效的地址。 | kitty |
 | `IBUS_USE_PORTAL` | 让 Qt 自带 IBus 插件走会话总线上的 org.freedesktop.portal.IBus。Fcitx5 的 IBus 前端提供这个名字，因此不要求宿主安装 ibus-daemon。 | xnviewmp |
-| `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 例如 goldendict、gitkraken、obs-studio、tencent-docs、grok-app、joplin、remmina、gemini、tradingview、ventoy、folo |
-| `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 例如 goldendict、gemini、gitkraken、kde-suite、grok-app、joplin、tradingview、folo |
-| `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | grok-app、gemini、tradingview、folo |
+| `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 例如 goldendict、gitkraken、obs-studio、tencent-docs、grok-app、joplin、remmina、gemini、tradingview、ventoy、folo、copyq |
+| `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 例如 goldendict、gemini、gitkraken、kde-suite、grok-app、joplin、tradingview、folo、copyq |
+| `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | grok-app、gemini、tradingview、folo、copyq |
 | `LC_ALL` | 强制整套 locale。有的构建用 C；图形程序要中文时才用 zh_CN.UTF-8。 | 例如 chatgpt、gitkraken |
-| `LOCPATH` | 指定 locale 数据搜索目录；界面翻译和输入模块仍分别由应用资源和框架提供。 | goldendict、wemeet、grok-app、joplin、xnviewmp、remmina、gemini、tradingview、ventoy、folo |
+| `LOCPATH` | 指定 locale 数据搜索目录；界面翻译和输入模块仍分别由应用资源和框架提供。 | goldendict、wemeet、grok-app、joplin、xnviewmp、remmina、gemini、tradingview、ventoy、folo、copyq |
 | `TZ` | 时区。腾讯会议按官方脚本设成 Asia/Shanghai。 | wemeet |
 | `XDG_SESSION_TYPE` | 当前会话类型。Wayland 上回退到 X11 时改成 x11。 | 2 个脚本，例如 jriver、wemeet |
 
@@ -193,6 +193,7 @@
 
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
+| `COPYQ_TRANSLATION_PREFIX` | 指定 CopyQ 包内翻译目录，供语言列表与界面翻译使用。 | copyq 的 .env |
 | `WEBCAMOID_FORCE_DARK` | 由本仓库主题补丁读取，非零时在启动阶段写入 Adwaita Dark 配色设置。 | webcamoid 的 .env 与 default_dark_theme.py |
 | `CANBERRA_DRIVER` | libcanberra 用哪个声音后端。这里选 Pulse，兼容 PulseAudio 和 PipeWire。 | rainlendar2 |
 | `PIPEWIRE_MODULE_DIR` | PipeWire 模块目录。 | kde-suite |
