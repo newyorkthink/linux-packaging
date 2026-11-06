@@ -49,7 +49,7 @@ LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
 ENV
 
-# 本程序专属处理：CopyQ 16 直接在 lib/copyq 目录查找功能插件；
+# 本程序专属处理：CopyQ 直接在 lib/copyq 目录查找功能插件；
 # quick-sharun 将插件放在 lib/copyq/plugins，导致图片插件存在但无法加载。
 for plugin_dir in AppDir/shared/lib/copyq AppDir/lib/copyq; do
   if [[ -d "$plugin_dir/plugins" ]]; then

@@ -14,7 +14,7 @@
 
 ## 功能插件兼容路径
 
-原脚本已记录：CopyQ 16 直接在 `lib/copyq` 查找功能插件，quick-sharun 将插件部署在其 `plugins` 子目录，导致图片插件存在但无法加载。当前保留原循环，分别处理 `AppDir/shared/lib/copyq` 和 `AppDir/lib/copyq`，仅在存在插件子目录时，为 `libitem*.so` 建立相对兼容链接。
+原脚本已记录：CopyQ 直接在 `lib/copyq` 查找功能插件，quick-sharun 将插件部署在其 `plugins` 子目录，导致图片插件存在但无法加载。当前保留原循环，分别处理 `AppDir/shared/lib/copyq` 和 `AppDir/lib/copyq`，仅在存在插件子目录时，为 `libitem*.so` 建立相对兼容链接。
 
 循环及 `find`、`ln -sfn` 参数均保持原样；[当前实现](../build_copyq.sh#L54)。该处理仅作用于本次 AppDir 中的插件链接，不更改用户配置或剪贴板历史。原始记录来自 [基线脚本](https://github.com/newyorkthink/linux-packaging/blob/93063635ae4471345e6f406e60079c1546a89e74/copyq/build_copyq.sh) 的注释。
 
