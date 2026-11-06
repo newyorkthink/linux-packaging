@@ -17,3 +17,9 @@
 原脚本已记录：CopyQ 16 直接在 `lib/copyq` 查找功能插件，quick-sharun 将插件部署在其 `plugins` 子目录，导致图片插件存在但无法加载。当前保留原循环，分别处理 `AppDir/shared/lib/copyq` 和 `AppDir/lib/copyq`，仅在存在插件子目录时，为 `libitem*.so` 建立相对兼容链接。
 
 循环及 `find`、`ln -sfn` 参数均保持原样；[当前实现](../build_copyq.sh#L54)。该处理仅作用于本次 AppDir 中的插件链接，不更改用户配置或剪贴板历史。原始记录来自 [基线脚本](https://github.com/newyorkthink/linux-packaging/blob/93063635ae4471345e6f406e60079c1546a89e74/copyq/build_copyq.sh) 的注释。
+
+## 界面语言选择
+
+上游 [翻译加载逻辑](https://github.com/hluk/CopyQ/blob/ae65a1a2980d9b36848ef29ea17219adfd235aba/src/app/app.cpp#L34) 先读取 `COPYQ_LOCALE`，未指定时读取自身设置中的 `Options/language`，两者均未指定时才使用系统 locale。因此，构建脚本中的 `LANG`、`LANGUAGE` 和包内 locale 提供默认语言环境，不强制覆盖已经保存的应用语言选择。
+
+语言切换、中文输入和终端提示的实机结果统一见 [README 实机验证](../README.md#实机验证)。

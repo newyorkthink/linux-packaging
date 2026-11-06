@@ -15,3 +15,5 @@
 工作区、版本读取与保存按公共标准执行：在项目目录准备 AppDir 和 dist，收集前读取实际安装版本，最终 AppImage 成功生成后保存去掉 epoch 与 pkgrel 的上游版本。原有版本发布接口保持不变。
 
 原始基线：[9306363 的构建脚本](https://github.com/newyorkthink/linux-packaging/blob/93063635ae4471345e6f406e60079c1546a89e74/copyq/build_copyq.sh)。插件循环与翻译配置的可执行内容从该基线逐字保留，只有对应注释增加专属标识。上游未启用项见 [官方处理取舍](./pkgforge-differences.md)。
+
+启动、中文界面、中文输入与终端运行提示的实机记录统一见 [README 实机验证](../README.md#实机验证)。
