@@ -14,6 +14,7 @@ st 从 `siduck/st` 默认分支下载当前提交的源码，生成构建所需�
 ## 程序专属处理
 
 - 继续读取 `font-config.sh`，由 `patches/apply_font_config.py` 按原有规则生成 `config.h`，不修改上游 `config.def.h`；`font` 与 `font2` 字段的替换数量检查保留在补丁中，用于防止上游字段变化造成错误配置。
+- 在字体补丁运行后读取 `patches/theme-config.sh`，由 `patches/apply_theme_config.py` 修改生成的 `config.h` 中的 ANSI 16 色、光标、前景、背景及透明度；保留字体逻辑与其他构建阶段。主题参数专属于 st，不加入公共打包脚本。
 - 保留 `make -C "$SOURCE_DIR" PREFIX=/usr install` 源码编译安装流程，不改为安装另一个 st 软件包。
 - 保留 `MAIN_BIN=st`、`st-copyout`、`st-urlhandler`、`st-256color` 的 terminfo 和许可证封装，不改变运行入口。
 - 删除原构建脚本里重复的 `test` 存在性检查；输入缺失由后续实际构建命令报错，版本解析仍要求取得非空结果。

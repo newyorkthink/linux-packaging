@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# st 源码默认主题：赛博朋克 2077 风格；颜色在构建时写入 config.h。
+# ANSI 0–15：黑、红、绿、黄、蓝、紫、青、白及其对应亮色。
+ST_THEME_COLORS='
+#0A0F1F #FF2A6D #00D9BE #FFE600
+#3098FF #FF008A #00F5FF #D7E3FF
+#5B577A #FF5C9F #68FFB3 #FFF345
+#6AABFF #FF4FC6 #60FFFF #FFFFFF
+'
+# 默认终端背景与文字颜色。
+ST_THEME_BACKGROUND='#0A0F1F'
+ST_THEME_FOREGROUND='#D7E3FF'
+# 光标与反向光标颜色。
+ST_THEME_CURSOR='#FF008A'
+ST_THEME_REVERSE_CURSOR='#0A0F1F'
+# 不透明显示，避免降低终端文字对比度。
+ST_THEME_ALPHA='1.0'

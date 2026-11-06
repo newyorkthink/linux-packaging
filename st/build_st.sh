@@ -25,6 +25,11 @@ source "$SCRIPT_DIR/font-config.sh"
 export ST_FONT_PRIMARY ST_FONT_FALLBACKS ST_FONT_PIXELS SOURCE_DIR
 python "$SCRIPT_DIR/patches/apply_font_config.py"
 
+# 本程序专属处理：应用源码默认赛博朋克主题，不修改原有字体配置。
+source "$SCRIPT_DIR/patches/theme-config.sh"
+export ST_THEME_COLORS ST_THEME_BACKGROUND ST_THEME_FOREGROUND ST_THEME_CURSOR ST_THEME_REVERSE_CURSOR ST_THEME_ALPHA
+python "$SCRIPT_DIR/patches/apply_theme_config.py"
+
 # 本程序专属处理：编译上游源码并安装程序及桌面资源。
 make -C "$SOURCE_DIR" PREFIX=/usr install
 

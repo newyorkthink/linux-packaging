@@ -8,6 +8,10 @@
 
 构建后的主字体也可通过宿主机的 Xresources 覆盖：在 ~/.Xresources 中设置 st.font: MonoLisa:pixelsize=15，运行 xrdb -merge ~/.Xresources 后重开 st。此设置优先于构建默认值；改变字体回退列表或构建默认字号要改 font-config.sh 并重新构建。请注意旧的 st.font 配置可能会盖过新构建的默认字体。无需也不可向公开仓库提交 MonoLisa 字体文件。
 
+## 源码默认主题
+
+默认采用赛博朋克 2077 风格配色：深蓝黑背景、冷白蓝文字、霓虹青、荧光粉和赛博黄 ANSI 颜色，透明度为 1.0。修改 `patches/theme-config.sh` 后重新构建，`patches/apply_theme_config.py` 会在字体配置生成后将主题写入 `config.h`。该主题只改变 st 自身的默认颜色，不修改 lf、tmux 的配置，也不会生成截图中的发光边框。宿主机已加载的 `st.background`、`st.foreground`、`st.cursorColor`、`st.color0` 至 `st.color15` 等 Xresources 值仍可覆盖源码默认色。
+
 ## 运行和构建
 
 图形会话运行 dist/st.AppImage；需要打开文件时可以显式执行 st.AppImage -e nvim /path/to/file，和原有 Rofi 搜索脚本互不依赖。构建脚本由仓库的统一 AppImage 工作流在 Arch 环境调用，从 siduck/st 默认分支获取当前源码，读取 font-config.sh 的字体设置，并由 patches/apply_font_config.py 生成 config.h；随后通过 make 安装、quick-sharun 打包，同时封装 st-256color 的 terminfo。专用打包流程及与标准模板的差异见 docs/template-deviations.md。上游复制输出、处理 URL 的快捷键还会调用宿主机的 dmenu、xclip 等工具，使用这些快捷键前需要在宿主机安装相应程序。上游项目地址：https://github.com/siduck/st 。
