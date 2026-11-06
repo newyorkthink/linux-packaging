@@ -29,9 +29,6 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_
 # 指定 Qt 查询工具。
 export QMAKE=/usr/lib/qt5/bin/qmake
 
-# 本程序专属处理：指定 Qt5 的 QML 扫描环境，避免混用 Qt6。
-export QT_SELECT=qt5
-
 ############ 初始化 AppDir #############
 
 # 首次运行 linuxdeploy，创建 AppDir 的基础目录。
@@ -99,13 +96,13 @@ exec 9<"$HERE"
 # 设置程序、运行库和共享数据的搜索路径。
 export PATH="$HERE/usr/bin${PATH:+:$PATH}"
 export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export XDG_DATA_DIRS="$HERE/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
 # 本程序专属处理：使用同一套 Qt5 插件，输入法选择沿用桌面会话。
-export QT_PLUGIN_PATH="$HERE/usr/plugins"
+export QT_PLUGIN_PATH="$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
 
 # 本程序专属处理：使用包内 Qt 中文翻译。
-export QT_TRANSLATIONS_PATH="$HERE/usr/translations"
+export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_TRANSLATIONS_PATH}"
 
 # 设置简体中文界面环境。
 export LOCPATH="$HERE/usr/lib/locale"
@@ -135,9 +132,6 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --plugin gstreamer -
 
 # 本程序专属处理：在依赖部署后补齐 libao 输出模块，并重定位包内插件路径。
 "$SCRIPT_DIR/patches/prepare_libao_runtime.sh" "$APPDIR"
-
-# 本程序专属处理：按最终 AppDir 结构整理已有启动入口中的包内搜索路径。
-"$SCRIPT_DIR/../common/linuxdeploy/normalize_apprun_paths.sh" "$APPDIR"
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
