@@ -10,7 +10,7 @@ CopyQ 为 Qt6 剪贴板管理器。按 [Qt 系统入口标准](../templates/quic
 
 ## 标准结构与专属处理
 
-- 严格模式、工作目录、公共安装、工作区准备、版本读取与保存、包内中文 locale 采用 [quick-sharun 规范](../anylinux_projects.md)。构建重建本目录的 `AppDir/` 与 `dist/`，清理其中的旧构建产物。
+- 严格模式、工作目录、公共安装、工作区准备、版本读取与保存、包内中文 locale 采用 [quick-sharun 规范](../anylinux_projects.md)。依赖安装命令保持模板的单行格式，不使用续行符。构建重建本目录的 `AppDir/` 与 `dist/`，清理其中的旧构建产物。
 - 保留 `STARTUPWMCLASS=copyq`、SVG 图标、原桌面入口及 `DEPLOY_OPENGL=1`；按 Qt6 标准显式设置 `DEPLOY_QT=1`。
 - 功能插件兼容链接与 `COPYQ_TRANSLATION_PREFIX` 原命令保持不变，注释标明“本程序专属处理”。中文 locale 与翻译资源分别准备，不覆盖工具生成的 AppRun。
 - 原样采用 pkgforge-dev 的完整收集命令；其瘦身包、自更新和强制软件渲染配置未启用。来源与取舍见 [官方处理取舍](./docs/pkgforge-differences.md)，实际差异见 [模板差异](./docs/template-deviations.md)，固定值与已有插件问题见 [固定配置](./docs/hardcoded.md)。

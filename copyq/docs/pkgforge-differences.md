@@ -10,12 +10,12 @@
 | --- | --- | --- | --- |
 | 安装 CopyQ | 官方直接系统升级命令未启用，使用本仓库标准公共入口。 | [基础包](../build_copyq.sh#L11)、[应用依赖](../build_copyq.sh#L13)。 | 安装官方二进制包，保留原依赖覆盖，不引入额外系统升级流程。 |
 | 瘦身包 | 未启用。 | 上游 `get-debloated-pkgs --add-common --prefer-nano ! mesa ! vulkan` 未写入本项目。 | 沿用现有 Arch 软件包与运行库，不替换 Mesa / Qt 组件。 |
-| 完整依赖与资源收集 | 采用，原样复用官方代码。 | [完整命令](#完整收集命令)，[构建位置](../build_copyq.sh#L44)。 | 明确收集程序、插件和共享资源；官方仅注释 Deploy dependencies，未逐项说明额外目录的原因。目录用途由官方软件包文件列表核对。 |
-| 版本读取与保存 | 官方直接解析命令未启用，使用标准公共入口。 | [读取](../build_copyq.sh#L41)、[保存](../build_copyq.sh#L76)。 | 保留当前实际安装版本来源及去除 epoch、pkgrel 的行为，成功封装后再保存。 |
-| 图标 | 保留现有 SVG，不采用上游 PNG 路径。 | [图标位置](../build_copyq.sh#L28)。 | 官方包同时提供 SVG 与 PNG，现有取值有效，不为对齐而更换图标。 |
+| 完整依赖与资源收集 | 采用，原样复用官方代码。 | [完整命令](#完整收集命令)，[构建位置](../build_copyq.sh#L40)。 | 明确收集程序、插件和共享资源；官方仅注释 Deploy dependencies，未逐项说明额外目录的原因。目录用途由官方软件包文件列表核对。 |
+| 版本读取与保存 | 官方直接解析命令未启用，使用标准公共入口。 | [读取](../build_copyq.sh#L37)、[保存](../build_copyq.sh#L72)。 | 保留当前实际安装版本来源及去除 epoch、pkgrel 的行为，成功封装后再保存。 |
+| 图标 | 保留现有 SVG，不采用上游 PNG 路径。 | [图标位置](../build_copyq.sh#L24)。 | 官方包同时提供 SVG 与 PNG，现有取值有效，不为对齐而更换图标。 |
 | 自更新与更新信息 | 未启用上游 self-updater hook，不显式设置 UPINFO。 | 未加入 `export ADD_HOOKS="self-updater.hook"`，也未显式设置 `UPINFO`。 | 上游 README 说明该 hook 会请求检查更新并提示新版；本次沿用本仓库发布方式。未显式配置 UPINFO 不代表工具不会自行推断更新元数据。 |
-| 强制软件渲染 | 未启用。 | 未加入 `export ALWAYS_SOFTWARE=1`；保留 [现有 OpenGL 配置](../build_copyq.sh#L36)。 | 官方未说明原因；本次没有切换 CopyQ 渲染方式的故障依据，保持已有配置。 |
-| 最终封装 | 保留标准步骤，与官方命令相同。 | `quick-sharun --make-appimage`，[构建位置](../build_copyq.sh#L73)。 | 由工具生成并封装 AppImage，不另写 AppRun。 |
+| 强制软件渲染 | 未启用。 | 未加入 `export ALWAYS_SOFTWARE=1`；保留 [现有 OpenGL 配置](../build_copyq.sh#L32)。 | 官方未说明原因；本次没有切换 CopyQ 渲染方式的故障依据，保持已有配置。 |
+| 最终封装 | 保留标准步骤，与官方命令相同。 | `quick-sharun --make-appimage`，[构建位置](../build_copyq.sh#L69)。 | 由工具生成并封装 AppImage，不另写 AppRun。 |
 
 ## 完整收集命令
 

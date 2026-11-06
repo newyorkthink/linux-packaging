@@ -28,7 +28,7 @@
 
 | 占位参数 | 替换内容 |
 | --- | --- |
-| `__SYSTEM_PACKAGE__`、`__DEPENDENCY_ARGS__` | 构建系统安装的主包名及实际依赖参数。依赖按独立参数填写，空列表只清空占位文本。 |
+| `__SYSTEM_PACKAGE__`、`__DEPENDENCY_ARGS__` | 构建系统安装的主包名及实际依赖参数。依赖按独立参数填写，在模板的同一行展开，不使用 `\` 续行；空列表只清空占位文本。 |
 | `__APP_NAME__`、`__MAIN_BIN__`、`__STARTUPWMCLASS__` | 成品应用名、包内主程序名和已核实的 StartupWMClass。 |
 | `__ICON__`、`__DESKTOP__` | 安装后实际存在的图标和桌面入口路径。 |
 | `__APP_BASENAME__` | 最终文件名主体，保留模板固定的 `.AppImage` 后缀。 |

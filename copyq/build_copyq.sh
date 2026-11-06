@@ -10,11 +10,7 @@ cd "$SCRIPT_DIR"
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 # 安装官方软件包及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" "copyq" fcitx5-qt qt6ct kvantum lxqt-qtplugin glycin libheif \
-  xorg-server xorg-server-common xorg-server-xvfb wl-clipboard egl-wayland libxcb xcb-util xcb-util-keysyms libxss \
-  extra-cmake-modules qtkeychain-qt6 kstatusnotifieritem knotifications kguiaddons xcb-util-renderutil xcb-util-wm \
-  xcb-util-image xcb-util-cursor libxkbcommon-x11 mesa libglvnd adwaita-qt6 qt6-base qt6-svg qt6-tools qca-qt6 \
-  libxtst miniaudio libx11 libxext libxfixes libxi libxinerama
+"$SCRIPT_DIR/../common/arch/install_packages.sh" "copyq" fcitx5-qt qt6ct kvantum lxqt-qtplugin glycin libheif xorg-server xorg-server-common xorg-server-xvfb wl-clipboard egl-wayland libxcb xcb-util xcb-util-keysyms libxss extra-cmake-modules qtkeychain-qt6 kstatusnotifieritem knotifications kguiaddons xcb-util-renderutil xcb-util-wm xcb-util-image xcb-util-cursor libxkbcommon-x11 mesa libglvnd adwaita-qt6 qt6-base qt6-svg qt6-tools qca-qt6 libxtst miniaudio libx11 libxext libxfixes libxi libxinerama
 
 # 清掉上次的打包目录。
 "$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
