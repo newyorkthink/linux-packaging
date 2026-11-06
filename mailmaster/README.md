@@ -12,6 +12,7 @@ quick-sharun 生成启动入口。包内 `.env` 设置 Qt 插件路径、工作�
 
 - [模板差异与来源](./docs/template-deviations.md)
 - [固定配置依据](./docs/hardcoded.md)
+- [Google 授权回跳排查记录](./docs/google-oauth-callback.md)
 - [打包分类](../docs/packaging-classification.md#用-quick-sharun-打包的-qt-程序)
 
 ## 运行
