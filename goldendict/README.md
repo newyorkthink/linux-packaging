@@ -20,7 +20,7 @@
 
 ## 中文与用户数据
 
-- 保留官方包中文翻译，附带 Qt 中文翻译、文泉驿字体和中文 locale；通过上游支持的程序旁 `locale` / `help` 回退目录访问包内资源，不修改主程序二进制。
+- 保留官方包中文翻译，附带 Qt 中文翻译、文泉驿字体和中文 locale；通过上游支持的程序旁 `locale` / `help` 回退目录访问包内资源，不修改主程序二进制。AppRun 的中文环境块与 Joplin 等标准项目一致，使用 `LOCPATH`、`LANG` 和 `LANGUAGE`；包内 locale 目录放在前面，随后保留原搜索目录。
 - 保留 Qt5 IBus、Fcitx5 和 compose 输入插件；输入法服务由宿主桌面提供，沿用会话选择。
 - 配置与索引遵循官方 DEB 的上游/发行版默认行为，不重定向 HOME，不创建强制便携目录，不清理或覆盖已有数据。词典由用户自行添加。
 - 音频、词典格式及简繁转换能力以官方 DEB 为准，不再维护自行编译的 libao 路径补丁；当前只重定位官方 `libao.so.4` 中用于查找动态输出模块的目录，不覆盖用户的播放器选择。首次切换软件版本可能需要重建索引，但不能把每次启动都重建视为正常。
@@ -39,6 +39,6 @@
 - 上一版修复在 `build_goldendict.sh` 中显式安装官方 `libao4`，复制其 `libpulse.so`、`libalsa.so` 和 `libasound.so.2`，并把 `libao.so.4` 的宿主插件目录等长重定位到由 `AppRun` 保留的包内目录描述符路径。对 SHA256 为 `00624bfd5b5147879a8f6d627f8648e2f39afd5c57e5787066fd9845f86737d5` 的新 Release 实机复测确认，`libpulse.so` 已能从包内路径找到，但因漏带其直接依赖 `libpulse-simple.so.0` 而加载失败，随后回退 ALSA 并报 `snd_pcm_dmix_open unable to open slave`。
 - 本次只补入 Ubuntu 官方 `libpulse-simple.so.0`，保留现有 libao 路径重定位、Qt、GStreamer、中文环境及其他已生效内容不变。该改动不修改词典、WAV、用户配置或播放器选择；`qview.AppImage` 的 Qt 符号冲突和 locale 警告属于独立问题，不纳入本次修复。已完成 Shell 语法和完整差异核对；对应 Build AppImages #846 已成功完成。2026-09-29，Linux 实机复测确认，`FFmpeg+libao` 下粤语 WAV 与英文 OGG 均可正常发音，日志显示 `ao_open_live(): PulseAudio Output` 成功打开 PulseAudio 输出；此前的 `Failed to load plugin` 和 ALSA `unable to open slave` 已消失。
 - 当前日志中的 `libpng iCCP: known incorrect sRGB profile` 以及 Opus `Could not update timestamps for skipped/discarded samples` 均未影响实际播放，不作为当前音频故障处理。
-- 2026-11-06：按统一 linuxdeploy 分区和固定注释整理构建脚本，参考 XnView MP、Remmina 和 MediaInfo。工具与中文 locale 改用现有公共入口，保留完整 DEB 版本号、Qt5 输入插件与中文翻译，以及 AppRun 的全部原启动命令。libao 原命令逐字迁入 `patches/prepare_libao_runtime.sh`，仍在第二次 linuxdeploy 后、路径整理和最终封装前执行；desktop、图标和版本发布接口不变。旧脚本原样备份为 `build_goldendict_old.sh`，不参与构建。已静态对照注释、调用参数、资源路径、原命令和执行顺序，并核对本次完整差异；具体处理见 [专属差异](./docs/template-deviations.md)。
-- 2026-11-06：根据成品 `AppRun.wrapped` 固化共享数据、Qt 插件和 Qt 翻译的环境变量写法，生成的 AppRun 正文与该成品入口逐字一致；移除上一条标准化记录中保留的 `normalize_apprun_paths.sh` 调用。核对当前官方 Qt 插件的 qmake 选择与扫描器定位源码，并对照 Ubuntu amd64 工具包文件清单后，删除 `QT_SELECT=qt5` 及其“避免混用 Qt6”注释，继续保留明确的 Qt5 QMAKE 和扫描工具依赖。libao 发音修复、输入插件、翻译资源及其他命令保持原样；历史扫描故障与通过记录继续保留，当前依据见 [专属差异](./docs/template-deviations.md)。
-- 2026-11-06：完成本次标准化收尾核对。公共工作区入口已经进入项目目录，移除重复的 `cd "$SCRIPT_DIR"` 及对应注释；locale 公共入口负责创建输出父目录，删除主脚本中重复的目录参数，并使目录注释与实际内容一致。删除临时旧版 `build_goldendict_old.sh`，保留 Git 历史及已有故障、正文和发音实测记录。正式 AppRun 仍与提供的成品入口逐字一致，libao、输入法和翻译处理保留原样。同步打包分类、linuxdeploy 标准、公共入口说明、路径说明、export 登记与文档索引；已按调用链静态核对参数、路径、注释、执行顺序和完整差异。
+- 2026-11-06：按统一 linuxdeploy 分区和固定注释整理构建脚本，参考 XnView MP、Remmina 和 MediaInfo。工具与中文 locale 改用现有公共入口，保留完整 DEB 版本号、Qt5 输入插件与中文翻译，以及 AppRun 中的正文与发音处理。libao 原命令逐字迁入 `patches/prepare_libao_runtime.sh`，仍在第二次 linuxdeploy 后、路径整理和最终封装前执行；desktop、图标和版本发布接口不变。旧脚本原样备份为 `build_goldendict_old.sh`，不参与构建。具体处理见 [专属差异](./docs/template-deviations.md)。
+- 2026-11-06：根据成品 `AppRun.wrapped` 固化共享数据、Qt 插件和 Qt 翻译的环境变量写法，保留这些路径的环境变量追加方式；移除上一条标准化记录中保留的 `normalize_apprun_paths.sh` 调用。核对当前官方 Qt 插件的 qmake 选择与扫描器定位源码，并对照 Ubuntu amd64 工具包文件清单后，删除 `QT_SELECT=qt5` 及其“避免混用 Qt6”注释，继续保留明确的 Qt5 QMAKE 和扫描工具依赖。libao 发音修复、输入插件、翻译资源及其他命令保持原样；历史扫描故障与通过记录继续保留，当前依据见 [专属差异](./docs/template-deviations.md)。
+- 2026-11-06：整理标准化入口和说明。公共工作区入口已经进入项目目录，移除重复的 `cd "$SCRIPT_DIR"` 及对应注释；locale 公共入口负责创建输出父目录，删除主脚本中重复的目录参数，并使目录注释与实际内容一致。删除临时旧版 `build_goldendict_old.sh`，保留 Git 历史及已有故障、正文和发音实测记录。AppRun 的中文环境块统一使用 `LOCPATH`、`LANG` 和 `LANGUAGE` 三行配置，libao、输入法和翻译处理保留原样。同步打包分类、linuxdeploy 标准、公共入口说明、路径说明、export 登记与文档索引。

@@ -90,6 +90,11 @@ unset GCONV_PATH
 # 获取脚本所在目录的绝对路径。
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
+# 设置简体中文界面环境。
+export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
+
 # 本程序专属处理：保留 AppDir 的目录描述符，让 libao 能通过稳定的包内绝对路径加载输出模块。
 exec 9<"$HERE"
 
@@ -103,12 +108,6 @@ export QT_PLUGIN_PATH="$HERE/usr/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
 
 # 本程序专属处理：使用包内 Qt 中文翻译。
 export QT_TRANSLATIONS_PATH="$HERE/usr/translations${QT_TRANSLATIONS_PATH:+:$QT_TRANSLATIONS_PATH}"
-
-# 设置简体中文界面环境。
-export LOCPATH="$HERE/usr/lib/locale"
-export LANG=zh_CN.UTF-8
-export LANGUAGE=zh_CN:zh
-export LC_MESSAGES=zh_CN.UTF-8
 
 # 本程序专属处理：字体配置包含随包携带的中文字体。
 export FONTCONFIG_FILE="$HERE/usr/etc/fonts/fonts.conf"

@@ -152,7 +152,16 @@ Qt 工具选择按实际调用方式核对。已明确指定对应 Qt 主版本�
 
 适用的 linuxdeploy 项目在应用解包后的“准备桌面资源和运行库”阶段，单行调用 `common/linuxdeploy/prepare_locale.sh <locale 源名称> <字符集> <完整输出目录>`，随后才执行正式依赖部署。该入口只生成调用方指定的数据，不选择界面语言，不改写 AppRun，也不创建 `.env`。输出父目录由公共入口创建；主脚本不为同一次 locale 生成重复创建该目录，其他字体、翻译和输入模块目录仍由实际资源准备步骤负责。
 
-AppRun 先设置指向包内数据的 `LOCPATH`，再设置需要的 `LANG` / `LANGUAGE`；已确认的输入法、翻译目录、启动参数及其他兼容配置保持原样。不把 `LC_ALL`、`LC_MESSAGES` 或某一组语言变量作为所有程序必须复制的配置。固定注释仍只在确实执行对应操作时逐字使用，quick-sharun 的现有脚本不随本次接入修改。
+采用简体中文界面且使用包内 locale 的 AppRun，在 `HERE` 定位后使用与 Joplin 等标准项目一致的中文环境块：
+
+```bash
+# 设置简体中文界面环境。
+export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
+```
+
+`LOCPATH` 将包内目录放在前面，并保留原搜索目录；已确认的输入法、翻译目录、启动参数及其他兼容配置保持原样。不把 `LC_ALL`、`LC_MESSAGES` 或某一组语言变量作为所有程序必须复制的配置。固定注释仍只在确实执行对应操作时逐字使用，quick-sharun 的现有脚本不随本次接入修改。
 
 ### linuxdeploy 命令
 

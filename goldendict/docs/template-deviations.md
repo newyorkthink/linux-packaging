@@ -12,10 +12,10 @@
 | 资源回退路径 | 保留官方 DEB 的完整目录布局，以及程序旁的 `locale`、`help` 符号链接，不改写主程序二进制。 | [资源路径](../build_goldendict.sh#L45)；[原始实现](https://github.com/newyorkthink/linux-packaging/blob/1646da1929c78009f1935fbd7e725dd39e31a2e9/goldendict/build_goldendict.sh) |
 | 中文资源与输入 | 保留文泉驿字体、Qt 中文翻译及同一套 Qt5 compose / IBus / Fcitx5 输入插件。locale 由公共入口生成并创建输出父目录，主脚本不重复创建该目录；源名称、字符集和输出目录保持一致，输入法服务和选择沿用宿主会话。 | [字体和目录](../build_goldendict.sh#L51)、[locale 生成](../build_goldendict.sh#L57)、[Qt 输入插件](../build_goldendict.sh#L63) |
 | 字体配置 | 保留系统 fontconfig 配置与包内中文字体搜索路径；AppRun 使用当前包内配置，不修改宿主字体配置。 | [字体配置](../build_goldendict.sh#L69) |
-| AppRun | 完整入口继续内联；搜索路径直接采用成品 `AppRun.wrapped` 中的写法。`set -e`、原目录定位方式、`GCONV_PATH` 清理、目录描述符 9、中文环境和实际启动命令保持原样。`9` 是为 AppDir 保留的文件描述符，与 libao 的 `/proc/self/fd/9` 插件路径配套使用。AppRun 的 `set -e` 只说明命令失败退出，不套用“引用未定义变量或管道失败退出”的严格模式注释。 | [完整入口](../build_goldendict.sh#L81)；[正文与发音实测](../README.md#验证记录) |
-| 桌面入口与图标 | 保留原 linuxdeploy 整行及 `org.goldendict.GoldenDict.desktop`、`goldendict.png` 参数，同时启用 Qt / GStreamer；只把中间 AppImage 放入 source，最终仍由官方 appimagetool 与明确的 Type 2 runtime 封装。 | [依赖部署](../build_goldendict.sh#L126)、[最终封装](../build_goldendict.sh#L134) |
-| libao 发音修复 | 第二次 linuxdeploy 完成后，复制 PulseAudio / ALSA 输出模块及 `libpulse-simple.so.0`、`libasound.so.2`，随后将官方 libao 的宿主模块路径等长重定位到 `/proc/self/fd/9/usr/lib/ao/plugins-4`。原命令逐字迁入 patches，参数和先后顺序不变，不自行编译 libao，也不修改词典或播放器选择。 | [调用位置](../build_goldendict.sh#L131)、[修复实现](../patches/prepare_libao_runtime.sh#L10)；[原始实现](https://github.com/newyorkthink/linux-packaging/blob/1646da1929c78009f1935fbd7e725dd39e31a2e9/goldendict/build_goldendict.sh)、[失败与实机通过记录](../README.md#验证记录) |
-| 固定启动路径 | 以成品 `AppRun.wrapped` 为依据，直接保留 `usr/bin`、`usr/lib`、`usr/share`、`usr/plugins`、`usr/translations` 五个包内目录及成品中的环境变量追加方式；移除构建阶段的 `normalize_apprun_paths.sh` 调用。libao 的插件路径重定位仍由专属 patches 完成。 | [基础搜索路径](../build_goldendict.sh#L97)、[Qt 插件路径](../build_goldendict.sh#L102)、[Qt 翻译路径](../build_goldendict.sh#L105)；[调整记录](../README.md#验证记录) |
+| AppRun | 完整入口继续内联；搜索路径直接采用成品 `AppRun.wrapped` 中的写法。`set -e`、原目录定位方式、`GCONV_PATH` 清理、目录描述符 9 和实际启动命令保持原样；中文环境块放在 `HERE` 定位后，与 Joplin 等标准项目统一使用 `LOCPATH`、`LANG` 和 `LANGUAGE`，并保留原 locale 搜索目录。`9` 是为 AppDir 保留的文件描述符，与 libao 的 `/proc/self/fd/9` 插件路径配套使用。AppRun 的 `set -e` 只说明命令失败退出，不套用“引用未定义变量或管道失败退出”的严格模式注释。 | [完整入口](../build_goldendict.sh#L81)；[正文与发音实测](../README.md#验证记录) |
+| 桌面入口与图标 | 保留原 linuxdeploy 整行及 `org.goldendict.GoldenDict.desktop`、`goldendict.png` 参数，同时启用 Qt / GStreamer；只把中间 AppImage 放入 source，最终仍由官方 appimagetool 与明确的 Type 2 runtime 封装。 | [依赖部署](../build_goldendict.sh#L125)、[最终封装](../build_goldendict.sh#L133) |
+| libao 发音修复 | 第二次 linuxdeploy 完成后，复制 PulseAudio / ALSA 输出模块及 `libpulse-simple.so.0`、`libasound.so.2`，随后将官方 libao 的宿主模块路径等长重定位到 `/proc/self/fd/9/usr/lib/ao/plugins-4`。原命令逐字迁入 patches，参数和先后顺序不变，不自行编译 libao，也不修改词典或播放器选择。 | [调用位置](../build_goldendict.sh#L130)、[修复实现](../patches/prepare_libao_runtime.sh#L10)；[原始实现](https://github.com/newyorkthink/linux-packaging/blob/1646da1929c78009f1935fbd7e725dd39e31a2e9/goldendict/build_goldendict.sh)、[失败与实机通过记录](../README.md#验证记录) |
+| 固定启动路径 | 以成品 `AppRun.wrapped` 为依据，直接保留 `usr/bin`、`usr/lib`、`usr/share`、`usr/plugins`、`usr/translations` 五个包内目录及成品中的环境变量追加方式；移除构建阶段的 `normalize_apprun_paths.sh` 调用。libao 的插件路径重定位仍由专属 patches 完成。 | [基础搜索路径](../build_goldendict.sh#L102)、[Qt 插件路径](../build_goldendict.sh#L107)、[Qt 翻译路径](../build_goldendict.sh#L110)；[调整记录](../README.md#验证记录) |
 
 ## 构建与维护入口
 
@@ -28,5 +28,3 @@
 ## 上游参考核对
 
 2026-11-06 查阅 [上游打包参考索引](../../docs/upstream-packaging-index.md) 并在 pkgforge-dev 中检索 GoldenDict。结果只有 [GoldenDict-ng-AppImage](https://github.com/pkgforge-dev/GoldenDict-ng-AppImage)，它对应独立维护的 GoldenDict-ng，不作为本目录原版 GoldenDict 的同名打包实现。本次没有引入其应用专属代码；本程序的资源、正文与发音处理继续以本目录已有实现和实机记录为依据。
-
-本次整理的逐项检查记录见 [README](../README.md#验证记录)。
