@@ -73,6 +73,12 @@
 | `ST_FONT_PRIMARY` | 编译 st 时的主字体。 | st |
 | `ST_FONT_FALLBACKS` | 编译 st 时的备用字体。 | st |
 | `ST_FONT_PIXELS` | 编译 st 时的字体像素大小。 | st |
+| `ST_THEME_COLORS` | 构建 st 时写入的 16 个 ANSI 默认颜色。 | st |
+| `ST_THEME_BACKGROUND` | 构建 st 时写入的默认背景色。 | st |
+| `ST_THEME_FOREGROUND` | 构建 st 时写入的默认文字颜色。 | st |
+| `ST_THEME_CURSOR` | 构建 st 时写入的默认光标颜色。 | st |
+| `ST_THEME_REVERSE_CURSOR` | 构建 st 时写入的默认反向光标颜色。 | st |
+| `ST_THEME_ALPHA` | 构建 st 时写入的默认透明度。 | st |
 | `WINE_VERSION` | 把 WineHQ 包版本里的 ~rc 转成上游 tag 用的 -rc。 | wine |
 | `WINPODX_BUNDLE_DIR` | WinPodX 在 CI 里的打包目录。 | .github |
 | `WEBKIT2GTK_DIR` | WebKitGTK 库目录，构建时用来找到要打进包的文件。 | Keyviz、grok-app |
