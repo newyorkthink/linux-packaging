@@ -10,7 +10,7 @@
 
 ## 运行和构建
 
-图形会话运行 dist/st.AppImage；需要打开文件时可以显式执行 st.AppImage -e nvim /path/to/file，和原有 Rofi 搜索脚本互不依赖。构建脚本由仓库的标准 AppImage 工作流在 Arch 环境调用，使用 quick-sharun 打包，并包含 st-256color 的 terminfo。上游复制输出、处理 URL 的快捷键还会调用宿主机的 dmenu、xclip 等工具，使用这些快捷键前需要在宿主机安装相应程序。上游项目地址：https://github.com/siduck/st 。
+图形会话运行 dist/st.AppImage；需要打开文件时可以显式执行 st.AppImage -e nvim /path/to/file，和原有 Rofi 搜索脚本互不依赖。构建脚本由仓库的统一 AppImage 工作流在 Arch 环境调用，从 siduck/st 默认分支获取当前源码，读取 font-config.sh 的字体设置，并由 patches/apply_font_config.py 生成 config.h；随后通过 make 安装、quick-sharun 打包，同时封装 st-256color 的 terminfo。专用打包流程及与标准模板的差异见 docs/template-deviations.md。上游复制输出、处理 URL 的快捷键还会调用宿主机的 dmenu、xclip 等工具，使用这些快捷键前需要在宿主机安装相应程序。上游项目地址：https://github.com/siduck/st 。
 
 ## 2026-09-24：实机确认能打开并输入
 

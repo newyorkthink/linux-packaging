@@ -1,81 +1,63 @@
 #!/usr/bin/env bash
-# 从 siduck/st 默认分支的当前提交构建独立的 st AppImage。
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
-SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 
-# 安装统一的 Arch AppImage 基础包
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-ROOT="$(dirname -- "$SCRIPT_DIR")"
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+
+# 打包工具。GTK、输入法不要塞进这一行。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装源码编译及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" libx11 libxft libxext freetype2 harfbuzz gd ncurses
+
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
+
+# 下载上游默认分支的当前源码。
+COMMIT="$("$SCRIPT_DIR/../common/github/download_default_branch_source.sh" siduck/st "$SCRIPT_DIR/work/st.tar.gz")"
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$SCRIPT_DIR/work/st.tar.gz" "$SCRIPT_DIR/work"
+SOURCE_DIR="$SCRIPT_DIR/work/st-$COMMIT"
+
+# 本程序专属处理：读取字体配置并生成本次构建的 config.h，不修改上游 config.def.h。
 source "$SCRIPT_DIR/font-config.sh"
+export ST_FONT_PRIMARY ST_FONT_FALLBACKS ST_FONT_PIXELS SOURCE_DIR
+python "$SCRIPT_DIR/patches/apply_font_config.py"
 
-rm -rf "$SCRIPT_DIR/AppDir" "$SCRIPT_DIR/dist" "$SCRIPT_DIR/.build"
-mkdir -p "$SCRIPT_DIR/.build" "$SCRIPT_DIR/dist"
+# 本程序专属处理：编译上游源码并安装程序及桌面资源。
+make -C "$SOURCE_DIR" PREFIX=/usr install
 
+# 把当前机器架构传给 quick-sharun。
 export ARCH="$(uname -m)"
+# 使用系统里装好的图标。
 export ICON=/usr/share/pixmaps/st.png
+# 使用系统里装好的桌面入口文件。
 export DESKTOP=/usr/share/applications/st.desktop
+# 本程序专属处理：指定终端主程序。
 export MAIN_BIN=st
+# 把 AppImage 写到脚本目录下的 dist。
 export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
 export OUTNAME=st.AppImage
 
-yay -S --noconfirm base-devel curl jq tar gzip python fontconfig \
-  libx11 libxft libxext freetype2 harfbuzz glib2 gd ncurses \
-  wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux zsync
-
-COMMIT="$("$ROOT/common/github/download_default_branch_source.sh" \
-  siduck/st "$SCRIPT_DIR/.build/st.tar.gz")"
-"$ROOT/common/archive/extract_archive.sh" "$SCRIPT_DIR/.build/st.tar.gz" "$SCRIPT_DIR/.build"
-SOURCE_DIR="$SCRIPT_DIR/.build/st-$COMMIT"
-test -s "$SOURCE_DIR/config.def.h"
-test -s "$SOURCE_DIR/st.info"
-
-# 只生成本次构建的 config.h，不修改上游 config.def.h。
-export ST_FONT_PRIMARY ST_FONT_FALLBACKS ST_FONT_PIXELS SOURCE_DIR
-python - <<'PY'
-import json
-import os
-import pathlib
-import re
-
-source = pathlib.Path(os.environ["SOURCE_DIR"])
-content = (source / "config.def.h").read_text()
-primary = os.environ["ST_FONT_PRIMARY"].strip()
-fallbacks = [name.strip() for name in os.environ["ST_FONT_FALLBACKS"].split(",") if name.strip()]
-pixels = int(os.environ["ST_FONT_PIXELS"])
-if not primary or not fallbacks or pixels <= 0:
-    raise SystemExit("错误：font-config.sh 中的字体配置无效")
-def pattern(name):
-    return json.dumps(f"{name}:pixelsize={pixels}:antialias=true:autohint=true")
-content, n = re.subn(r'^static char \*font = .*;$',
-                     lambda _: f"static char *font = {pattern(primary)};",
-                     content, flags=re.MULTILINE)
-if n != 1:
-    raise SystemExit("错误：上游 font 字段已变更")
-content, n = re.subn(r'^static char \*font2\[\] = .*;$',
-                     lambda _: "static char *font2[] = { " +
-                     ", ".join(map(pattern, fallbacks)) + " };",
-                     content, flags=re.MULTILINE)
-if n != 1:
-    raise SystemExit("错误：上游 font2 字段已变更")
-(source / "config.h").write_text(content)
-PY
-
-make -C "$SOURCE_DIR" PREFIX=/usr install
-test -s "$ICON"
-test -s "$DESKTOP"
+# 收集程序及其运行依赖。
 quick-sharun /usr/bin/st
-# 上游的快捷键会调用两个 shell 脚本，放在随包 PATH 中。
+
+# 本程序专属处理：封装上游快捷键调用的辅助脚本。
 mkdir -p "$SCRIPT_DIR/AppDir/bin"
 cp -a /usr/bin/st-copyout /usr/bin/st-urlhandler "$SCRIPT_DIR/AppDir/bin/"
 
-# st 的 TERM 为 st-256color，随程序封装自己的 terminfo。
+# 本程序专属处理：封装 st-256color 的 terminfo 和许可证。
 mkdir -p "$SCRIPT_DIR/AppDir/share/terminfo" "$SCRIPT_DIR/AppDir/share/licenses/st"
 tic -sx -o "$SCRIPT_DIR/AppDir/share/terminfo" "$SOURCE_DIR/st.info"
 cp "$SOURCE_DIR/LICENSE" "$SCRIPT_DIR/AppDir/share/licenses/st/LICENSE"
 
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
-test -s "$SCRIPT_DIR/dist/st.AppImage"
-ST_VERSION="$(awk '$1 == "VERSION" && $2 == "=" {print $3; exit}' "$SOURCE_DIR/config.mk")"
-test -n "$ST_VERSION"
-printf '%s+g%.12s\n' "$ST_VERSION" "$COMMIT" > "$SCRIPT_DIR/dist/version.txt"
+
+# 读取上游版本，并附加当前源码提交的短 SHA。
+ST_VERSION="$(awk '$1 == "VERSION" && $2 == "=" && $3 != "" { print $3; found=1; exit } END { if (!found) exit 1 }' "$SOURCE_DIR/config.mk")"
+
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/st.AppImage "${ST_VERSION}+g${COMMIT:0:12}" dist/version.txt
