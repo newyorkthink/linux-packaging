@@ -34,9 +34,9 @@ File Roller 44 为 GTK 4 / libadwaita 应用。构建脚本以 [GTK Ubuntu 仓�
 
 启动日志仍有 `Error creating IO channel for /proc/self/mountinfo: 权限不够`。这次确认没有把它当作界面、主题或输入失败。终端启动是中文，rofi 启动是英文。
 
-### 2026-11-07：rofi 启动也使用中文
+### 2026-11-07：rofi 和终端都退回英文
 
-dconf-editor 从 rofi 启动是中文，它在进程上设置了 `LC_ALL=zh_CN.UTF-8`。file-roller 之前只设置 `LANG`，rofi 带入的 `LC_ALL` 优先级更高。现同样只把 `LC_ALL=zh_CN.UTF-8` 传给应用进程，仍不设置 `LOCPATH`。
+`LC_ALL=zh_CN.UTF-8` 在这台机器上触发 `Locale not supported by C library`，GTK 退回 C 后不再读中文译文。dconf-editor 能用这个值，是因为它另外带了本机可加载的 locale。file-roller 改为 `LC_ALL=C.UTF-8` 和 `LANGUAGE=zh_CN:zh`，用来盖掉 rofi 的 `LC_ALL=C`。
 
 ## 变更记录
 
