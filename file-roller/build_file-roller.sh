@@ -75,8 +75,9 @@ export GTK_THEME=Adwaita-dark
 # 本程序专属处理：切换到包内根目录，使相对 locale 路径指向包内中文译文。
 cd "$HERE"
 
+# 本程序专属处理：仅向应用进程传入 LC_ALL。rofi 会带入宿主的 LC_ALL，只设置 LANG 时界面仍是英文。
 # 启动包内程序，并保留传入的命令行参数。
-exec "$HERE/usr/bin/file-roller" "$@"
+exec env LC_ALL=zh_CN.UTF-8 "$HERE/usr/bin/file-roller" "$@"
 APPRUN
 
 # 为启动脚本添加执行权限。
