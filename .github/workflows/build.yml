@@ -49,6 +49,7 @@ on:
           - discord/build_discord.sh
           - escrcpy/build_escrcpy.sh
           - feishu/build_feishu.sh
+          - file-roller/build_file-roller.sh
           - folo/build_folo.sh
           - freedownloadmanager/build_freedownloadmanager.sh
           - freerdp/build_freerdp.sh
@@ -582,6 +583,52 @@ jobs:
           version_file: 'hermes-desktop/dist/version.txt'
           asset_name: 'hermes-desktop.AppImage'
           artifact_dir: 'hermes-desktop/dist'
+          github_token: ${{ github.token }}
+
+
+  build_file_roller:
+    name: Build File Roller
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).file_roller == 'true'
+    concurrency:
+      group: build-appimage-file-roller.AppImage
+      queue: max
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Build and validate File Roller AppImage
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n file-roller/build_file-roller.sh
+          chmod +x file-roller/build_file-roller.sh
+          ./file-roller/build_file-roller.sh
+          test -s file-roller/dist/file-roller.AppImage
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-file-roller
+          path: file-roller/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest file-roller/dist/file-roller.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'file-roller'
+          version_file: 'file-roller/dist/version.txt'
+          asset_name: 'file-roller.AppImage'
+          artifact_dir: 'file-roller/dist'
           github_token: ${{ github.token }}
 
 

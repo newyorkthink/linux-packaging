@@ -713,6 +713,15 @@
       "run_from_root": "false"
     },
     {
+      "key": "file_roller",
+      "kind": "special",
+      "name": "File Roller",
+      "script": "file-roller/build_file-roller.sh",
+      "dir": "file-roller",
+      "release_name": "file-roller.AppImage",
+      "software_key": "file-roller"
+    },
+    {
       "key": "joplin",
       "kind": "special",
       "name": "Joplin",

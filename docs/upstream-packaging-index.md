@@ -45,6 +45,7 @@ TradingView 条目于 2026-11-02 按应用名及 trading-view 别名单独复核
 | [discord](../discord/build_discord.sh) | [Discord-AppImage](https://github.com/pkgforge-dev/Discord-AppImage) | [依赖](https://github.com/pkgforge-dev/Discord-AppImage/blob/1c4d7852f9272339885497587d2b5f6eb2829ae3/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Discord-AppImage/blob/1c4d7852f9272339885497587d2b5f6eb2829ae3/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Discord-AppImage/blob/1c4d7852f9272339885497587d2b5f6eb2829ae3/.github/workflows/appimage.yml) | [README](../discord/README.md) |
 | [escrcpy](../escrcpy/build_escrcpy.sh) |  |  | [README](../escrcpy/README.md) |
 | [feishu](../feishu/build_feishu.sh) |  |  | [README](../feishu/README.md) |
+| [file-roller](../file-roller/build_file-roller.sh) |  |  | [模板差异](../file-roller/docs/template-deviations.md) · [README](../file-roller/README.md) |
 | [folo](../folo/build_folo.sh) |  |  | [README](../folo/README.md) |
 | [freedownloadmanager](../freedownloadmanager/build_freedownloadmanager.sh) |  |  | [README](../freedownloadmanager/README.md) |
 | [freerdp](../freerdp/build_freerdp.sh) |  |  | [README](../freerdp/README.md) |

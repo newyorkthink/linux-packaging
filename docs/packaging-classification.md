@@ -123,6 +123,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 技术栈与插件 | 专属差异说明 |
 | --- | --- | --- | --- | --- |
 | dconf Editor | [build_dconf-editor.sh](../dconf-editor/build_dconf-editor.sh) | Ubuntu 24.04 仓库的 dconf-editor 与 dconf-cli；公共入口按已安装版本下载并解包。 | GTK3 / GLib；gtk | [专属差异](../dconf-editor/docs/template-deviations.md) |
+| File Roller | [build_file-roller.sh](../file-roller/build_file-roller.sh) | Ubuntu 24.04 仓库的 file-roller；公共入口按已安装版本下载并解包，同时解包 bzip2、unzip、zip。 | GTK4 / libadwaita；gtk | [专属差异](../file-roller/docs/template-deviations.md) |
 | GoldenDict | [build_goldendict.sh](../goldendict/build_goldendict.sh) | Ubuntu 24.04 仓库的原版 goldendict；下载已安装的同版本 DEB，保留完整发行版修订号。 | Qt5 / GStreamer；qt、gstreamer | [专属差异](../goldendict/docs/template-deviations.md) |
 | Joplin | [build_joplin.sh](../joplin/build_joplin.sh) | 官方 GitHub 正式 Release DEB；公共入口校验后，将同一份包安装并按原布局解包，返回实际版本。 | Electron / GTK3；gtk | [专属差异](../joplin/docs/template-deviations.md) |
 | MediaInfo | [build_mediainfo_linuxdeploy.sh](../mediainfo/build_mediainfo_linuxdeploy.sh) | Ubuntu 24.04 仓库的 mediainfo；公共入口下载已安装的同一版本并解包，返回版本号。 | CLI；无框架插件 | [专属差异](../mediainfo/docs/template-deviations.md) |
