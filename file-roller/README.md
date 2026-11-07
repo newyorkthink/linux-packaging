@@ -38,6 +38,10 @@ File Roller 44 为 GTK 4 / libadwaita 应用。构建脚本以 [GTK Ubuntu 仓�
 
 `LC_ALL=zh_CN.UTF-8` 在这台机器上触发 `Locale not supported by C library`，GTK 退回 C 后不再读中文译文。改成 `C.UTF-8` 后没有这行警告，界面仍然是英文。现恢复终端里已经显示中文的设置：`LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`，并在启动时清掉继承来的 `LC_ALL` 和 `LC_MESSAGES`，避免 rofi 把界面盖回英文。
 
+### 2026-11-07：包内 locale 和译文路径
+
+你发来的 AppImage 里没有 `zh_CN.utf8`，所以 `LANG=zh_CN.UTF-8` 让 `setlocale` 失败并退回 C，gettext 不再读译文。构建时生成包内 `zh_CN.utf8`，用 `LOCPATH` 加载。`liblocale_redirect.so` 把 `/usr/share/locale` 指到包内目录，因此不再为了译文切换当前目录。本地用同一份 `file-roller.mo` 验证：没有 locale 数据时结果是 `No Archive Opened`；加上 `LOCPATH` 和这个库后，当前目录不在包内，结果是 `无打开的归档文件`。file-roller 本体需要 glibc 2.38，这台容器是 2.36，窗口没有启动。
+
 ## 变更记录
 
 ### 2026-11-07：按 GTK APT 模板新增
