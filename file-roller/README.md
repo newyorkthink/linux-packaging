@@ -33,3 +33,11 @@ File Roller 44 为 GTK 4 / libadwaita 应用。构建脚本以 [GTK Ubuntu 仓�
 ### 2026-11-07：安装 GTK 4 开发包
 
 [Build File Roller](https://github.com/newyorkthink/linux-packaging/actions/runs/42346868442/job/128326446164) 在第二次 linuxdeploy 调用 GTK 插件时失败。插件查询 `gtk4` 的 `libdir`，构建环境没有 `gtk4.pc`。重新生成时加入 `libgtk-4-dev`，`DEPLOY_GTK_VERSION` 仍为 4。这次只核对了生成结果和 `bash -n`，没有在本机重跑构建。
+
+### 2026-11-07：深色主题、简体中文和 fcitx
+
+实机启动是浅色英文界面，并提示没有匹配 `GTK_IM_MODULE=fcitx` 的输入法模块。AppRun 固定 `GTK_THEME=Adwaita:dark`，包入简体中文 locale 和语言包，并把 GTK4 的 `libim-fcitx5.so` 放进 AppImage。这次改的是构建脚本，还没有新的实机结果。
+
+### 2026-11-07：安装 GTK 4 开发包
+
+[Build File Roller](https://github.com/newyorkthink/linux-packaging/actions/runs/42346868442/job/128326446164) 在第二次 linuxdeploy 调用 GTK 插件时失败。插件查询 `gtk4` 的 `libdir`，构建环境没有 `gtk4.pc`。重新生成时加入 `libgtk-4-dev`，`DEPLOY_GTK_VERSION` 仍为 4。这次只核对了生成结果和 `bash -n`，没有在本机重跑构建。
