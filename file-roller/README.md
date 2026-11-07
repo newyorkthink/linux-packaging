@@ -38,6 +38,10 @@ File Roller 44 为 GTK 4 / libadwaita 应用。构建脚本以 [GTK Ubuntu 仓�
 
 实机是浅色英文，并提示没有匹配 `GTK_IM_MODULE=fcitx` 的模块。中文只按其他 linuxdeploy 脚本写：`prepare_locale.sh` 生成 `zh_CN.UTF-8`，AppRun 设置 `LOCPATH`、`LANG` 和 `LANGUAGE`。不改 ELF 里的 locale 路径。深色主题用 `GTK_THEME=Adwaita-dark`。GTK4 的 fcitx 模块写入 `giomodule.cache`。
 
+### 2026-11-07：修正中文 locale 目录名
+
+实机启动提示 `Locale not supported by C library`，界面退回 C，所以仍是英文。包内目录是 `zh_CN.UTF-8`，glibc 通过 `LOCPATH` 查找的是 `zh_CN.utf8`。生成目录改为 `zh_CN.utf8`。`LANG` 仍是 `zh_CN.UTF-8`。
+
 ### 2026-11-07：去掉 locale 路径补丁
 
 [Build File Roller](https://github.com/newyorkthink/linux-packaging/actions/runs/42348331620) 在复制 `libfcitx5gclient.so*` 时失败，Ubuntu 上的文件名是 `libFcitx5GClient.so.2`。同时删除 `patches/relocate_locale_paths.py`，不再把 `/usr/share/locale` 改成相对路径。

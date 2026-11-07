@@ -36,7 +36,7 @@ VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "file-roller
 ########## 准备桌面资源和运行库 #########
 
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
+"$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.utf8"
 
 # 下载并解包应用所需的图标与主题资源。
 "$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" gnome-themes-extra-data
