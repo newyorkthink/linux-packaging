@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" bzip2 fcitx5-frontend-gtk4 file-roller libfcitx5gclient2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-4-bin libgtk-4-dev librsvg2-bin unzip zip
+"$SCRIPT_DIR/../common/apt/install_packages.sh" bzip2 fcitx5-frontend-gtk4 file-roller language-pack-gnome-zh-hans-base libfcitx5gclient2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-4-bin libgtk-4-dev librsvg2-bin unzip zip
 
 ############# 下载打包工具 #############
 
@@ -37,6 +37,11 @@ VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "file-roller
 
 # 下载并解包应用所需的图标与主题资源。
 "$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" gnome-themes-extra-data
+
+# 本程序专属处理：将 Ubuntu 简体中文译文放入包内翻译目录。
+mkdir -p "$APPDIR/usr/share/locale"
+cp -a "/usr/share/locale-langpack/zh_CN" "$APPDIR/usr/share/locale/zh_CN"
+test -f "$APPDIR/usr/share/locale/zh_CN/LC_MESSAGES/file-roller.mo"
 
 ############# 准备 AppRun ##############
 
@@ -67,6 +72,9 @@ export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
 # 本程序专属处理：固定 Adwaita 深色主题，覆盖 linuxdeploy GTK hook 写入的浅色主题。
 export GTK_THEME=Adwaita-dark
 
+# 本程序专属处理：切换到包内根目录，使相对 locale 路径指向包内中文译文。
+cd "$HERE"
+
 # 启动包内程序，并保留传入的命令行参数。
 exec "$HERE/usr/bin/file-roller" "$@"
 APPRUN
@@ -91,6 +99,10 @@ printf '%s\n' 'libim-fcitx5.so: gtk-im-module' > "$(dirname "$im_mod")/giomodule
 fcitx_client="$(find /usr/lib -type f -name 'libFcitx5GClient.so.*' -print -quit)"
 [[ -n "$fcitx_client" ]] || { echo "错误：构建环境中没有 libFcitx5GClient。" >&2; exit 1; }
 cp -aL "$fcitx_client" "$APPDIR/usr/lib/"
+
+# 本程序专属处理：将 AppImage 内 ELF 的绝对 locale 路径改成相对路径。
+# AppRun 会先 cd 到 AppImage 根目录，因此 usr/share/locale 会稳定解析为 AppImage 内置中文目录。
+PATCH_APPDIR="$APPDIR" python3 "$SCRIPT_DIR/patches/relocate_locale_paths.py"
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

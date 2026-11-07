@@ -38,7 +38,9 @@ File Roller 44 为 GTK 4 / libadwaita 应用。构建脚本以 [GTK Ubuntu 仓�
 
 实机是浅色英文，并提示没有匹配 `GTK_IM_MODULE=fcitx` 的模块。中文只按其他 linuxdeploy 脚本写：`prepare_locale.sh` 生成 `zh_CN.UTF-8`，AppRun 设置 `LOCPATH`、`LANG` 和 `LANGUAGE`。不改 ELF 里的 locale 路径。深色主题用 `GTK_THEME=Adwaita-dark`。GTK4 的 fcitx 模块写入 `giomodule.cache`。
 
-### 2026-11-07：不再打包 locale 数据
+### 2026-11-07：放入简体中文译文
+
+只设置 `LANG` 时界面仍是英文。file-roller、GTK 和 libadwaita 的译文路径是绝对的 `/usr/share/locale`，这台机器上没有这些 `.mo`。按 dconf-editor 的做法复制 Ubuntu 简体中文语言包，并把 ELF 中的路径改成相对路径。仍然不设置 `LOCPATH`。
 
 [c233926](https://github.com/newyorkthink/linux-packaging/commit/c233926) 把目录改成 `zh_CN.utf8` 后，实机仍提示 `Locale not supported by C library`。这台机器的 C 库加载不了 Ubuntu 24.04 生成的 locale 数据，而 `LOCPATH` 会挡住系统自己的 `zh_CN.UTF-8`。现去掉 `LOCPATH` 和包内 locale，只保留 `LANG=zh_CN.UTF-8` 与 `LANGUAGE=zh_CN:zh`。
 
