@@ -56,8 +56,10 @@ set -Eeuo pipefail
 HERE="$(dirname "$(readlink -f "${0}")")"
 
 # 设置简体中文界面环境。
-# 不设置 LOCPATH。Ubuntu 24.04 生成的 locale 数据在这台机器上无法加载。
-# zh_CN.UTF-8 也不被这台 C 库接受，强制 LC_ALL=zh_CN.UTF-8 会退回 C，界面变成英文。
+# 不设置 LOCPATH，也不要设置 LC_ALL=zh_CN.UTF-8 或 C.UTF-8。前者这台机器加载不了，后者不会使用中文译文。
+unset LC_ALL
+unset LC_MESSAGES
+export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
 
 # 设置程序、运行库和共享数据的搜索路径。
@@ -75,9 +77,8 @@ export GTK_THEME=Adwaita-dark
 # 本程序专属处理：切换到包内根目录，使相对 locale 路径指向包内中文译文。
 cd "$HERE"
 
-# 本程序专属处理：C.UTF-8 不是 C/POSIX，gettext 仍会读取 LANGUAGE。同时盖掉 rofi 带入的 LC_ALL=C。
 # 启动包内程序，并保留传入的命令行参数。
-exec env -u LOCPATH LC_ALL=C.UTF-8 LANG=C.UTF-8 LANGUAGE=zh_CN:zh "$HERE/usr/bin/file-roller" "$@"
+exec "$HERE/usr/bin/file-roller" "$@"
 APPRUN
 
 # 为启动脚本添加执行权限。

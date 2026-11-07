@@ -36,7 +36,7 @@ File Roller 44 为 GTK 4 / libadwaita 应用。构建脚本以 [GTK Ubuntu 仓�
 
 ### 2026-11-07：rofi 和终端都退回英文
 
-`LC_ALL=zh_CN.UTF-8` 在这台机器上触发 `Locale not supported by C library`，GTK 退回 C 后不再读中文译文。dconf-editor 能用这个值，是因为它另外带了本机可加载的 locale。file-roller 改为 `LC_ALL=C.UTF-8` 和 `LANGUAGE=zh_CN:zh`，用来盖掉 rofi 的 `LC_ALL=C`。
+`LC_ALL=zh_CN.UTF-8` 在这台机器上触发 `Locale not supported by C library`，GTK 退回 C 后不再读中文译文。改成 `C.UTF-8` 后没有这行警告，界面仍然是英文。现恢复终端里已经显示中文的设置：`LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`，并在启动时清掉继承来的 `LC_ALL` 和 `LC_MESSAGES`，避免 rofi 把界面盖回英文。
 
 ## 变更记录
 
