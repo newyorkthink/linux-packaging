@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" bzip2 fcitx5-frontend-gtk4 file-roller language-pack-gnome-zh-hans-base libfcitx5gclient2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-4-bin libgtk-4-dev librsvg2-bin locales unzip zip
+"$SCRIPT_DIR/../common/apt/install_packages.sh" bzip2 fcitx5-frontend-gtk4 file-roller libfcitx5gclient2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-4-bin libgtk-4-dev librsvg2-bin locales unzip zip
 
 ############# 下载打包工具 #############
 
@@ -38,10 +38,6 @@ VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "file-roller
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
 "$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
 
-# 本程序专属处理：将 Ubuntu 简体中文译文放入包内翻译目录。
-mkdir -p "$APPDIR/usr/share/locale"
-cp -a "/usr/share/locale-langpack/zh_CN" "$APPDIR/usr/share/locale/zh_CN"
-
 # 下载并解包应用所需的图标与主题资源。
 "$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" gnome-themes-extra-data
 
@@ -57,6 +53,11 @@ set -Eeuo pipefail
 # 获取脚本所在目录的绝对路径。
 HERE="$(dirname "$(readlink -f "${0}")")"
 
+# 设置简体中文界面环境。
+export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
+
 # 设置程序、运行库和共享数据的搜索路径。
 export PATH="$HERE/usr/bin${PATH:+:$PATH}"
 export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
@@ -67,15 +68,7 @@ export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_
 export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
 
 # 本程序专属处理：固定 Adwaita 深色主题，覆盖 linuxdeploy GTK hook 写入的浅色主题。
-export GTK_THEME=Adwaita:dark
-
-# 设置简体中文界面环境。
-export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
-export LANG=zh_CN.UTF-8
-export LANGUAGE=zh_CN:zh
-
-# 本程序专属处理：切换到包内根目录，使相对 locale 路径指向包内中文译文。
-cd "$HERE"
+export GTK_THEME=Adwaita-dark
 
 # 启动包内程序，并保留传入的命令行参数。
 exec "$HERE/usr/bin/file-roller" "$@"
@@ -94,15 +87,13 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 
 ############### 整理产物 ###############
 
-# 本程序专属处理：将 fcitx5 GTK4 模块依赖的客户端库放到程序运行库目录。
-cp -a /usr/lib/x86_64-linux-gnu/libfcitx5gclient.so* "$APPDIR/usr/lib/"
-
-# 本程序专属处理：确认 GTK4 的 fcitx5 输入法模块已进入包内。
-test -f "$APPDIR/usr/lib/gtk-4.0/4.0.0/immodules/libim-fcitx5.so"
-
-# 本程序专属处理：将 AppImage 内 ELF 的绝对 locale 路径改成相对路径。
-# AppRun 会先 cd 到 AppImage 根目录，因此 usr/share/locale 会稳定解析为 AppImage 内置中文目录。
-PATCH_APPDIR="$APPDIR" python3 "$SCRIPT_DIR/patches/relocate_locale_paths.py"
+# 本程序专属处理：GTK4 通过 immodules/giomodule.cache 发现 fcitx，模块名是 fcitx。
+im_mod="$(find "$APPDIR" -type f -name 'libim-fcitx5.so' -print -quit)"
+[[ -n "$im_mod" ]] || { echo "错误：包内没有 libim-fcitx5.so。" >&2; exit 1; }
+printf '%s\n' 'libim-fcitx5.so: gtk-im-module' > "$(dirname "$im_mod")/giomodule.cache"
+fcitx_client="$(find /usr/lib -type f -name 'libFcitx5GClient.so.*' -print -quit)"
+[[ -n "$fcitx_client" ]] || { echo "错误：构建环境中没有 libFcitx5GClient。" >&2; exit 1; }
+cp -aL "$fcitx_client" "$APPDIR/usr/lib/"
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
