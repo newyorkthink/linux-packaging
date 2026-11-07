@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" bzip2 file-roller libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-4-bin librsvg2-bin unzip zip
+"$SCRIPT_DIR/../common/apt/install_packages.sh" bzip2 file-roller libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-4-bin libgtk-4-dev librsvg2-bin unzip zip
 
 ############# 下载打包工具 #############
 

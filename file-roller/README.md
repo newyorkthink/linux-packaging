@@ -29,3 +29,7 @@ File Roller 44 为 GTK 4 / libadwaita 应用。构建脚本以 [GTK Ubuntu 仓�
 ### 2026-11-07：按 GTK APT 模板新增
 
 用仓库生成器从 GTK Ubuntu 仓库模板生成 `build_file-roller.sh`，随后只将 `DEPLOY_GTK_VERSION` 从 3 改为 4。验证范围是生成器退出码和 `bash -n`，没有在本机安装 Ubuntu 24.04 的 file-roller，也没有打出 AppImage。
+
+### 2026-11-07：安装 GTK 4 开发包
+
+[Build File Roller](https://github.com/newyorkthink/linux-packaging/actions/runs/42346868442/job/128326446164) 在第二次 linuxdeploy 调用 GTK 插件时失败。插件查询 `gtk4` 的 `libdir`，构建环境没有 `gtk4.pc`。重新生成时加入 `libgtk-4-dev`，`DEPLOY_GTK_VERSION` 仍为 4。这次只核对了生成结果和 `bash -n`，没有在本机重跑构建。
