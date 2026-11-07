@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" bzip2 fcitx5-frontend-gtk4 file-roller libfcitx5gclient2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-4-bin libgtk-4-dev librsvg2-bin locales unzip zip
+"$SCRIPT_DIR/../common/apt/install_packages.sh" bzip2 fcitx5-frontend-gtk4 file-roller libfcitx5gclient2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-4-bin libgtk-4-dev librsvg2-bin unzip zip
 
 ############# 下载打包工具 #############
 
@@ -35,9 +35,6 @@ VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "file-roller
 
 ########## 准备桌面资源和运行库 #########
 
-# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.utf8"
-
 # 下载并解包应用所需的图标与主题资源。
 "$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" gnome-themes-extra-data
 
@@ -54,7 +51,7 @@ set -Eeuo pipefail
 HERE="$(dirname "$(readlink -f "${0}")")"
 
 # 设置简体中文界面环境。
-export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
+# 不设置 LOCPATH。Ubuntu 24.04 生成的 locale 数据在这台机器上无法加载，而且 LOCPATH 会挡住系统自己的 zh_CN.UTF-8。
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
 
