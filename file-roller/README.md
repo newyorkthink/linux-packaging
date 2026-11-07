@@ -24,15 +24,15 @@ File Roller 44 为 GTK 4 / libadwaita 应用。构建脚本以 [GTK Ubuntu 仓�
 
 ### 2026-11-07：用户实机验证通过
 
-用户执行 `software_update update file-roller -f`，覆盖安装 44.3 后在 Linux 实机确认。对应构建是 [Build AppImages #42349990943](https://github.com/newyorkthink/linux-packaging/actions/runs/42349990943)，提交 [6992f04](https://github.com/newyorkthink/linux-packaging/commit/6992f04)。
+用户在 Linux 实机运行 [d32389e](https://github.com/newyorkthink/linux-packaging/commit/d32389e) 构建的 44.3。对应构建是 [Build AppImages #42353119764](https://github.com/newyorkthink/linux-packaging/actions/runs/42353119764)。
 
 | 实测项目 | 通过结果 |
 | --- | --- |
-| 深色主题 | 主窗口和文件选择对话框都是深色。 |
-| 简体中文界面 | 标题为“文件压缩器”，按钮为“提取”。文件选择框显示“最近使用”“主目录”“桌面”“取消”“打开”。 |
+| 深色主题 | 主窗口、关于窗口和文件选择对话框都是深色。 |
+| 简体中文界面 | 标题为“文件压缩器”，按钮为“提取”。空状态为“无打开的归档文件”。关于窗口为“详细信息”“报告问题”“鸣谢”“法律信息”。文件选择框为“最近使用”“主目录”“取消”“打开”。没有 `Locale not supported by C library`。 |
 | 中文输入 | 文件选择搜索框弹出 Fcitx5 候选，并显示中文。 |
 
-启动日志仍有 `Error creating IO channel for /proc/self/mountinfo: 权限不够`。这次确认没有把它当作界面、主题或输入失败。终端启动是中文，rofi 启动是英文。
+启动日志仍有 `Error creating IO channel for /proc/self/mountinfo: 权限不够`。这次确认没有把它当作界面、主题或输入失败。
 
 ### 2026-11-07：rofi 和终端都退回英文
 
