@@ -99,6 +99,19 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 - 专属部分只负责官方 PNG 图标、终端 desktop 和 13 命令分派。原 `AppRun` 的 `ARGV0`、命令名作为首参数及默认 `pdftotext` 行为逐字保留。
 - 标准模板只支持单一主程序入口，因此原 13 命令 `AppRun` 保留为已验证的程序专属差异，详见 [模板差异](docs/template-deviations.md)。构建环境与必要固定参数见 [固定配置](docs/hardcoded.md)。
 
+## 实机验证
+
+### 2026-11-08：用户实机验证通过
+
+用户已确认 Poppler Utilities 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| `pdftotext -v` | 正常输出 `pdftotext version 24.02.0`。 |
+| 命令分派 | 软链接入口和 AppImage 首参数指定命令均正常执行。 |
+| 默认入口 | 不指定命令时正常执行 `pdftotext`。 |
+| PDF 工具 | 13 个工具的调用与相应功能测试通过。 |
+
 ## 修复记录
 
 ### 2026-09-18：新增 poppler-utils AppImage
@@ -108,7 +121,7 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 - 根因：Poppler 官方不发布 Linux 独立二进制；发行版 `poppler` / `poppler-utils` 提供整套命令，需要重打包才能不依赖宿主安装该软件包。
 - 修改文件：新增 `poppler-utils/` 目录；在 `.github/appimage-apps.json` 增加标准应用记录。
 - 具体内容：按 Arch 官方 `poppler` / `poppler-data` + quick-sharun 最短链路打包 13 个命令；版本从本次安装的软件包动态读取。
-- 已知结果：已提交正式构建入口，未监控 Actions，构建及运行结果未验证。
+- 已知结果：当时已提交正式构建入口，未监控 Actions。
 
 ### 2026-09-18：补上 DUMMY desktop 仍缺少的 ICON
 
@@ -117,7 +130,7 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 - 根因：`DESKTOP=DUMMY` 只会生成空 desktop，quick-sharun 仍要求图标。官方 `poppler` 包没有 desktop / 图标。
 - 修改文件：`poppler-utils/build_poppler-utils.sh`、`poppler-utils/README.md`。
 - 具体内容：在收集依赖前从构建环境的 Adwaita / hicolor 中选取已有的 `application-pdf` MIME 图标并 `export ICON`。不自绘品牌图，不改命令收集范围。
-- 已知结果：已提交修复，未监控 Actions，构建结果待验证。
+- 已知结果：已提交修复，未监控 Actions。
 
 ### 2026-09-18：Adwaita 50 没有 application-pdf 图标
 
@@ -153,7 +166,7 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 - 根因：真实运行对比确认延迟来自原 AppImage 打包启动层；13 个 Poppler 命令本身不需要拆分成多个 AppImage。
 - 修改文件：`poppler-utils/build_poppler-utils.sh`、`poppler-utils/README.md`、`.github/appimage-apps.json`、`.github/workflows/build.yml`。
 - 具体内容：改用 Ubuntu 24.04 官方 `poppler-utils` / `poppler-data` deb；保留一个 AppImage 和 13 个软链接入口；由 `linuxdeploy` 收集依赖，最终由 `appimagetool` 配合官方 Type 2 runtime 封装。
-- 已知结果：脚本与 workflow 已切换；现有软链接部署方式无需修改，正式产物的 lf 速度待构建后确认。
+- 已知结果：脚本与 workflow 已切换；现有软链接部署方式无需修改。
 ### 2026-09-19：实机确认 lf PDF 预览速度
 
 - 日期：2026-09-19

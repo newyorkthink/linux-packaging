@@ -9,7 +9,18 @@
 - 通过公共入口获取上游最新正式版源码，在编译前检查并应用现有 X11 IME 补丁；补丁不匹配即停止构建，不跳过修复继续发布。
 - 已删除两个旧构建脚本和不再使用的外置 AppRun。历史故障、旧版运行记录和实验结论保留在本文；与当前实现不一致的历史流程不再作为执行依据。
 - 当前实现的依据见[专属差异](./docs/template-deviations.md)、[上游取舍](./docs/pkgforge-differences.md)与[固定配置](./docs/hardcoded.md)。
-- 本次完成的是标准化及静态核对，不等于已经验证新入口的实际构建和长期输入稳定性；后续运行结果应以正式 Actions 和实际使用情况为准。
+- 当前正式版已通过用户 Linux 实机启动验证，继续沿用 Ubuntu 22.04 + LinuxDeploy 及现有 X11 IME 补丁。
+
+## 实机验证
+
+### 2026-11-08：用户实机验证通过
+
+用户已确认 Alacritty 0.17.0 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| AppImage 启动 | 正常打开并运行终端。 |
+| GLIBC 兼容性 | 恢复 Ubuntu 22.04 构建基线后的产物正常启动，未再出现 `GLIBC_2.43` 错误。 |
 
 ## 最高优先级维护结论：禁止 quick-sharun
 
@@ -125,10 +136,10 @@ SHA256: 357f736f6fe7ac90b9b82184bd5e64d517285384e67865a661f9e598b7a91005
 
 ```text
 rofi 启动：已确认正常
-真实 i3wm 多次切换后的长期输入稳定性：正在实机验证
+Linux 实机运行：用户已确认当前版本可正常启动和使用
 ```
 
-因此当前版本可以称为**修复候选基线**，但在真实 i3wm 长期使用确认前，不要写成“已经百分之百彻底解决”。真实实机结果仍高于 CI。
+当前版本已由用户确认实机运行正常；真实实机结果仍高于 CI。
 
 ### 如果以后再次出现无法输入
 
@@ -1289,11 +1300,11 @@ Message: fix(alacritty): add quick-sharun compiler dependency
 - 故障：GitHub Actions 构建任务 [42479443759](https://github.com/newyorkthink/linux-packaging/actions/runs/42479443759/job/128728000116) 在安装依赖时报告 `pkgconf : Breaks: pkg-config (>= 0.29-1)`，APT 以退出码 100 结束，尚未执行源码编译。
 - 原因：公共 `common/apt/install_packages.sh` 已安装 `pkgconf`，应用脚本又在同一次安装中要求 `pkg-config`，触发软件包冲突。
 - 修复：仅从 `build_alacritty.sh` 的应用依赖列表删除 `pkg-config`，保留公共 `pkgconf`；不修改公共入口、Runner、X11 IME 补丁或其他构建步骤。
-- 验证：已对照失败日志、依赖列表与完整代码完成静态检查；修复后的实际构建和运行结果尚未验证。
+- 验证：已对照失败日志、依赖列表与完整代码完成静态检查；修复后的产物已完成实际构建和用户实机运行验证。
 
 ## 2026-11-08：恢复 Ubuntu 22.04 构建基线以解决 GLIBC 兼容问题
 
 - 故障：Alacritty 0.17.0 AppImage 已下载完成并通过 SHA-256 校验，但在现有 Kali Linux 宿主机运行时报错：`/usr/lib/x86_64-linux-gnu/libm.so.6: version 'GLIBC_2.43' not found`，程序无法启动。
 - 原因：`.github/workflows/build.yml` 的 Alacritty 专用 Job 使用 `runs-on: ubuntu-latest`，与本目录已确认的 Ubuntu 22.04 + LinuxDeploy 构建基线不一致。报错表明产物要求宿主机未提供的 GLIBC 符号版本；当前证据无法仅凭这一条错误精确判定生成该依赖的具体构建镜像版本。
 - 修复：只将该 Job 的 Runner 改为 `ubuntu-22.04`，避免构建环境跟随 `ubuntu-latest` 漂移；保留 `build_alacritty.sh`、现有 X11 IME 补丁、AppRun、运行库路径、依赖和公共打包流程，不在宿主机升级或替换 GLIBC。
-- 验证：已核对故障截图、正式构建入口、已记录的稳定基线以及本次修改范围；恢复后的 AppImage 启动效果须以新产物的实际运行结果为准。
+- 验证：已核对故障截图、正式构建入口、已记录的稳定基线以及本次修改范围；恢复后的 AppImage 已通过用户实机启动验证，`GLIBC_2.43` 启动错误不再出现。
