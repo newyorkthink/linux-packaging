@@ -3,7 +3,15 @@ set -Eeuo pipefail
 
 # 仅在调用方显式指定时移除标签前缀，原有版本匹配规则保持不变。
 TAG_PREFIX=""
-if [[ "${1:-}" == --tag-prefix ]]; then
+RELEASE_TAG=""
+if [[ "${1:-}" == --release-tag ]]; then
+  if (( $# < 2 )) || [[ ! "$2" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]; then
+    echo "用法：$0 --release-tag <归档标签> <owner/repo> <固定资产名>" >&2
+    exit 2
+  fi
+  RELEASE_TAG="$2"
+  shift 2
+elif [[ "${1:-}" == --tag-prefix ]]; then
   if (( $# < 2 )) || [[ -z "$2" || "$2" == *[[:space:]]* ]]; then
     echo "用法：$0 [--tag-prefix <非空标签前缀>] <owner/repo> '<固定资产名或含 {version} 的资产名模板>'" >&2
     exit 2
@@ -47,6 +55,26 @@ cleanup() {
   rm -f -- "$RELEASES_JSON"
 }
 trap cleanup EXIT
+
+# 指定非版本标签时，仅接受该 Release 中唯一的已上传资产及 GitHub 官方摘要。
+if [[ -n "$RELEASE_TAG" ]]; then
+  [[ $# == 2 && "$ASSET_TEMPLATE" =~ ^[A-Za-z0-9_.-]+$ ]] || {
+    echo "错误：指定归档标签时必须提供单个固定资产名。" >&2
+    exit 2
+  }
+  github_api_get "https://api.github.com/repos/$REPO/releases/tags/$RELEASE_TAG" "$RELEASES_JSON"
+  jq -er --arg repo "$REPO" --arg tag "$RELEASE_TAG" --arg name "$ASSET_TEMPLATE" '
+    select(type == "object" and .draft == false and .prerelease == false and .tag_name == $tag)
+    | [.assets[]? | select(.name == $name and .state == "uploaded")] as $matches
+    | select(($matches | length) == 1)
+    | $matches[0] as $asset
+    | select($asset.browser_download_url == ("https://github.com/" + $repo + "/releases/download/" + $tag + "/" + $name))
+    | select(($asset.digest // "") | test("^sha256:[0-9a-fA-F]{64}$"))
+    | select(($asset.id | type) == "number")
+    | $asset.name, $asset.browser_download_url, ($asset.digest | sub("^sha256:"; "") | ascii_downcase), ($asset.id | tostring)
+  ' "$RELEASES_JSON"
+  exit
+fi
 
 # 显式启用时，在同一 latest 响应中定位主资产和官方校验清单。
 if [[ "${3:-}" == --latest-with-checksum ]]; then

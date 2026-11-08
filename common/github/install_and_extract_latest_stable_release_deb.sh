@@ -10,7 +10,16 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 默认从 GitHub Release 下载，传入 --checksum 或 --html-checksum 时改用官网校验来源。
 DOWNLOAD_SOURCE=github
-if [[ "${1:-}" == --checksum ]]; then
+RELEASE_TAG=""
+if [[ "${1:-}" == --release-tag ]]; then
+  (( $# >= 3 )) || {
+    echo "用法：$0 --release-tag <标签> <owner/repo> <固定资产名> <下载 DEB 路径> <解包目录>" >&2
+    exit 2
+  }
+  RELEASE_TAG="$2"
+  DOWNLOAD_SOURCE=tagged-release
+  shift 2
+elif [[ "${1:-}" == --checksum ]]; then
   DOWNLOAD_SOURCE=checksum
   shift
 elif [[ "${1:-}" == --html-checksum ]]; then
@@ -30,8 +39,9 @@ if [[ "$DOWNLOAD_SOURCE" == html-checksum && "${1:-}" == --json-html ]]; then
 fi
 
 # 根据下载来源检查参数数量，GitHub 模式保留可选的包名和架构校验。
-if [[ "$DOWNLOAD_SOURCE" == github && $# -ne 4 && $# -ne 6 ]] || [[ "$DOWNLOAD_SOURCE" == checksum && $# -ne 4 ]] || [[ "$DOWNLOAD_SOURCE" == html-checksum && $# -ne 5 && $# -ne 7 ]]; then
+if [[ ( "$DOWNLOAD_SOURCE" == github || "$DOWNLOAD_SOURCE" == tagged-release ) && $# -ne 4 && $# -ne 6 ]] || [[ "$DOWNLOAD_SOURCE" == checksum && $# -ne 4 ]] || [[ "$DOWNLOAD_SOURCE" == html-checksum && $# -ne 5 && $# -ne 7 ]]; then
   echo "用法：$0 <owner/repo> '<包含 {version} 的资产名模板>' <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]" >&2
+  echo "用法：$0 --release-tag <标签> <owner/repo> <固定资产名> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]" >&2
   echo "用法：$0 --checksum <HTTPS 校验清单 URL> '<完整资产名正则>' <下载 DEB 路径> <解包目录>" >&2
   echo "用法：$0 --html-checksum [--json-html <JSON HTML 字段>] <HTTPS 校验来源 URL> '<完整资产名的 Python 正则>' <HTTPS 资产目录 URL> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]" >&2
   exit 1
@@ -54,7 +64,7 @@ EXPECTED_DEB_ARCHITECTURE="${6:-}"
 
 # 根据下载来源选用已有入口，安装和解包入口保持共用。
 case "$DOWNLOAD_SOURCE" in
-  github)
+  github|tagged-release)
     DOWNLOAD_ASSET="$SCRIPT_DIR/download_latest_stable_release_asset.sh"
     ;;
   checksum)
@@ -99,6 +109,9 @@ done
 case "$DOWNLOAD_SOURCE" in
   github)
     VERSION="$("$DOWNLOAD_ASSET" "$SOURCE_REF" "$ASSET_SELECTOR" "$DEB_FILE" "$EXPECTED_DEB_PACKAGE" "$EXPECTED_DEB_ARCHITECTURE")"
+    ;;
+  tagged-release)
+    VERSION="$("$DOWNLOAD_ASSET" --release-tag "$RELEASE_TAG" "$SOURCE_REF" "$ASSET_SELECTOR" "$DEB_FILE" "$EXPECTED_DEB_PACKAGE" "$EXPECTED_DEB_ARCHITECTURE")"
     ;;
   checksum)
     VERSION="$("$DOWNLOAD_ASSET" "$SOURCE_REF" "$ASSET_SELECTOR" "$DEB_FILE")"

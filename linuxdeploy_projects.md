@@ -10,8 +10,10 @@
 | [linuxdeploy-gtk-apt.sh](./templates/appimage/linuxdeploy-gtk-apt.sh) | GTK3，Ubuntu 仓库包 |
 | [linuxdeploy-gtk-gstreamer-apt.sh](./templates/appimage/linuxdeploy-gtk-gstreamer-apt.sh) | GTK3 + GStreamer，Ubuntu 仓库包 |
 | [linuxdeploy-qt-deb.sh](./templates/appimage/linuxdeploy-qt-deb.sh) | Qt，官网校验清单中的 DEB |
-| [linuxdeploy-cli-apt.sh](./templates/appimage/linuxdeploy-cli-apt.sh) | CLI / 无框架插件，Ubuntu 仓库包 |
+| [linuxdeploy-cli-apt.sh](./templates/appimage/linuxdeploy-cli-apt.sh) | CLI / 无框架插件，Ubuntu 仓库包或指定标签的官方归档 DEB |
 | [appimagetool-direct.sh](./templates/appimage/appimagetool-direct.sh) | 已有完整 AppDir，直接封装 |
+
+无框架插件模板默认保留 Ubuntu APT 来源。使用固定归档 DEB 时，提供 `RELEASE_TAG`、`GITHUB_REPOSITORY`、`DEB_FILENAME` 和真实程序入口，公共下载入口核对 GitHub SHA-256，版本取自 DEB 元数据；如需调整 desktop 副本，再提供 `DESKTOP_FILE`、`ICON_FILE`、`DESKTOP_EXEC` 和 `DESKTOP_ICON`。原 APT 模式保持不变。
 
 按标准重写时，先从本表选择一份完整模板，通过 [统一生成脚本](./scripts/build/generate_build_script.md) 生成应用一级目录下的构建脚本。模板中的 `../common/` 相对于应用目录，不能在 `templates/appimage/` 内直接运行。linuxdeploy 模板会重建该应用的 `source`、`AppDir` 和 `dist`，应用所需的持久输入应保存在这些目录之外。直接封装模板使用公共工作区入口的 `--prepared-appdir` 模式，只创建缺少的 `source/tools` 和 `dist` 目录，保留现有目录及内容。
 
@@ -212,6 +214,7 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 | dconf Editor | `dconf-editor/build_dconf-editor.sh` | linuxdeploy |
 | Rainlendar2 | `rainlendar2/build_rainlendar2.sh` | linuxdeploy + GTK 插件 |
 | RealVNC RVNC Connect | `realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh` | linuxdeploy + GTK 插件 |
+| RealVNC Viewer 7.15.1 | `vncviewer/build_vncviewer.sh` | 从 `original-package-archive` 获取官方 x64 DEB，使用 linuxdeploy 无框架插件模式与独立 appimagetool；桌面入口处理见 [README](./vncviewer/README.md)。 |
 | 腾讯会议 | `wemeet/build_wemeet.sh` | linuxdeploy + Qt 插件 |
 
 仅在 README、注释或说明文字中出现 linuxdeploy，但构建脚本没有实际调用的项目，不计入本清单。清单只表示实际使用这条路线，不表示所有既有脚本已经完成模板对齐；本次规范更新不授权批量修改其他应用。

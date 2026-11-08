@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# 可选前缀只传给公共解析入口，不改变原有位置参数。
+# 显式标签和前缀共用公共解析入口，不改变默认正式版本选择。
 TAG_ARGS=()
-if [[ "${1:-}" == --tag-prefix ]]; then
+RELEASE_TAGGED=0
+if [[ "${1:-}" == --release-tag ]]; then
+  (( $# >= 2 )) || {
+    echo "用法：$0 --release-tag <标签> <owner/repo> <固定资产名> <输出文件> [DEB 包名] [DEB 架构]" >&2
+    exit 2
+  }
+  TAG_ARGS=("$1" "$2")
+  RELEASE_TAGGED=1
+  shift 2
+elif [[ "${1:-}" == --tag-prefix ]]; then
   (( $# >= 2 )) || {
     echo "用法：$0 [--tag-prefix <标签前缀>] <owner/repo> '<固定资产名或含 {version} 的资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
     exit 2
@@ -99,17 +108,57 @@ fi
 
 # 统一解析正式 semver Release、唯一匹配资产和 GitHub SHA-256 digest。
 mapfile -t RELEASE_META < <("$RESOLVER" "${TAG_ARGS[@]}" "$REPO" "$ASSET_TEMPLATE")
-[[ ${#RELEASE_META[@]} -eq 3 ]] || {
-  echo "错误：无法解析唯一的正式 Release 资产元数据：$REPO / $ASSET_TEMPLATE" >&2
-  exit 1
-}
+if (( RELEASE_TAGGED )); then
+  (( ${#RELEASE_META[@]} == 4 )) || {
+    echo "错误：指定标签中没有唯一匹配并带 SHA-256 的资产：$REPO / $ASSET_TEMPLATE" >&2
+    exit 1
+  }
+  [[ "${RELEASE_META[0]}" == "$ASSET_TEMPLATE" && "${RELEASE_META[3]}" =~ ^[1-9][0-9]*$ ]] || {
+    echo "错误：归档资产名称或 ID 无效。" >&2
+    exit 1
+  }
+  ASSET_URL="${RELEASE_META[1]}"
+  ASSET_SHA256="${RELEASE_META[2]}"
+  ASSET_ID="${RELEASE_META[3]}"
+else
+  [[ ${#RELEASE_META[@]} -eq 3 ]] || {
+    echo "错误：无法解析唯一的正式 Release 资产元数据：$REPO / $ASSET_TEMPLATE" >&2
+    exit 1
+  }
+  VERSION="${RELEASE_META[0]}"
+  ASSET_URL="${RELEASE_META[1]}"
+  ASSET_SHA256="${RELEASE_META[2]}"
+fi
 
-VERSION="${RELEASE_META[0]}"
-ASSET_URL="${RELEASE_META[1]}"
-ASSET_SHA256="${RELEASE_META[2]}"
-
-# 下载并校验解析到的同一资产；下载日志写入 stderr。
-"$DOWNLOAD_FILE" "$ASSET_URL" "$OUTPUT" "$ASSET_SHA256" >&2
+# 下载并校验解析到的同一资产；归档直链失败后使用同一资产 ID 认证回退。
+if (( RELEASE_TAGGED )); then
+  if ! "$DOWNLOAD_FILE" "$ASSET_URL" "$OUTPUT" "$ASSET_SHA256" >&2; then
+    AUTH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+    [[ -n "$AUTH_TOKEN" ]] || {
+      echo "错误：归档直链失败，且缺少有效的 GitHub 认证凭据。" >&2
+      exit 1
+    }
+    OUTPUT_DIR="$(dirname -- "$OUTPUT")"
+    mkdir -p -- "$OUTPUT_DIR"
+    OUTPUT_DIR="$(cd -- "$OUTPUT_DIR" && pwd -P)"
+    OUTPUT="$OUTPUT_DIR/$(basename -- "$OUTPUT")"
+    TEMP_FILE="$(mktemp "${OUTPUT}.part.XXXXXXXX")"
+    trap 'rm -f -- "$TEMP_FILE"' EXIT
+    curl --fail --show-error --location --proto '=https' --tlsv1.2 \
+      --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 900 \
+      -H 'Accept: application/octet-stream' \
+      -H "Authorization: Bearer $AUTH_TOKEN" \
+      -H 'X-GitHub-Api-Version: 2022-11-28' \
+      "https://api.github.com/repos/$REPO/releases/assets/$ASSET_ID" -o "$TEMP_FILE"
+    printf '%s  %s\n' "$ASSET_SHA256" "$TEMP_FILE" | sha256sum -c - >&2
+    mv -f -- "$TEMP_FILE" "$OUTPUT"
+    trap - EXIT
+  fi
+  VERSION="$(dpkg-deb -f "$OUTPUT" Version)"
+  dpkg --validate-version "$VERSION"
+else
+  "$DOWNLOAD_FILE" "$ASSET_URL" "$OUTPUT" "$ASSET_SHA256" >&2
+fi
 
 # 调用方明确传入 DEB 包名和架构时，在公共入口统一核对 DEB 身份与目标架构。
 # Release 版本已经由资产名模板和 GitHub digest 绑定；不能假设 DEB Version 必须与 Release tag 完全相同。

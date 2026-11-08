@@ -554,6 +554,18 @@
       "run_from_root": "false"
     },
     {
+      "key": "vncviewer",
+      "kind": "special",
+      "name": "RealVNC Viewer 7.15.1",
+      "script": "vncviewer/build_vncviewer.sh",
+      "dir": "vncviewer",
+      "artifact_dir": "vncviewer/dist",
+      "release_name": "realvnc_vnc_viewer.AppImage",
+      "software_key": "vncviewer",
+      "timeout_minutes": 60,
+      "run_from_root": "false"
+    },
+    {
       "key": "gemini",
       "kind": "standard",
       "name": "Gemini",

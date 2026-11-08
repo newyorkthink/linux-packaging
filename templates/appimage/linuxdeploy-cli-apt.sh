@@ -30,8 +30,8 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_
 
 ############ 下载并准备应用 #############
 
-# 下载已安装版本的软件包并解包到 AppDir，成功后返回版本号。
-VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "__APT_MAIN_PACKAGE__" "$APPDIR" __APT_EXTRA_PACKAGES__)"
+__CLI_SOURCE_BLOCK__
+__CLI_DESKTOP_PREPARE__
 
 ############# 准备 AppRun ##############
 
@@ -60,7 +60,7 @@ chmod +x "$APPDIR/AppRun"
 ############### 核心打包 ###############
 
 # 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
-export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
+export ARCH=x86_64; linuxdeploy --appdir AppDir __CLI_DEPLOY_ARGS__--output appimage
 
 ############### 整理产物 ###############
 

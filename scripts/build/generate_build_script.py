@@ -183,9 +183,71 @@ def load_template(name):
     return path.read_bytes().decode("utf-8")
 
 
+
+def cli_apt_source_arguments(params):
+    """为无框架插件模板保留 APT 入口，并支持指定已归档的官方 DEB。"""
+    params = params.copy()
+    source = (
+        "# 下载已安装版本的软件包并解包到 AppDir，成功后返回版本号。\n"
+        'VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "__APT_MAIN_PACKAGE__" "$APPDIR" __APT_EXTRA_PACKAGES__)"'
+    )
+    desktop_block = ""
+    deploy_args = ""
+    desktop_fields = {"DESKTOP_FILE", "ICON_FILE", "DESKTOP_EXEC", "DESKTOP_ICON"}
+    if "RELEASE_TAG" in params:
+        needed = {"GITHUB_REPOSITORY", "DEB_FILENAME"}
+        if not needed <= params.keys():
+            raise ValueError("归档 DEB 缺少参数：" + "、".join(sorted(needed - params.keys())))
+        tag = clean_text(params.pop("RELEASE_TAG"), "RELEASE_TAG")
+        repo = clean_text(params.pop("GITHUB_REPOSITORY"), "GITHUB_REPOSITORY")
+        filename = render_parameter("DEB_FILENAME", params.pop("DEB_FILENAME"), "appimage")
+        if (not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", tag)
+                or not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo)
+                or not filename.endswith(".deb")):
+            raise ValueError("归档标签、仓库或 DEB 文件名无效。")
+        source = (
+            "# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。\n"
+            f'VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" '
+            f'--release-tag "{tag}" "{repo}" "{filename}" "$SOURCE_DIR/{filename}" "$APPDIR")"'
+        )
+        if desktop_fields & params.keys():
+            if not desktop_fields <= params.keys():
+                raise ValueError("桌面资源参数必须同时包含 DESKTOP_FILE、ICON_FILE、DESKTOP_EXEC、DESKTOP_ICON。")
+            desktop = clean_text(params.pop("DESKTOP_FILE"), "DESKTOP_FILE")
+            icon = clean_text(params.pop("ICON_FILE"), "ICON_FILE")
+            executable = clean_text(params.pop("DESKTOP_EXEC"), "DESKTOP_EXEC")
+            icon_name = clean_text(params.pop("DESKTOP_ICON"), "DESKTOP_ICON")
+            if (not re.fullmatch(r"usr/share/applications/[A-Za-z0-9_.-]+[.]desktop", desktop)
+                    or not re.fullmatch(r"/usr/share/icons/[A-Za-z0-9_./-]+[.]png", icon)
+                    or not BASENAME.fullmatch(executable) or not BASENAME.fullmatch(icon_name)):
+                raise ValueError("桌面文件、图标、启动命令或图标名称无效。")
+            desktop_block = (
+                "\n########## 准备桌面资源和运行库 #########\n\n"
+                "# 本程序专属处理：校验官方桌面资源，并在包内副本中设置 AppImage 的启动入口和图标。\n"
+                f'DEPLOY_DESKTOP_FILE="$SOURCE_DIR/{Path(desktop).name}"\n'
+                f'cp -a "$APPDIR/{desktop}" "$DEPLOY_DESKTOP_FILE"\n'
+                f"sed -i -e 's|^Exec=.*$|Exec={executable}|' -e 's|^Icon=.*$|Icon={icon_name}|' \"$DEPLOY_DESKTOP_FILE\"\n"
+                'cp -a "$DEPLOY_DESKTOP_FILE" "$APPDIR/usr/share/applications/"\n'
+                f'ICON_FILE="{icon}"\n'
+                '[[ -f "$ICON_FILE" ]] || { echo "错误：找不到官方安装包的图标。" >&2; exit 1; }'
+            )
+            deploy_args = '--desktop-file "$DEPLOY_DESKTOP_FILE" --icon-file "$ICON_FILE" '
+    elif desktop_fields & params.keys():
+        raise ValueError("APT 模式不能使用归档 DEB 的桌面资源参数。")
+    return params, {
+        "CLI_SOURCE_BLOCK": source,
+        "CLI_DESKTOP_PREPARE": desktop_block,
+        "CLI_DEPLOY_ARGS": deploy_args,
+    }
+
+
 def render(template, params, family):
     if not isinstance(params, dict):
         raise ValueError("参数文件必须是 JSON 对象。")
+    if "__CLI_SOURCE_BLOCK__" in template:
+        params, derived = cli_apt_source_arguments(params)
+        for marker, value in derived.items():
+            template = template.replace("__" + marker + "__", value)
     placeholders = set(TOKEN.findall(template))
     optional = placeholders & OPTIONAL_SECTIONS.keys()
     required = placeholders - optional

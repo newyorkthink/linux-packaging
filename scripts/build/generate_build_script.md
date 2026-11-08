@@ -66,6 +66,10 @@ python3 scripts/build/generate_build_script.py --template "<模板相对路径>"
 
 普通占位参数使用字符串，`VERSION_FIELD` 使用正整数。包名列表使用 JSON 数组，模板允许为空的依赖列表用 `[]`。
 
+`linuxdeploy-cli-apt.sh` 默认保持原有 Ubuntu APT 模式：提供 `APP_NAME`、`APT_PACKAGES`、`APT_MAIN_PACKAGE`、`APT_EXTRA_PACKAGES` 和 `MAIN_EXECUTABLE`。从已归档的官方 DEB 打包时，改为提供 `RELEASE_TAG`、`GITHUB_REPOSITORY`、`DEB_FILENAME`，不再填写 `APT_MAIN_PACKAGE` 和 `APT_EXTRA_PACKAGES`；软件版本取自本次校验通过的 DEB 元数据。此模式只使用现有的无框架插件模板，不自动启用 Qt、GTK 或 GStreamer 插件。
+
+归档 DEB 需要调整桌面入口时，可同时提供 `DESKTOP_FILE`（AppDir 内的 `usr/share/applications/*.desktop` 路径）、`ICON_FILE`（安装后的 `/usr/share/icons/*.png` 路径）、`DESKTOP_EXEC` 和 `DESKTOP_ICON`。生成器只修改从 DEB 提取的 desktop 副本，要求四项同时提供；未提供时原样保留上游桌面资源。
+
 全部 quick-sharun 模板统一使用 `SCAN_ARGS`，必须显式提供非空数组，包含当前应用需要的完整初始扫描列表。需要程序目录时必须将该目录一并填写，不能只迁移旧的额外目标，也不能省略或提供空数组。生成器不默认追加 `AppDir/bin/*`、系统程序或库，不扫描系统来补齐参数。
 
 扫描参数中的字符串按字面路径处理。确需展开通配符时使用 `{"glob": "<实际程序目录>/*"}` 形式，并将占位内容替换为实际的绝对路径或 `AppDir/` 路径。生成脚本中保留该通配符，由构建时的 Shell 展开。

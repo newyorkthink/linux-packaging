@@ -99,6 +99,7 @@ on:
           - trae/build_trae.sh
           - v2rayn/build_v2rayn.sh
           - ventoy/build_ventoy.sh
+          - vncviewer/build_vncviewer.sh
           - vscode/build_vscode.sh
           - webcamoid/build_webcamoid.sh
           - wechat/build_wechat.sh
@@ -1049,6 +1050,56 @@ jobs:
           version_file: 'realvnc-rvnc-connect/dist/version.txt'
           asset_name: 'rvncconnect.AppImage'
           artifact_dir: 'realvnc-rvnc-connect/dist'
+          github_token: ${{ github.token }}
+
+  build_vncviewer:
+    name: Build RealVNC Viewer 7.15.1
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).vncviewer == 'true'
+    concurrency:
+      group: build-appimage-realvnc_vnc_viewer.AppImage
+      queue: max
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Build and verify Viewer AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n vncviewer/build_vncviewer.sh
+          chmod +x vncviewer/build_vncviewer.sh
+          ./vncviewer/build_vncviewer.sh
+          test -s vncviewer/dist/realvnc_vnc_viewer.AppImage
+          test -s vncviewer/dist/version.txt
+          file vncviewer/dist/realvnc_vnc_viewer.AppImage
+          sha256sum vncviewer/dist/realvnc_vnc_viewer.AppImage
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-vncviewer
+          path: vncviewer/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh release upload latest vncviewer/dist/realvnc_vnc_viewer.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'vncviewer'
+          version_file: 'vncviewer/dist/version.txt'
+          asset_name: 'realvnc_vnc_viewer.AppImage'
+          artifact_dir: 'vncviewer/dist'
           github_token: ${{ github.token }}
 
   build_remmina:
