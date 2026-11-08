@@ -10,7 +10,7 @@ cd "$SCRIPT_DIR"
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" chatgpt-desktop dpkg fcitx5-gtk bubblewrap cups freetype2 libxi libxtst libxkbfile libva libvdpau wayland pipewire pipewire-audio libcap adwaita-icon-theme noto-fonts-cjk
+"$SCRIPT_DIR/../common/arch/install_packages.sh" chatgpt-desktop dpkg fcitx5-gtk bubblewrap cups freetype2 libxi libxtst libxkbfile libva libvdpau wayland pipewire pipewire-audio libcap adwaita-icon-theme
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist chatgpt.deb chatgpt-unpacked
