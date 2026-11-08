@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" build-essential ca-certificates cmake curl git jq libfontconfig1-dev libx11-data libxcb-xfixes0-dev libxkbcommon-dev libxkbcommon-x11-0 pkg-config python3 xkb-data librsvg2-bin
+"$SCRIPT_DIR/../common/apt/install_packages.sh" build-essential ca-certificates cmake curl git jq libfontconfig1-dev libx11-data libxcb-xfixes0-dev libxkbcommon-dev libxkbcommon-x11-0 python3 xkb-data librsvg2-bin
 
 ############# 下载打包工具 #############
 

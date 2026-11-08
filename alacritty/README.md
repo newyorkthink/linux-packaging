@@ -1283,3 +1283,10 @@ Message: fix(alacritty): add quick-sharun compiler dependency
 - 构建脚本继续沿用现有 LinuxDeploy 路线，不改变 Alacritty 的打包框架、输入修复补丁或运行时基线。
 - 版本直接复用官方 latest Release 的标签，去掉可选前导 `v` 后写入 `dist/version.txt`。
 - workflow 将该文件作为 `software-version-alacritty` artifact 上传，成功构建后增量写入统一 `software_versions.json`。
+
+## 2026-11-08：修复 APT 依赖冲突
+
+- 故障：GitHub Actions 构建任务 [42479443759](https://github.com/newyorkthink/linux-packaging/actions/runs/42479443759/job/128728000116) 在安装依赖时报告 `pkgconf : Breaks: pkg-config (>= 0.29-1)`，APT 以退出码 100 结束，尚未执行源码编译。
+- 原因：公共 `common/apt/install_packages.sh` 已安装 `pkgconf`，应用脚本又在同一次安装中要求 `pkg-config`，触发软件包冲突。
+- 修复：仅从 `build_alacritty.sh` 的应用依赖列表删除 `pkg-config`，保留公共 `pkgconf`；不修改公共入口、Runner、X11 IME 补丁或其他构建步骤。
+- 验证：已对照失败日志、依赖列表与完整代码完成静态检查；修复后的实际构建和运行结果尚未验证。

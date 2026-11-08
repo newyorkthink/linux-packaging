@@ -22,3 +22,9 @@
 构建环境固定为 `ubuntu-22.04`，保持已记录的 LinuxDeploy 基线。具体路径与环境变量见[固定配置](./hardcoded.md)，pkgforge-dev 的取舍见[上游差异](./pkgforge-differences.md)，历史故障和版本记录见 [README](../README.md)。
 
 此次只完成脚本结构、引用、注释及文档的静态核对。先前旧入口的构建记录不代表新入口已经完成实际构建或真实桌面长期验证。
+
+## 2026-11-08：APT 依赖冲突
+
+构建任务 [42479443759](https://github.com/newyorkthink/linux-packaging/actions/runs/42479443759/job/128728000116) 在「准备构建环境」阶段失败：公共 APT 入口已经安装 `pkgconf`，应用依赖列表又包含与其冲突的 `pkg-config`，报错为 `pkgconf : Breaks: pkg-config (>= 0.29-1)`，APT 退出码为 100。
+
+本次只从应用依赖安装命令中移除 `pkg-config`，由公共 `pkgconf` 提供所需的 pkg-config 接口。公共脚本、Runner、其他依赖、补丁、编译及封装步骤均不改变。已静态核对修改范围，修复后的构建结果尚待实际验证。
