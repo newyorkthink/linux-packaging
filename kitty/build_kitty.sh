@@ -39,20 +39,14 @@ rm -f "$OUTFILE" "$OUTFILE.zsync"
 
 ############ 下载并准备应用 #############
 
-# 本程序专属处理：获取 Kitty 最新正式版标签。
-KITTY_TAG="$(gh release view --repo kovidgoyal/kitty --json tagName --jq '.tagName')"
+# 本程序专属处理：通过公共入口获取 Kitty 最新正式版预编译包对应的版本。
+KITTY_RELEASE_VERSION="$("$SCRIPT_DIR/../common/github/resolve_latest_stable_release_asset.sh" kovidgoyal/kitty 'kitty-{version}-x86_64.txz' | sed -n '1p')"
 
-# 本程序专属处理：通过公共脚本下载 Kitty 官方预编译包。
-"$SCRIPT_DIR/../common/github/download_latest_stable_named_asset.sh" kovidgoyal/kitty "kitty-${KITTY_TAG#v}-x86_64.txz" /tmp/kitty.txz
+# 本程序专属处理：通过公共脚本下载并校验 Kitty 官方预编译包。
+"$SCRIPT_DIR/../common/github/download_latest_stable_named_asset.sh" kovidgoyal/kitty "kitty-${KITTY_RELEASE_VERSION}-x86_64.txz" /tmp/kitty.txz
 
-# 本程序专属处理：创建 Kitty 安装目录。
-mkdir -p "$KITTY_DIR"
-
-# 本程序专属处理：解压官方预编译包，保留原有目录结构。
-tar -xJof /tmp/kitty.txz -C "$KITTY_DIR"
-
-# 本程序专属处理：kitten 是独立的软链接入口，保留这项检查，避免生成缺少该入口的产物。
-test -x "$KITTY_DIR/bin/kitten"
+# 本程序专属处理：通过公共归档入口解压预编译包，保留原有目录结构。
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" /tmp/kitty.txz "$KITTY_DIR"
 
 # 读取本次打包使用的版本。
 KITTY_VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" command "$KITTY_DIR/bin/kitty" --field 2 -- --version)"

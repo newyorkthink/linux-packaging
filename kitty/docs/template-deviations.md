@@ -74,3 +74,11 @@ Kitty 的 AppRun 正文有 169 行，包含 kitten 分派、输入法、terminfo
 当前在 `build_kitty.sh` 的“下载并准备应用”阶段，用 `gh release view` 获取 Kitty 最新正式版标签，调用现有 `common/github/download_latest_stable_named_asset.sh` 下载对应官方 `x86_64.txz`，随后创建原 `kitty.app` 目录并使用 `tar -xJof` 直接解包。公共脚本先使用官方 Release 直链；下载失败才凭 GitHub Token 通过同一资产 ID 认证回退，并校验官方 SHA-256。主脚本不新增条件分支、校验逻辑或输出逻辑。
 
 这一改动只替换原 `installer.sh` 的获取和执行步骤；不改变 `AppDir/usr/lib/kitty.app` 下的 `bin`、`lib`、`share` 相对层级，不改版本读取、`kitten` 检查、`AppRun`、`prepare_appdir.sh`、Arch 依赖或现有 appimagetool 封装。前述 2026-11-01 至 2026-11-02 的 installer 与工具准备记录保留为当时的基线和历史实施说明，当前下载方式以本节为准。
+
+## 2026-11-08：公共版本、解压入口与构建预检查精简
+
+在前述直接下载官方预编译包的基础上，将 `gh release view` 查询改为调用现有 `common/github/resolve_latest_stable_release_asset.sh`，以官方资产名模板取得最新正式版版本，再沿用 `common/github/download_latest_stable_named_asset.sh` 下载对应资产；不在应用脚本中实现 Release API 查询、认证回退或摘要校验。
+
+将单独的 `mkdir -p "$KITTY_DIR"` 和 `tar -xJof` 改为一次调用 `common/archive/extract_archive.sh`，由公共入口创建目标目录并解包 `.txz`。删除 `test -x "$KITTY_DIR/bin/kitten"` 及其注释，不再在应用构建脚本中重复进行包内程序的预检查。此前“精简检查的边界”所列 `bin/kitten` 检查为当时的保留方案，本节记录其后续移除。
+
+本次不改 `AppRun`、包内 `kitten` 分派、实际版本读取、`prepare_appdir.sh`、构建依赖、封装工具及最终产物接口；前述旧调用与历史说明保留。

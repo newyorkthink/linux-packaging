@@ -12,7 +12,8 @@ kitty 为 GPU 加速终端，主体由 C/Python 组件组成。构建脚本从 G
 
 | 操作 | 公共入口与职责 |
 | --- | --- |
-| 下载官方预编译包 | 通过 `gh release view` 获取最新正式版标签；调用 `common/github/download_latest_stable_named_asset.sh` 下载同一版本的 `x86_64.txz`。公共入口先尝试官方 Release 直链，失败后使用相同资产 ID 认证下载，并校验官方 SHA-256。 |
+| 下载官方预编译包 | 通过 `common/github/resolve_latest_stable_release_asset.sh` 解析最新正式版及对应资产版本；调用 `common/github/download_latest_stable_named_asset.sh` 下载并校验相应的 `x86_64.txz`，沿用直链优先、失败后认证回退及官方 SHA-256 校验。 |
+| 解压官方预编译包 | 调用 `common/archive/extract_archive.sh`，由公共入口创建目标目录并将 `.txz` 解压到原有 `kitty.app` 路径。 |
 | 读取当前程序版本 | 调用 `common/build/read_app_version.sh` 的 `command` 来源，传入真实程序、字段 2 和原 `--version` 参数；解析与格式校验放在公共入口。 |
 | 下载封装工具和 runtime | 一次调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh --appimagetool`，取得两个官方 continuous 文件、校验 SHA-256 并设置执行权限。 |
 | PNG 图标、正式封装和版本保存 | 调用 `common/linuxdeploy/package_appimage.sh`，统一处理权限、PNG、封装、有效产物检查、SHA-256 和 `dist/version.txt`。 |
@@ -94,3 +95,9 @@ ln -s kitty.AppImage kitten
 - 主脚本改为先用 `gh release view` 获取最新正式版标签，再通过公共 `download_latest_stable_named_asset.sh` 下载对应的官方 `x86_64.txz`；沿用公共入口的直链优先、认证回退和 SHA-256 校验，不自行增加请求、检查或输出。
 - 将预编译包直接解压到 `AppDir/usr/lib/kitty.app`。原有 `kitten` 检查、实际程序版本读取、资源准备、独立 `AppRun`、Arch 依赖和 appimagetool 封装逻辑全部保留。
 - 上述较早日期的 installer 相关记录保留为历史事实；本节及“当前公共入口”描述的是本次调整后的流程。
+
+### 2026-11-08：复用公共版本和归档入口
+
+- 将最新 Release 版本解析改为 `common/github/resolve_latest_stable_release_asset.sh`，继续通过现有 `download_latest_stable_named_asset.sh` 下载对应官方预编译包，认证回退和摘要校验由公共入口负责。
+- 将手工创建安装目录及 `tar -xJof` 解包改为单次调用 `common/archive/extract_archive.sh`，保持 `AppDir/usr/lib/kitty.app` 及其内部层级不变。
+- 删除 `test -x "$KITTY_DIR/bin/kitten"` 预检查及对应注释；不改变包内 `kitten` 程序、`AppRun` 分派或其他既有命令。旧构建记录保留为历史事实。
