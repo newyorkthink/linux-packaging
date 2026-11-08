@@ -1,5 +1,13 @@
 {
-  "template": "",
-  "output": "",
-  "params": {}
+  "template": "appimage/linuxdeploy-cli-apt.sh",
+  "output": "alacritty/build_alacritty_new.sh",
+  "params": {
+    "APP_NAME": "alacritty",
+    "APT_PACKAGES": [
+      "alacritty"
+    ],
+    "APT_MAIN_PACKAGE": "alacritty",
+    "APT_EXTRA_PACKAGES": [],
+    "MAIN_EXECUTABLE": "usr/bin/alacritty"
+  }
 }
