@@ -201,7 +201,7 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 | 项目 | 构建脚本 | 使用方式 |
 | --- | --- | --- |
 | GoldenDict | `goldendict/build_goldendict.sh` | Ubuntu 24.04 官方 DEB，Qt5 / GStreamer；完整包版本、固定启动路径与发音处理见 [专属差异](./goldendict/docs/template-deviations.md) |
-| Alacritty | `alacritty/build_alacritty_linuxdeploy.sh` | linuxdeploy |
+| Alacritty | `alacritty/build_alacritty.sh` | LinuxDeploy 专用源码构建、X11 IME 补丁和公共封装；具体依据见[专属差异](./alacritty/docs/template-deviations.md)。 |
 | MediaInfo | `mediainfo/build_mediainfo_linuxdeploy.sh` | linuxdeploy |
 | PeaZip | `peazip/build_peazip.sh` | linuxdeploy + Qt 插件 |
 | Joplin | `joplin/build_joplin.sh` | linuxdeploy + GTK 插件 |

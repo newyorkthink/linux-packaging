@@ -497,7 +497,7 @@
       "key": "alacritty",
       "kind": "special",
       "name": "Alacritty",
-      "script": "alacritty/build_alacritty_linuxdeploy.sh",
+      "script": "alacritty/build_alacritty.sh",
       "dir": "alacritty",
       "release_name": "alacritty.AppImage",
       "software_key": "alacritty"

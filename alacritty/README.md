@@ -2,6 +2,15 @@
 
 本目录用于构建 Alacritty AppImage。
 
+## 当前正式构建入口
+
+- 正式脚本：[build_alacritty.sh](./build_alacritty.sh)。GitHub Actions 的 Alacritty 专用 Job 与应用清单均指向该脚本；产物为 `dist/alacritty.AppImage`。
+- 构建环境使用 GitHub Actions 的 Ubuntu 22.04 Runner。LinuxDeploy 及最终 appimagetool 封装继续复用公共入口，版本信息在封装成功后统一保存。
+- 通过公共入口获取上游最新正式版源码，在编译前检查并应用现有 X11 IME 补丁；补丁不匹配即停止构建，不跳过修复继续发布。
+- 已删除两个旧构建脚本和不再使用的外置 AppRun。历史故障、旧版运行记录和实验结论保留在本文；与当前实现不一致的历史流程不再作为执行依据。
+- 当前实现的依据见[专属差异](./docs/template-deviations.md)、[上游取舍](./docs/pkgforge-differences.md)与[固定配置](./docs/hardcoded.md)。
+- 本次完成的是标准化及静态核对，不等于已经验证新入口的实际构建和长期输入稳定性；后续运行结果应以正式 Actions 和实际使用情况为准。
+
 ## 最高优先级维护结论：禁止 quick-sharun
 
 > **本节是 2026-08-13 Kali + i3wm 实机结论，优先级高于后文所有历史记录。README 后文若出现与本节冲突的旧说明，一律以本节为准。**
@@ -11,7 +20,7 @@
 - 当时正是因为这个实机输入问题，才从 quick-sharun 改到 **LinuxDeploy 路线**。以后不能因为历史 commit、依赖打得更全、包体更大、CI 能构建或 Xvfb/i3/xdotool 自动测试通过，就再次换回 quick-sharun。
 - **真实 i3wm/fcitx5 实机长期使用结果高于 CI 模拟结果。** 50 次自动切换只能作为构建阶段辅助回归测试，不能推翻 quick-sharun 已经在真实环境出过输入故障的事实。
 - 后续修复必须继续以 **LinuxDeploy / Ubuntu 22.04 路线**为打包基线，只在这个基线上处理 XKB/XCB/X11 依赖和输入问题；**禁止为了修依赖而更换整个打包框架。**
-- 如果 `build_alacritty_linuxdeploy.sh` 中再次出现 `quick-sharun`，应直接视为**回归/错误方向**，不能把它当作新的稳定基线。
+- 如果 `build_alacritty.sh` 中再次出现 `quick-sharun`，应直接视为**回归/错误方向**，不能把它当作新的稳定基线。
 - 2026-08-13 后续生成的约 76 MiB quick-sharun AppImage，即使 CI 进行了 50 次工作区切换并通过，也**不属于稳定基线**。
 
 维护者或后续 AI 在修改本目录前，必须先读这一节。**不要再根据旧 commit 把 quick-sharun 恢复回来。**
@@ -67,7 +76,7 @@ X11：整个窗口生命周期保持 IME enabled，不再随着状态变化反�
 Wayland：保持 Alacritty 0.17.0 原有行为，不受这个补丁影响
 ```
 
-`build_alacritty_linuxdeploy.sh` 在编译 Alacritty 前执行：
+`build_alacritty.sh` 在编译 Alacritty 前执行：
 
 ```text
 git apply --check patches/0001-x11-keep-ime-enabled.patch
@@ -194,7 +203,7 @@ Publish to Latest Release: success
 
 ## 关键文件
 
-### `build_alacritty_linuxdeploy.sh`
+### `build_alacritty.sh`
 
 这是当前实际使用的构建脚本。
 
@@ -211,22 +220,16 @@ alacritty/dist/alacritty.AppImage
 GitHub Actions 工作流直接引用：
 
 ```text
-alacritty/build_alacritty_linuxdeploy.sh
+alacritty/build_alacritty.sh
 ```
 
 以后如果要重命名，必须同时修改 workflow，不能只改文件名。
 
 ### `AppRun`
 
-仓库中仍然存在历史 `alacritty/AppRun` 文件，但**当前最终构建脚本不会把它复制进 AppImage，也不会把它作为最终启动入口使用**。
+正式脚本在打包时于 `AppDir` 根目录内联生成启动脚本，设置必要的运行库、XKB、Compose 和 terminfo 路径后，直接执行 `usr/bin/alacritty`。
 
-当前 AppDir 中真正创建的是：
-
-```text
-AppRun -> usr/bin/alacritty
-```
-
-因此维护时不要根据仓库里的历史 `AppRun` 内容判断最终 AppImage 的运行方式，最终结果以构建脚本和解包后的 AppImage 为准。
+原先外置的 `alacritty/AppRun` 已删除，不再作为打包输入。实际启动行为以 `build_alacritty.sh` 中的内联 `AppRun` 为准。
 
 ---
 
@@ -859,8 +862,8 @@ build_alacritty
 核心步骤：
 
 ```bash
-chmod +x alacritty/build_alacritty_linuxdeploy.sh
-env -u GITHUB_ACTIONS ./alacritty/build_alacritty_linuxdeploy.sh
+chmod +x alacritty/build_alacritty.sh
+env -u GITHUB_ACTIONS ./alacritty/build_alacritty.sh
 test -s alacritty/dist/alacritty.AppImage
 ```
 

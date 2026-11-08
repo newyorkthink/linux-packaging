@@ -29,7 +29,7 @@ on:
           - all
           - adspower-global/build_adspower-global.sh
           - aionui/build_aionui.sh
-          - alacritty/build_alacritty_linuxdeploy.sh
+          - alacritty/build_alacritty.sh
           - alttab/build_alttab.sh
           - android-tools/build_android-tools.sh
           - antigravity-ide/build_antigravity-ide.sh
@@ -259,7 +259,7 @@ jobs:
     concurrency:
       group: build-appimage-alacritty.AppImage
       queue: max
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
     permissions:
       contents: write
@@ -274,8 +274,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          chmod +x alacritty/build_alacritty_linuxdeploy.sh
-          env -u GITHUB_ACTIONS ./alacritty/build_alacritty_linuxdeploy.sh
+          chmod +x alacritty/build_alacritty.sh
+          env -u GITHUB_ACTIONS ./alacritty/build_alacritty.sh
           test -s alacritty/dist/alacritty.AppImage
 
       - name: Upload software version metadata
