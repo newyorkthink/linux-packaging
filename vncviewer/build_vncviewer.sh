@@ -39,6 +39,8 @@ VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_relea
 DEPLOY_DESKTOP_FILE="$SOURCE_DIR/realvnc-vncviewer.desktop"
 cp -a "$APPDIR/usr/share/applications/realvnc-vncviewer.desktop" "$DEPLOY_DESKTOP_FILE"
 sed -i -e 's|^Exec=.*$|Exec=vncviewer|' -e 's|^Icon=.*$|Icon=vncviewer48x48|' "$DEPLOY_DESKTOP_FILE"
+# 本程序专属处理：移除废弃的桌面入口字段，并保留规范的新建连接快捷方式。
+sed -i -e '/^Encoding=/d' -e 's|^Categories=Application;|Categories=|' -e 's|^X-Ayatana-Desktop-Shortcuts=NewConnection$|Actions=NewConnection;|' -e 's|^\[NewConnection Shortcut Group\]$|[Desktop Action NewConnection]|' -e '/^TargetEnvironment=Unity$/d' "$DEPLOY_DESKTOP_FILE"
 cp -a "$DEPLOY_DESKTOP_FILE" "$APPDIR/usr/share/applications/"
 ICON_FILE="/usr/share/icons/hicolor/48x48/apps/vncviewer48x48.png"
 [[ -f "$ICON_FILE" ]] || { echo "错误：找不到官方安装包的图标。" >&2; exit 1; }

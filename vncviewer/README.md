@@ -18,7 +18,7 @@
 
 使用 Ubuntu 24.04 独立 Actions Job，以及仓库已有 `linuxdeploy-cli-apt.sh` 无框架插件标准流程。运行依赖为 Ubuntu 的 `libsm6`、`libx11-6` 和 `libxext6`。公共脚本负责工作区、安装包下载与安装、原始布局解包、linuxdeploy 工具、空 AppDir 初始化和最终封装。构建不启用 Qt、GTK 或 GStreamer 插件。
 
-保留官方 DEB 的 `usr/bin/vncviewer`、相关运行资源和图标。仅将 AppDir 中的 `realvnc-vncviewer.desktop` 副本改为 `Exec=vncviewer`、`Icon=vncviewer48x48`，部署时使用该副本及官方 48×48 PNG 图标；不修改原始 DEB。根 `AppRun` 直接执行包内 `usr/bin/vncviewer` 并透传参数。linuxdeploy 部署依赖及中间输出，官方 appimagetool 配合 Type 2 runtime 生成最终 AppImage。
+保留官方 DEB 的 `usr/bin/vncviewer`、相关运行资源和图标。仅对 AppDir 中的 `realvnc-vncviewer.desktop` 副本设置 `Exec=vncviewer`、`Icon=vncviewer48x48`，并移除废弃的 `Encoding` 与 `Application` 分类，将旧版新建连接快捷方式转换为 `Actions=NewConnection;` 和 `[Desktop Action NewConnection]`，保留原有名称和启动命令；不修改原始 DEB。部署时使用该副本及官方 48×48 PNG 图标。根 `AppRun` 直接执行包内 `usr/bin/vncviewer` 并透传参数。linuxdeploy 部署依赖及中间输出，官方 appimagetool 配合 Type 2 runtime 生成最终 AppImage。
 
 ## 运行与构建
 
@@ -34,5 +34,11 @@
 ## 校验及维护
 
 构建时验证 Release 的唯一资产、上传状态和官方 SHA-256；最终封装入口核对 AppImage 非空、输出 SHA-256 并保存版本。构建结果以 Actions 的实际状态为准；静态核对不等同于实机验收。
+
+## 构建故障与修复
+
+2026 年 11 月 8 日，[Viewer 构建 Job](https://github.com/newyorkthink/linux-packaging/actions/runs/42492346252/job/128770404168) 已完成官方 DEB 下载、安装、解包及 linuxdeploy 依赖收集，但在 appimagetool 校验桌面入口时失败，退出码为 1。日志指出 `Encoding` 和 `Categories` 中的 `Application` 已废弃，`[NewConnection Shortcut Group]` 不符合规范。
+
+本次在既有启动入口、图标处理之后，对桌面文件副本删除废弃字段、改用标准 `Actions` 引用及 `[Desktop Action NewConnection]` 分组，并删除原 Unity 专属的 `TargetEnvironment`。保留各语言快捷方式名称及 `Exec=vncviewer`。原始安装包、公共下载接口、运行依赖、AppRun、linuxdeploy、appimagetool 和 Actions 不变。详见 [专属差异](./docs/template-deviations.md)。
 
 本项目依据仓库已有的 [linuxdeploy 规范](../linuxdeploy_projects.md)、[标准模板](../templates/appimage/linuxdeploy-cli-apt.sh) 和 [固定注释](../docs/linuxdeploy-comments.md) 整理。应用专属 desktop 副本调整不改变其他项目的启动逻辑。
