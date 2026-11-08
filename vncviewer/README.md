@@ -31,9 +31,21 @@
 
 在 GitHub Actions 的 **Build AppImages** 中选择 `vncviewer/build_vncviewer.sh`；独立 Job 仅构建并发布该应用，成功后更新软件版本清单。构建脚本不启动后台 VNC 服务，运行 Viewer 不需要 sudo。
 
+## 实机验证
+
+### 2026-11-09：用户实机验证通过
+
+用户已确认 RealVNC Viewer 7.15.1 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| AppImage 启动 | 终端执行 `./vncviewer.AppImage`，程序正常启动。 |
+| 图形界面 | RealVNC Connect 主界面正常显示。 |
+| 地址簿 | 设备列表及缩略图正常显示。 |
+
 ## 校验及维护
 
-构建时验证 Release 的唯一资产、上传状态和官方 SHA-256；最终封装入口核对 AppImage 非空、输出 SHA-256 并保存版本。构建结果以 Actions 的实际状态为准；静态核对不等同于实机验收。
+构建时验证 Release 的唯一资产、上传状态和官方 SHA-256；最终封装入口核对 AppImage 非空、输出 SHA-256 并保存版本。构建结果以 Actions 的实际状态为准；实机通过结果见 [实机验证](#实机验证)。
 
 ## 构建故障与修复
 
