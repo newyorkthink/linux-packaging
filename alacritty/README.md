@@ -1290,3 +1290,10 @@ Message: fix(alacritty): add quick-sharun compiler dependency
 - 原因：公共 `common/apt/install_packages.sh` 已安装 `pkgconf`，应用脚本又在同一次安装中要求 `pkg-config`，触发软件包冲突。
 - 修复：仅从 `build_alacritty.sh` 的应用依赖列表删除 `pkg-config`，保留公共 `pkgconf`；不修改公共入口、Runner、X11 IME 补丁或其他构建步骤。
 - 验证：已对照失败日志、依赖列表与完整代码完成静态检查；修复后的实际构建和运行结果尚未验证。
+
+## 2026-11-08：恢复 Ubuntu 22.04 构建基线以解决 GLIBC 兼容问题
+
+- 故障：Alacritty 0.17.0 AppImage 已下载完成并通过 SHA-256 校验，但在现有 Kali Linux 宿主机运行时报错：`/usr/lib/x86_64-linux-gnu/libm.so.6: version 'GLIBC_2.43' not found`，程序无法启动。
+- 原因：`.github/workflows/build.yml` 的 Alacritty 专用 Job 使用 `runs-on: ubuntu-latest`，与本目录已确认的 Ubuntu 22.04 + LinuxDeploy 构建基线不一致。报错表明产物要求宿主机未提供的 GLIBC 符号版本；当前证据无法仅凭这一条错误精确判定生成该依赖的具体构建镜像版本。
+- 修复：只将该 Job 的 Runner 改为 `ubuntu-22.04`，避免构建环境跟随 `ubuntu-latest` 漂移；保留 `build_alacritty.sh`、现有 X11 IME 补丁、AppRun、运行库路径、依赖和公共打包流程，不在宿主机升级或替换 GLIBC。
+- 验证：已核对故障截图、正式构建入口、已记录的稳定基线以及本次修改范围；恢复后的 AppImage 启动效果须以新产物的实际运行结果为准。
