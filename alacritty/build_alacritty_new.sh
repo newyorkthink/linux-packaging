@@ -18,12 +18,6 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 # 安装构建工具和应用所需的依赖包。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" build-essential ca-certificates cmake curl git jq libfontconfig1-dev libx11-data libxcb-xfixes0-dev libxkbcommon-dev libxkbcommon-x11-0 pkg-config python3 xkb-data librsvg2-bin
 
-# 本程序专属处理：安装 Rust 工具链，编译官方最新正式版源码。
-curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal
-
-# 本程序专属处理：加载 Rust 编译环境。
-. "$HOME/.cargo/env"
-
 ############# 下载打包工具 #############
 
 # 下载并校验打包工具及所需插件，随后加载构建环境配置。
@@ -113,8 +107,6 @@ chmod +x "$APPDIR/AppRun"
 # 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
 export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage \
   --library /usr/lib/x86_64-linux-gnu/libxkbcommon-x11.so.0 \
-  --library /usr/lib/x86_64-linux-gnu/libxkbcommon.so.0 \
-  --library /usr/lib/x86_64-linux-gnu/libxcb-xkb.so.1 \
   --desktop-file "$APPDIR/usr/share/applications/Alacritty.desktop" \
   --icon-file "$APPDIR/usr/share/icons/hicolor/scalable/apps/Alacritty.svg"
 
