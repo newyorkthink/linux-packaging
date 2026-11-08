@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ############# 准备构建目录 #############
 
 # 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "realvnc_vnc_viewer"
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "vncviewer"
 
 ############# 准备构建环境 #############
 
@@ -35,10 +35,10 @@ VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_relea
 
 ########## 准备桌面资源和运行库 #########
 
-# 本程序专属处理：校验官方桌面资源，并在包内副本中设置 AppImage 的启动入口和图标。
+# 本程序专属处理：保留官方桌面启动命令，只调整 AppImage 包内副本的图标。
 DEPLOY_DESKTOP_FILE="$SOURCE_DIR/realvnc-vncviewer.desktop"
 cp -a "$APPDIR/usr/share/applications/realvnc-vncviewer.desktop" "$DEPLOY_DESKTOP_FILE"
-sed -i -e 's|^Exec=.*$|Exec=vncviewer|' -e 's|^Icon=.*$|Icon=vncviewer48x48|' "$DEPLOY_DESKTOP_FILE"
+sed -i -e 's|^Icon=.*$|Icon=vncviewer48x48|' "$DEPLOY_DESKTOP_FILE"
 # 本程序专属处理：移除废弃的桌面入口字段，并保留规范的新建连接快捷方式。
 sed -i -e '/^Encoding=/d' -e 's|^Categories=Application;|Categories=|' -e 's|^X-Ayatana-Desktop-Shortcuts=NewConnection$|Actions=NewConnection;|' -e 's|^\[NewConnection Shortcut Group\]$|[Desktop Action NewConnection]|' -e '/^TargetEnvironment=Unity$/d' "$DEPLOY_DESKTOP_FILE"
 cp -a "$DEPLOY_DESKTOP_FILE" "$APPDIR/usr/share/applications/"

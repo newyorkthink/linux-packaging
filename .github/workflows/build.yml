@@ -1057,7 +1057,7 @@ jobs:
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).vncviewer == 'true'
     concurrency:
-      group: build-appimage-realvnc_vnc_viewer.AppImage
+      group: build-appimage-vncviewer.AppImage
       queue: max
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -1075,10 +1075,10 @@ jobs:
           bash -n vncviewer/build_vncviewer.sh
           chmod +x vncviewer/build_vncviewer.sh
           ./vncviewer/build_vncviewer.sh
-          test -s vncviewer/dist/realvnc_vnc_viewer.AppImage
+          test -s vncviewer/dist/vncviewer.AppImage
           test -s vncviewer/dist/version.txt
-          file vncviewer/dist/realvnc_vnc_viewer.AppImage
-          sha256sum vncviewer/dist/realvnc_vnc_viewer.AppImage
+          file vncviewer/dist/vncviewer.AppImage
+          sha256sum vncviewer/dist/vncviewer.AppImage
       - name: Upload software version metadata
         uses: actions/upload-artifact@v4
         with:
@@ -1092,13 +1092,13 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          gh release upload latest vncviewer/dist/realvnc_vnc_viewer.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload latest vncviewer/dist/vncviewer.AppImage --repo "$GITHUB_REPOSITORY" --clobber
       - name: Publish software version immediately
         uses: ./.github/actions/publish-software-versions
         with:
           software_key: 'vncviewer'
           version_file: 'vncviewer/dist/version.txt'
-          asset_name: 'realvnc_vnc_viewer.AppImage'
+          asset_name: 'vncviewer.AppImage'
           artifact_dir: 'vncviewer/dist'
           github_token: ${{ github.token }}
 

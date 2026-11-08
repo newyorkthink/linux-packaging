@@ -8,3 +8,7 @@
 - **影响：** 保留新建连接快捷方式的名称和启动命令，适配现代桌面入口规范；不改动原始 DEB、公共下载脚本、依赖部署、AppRun、打包工具及其他应用。
 
 本处理仅针对本应用旧版 DEB 的桌面资源，不加入公共模板。
+
+## 官方启动入口与产物名称
+
+官方 DEB 的桌面主入口为 `Exec=vncviewer %f`，`[Desktop Action NewConnection]` 对应的快捷方式入口为 `Exec=vncviewer`。此前的构建脚本使用全局 `Exec=` 替换，导致主入口丢失 `%f`。本次取消该替换，两个入口均保留原始值；继续仅调整图标和过时的 desktop 字段。程序实际路径 `usr/bin/vncviewer`、AppRun 和依赖部署保持不变。最终产物由公共工作区入口以 `vncviewer` 为名称主体生成，正式文件名为 `vncviewer.AppImage`。

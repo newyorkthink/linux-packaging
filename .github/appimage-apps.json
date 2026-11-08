@@ -560,7 +560,7 @@
       "script": "vncviewer/build_vncviewer.sh",
       "dir": "vncviewer",
       "artifact_dir": "vncviewer/dist",
-      "release_name": "realvnc_vnc_viewer.AppImage",
+      "release_name": "vncviewer.AppImage",
       "software_key": "vncviewer",
       "timeout_minutes": 60,
       "run_from_root": "false"
