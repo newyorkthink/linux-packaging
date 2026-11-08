@@ -39,12 +39,17 @@ rm -f "$OUTFILE" "$OUTFILE.zsync"
 
 ############ 下载并准备应用 #############
 
-# 本程序专属处理：使用 kitty 官方预编译包，并保持 bin、lib、share 的相对目录不变。
-"$SCRIPT_DIR/../common/download/download_file.sh" https://sw.kovidgoyal.net/kitty/installer.sh /tmp/kitty-installer.sh
+# 本程序专属处理：获取 Kitty 最新正式版标签。
+KITTY_TAG="$(gh release view --repo kovidgoyal/kitty --json tagName --jq '.tagName')"
 
-sh /tmp/kitty-installer.sh \
-  dest="$APPDIR/usr/lib" \
-  launch=n
+# 本程序专属处理：通过公共脚本下载 Kitty 官方预编译包。
+"$SCRIPT_DIR/../common/github/download_latest_stable_named_asset.sh" kovidgoyal/kitty "kitty-${KITTY_TAG#v}-x86_64.txz" /tmp/kitty.txz
+
+# 本程序专属处理：创建 Kitty 安装目录。
+mkdir -p "$KITTY_DIR"
+
+# 本程序专属处理：解压官方预编译包，保留原有目录结构。
+tar -xJof /tmp/kitty.txz -C "$KITTY_DIR"
 
 # 本程序专属处理：kitten 是独立的软链接入口，保留这项检查，避免生成缺少该入口的产物。
 test -x "$KITTY_DIR/bin/kitten"

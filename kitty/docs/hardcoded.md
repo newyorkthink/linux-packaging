@@ -58,3 +58,11 @@ desktop 继续使用 `Icon=kitty`。资源准备末尾调用既有 `common/appim
 - 两个输出文件仍是 `/tmp/appimagetool` 和 `/tmp/runtime-x86_64`。工具准备入口的 `--appimagetool` 模式统一查询原官方 continuous Release、校验当次资产 SHA-256，并设置执行权限；不写死版本或摘要。
 - 主脚本只传入两个输出路径，不再重复官方工具 URL、下载和 chmod 命令；不执行 linuxdeploy，也不追加重复成功提示。
 - 旧直接下载和手工版本解析的说明作为前面提交的历史保留，当前调用以本节及 README 的“当前公共入口”为准。原图标故障正文继续保留。
+
+## 2026-11-08：官方预编译包下载入口调整
+
+原构建脚本下载官方 `installer.sh` 并交由安装器内部获取预编译包。此次故障来自 [Build kitty](https://github.com/newyorkthink/linux-packaging/actions/runs/42475221749/job/128714966257)：安装器内部请求 GitHub Release 的 `kitty-0.50.0-x86_64.txz` 返回 HTTP 504。
+
+当前构建脚本不再下载或运行安装器，而是通过 GitHub 官方最新 Release 标签确定 `kitty-{version}-x86_64.txz` 资产，复用公共固定资产名下载脚本取得并校验官方 SHA-256，然后直接解压到原有 `AppDir/usr/lib/kitty.app`。版本动态获取，不固定版本、资产 ID、摘要或历史下载地址。公共下载脚本沿用原有直链优先和失败后认证回退机制。
+
+本节更新的是上文“官方 installer URL、`/tmp/kitty-installer.sh`”和“官方 installer 保持原样”的当前适用性；上文既有配置、图标故障原始记录、历史构建说明及原 `AppRun` 均保留。

@@ -66,3 +66,11 @@ Kitty 的 AppRun 正文有 169 行，包含 kitten 分派、输入法、terminfo
 直接 appimagetool 模式逐字使用 [固定注释标准](../../docs/linuxdeploy-comments.md) 中适用的分区标题、依赖安装和 AppRun 执行权限注释；已一致的通用注释和现有程序专属说明保留。
 
 本次只整理注释与空行，不移动或改写命令。Arch 基础包仍按原位置提前安装；最终封装工具仍在 AppRun 准备之后取得，保留原有已确认顺序。分区仅标明实际执行阶段，不为了套用 linuxdeploy 的默认顺序移动代码，也不增加初始化、插件、部署或中间包阶段。独立 AppRun 及 kitten 分派保持原样。
+
+## 2026-11-08：Kitty 官方预编译包直接下载
+
+[Build kitty](https://github.com/newyorkthink/linux-packaging/actions/runs/42475221749/job/128714966257) 在执行官方 `installer.sh` 时，内部下载 `kitty-0.50.0-x86_64.txz` 返回 HTTP 504。原构建脚本只通过公共入口下载安装器本身，因此该公共入口无法处理安装器内部的下载失败。
+
+当前在 `build_kitty.sh` 的“下载并准备应用”阶段，用 `gh release view` 获取 Kitty 最新正式版标签，调用现有 `common/github/download_latest_stable_named_asset.sh` 下载对应官方 `x86_64.txz`，随后创建原 `kitty.app` 目录并使用 `tar -xJof` 直接解包。公共脚本先使用官方 Release 直链；下载失败才凭 GitHub Token 通过同一资产 ID 认证回退，并校验官方 SHA-256。主脚本不新增条件分支、校验逻辑或输出逻辑。
+
+这一改动只替换原 `installer.sh` 的获取和执行步骤；不改变 `AppDir/usr/lib/kitty.app` 下的 `bin`、`lib`、`share` 相对层级，不改版本读取、`kitten` 检查、`AppRun`、`prepare_appdir.sh`、Arch 依赖或现有 appimagetool 封装。前述 2026-11-01 至 2026-11-02 的 installer 与工具准备记录保留为当时的基线和历史实施说明，当前下载方式以本节为准。

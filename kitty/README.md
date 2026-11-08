@@ -6,13 +6,13 @@
 
 ## 技术栈与打包方式
 
-kitty 为 GPU 加速终端，主体由 C/Python 组件组成。构建脚本通过官方 installer 下载完整程序目录，补入 Arch `kitty-terminfo` 与 `libxcb-xkb`，自定义 AppRun 处理 terminfo、kitten、Fcitx5/IBus 与 tmux 环境，再使用 appimagetool + Type 2 runtime 生成 AppImage。
+kitty 为 GPU 加速终端，主体由 C/Python 组件组成。构建脚本从 GitHub 最新正式版获取官方 Linux 预编译包，通过公共下载脚本取得并校验 SHA-256 后直接解压，补入 Arch `kitty-terminfo` 与 `libxcb-xkb`。自定义 AppRun 处理 terminfo、kitten、Fcitx5/IBus 与 tmux 环境，再使用 appimagetool + Type 2 runtime 生成 AppImage。
 
 ## 当前公共入口
 
 | 操作 | 公共入口与职责 |
 | --- | --- |
-| 下载官方 installer | 调用 `common/download/download_file.sh`，保留原官方 URL、输出位置和 installer 的执行参数。 |
+| 下载官方预编译包 | 通过 `gh release view` 获取最新正式版标签；调用 `common/github/download_latest_stable_named_asset.sh` 下载同一版本的 `x86_64.txz`。公共入口先尝试官方 Release 直链，失败后使用相同资产 ID 认证下载，并校验官方 SHA-256。 |
 | 读取当前程序版本 | 调用 `common/build/read_app_version.sh` 的 `command` 来源，传入真实程序、字段 2 和原 `--version` 参数；解析与格式校验放在公共入口。 |
 | 下载封装工具和 runtime | 一次调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh --appimagetool`，取得两个官方 continuous 文件、校验 SHA-256 并设置执行权限。 |
 | PNG 图标、正式封装和版本保存 | 调用 `common/linuxdeploy/package_appimage.sh`，统一处理权限、PNG、封装、有效产物检查、SHA-256 和 `dist/version.txt`。 |
@@ -87,3 +87,10 @@ ln -s kitty.AppImage kitten
 - 适用分区标题、依赖安装和 AppRun 执行权限注释逐字复用 [固定注释标准](../docs/linuxdeploy-comments.md)，原有版本读取、工具准备和最终封装注释继续保留；程序专属说明不改写。
 - 只调整主脚本注释和对应空行。所有非注释、非空白代码行逐字一致，安装参数、路径、检查和执行顺序不变；独立 AppRun 及 kitten 分派未修改。Arch 基础包前置和封装工具的原下载位置保留，原因及适用边界见 [专属说明](./docs/template-deviations.md)。
 - 提交前核对 Shell 语法、固定原文、去除注释与空行后的代码、文档链接和完整 diff；未重新安装依赖、试打包或运行程序。此项为注释整理，不作为新的构建或运行故障修复记录。
+
+### 2026-11-08：Kitty 预编译包改为直接下载和解压
+
+- [Build kitty](https://github.com/newyorkthink/linux-packaging/actions/runs/42475221749/job/128714966257) 的原构建日志显示：官方安装器内部下载 GitHub Release 资产时返回 HTTP 504，构建在执行 `sh /tmp/kitty-installer.sh` 阶段退出。该日志不能证明 504 必然由匿名请求引起。
+- 主脚本改为先用 `gh release view` 获取最新正式版标签，再通过公共 `download_latest_stable_named_asset.sh` 下载对应的官方 `x86_64.txz`；沿用公共入口的直链优先、认证回退和 SHA-256 校验，不自行增加请求、检查或输出。
+- 将预编译包直接解压到 `AppDir/usr/lib/kitty.app`。原有 `kitten` 检查、实际程序版本读取、资源准备、独立 `AppRun`、Arch 依赖和 appimagetool 封装逻辑全部保留。
+- 上述较早日期的 installer 相关记录保留为历史事实；本节及“当前公共入口”描述的是本次调整后的流程。
