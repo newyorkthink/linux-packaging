@@ -25,6 +25,8 @@ runs:
   steps:
     - name: Setup Yay for Root execution
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
         set -Eeuo pipefail
         useradd -m -G wheel builduser || true
@@ -41,6 +43,90 @@ runs:
           sleep 5
         done
         test -f /tmp/yay-bin/PKGBUILD
+        # 匿名下载 GitHub Release 会连续返回 504。先用本次构建的登录凭证把预编译包放到构建目录，makepkg 看到同名文件就不再下载。
+        cat > /tmp/download-yay-release.sh <<'EOF'
+        #!/usr/bin/env bash
+        set -Eeuo pipefail
+
+        cd /tmp/yay-bin
+        source ./PKGBUILD
+        url="${source_x86_64[0]}"
+        filename="${url##*/}"
+        if [[ ! "$url" =~ ^https://github\.com/([^/]+)/([^/]+)/releases/download/([^/]+)/([^/?]+)$ ]]; then
+          printf 'yay 源码不是 GitHub Release，交给 makepkg 下载：%s\n' "$url"
+          exit 0
+        fi
+        owner="${BASH_REMATCH[1]}"
+        repo="${BASH_REMATCH[2]}"
+        tag="${BASH_REMATCH[3]}"
+        asset="${BASH_REMATCH[4]}"
+        if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+          printf '缺少 GitHub 登录凭证，无法下载 yay 预编译包。\n' >&2
+          exit 1
+        fi
+
+        download_asset() {
+          local release_json asset_id tmpfile
+          release_json="$(
+            curl --http1.1 -fsSL \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              "https://api.github.com/repos/${owner}/${repo}/releases/tags/${tag}"
+          )"
+          asset_id="$(
+            printf '%s' "$release_json" | grep -oE "\"url\":\"https://api.github.com/repos/${owner}/${repo}/releases/assets/[0-9]+\",\"id\":[0-9]+,\"node_id\":\"[^\"]+\",\"name\":\"${asset}\"" | grep -oE 'releases/assets/[0-9]+' | grep -oE '[0-9]+$' || true
+          )"
+          if [[ -z "$asset_id" ]]; then
+            asset_id="$(
+              printf '%s\n' "$release_json" | awk -v asset="$asset" '
+                $0 ~ /releases\/assets\/[0-9]+/ {
+                  urlid = $0
+                  sub(/.*releases\/assets\//, "", urlid)
+                  sub(/[^0-9].*/, "", urlid)
+                }
+                index($0, "\"name\": \"" asset "\"") {
+                  if (urlid != "") {
+                    print urlid
+                    exit
+                  }
+                }
+              '
+            )"
+          fi
+          if [[ -z "$asset_id" ]]; then
+            printf '没有在发布 %s 中找到 %s。\n' "$tag" "$asset" >&2
+            return 1
+          fi
+          tmpfile="${filename}.partial"
+          curl --http1.1 -fL \
+            -H "Accept: application/octet-stream" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -o "$tmpfile" \
+            "https://api.github.com/repos/${owner}/${repo}/releases/assets/${asset_id}"
+          mv -f "$tmpfile" "$filename"
+        }
+
+        for attempt in 1 2 3 4 5; do
+          if download_asset; then
+            exit 0
+          fi
+          rm -f -- "${filename}.partial"
+          if [[ "$attempt" -eq 5 ]]; then
+            printf '用登录凭证下载 yay 失败，已尝试 5 次。\n' >&2
+            exit 1
+          fi
+          delay=$((attempt * 5))
+          printf '用登录凭证下载 yay 失败，%d 秒后重试（第 %d/5 次尝试失败）。\n' "$delay" "$attempt" >&2
+          sleep "$delay"
+        done
+        EOF
+        chmod 755 /tmp/download-yay-release.sh
+        # 登录凭证只放在构建用户可读的临时文件里，不写进进程参数。
+        printf '%s' "$GITHUB_TOKEN" > /tmp/yay-github-token
+        chown builduser:builduser /tmp/yay-github-token
+        chmod 600 /tmp/yay-github-token
+        su - builduser -c 'GITHUB_TOKEN="$(cat /tmp/yay-github-token)" /tmp/download-yay-release.sh'
+        rm -f -- /tmp/yay-github-token /tmp/download-yay-release.sh
         su - builduser -c "cd /tmp/yay-bin && makepkg -si --noconfirm"
         # 在统一 yay 入口处理仓库包下载失败，应用构建脚本继续使用原安装命令。
         cat > /usr/local/bin/yay <<'YAY_EOF'
