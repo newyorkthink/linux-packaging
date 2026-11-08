@@ -1,73 +1,48 @@
 #!/usr/bin/env bash
+
+############# 初始化脚本 #############
+
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
 set -Eeuo pipefail
 
+# 获取脚本所在目录的绝对路径。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
 
-###### 准备构建环境 ######
+############# 准备构建目录 #############
 
-[[ "$(uname -m)" == x86_64 ]] || {
-  echo "错误：当前仅支持 x86_64。" >&2
-  exit 1
-}
+# 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "poppler-utils"
 
-rm -rf AppDir dist source
-mkdir -p AppDir/usr/bin AppDir/usr/share/applications \
-  AppDir/usr/share/icons/hicolor/256x256/apps AppDir/usr/share dist source
+############# 准备构建环境 #############
 
-# linuxdeploy + appimagetool 固定在 Ubuntu 24.04 构建，不使用 Arch Linux / yay。
-# 使用 Ubuntu 官方 deb 包，不编译 Poppler 源码。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" \
-  aptitude build-essential git wget curl jq binutils patchelf file \
-  appstream-util desktop-file-utils zsync ca-certificates \
-  poppler-utils poppler-data
+# 安装构建工具和应用所需的依赖包。
+"$SCRIPT_DIR/../common/apt/install_packages.sh" poppler-utils poppler-data
 
-POPPLER_PACKAGE_VERSION="$(dpkg-query -W -f='${Version}\n' poppler-utils)"
-POPPLER_VERSION="${POPPLER_PACKAGE_VERSION#*:}"
-POPPLER_VERSION="${POPPLER_VERSION%-*}"
+############# 下载打包工具 #############
 
-###### 下载官方打包工具 ######
+# 下载并校验打包工具及所需插件，随后加载构建环境配置。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" "" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 
-download_tool() {
-  local repo="$1" asset="$2" output="$3" metadata digest
-  metadata="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 \
-    "https://api.github.com/repos/$repo/releases/tags/continuous")"
-  digest="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .digest' <<< "$metadata")"
-  [[ "$digest" =~ ^sha256:[[:xdigit:]]{64}$ ]] || {
-    echo "错误：官方工具缺少有效 SHA-256：$repo/$asset" >&2
-    exit 1
-  }
-  curl -fL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 300 \
-    "https://github.com/$repo/releases/download/continuous/$asset" -o "$output"
-  printf '%s  %s\n' "${digest#sha256:}" "$output" | sha256sum -c -
-}
+############ 初始化 AppDir #############
 
-download_tool linuxdeploy/linuxdeploy linuxdeploy-x86_64.AppImage source/linuxdeploy
-download_tool AppImage/appimagetool appimagetool-x86_64.AppImage source/appimagetool
-download_tool AppImage/type2-runtime runtime-x86_64 source/runtime-x86_64
-chmod +x source/linuxdeploy source/appimagetool
+# 首次运行 linuxdeploy，创建 AppDir 的基础目录。
+"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
-curl -fL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 120 \
-  https://poppler.freedesktop.org/logo.png -o source/poppler-utils.png
+############ 下载并准备应用 #############
 
-###### 准备 AppDir ######
+# 下载已安装版本的软件包并解包到 AppDir，成功后返回版本号。
+VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "poppler-utils" "$APPDIR" poppler-data)"
 
-PDF_TOOLS=(
-  pdfattach pdfdetach pdffonts pdfimages pdfinfo pdfseparate pdfsig
-  pdftocairo pdftohtml pdftoppm pdftops pdftotext pdfunite
-)
+########## 准备桌面资源和运行库 #########
 
-for tool in "${PDF_TOOLS[@]}"; do
-  [[ -x "/usr/bin/$tool" ]] || {
-    echo "错误：Ubuntu poppler-utils 缺少 /usr/bin/$tool。" >&2
-    exit 1
-  }
-  cp "/usr/bin/$tool" AppDir/usr/bin/
-done
+# 本程序专属处理：准备 Poppler 桌面入口和官方 PNG 图标的包内目录。
+mkdir -p "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
-cp -a /usr/share/poppler AppDir/usr/share/
+# 本程序专属处理：通过公共下载入口获取 Poppler 官方 PNG 图标。
+"$SCRIPT_DIR/../common/download/download_file.sh" "https://poppler.freedesktop.org/logo.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/poppler-utils.png"
 
-cat > AppDir/usr/share/applications/poppler-utils.desktop <<'EOF'
+# 本程序专属处理：为包含 13 个命令的 CLI 套件创建终端桌面入口。
+cat > "$APPDIR/usr/share/applications/poppler-utils.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Poppler Utilities
@@ -77,10 +52,11 @@ Terminal=true
 Categories=Office;Utility;
 EOF
 
-cp source/poppler-utils.png AppDir/usr/share/icons/hicolor/256x256/apps/poppler-utils.png
+############# 准备 AppRun ##############
 
-# ARGV0 保留软链接入口名；也支持把命令名作为第一个参数。
-cat > AppDir/AppRun <<'EOF'
+# 在 AppDir 根目录创建完整的 AppRun 启动脚本。
+# 本程序专属处理：沿用已验证的 13 个 Poppler 命令及 ARGV0 软链接分派入口。
+cat > "$APPDIR/AppRun" <<'APPRUN'
 #!/bin/sh
 set -eu
 
@@ -104,22 +80,17 @@ case "$tool" in
 esac
 
 exec "$APPDIR/usr/bin/$tool" "$@"
-EOF
-chmod +x AppDir/AppRun
+APPRUN
 
-###### 核心打包 ######
+# 为启动脚本添加执行权限。
+chmod +x "$APPDIR/AppRun"
 
-export APPIMAGE_EXTRACT_AND_RUN=1
-export PATH="$SCRIPT_DIR/source:$PATH"
-export LDAI_OUTPUT="$SCRIPT_DIR/source/poppler-utils-intermediate.AppImage"
-export LDAI_NO_APPSTREAM=1
+############### 核心打包 ###############
 
-# linuxdeploy 负责收集 AppDir 中全部命令及依赖。
+# 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
 export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
 
-# appimagetool 使用最新官方 Type 2 runtime 生成最终 AppImage。
-export ARCH=x86_64; appimagetool -n ./AppDir ./dist/poppler-utils.AppImage --runtime-file ./source/runtime-x86_64
+############### 整理产物 ###############
 
-###### 整理产物 ######
-
-printf '%s\n' "$POPPLER_VERSION" > ./dist/version.txt
+# 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
+"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

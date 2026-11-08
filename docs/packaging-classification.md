@@ -128,6 +128,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | GoldenDict | [build_goldendict.sh](../goldendict/build_goldendict.sh) | Ubuntu 24.04 仓库的原版 goldendict；下载已安装的同版本 DEB，保留完整发行版修订号。 | Qt5 / GStreamer；qt、gstreamer | [专属差异](../goldendict/docs/template-deviations.md) |
 | Joplin | [build_joplin.sh](../joplin/build_joplin.sh) | 官方 GitHub 正式 Release DEB；公共入口校验后，将同一份包安装并按原布局解包，返回实际版本。 | Electron / GTK3；gtk | [专属差异](../joplin/docs/template-deviations.md) |
 | MediaInfo | [build_mediainfo_linuxdeploy.sh](../mediainfo/build_mediainfo_linuxdeploy.sh) | Ubuntu 24.04 仓库的 mediainfo；公共入口下载已安装的同一版本并解包，返回版本号。 | CLI；无框架插件 | [专属差异](../mediainfo/docs/template-deviations.md) |
+| Poppler Utilities | [build_poppler-utils.sh](../poppler-utils/build_poppler-utils.sh) | Ubuntu 24.04 仓库的 poppler-utils 与 poppler-data；公共入口按已安装版本下载并解包，返回主程序版本。 | CLI（13 个命令）；无框架插件 | [专属差异](../poppler-utils/docs/template-deviations.md) |
 | RealVNC Connect | [build_realvnc-rvnc-connect.sh](../realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh) | 官方校验页面中的最新稳定版 x64 DEB；公共入口核对 SHA-256、安装并解包，返回包内实际版本。 | Flutter / GTK3；gtk | [专属差异](../realvnc-rvnc-connect/docs/template-deviations.md) |
 | RealVNC Viewer 7.15.1 | [build_vncviewer.sh](../vncviewer/build_vncviewer.sh) | 固定从本仓库 `original-package-archive` 获取官方 x64 DEB，公共入口核对 GitHub SHA-256 并读取包内版本。 | X11；无 Qt/GTK 框架插件 | [应用说明](../vncviewer/README.md) |
 | Remmina | [build_remmina.sh](../remmina/build_remmina.sh) | Ubuntu 24.04 仓库的 Remmina 与协议插件；各包按已安装版本下载并解包，版本以 remmina 主包为准。 | GTK3 / WebKitGTK；gtk、gstreamer | [专属差异](../remmina/docs/template-deviations.md) |

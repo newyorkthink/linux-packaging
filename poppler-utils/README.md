@@ -39,10 +39,10 @@
 ## 打包方式
 
 1. 在 Ubuntu 24.04 安装官方 `poppler-utils` 与 `poppler-data`。
-2. 把 13 个 `/usr/bin` 命令及 `/usr/share/poppler` 放入 AppDir。
+2. 通过公共 APT 入口下载与已安装版本一致的 `poppler-utils` 和 `poppler-data`，按原有 DEB 目录结构解包到 AppDir，保留 13 个命令及 `/usr/share/poppler` 数据。
 3. 自定义 `AppRun` 根据 Type 2 runtime 提供的 `ARGV0` 分派软链接入口；也支持把命令名作为第一个参数。
-4. 执行 `linuxdeploy --appdir AppDir --output appimage` 收集依赖。
-5. 执行 `appimagetool -n ./AppDir ... --runtime-file ./source/runtime-x86_64` 生成最终 AppImage。
+4. 通过公共工具入口取得 linuxdeploy、appimagetool 与 Type 2 runtime，使用 `linuxdeploy --appdir AppDir --output appimage` 收集依赖。
+5. 通过公共最终封装入口调用 appimagetool 和 Type 2 runtime 生成 `poppler-utils.AppImage`，并输出 SHA-256。
 6. 从实际安装的 Ubuntu deb 读取版本并写入 `dist/version.txt`。
 
 workflow 入口：`poppler-utils/build_poppler-utils.sh`。成功发布后由当前 Job 立即更新 `software_versions.json` 中的 `poppler-utils` 条目。
@@ -90,6 +90,14 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 直接运行 AppImage 且不提供命令名时，默认执行 `pdftotext`。
 
 真实 Linux 环境已经确认原 quick-sharun 产物用于 lf PDF 预览时会长时间停在 `loading...`；当前 Ubuntu 24.04 `linuxdeploy + appimagetool` 产物已在 lf 中快速显示 PDF 文本预览，速度正常，现有 lf 配置无需修改。一个 AppImage、13 个命令和软链接分派方式继续作为稳定基线。
+
+## 标准化构建与专属差异
+
+当前构建脚本按 [LinuxDeploy CLI 标准模板](../templates/appimage/linuxdeploy-cli-apt.sh) 组织分区、公共入口和固定注释。构建环境仍为 Ubuntu 24.04；程序及 `poppler-data` 来自同一构建环境的官方 APT 软件包，不编译 Poppler 源码。
+
+- 公共工作区、APT 安装、下载同版本 DEB、linuxdeploy 初始化、打包工具及 Type 2 runtime 准备、最终 AppImage 封装与版本元数据均复用现有公共入口。
+- 专属部分只负责官方 PNG 图标、终端 desktop 和 13 命令分派。原 `AppRun` 的 `ARGV0`、命令名作为首参数及默认 `pdftotext` 行为逐字保留。
+- 标准模板只支持单一主程序入口，因此原 13 命令 `AppRun` 保留为已验证的程序专属差异，详见 [模板差异](docs/template-deviations.md)。构建环境与必要固定参数见 [固定配置](docs/hardcoded.md)。
 
 ## 修复记录
 
@@ -154,3 +162,10 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 - 确认结论：当前打包路线已解决原 quick-sharun 产物的 lf 预览延迟；现有 lf 配置无需修改。
 - 稳定基线：继续保留一个 `poppler-utils.AppImage`、13 个命令入口和现有软链接分派；正式构建固定使用 Ubuntu 24.04、linuxdeploy 收集依赖、官方 appimagetool 配合明确下载并校验的 `runtime-x86_64` 完成最终封装。
 - 文档处理：仅更新 `poppler-utils/README.md` 的当前状态、版本元数据和实机确认记录；未修改构建脚本、workflow、AppRun 或 Release 逻辑。
+
+### 2026-11-08：按 LinuxDeploy CLI 结构标准化
+
+- 保持 Ubuntu 24.04、单个 AppImage、13 个 Poppler 工具、`poppler-data` 及 lf PDF 快速预览的既有实机通过基线。
+- 构建脚本统一使用仓库公共工作区、APT 同版本解包、linuxdeploy 工具准备和封装入口，移除旧版重复实现的下载工具函数、版本提取和打包路径配置。
+- 官方 PNG、CLI desktop 与多命令 `AppRun` 分派按已验证逻辑保留，专属代码使用固定的 `# 本程序专属处理：` 注释，并与 LinuxDeploy 通用分区及固定注释一致。
+- 对应专属代码、固定配置及技术依据分别记录在 `docs/template-deviations.md` 和 `docs/hardcoded.md`；既有修复历史与实机验证结论保留。
