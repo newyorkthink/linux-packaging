@@ -98,11 +98,15 @@ runs:
             return 1
           fi
           tmpfile="${filename}.partial"
-          curl --http1.1 -fL \
+          # curl 写在 if 调用的函数里，失败不会因 set -e 退出；必须确认成功后再改名。
+          if ! curl --http1.1 -fL \
             -H "Accept: application/octet-stream" \
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -o "$tmpfile" \
-            "https://api.github.com/repos/${owner}/${repo}/releases/assets/${asset_id}"
+            "https://api.github.com/repos/${owner}/${repo}/releases/assets/${asset_id}"; then
+            rm -f -- "$tmpfile"
+            return 1
+          fi
           mv -f "$tmpfile" "$filename"
         }
 
