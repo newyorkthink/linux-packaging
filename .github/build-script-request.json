@@ -1,5 +1,40 @@
 {
-  "template": "",
-  "output": "",
-  "params": {}
+  "template": "quick-sharun/electron-github-deb.sh",
+  "output": "obsidian/build_obsidian_new.sh",
+  "params": {
+    "SYSTEM_PACKAGE": "obsidian-bin",
+    "DEPENDENCY_ARGS": [
+      "gtk3",
+      "ibus",
+      "libnotify",
+      "libsecret",
+      "libxss",
+      "libxtst",
+      "nss",
+      "util-linux-libs",
+      "xdg-utils",
+      "alsa-lib",
+      "libx11",
+      "libxrandr",
+      "mesa",
+      "libglvnd"
+    ],
+    "RELEASE_TAG_PREFIX": "v",
+    "GITHUB_REPOSITORY": "obsidianmd/obsidian-releases",
+    "RELEASE_ASSET_PATTERN": "obsidian_{version}_amd64.deb",
+    "DEB_PACKAGE": "obsidian",
+    "DEB_ARCH": "amd64",
+    "DEB_PROGRAM_DIR": "opt/Obsidian",
+    "APP_NAME": "Obsidian",
+    "MAIN_BIN": "obsidian",
+    "STARTUPWMCLASS": "obsidian",
+    "ICON": "/usr/share/icons/hicolor/512x512/apps/obsidian.png",
+    "DESKTOP": "/usr/share/applications/obsidian.desktop",
+    "APP_BASENAME": "obsidian",
+    "SCAN_ARGS": [
+      {
+        "glob": "AppDir/bin/*"
+      }
+    ]
+  }
 }
