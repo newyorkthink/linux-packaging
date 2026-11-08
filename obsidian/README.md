@@ -2,15 +2,15 @@
 
 ## 用途与产物
 
-本目录从 Obsidian 官方 Desktop Releases 动态选择最近一个包含 Linux x64 tar 包的版本，并重新封装为 `obsidian.AppImage`。
+本目录从 Obsidian 官方正式 Release 中选择带有 Linux AMD64 DEB 资产的桌面版本，经公共下载入口校验后封装为 `obsidian.AppImage`。
 
 ## 技术栈与打包方式
 
-Obsidian 为 Electron 桌面应用。脚本保留官方 Linux x64 程序目录和资源，通过 quick-sharun 补齐 GTK、NSS、X11、OpenGL、PipeWire 与 IBus 运行组件。
+Obsidian 为 Electron 桌面应用。构建时先安装 AUR `obsidian-bin` 及运行依赖，再独立下载官方 AMD64 DEB，将完整的 `opt/Obsidian` 程序目录复制到 `AppDir/bin`。quick-sharun 收集 GTK3、X11、NSS、IBus、OpenGL、Vulkan 和 PipeWire 运行组件，并生成 AppImage 与包内中文环境。
 
 ## 版本元数据
 
-构建脚本复用从官方 tar 包 URL 解析出的 `VERSION`，AppImage 成功生成后写入 `dist/version.txt`。workflow 使用 `SOFTWARE_KEY=obsidian` 接入统一版本清单。
+下载入口将同次官方 Release 的版本保存到 `work/source-version.txt`；构建脚本读取该版本，AppImage 成功生成后由公共入口写入 `dist/version.txt`。现有 workflow 继续使用 `SOFTWARE_KEY=obsidian` 接入统一版本清单。
 
 ## 运行
 
@@ -24,12 +24,13 @@ Obsidian 为 Electron 桌面应用。脚本保留官方 Linux x64 程序目录�
 
 仅增加统一版本输出与发布映射，不改变现有 Obsidian 上游选择、Electron 依赖或输入法逻辑。
 
-## 独立标准化构建脚本
 
-`build_obsidian_new.sh` 使用现有 Electron GitHub Release DEB 标准模板的主体流程，并补充本应用的图形、音频和 NSS 运行组件。原 `build_obsidian.sh` 及其正式构建入口均未改变。
+### 2026-11-08：正式使用标准化 DEB 构建流程
 
-新脚本先安装 `obsidian-bin` 和运行依赖，再独立下载并校验 Obsidian 官方正式 Release 的 AMD64 DEB；将完整程序目录放入 `AppDir/bin`。使用公共版本接口和 quick-sharun 生成 AppImage，并生成包内中文 locale。
+`build_obsidian.sh` 已使用标准化版本替换原实现；原有 tar.gz 构建方案可从 Git 提交历史查阅。新增源码取舍和固定配置说明，原构建清单中的脚本路径、发布名称及软件版本键保持不变。
 
-应用专属处理包括 OpenGL、Vulkan、PipeWire 部署及 `hostname`、NSS、GTK3 IBus 扫描，按原应用脚本与相关已标准化项目核对。详细说明见 [模板差异](./docs/template-deviations.md) 和 [固定配置](./docs/hardcoded.md)。
+## 上游参考与应用差异
 
-正式清单 `.github/appimage-apps.json` 仍使用 `obsidian/build_obsidian.sh`，新脚本不参与正式构建和发布。
+当前脚本使用现有 [Electron GitHub Release DEB 模板](../templates/quick-sharun/electron-github-deb.sh) 的标准阶段，包含本应用既有的 OpenGL、Vulkan、PipeWire 和 NSS、hostname、GTK3 IBus 扫描配置。没有引入 pkgforge-dev 的自更新、命名空间 hook 或构建后测试步骤。
+
+固定路径和包来源见 [固定配置说明](./docs/hardcoded.md)；专属依赖、配置和扫描目标见 [模板差异](./docs/template-deviations.md)；[上游实现及取舍](./docs/pkgforge-differences.md) 记录对应源码和未启用处理。

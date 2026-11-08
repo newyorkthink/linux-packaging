@@ -21,6 +21,8 @@ DingTalk 条目于 2026-11-02 按 dingtalk、ding-talk 单独复核，未查到�
 
 TradingView 条目于 2026-11-02 按应用名及 trading-view 别名单独复核，未查到对应 pkgforge-dev 仓库，两列继续留空；实际来源和模板差异见该行的应用说明。
 
+Obsidian 条目于 2026-11-08 单独复核，更新依赖、封装及 workflow 的固定源码链接。
+
 | 本仓库项目 | 上游打包仓库 | 上游构建代码 | 本仓库说明 |
 | --- | --- | --- | --- |
 | [adspower-global](../adspower-global/build_adspower-global.sh) |  |  | [README](../adspower-global/README.md) |
@@ -71,7 +73,7 @@ TradingView 条目于 2026-11-02 按应用名及 trading-view 别名单独复核
 | [newsboat](../newsboat/build_newsboat.sh) |  |  | [模板差异](../newsboat/docs/template-deviations.md) · [README](../newsboat/README.md) |
 | [nvtop](../nvtop/build_nvtop.sh) |  |  | [README](../nvtop/README.md) |
 | [obs-studio](../obs-studio/build_obs-studio.sh) | [OBS-Studio-AppImage](https://github.com/pkgforge-dev/OBS-Studio-AppImage) | [依赖](https://github.com/pkgforge-dev/OBS-Studio-AppImage/blob/8c17c157a498876f75b84cb0a30307aba641b396/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/OBS-Studio-AppImage/blob/8c17c157a498876f75b84cb0a30307aba641b396/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/OBS-Studio-AppImage/blob/8c17c157a498876f75b84cb0a30307aba641b396/.github/workflows/appimage.yml) | [上游差异](../obs-studio/docs/pkgforge-differences.md) · [模板差异](../obs-studio/docs/template-deviations.md) · [README](../obs-studio/README.md) |
-| [obsidian](../obsidian/build_obsidian.sh) | [Obsidian-AppImage-Enhanced](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced) | [依赖](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced/blob/a8b5d56a42c70ce586e7303b1565c8eab0732232/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced/blob/a8b5d56a42c70ce586e7303b1565c8eab0732232/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced/blob/a8b5d56a42c70ce586e7303b1565c8eab0732232/.github/workflows/appimage.yml) | [README](../obsidian/README.md) |
+| [obsidian](../obsidian/build_obsidian.sh) | [Obsidian-AppImage-Enhanced](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced) | [依赖](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced/blob/138798b2139d4cafd8e3f86ada4c804397585a2a/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced/blob/138798b2139d4cafd8e3f86ada4c804397585a2a/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced/blob/138798b2139d4cafd8e3f86ada4c804397585a2a/.github/workflows/appimage.yml) | [上游取舍](../obsidian/docs/pkgforge-differences.md) · [模板差异](../obsidian/docs/template-deviations.md) · [README](../obsidian/README.md) |
 | [parsec](../parsec/build_parsec.sh) | [parsec-AppImage](https://github.com/pkgforge-dev/parsec-AppImage) | [依赖](https://github.com/pkgforge-dev/parsec-AppImage/blob/312e92ecd1dea7948a9e331f6ae31bb2e88df882/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/parsec-AppImage/blob/312e92ecd1dea7948a9e331f6ae31bb2e88df882/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/parsec-AppImage/blob/312e92ecd1dea7948a9e331f6ae31bb2e88df882/.github/workflows/appimage.yml) | [README](../parsec/README.md) |
 | [peazip](../peazip/build_peazip.sh) |  |  | [README](../peazip/README.md) |
 | [picom](../picom/build_picom.sh) |  |  | [README](../picom/README.md) |
