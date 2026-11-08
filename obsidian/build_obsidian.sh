@@ -37,7 +37,7 @@ export STARTUPWMCLASS="obsidian"
 # 使用系统里装好的图标。
 export ICON="/usr/share/icons/hicolor/512x512/apps/obsidian.png"
 # 使用系统里装好的桌面入口文件。
-export DESKTOP="/usr/share/applications/obsidian.desktop"
+export DESKTOP="/usr/share/applications/md.obsidian.Obsidian.desktop"
 # 把 AppImage 写到脚本目录下的 dist。
 export OUTPATH="$SCRIPT_DIR/dist"
 # 固定最终 AppImage 的文件名。

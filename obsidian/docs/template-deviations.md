@@ -46,6 +46,19 @@ quick-sharun \
 
 这些附加目标来自替换前的 [build_obsidian.sh](https://github.com/newyorkthink/linux-packaging/blob/10b63b344943519468de0c994ae0bb0e37c5c281/obsidian/build_obsidian.sh)，不是复制 pkgforge-dev 上游的扫描命令；新增注释为 `# 本程序专属处理：收集 hostname、NSS 安全库及 GTK3 IBus 输入模块。`。路径及扫描范围见 [固定配置说明](./hardcoded.md)。
 
+## desktop 文件路径修复
+
+[GitHub Actions 构建记录](https://github.com/newyorkthink/linux-packaging/actions/runs/42482368145/job/128736920818) 显示：官方 AMD64 DEB 下载及校验成功，quick-sharun 收集阶段因 `/usr/share/applications/obsidian.desktop is NOT a valid path!` 退出。该错误来自当前 Obsidian 脚本指定的桌面文件路径，不属于公共下载或 GitHub API 故障。
+
+[Obsidian AUR 打包代码](https://github.com/Sohimaster/traur/blob/2ae91ec0a5029c734398f47e35b09fed1d4faf6d/tests/corpus/benign/obsidian/PKGBUILD) 对照显示，官方 DEB 使用 `md.obsidian.Obsidian.desktop`；pkgforge-dev 的 [桌面入口](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced/blob/138798b2139d4cafd8e3f86ada4c804397585a2a/AppDir/obsidian.desktop) 使用相同的 `StartupWMClass=md.obsidian.Obsidian`。因此将脚本的 `DESKTOP` 路径定向修正为 `/usr/share/applications/md.obsidian.Obsidian.desktop`；其余代码、图标路径和 `STARTUPWMCLASS` 不变。
+
+```bash
+# 使用系统里装好的桌面入口文件。
+export DESKTOP="/usr/share/applications/md.obsidian.Obsidian.desktop"
+```
+
+这次修改只修复已出现的桌面文件路径错误；是否完成整个 AppImage 构建以本次修改后的 GitHub Actions 结果为准。
+
 ## pkgforge-dev 上游核对
 
 参考仓库：[pkgforge-dev/Obsidian-AppImage-Enhanced](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced/tree/138798b2139d4cafd8e3f86ada4c804397585a2a)，固定核对 commit 为 `138798b2139d4cafd8e3f86ada4c804397585a2a`。详细原文及采用、未启用处理见 [上游处理取舍](./pkgforge-differences.md)。
