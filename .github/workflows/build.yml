@@ -129,6 +129,7 @@ on:
 
 permissions:
   contents: write
+  issues: read
 
 jobs:
   plan:
@@ -154,8 +155,21 @@ jobs:
           RELEASE_INTEGRITY_KEYS: ${{ inputs.release_integrity_keys }}
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+
+          # 仅每日定时构建时检查暂停状态。
+          if [[ "$EVENT_NAME" == "schedule" ]]; then
+            daily_paused="$(bash .github/scripts/daily_build_paused.sh appimage)"
+
+            # 暂停时通知现有计划脚本跳过构建。
+            if [[ "$daily_paused" == "true" ]]; then
+              export DAILY_BUILD_PAUSED=true
+            fi
+          fi
+
+          # 执行原有 AppImage 构建计划脚本。
           python3 .github/scripts/plan_appimage_jobs.py
       - name: Create or Update Latest Release
         if: steps.plan.outputs.should_build == 'true'

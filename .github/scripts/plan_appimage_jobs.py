@@ -150,7 +150,8 @@ def main() -> None:
                     if top in dir_key:
                         build[dir_key[top]] = True
     elif event_name == "schedule":
-        select_all()
+        if os.environ.get("DAILY_BUILD_PAUSED") != "true":
+            select_all()
     else:
         raise SystemExit(1)
 

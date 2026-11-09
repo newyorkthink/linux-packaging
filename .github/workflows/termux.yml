@@ -27,6 +27,7 @@ on:
 
 permissions:
   contents: write
+  issues: read
 
 jobs:
   plan:
@@ -47,6 +48,7 @@ jobs:
           SELECTED_TOOL: ${{ inputs.tool }}
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           BUILD_SMUG=false
@@ -92,10 +94,15 @@ jobs:
               done <<< "$CHANGED_FILES"
               ;;
             schedule)
-              # 保留现有每日全量构建。
-              BUILD_SMUG=true
-              BUILD_ASDF=true
-              BUILD_MICROMAMBA=true
+              # 检查 Termux 每日构建是否暂停。
+              daily_paused="$(bash .github/scripts/daily_build_paused.sh termux)"
+
+              # 未暂停时保持原有三个工具的全量构建。
+              if [[ "$daily_paused" != "true" ]]; then
+                BUILD_SMUG=true
+                BUILD_ASDF=true
+                BUILD_MICROMAMBA=true
+              fi
               ;;
             *)
               echo "不支持的触发事件：$EVENT_NAME" >&2

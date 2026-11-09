@@ -32,6 +32,7 @@ on:
 
 permissions:
   contents: write
+  issues: read
 
 jobs:
   plan:
@@ -56,6 +57,7 @@ jobs:
           SELECTED_SCRIPT: ${{ inputs.script_to_build }}
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
@@ -120,7 +122,13 @@ jobs:
               ;;
 
             schedule)
-              select_all
+              # 检查 RunImage 每日构建是否暂停。
+              daily_paused="$(bash .github/scripts/daily_build_paused.sh runimage)"
+
+              # 未暂停时执行原有全量选择逻辑。
+              if [[ "$daily_paused" != "true" ]]; then
+                select_all
+              fi
               ;;
 
             *)

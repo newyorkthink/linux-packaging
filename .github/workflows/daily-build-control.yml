@@ -1,0 +1,165 @@
+# 统一管理 AppImage、RunImage、Termux 的每日自动构建。
+# 只修改专用 Issue 中的状态，不影响 Push 和手动构建。
+name: Daily Build Control
+
+run-name: Daily Build ${{ inputs.action }} ${{ inputs.target }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: '选择操作'
+        required: true
+        type: choice
+        options:
+          - pause
+          - resume
+        default: pause
+      target:
+        description: '选择构建类型'
+        required: true
+        type: choice
+        options:
+          - all
+          - appimage
+          - runimage
+          - termux
+        default: all
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: daily-build-control
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  control:
+    name: Control Daily Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 暂停或恢复每日构建
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONTROL_ACTION: ${{ inputs.action }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -Eeuo pipefail
+
+          # 检查操作参数。
+          case "$CONTROL_ACTION" in
+            pause|resume) ;;
+            *)
+              printf '错误：不支持的操作：%s\n' "$CONTROL_ACTION" >&2
+              exit 1
+              ;;
+          esac
+
+          # 检查构建类型。
+          case "$TARGET" in
+            all|appimage|runimage|termux) ;;
+            *)
+              printf '错误：不支持的构建类型：%s\n' "$TARGET" >&2
+              exit 1
+              ;;
+          esac
+
+          # 仅查询 GitHub Actions 官方机器人创建的状态 Issue。
+          issue_numbers="$(
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/issues?state=all&per_page=100" \
+              --jq '.[] | select(.title == "[自动化] Daily Build State" and .user.login == "github-actions[bot]" and (has("pull_request") | not)) | .number'
+          )"
+
+          # 禁止多个合法状态 Issue 造成歧义。
+          if [[ "$issue_numbers" == *$'\n'* ]]; then
+            printf '错误：存在多个 GitHub Actions 创建的每日构建状态 Issue。\n' >&2
+            exit 1
+          fi
+
+          # 首次操作时创建状态 Issue，默认全部开启。
+          if [[ -z "$issue_numbers" ]]; then
+            issue_number="$(
+              gh api -X POST \
+                "repos/${GITHUB_REPOSITORY}/issues" \
+                -f title='[自动化] Daily Build State' \
+                -f body='{"appimage":true,"runimage":true,"termux":true}' \
+                --jq '.number'
+            )"
+          else
+            issue_number="$issue_numbers"
+          fi
+
+          # 读取现有状态。
+          current_body="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/issues/${issue_number}" \
+              --jq '.body'
+          )"
+
+          # 验证状态数据结构。
+          current_state="$(
+            jq -ce '
+              if (type == "object")
+                 and (keys == ["appimage", "runimage", "termux"])
+                 and ((.appimage | type) == "boolean")
+                 and ((.runimage | type) == "boolean")
+                 and ((.termux | type) == "boolean")
+              then .
+              else error("每日构建状态数据无效")
+              end
+            ' <<< "$current_body"
+          )"
+
+          # resume 表示开启，pause 表示关闭。
+          if [[ "$CONTROL_ACTION" == "resume" ]]; then
+            enabled=true
+          else
+            enabled=false
+          fi
+
+          # 计算新的状态，未选中的构建类型保持不变。
+          new_state="$(
+            jq -c \
+              --arg target "$TARGET" \
+              --argjson enabled "$enabled" '
+              if $target == "all" then
+                .appimage = $enabled
+                | .runimage = $enabled
+                | .termux = $enabled
+              else
+                .[$target] = $enabled
+              end
+            ' <<< "$current_state"
+          )"
+
+          # 只在状态变化时写入。
+          if [[ "$new_state" != "$current_state" ]]; then
+            gh api -X PATCH \
+              "repos/${GITHUB_REPOSITORY}/issues/${issue_number}" \
+              -f body="$new_state" \
+              --silent
+          fi
+
+          # 重新读取状态 Issue。
+          final_body="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/issues/${issue_number}" \
+              --jq '.body'
+          )"
+
+          # 检查最终状态是否与预期一致。
+          if [[ "$final_body" != "$new_state" ]]; then
+            printf '错误：每日构建状态写入后核对失败。\n' >&2
+            exit 1
+          fi
+
+          # 输出操作结果。
+          printf '操作：%s\n' "$CONTROL_ACTION"
+          printf '范围：%s\n' "$TARGET"
+          printf '最终状态：%s\n' "$final_body"
