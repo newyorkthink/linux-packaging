@@ -22,15 +22,18 @@
 
 ## 打包方式
 
-沿用源仓库已验证的 AnyLinux / quick-sharun 路线，不改用 linuxdeploy。不套用 Arch `/usr/bin` 最短模板，因为上游是官方 zip，不是发行版软件包。
+沿用源仓库已验证的 AnyLinux / quick-sharun 路线，不改用 linuxdeploy。不套用 Arch `/usr/bin` 最短模板，因为最终程序使用 Google 官方 ZIP，而非系统安装的 `android-tools` 包。
 
-1. 使用 `get-debloated-pkgs --add-common --prefer-nano ! mesa ! vulkan` 准备精简环境。
-2. 随后安装 quick-sharun 最小基础包（含 `unzip`、`patchelf` 等）。必须放在 `get-debloated-pkgs` 之后，否则会被卸掉。
-3. 下载 Google 官方 `platform-tools-latest-linux.zip`，解压到仓库内已有 `AppDir/bin`（保留 PATH hook 与图标）。
-4. 从 `source.properties` 的 `Pkg.Revision` 动态读取版本，不写死。
-5. `quick-sharun ./AppDir/bin/*` 收集依赖。
-6. `quick-sharun --make-appimage` 生成 `dist/android-tools.AppImage`。
-7. 写入 `dist/version.txt`。
+1. 在 GitHub Actions 的 pkgforge Arch Linux 构建容器内，通过 `common/arch/install_packages.sh --base` 安装统一基础包。
+2. 使用 `get-debloated-pkgs --add-common --prefer-nano ! mesa ! vulkan` 精简构建环境，排除 Mesa 和 Vulkan。
+3. 在精简之后执行原有的 `yay -S --noconfirm` 基础依赖恢复命令，确保 `unzip`、`patchelf` 等仍可使用；保留已验证的先精简、再恢复顺序。
+4. 通过 `common/download/download_file.sh` 下载 Google 官方最新 `platform-tools-latest-linux.zip`。
+5. 通过 `common/archive/extract_archive.sh` 解压官方 ZIP，再将平台工具移动到 `AppDir/bin`，保留原有图标与 PATH hook。
+6. 使用原有 `awk` 从 `source.properties` 的 `Pkg.Revision` 动态读取版本，不锁定版本号。
+7. 执行 `quick-sharun ./AppDir/bin/*` 收集依赖，再执行 `quick-sharun --make-appimage` 生成 `dist/android-tools.AppImage`。
+8. 通过 `common/build/save_appimage_version.sh` 检查产物并写入 `dist/version.txt`。
+
+构建脚本保留 `APPNAME=android-tools`、`MAIN_BIN=adb`、`DESKTOP=DUMMY`、`OUTNAME=android-tools.AppImage` 及原有 `UPINFO` 更新元数据，不启用 udev 安装 hook。
 
 workflow 入口：`android-tools/build_android-tools.sh`，`SOFTWARE_KEY=android-tools`。成功后由当前 Job 立即写入 `latest` Release 的 `software_versions.json`。
 

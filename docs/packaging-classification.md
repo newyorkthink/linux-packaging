@@ -156,6 +156,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 
 | 项目 | 构建入口 | 采用专用流程的原因 | 稳定基线与验证依据 |
 | --- | --- | --- | --- |
+| Android Platform Tools | [build_android-tools.sh](../android-tools/build_android-tools.sh) | 使用 Google 官方 Linux Platform Tools ZIP，而非 Arch 系统入口；保留平台工具目录、PATH hook、容器精简与依赖恢复，以及 `source.properties` 版本读取，现有固定模板不覆盖此完整流程。 | [历史成功构建及实机记录](../android-tools/README.md#运行与兼容说明) |
 | Alacritty | [build_alacritty.sh](../alacritty/build_alacritty.sh) | 现有 X11 IME 修复需要在官方正式版源码中应用补丁并编译，再由 LinuxDeploy 部署、appimagetool 封装；固定 APT 模板不支持此专属过程。 | [专属差异](../alacritty/docs/template-deviations.md) · [上游取舍](../alacritty/docs/pkgforge-differences.md) · [历史与验证](../alacritty/README.md) |
 | KDE Suite | [build_kde_suite.sh](../kde-suite/build_kde_suite.sh) | 多款 KDE 程序共享一个 AppImage 的挂载及 Qt 6 和 KF6 运行组件，最终封装前按套件结构分阶段部署应用和辅助工具。 | [KDE Suite README](../kde-suite/README.md) |
 | st | [build_st.sh](../st/build_st.sh) | 从 siduck/st 默认分支获取当前源码，按字体配置生成 config.h 并写入源码默认主题，经 make 安装后由 quick-sharun 封装程序、辅助脚本和 terminfo；与 Arch 原生软件包模板不同，不新增标准模板。 | [专属差异](../st/docs/template-deviations.md) · [实机验证](../st/README.md#实机验证) |
