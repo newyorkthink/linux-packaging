@@ -72,6 +72,18 @@ workflow 入口：`android-tools/build_android-tools.sh`，`SOFTWARE_KEY=android
 - 实机：`adb version` 为 `37.0.1`，`adb devices` 可列出已连接的 USB 设备
 - 源仓库基线构建：[run 33506406831](https://github.com/pkgforge-dev/android-tools-AppImage/actions/runs/33506406831)（2026-09-01，`success`）
 
+## 实机验证
+
+### 2026-11-09：用户实机验证通过
+
+用户已确认 Android Tools 37.0.1 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| AppImage 启动 | 通过 `adb` 符号链接正常启动 AppImage。 |
+| ADB 版本 | `adb version` 正常显示版本 37.0.1。 |
+| ADB 设备识别 | `adb devices` 成功识别已连接的 Android 设备，状态为 `device`。 |
+
 ## 迁移核对
 
 源仓库文件共 11 个。允许公开迁移并原样保留 Git blob SHA 的文件 4 个：`LICENSE`、`AppDir/.DirIcon`、`AppDir/android-tools.png`、`AppDir/bin/make-symlinks-in-path.hook`。
