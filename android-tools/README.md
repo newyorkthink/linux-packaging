@@ -39,6 +39,21 @@ workflow 入口：`android-tools/build_android-tools.sh`，`SOFTWARE_KEY=android
 
 源仓库 `make-appimage.sh` 末尾的 `quick-sharun --simple-test` 属于测试代码，未迁入。
 
+## 目录资源与专属说明
+
+| 文件 | 保留用途 |
+| --- | --- |
+| `AppDir/.DirIcon` | AppImage 根图标，供 quick-sharun 读取。 |
+| `AppDir/android-tools.png` | 同一 PNG 图标资源，与 `.DirIcon` 内容一致。 |
+| `AppDir/bin/make-symlinks-in-path.hook` | 支持显式 `--make-symlinks`，为 `adb`、`fastboot` 等命令创建指向 AppImage 的链接。 |
+| `LICENSE` | 保留上游打包仓库的 GPL-3.0 许可证文本，不代表 Google 二进制采用相同许可证。 |
+
+专属维护记录：
+
+- [上游取舍](./docs/pkgforge-differences.md)：pkgforge-dev 固定源码、实际采用的处理及未启用项。
+- [模板差异](./docs/template-deviations.md)：官方 ZIP、精简与依赖恢复、PATH hook、动态版本及专用流程边界。
+- [固定配置](./docs/hardcoded.md)：固定路径、输出、入口、图标、许可证及更新元数据的依据。
+
 ## 运行与兼容说明
 
 ```bash
