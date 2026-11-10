@@ -89,6 +89,7 @@
 
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
+| `I_WANT_FAT_APPIMAGE` | 构建时设为 `1`，允许已收集的 Mesa `libgallium` 保留对 LLVM 的依赖，并继续打包；不执行删库或精简软件包替换。 | `.github/workflows/build.yml` 的工作流级 `env`，供其中调用 quick-sharun 的构建使用；不写入应用运行时配置。 |
 | `DEPLOY_GTK` | quick-sharun 是否打入 GTK。 | 例如 Keyviz、aionui、antigravity-ide、grok-app、gemini、todesk |
 | `DEPLOY_OPENGL` | quick-sharun 是否打入 OpenGL / Mesa。 | 35 个脚本，例如 Keyviz、aionui、antigravity-ide、grok-app |
 | `DEPLOY_VULKAN` | quick-sharun 是否打入 Vulkan。 | 22 个脚本，例如 aionui、antigravity-ide、antigravity |

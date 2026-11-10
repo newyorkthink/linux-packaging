@@ -8,7 +8,7 @@
 
 | 任务 | 状态 | 待处理内容 |
 | --- | --- | --- |
-| [处理 quick-sharun 的 Mesa / LLVM 依赖问题](./quick-sharun-mesa-llvm.md) | 待解决 | 核对上游检查规则与依赖安装顺序，制定并验证不引入额外兼容性问题的 AppImage 打包方案 |
+| [处理 quick-sharun 的 Mesa / LLVM 依赖问题](./quick-sharun-mesa-llvm.md) | 已配置，待构建验证 | 保留现有 Mesa/LLVM 依赖，使用上游官方开关继续打包；依据后续正式构建结果完成验收 |
 
 ## 任务维护
 

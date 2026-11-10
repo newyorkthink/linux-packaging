@@ -131,6 +131,10 @@ permissions:
   contents: write
   issues: read
 
+# 保留 quick-sharun 已收集的 Mesa/LLVM 依赖，使用上游提供的放行开关。
+env:
+  I_WANT_FAT_APPIMAGE: '1'
+
 jobs:
   plan:
     name: Plan
