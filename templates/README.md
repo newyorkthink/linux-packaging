@@ -38,3 +38,5 @@
 | [tauri-gtk-deb.sh](./quick-sharun/tauri-gtk-deb.sh) | Tauri / GTK3，GitHub 正式 Release 的 DEB |
 | [qt-deb.sh](./quick-sharun/qt-deb.sh) | Qt，AUR 指向的预编译官方 DEB |
 | [qt-installed.sh](./quick-sharun/qt-installed.sh) | Qt 6，Arch 官方仓库程序，从系统入口收集 |
+
+GTK DEB 模板的可选应用准备、部署后整理和运行时数据准备阶段由生成器统一输出，参数只提供本应用脚本路径；未启用时保留原有结果。格式见[可选应用阶段](../scripts/build/generate_build_script.md#可选应用阶段)，不新增模板或应用默认配置。

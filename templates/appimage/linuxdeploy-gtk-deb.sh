@@ -32,6 +32,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_
 
 __GTK_DEB_SOURCE_BLOCK__
 
+__APPLICATION_PREPARE__
 ############# 准备 AppRun ##############
 
 # 在 AppDir 根目录创建完整的 AppRun 启动脚本。
@@ -53,6 +54,7 @@ export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export GIO_MODULE_DIR="$HERE/__GIO_MODULE_DIR__"
 
+__APPRUN_PREPARE__
 # 启动包内程序，并保留传入的命令行参数。
 exec "$HERE/__MAIN_EXECUTABLE__" "$@"
 APPRUN
@@ -70,5 +72,6 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 
 ############### 整理产物 ###############
 
+__APPLICATION_FINALIZE__
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

@@ -168,8 +168,46 @@ def render_protocol_handler(value, template_values):
     return comment + "\n" + " \\\n".join(command)
 
 
+def application_stage_script(value, name):
+    """只接受当前应用 patches 内的脚本路径，不接受任意 Shell 代码。"""
+    value = clean_text(value, name)
+    if not re.fullmatch(r"patches/[A-Za-z0-9][A-Za-z0-9._+-]*[.]sh", value):
+        raise ValueError(f"{name} 必须是本应用 patches 目录内的单个 Shell 脚本。")
+    return value
+
+
+def render_application_prepare(value, template_values):
+    script = application_stage_script(value, "APPLICATION_PREPARE")
+    return (
+        "# 本程序专属处理：准备完整应用及其资源，并取得实际版本。\n"
+        f'VERSION="$("$SCRIPT_DIR/{script}" prepare "$SOURCE_DIR" "$APPDIR")"'
+    )
+
+
+def render_application_finalize(value, template_values):
+    script = application_stage_script(value, "APPLICATION_FINALIZE")
+    return (
+        "# 本程序专属处理：在依赖部署后完成应用文件整理。\n"
+        f'"$SCRIPT_DIR/{script}" finalize "$SOURCE_DIR" "$APPDIR"'
+    )
+
+
+def render_apprun_prepare(value, template_values):
+    script = clean_text(value, "APPRUN_PREPARE")
+    if (not re.fullmatch(r"usr/(?:[A-Za-z0-9._+-]+/)*[A-Za-z0-9._+-]+[.]sh", script)
+            or ".." in script.split("/")):
+        raise ValueError("APPRUN_PREPARE 必须是 AppDir 内 usr 目录中的 Shell 脚本相对路径。")
+    return (
+        "# 本程序专属处理：在启动主程序前准备可写运行数据。\n"
+        f'"$HERE/{script}"'
+    )
+
+
 OPTIONAL_SECTIONS = {
     "PROTOCOL_HANDLER": render_protocol_handler,
+    "APPLICATION_PREPARE": render_application_prepare,
+    "APPLICATION_FINALIZE": render_application_finalize,
+    "APPRUN_PREPARE": render_apprun_prepare,
 }
 
 

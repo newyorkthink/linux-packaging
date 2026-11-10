@@ -82,6 +82,20 @@ python3 scripts/build/generate_build_script.py --template "<模板相对路径>"
 
 占位参数的完整定义见 [linuxdeploy 规范](../../linuxdeploy_projects.md#唯一标准模板) 和 [quick-sharun 规范](../../anylinux_projects.md#唯一标准模板)。
 
+### 可选应用阶段
+
+`linuxdeploy-gtk-deb.sh` 支持三个按需启用的应用阶段。参数只填写路径，生成器输出固定调用，不接受 Shell 代码块；未填写时，调用及对应注释、空行均省略，原有生成结果保持不变。
+
+| 参数 | 路径与固定调用 |
+| --- | --- |
+| `APPLICATION_PREPARE` | 本应用 `patches/<脚本名>.sh`；在来源解包后执行 `prepare <source 目录> <AppDir>`，stdout 返回完整应用的实际版本，日志写入 stderr。 |
+| `APPLICATION_FINALIZE` | 本应用 `patches/<脚本名>.sh`；在第二次 linuxdeploy 后、最终封装前执行 `finalize <source 目录> <AppDir>`。 |
+| `APPRUN_PREPARE` | AppDir 中 `usr/` 下的 Shell 脚本相对路径；在完整 AppRun 执行真实主程序前调用，供已确认需要可写数据的应用使用。 |
+
+这些阶段用于已有证据支持的应用处理，不是所有应用的默认配置。具体脚本由应用在 `patches/` 维护，按实际需要复制运行时文件；公共模板、生成器和请求默认值不包含应用名称、来源或补丁。既有 DEB 入口仍负责原来的下载、安装与原布局解包，完整应用准备阶段可以按其实际来源返回最终版本。
+
+应用自行准备完整主程序时，版本须取完整主程序并与同次来源记录比对，不能继续以引导安装包的版本替代。具体证据和恢复范围登记在应用差异文档中。
+
 ### 可选协议登记
 
 使用 quick-sharun 模板且应用确实需要浏览器回跳时，可在生成请求的 `params` 中加入 `PROTOCOL_HANDLER`。以下是该可选项的结构，尖括号内容按实际应用替换。

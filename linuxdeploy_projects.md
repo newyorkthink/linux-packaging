@@ -88,6 +88,12 @@ linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标�
 
 `source common/linuxdeploy/prepare_build_workspace.sh` 已在当前 Shell 中切换到传入的构建根目录。后续独立 helper 或子 Shell 中的 `cd` 不改变调用方目录；只有后续代码确实改变了当前 Shell 的工作目录时，才需要再切回。不得为了增加一个阶段而重复添加 `cd "$SCRIPT_DIR"`。
 
+### 生成器中的可选应用阶段
+
+GTK DEB 标准保留原有来源、初始化、AppRun、GTK 部署和最终封装步骤。已有来源只提供引导器，或实际问题需要应用处理时，可通过生成器的 `APPLICATION_PREPARE`、`APPLICATION_FINALIZE` 和 `APPRUN_PREPARE` 参数接入本应用 helper；未启用时不增加调用、注释或空行。
+
+构建期 helper 只放在本应用 `patches/`，分别在解包后和依赖部署后执行；运行时准备调用放在完整 AppRun 的真实程序入口之前，不创建 linuxdeploy hook 或另一套 AppRun。参数格式和固定调用见[生成器说明](./scripts/build/generate_build_script.md#可选应用阶段)。应用名称、实际来源、模块和兼容处理留在本应用，不写入公共默认。
+
 ### 程序专属代码的位置
 
 程序专属代码必须按实际用途放入对应分区，并遵循执行依赖和先后顺序，不得任意插入或集中放到核心打包。
