@@ -17,13 +17,21 @@
 - 本次切换到上游带标签的完整构建，移除旧 npm 流程、独立 AppImage 源码补丁及依赖这些补丁的检查。
 - 上游 `v0.23.1` 锁定的 electron-builder 在封装时把缺少模块声明的 CommonJS 图标工具复制到 Desktop 的 ES 模块目录，会触发 `require is not defined`。[上游打包入口](https://github.com/NousResearch/hermes-agent/blob/v0.23.1/apps/desktop/scripts/run-electron-builder.mjs#L68-L85) · [图标工具封装](https://github.com/electron-userland/electron-builder-binaries/blob/icons%401.2.1/packages/icons/assets/build.sh#L55-L104)
 - 构建只在检测到该工具仍缺少模块声明并需要按 CommonJS 加载时，为 Runner 的临时打包工具目录生成一份 `package.json`。上游准备的工具和源码直接交给官方打包入口。
-- 新版的构建结果、中文界面和钥匙串加密需以新产物验收为准。
+- 新版的构建和运行验收见下方实机验证记录。
 
 ## 恢复普通 Desktop 构建（2026-11-10）
 
 - 上游 `bundled` 构建将本地 Agent、Python 环境和离线依赖缓存一并打包，发布的 AppImage 实际约为 1.887 GiB。[完整包构建日志](https://github.com/newyorkthink/linux-packaging/actions/runs/42749500950/job/129609540029)
 - 固定模板无法调用上游普通 Desktop 源码构建入口。本次经用户授权按专用构建例外处理，使用上游锁定的 pnpm 构建普通 Desktop，沿用图标工具的临时 CommonJS 声明。[上游构建说明](https://github.com/NousResearch/hermes-agent/blob/v0.23.1/apps/desktop/BUILDING.md#L378)
-- 构建脚本将 AppImage 复制到发布目录，由公共入口统一设置 `0755` 并写入版本。新产物的体积、中文界面和钥匙串表现待验收。
+- 构建脚本将 AppImage 复制到发布目录，由公共入口统一设置 `0755` 并写入版本。
+
+## 实机验证（2026-11-10）
+
+- GitHub Actions 首次构建并发布 `v0.23.1` 的 x86_64 普通 AppImage。该次产物约为 137.4 MiB，发布资产的 SHA-256 与构建产物一致，版本清单已更新。[构建与发布记录](https://github.com/newyorkthink/linux-packaging/actions/runs/42756081699/job/129630731165)
+- 用户在 Linux 实机启动 `hermes-desktop.AppImage`，终端构建标记为 `3b4215785882 (v0.23.1)`。中文界面正常，现有 Gateway 状态为就绪，可以查看历史会话和消息。
+- 普通版（`bootstrap`）状态栏的客户端版本优先采用已连接 Gateway 的运行版本。本次界面显示的 `v0.22.6` 对应后端，AppImage 构建版本由终端构建标记确认。[上游版本显示实现](https://github.com/NousResearch/hermes-agent/blob/3b421578588243f920886e6fe79a6faa87ea026e/apps/desktop/electron/app-version.ts#L79-L96)
+- 终端中的 `409` 表示 Gateway 已持有配置目录的运行锁，因此拒绝需要独占访问的离线维护请求。[上游维护规则](https://github.com/NousResearch/hermes-agent/blob/3b421578588243f920886e6fe79a6faa87ea026e/website/docs/user-guide/features/web-dashboard.md#L553-L564)
+- 新消息收发和钥匙串加密仍待验证。
 
 ## 旧版 Linux AppImage 兼容处理
 
