@@ -19,7 +19,7 @@ LinuxDeploy 扫描范围核对官方提交 `07333c6e942c7d71782b66be924c5d867f9d
 | 从 stable manifest 下载完整主程序和原生模块 | 采用；所有下载复用公共入口，并核对清单中的官方 SHA-256。 |
 | 使用 `Discord-Updater/1` | 采用官方分发所需的客户端标识，由公共下载入口接收，不自行实现下载器。 |
 | Arch 容器、quick-sharun 和 `AppDir/bin` | 保留 LinuxDeploy 的 Ubuntu runner、标准 AppRun、GTK3 部署和公共最终封装；真实程序改放 `usr/lib/discord` 以参与扫描。 |
-| 模块链接到用户版本目录 | 保留本仓库可写复制，避免模块和 Krisp 日志写入只读挂载点；通过普通 AppRun 调用准备，不创建 linuxdeploy hook。 |
+| 模块链接到用户版本目录 | 继续使用可写复制，按 1.0.169 实机日志部署到 `discord/module_data`；通过普通 AppRun 调用准备，不创建 linuxdeploy hook。 |
 | 按 Arch 安装包读取版本 | 最终版本改取同次完整程序配置，并与 manifest 强制比对。 |
 | 图形开关、自更新、系统升级与上游测试 | 不迁入本次来源修复。 |
 

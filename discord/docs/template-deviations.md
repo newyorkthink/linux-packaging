@@ -13,7 +13,7 @@
 | 原 DEB 来源阶段 | 保留公共 `--url` 下载、安装及解包 | 取得构建环境依赖、官方 desktop 和图标，不能把其引导器当完整客户端。 |
 | `APPLICATION_PREPARE` | 调用 `patches/prepare_application.sh prepare` | 从同次 stable 清单下载完整主程序及全部模块，逐份核对官方 SHA-256，返回完整程序实际版本。 |
 | 程序与模块布局 | `usr/lib/discord`、`usr/share/discord-modules` | 完整主程序参与递归扫描；模块模板保持官方原文件，动态加载的已确认运行库显式收集。 |
-| `APPRUN_PREPARE` | 调用包内 `usr/lib/discord/prepare_modules.sh` | 把模块放入用户可写的版本目录，和包内 `newUpdater=false` 保持一致。 |
+| `APPRUN_PREPARE` | 调用包内 `usr/lib/discord/prepare_modules.sh` | 按 1.0.169 实机日志把模块放入用户可写的 `discord/module_data`，不以 `newUpdater` 推断目录。 |
 | `APPLICATION_FINALIZE` | 调用 `patches/prepare_application.sh finalize` | 依赖部署后从本次已校验来源恢复官方主程序并逐字节比较；模块模板未交给 ELF 改写。 |
 | 原最终封装 | 继续调用 `common/linuxdeploy/package_appimage.sh` | 处理正式 AppImage、产物权限、SHA-256 和实际版本保存，发布路径不变。 |
 
@@ -30,3 +30,9 @@
 旧 quick 的 Krisp JE/NOP 补丁、额外图形开关、locale、专属输入模块扫描和加载器布局不恢复。主程序与模块使用官方原文件；旧备份保留且不参与任何 Action。
 
 生成器已检查正式主脚本和内联 AppRun 的 Bash 语法；helper 已作静态核对，本次未作桌面运行验证。历史和实际错误见 [README](../README.md)。
+
+## module_data 实机反馈修正
+
+用户提供的 1.0.169 日志同时包含 `newUpdater:false`、`modulepath: <用户配置目录>/discord/module_data` 和 `Cannot find module 'discord_desktop_core'`，反驳了此前仅凭开关推断版本目录的处理。当前 helper 按实际记录部署到 `module_data`，原包内版本标记和来源摘要继续用于识别本次完整分发。
+
+仅替换包内提供的模块子目录并同步 `installed.json`，保留根目录其他数据。正式构建脚本与三个标准阶段调用均未改动，无需重新生成主脚本。

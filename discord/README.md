@@ -10,7 +10,7 @@
 
 ## 模块与运行入口
 
-完整 AppRun 保持内联，由生成器接入普通模块准备脚本，再直接执行真实程序。包内配置使用 `newUpdater=false`；模块复制到当前用户的 `discord/<版本>/modules`，Krisp 日志也在这个可写目录内。来源变化或桌面核心缺失时，仅重新部署当前版本的模块缓存，不清空整个 Discord 配置。
+完整 AppRun 保持内联，由生成器接入普通模块准备脚本，再直接执行真实程序。包内仍保留 `newUpdater=false`，但 1.0.169 实机日志报告的模块根为 `discord/module_data`，因此模块按实际根复制，Krisp 日志也写入该可写目录。来源变化或桌面核心缺失时，仅替换包内提供的模块子目录，保留目录内的其他数据。
 
 不手工创建 linuxdeploy hook 或 `AppRun.wrapped`，最终入口包装由官方插件实际产物决定。此次恢复仅针对完整来源、实际入口、模块写入及部署后的官方文件保留；旧 quick 版的 Krisp 二进制补丁、图形开关和中文环境没有整段迁入。
 
@@ -137,3 +137,11 @@ Build Discord 运行 35960141408 虽然构建成功，但日志明确显示构�
 本次按已有问题证据恢复完整分发下载和模块准备，继续使用 LinuxDeploy。官方 DEB 用于环境安装和桌面资源；实际客户端及模块改从 stable 清单下载、逐份校验，实际程序版本覆盖引导 DEB 版本。完整入口和桌面核心缺失、包内版本与清单不一致时，立即停止构建。
 
 正式脚本原样采用生成器运行 [42789334037](https://github.com/newyorkthink/linux-packaging/actions/runs/42789334037) 的结果；该结果及其中 AppRun 已通过生成器的 Bash 语法检查。两个专属 helper、调用路径、执行顺序和完整 diff 已作静态核对；修正后成品的构建及桌面运行结果尚未确认。
+
+## 2026-11-10：按实际 module_data 修正模块部署
+
+用户运行最新 1.0.169 成品时，仍出现 `Cannot find module 'discord_desktop_core'`。同一日志明确显示 `newUpdater:false`，但 `modulepath` 指向当前用户的 `discord/module_data`。上一轮 helper 仍写入 `discord/<版本>/modules`，所以仅设置 `newUpdater=false` 没有解决实际查找目录与部署目录不一致的问题。
+
+本次仅调整 `patches/prepare_modules.sh`，将官方模块及其版本记录复制到日志对应的 `module_data`。更新时逐个替换包内提供的模块子目录，保留根目录内的其他数据；来源标记最后写入，复制失败时下次启动仍会重新部署。LinuxDeploy 主脚本、完整来源、官方主程序、旧备份和公共代码保持原样。
+
+本次已完成 helper、路径和完整 diff 的静态核对；新包的实际运行结果尚未确认。
