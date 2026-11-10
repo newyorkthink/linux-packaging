@@ -3,7 +3,7 @@
   "apps": [
     {
       "key": "discord",
-      "kind": "standard",
+      "kind": "special",
       "name": "Discord",
       "script": "discord/build_discord.sh",
       "dir": "discord",

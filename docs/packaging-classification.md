@@ -132,6 +132,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 技术栈与插件 | 专属差异说明 |
 | --- | --- | --- | --- | --- |
 | dconf Editor | [build_dconf-editor.sh](../dconf-editor/build_dconf-editor.sh) | Ubuntu 24.04 仓库的 dconf-editor 与 dconf-cli；公共入口按已安装版本下载并解包。 | GTK3 / GLib；gtk | [专属差异](../dconf-editor/docs/template-deviations.md) |
+| Discord | [build_discord.sh](../discord/build_discord.sh) | 官方稳定版 HTTPS DEB；公共入口核对包身份、安装并原布局解包，返回同一份 DEB 的完整版本。 | Electron / GTK3；gtk | [标准生成与参数](../discord/docs/template-deviations.md) |
 | File Roller | [build_file-roller.sh](../file-roller/build_file-roller.sh) | Ubuntu 24.04 仓库的 file-roller；公共入口按已安装版本下载并解包，同时解包 bzip2、unzip、zip。 | GTK4 / libadwaita；gtk | [专属差异](../file-roller/docs/template-deviations.md) |
 | GoldenDict | [build_goldendict.sh](../goldendict/build_goldendict.sh) | Ubuntu 24.04 仓库的原版 goldendict；下载已安装的同版本 DEB，保留完整发行版修订号。 | Qt5 / GStreamer；qt、gstreamer | [专属差异](../goldendict/docs/template-deviations.md) |
 | Joplin | [build_joplin.sh](../joplin/build_joplin.sh) | 官方 GitHub 正式 Release DEB；公共入口校验后，将同一份包安装并按原布局解包，返回实际版本。 | Electron / GTK3；gtk | [专属差异](../joplin/docs/template-deviations.md) |
@@ -165,7 +166,6 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | 项目 | 构建入口 | 采用专用流程的原因 | 稳定基线与验证依据 |
 | --- | --- | --- | --- |
 | Alacritty | [build_alacritty.sh](../alacritty/build_alacritty.sh) | 现有 X11 IME 修复需要在官方正式版源码中应用补丁并编译，再由 LinuxDeploy 部署、appimagetool 封装；固定 APT 模板不支持此专属过程。 | [专属差异](../alacritty/docs/template-deviations.md) · [上游取舍](../alacritty/docs/pkgforge-differences.md) · [历史与验证](../alacritty/README.md) |
-| Discord | [build_discord.sh](../discord/build_discord.sh) | 官网 tar.gz 仅用于提取 desktop 和图标；完整主程序与模块来自 stable manifest 的多份 full.distro，保留 shared/bin 程序树、Krisp 处理和可写模块部署，固定模板无法覆盖。 | [模板差异](../discord/docs/template-deviations.md) · [上游取舍](../discord/docs/pkgforge-differences.md) · [固定配置](../discord/docs/hardcoded.md) · [历史与当前处理](../discord/README.md) |
 | Hermes Desktop | [build_hermes-desktop.sh](../hermes-desktop/build_hermes-desktop.sh) | 从上游正式 Release 标签获取源码，使用上游锁定的 pnpm 构建，并由 electron-builder 生成普通 Desktop AppImage。现有模板无法覆盖这条源码构建与封装流程。桌面客户端可连接已有 Gateway，也可使用单独安装的本机 Agent。 | [构建来源、旧版实机记录和当前验收状态](../hermes-desktop/README.md) |
 | KDE Suite | [build_kde_suite.sh](../kde-suite/build_kde_suite.sh) | 多款 KDE 程序共享一个 AppImage 的挂载及 Qt 6 和 KF6 运行组件，最终封装前按套件结构分阶段部署应用和辅助工具。 | [KDE Suite README](../kde-suite/README.md) |
 | st | [build_st.sh](../st/build_st.sh) | 从 siduck/st 默认分支获取当前源码，按字体配置生成 config.h 并写入源码默认主题，经 make 安装后由 quick-sharun 封装程序、辅助脚本和 terminfo；与 Arch 原生软件包模板不同，不新增标准模板。 | [专属差异](../st/docs/template-deviations.md) · [实机验证](../st/README.md#实机验证) |

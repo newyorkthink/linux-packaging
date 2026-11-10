@@ -209,6 +209,7 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 | MediaInfo | `mediainfo/build_mediainfo_linuxdeploy.sh` | linuxdeploy |
 | PeaZip | `peazip/build_peazip.sh` | linuxdeploy + Qt 插件 |
 | Joplin | `joplin/build_joplin.sh` | linuxdeploy + GTK 插件 |
+| Discord | `discord/build_discord.sh` | Ubuntu 22.04，官方稳定版 DEB；LinuxDeploy GTK3 标准生成，旧 quick 备份不参与构建；见[生成参数](./discord/docs/template-deviations.md)。 |
 | Binance | `binance/build_binance.sh` | linuxdeploy + GTK 插件 |
 | XnView MP | `xnviewmp/build_xnviewmp.sh` | linuxdeploy + Qt 插件 |
 | Poppler Utils | `poppler-utils/build_poppler-utils.sh` | linuxdeploy |

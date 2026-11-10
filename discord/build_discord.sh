@@ -1,308 +1,75 @@
 #!/usr/bin/env bash
 
-# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+############# 初始化脚本 #############
+
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
 set -Eeuo pipefail
 
-# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
+# 获取脚本所在目录的绝对路径。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
 
-# 本程序专属处理：官方完整分发包及既有 Krisp 处理仅支持 x86_64。
-[[ "$(uname -m)" == x86_64 ]] || { echo '仅支持 x86_64。' >&2; exit 1; }
+############# 准备构建目录 #############
 
-# 本程序专属处理：统一记录完整程序、官方模块和桌面资源的工作路径。
-DOWNLOAD="$SCRIPT_DIR/../common/download/download_file.sh"
-EXTRACT="$SCRIPT_DIR/../common/archive/extract_archive.sh"
-WORKDIR="$SCRIPT_DIR/source"
-APPDIR="$SCRIPT_DIR/AppDir"
-APP_ROOT="$APPDIR/shared/bin"
-HOST_DIR="$WORKDIR/host"
-MODULES="$WORKDIR/modules"
-OFFICIAL_ARCHIVE="$WORKDIR/discord-official.tar.gz"
-OFFICIAL_DIR="$WORKDIR/official"
+# 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "discord"
 
-###### 准备 Arch 构建环境 ######
+############# 准备构建环境 #############
 
-# 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装构建工具和应用所需的依赖包。
+"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev pkgconf libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev librsvg2-dev librsvg2-common libpango1.0-dev ibus-gtk3 libibus-1.0-5
 
-# 本程序专属处理：只安装运行依赖，完整程序与桌面资源另行从 Discord 官方下载。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" \
-  gtk3 nss alsa-lib systemd-libs wayland \
-  libappindicator-gtk3 libpulse libnotify libxss cups \
-  ibus fcitx5-gtk xdg-utils brotli
+############# 下载打包工具 #############
 
-###### 清理并创建构建目录 ######
+# 下载并校验打包工具及所需插件，随后加载构建环境配置。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" gtk "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 
-# 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist source
+############ 初始化 AppDir #############
 
-# Discord 是非标准完整程序包，真实程序树固定放入 shared/bin 保持相邻资源布局。
-mkdir -p "$HOST_DIR" "$MODULES" "$SCRIPT_DIR/dist" "$APP_ROOT"
+# 首次运行 linuxdeploy，创建 AppDir 的基础目录。
+"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
-###### 获取官方桌面资源 ######
+############ 下载并准备应用 #############
 
-# 从 Discord 官网稳定版 tar.gz 提取官方 desktop 和图标，不在仓库内手写桌面元数据。
-"$DOWNLOAD" \
-  'https://discord.com/api/download?platform=linux&format=tar.gz' \
-  "$OFFICIAL_ARCHIVE"
-"$EXTRACT" "$OFFICIAL_ARCHIVE" "$OFFICIAL_DIR"
-OFFICIAL_DESKTOP="$OFFICIAL_DIR/Discord/discord.desktop"
-OFFICIAL_ICON="$OFFICIAL_DIR/Discord/discord.png"
-[[ -f "$OFFICIAL_DESKTOP" && -f "$OFFICIAL_ICON" ]] || {
-  echo 'Discord 官方归档缺少 desktop 或图标。' >&2
-  exit 1
-}
+# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
+VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" --url "https://discord.com/api/download?platform=linux&format=deb" "" "$SOURCE_DIR/discord.deb" "$APPDIR" "discord" "amd64")"
 
-###### 获取并核对官方完整主程序 ######
+############# 准备 AppRun ##############
 
-# 官方 stable manifest 同时提供主程序版本、下载地址和 SHA-256。
-"$DOWNLOAD" \
-  'https://updates.discord.com/distributions/app/manifests/latest?channel=stable&platform=linux&arch=x64' \
-  "$WORKDIR/manifest.json"
-MANIFEST_VERSION="$(jq -er '.full.host_version | map(tostring) | join(".")' "$WORKDIR/manifest.json")"
-HOST_URL="$(jq -er '.full.url' "$WORKDIR/manifest.json")"
-HOST_SHA="$(jq -er '.full.package_sha256' "$WORKDIR/manifest.json")"
+# 在 AppDir 根目录创建完整的 AppRun 启动脚本。
+cat > "$APPDIR/AppRun" <<'APPRUN'
+#!/usr/bin/env bash
 
-# 地址必须属于本次 stable 版本，禁止下载清单版本之外的主程序。
-[[ "$HOST_URL" == https://*.discordapp.net/distro/app/stable/linux/x64/${MANIFEST_VERSION}/full.distro ]] || {
-  echo "主程序地址与版本不一致：$HOST_URL" >&2
-  exit 1
-}
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
+set -Eeuo pipefail
 
-# 下载并校验完整主程序，再由公共归档入口解开 Brotli 压缩的 distro 包。
-"$DOWNLOAD" "$HOST_URL" "$WORKDIR/host.distro" "$HOST_SHA"
-"$EXTRACT" "$WORKDIR/host.distro" "$HOST_DIR"
-[[ -x "$HOST_DIR/files/Discord" && -f "$HOST_DIR/files/resources/build_info.json" ]] || {
-  echo '完整包缺少 Discord 或 build_info.json。' >&2
-  exit 1
-}
+# 获取脚本所在目录的绝对路径。
+HERE="$(dirname "$(readlink -f "${0}")")"
 
-# 把已核对的完整程序树放入 AppImage 的真实应用目录。
-cp -a "$HOST_DIR/files"/. "$APP_ROOT"/
+# 设置程序、运行库和共享数据的搜索路径。
+export PATH="$HERE/usr/share/discord:$HERE/usr/bin${PATH:+:$PATH}"
+export LD_LIBRARY_PATH="$HERE/usr/share/discord:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
-# 本程序专属处理：仅修改包内配置，让模块加载目录与现有可写部署 hook 一致。
-jq '.newUpdater = false' "$APP_ROOT/resources/build_info.json" > "$WORKDIR/build_info.json"
+# GTK 运行环境：指定 GSettings schema 和 GIO 动态模块的目录。
+export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
+export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
 
-# 本程序专属处理：把调整后的配置写回完整程序目录。
-cp -- "$WORKDIR/build_info.json" "$APP_ROOT/resources/build_info.json"
+# 启动包内程序，并保留传入的命令行参数。
+exec "$HERE/usr/share/discord/Discord" "$@"
+APPRUN
 
-# 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json "$APP_ROOT/resources/build_info.json")"
+# 为启动脚本添加执行权限。
+chmod +x "$APPDIR/AppRun"
 
-# 本程序专属处理：确认切换更新器后，包内版本仍与官方清单一致。
-[[ "$VERSION" == "$MANIFEST_VERSION" ]] || {
-  echo "清单版本是 $MANIFEST_VERSION，包内版本是 $VERSION；停止发布。" >&2
-  exit 1
-}
-echo "Discord 主程序版本：$VERSION"
+############### 核心打包 ###############
 
-###### 获取 Discord 官方模块 ######
+# 指定 GTK 主版本。
+export DEPLOY_GTK_VERSION=3
 
-# 逐个下载 manifest 声明的官方模块，并用对应 SHA-256 校验后解包。
-while IFS=$'\t' read -r name url sha; do
-  [[ "$url" == https://*.discordapp.net/distro/app/stable/linux/x64/${VERSION}/${name}/*/full.distro ]] || {
-    echo "模块地址不合法：$name $url" >&2
-    exit 1
-  }
-  "$DOWNLOAD" "$url" "$WORKDIR/${name}.distro" "$sha"
-  module_source="$WORKDIR/module-source/$name"
-  "$EXTRACT" "$WORKDIR/${name}.distro" "$module_source"
-  [[ -d "$module_source/files" ]] || {
-    echo "模块缺少 files 目录：$name" >&2
-    exit 1
-  }
-  mkdir -p "$MODULES/$name"
-  cp -a "$module_source/files"/. "$MODULES/$name"/
-done < <(
-  jq -er '.modules | to_entries[] | [.key, .value.full.url, .value.full.package_sha256] | @tsv' \
-    "$WORKDIR/manifest.json"
-)
+# 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 
-# 桌面核心模块是 Discord 启动必需内容，缺失时禁止继续封装。
-[[ -f "$MODULES/discord_desktop_core/index.js" && -f "$MODULES/discord_desktop_core/core.asar" ]] || {
-  echo '缺少 discord_desktop_core。' >&2
-  exit 1
-}
+############### 整理产物 ###############
 
-# 生成 Discord 识别的已安装模块清单，并预建 Krisp 运行时日志目录。
-jq -c '.modules | with_entries(.value = {installedVersion: .value.full.module_version})' \
-  "$WORKDIR/manifest.json" > "$MODULES/installed.json"
-
-# quick-sharun 以自带加载器运行 Discord，/proc/<pid>/exe 因而不是官方主程序；
-# Krisp 会把这个加载器判为未签名。只把签名失败后的条件跳转替换成 NOP，
-# 保留官方模块的其余内容，并在上游指令布局变化时明确停止构建。
-KRISP_MODULE="$MODULES/discord_krisp/discord_krisp.node"
-[[ -f "$KRISP_MODULE" ]] || { echo '缺少 discord_krisp.node。' >&2; exit 1; }
-KRISP_OFFICIAL_SHA="$(sha256sum "$KRISP_MODULE" | awk '{print $1}')"
-KRISP_INIT_SYMBOL="$(readelf -Ws --wide "$KRISP_MODULE" \
-  | awk '$4 == "FUNC" && $8 ~ /DoKrispInitializeEv$/ && !found { print $8; found=1 }')"
-KRISP_SIGN_SYMBOL="$(readelf -Ws --wide "$KRISP_MODULE" \
-  | awk '$4 == "FUNC" && $8 ~ /IsSignedByDiscord/ && !found { print $8; found=1 }')"
-[[ -n "$KRISP_INIT_SYMBOL" && -n "$KRISP_SIGN_SYMBOL" ]] || {
-  echo '无法定位 Krisp 主程序签名检查函数。' >&2
-  exit 1
-}
-
-KRISP_PATCH_RECORD="$(objdump -d --disassemble="$KRISP_INIT_SYMBOL" "$KRISP_MODULE" \
-  | awk -v target="<$KRISP_SIGN_SYMBOL>" '
-      index($0, target) { seen_call=1; next }
-      seen_call && /test[[:space:]]+%al,%al/ { seen_test=1; next }
-      seen_test && /je[[:space:]]/ && !found {
-        address=$1
-        sub(/:$/, "", address)
-        bytes=""
-        for (i=2; i<=NF && $i ~ /^[[:xdigit:]]{2}$/; i++) bytes=bytes $i
-        print address, bytes
-        found=1
-      }
-    ')"
-read -r KRISP_PATCH_VADDR KRISP_PATCH_HEX <<< "$KRISP_PATCH_RECORD"
-[[ "$KRISP_PATCH_HEX" == 74?? || "$KRISP_PATCH_HEX" == 0f84???????? ]] || {
-  echo "Krisp 签名失败分支不是预期的 JE 指令：${KRISP_PATCH_HEX:-未找到}" >&2
-  exit 1
-}
-
-read -r KRISP_TEXT_VADDR KRISP_TEXT_OFFSET <<< "$(
-  objdump -h "$KRISP_MODULE" | awk '$2 == ".text" && !found { print $4, $6; found=1 }'
-)"
-[[ -n "$KRISP_TEXT_VADDR" && -n "$KRISP_TEXT_OFFSET" ]] || {
-  echo '无法定位 discord_krisp.node 的 .text 段。' >&2
-  exit 1
-}
-KRISP_PATCH_OFFSET=$((
-  16#$KRISP_PATCH_VADDR - 16#$KRISP_TEXT_VADDR + 16#$KRISP_TEXT_OFFSET
-))
-
-python3 - "$KRISP_MODULE" "$KRISP_PATCH_OFFSET" "$KRISP_PATCH_HEX" <<'PY'
-import pathlib
-import sys
-
-module = pathlib.Path(sys.argv[1])
-offset = int(sys.argv[2])
-expected = bytes.fromhex(sys.argv[3])
-data = bytearray(module.read_bytes())
-actual = bytes(data[offset:offset + len(expected)])
-if actual != expected:
-    raise SystemExit(
-        f"Krisp 补丁位置内容变化：预期 {expected.hex()}，实际 {actual.hex()}"
-    )
-data[offset:offset + len(expected)] = b"\x90" * len(expected)
-module.write_bytes(data)
-PY
-
-KRISP_PATCHED_SHA="$(sha256sum "$KRISP_MODULE" | awk '{print $1}')"
-[[ "$KRISP_PATCHED_SHA" != "$KRISP_OFFICIAL_SHA" ]] || {
-  echo 'Krisp 签名检查补丁没有改变模块。' >&2
-  exit 1
-}
-# 同一 Discord 版本重新构建时，运行时 hook 也据此替换旧的未修复模块。
-printf '%s\n' "$KRISP_PATCHED_SHA" \
-  > "$MODULES/discord_krisp/.appimage-patch.sha256"
-echo "Krisp 模块补丁：$KRISP_OFFICIAL_SHA -> $KRISP_PATCHED_SHA"
-
-mkdir -p "$MODULES/discord_krisp/KMS/logs"
-
-###### 构建 AppImage ######
-
-# 把当前机器架构传给 quick-sharun。
-export ARCH="$(uname -m)"
-# 成品里的应用名。
-export APPNAME="Discord"
-# 包里的真实程序名。
-export MAIN_BIN="Discord"
-# 让窗口对上 desktop 里的 StartupWMClass。
-export STARTUPWMCLASS="discord"
-# 本程序专属处理：使用官网归档中的官方图标。
-export ICON="$OFFICIAL_ICON"
-# 本程序专属处理：使用官网归档中的官方桌面入口文件。
-export DESKTOP="$OFFICIAL_DESKTOP"
-# 把 AppImage 写到脚本目录下的 dist。
-export OUTPATH="$SCRIPT_DIR/dist"
-# 固定最终 AppImage 的文件名。
-export OUTNAME="discord.AppImage"
-# 本程序专属处理：关闭宿主 OpenGL 驱动的主动部署。
-export DEPLOY_OPENGL=0
-# 本程序专属处理：关闭宿主 Vulkan 驱动的主动部署。
-export DEPLOY_VULKAN=0
-# 本仓库兼容处理：保留程序和原生模块的符号。
-export NO_STRIP=1
-# 本程序专属处理：向 quick-sharun 传入已核对的完整程序版本。
-export VERSION
-
-# 收集程序及其运行依赖。
-# 本程序专属处理：收集真实主程序、自带的 Chromium 库、中文输入模块及动态加载的运行库。
-LD_LIBRARY_PATH="$APP_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-quick-sharun "$APP_ROOT/Discord" \
-  "$APP_ROOT/libffmpeg.so" "$APP_ROOT/libEGL.so" "$APP_ROOT/libGLESv2.so" \
-  "$APP_ROOT/libvulkan.so.1" "$APP_ROOT/libvk_swiftshader.so" \
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so \
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so \
-  /usr/lib/libappindicator3.so* \
-  /usr/lib/libpulse.so* \
-  /usr/lib/libnotify.so* \
-  /usr/lib/libXss.so* \
-  /usr/lib/libcups.so* \
-  /usr/lib/libasound.so* \
-  /usr/lib/libwayland-client.so*
-
-# Krisp 会校验 Discord 主程序本身；恢复 quick-sharun 路径扫描前的官方原始文件。
-cp -a -- "$HOST_DIR/files/Discord" "$APP_ROOT/Discord"
-
-# 主程序必须与已校验的官方 full.distro 逐字节一致，禁止发布被路径替换改写的文件。
-cmp -s "$HOST_DIR/files/Discord" "$APP_ROOT/Discord" || {
-  echo '恢复后的 Discord 主程序与官方完整包不一致。' >&2
-  exit 1
-}
-
-###### 配置 Discord 模块和运行环境 ######
-
-# 把已校验并完成 Krisp 兼容处理的模块作为只读模板带入包内，启动时再同步到用户配置目录。
-mkdir -p "$APPDIR/share/discord-modules"
-cp -a "$MODULES"/. "$APPDIR/share/discord-modules"/
-
-# 仅在包内模块版本变化时替换用户模块目录，避免 Discord 在只读挂载点写入失败。
-cat > "$APPDIR/bin/stage-discord-modules.src.hook" <<EOF
-#!/bin/false
-mod_src="\${SHARUN_DIR}/share/discord-modules"
-mod_dest="\${XDG_CONFIG_HOME:-\$HOME/.config}/discord/${VERSION}/modules"
-if [ ! -f "\$mod_dest/installed.json" ] \\
-  || ! cmp -s "\$mod_src/installed.json" "\$mod_dest/installed.json" \\
-  || ! cmp -s "\$mod_src/discord_krisp/.appimage-patch.sha256" "\$mod_dest/discord_krisp/.appimage-patch.sha256"; then
-  rm -rf "\$mod_dest"
-  mkdir -p "\$mod_dest"
-  cp -a "\$mod_src"/. "\$mod_dest"/
-fi
-mkdir -p "\$mod_dest/discord_krisp/KMS/logs"
-EOF
-
-# Electron 从 launcher 目录寻找 ICU、PAK、locales 和 resources；软链接保留唯一真实程序树。
-for item in "$APP_ROOT"/*; do
-  name="${item##*/}"
-  [[ "$name" == Discord || -e "$APPDIR/bin/$name" || -L "$APPDIR/bin/$name" ]] && continue
-  ln -s "../shared/bin/$name" "$APPDIR/bin/$name"
-done
-
-# 追加 shared/bin 的相邻库路径和固定工作目录，保留 quick-sharun 已生成的环境内容。
-cat >> "$APPDIR/.env" <<'ENV'
-SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/shared/bin:${SHARUN_EXTRA_LIBRARY_PATH}
-SHARUN_WORKING_DIR=${SHARUN_DIR}/shared/bin
-ENV
-
-# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
-mkdir -p AppDir/lib/locale
-localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
-cat >> AppDir/.env <<'ENV'
-LANG=zh_CN.UTF-8
-LANGUAGE=zh_CN:zh
-LC_MESSAGES=zh_CN.UTF-8
-LOCPATH=${SHARUN_DIR}/lib/locale
-ENV
-
-###### 生成并核对正式产物 ######
-
-# 把 AppDir 打成 AppImage。
-quick-sharun --make-appimage
-
-# 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/discord.AppImage" "$VERSION" dist/version.txt
+# 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
+"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
