@@ -193,10 +193,12 @@ VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_relea
 
 - `build/check_appimage_artifact.sh` 接收最终 AppImage 路径和 SHA-256 文件路径，确认产物非空且可执行，再以原 `sha256sum | tee` 方式生成校验文件。应用在生成正式产物后自行决定何时调用；图形检查仍独立按需调用。
 - `gui/check_appimage_gui.sh` 仅由确有需要的应用显式调用，不是所有 AppImage 的默认步骤。参数依次是最终 AppImage 路径、1～20 秒上限、隔离工作目录、会话顺序（`timeout-dbus-xvfb`、`xvfb-dbus-timeout` 或 `timeout-xvfb`）、成功规则（`timeout-only` 或 `timeout-or-zero`）、调用方的致命日志正则、可选窗口标题正则，以及 `--` 后的应用参数。空窗口标题只检查进程存活和日志，不声称确认了可见窗口；非空标题还要求 Xvfb 中找到存活的可见窗口。调用方可在命令前设置应用专属环境变量，公共入口不添加 `--disable-gpu` 等应用参数。该检查不验证登录、代理、中文输入或实机功能。
-- `linuxdeploy/package_appimage.sh` 可在显式传入版本号与版本文件路径后，将 `--no-appstream` 作为第七个参数传入。该模式保持 `--no-appstream --runtime-file <runtime> <AppDir> <输出文件>` 的参数顺序，供需要保留该封装方式的应用调用。
+- `linuxdeploy/package_appimage.sh` 可在显式传入版本号与版本文件路径后，将 `--no-appstream` 作为第七个参数传入。该模式保持 `--no-appstream --runtime-file <runtime> <AppDir> <输出文件>` 的参数顺序，供需要保留该封装方式的应用调用。 正式产物生成且非空后，公共入口将该 AppImage 文件的权限统一为 `0755`，然后继续原有验证、SHA-256 输出和版本保存流程。
 - `build/finish_appimage_build.sh` 在调用方完成所有检查后接收版本号、`version.txt` 路径和原成功提示，按顺序写入版本文件并输出提示；不负责打包、图形检查或发布。已有 `common/linuxdeploy/package_appimage.sh` 同时承担封装和版本写入，使用该入口的应用不需要重复调用收尾函数。
 - `appimage/prepare_appdir_for_appimagetool.sh` 接收一个 AppDir。拒绝空路径、根目录和无效目录。只对该目录执行 `chmod -R a-s,a+rX`，不沿软链接改包外文件。根目录已有与主 desktop 的 `Icon` 同名的 PNG / XPM 时不覆盖；否则先复制包内同名 PNG，没有 PNG 时再把对应 SVG 转成 256 × 256 的 PNG，并保留原 SVG。转换工具按 `rsvg-convert`、`magick`、`convert` 的顺序选择，Ubuntu 项目可在应用依赖中安装 `librsvg2-bin`；只有实际转换时才需要，不修改统一基础包，也不在本入口安装软件。工具不可用或转换失败则立即退出。`linuxdeploy/package_appimage.sh` 在原封装命令前调用它。不添加 `--no-check-permissions`。上游变更、已有 `.DirIcon` 的回退边界及用途见 [appimagetool 图标检查与 SVG 兼容处理](../docs/appimagetool-icon-compatibility.md)。
-- `build/save_appimage_version.sh` 接收最终 AppImage 路径、版本号和 `version.txt` 路径。先确认产物存在且非空，再写入版本。不写 SHA-256，也不打印成功提示。已经分开做产物校验和成功提示的应用不要改成这个入口。
+- `build/save_appimage_version.sh` 接收最终 AppImage 路径、版本号和 `version.txt` 路径。先确认产物存在且非空，将该 AppImage 文件的权限统一为 `0755` 后再写入版本；权限设置失败时直接退出，不写入版本。不写 SHA-256，也不打印成功提示。已经分开做产物校验和成功提示的应用不要改成这个入口。
+
+这两个入口只统一调用方指定的最终 AppImage 文件权限，包内文件继续由原有打包流程处理。现有 13 份构建模板均已调用对应入口，使用这些模板新生成的脚本和既有调用方都会在下次构建时自动继承该权限规则。
 
 ## 2026-09-23 自根目录原样迁入
 

@@ -43,7 +43,8 @@ fi
   echo "错误：最终 AppImage 未生成或为空：$OUTFILE" >&2
   exit 1
 }
-chmod +x "$OUTFILE"
+# 将最终 AppImage 文件权限统一为 0755。
+chmod 0755 -- "$OUTFILE"
 if [[ -n "$VERIFY_SCRIPT" ]]; then
   "$VERIFY_SCRIPT" "$OUTFILE" "$APPDIR" "$VERSION"
 fi
