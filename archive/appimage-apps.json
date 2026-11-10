@@ -12,6 +12,11 @@
       "release_name": "deepseek-harness.AppImage"
     },
     {
+      "dir": "discord",
+      "script": "discord/build_discord.sh",
+      "release_name": "discord.AppImage"
+    },
+    {
       "dir": "flameshot",
       "script": "flameshot/build_flameshot.sh",
       "release_name": "flameshot.AppImage"

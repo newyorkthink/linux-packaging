@@ -20,7 +20,7 @@
 
 例如，当前 Electron 直接下载模板要求 `DEPLOY_GTK=1`；`DEPLOY_OPENGL`、`DEPLOY_VULKAN` 则按当前应用的实际需要和已批准方案决定，不是所有程序的必填项。某个变量出现在官方脚本或登记表中，不等于所有应用都应启用。
 
-Discord 现按 [LinuxDeploy GTK DEB 标准](../discord/docs/template-deviations.md)生成，并启用完整应用及可写模块准备阶段；使用 `DEPLOY_GTK_VERSION=3`，AppRun 指向实际 `usr/lib/discord` 布局。原 quick-sharun 开关和显式扫描仍只保留在不参与 Actions 的 `build_discord_old.sh`。
+Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及可写模块准备阶段，并设置 `DEPLOY_GTK_VERSION=3`。AppRun 指向 `usr/lib/discord`。旧版 `build_discord_old.sh` 保留了 quick-sharun 的开关与显式扫描。[模板差异](../archive/discord/docs/template-deviations.md)
 
 **必需项不能漏，已确认必要的配置不能擅删，不需要的配置不能为了统一而添加。** 不同程序的变量取值和经批准的专属项可以不同，不能把这些差异直接判为漏项或模板不一致。
 

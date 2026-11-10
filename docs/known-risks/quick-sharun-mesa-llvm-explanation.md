@@ -63,7 +63,7 @@ Discord 的当前脚本在 quick-sharun 之后执行 `find "$APPDIR/lib" ... -de
 - [v2rayN 构建 Job 107504379097](https://github.com/newyorkthink/linux-packaging/actions/runs/35957730418/job/107504379097)：复制 Mesa/LLVM 三项并打印警告，Job 成功。
 - [Discord 构建 Job 107510358634](https://github.com/newyorkthink/linux-packaging/actions/runs/35961327032/job/107510358634)：复制三项并打印警告；脚本随后删除指定三项，Job 成功。
 - [mpv 构建 Job 107508606529](https://github.com/newyorkthink/linux-packaging/actions/runs/35960745514/job/107508606529)：该次没有 Mesa/LLVM 三项的复制记录或对应警告，Job 成功。
-- [mpv 构建脚本](https://github.com/newyorkthink/linux-packaging/blob/main/mpv/build_mpv.sh)、[Discord 构建脚本](https://github.com/newyorkthink/linux-packaging/blob/main/discord/build_discord.sh)、[v2rayN 构建脚本](https://github.com/newyorkthink/linux-packaging/blob/main/v2rayn/build_v2rayn.sh)。
+- [mpv 构建脚本](https://github.com/newyorkthink/linux-packaging/blob/main/mpv/build_mpv.sh)、[Discord 归档记录](https://github.com/newyorkthink/linux-packaging/blob/main/archive/discord/README.md)、[v2rayN 构建脚本](https://github.com/newyorkthink/linux-packaging/blob/main/v2rayn/build_v2rayn.sh)。
 
 ## 2026-09-24：Discord 不再删除这三项
 

@@ -2,7 +2,7 @@
 
 ## 当前标准与实际问题
 
-[build_discord.sh](../build_discord.sh) 仍由固定 [LinuxDeploy GTK DEB 模板](../../templates/appimage/linuxdeploy-gtk-deb.sh)完整生成，保留 Ubuntu 22.04、GTK3、内联 AppRun 和公共最终封装。生成运行 [42789334037](https://github.com/newyorkthink/linux-packaging/actions/runs/42789334037) 来自提交 `c0ed3c55b4756077ccdc144776fee56b66cca875`，输出 SHA-256 为 `6ac3053d1e823813d2fd37161cb8a518156b4f94c1645335dee7a07b31dd1723`；正式脚本与该输出逐字一致。
+[build_discord.sh](../build_discord.sh) 仍由固定 [LinuxDeploy GTK DEB 模板](../../../templates/appimage/linuxdeploy-gtk-deb.sh)完整生成，保留 Ubuntu 22.04、GTK3、内联 AppRun 和公共最终封装。生成运行 [42789334037](https://github.com/newyorkthink/linux-packaging/actions/runs/42789334037) 来自提交 `c0ed3c55b4756077ccdc144776fee56b66cca875`，输出 SHA-256 为 `6ac3053d1e823813d2fd37161cb8a518156b4f94c1645335dee7a07b31dd1723`；正式脚本与该输出逐字一致。
 
 上一轮运行 [42784000043](https://github.com/newyorkthink/linux-packaging/actions/runs/42784000043) 只取得 2331 KiB 的官方引导 DEB，未包含完整客户端，生成入口还指向不存在的 `usr/share/discord/Discord`。用户启动成品后报 `No such file or directory`。因此本次恢复有直接证据支持的完整来源与模块准备，不把旧 quick 流程整体搬回。
 

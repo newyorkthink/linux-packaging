@@ -1,8 +1,24 @@
+# 已归档
+
+2026-11-10 起暂停维护，从 `discord/` 移到 `archive/discord/`。Discord 1.0.169 实机启动时无法加载 `discord_desktop_core`。暂无替代，后续按需恢复。
+
+归档前的构建入口为 `discord/build_discord.sh`，固定发布附件为 `discord.AppImage`。
+
+脚本、配置和既有历史保留，供按需恢复。恢复原目录、构建登记及活动索引时，参照[归档与恢复说明](../README.md#重新启用)。
+
+## 归档备注
+
+- 提交 `33843a6` 构建并发布了 1.0.169。用户在 Kali Linux 启动 AppImage 时，包内 `app.asar` 的 `bundle.js` 报 `Cannot find module 'discord_desktop_core'`，主窗口未能打开。[构建与发布记录](https://github.com/newyorkthink/linux-packaging/actions/runs/42790247858/job/129741611479)
+- 提交 `18ec495` 将模块部署目录改为 `module_data`，构建和发布通过。用户在发布后反馈，1.0.169 启动仍出现同一错误，日志仍指向 `discord/module_data`。[构建与发布记录](https://github.com/newyorkthink/linux-packaging/actions/runs/42792770195/job/129750214416)
+- 重新启用前，核对成品中的 `discord_desktop_core`、部署后的目录结构和 Electron 实际解析路径。修复后确认成品能在干净配置和已有配置下打开主窗口，再恢复发布。当前尚未确认修改部署目录后仍加载失败的原因。
+
+以下为归档前的历史记录，其中的活动路径、发布状态与验证结论均对应当时的构建。
+
 # Discord AppImage
 
 ## 来源与构建
 
-[build_discord.sh](./build_discord.sh) 继续使用 [LinuxDeploy GTK DEB 标准模板](../templates/appimage/linuxdeploy-gtk-deb.sh)，由统一生成器原样输出。先通过公共入口下载并安装 [Discord 官方稳定版 DEB](https://discord.com/api/download?platform=linux&format=deb)，取得依赖、desktop 和图标；这个 DEB 只提供引导安装器，不能作为完整客户端。
+[build_discord.sh](./build_discord.sh) 继续使用 [LinuxDeploy GTK DEB 标准模板](../../templates/appimage/linuxdeploy-gtk-deb.sh)，由统一生成器原样输出。先通过公共入口下载并安装 [Discord 官方稳定版 DEB](https://discord.com/api/download?platform=linux&format=deb)，取得依赖、desktop 和图标；这个 DEB 只提供引导安装器，不能作为完整客户端。
 
 真实主程序与全部模块从 Discord [stable 更新清单](https://updates.discord.com/distributions/app/manifests/latest?channel=stable&platform=linux&arch=x64) 对应的多份 `full.distro` 取得，每份核对清单中的官方 SHA-256，并通过公共归档入口解包。最终版本读取完整主程序的 `resources/build_info.json`，与同次清单版本强制比对，不再使用引导 DEB 的版本作为成品版本。
 

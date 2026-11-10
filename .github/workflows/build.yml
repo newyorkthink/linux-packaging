@@ -46,7 +46,6 @@ on:
           - deepseek-harness-desktop/build_deepseek-harness-desktop.sh
           - deskflow/build_deskflow.sh
           - dingtalk/build_dingtalk.sh
-          - discord/build_discord.sh
           - escrcpy/build_escrcpy.sh
           - feishu/build_feishu.sh
           - file-roller/build_file-roller.sh
@@ -441,52 +440,6 @@ jobs:
           artifact_dir: 'dconf-editor/dist'
           github_token: ${{ github.token }}
 
-
-  build_discord:
-    name: Build Discord
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).discord == 'true'
-    concurrency:
-      group: build-appimage-discord.AppImage
-      queue: max
-    runs-on: ubuntu-22.04
-    timeout-minutes: 90
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Build Discord AppImage
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          chmod +x discord/build_discord.sh
-          ./discord/build_discord.sh
-      - name: Upload software version metadata
-        uses: actions/upload-artifact@v4
-        with:
-          name: software-version-discord
-          path: discord/dist/version.txt
-          if-no-files-found: error
-          retention-days: 1
-      - name: Publish to Latest Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          gh release upload latest discord/dist/discord.AppImage --repo "$GITHUB_REPOSITORY" --clobber
-
-      - name: Publish software version immediately
-        uses: ./.github/actions/publish-software-versions
-        with:
-          software_key: 'discord'
-          version_file: 'discord/dist/version.txt'
-          asset_name: 'discord.AppImage'
-          artifact_dir: 'discord/dist'
-          github_token: ${{ github.token }}
 
   build_dingtalk:
     name: Build DingTalk
