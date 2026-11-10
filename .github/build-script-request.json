@@ -29,7 +29,9 @@
       "libpulse0",
       "libcups2",
       "libatomic1",
-      "libappindicator3-1"
+      "libappindicator3-1",
+      "libc++1",
+      "libc++abi1"
     ],
     "DEB_URL": "https://discord.com/api/download?platform=linux&format=deb",
     "DEB_FILENAME": "discord.deb",
