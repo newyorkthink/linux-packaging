@@ -60,6 +60,9 @@ export STRACE_MODE=0
 # 读取本次打包使用的版本。
 VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text work/source-version.txt)"
 
+# 保留旧版向 quick-sharun 传递版本号的方式。
+export VERSION
+
 # 收集程序及其运行依赖。
 # 本程序专属处理：保留 Electron 辅助程序及动态加载库。
 LD_LIBRARY_PATH="$APP_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
