@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""只清理明确归档、停用且已无正式资产的软件版本记录。"""
+"""清理已被新名称接替或已确认归档的软件版本记录。"""
 
 from __future__ import annotations
 
@@ -24,6 +24,76 @@ def read_json(path: Path) -> object:
         return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_object)
     except (OSError, ValueError) as exc:
         raise SystemExit(f"无法读取有效的 {path}：{exc}") from exc
+
+
+def prune_superseded_keys(
+    manifest: dict, catalog: dict, assets: list[dict], only_key: str | None = None
+) -> tuple[dict, list[dict[str, str]]]:
+    """只清理已由唯一活动记录和正式资产共同确认接替的旧版本键。"""
+    if not isinstance(manifest, dict):
+        raise SystemExit("software_versions.json 必须是 JSON 对象。")
+    if not isinstance(catalog, dict) or not isinstance(catalog.get("apps"), list):
+        raise SystemExit("活动构建清单必须包含 apps 数组。")
+    if not isinstance(assets, list) or not all(isinstance(asset, dict) for asset in assets):
+        raise SystemExit("Release 资产列表格式无效，禁止清理旧版本键。")
+
+    by_key: dict[str, list[dict]] = {}
+    by_asset: dict[str, list[dict]] = {}
+    for app in catalog["apps"]:
+        if not isinstance(app, dict):
+            raise SystemExit("活动构建清单包含无效条目。")
+        key, asset = app.get("software_key"), app.get("release_name")
+        if not isinstance(key, str) or not key or not isinstance(asset, str) or not asset:
+            raise SystemExit("活动构建清单缺少有效的软件键或正式资产名，禁止清理。")
+        by_key.setdefault(key, []).append(app)
+        by_asset.setdefault(asset, []).append(app)
+
+    assets_by_name: dict[str, list[dict]] = {}
+    for asset in assets:
+        name = asset.get("name")
+        if isinstance(name, str):
+            assets_by_name.setdefault(name, []).append(asset)
+
+    result = dict(manifest)
+    removed: list[dict[str, str]] = []
+    for old_key, entry in manifest.items():
+        # 活动软件键始终保留，不能把仍在使用的记录当作旧名称删除。
+        if old_key in by_key or not isinstance(entry, dict):
+            continue
+        asset_name = entry.get("asset")
+        if not isinstance(asset_name, str):
+            continue
+        owners = by_asset.get(asset_name, [])
+        if len(owners) != 1:
+            continue
+        new_key = owners[0]["software_key"]
+        if len(by_key[new_key]) != 1 or (only_key is not None and new_key != only_key):
+            continue
+
+        # 新名称必须已有完整版本记录，且恰好对应一个已上传的正式资产。
+        replacement = manifest.get(new_key)
+        matching_assets = assets_by_name.get(asset_name, [])
+        if not isinstance(replacement, dict) or len(matching_assets) != 1:
+            continue
+        version, sha256 = replacement.get("version"), replacement.get("sha256")
+        release_asset = matching_assets[0]
+        digest = release_asset.get("digest")
+        if (
+            replacement.get("asset") != asset_name
+            or not isinstance(version, str)
+            or not version.strip()
+            or not isinstance(sha256, str)
+            or not re.fullmatch(r"[0-9a-fA-F]{64}", sha256)
+            or release_asset.get("state") != "uploaded"
+            or not isinstance(digest, str)
+            or digest.lower() != f"sha256:{sha256.lower()}"
+        ):
+            continue
+
+        # 只移除与已确认新记录指向同一正式资产、且已无活动入口的旧键。
+        del result[old_key]
+        removed.append({"software_key": old_key, "asset": asset_name, "replacement_key": new_key})
+    return result, removed
 
 
 def mentions(text: str, value: str) -> bool:
@@ -77,9 +147,11 @@ def plan(args: argparse.Namespace) -> None:
             raise SystemExit(f"归档映射的资产名重复：{asset}")
         by_asset[asset] = row
 
-    result = dict(manifest)
-    removed, retained = [], []
+    result, removed = prune_superseded_keys(manifest, catalog, assets)
+    retained = []
     for key, entry in manifest.items():
+        if key not in result:
+            continue
         asset = entry.get("asset") if isinstance(entry, dict) else None
         row = by_asset.get(asset) if isinstance(asset, str) else None
         if row is None:
@@ -116,10 +188,10 @@ def plan(args: argparse.Namespace) -> None:
         del result[key]
         removed.append({"software_key": key, "asset": asset})
 
-    # 删除集合必须完全等于批准清理的归档条目，其余记录逐项原样保留。
+    # 删除集合必须恰好等于已确认的旧名称和归档条目，其余记录逐项原样保留。
     removed_keys = {row["software_key"] for row in removed}
     if set(manifest) - set(result) != removed_keys or any(result[key] != manifest[key] for key in result):
-        raise SystemExit("清理结果超出归档范围，禁止写入。")
+        raise SystemExit("清理结果超出已确认范围，禁止写入。")
     if removed:
         args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     else:
@@ -129,11 +201,18 @@ def plan(args: argparse.Namespace) -> None:
 
 def report(path: Path) -> None:
     data = read_json(path)
-    lines = ["## 归档版本条目清理", ""]
+    lines = ["## 软件版本条目清理", ""]
     if data["removed"]:
-        lines += [f"- 已删除：`{row['software_key']}` / `{row['asset']}`" for row in data["removed"]]
+        for row in data["removed"]:
+            if "replacement_key" in row:
+                lines.append(
+                    f"- 已移除旧键：`{row['software_key']}`；"
+                    f"已由 `{row['replacement_key']}` / `{row['asset']}` 接替。"
+                )
+            else:
+                lines.append(f"- 已删除归档条目：`{row['software_key']}` / `{row['asset']}`")
     else:
-        lines.append("没有符合条件的归档版本条目，未修改版本清单。")
+        lines.append("没有符合条件的旧名称或归档条目，未修改版本清单。")
     for row in data["retained"]:
         lines.append(f"- 保留：`{row['software_key']}` / `{row['asset']}`：{row['reason']}。")
     text = "\n".join(lines) + "\n"

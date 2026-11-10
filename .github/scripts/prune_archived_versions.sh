@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# 始终在已检出的仓库根目录处理清单，仅使用可信 main 的归档映射。
+# 始终在已检出的仓库根目录处理清单，仅使用可信 main 的活动构建清单和归档映射。
 cd "$(git rev-parse --show-toplevel)"
 checkout_sha="$(git rev-parse HEAD)"
 : "${GH_TOKEN:?缺少 GitHub token}"
@@ -23,13 +23,13 @@ lock_name='software_versions.json.lock'
 lock_file="$workdir/$lock_name"
 lock_upload_error="$workdir/lock-upload-error.txt"
 
-# main 已变化时停止，不能按旧的归档状态修改当前 Release。
+# main 已变化时停止，不能按旧的活动构建清单或归档状态修改当前 Release。
 require_current_main() {
   local current_sha
   current_sha="$(gh api -H 'Cache-Control: no-cache' \
     "repos/$GITHUB_REPOSITORY/git/ref/heads/main?publication_read=$(date +%s%N)" --jq '.object.sha')"
   [[ "$current_sha" == "$checkout_sha" ]] || {
-    echo 'main 在检查期间已变化，停止使用旧归档映射。' >&2
+    echo 'main 在检查期间已变化，停止使用旧构建清单或归档映射。' >&2
     return 1
   }
 }
@@ -127,7 +127,7 @@ read_snapshot() {
   return 1
 }
 
-# 按精确归档映射生成候选清单，不修改其他软件记录。
+# 按活动构建清单和精确归档映射生成候选清单，不修改其他软件记录。
 plan_cleanup() {
   python3 .github/scripts/prune_archived_versions.py plan \
     --manifest "$base_manifest" --assets "$assets_json" --output "$manifest" --report "$report_json"

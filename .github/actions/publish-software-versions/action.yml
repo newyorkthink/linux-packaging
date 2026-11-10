@@ -1,5 +1,5 @@
 name: Publish Software Version
-description: 当前 Build 成功上传 Release AppImage 后，立即只更新自己的 software_versions.json 条目。
+description: 当前 Build 成功上传 Release AppImage 后，立即更新本软件版本记录并清理已被接替的旧名称。
 
 inputs:
   software_key:
@@ -423,17 +423,31 @@ runs:
         }
         trap finish_publish EXIT
 
-        python3 - "$manifest" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" <<'PY'
+        # 合并当前软件记录后，复用清理入口移除已被本次正式产物接替的旧键。
+        python3 - "$manifest" "$SOFTWARE_KEY" "$version" "$ASSET_NAME" "$release_sha256" \
+          "$GITHUB_WORKSPACE/.github/appimage-apps.json" "$release_json" <<'PY'
         import json, sys
-        path, key, version, asset, sha256 = sys.argv[1:]
+        from pathlib import Path
+
+        path, key, version, asset, sha256, catalog_path, release_path = sys.argv[1:]
+        sys.path.insert(0, str(Path(catalog_path).parent / 'scripts'))
+        from prune_archived_versions import prune_superseded_keys
+
         with open(path, encoding='utf-8') as f:
             data = json.load(f)
         if not isinstance(data, dict):
             raise SystemExit('software_versions.json 不是 JSON 对象')
+        with open(catalog_path, encoding='utf-8') as f:
+            catalog = json.load(f)
+        with open(release_path, encoding='utf-8') as f:
+            release_assets = json.load(f).get('assets')
         data[key] = {'version': version, 'asset': asset, 'sha256': sha256}
+        data, removed = prune_superseded_keys(data, catalog, release_assets, only_key=key)
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2, sort_keys=True)
             f.write('\n')
+        for row in removed:
+            print(f"已合并本软件旧键：{row['software_key']} -> {row['replacement_key']} / {row['asset']}")
         PY
 
         manifest_sha256="$(sha256sum "$manifest" | awk '{print tolower($1)}')"
