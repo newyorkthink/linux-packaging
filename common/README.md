@@ -23,7 +23,7 @@
 - `aur/download_deb_source.sh` 接收 AUR 包名、架构和 DEB 输出文件三个参数。复用上述解析入口，在独立临时目录中读取当前来源和 `SOURCE_CHECKSUM`，再调用 `download/download_file.sh` 按指定算法校验并下载；成功或失败后均清理本次临时元数据。原有三个参数保持不变，不安装应用、不解包、不替调用方选择版本元数据，也不写死应用名或下载地址。 可在三个位置参数后显式启用 `--user-agent`、`--downloader`、`--wayback`、`--deb`、`--version-file`、`--package-version-file`、`--makepkg-source-dir` 和 `--source-filename`；不传选项的调用保持原行为，详见下文。
 - `aur/install_and_extract_deb_source.sh` 接收 AUR 包名、AUR 架构、来源工作目录、DEB 路径、解包目录、预期 DEB 包名和 DEB 架构。组合现有来源解析、摘要下载、版本读取、元数据校验、APT 安装和归档解包入口；全部成功后仅向 stdout 返回一行实际版本。保留同次 AUR 快照、来源元数据和依赖清单，不执行 PKGBUILD，也不改旧入口。参数与使用边界见下文。
 - `aur/download_tar_source.sh <AUR 包名> <架构> <输出.tar.gz> <元数据输出文件>` 从同次 `.SRCINFO` 读取唯一的架构专用 HTTPS tar.gz 来源和 BLAKE2b-512 摘要。摘要缺失、无效或为 `SKIP` 时拒绝下载；校验通过后写入归档及可由 Bash 读取的版本、pkgrel 和来源元数据。现有 DEB 入口继续使用原调用方式。
-- `download/download_file.sh <HTTPS URL> <输出文件> [摘要] [User-Agent] [curl|wget|aria2c]` 保留原下载、重试、超时和原子替换行为。不传摘要时保持原行为；无前缀的 64 位十六进制摘要和 `sha256:<摘要>` 使用 SHA-256，新增的 `sha512:<128 位十六进制摘要>` 使用 SHA-512，`blake2b:<128 位十六进制摘要>` 使用 GNU `b2sum` 校验 BLAKE2b-512。摘要格式错误或校验失败时不替换已有输出文件。该扩展不改变其他专用下载入口各自的摘要格式。 第四个可选参数指定客户端标识，显式值优先；省略或传空字符串时，curl / wget 保留原默认标识，aria2c 使用仓库公共配置中的标识；不校验摘要而指定客户端标识时，第三个参数传空字符串。客户端标识包含回车或换行时拒绝下载。第五个可选参数显式选择下载器，默认仍为 `curl`；`wget` 共用原摘要校验、失败清理和原子替换，只用于直达 HTTPS 文件，不跟随重定向。该模式需要已有 `wget` 和 GNU `timeout`，总时限 900 秒，保留证书校验并使用 TLS 1.2；不读取 wget 配置或 netrc，不写 HSTS 文件。 `aria2c` 显式读取 [公共 HTTP 下载配置](./config/download/aria2.conf)，单服务器连接上限和分段数均为 16，最小分段和分块大小均为 1M；配置包含公开的模拟浏览器标识、IPv4 和 gzip 请求设置。它不读取个人 aria2 配置或 netrc；总时限仍为 900 秒，默认 TLS、证书校验、临时输出、原摘要校验、原子替换和失败清理保持不变，不自动跟随 Torrent / Metalink。公共配置按用途归类，规则见 [配置目录](./config/README.md)。
+- `download/download_file.sh <HTTPS URL> <输出文件> [摘要] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔]` 保留原下载、重试、超时和原子替换行为。不传摘要时保持原行为；无前缀的 64 位十六进制摘要和 `sha256:<摘要>` 使用 SHA-256，新增的 `sha512:<128 位十六进制摘要>` 使用 SHA-512，`blake2b:<128 位十六进制摘要>` 使用 GNU `b2sum` 校验 BLAKE2b-512。摘要格式错误或校验失败时不替换已有输出文件。该扩展不改变其他专用下载入口各自的摘要格式。 第四个可选参数指定客户端标识，显式值优先；省略或传空字符串时，curl / wget 保留原默认标识，aria2c 使用仓库公共配置中的标识；不校验摘要而指定客户端标识时，第三个参数传空字符串。客户端标识包含回车或换行时拒绝下载。第五个可选参数显式选择下载器，默认仍为 `curl`；`wget` 共用原摘要校验、失败清理和原子替换，只用于直达 HTTPS 文件，不跟随重定向。该模式需要已有 `wget` 和 GNU `timeout`，总时限 900 秒，保留证书校验并使用 TLS 1.2；不读取 wget 配置或 netrc，不写 HSTS 文件。 `aria2c` 显式读取 [公共 HTTP 下载配置](./config/download/aria2.conf)，单服务器连接上限和分段数均为 16，最小分段和分块大小均为 1M；配置包含公开的模拟浏览器标识、IPv4 和 gzip 请求设置。它不读取个人 aria2 配置或 netrc；总时限仍为 900 秒，默认 TLS、证书校验、临时输出、原摘要校验、原子替换和失败清理保持不变，不自动跟随 Torrent / Metalink。公共配置按用途归类，规则见 [配置目录](./config/README.md)。
 - `download/download_apt_repository_deb.sh` 从调用方指定的 HTTPS APT 仓库读取签名索引，使用指定的官方密钥验证 `InRelease`，核对索引与 DEB 的 SHA-256、大小，以及 DEB 的包名、架构和版本；按 Debian 版本规则选择最高版本，成功后写入 DEB 与来源版本文件，stdout 只返回版本。不安装应用、不配置系统 APT 源；现有下载、版本读取和归档接口保持不变。完整参数与支持范围见下文。
 - `download/download_omaha_package.sh` 查询 Omaha 3.0 XML 更新服务，按调用方提供的应用 ID、渠道、平台、架构、下载源、路径前缀和文件名规则选择完整安装包，复用 `download_file.sh` 校验 SHA-256，并核对响应中的文件大小。成功后写入指定的安装包和版本文件，stdout 只返回版本；不安装或执行软件。完整参数、约束及调用方式见下文。
 - `download/download_verified_with_wayback.sh` 接收官方 HTTPS URL、目标文件、原 SHA-256 或显式带 `sha512:` 前缀的 SHA-512 和可选的 `--deb`、`--user-agent <客户端标识>`、`--downloader curl|wget|aria2c`；先调用 `download_file.sh`，未取得匹配摘要的文件时才查同一 URL 的 Internet Archive 快照，所有候选文件仍须通过原摘要，`--deb` 还核对 DEB 文件类型。 这些选项可以组合使用；`--downloader` 只选择官方文件的下载器，CDX 与归档请求继续使用原 curl 入口。指定的客户端标识统一传给官方文件、快照列表和归档文件请求；未指定时，官方文件使用所选下载器的默认或公共配置标识，CDX 与归档文件使用 curl 默认标识。客户端标识为空、包含回车或换行、选项重复或参数缺失时退出。
@@ -41,11 +41,29 @@
 
 - `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../docs/appimage-scheme-handler.md)。
 
+### curl 的可选 HTTP 协议与重试间隔
+
+`download/download_file.sh` 的前五个参数保持原有含义。第六个可选参数指定 HTTP 协议，第七个指定 curl 的重试间隔；不传时继续自动协商协议，并使用原有的 2 秒固定间隔。这两项只在 curl 模式下允许设置为非默认值，不改变 wget、aria2c 的下载参数。
+
+| 参数 | 允许值与含义 | 默认值 |
+| --- | --- | --- |
+| 第六个：HTTP 协议 | `auto` 保留 curl 的协议协商；`http1.1` 显式传入 `--http1.1`。 | `auto` |
+| 第七个：curl 重试间隔 | 非负整数，单位为秒；`0` 使用 curl 默认的指数退避，正整数使用固定间隔。 | `2` |
+
+重试上限仍为 5 次，原有连接超时、传输超时、HTTPS 限制、校验和原子替换逻辑保持不变。curl 在收到 `Retry-After` 响应头时遵循服务端指定的等待时间；参数依据见 [HTTP/1.1](https://github.com/curl/curl/blob/master/docs/cmdline-opts/http1.1.md)、[重试间隔](https://github.com/curl/curl/blob/master/docs/cmdline-opts/retry-delay.md)及[重试规则](https://github.com/curl/curl/blob/master/docs/cmdline-opts/retry.md)。
+
+以下调用位于 GitHub Actions 的应用构建脚本中。尖括号参数须按实际来源替换；示例以空字符串保留摘要和 User-Agent 的位置，下载完成后仍由对应来源入口执行其官方摘要校验。
+
+```bash
+# 显式使用 HTTP/1.1 和指数退避重试下载文件。
+"$SCRIPT_DIR/../common/download/download_file.sh" "<HTTPS URL>" "<输出文件>" "" "" curl http1.1 0
+```
+
 ### Snap Store 官方稳定通道
 
 入口为 `snap/download_stable_snap.sh`，四个位置参数依次是 Snap 名称、发布者账号、架构和输出文件。调用方提前提供 Bash、curl、jq、OpenSSL 及公共下载入口需要的工具。Snap 名称、发布者和输出路径均由调用方指定；架构支持 `amd64` 和 `arm64`。
 
-入口查询 Snap Store 官方元数据，只选择 `latest/stable` 中与传入架构一致的唯一条目，同时核对应用名称和发布者账号。版本、下载 URL 与 96 位十六进制 SHA3-384 必须有效；不存在唯一条目或字段不符时直接失败。文件下载复用 `download/download_file.sh`，校验通过后才替换输出 Snap；失败时清理本次临时文件。
+入口查询 Snap Store 官方元数据，只选择 `latest/stable` 中与传入架构一致的唯一条目，同时核对应用名称和发布者账号。版本、下载 URL 与 96 位十六进制 SHA3-384 必须有效；不存在唯一条目或字段不符时直接失败。元数据请求和 Snap 文件下载均显式使用 HTTP/1.1，并保留 5 次重试；重试间隔采用 curl 的指数退避，而非固定 2 秒。文件下载通过 `download/download_file.sh` 的可选参数启用该行为，校验通过后才替换输出 Snap；失败时清理本次临时文件。
 
 成功时 stdout 只输出一行实际版本，下载进度和诊断写入 stderr。应用可将 stdout 重定向到来源版本文件，再在打包元数据阶段用 `build/read_app_version.sh text` 读取。来源版本不代表最终 AppImage 已生成，最终版本仍须在封装成功后由 `build/save_appimage_version.sh` 写入。
 

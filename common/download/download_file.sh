@@ -6,6 +6,8 @@ OUTPUT="${2:-}"
 EXPECTED_CHECKSUM="${3:-}"
 USER_AGENT="${4:-}"
 DOWNLOADER="${5:-curl}"
+HTTP_VERSION="${6:-auto}"
+CURL_RETRY_DELAY="${7:-2}"
 
 # 只有显式选择时使用其他下载器，原有调用继续使用 curl。
 [[ "$DOWNLOADER" == curl || "$DOWNLOADER" == wget || "$DOWNLOADER" == aria2c ]] || {
@@ -14,12 +16,22 @@ DOWNLOADER="${5:-curl}"
 }
 
 [[ -n "$URL" && -n "$OUTPUT" ]] || {
-  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256、sha512:<摘要> 或 blake2b:<摘要>] [User-Agent] [curl|wget|aria2c]" >&2
+  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256、sha512:<摘要> 或 blake2b:<摘要>] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔秒数，0 为指数退避]" >&2
   exit 1
 }
 [[ "$URL" == https://* ]] || {
   echo "错误：只允许从 HTTPS 地址下载：$URL" >&2
   exit 1
+}
+
+# 可选 HTTP 协议与重试间隔仅用于 curl；默认保持现有调用行为。
+[[ "$HTTP_VERSION" == auto || "$HTTP_VERSION" == http1.1 ]] && [[ "$CURL_RETRY_DELAY" =~ ^[0-9]+$ ]] || {
+  echo "错误：HTTP 协议只能为 auto 或 http1.1，重试间隔必须为非负整数。" >&2
+  exit 2
+}
+[[ "$DOWNLOADER" == curl || ( "$HTTP_VERSION" == auto && "$CURL_RETRY_DELAY" == 2 ) ]] || {
+  echo "错误：可选 HTTP 协议与重试间隔只适用于 curl。" >&2
+  exit 2
 }
 
 # 客户端标识由调用方指定，拒绝把换行内容带入请求头。
@@ -47,6 +59,12 @@ trap cleanup EXIT
 CURL_USER_AGENT_ARGS=()
 if [[ -n "$USER_AGENT" ]]; then
   CURL_USER_AGENT_ARGS=(--user-agent "$USER_AGENT")
+fi
+
+# 仅在显式指定时强制 HTTP/1.1，不改变其他调用的协议协商。
+CURL_PROTOCOL_ARGS=()
+if [[ "$HTTP_VERSION" == http1.1 ]]; then
+  CURL_PROTOCOL_ARGS=(--http1.1)
 fi
 
 # 使用指定下载器写入同目录临时文件，校验与原子替换共用后续流程。
@@ -78,11 +96,12 @@ elif [[ "$DOWNLOADER" == aria2c ]]; then
 else
   # 使用统一的失败、重试和超时参数下载到同目录临时文件。
   curl --fail --location \
+    "${CURL_PROTOCOL_ARGS[@]}" \
     --proto '=https' \
     --tlsv1.2 \
     --retry 5 \
     --retry-all-errors \
-    --retry-delay 2 \
+    --retry-delay "$CURL_RETRY_DELAY" \
     --connect-timeout 20 \
     --max-time 900 \
     "${CURL_USER_AGENT_ARGS[@]}" \

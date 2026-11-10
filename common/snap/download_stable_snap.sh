@@ -21,9 +21,10 @@ cleanup() {
 trap cleanup EXIT
 
 # 从 Snap Store 官方接口读取当前 latest/stable 通道元数据。
-curl --fail --silent --show-error --location \
+# 使用 HTTP/1.1 和指数退避重试，保留原有请求次数和超时。
+curl --http1.1 --fail --silent --show-error --location \
   --proto '=https' --tlsv1.2 \
-  --retry 5 --retry-all-errors --retry-delay 2 \
+  --retry 5 --retry-all-errors --retry-delay 0 \
   --connect-timeout 20 --max-time 120 \
   --header 'Snap-Device-Series: 16' \
   --output "$INFO_FILE" \
@@ -61,7 +62,8 @@ mkdir -p -- "$(dirname -- "$OUTPUT")"
 TEMP_SNAP="$(mktemp "${OUTPUT}.part.XXXXXX")"
 
 # 下载完整 Snap，再以官方 SHA3-384 校验；成功后才替换目标文件。
-"$(dirname -- "${BASH_SOURCE[0]}")/../download/download_file.sh" "$URL" "$TEMP_SNAP"
+# 显式启用 HTTP/1.1 和指数退避，其他公共下载调用沿用默认行为。
+"$(dirname -- "${BASH_SOURCE[0]}")/../download/download_file.sh" "$URL" "$TEMP_SNAP" "" "" curl http1.1 0
 ACTUAL_SHA3="$(openssl dgst -sha3-384 -r "$TEMP_SNAP" | awk '{print $1}')"
 [[ "${ACTUAL_SHA3,,}" == "${EXPECTED_SHA3,,}" ]] || {
   echo "错误：$SNAP_NAME Snap 的 SHA3-384 校验失败。" >&2
