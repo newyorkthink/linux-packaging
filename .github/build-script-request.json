@@ -1,5 +1,37 @@
 {
-  "template": "",
-  "output": "",
-  "params": {}
+  "template": "quick-sharun/electron-deb.sh",
+  "output": "discord/build_discord_news.sh",
+  "params": {
+    "SYSTEM_PACKAGE": "discord",
+    "DEPENDENCY_ARGS": [
+      "gtk3",
+      "nss",
+      "alsa-lib",
+      "systemd-libs",
+      "wayland",
+      "libappindicator-gtk3",
+      "libpulse",
+      "libnotify",
+      "libxss",
+      "cups",
+      "ibus",
+      "fcitx5-gtk",
+      "xdg-utils",
+      "brotli"
+    ],
+    "DEB_URL": "https://discord.com/api/download?platform=linux&format=deb",
+    "DEB_PROGRAM_DIR": "usr/share/discord",
+    "APP_NAME": "Discord",
+    "MAIN_BIN": "Discord",
+    "STARTUPWMCLASS": "discord",
+    "ICON": "/usr/share/icons/hicolor/256x256/apps/discord.png",
+    "DESKTOP": "/usr/share/applications/discord.desktop",
+    "APP_BASENAME": "discord",
+    "PACKAGE_JSON": "resources/build_info.json",
+    "SCAN_ARGS": [
+      "AppDir/bin/Discord",
+      "/usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so",
+      "/usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so"
+    ]
+  }
 }
