@@ -1,224 +1,119 @@
 #!/usr/bin/env bash
+
+############# 初始化脚本 #############
+
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
 set -Eeuo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+# 获取脚本所在目录的绝对路径。
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-log() {
-  printf '[Hermes Desktop] %s\n' "$*"
-}
+############# 准备构建目录 #############
 
-die() {
-  printf '错误：%s\n' "$*" >&2
-  exit 1
-}
+# 设置本次构建的源码目录和产物路径。
+SOURCE_DIR="$SCRIPT_DIR/upstream"
+DIST_DIR="$SCRIPT_DIR/dist"
+APPIMAGE="$DIST_DIR/hermes-desktop.AppImage"
 
-readonly HOST_ARCH="$(uname -m)"
-[[ "$HOST_ARCH" == "x86_64" ]] || die "当前仅支持 x86_64。"
+# 清理上次构建的源码和产物，并重建产物目录。
+"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create upstream dist
 
-for command_name in curl git jq node npm python3 sudo; do
-  command -v "$command_name" >/dev/null 2>&1 || die "构建环境缺少命令：$command_name"
-done
+############# 准备构建环境 #############
 
-readonly NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
-[[ "$NODE_MAJOR" == "26" ]] || die "Hermes Desktop 当前构建基线要求 Node.js 26，实际为 $(node --version)。"
-
-readonly UPSTREAM_DIR="$SCRIPT_DIR/upstream"
-readonly DIST_DIR="$SCRIPT_DIR/dist"
-readonly OUTFILE="$DIST_DIR/hermes-desktop.AppImage"
-readonly PATCH_SCRIPT="$SCRIPT_DIR/patch_hermes_desktop.py"
-
-[[ -f "$PATCH_SCRIPT" ]] || die "缺少补丁脚本：$PATCH_SCRIPT"
-
-# 只清理 Hermes Desktop 自己的构建目录和旧产物。
-rm -rf "$UPSTREAM_DIR" "$DIST_DIR"
-mkdir -p "$DIST_DIR"
-
-log "安装 Linux 构建、打包和 smoke-test 依赖"
+# 安装构建工具和应用所需的依赖包。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" \
-  build-essential \
-  ca-certificates \
-  curl \
-  dbus-x11 \
-  file \
-  git \
-  gnome-keyring \
-  jq \
-  libsecret-1-0 \
-  libsecret-1-dev \
-  patchelf \
-  pkg-config \
-  python3 \
-  xauth \
-  xvfb \
-  binutils
+  libgtk-3-0 libnotify4 libxss1 libxtst6 libatspi2.0-0 libgbm1 libasound2t64
 
-log "读取 NousResearch/hermes-agent 最新稳定 Release"
-github_api_headers=(
-  -H 'Accept: application/vnd.github+json'
-  -H 'X-GitHub-Api-Version: 2022-11-28'
-)
-if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-  github_api_headers+=( -H "Authorization: Bearer $GITHUB_TOKEN" )
-elif [[ -n "${GH_TOKEN:-}" ]]; then
-  github_api_headers+=( -H "Authorization: Bearer $GH_TOKEN" )
-fi
+############ 下载并准备应用 #############
 
-release_json="$(curl -fsSL \
-  --retry 5 \
-  --retry-all-errors \
-  --retry-delay 2 \
-  --connect-timeout 20 \
-  "${github_api_headers[@]}" \
-  https://api.github.com/repos/NousResearch/hermes-agent/releases/latest)"
+# 下载最新正式 Release 标签的源码，成功后取得原始标签名。
+SOURCE_REF="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" \
+  NousResearch/hermes-agent "$SOURCE_DIR")"
 
-readonly UPSTREAM_TAG="$(jq -r '.tag_name // empty' <<<"$release_json")"
-# releases/latest 已经是最新非预发布版。不要再限制成 v2026.9.24 这种日期格式，
-# 上游改成 v0.21.6 后，格式检查会让每天的构建直接失败。
-if [[ -z "$UPSTREAM_TAG" || "$UPSTREAM_TAG" == "null" || "$UPSTREAM_TAG" == *"/"* || "$UPSTREAM_TAG" == *".."* || "$UPSTREAM_TAG" == *" "* ]]; then
-  die "无法取得有效的 NousResearch/hermes-agent 稳定 Release tag：$UPSTREAM_TAG"
-fi
+############### 核心打包 ###############
 
-log "上游稳定版本：$UPSTREAM_TAG"
-
-git clone \
-  --depth=1 \
-  --branch "$UPSTREAM_TAG" \
-  https://github.com/NousResearch/hermes-agent.git \
-  "$UPSTREAM_DIR"
-
-log "使用源方案 npm 基线"
-npm install --global npm@12
-node --version
-npm --version
-
-log "安装上游锁定依赖"
 (
-  cd "$UPSTREAM_DIR"
-  npm ci
-)
+  # 进入上游源码目录。
+  cd -- "$SOURCE_DIR"
 
-log "内置 Chromium safeStorage 所需 libsecret runtime"
-libsecret_path="$(ldconfig -p | awk '$1 == "libsecret-1.so.0" { print $NF; exit }')"
-[[ -n "$libsecret_path" && -f "$libsecret_path" ]] || die "找不到 libsecret-1.so.0。"
+  # 从正式标签读取官方构建声明，并核对标签对象和源码提交。
+  RELEASE_CLAIM="$(python3 -B - "$SOURCE_REF" <<'PY'
+import subprocess
+import sys
 
-install -Dm0644 "$(readlink -f "$libsecret_path")" \
-  "$UPSTREAM_DIR/apps/desktop/build/linux-libs/libsecret-1.so.0"
+from scripts.releases.versioning import parse_attempt_ref, tag_record, version_from_tag
 
-file "$UPSTREAM_DIR/apps/desktop/build/linux-libs/libsecret-1.so.0"
-ldd "$UPSTREAM_DIR/apps/desktop/build/linux-libs/libsecret-1.so.0" | tee /tmp/hermes-libsecret-ldd.log
-if grep -Fq 'not found' /tmp/hermes-libsecret-ldd.log; then
-  die "内置 libsecret 存在未解析依赖。"
-fi
 
-log "应用 standalone Linux AppImage 兼容补丁"
-python3 "$PATCH_SCRIPT" "$UPSTREAM_DIR"
+def git(*args):
+    return subprocess.check_output(["git", *args], encoding="utf-8").strip()
 
-log "TypeScript 类型检查"
-(
-  cd "$UPSTREAM_DIR/apps/desktop"
-  npm run typecheck
-)
 
-log "使用官方 Desktop electron-builder 链生成 AppImage"
-(
-  cd "$UPSTREAM_DIR/apps/desktop"
-  export CSC_IDENTITY_AUTO_DISCOVERY=false
-  npm run build
-  # 不要再传 --x64。v0.21.6 见到显式架构会把原生依赖写到
-  # apps/desktop/build/native-deps-linux-x64，上游自己的输出检查不认这个目录。
-  # 不传架构时，构建机会按当前 x64 使用允许的 native-deps 目录。
-  npm run builder -- --linux AppImage --publish never
-)
+release_tag = sys.argv[1]
+release_ref = f"refs/tags/{release_tag}"
+release = tag_record(git("for-each-ref", "--format=%(contents)", release_ref))
+claim_tag = release["claimTag"]
+claim = parse_attempt_ref(claim_tag)
+version = version_from_tag(release_tag)
+if claim is None or claim[0] != version or release["version"] != version:
+    raise SystemExit("错误：官方构建声明与正式版本不匹配。")
 
-mapfile -t appimages < <(
-  find "$UPSTREAM_DIR/apps/desktop/release" -maxdepth 1 -type f -name '*.AppImage' -print
-)
-[[ "${#appimages[@]}" -eq 1 ]] || die "预期得到 1 个 AppImage，实际得到 ${#appimages[@]} 个。"
+claim_ref = f"refs/tags/{claim_tag}"
+head, release_commit, claim_object, claim_commit = git(
+    "rev-parse", "HEAD", f"{release_ref}^{{commit}}", f"{claim_ref}^{{tag}}", f"{claim_ref}^{{commit}}"
+).splitlines()
+if (
+    not (head == release_commit == claim_commit == release["commit"])
+    or claim_object != release["claimTagObject"]
+):
+    raise SystemExit("错误：官方构建声明的标签对象或源码提交不匹配。")
 
-install -m 0755 "${appimages[0]}" "$OUTFILE"
-test -s "$OUTFILE" || die "AppImage 产物为空。"
-file "$OUTFILE" | grep -q 'ELF 64-bit' || die "AppImage 不是 64 位 ELF。"
+print(f"{claim_tag}\t{claim_object}")
+PY
+)"
 
-appimage_offset="$("$OUTFILE" --appimage-offset)"
-[[ "$appimage_offset" =~ ^[0-9]+$ ]] || die "无法读取 AppImage offset。"
-(( appimage_offset > 0 )) || die "AppImage offset 无效。"
+  # 读取官方构建入口所需的声明标签和对象。
+  IFS=$'\t' read -r RELEASE_CLAIM_TAG RELEASE_CLAIM_OBJECT <<< "$RELEASE_CLAIM"
 
-extract_dir="$(mktemp -d)"
-cleanup_extract() {
-  rm -rf "$extract_dir"
-}
-trap cleanup_extract EXIT
+  # 使用上游正式版本的构建流程准备打包所需的依赖和工具。
+  RELEASE_CLAIM_TAG="$RELEASE_CLAIM_TAG" RELEASE_CLAIM_OBJECT="$RELEASE_CLAIM_OBJECT" \
+    python3 scripts/bundles/desktop.py --tag "$SOURCE_REF" --variant bundled --prepare-only
 
-outfile_abs="$(realpath "$OUTFILE")"
-(
-  cd "$extract_dir"
-  "$outfile_abs" --appimage-extract >/dev/null
-)
+  # 从上游构建清单读取打包工具和 Node.js 的路径。
+  PREPARED=".build/desktop-job/prepared.json"
+  PACKAGER="$(jq -er '.packager' "$PREPARED")"
+  NODE="$(jq -er '.node' "$PREPARED")"
+  ICONS_DIR="$(jq -r '.toolsets.icons // empty' "$PACKAGER")"
+  PACKAGING_TOOLS_DIR="apps/desktop/build/prepared-packaging-tools"
 
-appdir="$extract_dir/squashfs-root"
-test -f "$appdir/locales/zh-CN.pak" || die "AppImage 缺少 Electron zh-CN locale。"
-test -f "$appdir/resources/linux-libs/libsecret-1.so.0" || die "AppImage 缺少内置 libsecret-1.so.0。"
-readelf -d "$appdir/Hermes" | tee /tmp/hermes-electron-dynamic.log
-grep -Fq '$ORIGIN/resources/linux-libs' /tmp/hermes-electron-dynamic.log || \
-  die "Hermes Electron 主程序 RUNPATH 未包含内置 libsecret 目录。"
+  # 仅处理缺少模块声明且会被 Desktop 当作 ES 模块加载的 CommonJS 图标工具。
+  if [[ -n "$ICONS_DIR" && -f "$ICONS_DIR/icon-tool.js" && ! -e "$ICONS_DIR/package.json" &&
+        ! -e "$PACKAGING_TOOLS_DIR/package.json" ]] &&
+     jq -e '.type == "module"' apps/desktop/package.json >/dev/null &&
+     grep -Fq 'require(' "$ICONS_DIR/icon-tool.js" &&
+     "$NODE" --input-type=commonjs --check < "$ICONS_DIR/icon-tool.js" >/dev/null 2>&1; then
+    # 创建上游复制图标工具的临时目录。
+    mkdir -p -- "$PACKAGING_TOOLS_DIR"
 
-cleanup_extract
-trap - EXIT
-
-log "运行最终 AppImage safeStorage / 中文 locale smoke test"
-smoke_home="$(mktemp -d)"
-host_libsecret="$(ldconfig -p | awk '$1 == "libsecret-1.so.0" { print $NF; exit }')"
-host_libsecret_disabled="${host_libsecret}.hermes-ci-disabled"
-strict_host_libsecret_test=false
-
-cleanup_smoke() {
-  if [[ "$strict_host_libsecret_test" == true ]] && \
-     [[ -e "$host_libsecret_disabled" || -L "$host_libsecret_disabled" ]]; then
-    sudo mv "$host_libsecret_disabled" "$host_libsecret"
-  fi
-  rm -rf "$smoke_home"
-}
-trap cleanup_smoke EXIT
-
-# GitHub Actions 中临时隐藏 Runner 系统 libsecret，确认 AppImage 实际使用自身内置副本。
-# 本机手动构建不移动宿主库，避免对真实桌面会话产生额外影响。
-if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
-  [[ -n "$host_libsecret" && -e "$host_libsecret" ]] || die "无法定位 Runner 的 libsecret-1.so.0。"
-  sudo mv "$host_libsecret" "$host_libsecret_disabled"
-  strict_host_libsecret_test=true
-fi
-
-dbus-run-session -- bash -euo pipefail -c '
-  export HOME="$1"
-  export XDG_RUNTIME_DIR="${HOME}/runtime"
-  mkdir -p "$XDG_RUNTIME_DIR"
-  chmod 700 "$XDG_RUNTIME_DIR"
-
-  eval "$(printf "%s\n" "hermes-ci-keyring" | gnome-keyring-daemon --unlock --components=secrets)"
-  if [[ -n "${GNOME_KEYRING_CONTROL:-}" ]]; then
-    export GNOME_KEYRING_CONTROL
+    # 为该临时目录声明 CommonJS 模块类型。
+    printf '%s\n' '{"type":"commonjs"}' > "$PACKAGING_TOOLS_DIR/package.json"
   fi
 
-  LANG=zh_CN.UTF-8 \
-  HERMES_DESKTOP_SAFE_STORAGE_SMOKE_TEST=1 \
-  xvfb-run -a "$2" --appimage-extract-and-run --no-sandbox
-' bash "$smoke_home" "$outfile_abs" 2>&1 | tee /tmp/hermes-appimage-smoke.log
+  # 使用上游已经准备的依赖和工具生成 Linux AppImage。
+  python3 scripts/bundles/desktop.py --prepared "$PREPARED"
+)
 
-grep -Fq '[hermes] standalone AppImage detected password-store backend: gnome-libsecret' \
-  /tmp/hermes-appimage-smoke.log || die "smoke test 未检测到 gnome-libsecret backend。"
-grep -Fq '[hermes-smoke] safeStorage backend=gnome_libsecret encryptionAvailable=true' \
-  /tmp/hermes-appimage-smoke.log || die "safeStorage 加密不可用。"
-grep -Fq '[hermes-smoke] safeStorage roundTrip=true' \
-  /tmp/hermes-appimage-smoke.log || die "safeStorage 加密/解密往返失败。"
-grep -Eiq '\[hermes-smoke\] appLocale=zh([_-]|$)' \
-  /tmp/hermes-appimage-smoke.log || die "中文 locale smoke test 失败。"
+############### 整理产物 ###############
 
-cleanup_smoke
-trap - EXIT
+# 定位上游生成的唯一 AppImage。
+shopt -s nullglob
+APPIMAGES=("$SOURCE_DIR"/apps/desktop/release/*.AppImage)
+if (( ${#APPIMAGES[@]} != 1 )); then
+  printf '错误：预期生成 1 个 AppImage，实际生成 %s 个。\n' "${#APPIMAGES[@]}" >&2
+  exit 1
+fi
 
-# 记录当前上游版本，供构建成功后自动增量更新软件版本清单。
-printf '%s\n' "${UPSTREAM_TAG#v}" > "$DIST_DIR/version.txt"
+# 复制 AppImage 到发布目录并设置执行权限。
+install -m 0755 -- "${APPIMAGES[0]}" "$APPIMAGE"
 
-sha256sum "$OUTFILE"
-log "完成：$OUTFILE"
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "$APPIMAGE" "${SOURCE_REF#v}" "$DIST_DIR/version.txt"

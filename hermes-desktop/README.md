@@ -6,18 +6,22 @@
 
 ## 当前构建来源
 
-- 上游源码：`NousResearch/hermes-agent` 最新稳定 Release tag，构建时动态读取，不写死版本；GitHub Actions 通过 `GITHUB_TOKEN` 认证 GitHub API，避免匿名 API 限额导致 403，本地手动构建未提供 token 时仍使用公开 API。
-- Desktop 构建链：上游 `apps/desktop` 自带的 npm / electron-builder 流程。
-- Node.js：26。
-- npm：12。
-- 架构：x86_64。
-- 发布文件：`latest` Release 中的 `hermes-desktop.AppImage`。
+- 上游源码由公共脚本获取。构建时通过 `GITHUB_TOKEN` 认证，读取 `NousResearch/hermes-agent` 最新正式 Release 并检出对应标签。
+- Desktop 基于 Electron。构建使用上游 `scripts/bundles/desktop.py` 的带标签入口，按上游流程准备锁定的 Node.js、pnpm 和打包工具，再封装 AppImage。
+- x86_64 AppImage 内置 Hermes Agent 运行时，Linux 版通过更换 AppImage 更新。
+- 发布文件为 `latest` Release 中的 `hermes-desktop.AppImage`。AppImage 和 `version.txt` 使用同一个正式版本号。
 
-当前不使用第三方 Hermes Desktop 二进制，也不从旧 Release 重新打包；每次都从上游稳定 tag 的 Desktop 源码重新构建。
+## 官方构建迁移（2026-11-10）
 
-## Linux AppImage 兼容处理
+- 旧流程用 `npm ci` 安装依赖，而上游 `v0.23.1` 已改用 pnpm，构建在封装前以 `EUSAGE` 退出。[原构建日志](https://github.com/newyorkthink/linux-packaging/actions/runs/42739512268/job/129576894448)
+- 本次切换到上游带标签的完整构建，移除旧 npm 流程、独立 AppImage 源码补丁及依赖这些补丁的检查。
+- 上游 `v0.23.1` 锁定的 electron-builder 在封装时把缺少模块声明的 CommonJS 图标工具复制到 Desktop 的 ES 模块目录，会触发 `require is not defined`。[上游打包入口](https://github.com/NousResearch/hermes-agent/blob/v0.23.1/apps/desktop/scripts/run-electron-builder.mjs#L68-L85) · [图标工具封装](https://github.com/electron-userland/electron-builder-binaries/blob/icons%401.2.1/packages/icons/assets/build.sh#L55-L104)
+- 构建只在检测到该工具仍缺少模块声明并需要按 CommonJS 加载时，为 Runner 的临时打包工具目录生成一份 `package.json`。上游准备的工具和源码直接交给官方打包入口。
+- 新版的构建结果、中文界面和钥匙串加密需以新产物验收为准。
 
-迁移保留源方案中已经实际用于发布成品的 Linux 兼容逻辑：
+## 旧版 Linux AppImage 兼容处理
+
+旧版迁移时保留了源方案中已经实际用于发布成品的 Linux 兼容逻辑。
 
 - 直接启动 standalone AppImage 时自动探测 KeePassXC Secret Service、GNOME Keyring 或 KWallet，并为 Electron `safeStorage` 选择 password-store。
 - AppImage 内置 `libsecret-1.so.0`，并给 Electron 主程序加入 `$ORIGIN/resources/linux-libs` RUNPATH，避免宿主机缺少 Chromium 动态加载所需客户端库。
@@ -27,7 +31,7 @@
 - 最终 AppImage 在 Xvfb + D-Bus + GNOME Keyring 环境中实际执行，检查 `gnome_libsecret`、`safeStorage` 加密/解密往返以及中文 locale。
 - GitHub Actions smoke test 会临时隐藏 Runner 的系统 `libsecret-1.so.0`，确保最终 AppImage 确实能够使用自身内置副本；trap 会在退出时恢复 Runner 文件。本机手动构建不会执行这一步系统库移动。
 
-## 当前稳定基线（2026-09-12）
+## 旧版稳定基线（2026-09-12）
 
 - 稳定修复提交：`f13c6ffe2b75e21b572fa33a3fbcbbfa125fe0b7`（`fix(hermes-desktop): adapt patches to upstream desktop changes`）。
 - 对应 GitHub Actions Run：`34662458787`，其中 `Build Hermes Desktop` 已成功完成并把 `hermes-desktop.AppImage` 上传到 `latest` Release。
@@ -68,16 +72,7 @@
 
 ## 构建文件
 
-```text
-hermes-desktop/
-├── build_hermes-desktop.sh
-├── patch_hermes_desktop.py
-└── README.md
-```
-
-`build_hermes-desktop.sh` 负责动态获取上游稳定 tag、安装构建依赖、构建、静态验证和最终 AppImage runtime smoke test。
-
-`patch_hermes_desktop.py` 只处理 standalone Linux AppImage 所需的 Desktop 源码兼容点；所有补丁均使用明确锚点，上游结构变化导致锚点无法唯一定位时直接停止构建，不盲目继续修改。
+`build_hermes-desktop.sh` 负责获取上游正式标签源码、核对构建声明、调用上游构建入口并整理发布产物。
 
 ## 发布
 
