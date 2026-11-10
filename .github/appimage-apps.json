@@ -542,14 +542,14 @@
       "run_from_root": "false"
     },
     {
-      "key": "realvnc_connect",
+      "key": "rvncconnect",
       "kind": "special",
-      "name": "RealVNC Connect",
-      "script": "realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh",
-      "dir": "realvnc-rvnc-connect",
-      "artifact_dir": "realvnc-rvnc-connect/dist",
+      "name": "rvncconnect",
+      "script": "rvncconnect/build_rvncconnect.sh",
+      "dir": "rvncconnect",
+      "artifact_dir": "rvncconnect/dist",
       "release_name": "rvncconnect.AppImage",
-      "software_key": "realvnc_connect",
+      "software_key": "rvncconnect",
       "timeout_minutes": 60,
       "run_from_root": "false"
     },

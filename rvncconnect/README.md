@@ -1,4 +1,4 @@
-# RealVNC Connect AppImage
+# rvncconnect AppImage
 
 ## 用途与产物
 
@@ -8,7 +8,7 @@
 
 直接在 Ubuntu 24.04 runner 构建。沿用本仓库 linuxdeploy 标准：空 AppDir 初始化，公共入口下载、核对官方 SHA-256、安装并解包同一份 DEB，写完整根 AppRun，再运行 GTK3 linuxdeploy 生成中间 AppImage，最后由官方 appimagetool 与明确的 Type 2 runtime 封装发布产物。SVG 图标的 PNG 转换由现有公共封装链路处理。
 
-版本和摘要动态解析自 [RealVNC 官方校验文章](https://help.realvnc.com/hc/en-us/articles/27252822630301-SHA256-checksums-for-RealVNC-Connect-v8) 的 [公开 JSON 接口](https://help.realvnc.com/api/v2/help_center/en-us/articles/27252822630301.json)，显式读取 `article.body` 中的同一校验表，下载来自 `downloads.realvnc.com`；不经过 AUR，也不固定某个应用版本。统一清单键仍为 `realvnc_connect`。
+版本和摘要动态解析自 [RealVNC 官方校验文章](https://help.realvnc.com/hc/en-us/articles/27252822630301-SHA256-checksums-for-RealVNC-Connect-v8) 的 [公开 JSON 接口](https://help.realvnc.com/api/v2/help_center/en-us/articles/27252822630301.json)，显式读取 `article.body` 中的同一校验表，下载来自 `downloads.realvnc.com`；不经过 AUR，也不固定某个应用版本。后续构建使用 `rvncconnect` 作为统一清单键。
 
 ## 运行
 
@@ -33,6 +33,12 @@
 曾出现的 `MissingPluginException`（`com.realvnc.connect/serverUi` 的 `resetSettings`）经用户明确确认不影响实际使用，本轮无需为此修复，也不再作为验收或收尾的阻塞项。
 
 ## 变更记录
+
+### 2026-11-10：统一仓库命名
+
+应用目录统一为 `rvncconnect/`，构建入口为 `rvncconnect/build_rvncconnect.sh`，构建键和后续版本清单键统一使用 `rvncconnect`；发布资产继续使用 `rvncconnect.AppImage`。
+
+本次原样移动已验证的构建脚本和两份专属补丁，保留 AppRun、官方程序入口及既有实机通过记录，仅同步目录、任务映射和文档引用。
 
 ### 2026-11-02：构建与实机验收通过
 

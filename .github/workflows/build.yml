@@ -83,11 +83,11 @@ on:
           - qemu/build_qemu.sh
           - qq/build_qq.sh
           - rainlendar2/build_rainlendar2.sh
-          - realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh
           - remmina/build_remmina.sh
           - ripdrag/build_ripdrag.sh
           - rofi/build_rofi.sh
           - rustdesk/build_rustdesk.sh
+          - rvncconnect/build_rvncconnect.sh
           - simplescreenrecorder/build_simplescreenrecorder.sh
           - smplayer/build_smplayer.sh
           - st/build_st.sh
@@ -1011,10 +1011,10 @@ jobs:
           github_token: ${{ github.token }}
 
 
-  build_realvnc_connect:
-    name: Build RealVNC Connect
+  build_rvncconnect:
+    name: Build rvncconnect
     needs: plan
-    if: fromJSON(needs.plan.outputs.builds).realvnc_connect == 'true'
+    if: fromJSON(needs.plan.outputs.builds).rvncconnect == 'true'
     concurrency:
       group: build-appimage-rvncconnect.AppImage
       queue: max
@@ -1025,19 +1025,19 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Build RealVNC Connect AppImage
+      - name: Build rvncconnect AppImage
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -Eeuo pipefail
-          chmod +x realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh
-          ./realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh
+          chmod +x rvncconnect/build_rvncconnect.sh
+          ./rvncconnect/build_rvncconnect.sh
       - name: Upload software version metadata
         uses: actions/upload-artifact@v4
         with:
-          name: software-version-realvnc_connect
-          path: realvnc-rvnc-connect/dist/version.txt
+          name: software-version-rvncconnect
+          path: rvncconnect/dist/version.txt
           if-no-files-found: error
           retention-days: 1
       - name: Publish to Latest Release
@@ -1046,15 +1046,15 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          gh release upload latest realvnc-rvnc-connect/dist/rvncconnect.AppImage --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload latest rvncconnect/dist/rvncconnect.AppImage --repo "$GITHUB_REPOSITORY" --clobber
 
       - name: Publish software version immediately
         uses: ./.github/actions/publish-software-versions
         with:
-          software_key: 'realvnc_connect'
-          version_file: 'realvnc-rvnc-connect/dist/version.txt'
+          software_key: 'rvncconnect'
+          version_file: 'rvncconnect/dist/version.txt'
           asset_name: 'rvncconnect.AppImage'
-          artifact_dir: 'realvnc-rvnc-connect/dist'
+          artifact_dir: 'rvncconnect/dist'
           github_token: ${{ github.token }}
 
   build_vncviewer:

@@ -40,7 +40,7 @@ linuxdeploy 会递归收集 `usr/lib` 中各个 ELF 的依赖，不逐个构造 
 
 ## workflow 与验证结果
 
-清单将 `realvnc_connect` 从 Arch 标准矩阵移为专用 job，保持原选择键、Release 资产名和版本元数据接口。专用 job 直接使用 Ubuntu 24.04；不新增手动触发、轮询或构建期 GUI 测试。
+清单将 `rvncconnect` 映射为专用 job，应用目录、构建脚本及选择键统一使用 `rvncconnect`，后续版本元数据也使用该键；Release 资产名为 `rvncconnect.AppImage`。专用 job 直接使用 Ubuntu 24.04；不新增手动触发、轮询或构建期 GUI 测试。
 
 前期已用官方 DEB 检查资源与辅助入口、恢复逻辑、AppRun 环境及参数，并验证 YAML、清单和任务选择。[Actions 运行 41398751168](https://github.com/newyorkthink/linux-packaging/actions/runs/41398751168) 随后完成了实际构建、发布和版本元数据写入。
 

@@ -81,7 +81,7 @@ Obsidian 条目于 2026-11-08 单独复核，更新依赖、封装及 workflow �
 | [qemu](../qemu/build_qemu.sh) | [QEMU-AppImage](https://github.com/pkgforge-dev/QEMU-AppImage) | [依赖](https://github.com/pkgforge-dev/QEMU-AppImage/blob/56a5cc40d6b818483e16c20c20b8127b3b91c87c/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/QEMU-AppImage/blob/56a5cc40d6b818483e16c20c20b8127b3b91c87c/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/QEMU-AppImage/blob/56a5cc40d6b818483e16c20c20b8127b3b91c87c/.github/workflows/appimage.yml) | [README](../qemu/README.md) |
 | [qq](../qq/build_qq.sh) |  |  | [README](../qq/README.md) |
 | [rainlendar2](../rainlendar2/build_rainlendar2.sh) |  |  | [README](../rainlendar2/README.md) |
-| [realvnc-rvnc-connect](../realvnc-rvnc-connect/build_realvnc-rvnc-connect.sh) |  |  | [README](../realvnc-rvnc-connect/README.md) |
+| [rvncconnect](../rvncconnect/build_rvncconnect.sh) |  |  | [README](../rvncconnect/README.md) |
 | [remmina](../remmina/build_remmina.sh) |  |  | [README](../remmina/README.md) |
 | [ripdrag](../ripdrag/build_ripdrag.sh) |  |  | [README](../ripdrag/README.md) |
 | [rofi](../rofi/build_rofi.sh) | [rofi-AppImage](https://github.com/pkgforge-dev/rofi-AppImage) | [依赖](https://github.com/pkgforge-dev/rofi-AppImage/blob/9a3a2a64de1fb38e401a12c75d40e108b2b6b22b/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/rofi-AppImage/blob/9a3a2a64de1fb38e401a12c75d40e108b2b6b22b/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/rofi-AppImage/blob/9a3a2a64de1fb38e401a12c75d40e108b2b6b22b/.github/workflows/appimage.yml) | [README](../rofi/README.md) |

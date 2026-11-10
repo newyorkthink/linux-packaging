@@ -45,7 +45,7 @@
 | `LDAI_OUTPUT` | linuxdeploy 中间 AppImage 的输出路径。这个文件不进发布目录。 | 3 个脚本，例如 mediainfo、poppler-utils |
 | `LDAI_NO_APPSTREAM` | linuxdeploy 不生成 AppStream 元数据。 | 3 个脚本，例如 mediainfo、poppler-utils |
 | `LDAI_RUNTIME_FILE` | linuxdeploy 使用的 AppImage runtime 文件。 | common |
-| `DEBIAN_FRONTEND` | apt 安装时不弹问题。非交互构建用 noninteractive。 | 5 个脚本，例如 rainlendar2、realvnc-rvnc-connect、remmina |
+| `DEBIAN_FRONTEND` | apt 安装时不弹问题。非交互构建用 noninteractive。 | 5 个脚本，例如 rainlendar2、rvncconnect、remmina |
 | `NO_STRIP` | 打包时不剥调试符号。 | 例如 aionui、bluemail、chatgpt、todesk、webcamoid |
 | `VERSION` | 写进成品的实际软件版本，可包含官方软件包修订号。 | 例如 aionui、alttab、bluemail、tradingview |
 | `OUTNAME` | 最终 AppImage 的文件名。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
@@ -174,7 +174,7 @@
 | --- | --- | --- |
 | `GTK_IM_MODULE` | GTK 文本框用哪个输入法模块，常见是 ibus 或 fcitx。 | 10 个脚本，例如 aionui、dconf-editor、dingtalk |
 | `GTK_IM_MODULE_FILE` | GTK 输入法模块缓存文件的路径。 | 4 个脚本，例如 dconf-editor、rainlendar2、remmina |
-| `GTK_THEME` | 强制使用的 GTK 主题名。 | joplin、rainlendar2、ripdrag、realvnc-rvnc-connect |
+| `GTK_THEME` | 强制使用的 GTK 主题名。 | joplin、rainlendar2、ripdrag、rvncconnect |
 | `GTK_PATH` | GTK 模块搜索路径。 | keepass |
 | `GTK_DIR` | GTK 模块所在的目录名，例如 gtk-4.0。 | mission-center |
 | `GTK2_RC_FILES` | GTK2 的主题配置文件。 | keepass |
@@ -215,7 +215,7 @@
 | `ELECTRON_FORCE_IS_PACKAGED` | 让 Electron 把自己当成已打包程序，而不是开发模式。 | workbuddy |
 | `GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION` | GitHub Desktop 关闭硬件加速。 | github-desktop |
 | `GNOME_KEYRING_CONTROL` | 把已解开的 gnome-keyring 套接字传给后续进程。 | hermes-desktop |
-| `APPIMAGE_GTK_THEME` | 指定 AppImage 里 GTK 用哪套主题。 | realvnc-rvnc-connect |
+| `APPIMAGE_GTK_THEME` | 指定 AppImage 里 GTK 用哪套主题。 | rvncconnect |
 | `DSH_HOME` | DeepSeek Harness 的配置目录。默认是用户自己的 ~/.dsh，升级包不覆盖。 | deepseek-harness |
 | `HOME` | 临时改家目录。只在该脚本明确需要时用。 | hermes-desktop |
 | `XDG_RUNTIME_DIR` | 运行时套接字和临时文件目录。 | hermes-desktop |
@@ -234,9 +234,9 @@
 | `LTDL_LIBRARY_PATH` | libltdl 的模块搜索路径。 | rainlendar2 |
 | `REMMINA_HOST_SHELL` | Remmina 打开本地终端时用的用户原来的 shell。 | remmina |
 | `REMMINA_LAUNCH_CWD` | Remmina 启动时所在的目录。本地终端要回到这里。 | remmina |
-| `RVNC_HOST_PATH` | 改包内 PATH 之前，先记下宿主的 PATH，给 xdg-open 用。 | realvnc-rvnc-connect |
-| `RVNC_HOST_LD_LIBRARY_PATH` | 改包内库路径之前，先记下宿主的 LD_LIBRARY_PATH，给 xdg-open 用。 | realvnc-rvnc-connect |
-| `RVNC_HOST_XDG_DATA_DIRS` | 改包内数据路径之前，先记下宿主的 XDG_DATA_DIRS，给 xdg-open 用。 | realvnc-rvnc-connect |
+| `RVNC_HOST_PATH` | 改包内 PATH 之前，先记下宿主的 PATH，给 xdg-open 用。 | rvncconnect |
+| `RVNC_HOST_LD_LIBRARY_PATH` | 改包内库路径之前，先记下宿主的 LD_LIBRARY_PATH，给 xdg-open 用。 | rvncconnect |
+| `RVNC_HOST_XDG_DATA_DIRS` | 改包内数据路径之前，先记下宿主的 XDG_DATA_DIRS，给 xdg-open 用。 | rvncconnect |
 | `PEAZIP_ORIGINAL_LD_PRELOAD` | PeaZip 先记下原来的 LD_PRELOAD。兼容层加载后立刻恢复，避免 7z 等子进程继承它。 | peazip |
 | `JRIVER_CEF_SKIP_SHUTDOWN` | 只给 JRiver 的指定进程用，退出时跳过 CEF 清理。 | jriver |
 | `JRIVER_FILECHOOSER_SAVED_PRELOAD` | 记下并清掉外层传来的 LD_PRELOAD，避免文件选择器继承别人的预加载库。 | runimage |
