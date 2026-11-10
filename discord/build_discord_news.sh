@@ -63,6 +63,34 @@ VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json "AppDi
 jq -er '.modules | to_entries[] | [.key, .value.full.url, .value.full.package_sha256] | @tsv' \
   work/manifest.json > work/module-assets.tsv
 
+# 本程序专属处理：创建官方模块存放目录。
+mkdir -p work/modules
+
+# 本程序专属处理：逐个下载并校验官方模块，再解包到对应目录。
+while IFS=$'\t' read -r name url sha; do
+  # 本程序专属处理：校验模块名称和官方稳定版下载地址。
+  [[ "$name" =~ ^[A-Za-z0-9_-]+$ && "$url" == https://*.discordapp.net/distro/app/stable/linux/x64/${VERSION}/${name}/*/full.distro ]] || {
+    echo "模块名称或下载地址不合法：$name $url" >&2
+    exit 1
+  }
+
+  # 使用公共下载脚本下载模块并校验 SHA-256。
+  "$SCRIPT_DIR/../common/download/download_file.sh" "$url" "work/${name}.distro" "$sha"
+
+  # 使用公共解包脚本提取模块。
+  "$SCRIPT_DIR/../common/archive/extract_archive.sh" "work/${name}.distro" "work/module-source/$name"
+
+  # 本程序专属处理：检查模块文件是否完整解包。
+  [[ -d "work/module-source/$name/files" ]] || {
+    echo "模块缺少 files 目录：$name" >&2
+    exit 1
+  }
+
+  # 本程序专属处理：创建模块目录并复制完整模块文件。
+  mkdir -p "work/modules/$name"
+  cp -a "work/module-source/$name/files"/. "work/modules/$name"/
+done < work/module-assets.tsv
+
 # 收集程序及其运行依赖。
 quick-sharun AppDir/bin/Discord /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
 
