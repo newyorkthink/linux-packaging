@@ -384,8 +384,8 @@ quick-sharun 上游生成的默认 `AppRun.sh` 会先按文件名顺序加载 `A
 `AppDir/shared/bin/` 不是 Snap 内自带的固定路径。quick-sharun 会把需要包装的 ELF 可执行文件部署到该目录；把完整 Snap 程序目录提前解包到这里，则是对应构建脚本选择的布局。例如 [BlueMail](./bluemail/build_bluemail.sh) 的官方 Snap 构建把需要保持相邻关系的 Electron 程序、库和资源完整解包到该目录，因此两个变量指向 `shared/bin`。这不是所有 Snap 的固定写法；目录布局不同的应用必须使用自己的真实路径，不需要额外库目录或固定工作目录时不得添加这些变量。
 
 ```bash
-# BlueMail 官方 Snap 布局示例：追加运行时环境，保留 quick-sharun 已写入的 .env 内容
-cat >> "$APPDIR/.env" <<'ENV'
+# 本程序专属处理：保留 Electron 相邻库目录和工作目录。
+cat >> AppDir/.env <<'ENV'
 SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/shared/bin:${SHARUN_EXTRA_LIBRARY_PATH}
 SHARUN_WORKING_DIR=${SHARUN_DIR}/shared/bin
 ENV
@@ -461,6 +461,14 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 **总行数、代码结构、执行阶段、通用注释全文以及空行的位置和数量都属于模板。** 对照时逐行核对，不得忽略空行后宣布一致。软件名称、软件包、下载接口、路径、版本来源、元数据选项和必要辅助命令可以不同；具体原因写入该应用的 `docs/template-deviations.md`，固定配置依据写入 `docs/hardcoded.md`。不得把某个应用的专属参数机械复制给其他程序。
 
 符合官方 DEB 和包内 `package.json` 来源的标准重写使用 [electron-deb.sh](./templates/quick-sharun/electron-deb.sh)。既有应用脚本用于查阅技术依据。通用注释和位置以选定模板为准。版本读取统一使用 `# 读取本次打包使用的版本。`，保存统一使用 `# 打包成功后用公共脚本记下版本。`，注释均紧贴对应的单行调用。
+
+### 官方 Snap 的专用流程
+
+[BlueMail](./bluemail/build_bluemail.sh) 使用官方 Snap 稳定通道，按[专用打包流程](./docs/packaging-classification.md#专用打包流程)维护。先通过公共 Arch 入口安装应用及其依赖，再独立下载并校验 Snap；最终程序和版本来自同次下载。现有模板没有对应的 Snap 来源与资源准备阶段，因此不按 DEB 模板逐行套用，也不新增模板。
+
+该应用保留已确认的 `AppDir/shared/bin` 布局、相邻资源链接、运行时库目录、固定工作目录和 OAuth hook。共用步骤及通用注释继续使用现有标准原文，来源与布局差异采用 `# 本程序专属处理：` 说明。具体配置、依据及代码位置见[模板差异](./bluemail/docs/template-deviations.md)，不把这些专属步骤复制到其他应用。
+
+Snap 下载和 SHA3-384 校验由 `common/snap/download_stable_snap.sh` 负责，格式解包由 `common/archive/extract_archive.sh` 负责。下载入口 stdout 可保存为来源版本文件，打包前用公共 `text` 来源读取；最终版本保存继续在封装成功后执行。完整接口见[公共入口说明](./common/README.md#snap-store-官方稳定通道)。
 
 ### 公共版本读取与保存
 

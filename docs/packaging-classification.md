@@ -165,6 +165,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | 项目 | 构建入口 | 采用专用流程的原因 | 稳定基线与验证依据 |
 | --- | --- | --- | --- |
 | Alacritty | [build_alacritty.sh](../alacritty/build_alacritty.sh) | 现有 X11 IME 修复需要在官方正式版源码中应用补丁并编译，再由 LinuxDeploy 部署、appimagetool 封装；固定 APT 模板不支持此专属过程。 | [专属差异](../alacritty/docs/template-deviations.md) · [上游取舍](../alacritty/docs/pkgforge-differences.md) · [历史与验证](../alacritty/README.md) |
+| BlueMail | [build_bluemail.sh](../bluemail/build_bluemail.sh) | 官方 Snap 稳定通道、`shared/bin` 相邻资源布局及 OAuth hook 需要应用专属准备；现有 DEB 模板不覆盖这些步骤。公共注释、工作区和版本接口按统一标准维护。 | [模板差异](../bluemail/docs/template-deviations.md) · [固定配置](../bluemail/docs/hardcoded.md) · [实现与实测记录](../bluemail/README.md) |
 | Hermes Desktop | [build_hermes-desktop.sh](../hermes-desktop/build_hermes-desktop.sh) | 从上游正式 Release 标签获取源码，使用上游锁定的 pnpm 构建，并由 electron-builder 生成普通 Desktop AppImage。现有模板无法覆盖这条源码构建与封装流程。桌面客户端可连接已有 Gateway，也可使用单独安装的本机 Agent。 | [构建来源、旧版实机记录和当前验收状态](../hermes-desktop/README.md) |
 | KDE Suite | [build_kde_suite.sh](../kde-suite/build_kde_suite.sh) | 多款 KDE 程序共享一个 AppImage 的挂载及 Qt 6 和 KF6 运行组件，最终封装前按套件结构分阶段部署应用和辅助工具。 | [KDE Suite README](../kde-suite/README.md) |
 | st | [build_st.sh](../st/build_st.sh) | 从 siduck/st 默认分支获取当前源码，按字体配置生成 config.h 并写入源码默认主题，经 make 安装后由 quick-sharun 封装程序、辅助脚本和 terminfo；与 Arch 原生软件包模板不同，不新增标准模板。 | [专属差异](../st/docs/template-deviations.md) · [实机验证](../st/README.md#实机验证) |

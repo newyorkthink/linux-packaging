@@ -4,7 +4,7 @@
 
 ## 公共代码与公共函数
 
-- `common/` 当前包含 `apt/`、`archive/`、`aur/`、`build/`、`config/`、`desktop/`、`download/`、`github/`、`gui/`、`linuxdeploy/` 等目录。本项只是标记为**需要后续重新完整审计**，不是认定这些公共实现当前一定有错误。
+- `common/` 当前包含 `apt/`、`archive/`、`aur/`、`build/`、`config/`、`desktop/`、`download/`、`github/`、`gui/`、`linuxdeploy/`、`snap/` 等目录。本项只是标记为**需要后续重新完整审计**，不是认定这些公共实现当前一定有错误。
 - 后续 AI 需要从调用方和公共实现两端一起检查，不能只看某一个 helper：确认职责边界是否正确、是否存在重复通用逻辑、参数语义是否一致、错误处理与返回码是否可靠、下载 / 校验 / DEB 元数据 / 解包 / linuxdeploy 初始化与最终封装是否由正确层负责。
 - 重点检查近期从 PeaZip 等项目下沉到公共函数的逻辑，确认没有把应用专用规则错误公共化，也没有让应用脚本重复做公共入口已经负责的检查。
 - 已经由用户明确确认有效的命令、调用顺序、AppRun 行为和打包基线必须逐字保留；公共化不能成为顺手重写这些稳定内容的理由。
@@ -33,12 +33,30 @@
 - `github/resolve_latest_stable_release_asset.sh [--tag-prefix <标签前缀>] <owner/repo> '<固定资产名或含 {version} 的资产名模板>'` 保留原正式版本、唯一资产和 GitHub SHA-256 选择规则。只有显式传入前置的 `--tag-prefix` 时，才按字面值匹配并移除该非空前缀，再解析余下的可选 `v` 与点分数字版本；前缀不得含空白字符。`github/download_latest_stable_release_asset.sh` 同样在仓库名之前接受该选项，随后仍传入仓库、资产名模板、输出文件和可选的成对 DEB 包名、架构。下载、摘要校验、DEB 身份检查及只向 stdout 返回版本的行为不变；不传选项的旧调用保持原规则。前缀模式不能与 `--latest-with-checksum` 混用。 资产名可以是固定文件名，也可以包含 `{version}`；两者共用同一正式版本筛选、唯一资产匹配和 GitHub SHA-256 校验，固定名不另设应用特判。解析器可在其他选项之前显式接收 `--with-asset-id`，仅在原三行版本、下载地址和 SHA-256 之后追加同一资产的 ID；不传时仍输出原三行。该选项不能与 `--release-tag` 或 `--latest-with-checksum` 同用，原归档和校验清单模式的输出保持不变。
 - `github/download_latest_stable_release_asset.sh <owner/repo> '<包含 {version} 的资产名模板>' <输出文件> --latest-with-checksum <校验清单资产名> <commit 文件>` 从同一个 `/releases/latest` 响应定位主资产和校验清单，验证两者的 GitHub SHA-256，再用清单中唯一对应的 SHA-256 校验主资产。校验通过并解析 tag 对应的 Git commit 后，写出资产和 commit，stdout 仅返回版本。原资产模板及可选 DEB 参数调用保持原有语义。
 - `github/download_latest_stable_release_source.sh <owner/repo> <目标目录>` 读取最新非草稿、非预发布 Release，校验标签后浅克隆对应源码；成功时 stdout 只返回原始标签。参数、依赖与认证边界见下文的 [GitHub 最新正式 Release 源码](#github-最新正式-release-源码)。
+- `snap/download_stable_snap.sh <Snap 名称> <发布者账号> <amd64|arm64> <输出.snap>` 从 Snap Store 官方接口选择唯一的 `latest/stable` 条目，核对名称、发布者和架构，下载后校验官方 SHA3-384；成功时 stdout 仅返回实际版本。下载、版本、校验与调用边界见下文。
 - `build/prepare_x86_64_workspace.sh` 接收项目根目录、`--skip-create`、一个清理后不创建的一级目录名，以及其余清理后重建的一级目录名。先检查 x86_64 和全部目录名，再只处理这个项目下明确传入的目录；应用自行决定哪些工作目录需要重建。
 - `arch/install_packages.sh` 保留 `--base` 和普通包名调用。只有显式指定 `--aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]` 时，才先安装额外软件包、复用公共 AUR 下载入口准备已校验 DEB，再交由 yay / makepkg 按原 PKGBUILD 校验和安装；使用独立来源缓存及构建目录，详见下文。
 - `arch/get_package_version.sh` 接收一个已安装的 Arch 软件包名，从 `pacman -Q` 读取版本并去掉 epoch 和发行版 `pkgrel`，只向 stdout 输出非空的上游版本。需要保留发行版修订号的应用不要调用该入口。
-- `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
+- `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。`text <来源版本文件>` 读取同次下载保存的版本。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
 - `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../docs/appimage-scheme-handler.md)。
+
+### Snap Store 官方稳定通道
+
+入口为 `snap/download_stable_snap.sh`，四个位置参数依次是 Snap 名称、发布者账号、架构和输出文件。调用方提前提供 Bash、curl、jq、OpenSSL 及公共下载入口需要的工具。Snap 名称、发布者和输出路径均由调用方指定；架构支持 `amd64` 和 `arm64`。
+
+入口查询 Snap Store 官方元数据，只选择 `latest/stable` 中与传入架构一致的唯一条目，同时核对应用名称和发布者账号。版本、下载 URL 与 96 位十六进制 SHA3-384 必须有效；不存在唯一条目或字段不符时直接失败。文件下载复用 `download/download_file.sh`，校验通过后才替换输出 Snap；失败时清理本次临时文件。
+
+成功时 stdout 只输出一行实际版本，下载进度和诊断写入 stderr。应用可将 stdout 重定向到来源版本文件，再在打包元数据阶段用 `build/read_app_version.sh text` 读取。来源版本不代表最终 AppImage 已生成，最终版本仍须在封装成功后由 `build/save_appimage_version.sh` 写入。
+
+以下调用位于 GitHub Actions 的应用构建脚本中。尖括号参数均须按实际来源替换，并提前准备输出文件的父目录。
+
+```bash
+# 下载并校验官方稳定通道 Snap，同时保存本次来源版本。
+"$SCRIPT_DIR/../common/snap/download_stable_snap.sh" "<Snap 名称>" "<发布者账号>" "<amd64或arm64>" "<输出.snap>" > "<来源版本文件>"
+```
+
+本入口不安装应用、不解包、不修改 desktop，也不处理启动参数和资源链接。应用安装使用对应公共安装入口；Snap 解包使用 `archive/extract_archive.sh`，调用方先安装提供 `unsquashfs` 的工具包。具体目录整理和启动兼容处理留在应用目录。
 
 ### 官网 HTTPS DEB 直链
 

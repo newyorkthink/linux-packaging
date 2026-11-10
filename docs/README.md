@@ -50,14 +50,14 @@
 | [文档模板使用说明](./templates/documentation/README.md) | 文档规范、模板索引、实机验证通过记录、填写顺序与记录位置 |
 | [仓库维护脚本](../scripts/README.md) | 分类总索引、归档与 Release 分类、同名脚本说明、统一组织方式、scripts / common / Actions 分工、公开示例 |
 | [项目归档与恢复](../archive/README.md) | 统一归档脚本、批量参数、默认预览、显式执行、停用登记、完整目录保留、活动构建移除、Release 产物与版本条目清理、失败续跑、未解决错误、恢复待办 |
-| [Anylinux / quick-sharun 规范](../anylinux_projects.md) | Arch、sharun、AppDir、中文环境、输入模块、platforminputcontexts、自动收集、`.env`、Qt 主题插件、qt6ct、kvantum、lxqt-qtplugin、有窗口的 Qt 程序、Electron、程序目录、直接下载标准模板、公共版本读取、单行保存、行数与空行、暂不采用官方处理、加入前重新核实 |
+| [Anylinux / quick-sharun 规范](../anylinux_projects.md) | Arch、sharun、AppDir、中文环境、输入模块、platforminputcontexts、自动收集、`.env`、Qt 主题插件、qt6ct、kvantum、lxqt-qtplugin、有窗口的 Qt 程序、Electron、程序目录、直接下载标准模板、公共版本读取、Snap 专用流程、单行保存、行数与空行、暂不采用官方处理、加入前重新核实 |
 | [quick-sharun 固定注释标准](./quick-sharun-comments.md) | 标准原文、通用流程、按来源选用、元数据、GUI 中文环境、按需部署、来源标注；不收录应用专属注释 |
 | [打包分类](./packaging-classification.md) | quick-sharun、Electron、Qt、linuxdeploy、直接下载标准、系统安装、参数差异、专用打包流程登记 |
 | [上游打包参考索引](./upstream-packaging-index.md) | 当前 AppImage 项目、目录排序、pkgforge-dev、上游仓库、固定 commit、依赖脚本、封装脚本、workflow、差异说明 |
 | [AppDir / appimagetool 规范（含 linuxdeploy）](../linuxdeploy_projects.md) | 同一体系的两种模式、直接 appimagetool、尽量对齐与必要差异、工具准备与版本读取、四个通用标准参考（Kitty、Joplin、XnView MP、MediaInfo）、Ubuntu runner、禁止 Docker、公共工作目录、完整 DEB 版本、Qt 查询工具与条件设置、公共流程、项目专属差异 |
 | [AppDir / appimagetool 固定注释标准](./linuxdeploy-comments.md) | 两种模式的适用注释、同用途逐字一致、直接模式对齐边界、版本读取、工具准备、APT 同版本解包、GTK、Qt、固定分区、逐字复用；不收录软件专属注释 |
 | [AppImage 构建依赖清单](./appimage-build-dependency-list.md) | 基础包、Qt5 / Qt6、GTK、功能依赖 |
-| [公共脚本入口](../common/README.md) | 下载、GitHub 最新正式 Release 源码 / 标签 / 认证、AUR DEB 来源 / 摘要 / 安装解包与版本返回、签名 APT 仓库、DEB 版本 / 包名 / 架构校验、SHA-256 / SHA-512、User-Agent、同 URL 归档回退、可选 pkgver / pkgrel 输出、Arch 安装显式 --aur-deb、makepkg 来源缓存与独立 builddir、解包、依赖、来源版本、可选构建元数据、版本保存、linuxdeploy 工作目录、组合插件、Qt 工具选择、locale 父目录、临时路径整理 |
+| [公共脚本入口](../common/README.md) | 下载、GitHub 最新正式 Release 源码 / 标签 / 认证、AUR DEB 来源 / 摘要 / 安装解包与版本返回、签名 APT 仓库、DEB 版本 / 包名 / 架构校验、SHA-256 / SHA-512、Snap 稳定通道 / SHA3-384 / stdout 版本、User-Agent、同 URL 归档回退、可选 pkgver / pkgrel 输出、Arch 安装显式 --aur-deb、makepkg 来源缓存与独立 builddir、解包、依赖、来源版本、可选构建元数据、版本保存、linuxdeploy 工作目录、组合插件、Qt 工具选择、locale 父目录、临时路径整理 |
 | [appimagetool 图标检查与 SVG 兼容处理](./appimagetool-icon-compatibility.md) | 上游图标变更、.DirIcon、PNG / SVG / XPM、librsvg2-bin、公共准备入口、最终封装 |
 | [linuxdeploy 更新与中间封装兼容](./linuxdeploy-update-compatibility.md) | continuous 工具变化、内置 appimagetool、中间与最终封装、根图标与权限错误、外部输出入口、公共准备、修复与验证边界 |
 | [打包 export 登记表](./packaging-export-registry.md) | 环境变量、用途、登记后使用 |

@@ -111,8 +111,8 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `DEPLOY_COMMON_LIBS` | quick-sharun 是否打入一批常见系统库。 | chatgpt |
 | `DEPLOY_P11KIT` | quick-sharun 是否打入 p11-kit 证书模块。 | chatgpt |
 | `DEPLOY_DATADIR` | quick-sharun 是否把数据目录打进包。0 是不打。 | deepseek-harness |
-| `SHARUN_WORKING_DIR` | quick-sharun 的工作目录，一般是主程序所在目录。 | 例如 aionui、chatgpt、feishu；tradingview 和 mailmaster 在 `.env` 中指向包内 `bin`，todesk 在运行 hook 中指向可写副本 bin；discord 的旧 quick 备份在 `.env` 中指向真实程序树 `shared/bin` |
-| `SHARUN_EXTRA_LIBRARY_PATH` | quick-sharun 额外扫描这些目录里的库。 | 例如 aionui、chatgpt、feishu。mailmaster 在 `.env` 中加入包内 `bin` 和 `bin/lib`，todesk 在运行 hook 中指向可写副本 `bin`；discord 的旧 quick 备份在 `.env` 中保留 `shared/bin` 相邻库路径 |
+| `SHARUN_WORKING_DIR` | quick-sharun 的工作目录，一般是主程序所在目录。 | 例如 aionui、chatgpt、feishu；tradingview 和 mailmaster 在 `.env` 中指向包内 `bin`，todesk 在运行 hook 中指向可写副本 bin；discord 的旧 quick 备份在 `.env` 中指向真实程序树 `shared/bin`；bluemail 在 `.env` 中指向包内 `shared/bin` |
+| `SHARUN_EXTRA_LIBRARY_PATH` | quick-sharun 额外扫描这些目录里的库。 | 例如 aionui、chatgpt、feishu。mailmaster 在 `.env` 中加入包内 `bin` 和 `bin/lib`，todesk 在运行 hook 中指向可写副本 `bin`；discord 的旧 quick 备份在 `.env` 中保留 `shared/bin` 相邻库路径；bluemail 在 `.env` 中追加包内 `shared/bin` |
 | `SHARUN_ALLOW_QT_PLUGIN_PATH` | 允许 quick-sharun 保留应用自己设的 QT_PLUGIN_PATH，不把它清掉。 | mailmaster 和 wps-office-cn 在 `AppDir/.env` 中设置。 |
 | `NO_AT_BRIDGE` | 不连接无障碍总线，避免启动时卡住或刷警告。 | 3 个脚本，例如 joplin、peazip、ventoy |
 
@@ -190,11 +190,11 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `GLFW_IM_MODULE` | kitty 的 GLFW 用哪个输入法模块。这里是 ibus。 | kitty |
 | `IBUS_ADDRESS` | 这次启动要连的 IBus 套接字，不用外部环境里可能失效的地址。 | kitty |
 | `IBUS_USE_PORTAL` | 让 Qt 自带 IBus 插件走会话总线上的 org.freedesktop.portal.IBus。Fcitx5 的 IBus 前端提供这个名字，因此不要求宿主安装 ibus-daemon。 | xnviewmp |
-| `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 例如 goldendict、gitkraken、obs-studio、tencent-docs、grok-app、joplin、remmina、gemini、tradingview、ventoy、folo、copyq |
-| `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 例如 goldendict、gemini、gitkraken、kde-suite、grok-app、joplin、tradingview、folo、copyq |
-| `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | grok-app、gemini、tradingview、folo、copyq |
+| `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 例如 goldendict、gitkraken、obs-studio、tencent-docs、grok-app、joplin、remmina、gemini、tradingview、ventoy、folo、copyq；bluemail 使用包内中文 locale |
+| `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 例如 goldendict、gemini、gitkraken、kde-suite、grok-app、joplin、tradingview、folo、copyq；bluemail 使用包内中文 locale |
+| `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | grok-app、gemini、tradingview、folo、copyq；bluemail 使用包内中文 locale |
 | `LC_ALL` | 强制整套 locale。有的构建用 C；图形程序要中文时才用 zh_CN.UTF-8。 | 例如 chatgpt、gitkraken |
-| `LOCPATH` | 指定 locale 数据搜索目录；界面翻译和输入模块仍分别由应用资源和框架提供。 | goldendict、wemeet、grok-app、joplin、xnviewmp、remmina、gemini、tradingview、ventoy、folo、copyq |
+| `LOCPATH` | 指定 locale 数据搜索目录；界面翻译和输入模块仍分别由应用资源和框架提供。 | goldendict、wemeet、grok-app、joplin、xnviewmp、remmina、gemini、tradingview、ventoy、folo、copyq；bluemail 指向包内 `lib/locale` |
 | `TZ` | 时区。腾讯会议按官方脚本设成 Asia/Shanghai。 | wemeet |
 | `XDG_SESSION_TYPE` | 当前会话类型。Wayland 上回退到 X11 时改成 x11。 | 2 个脚本，例如 jriver、wemeet |
 
@@ -213,7 +213,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `VLC_PLUGIN_PATH` | VLC 插件目录。 | wechat |
 | `WEBKIT_EXEC_PATH` | WebKit 子进程所在目录。 | remmina |
 | `WEBKIT_DISABLE_DMABUF_RENDERER` | 关掉 WebKit 的 dmabuf 渲染，避免花屏。 | remmina |
-| `CHROME_DESKTOP` | 告诉 Electron / Chromium 对应哪一个 desktop 文件。 | 2 个脚本，例如 github-desktop |
+| `CHROME_DESKTOP` | 告诉 Electron / Chromium 对应哪一个 desktop 文件。 | 2 个脚本，例如 github-desktop；bluemail 由公共协议 hook 关联用户级 desktop |
 | `ELECTRON_FORCE_IS_PACKAGED` | 让 Electron 把自己当成已打包程序，而不是开发模式。 | workbuddy |
 | `GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION` | GitHub Desktop 关闭硬件加速。 | github-desktop |
 | `GNOME_KEYRING_CONTROL` | 把已解开的 gnome-keyring 套接字传给后续进程。 | hermes-desktop |
