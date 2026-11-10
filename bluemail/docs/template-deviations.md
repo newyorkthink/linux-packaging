@@ -34,4 +34,4 @@ BlueMail 的最终程序来自 AUR 配方引用的官方 Snap，复用本次安�
 
 公共安装入口新增显式 `--aur-source` 参数，只为选用该模式的调用保留并导出原始来源；`--base`、普通包名和 `--aur-deb` 的既有实现保持原样。解包、版本读取、版本保存、工作区和协议 hook 继续使用现有接口。公共说明补充参数、独立缓存、同次元数据与摘要核对规则；应用专属布局及 OAuth 处理继续留在本目录。
 
-正式入口仍为 `bluemail/build_bluemail.sh`，由现有 Arch matrix 构建并发布 `bluemail.AppImage`。本次完成代码、注释、参数、执行顺序及文档的静态核对，不将提交结果写成新增的实机通过记录。
+正式入口仍为 `bluemail/build_bluemail.sh`，由现有 Arch matrix 构建并发布 `bluemail.AppImage`。当前来源流程的实机通过结果见[实机验证](../README.md#实机验证)。
