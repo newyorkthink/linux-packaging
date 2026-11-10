@@ -54,6 +54,15 @@ export NO_STRIP=1
 # 读取本次打包使用的版本。
 VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json "AppDir/bin/resources/build_info.json")"
 
+# 本程序专属处理：下载官方稳定版模块清单。
+"$SCRIPT_DIR/../common/download/download_file.sh" \
+  'https://updates.discord.com/distributions/app/manifests/latest?channel=stable&platform=linux&arch=x64' \
+  work/manifest.json
+
+# 本程序专属处理：提取官方模块的名称、下载地址和 SHA-256。
+jq -er '.modules | to_entries[] | [.key, .value.full.url, .value.full.package_sha256] | @tsv' \
+  work/manifest.json > work/module-assets.tsv
+
 # 收集程序及其运行依赖。
 quick-sharun AppDir/bin/Discord /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
 
