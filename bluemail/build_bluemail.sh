@@ -9,8 +9,6 @@ cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-# 应用本身。包管理器会拉入它声明的依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" "bluemail" squashfs-tools openssl gtk3 nss libnotify libsecret libappindicator libxtst libxss ibus fcitx5-gtk
 
 # 清掉上次的打包目录。
 "$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
@@ -18,8 +16,11 @@ mkdir -p AppDir/shared/bin work
 
 APP_ROOT="$SCRIPT_DIR/AppDir/shared/bin"
 
-# 本程序专属处理：下载官方当前 Snap。
-"$SCRIPT_DIR/../common/snap/download_stable_snap.sh" bluemail blix amd64 work/bluemail.snap > work/source-version.txt
+# 应用本身。包管理器会拉入它声明的依赖。
+# 本程序专属处理：安装应用并保留同次下载、校验通过的原始 Snap。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-source bluemail x86_64 \
+  'bluemail-{version}.snap' work/bluemail.snap work/source-version.txt -- \
+  squashfs-tools openssl gtk3 nss libnotify libsecret libappindicator libxtst libxss ibus fcitx5-gtk
 
 # 本程序专属处理：解包官方 Snap。
 "$SCRIPT_DIR/../common/archive/extract_archive.sh" work/bluemail.snap "$APP_ROOT"

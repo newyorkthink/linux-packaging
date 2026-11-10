@@ -35,7 +35,7 @@
 - `github/download_latest_stable_release_source.sh <owner/repo> <目标目录>` 读取最新非草稿、非预发布 Release，校验标签后浅克隆对应源码；成功时 stdout 只返回原始标签。参数、依赖与认证边界见下文的 [GitHub 最新正式 Release 源码](#github-最新正式-release-源码)。
 - `snap/download_stable_snap.sh <Snap 名称> <发布者账号> <amd64|arm64> <输出.snap>` 从 Snap Store 官方接口选择唯一的 `latest/stable` 条目，核对名称、发布者和架构，下载后校验官方 SHA3-384；成功时 stdout 仅返回实际版本。下载、版本、校验与调用边界见下文。
 - `build/prepare_x86_64_workspace.sh` 接收项目根目录、`--skip-create`、一个清理后不创建的一级目录名，以及其余清理后重建的一级目录名。先检查 x86_64 和全部目录名，再只处理这个项目下明确传入的目录；应用自行决定哪些工作目录需要重建。
-- `arch/install_packages.sh` 保留 `--base` 和普通包名调用。只有显式指定 `--aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]` 时，才先安装额外软件包、复用公共 AUR 下载入口准备已校验 DEB，再交由 yay / makepkg 按原 PKGBUILD 校验和安装；使用独立来源缓存及构建目录，详见下文。
+- `arch/install_packages.sh` 保留 `--base` 和普通包名调用。只有显式指定 `--aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]` 时，才先安装额外软件包、复用公共 AUR 下载入口准备已校验 DEB，再交由 yay / makepkg 按原 PKGBUILD 校验和安装；使用独立来源缓存及构建目录，详见下文。 显式 `--aur-source <AUR 包名> <架构> <源文件名模板> <源文件输出> <来源版本文件> -- [额外软件包...]` 则保留安装阶段下载的原始来源，按同次元数据重新校验后导出归档及版本，不进行第二次下载；完整约束见下文。
 - `arch/get_package_version.sh` 接收一个已安装的 Arch 软件包名，从 `pacman -Q` 读取版本并去掉 epoch 和发行版 `pkgrel`，只向 stdout 输出非空的上游版本。需要保留发行版修订号的应用不要调用该入口。
 - `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。`text <来源版本文件>` 读取同次下载保存的版本。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
@@ -150,6 +150,29 @@ Release 查询复用 `github_api.sh`，认证依次取自 `GITHUB_TOKEN`、`GH_T
 额外包安装、下载或应用安装失败时直接返回失败；退出时只删除本次创建的临时目录。该入口不写应用版本文件、不代替后续独立下载，也不改 AppDir 或封装流程。原 `--base` 包清单、普通包名调用和下述 APT 组合入口保持原行为。
 
 依据：[makepkg 的来源缓存](https://man.archlinux.org/man/makepkg.conf.5.en#OPTIONS)、[makepkg 环境与来源校验](https://man.archlinux.org/man/makepkg.8.en#ENVIRONMENT_VARIABLES)、[yay 的 builddir](https://github.com/Jguer/yay/blob/0938a75e98e63648ebf6e22ece6b4a30ec11a907/doc/yay.8)。官方定义了缓存与构建目录的用途；这里的预下载衔接属于本仓库兼容处理。
+
+### Arch 安装时导出同次 AUR 原始来源
+
+入口为 `arch/install_packages.sh` 的显式 `--aur-source` 模式。适用于需要安装 AUR 应用及依赖，同时将本次下载的完整原始安装包用于后续打包的流程。该模式与预下载 DEB 的 `--aur-deb` 分开，原 `--base`、普通包名和 `--aur-deb` 调用保持原行为。
+
+参数依次为 AUR 包名、AUR 架构、源文件名模板、源文件输出路径和来源版本文件，之后必须提供 `--`，再列出额外软件包；额外包名可以为空。源文件名模板可含 `{version}`，由实际安装的上游版本替换。仅接受安全的单个文件名，不能包含目录。
+
+以下调用位于 GitHub Actions 的应用构建脚本中，工作区初始化后执行。尖括号参数须按实际来源替换；模板中的 `{version}` 保留给入口展开。调用方提前提供标准 Arch 构建环境、yay、Python 3 及基础工具。
+
+```bash
+# 安装 AUR 应用及依赖，导出同次校验通过的原始来源和版本。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-source "<AUR 包名>" "<AUR 架构>" "<软件名>-{version}.<扩展名>" "<来源输出路径>" "<来源版本文件>" -- "<额外软件包>"
+```
+
+入口先通过普通安装模式准备额外软件包，再为应用安装创建独立 `SRCDEST` 和 `--builddir`，由 `yay -S --noconfirm --needed` 按原 PKGBUILD 下载、校验和安装。临时根目录为 0711，来源与构建子目录为带粘滞位的 01777，仅供本次非 root 构建使用；共享 Action 的 yay 包装器通过 `sudo -HE` 保留 `SRCDEST`，不改全局配置。
+
+安装成功后，公共版本入口读取去掉 epoch 和 pkgrel 的实际版本，并与本次构建目录 `.SRCINFO` 的 `pkgver` 逐字核对。当前仅支持包基名与包名相同的单包配方，传入架构必须属于该配方或配方为 `any`。按源文件名在通用 `source` 和当前架构 `source_<架构>` 中唯一匹配，从同组、同索引取摘要；选中来源须为不含登录凭据的 HTTPS 地址。
+
+导出前重新校验独立缓存中的普通文件；优先使用同组 SHA-256，只有该组没有 SHA-256 时才使用 SHA-512。摘要缺失、数量不匹配、无效或为 `SKIP` 时直接失败，不通过切换算法绕过无效摘要。复制到临时输出的字节同步参与摘要计算，校验通过后原子替换指定归档，再原子写入来源版本文件。导出阶段不重新下载、不解包，应用版本随 AUR 配方更新。
+
+该模式要求本次安装实际留下指定原始文件和构建元数据；已有应用被 `--needed` 跳过或所需缓存缺失时返回失败，不把系统安装目录当作原始来源。任一步骤失败均停止，退出时只删除本次临时缓存和构建目录，已完成的系统安装不回滚。源文件与版本分别原子写入，版本写入失败时仍返回失败，不继续封装。版本写入文件，stdout 保留包管理器日志，不作为版本返回接口；最终 `dist/version.txt` 仍由应用在封装成功后调用公共保存入口生成。
+
+来源缓存与环境规则依据见 [makepkg.conf](https://man.archlinux.org/man/makepkg.conf.5.en#OPTIONS)、[makepkg](https://man.archlinux.org/man/makepkg.8.en#ENVIRONMENT_VARIABLES)及 [yay](https://github.com/Jguer/yay/blob/0938a75e98e63648ebf6e22ece6b4a30ec11a907/doc/yay.8)。同次来源导出属于本仓库公共组合能力；具体来源身份、归档格式和资源布局仍由调用方明确指定。
 
 ### AUR 来源中的官方 DEB
 

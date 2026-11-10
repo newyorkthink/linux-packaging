@@ -2,12 +2,12 @@
 
 ## 用途与产物
 
-本目录把 BlueMail 官方 Snap 的当前 `latest/stable` amd64 版本重新封装为 `bluemail.AppImage`，由 `.github/workflows/build.yml` 的标准 Arch Linux matrix 构建。构建先安装 AUR 的 [bluemail 软件包](https://aur.archlinux.org/packages/bluemail)及应用级依赖，再独立获取官方稳定通道 Snap。最终程序、图标、桌面入口和版本均取自同一次独立下载的 Snap。
+本目录把 AUR [bluemail 软件包](https://aur.archlinux.org/packages/bluemail)配方引用的官方 x86_64 Snap 重新封装为 `bluemail.AppImage`，由 `.github/workflows/build.yml` 的标准 Arch Linux matrix 构建。公共安装入口保留本次 AUR 安装时下载的原始 Snap，重新核对同次来源摘要后导出；最终程序、图标和桌面入口均取自这份完整归档，版本跟随 AUR 配方，不再单独查询 Snap Store 的当前稳定版。
 
 ## 打包方式
 
-- `common/arch/install_packages.sh --base` 安装统一基础包，再由同一公共入口安装 `bluemail` 及已确认的运行库和 GTK3 输入模块。AUR 安装阶段按其当前配方获取和校验来源，最终程序仍来自后续独立下载。
-- `common/snap/download_stable_snap.sh` 从 Snap Store 读取当前稳定版，核对发布者、架构和官方 SHA3-384，再下载 Snap。
+- `common/arch/install_packages.sh --base` 安装统一基础包；公共工作区准备完成后，同一入口通过显式 `--aur-source` 模式安装 `bluemail` 及已确认的运行库和 GTK3 输入模块，并保留同次下载来源。
+- 安装入口从同次 AUR 构建目录的 `.SRCINFO` 唯一匹配 `bluemail-{version}.snap`，按原配方摘要重新校验缓存，再导出 `work/bluemail.snap` 和 `work/source-version.txt`。当前配方使用 SHA-512，摘要由 AUR 配方提供；makepkg 校验照常执行，导出过程不再下载 Snap。
 - `common/archive/extract_archive.sh` 解包 Snap。构建脚本保留 BlueMail 自带的 Electron/Chromium 程序、相邻库和资源，去掉 Snap 专用宿主运行时目录。
 - Arch Linux 容器中的 quick-sharun 收集主程序依赖并生成默认入口。构建脚本把需要保持相邻关系的官方 Snap 程序、库和 Electron 资源解包到自己创建的 `AppDir/shared/bin/`，因此通过 `AppDir/.env` 把该目录设为额外库目录和工作目录；这不是所有 Snap 的固定路径。`90-bluemail-arguments.hook` 通过 quick-sharun 通用 hook 机制保留官方 Snap 使用的 `--ozone-platform=x11 --no-sandbox` 参数。桌面图标与 desktop 文件来自同一 Snap。
 - `20-bluemail-protocol.hook` 在每次启动时，把本次实际的 AppImage 路径写成 `~/.local/share/applications/bluemail.desktop`（`Exec` 使用 `%U`），并在 `~/.config/mimeapps.list` 的 `[Default Applications]` 中把 `x-scheme-handler/me.blueone.linux` 指到该文件。不修改 `mailto` 的现有默认程序。quick-sharun 使用的 DWARFS AppImage 不能靠 appimagelauncher 完成这项注册。
@@ -29,7 +29,7 @@
 
 ## 版本元数据
 
-下载入口将本次 Snap 的实际版本输出到 `work/source-version.txt`，打包前由 `common/build/read_app_version.sh text` 读取，并通过 `VERSION` 传给 quick-sharun。最终 AppImage 成功生成后，`common/build/save_appimage_version.sh` 检查产物、统一执行权限并写入 `bluemail/dist/version.txt`，供正式工作流更新软件版本清单。
+公共安装入口读取实际安装的上游版本，与同次 `.SRCINFO` 的 `pkgver` 核对一致后写入 `work/source-version.txt`；打包前由 `common/build/read_app_version.sh text` 读取，并通过 `VERSION` 传给 quick-sharun。最终 AppImage 成功生成后，`common/build/save_appimage_version.sh` 检查产物、统一执行权限并写入 `bluemail/dist/version.txt`，供正式工作流更新软件版本清单。
 
 ## 维护说明
 
@@ -85,3 +85,9 @@ Linux 实机使用当时的 `bluemail.AppImage` 添加 Gmail 账户。日志仍�
 正式入口为 `build_bluemail.sh`。脚本保留 Snap 稳定通道、完整 Electron 资源布局、GTK3 输入模块、固定启动参数、OAuth 协议注册与 URI 修正，统一采用公共工作区、版本读取和版本保存入口，并按标准步骤生成包内 locale。公共注释逐字使用固定注释表，专属处理在对应阶段单独注明；详细依据见本目录的配置与差异文档。
 
 本次依据完整脚本、公共接口和既有实测记录完成静态核对。现有 Arch matrix 继续调用同一路径并发布 `bluemail.AppImage`。
+
+## 2026-11-10：复用 AUR 安装来源
+
+公共 Arch 安装入口新增显式 `--aur-source` 模式，BlueMail 在安装阶段保留完整原始 Snap，按同次 AUR 元数据重新校验后用于打包。当前 AUR 配方会删除安装目录中的部分 Chromium 库和桌面资源，因此本目录继续解包原始归档，不直接复制 `/opt/bluemail`。来源和版本随 AUR 配方动态更新，不固定应用版本或 Snap 修订号。
+
+本次仅调整来源准备及其说明，解包后的资源布局、依赖收集、中文输入、locale、启动参数和 OAuth hook 均保留原样。

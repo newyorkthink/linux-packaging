@@ -1,13 +1,14 @@
 # BlueMail 固定配置
 
-本文登记当前应用的来源标识、程序布局及运行参数，不固定应用版本或 Snap 修订号。最终版本由官方稳定通道动态取得；详细执行阶段见[模板差异](./template-deviations.md)。
+本文登记当前应用的来源标识、程序布局及运行参数，不固定应用版本或 Snap 修订号。最终版本跟随本次 AUR 配方动态取得；详细执行阶段见[模板差异](./template-deviations.md)。
 
 ## 来源、路径与用途
 
 | 配置 | 取值 | 依据与用途 |
 | --- | --- | --- |
-| 官方来源 | Snap 名称 `bluemail`、发布者 `blix`、架构 `amd64`、通道 `latest/stable` | 沿用当前官方来源身份；公共入口逐项核对名称、发布者和通道架构，下载地址与摘要从本次响应获取。 |
-| 系统应用包 | `bluemail` | 当前 AUR 配方以 Snap 为来源；安装阶段准备应用及声明的依赖。 |
+| 官方来源 | AUR `bluemail`、架构 `x86_64`、源文件名模板 `bluemail-{version}.snap` | 从同次 AUR 构建元数据唯一匹配官方 HTTPS Snap 来源，按原索引读取摘要；当前配方使用 SHA-512；本仓库不固定下载 URL、应用版本或 Snap 修订号。 |
+| 系统应用包 | `bluemail` | 公共安装入口显式启用 `--aur-source`，安装应用及依赖，并保留同次下载的完整原始 Snap；最终程序不复制已裁剪的系统安装目录。 |
+| 来源与版本输出 | `work/bluemail.snap`、`work/source-version.txt` | 安装缓存重新校验后导出归档；实际安装版本须与同次 `.SRCINFO` 的 `pkgver` 一致，封装前再由公共 `text` 来源读取。 |
 | 工作目录 | `work`、`AppDir`、`dist` | 公共工作区入口只处理应用根目录下明确列出的一级目录。 |
 | 实际程序目录 | `AppDir/shared/bin` | 保持官方 Electron 程序、库和资源的相邻关系，继续使用已确认的布局。 |
 | 主程序及 helper | `bluemail`、`chrome_crashpad_handler` | 与现有 Snap 构建入口一致，显式交给 quick-sharun 收集。 |

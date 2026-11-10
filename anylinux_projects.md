@@ -464,11 +464,11 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 
 ### 官方 Snap 的专用流程
 
-[BlueMail](./bluemail/build_bluemail.sh) 使用官方 Snap 稳定通道，按[专用打包流程](./docs/packaging-classification.md#专用打包流程)维护。先通过公共 Arch 入口安装应用及其依赖，再独立下载并校验 Snap；最终程序和版本来自同次下载。现有模板没有对应的 Snap 来源与资源准备阶段，因此不按 DEB 模板逐行套用，也不新增模板。
+[BlueMail](./bluemail/build_bluemail.sh) 使用 AUR 配方引用的官方 Snap，按[专用打包流程](./docs/packaging-classification.md#专用打包流程)维护。经用户确认，该应用由公共 Arch 安装入口显式启用 `--aur-source`，复用同次安装下载并校验的完整原始 Snap；版本跟随 AUR 配方，不另行获取 Snap Store 当前稳定版。现有模板没有对应的 Snap 来源保留与资源准备阶段，因此不按 DEB 模板逐行套用，也不新增模板。其他应用继续遵循各自已确认的来源准备流程。
 
 该应用保留已确认的 `AppDir/shared/bin` 布局、相邻资源链接、运行时库目录、固定工作目录和 OAuth hook。共用步骤及通用注释继续使用现有标准原文，来源与布局差异采用 `# 本程序专属处理：` 说明。具体配置、依据及代码位置见[模板差异](./bluemail/docs/template-deviations.md)，不把这些专属步骤复制到其他应用。
 
-Snap 下载和 SHA3-384 校验由 `common/snap/download_stable_snap.sh` 负责，格式解包由 `common/archive/extract_archive.sh` 负责。下载入口 stdout 可保存为来源版本文件，打包前用公共 `text` 来源读取；最终版本保存继续在封装成功后执行。完整接口见[公共入口说明](./common/README.md#snap-store-官方稳定通道)。
+公共安装入口从本次构建目录的 `.SRCINFO` 唯一匹配原始文件，按同组同索引的 SHA-256 或 SHA-512 重新校验缓存，核对实际安装版本与 `pkgver` 后导出归档及来源版本文件；当前 BlueMail 配方使用 SHA-512。格式解包仍由 `common/archive/extract_archive.sh` 负责，打包前用公共 `text` 来源读取版本，最终版本保存继续在封装成功后执行。完整接口见[安装来源导出说明](./common/README.md#arch-安装时导出同次-aur-原始来源)。需要独立获取官方稳定通道的其他调用继续使用现有 [Snap Store 公共入口](./common/README.md#snap-store-官方稳定通道)。
 
 ### 公共版本读取与保存
 
