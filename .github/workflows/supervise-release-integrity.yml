@@ -85,6 +85,62 @@ jobs:
             echo '当前 Build AppImages 没有实际运行应用构建，不监督 Release。'
           fi
 
+      - name: Summarize final AppImage build failures
+        if: >-
+          steps.source.outcome == 'success' &&
+          (github.event.workflow_run.conclusion == 'failure' ||
+           github.event.workflow_run.conclusion == 'timed_out')
+        continue-on-error: true
+        shell: bash
+        env:
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          # 使用上一步已分页读取的 Job 数据生成失败汇总。
+          python3 - "$RUNNER_TEMP/source-run-jobs.json" <<'PY'
+          import html
+          import json
+          import os
+          import sys
+
+          def format_cell(value):
+              return html.escape(' '.join(value.split())).replace('|', '&#124;')
+
+          with open(sys.argv[1], encoding='utf-8') as source:
+              jobs = [job for page in json.load(source) for job in page['jobs']]
+
+          attempt = int(os.environ['SOURCE_RUN_ATTEMPT'])
+          run_url = os.environ['SOURCE_RUN_URL']
+          failed_conclusions = {'failure', 'timed_out'}
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              print('### AppImage 构建最终失败汇总\n', file=summary)
+              print(f'[查看原构建]({run_url}) · 第 {attempt} 次运行\n', file=summary)
+              if any((job.get('run_attempt') or attempt) > attempt for job in jobs):
+                  print('构建已开始新一轮运行，请查看原构建的最新结果。', file=summary)
+                  sys.exit(0)
+
+              failed_jobs = [job for job in jobs if job.get('conclusion') in failed_conclusions]
+              if not failed_jobs:
+                  print('本次构建已失败，GitHub 未返回失败 Job。', file=summary)
+                  sys.exit(0)
+
+              print('| 任务 | 失败步骤 | 日志 |', file=summary)
+              print('| --- | --- | --- |', file=summary)
+              for job in failed_jobs:
+                  name = format_cell(job['name'])
+                  failed_steps = [
+                      format_cell(step['name'])
+                      for step in job.get('steps') or []
+                      if step.get('conclusion') in failed_conclusions
+                  ]
+                  if not failed_steps:
+                      fallback = '任务超时' if job['conclusion'] == 'timed_out' else '未报告失败步骤'
+                      failed_steps = [fallback]
+                  steps = '、'.join(failed_steps)
+                  job_url = job['html_url']
+                  print(f'| {name} | {steps} | [查看日志]({job_url}) |', file=summary)
+          PY
+
       - name: Checkout repository
         if: steps.source.outputs.should_supervise == 'true'
         uses: actions/checkout@v4
