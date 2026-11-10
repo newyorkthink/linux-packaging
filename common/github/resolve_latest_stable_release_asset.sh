@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# 显式请求时，在原有三行元数据后追加同一资产的 ID。
+WITH_ASSET_ID=false
+if [[ "${1:-}" == --with-asset-id ]]; then
+  WITH_ASSET_ID=true
+  shift
+fi
+
 # 仅在调用方显式指定时移除标签前缀，原有版本匹配规则保持不变。
 TAG_PREFIX=""
 RELEASE_TAG=""
@@ -18,6 +25,12 @@ elif [[ "${1:-}" == --tag-prefix ]]; then
   fi
   TAG_PREFIX="$2"
   shift 2
+fi
+
+# 资产 ID 扩展只用于正式版本解析，其他模式继续使用原有输出格式。
+if [[ "$WITH_ASSET_ID" == true && ( -n "$RELEASE_TAG" || "${3:-}" == --latest-with-checksum ) ]]; then
+  echo "错误：--with-asset-id 不能与 --release-tag 或 --latest-with-checksum 一起使用。" >&2
+  exit 2
 fi
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -111,7 +124,7 @@ github_api_get "https://api.github.com/repos/$REPO/releases?per_page=100" "$RELE
 
 # 只保留正式 semver 标签、唯一匹配资产和有效 GitHub SHA-256 digest，再按版本排序。
 CANDIDATE="$({
-  jq -r --arg asset_template "$ASSET_TEMPLATE" --arg tag_prefix "$TAG_PREFIX" '
+  jq -r --arg asset_template "$ASSET_TEMPLATE" --arg tag_prefix "$TAG_PREFIX" --argjson with_asset_id "$WITH_ASSET_ID" '
     .[]
     | select(.draft != true and .prerelease != true)
     | ((.tag_name // "")
@@ -123,7 +136,8 @@ CANDIDATE="$({
     | select(($assets | length) == 1)
     | ($assets[0].digest // "") as $digest
     | select($digest | test("^sha256:[0-9a-fA-F]{64}$"))
-    | [$tag.version, $assets[0].browser_download_url, ($digest | sub("^sha256:"; "") | ascii_downcase)]
+    | ([$tag.version, $assets[0].browser_download_url, ($digest | sub("^sha256:"; "") | ascii_downcase)]
+       + (if $with_asset_id then [($assets[0].id | tostring)] else [] end))
     | @tsv
   ' "$RELEASES_JSON"
 } | sort -t $'\t' -k1,1V | tail -n 1)"
@@ -133,7 +147,7 @@ CANDIDATE="$({
   exit 1
 }
 
-IFS=$'\t' read -r VERSION ASSET_URL ASSET_SHA256 <<< "$CANDIDATE"
+IFS=$'\t' read -r VERSION ASSET_URL ASSET_SHA256 ASSET_ID <<< "$CANDIDATE"
 [[ "$VERSION" =~ ^[0-9]+([.][0-9]+)+$ ]] || {
   echo "错误：解析到无效版本：$VERSION" >&2
   exit 1
@@ -147,4 +161,13 @@ IFS=$'\t' read -r VERSION ASSET_URL ASSET_SHA256 <<< "$CANDIDATE"
   exit 1
 }
 
+# 在输出前核对可选资产 ID，避免返回不完整的认证回退元数据。
+if [[ "$WITH_ASSET_ID" == true && ! "$ASSET_ID" =~ ^[1-9][0-9]*$ ]]; then
+  echo "错误：解析到无效资产 ID：$ASSET_ID" >&2
+  exit 1
+fi
+
 printf '%s\n%s\n%s\n' "$VERSION" "$ASSET_URL" "$ASSET_SHA256"
+if [[ "$WITH_ASSET_ID" == true ]]; then
+  printf '%s\n' "$ASSET_ID"
+fi

@@ -18,31 +18,19 @@ EXPECTED_DEB_ARCH="${5:-}"
   exit 2
 }
 
-# shellcheck source=common/github/github_api.sh
-source "$SCRIPT_DIR/github_api.sh"
-RELEASE_JSON="$(mktemp)"
-cleanup() { rm -f -- "$RELEASE_JSON"; }
-trap cleanup EXIT
-github_api_get "https://api.github.com/repos/$REPO/releases/latest" "$RELEASE_JSON"
-
-# 每次只接受最新正式 semver Release 中唯一的指定资产和官方 SHA-256。
-mapfile -t META < <(jq -r --arg name "$ASSET_NAME" '
-  select(.draft == false and .prerelease == false)
-  | select((.tag_name // "") | test("^v?[0-9]+\\.[0-9]+\\.[0-9]+$"))
-  | [.assets[]? | select(.name == $name)] as $assets
-  | select(($assets | length) == 1)
-  | select(($assets[0].digest // "") | test("^sha256:[0-9a-fA-F]{64}$"))
-  | .tag_name, $assets[0].browser_download_url, ($assets[0].id | tostring), ($assets[0].digest | sub("^sha256:"; "") | ascii_downcase)
-' "$RELEASE_JSON")
+# 复用正式版本解析器，按完整资产名绑定同一 Release 的版本、地址、摘要和 ID。
+RESOLVER="$SCRIPT_DIR/resolve_latest_stable_release_asset.sh"
+METADATA="$("$RESOLVER" --with-asset-id "$REPO" "$ASSET_NAME")"
+mapfile -t META <<< "$METADATA"
 (( ${#META[@]} == 4 )) || {
-  echo "错误：最新正式 Release 缺少唯一且带官方 SHA-256 的资产：$REPO / $ASSET_NAME" >&2
+  echo "错误：正式 Release 缺少唯一且带官方 SHA-256 的资产：$REPO / $ASSET_NAME" >&2
   exit 1
 }
-VERSION="${META[0]#v}"
+VERSION="${META[0]}"
 ASSET_URL="${META[1]}"
-ASSET_ID="${META[2]}"
-ASSET_SHA256="${META[3]}"
-[[ "$ASSET_URL" == "https://github.com/$REPO/releases/download/"*"/$ASSET_NAME" && "$ASSET_ID" =~ ^[0-9]+$ ]] || {
+ASSET_SHA256="${META[2]}"
+ASSET_ID="${META[3]}"
+[[ "$ASSET_URL" == "https://github.com/$REPO/releases/download/"*"/$ASSET_NAME" && "$ASSET_ID" =~ ^[1-9][0-9]*$ ]] || {
   echo "错误：Release 资产地址或 ID 不符合预期：$REPO / $ASSET_NAME" >&2
   exit 1
 }
@@ -59,7 +47,7 @@ if ! "$SCRIPT_DIR/../download/download_file.sh" "$ASSET_URL" "$OUTPUT" "$ASSET_S
   OUTPUT_DIR="$(cd -- "$OUTPUT_DIR" && pwd -P)"
   OUTPUT="$OUTPUT_DIR/$(basename -- "$OUTPUT")"
   TEMP_FILE="$(mktemp "${OUTPUT}.part.XXXXXX")"
-  cleanup() { rm -f -- "$RELEASE_JSON" "$TEMP_FILE"; }
+  trap 'rm -f -- "$TEMP_FILE"' EXIT
   curl --fail --show-error --location --proto '=https' --tlsv1.2 \
     --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 900 \
     -H 'Accept: application/octet-stream' \
