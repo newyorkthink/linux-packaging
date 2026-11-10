@@ -19,7 +19,7 @@
 
 | 目录 | 用途 |
 | --- | --- |
-| `scripts/` | 经授权后在终端中明确调用的仓库维护工具；分类和入口见 [总索引](../scripts/README.md) |
+| `scripts/` | 经授权后明确调用的仓库维护工具。分类、入口和运行方式见 [总索引](../scripts/README.md) |
 | `common/` | 应用构建复用的下载、校验、安装、解包与打包公共入口 |
 | `.github/scripts/` | GitHub Actions 调度、构建和发布使用的脚本 |
 
