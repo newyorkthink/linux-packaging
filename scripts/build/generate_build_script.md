@@ -4,11 +4,13 @@
 
 入口：[generate_build_script.py](./generate_build_script.py)。
 
-使用 [固定模板清单](../../templates/README.md) 中的一份完整模板生成 `build_*.sh`。没有适用模板时，说明具体冲突并保留已有构建脚本，禁止提出、新增或登记其他模板。只替换当前模板的占位参数，其他内容原样输出。默认输出统一 diff。显式传入 `--write` 会创建或覆盖指定脚本。现有文件权限继续保留，新文件具有执行权限。
+使用 [固定模板清单](../../templates/README.md) 中的一份完整模板生成 `build_*.sh`。只替换当前模板的占位参数，其他内容原样输出。默认输出统一 diff。显式传入 `--write` 会创建或覆盖指定脚本。现有文件权限继续保留，新文件具有执行权限。
+
+没有适用模板时，先说明具体冲突，授权前保留已有构建脚本。专用流程按 [AGENTS.md](../../AGENTS.md) 逐次取得用户授权。禁止提出、新增或登记清单外模板。
 
 ## 统一远端生成入口
 
-所有应用使用 [同一个生成工作流](../../.github/workflows/generate-build-script.yml)，不创建应用专用工作流或内置默认应用。通过 GitHub 连接器更新 [统一请求文件](../../.github/build-script-request.json) 后，在 `main` 上触发生成；也可以在 GitHub Actions 页面手动输入同样的完整请求 JSON。
+使用生成器时，统一使用 [同一个生成工作流](../../.github/workflows/generate-build-script.yml)，不创建应用专用工作流或内置默认应用。通过 GitHub 连接器更新 [统一请求文件](../../.github/build-script-request.json) 后，在 `main` 上触发生成；也可以在 GitHub Actions 页面手动输入同样的完整请求 JSON。
 
 公共请求文件默认只有空任务结构：`{"template":"","output":"","params":{}}`，不预填任何应用、日期或示例任务。请求只包含三个字段：`template` 为固定清单内的模板相对路径，`output` 为正式脚本路径，`params` 为该模板的参数对象。只为当前已获授权的生成任务填写实际值；已有应用目录必须存在，`build_*_old.sh` 不得作为生成目标。
 

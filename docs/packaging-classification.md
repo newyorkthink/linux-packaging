@@ -2,7 +2,7 @@
 
 本页登记近期已按当前标准完成重写或整理的项目，以及经核实采用专用打包流程的项目。表中“标准化”描述代码和文档采用的结构。各项目的构建与运行验收状态以应用 README 为准。
 
-全部当前 AppImage 项目对应的上游仓库和构建代码见 [上游打包参考索引](./upstream-packaging-index.md)。该索引也保留尚未查到上游打包参考的项目。
+当前 AppImage 项目对应的 pkgforge-dev 打包参考见 [上游打包参考索引](./upstream-packaging-index.md)。该索引也保留尚未查到参考实现的项目。
 
 同类标准化项目共用标准阶段、通用注释、代码结构和空行。软件名、包名、路径及允许变化的参数在原位置替换；经核实并保留的专属差异必须有应用文档，不要求不同来源和专属段强行具有相同总行数。
 
@@ -14,7 +14,7 @@ quick-sharun 按标准重写时，从 [唯一标准模板](../anylinux_projects.
 
 必须先在构建系统安装应用及运行依赖，再从 AUR 元数据、软件官方网站等核实的来源独立下载 DEB 或预编译 tar 等安装包，解包后把完整程序目录放入 `AppDir/bin`。系统安装结果用于依赖、图标、desktop 或既定版本元数据；不得用系统程序目录复制替代独立下载。
 
-**官方 DEB 且版本来自包内 `package.json` 的标准底稿为 [electron-deb.sh](../templates/quick-sharun/electron-deb.sh)。** 带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](../templates/quick-sharun/electron-github-deb.sh)，版本读取同次校验下载的记录。其他来源或版本布局先登记适用模板。Cursor 和 WorkBuddy 保留为既有实现参考。
+**官方 DEB 且版本来自包内 `package.json` 的标准底稿为 [electron-deb.sh](../templates/quick-sharun/electron-deb.sh)。** 带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](../templates/quick-sharun/electron-github-deb.sh)，版本读取同次校验下载的记录。其他来源或版本布局先核对固定模板的适用条件。Cursor 和 WorkBuddy 保留为既有实现参考。
 
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
@@ -30,7 +30,7 @@ quick-sharun 按标准重写时，从 [唯一标准模板](../anylinux_projects.
 | Visual Studio Code | [build_vscode.sh](../vscode/build_vscode.sh) | Microsoft 官方 stable tar；版本由公共入口读取包内 `package.json`。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../vscode/docs/template-deviations.md) |
 | WorkBuddy | [build_workbuddy.sh](../workbuddy/build_workbuddy.sh) | 官方更新接口独立下载 DEB 并校验摘要；版本由公共入口读取 AUR 安装结果。 | export DEPLOY_GTK=1 | [模板差异](../workbuddy/docs/template-deviations.md) |
 
-当前登记模板使用 DEB，其他归档格式按实际来源新增相应模板。原样采用的 pkgforge-dev 专属代码及其必要性、来源和影响由对应应用文档说明，不复制到其他应用。
+当前登记的直接下载模板使用 DEB。其他归档格式超出适用范围时，按[专用打包流程](#专用打包流程)的授权规则处理。原样采用的 pkgforge-dev 专属代码及其必要性、来源和影响由对应应用文档说明，不复制到其他应用。
 
 版本读取保留在第一次 quick-sharun 之前；最终 AppImage 成功生成后，统一单行调用公共保存入口写入 `dist/version.txt`。包名、下载接口、路径、版本来源及必要运行参数可以不同，不能把参数差异误判为模板失配。
 
@@ -160,11 +160,12 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 
 ## 专用打包流程
 
-套件组合、共享运行组件等实际构建需求超出现有模板适用范围时，已有项目沿用各自已验证的专用打包方式。登记前核对当前构建入口、专用流程与现有模板适用条件的具体差异，以及可追溯的稳定基线和验证记录。后续项目按下表逐项补充，详细实现和维护记录以各应用 README 为准。
+官方构建入口、套件组合或共享运行组件等需求超出现有模板的适用范围时，先核对具体冲突，再按 [AGENTS.md](../AGENTS.md) 取得本次授权。专用流程复用适用的公共入口，已有项目以各自经确认的流程为基线。后续项目按下表登记当前构建入口、采用专用流程的原因和验证依据，详细实现与验收状态以各应用 README 为准。
 
 | 项目 | 构建入口 | 采用专用流程的原因 | 稳定基线与验证依据 |
 | --- | --- | --- | --- |
 | Alacritty | [build_alacritty.sh](../alacritty/build_alacritty.sh) | 现有 X11 IME 修复需要在官方正式版源码中应用补丁并编译，再由 LinuxDeploy 部署、appimagetool 封装；固定 APT 模板不支持此专属过程。 | [专属差异](../alacritty/docs/template-deviations.md) · [上游取舍](../alacritty/docs/pkgforge-differences.md) · [历史与验证](../alacritty/README.md) |
+| Hermes Desktop | [build_hermes-desktop.sh](../hermes-desktop/build_hermes-desktop.sh) | 从上游正式 Release 标签获取源码，使用上游锁定的 pnpm 构建，并由 electron-builder 生成普通 Desktop AppImage。现有模板无法覆盖这条源码构建与封装流程。桌面客户端可连接已有 Gateway，也可使用单独安装的本机 Agent。 | [构建来源、旧版实机记录和当前验收状态](../hermes-desktop/README.md) |
 | KDE Suite | [build_kde_suite.sh](../kde-suite/build_kde_suite.sh) | 多款 KDE 程序共享一个 AppImage 的挂载及 Qt 6 和 KF6 运行组件，最终封装前按套件结构分阶段部署应用和辅助工具。 | [KDE Suite README](../kde-suite/README.md) |
 | st | [build_st.sh](../st/build_st.sh) | 从 siduck/st 默认分支获取当前源码，按字体配置生成 config.h 并写入源码默认主题，经 make 安装后由 quick-sharun 封装程序、辅助脚本和 terminfo；与 Arch 原生软件包模板不同，不新增标准模板。 | [专属差异](../st/docs/template-deviations.md) · [实机验证](../st/README.md#实机验证) |
 | Webcamoid | [build_webcamoid.sh](../webcamoid/build_webcamoid.sh) | 现有流程从官方正式 Release 源码应用四个补丁，经 CMake + Ninja 安装到暂存目录，再由 quick-sharun 收集插件与运行库；不同于现有 Qt DEB / 系统入口模板，不新增标准模板。 | [当前基线与差异](../webcamoid/docs/template-deviations.md) · [实机验证](../webcamoid/README.md#实机验证) |
