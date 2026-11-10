@@ -5,7 +5,7 @@ set -Eeuo pipefail
 if [[ "${1:-}" == --aur-source ]]; then
   shift
   if (( $# < 6 )); then
-    echo "用法：$0 --aur-source <AUR 包名> <架构> <源文件名模板> <源文件输出> <版本文件> -- [额外软件包...]" >&2
+    echo "用法：$0 --aur-source <AUR 包名> <架构> <源文件名模板> <源文件输出> <版本文件> [--snap-stable <名称> <发布者> <架构>] -- [额外软件包...]" >&2
     exit 2
   fi
   AUR_PACKAGE="$1"
@@ -20,8 +20,32 @@ if [[ "${1:-}" == --aur-source ]]; then
     "$SOURCE_LITERAL" == . || "$SOURCE_LITERAL" == .. ||
     -z "$SOURCE_OUTPUT" || "$SOURCE_OUTPUT" == / || -d "$SOURCE_OUTPUT" ||
     -z "$VERSION_OUTPUT" || "$VERSION_OUTPUT" == / || -d "$VERSION_OUTPUT" ||
-    "$SOURCE_OUTPUT" == "$VERSION_OUTPUT" || "${1:-}" != -- ]]; then
+    "$SOURCE_OUTPUT" == "$VERSION_OUTPUT" ]]; then
     echo "错误：AUR 包、架构、源文件名模板、输出路径或参数分隔符无效。" >&2
+    exit 2
+  fi
+  SNAP_NAME=""
+  SNAP_PUBLISHER=""
+  SNAP_ARCH=""
+  # 只有显式启用时，才用官方稳定通道更新本次 AUR 配方的 Snap 来源。
+  if [[ "${1:-}" == --snap-stable ]]; then
+    if (( $# < 5 )) || [[ "$SOURCE_PATTERN" != *'{version}'*.snap ]]; then
+      echo "错误：--snap-stable 需要 Snap 名称、发布者、架构及包含 {version} 的 Snap 文件名模板。" >&2
+      exit 2
+    fi
+    SNAP_NAME="$2"
+    SNAP_PUBLISHER="$3"
+    SNAP_ARCH="$4"
+    if [[ ! "$SNAP_NAME" =~ ^[a-z][a-z0-9-]*$ ||
+      ! "$SNAP_PUBLISHER" =~ ^[a-zA-Z0-9][a-zA-Z0-9._+-]*$ ||
+      ( "$AUR_ARCH:$SNAP_ARCH" != x86_64:amd64 && "$AUR_ARCH:$SNAP_ARCH" != aarch64:arm64 ) ]]; then
+      echo "错误：Snap 身份或 AUR / Snap 架构不匹配。" >&2
+      exit 2
+    fi
+    shift 4
+  fi
+  if [[ "${1:-}" != -- ]]; then
+    echo "错误：请用 -- 分隔来源选项与额外软件包。" >&2
     exit 2
   fi
   shift
@@ -43,8 +67,28 @@ if [[ "${1:-}" == --aur-source ]]; then
   chmod 711 "$INSTALL_WORK"
   chmod 1777 "$INSTALL_WORK/sources" "$INSTALL_WORK/build"
 
-  # makepkg 将原始文件保存在独立来源缓存，yay 继续按 AUR 配方校验和安装。
-  SRCDEST="$INSTALL_WORK/sources" yay -S --noconfirm --needed --builddir "$INSTALL_WORK/build" "$AUR_PACKAGE"
+  if [[ -n "$SNAP_NAME" ]]; then
+    # 只获取 AUR 配方；此阶段不下载旧 Snap，也不安装旧版应用。
+    (
+      cd "$INSTALL_WORK/build"
+      yay -G --noconfirm "$AUR_PACKAGE"
+    )
+
+    # 官方下载入口只下载一次稳定版 Snap，并返回同次校验通过的来源元数据。
+    SNAP_VERSION="$("$SCRIPT_DIR/../snap/download_stable_snap.sh" "$SNAP_NAME" "$SNAP_PUBLISHER" \
+      "$SNAP_ARCH" "$INSTALL_WORK/stable.snap" "$INSTALL_WORK/snap-source.json")"
+
+    # 仅更新本次临时配方的版本、选中来源与摘要；其他来源和依赖保持原样。
+    python3 "$SCRIPT_DIR/../aur/prepare_snap_source.py" "$AUR_PACKAGE" "$AUR_ARCH" "$SOURCE_PATTERN" \
+      "$INSTALL_WORK/build/$AUR_PACKAGE" "$INSTALL_WORK/stable.snap" "$INSTALL_WORK/sources" \
+      "$INSTALL_WORK/snap-source.json" "$SNAP_VERSION"
+
+    # 本地配方模式重新生成 .SRCINFO、解析依赖，并按新摘要安装同一份 Snap。
+    SRCDEST="$INSTALL_WORK/sources" yay -Bi --noconfirm "$INSTALL_WORK/build/$AUR_PACKAGE"
+  else
+    # makepkg 将原始文件保存在独立来源缓存，yay 继续按 AUR 配方校验和安装。
+    SRCDEST="$INSTALL_WORK/sources" yay -S --noconfirm --needed --builddir "$INSTALL_WORK/build" "$AUR_PACKAGE"
+  fi
 
   # 版本取自实际安装结果，必须与本次构建目录中的来源元数据一致。
   VERSION="$("$SCRIPT_DIR/../build/read_app_version.sh" pacman "$AUR_PACKAGE")"

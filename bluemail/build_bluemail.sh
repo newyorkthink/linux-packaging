@@ -17,9 +17,9 @@ mkdir -p AppDir/shared/bin work
 APP_ROOT="$SCRIPT_DIR/AppDir/shared/bin"
 
 # 应用本身。包管理器会拉入它声明的依赖。
-# 本程序专属处理：安装应用并保留同次下载、校验通过的原始 Snap。
+# 本程序专属处理：AUR 安装改用官方稳定版，并保留同次校验通过的原始 Snap。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-source bluemail x86_64 \
-  'bluemail-{version}.snap' work/bluemail.snap work/source-version.txt -- \
+  'bluemail-{version}.snap' work/bluemail.snap work/source-version.txt --snap-stable bluemail blix amd64 -- \
   squashfs-tools openssl gtk3 nss libnotify libsecret libappindicator libxtst libxss ibus fcitx5-gtk
 
 # 本程序专属处理：解包官方 Snap。

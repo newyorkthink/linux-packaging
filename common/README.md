@@ -33,9 +33,9 @@
 - `github/resolve_latest_stable_release_asset.sh [--tag-prefix <标签前缀>] <owner/repo> '<固定资产名或含 {version} 的资产名模板>'` 保留原正式版本、唯一资产和 GitHub SHA-256 选择规则。只有显式传入前置的 `--tag-prefix` 时，才按字面值匹配并移除该非空前缀，再解析余下的可选 `v` 与点分数字版本；前缀不得含空白字符。`github/download_latest_stable_release_asset.sh` 同样在仓库名之前接受该选项，随后仍传入仓库、资产名模板、输出文件和可选的成对 DEB 包名、架构。下载、摘要校验、DEB 身份检查及只向 stdout 返回版本的行为不变；不传选项的旧调用保持原规则。前缀模式不能与 `--latest-with-checksum` 混用。 资产名可以是固定文件名，也可以包含 `{version}`；两者共用同一正式版本筛选、唯一资产匹配和 GitHub SHA-256 校验，固定名不另设应用特判。解析器可在其他选项之前显式接收 `--with-asset-id`，仅在原三行版本、下载地址和 SHA-256 之后追加同一资产的 ID；不传时仍输出原三行。该选项不能与 `--release-tag` 或 `--latest-with-checksum` 同用，原归档和校验清单模式的输出保持不变。
 - `github/download_latest_stable_release_asset.sh <owner/repo> '<包含 {version} 的资产名模板>' <输出文件> --latest-with-checksum <校验清单资产名> <commit 文件>` 从同一个 `/releases/latest` 响应定位主资产和校验清单，验证两者的 GitHub SHA-256，再用清单中唯一对应的 SHA-256 校验主资产。校验通过并解析 tag 对应的 Git commit 后，写出资产和 commit，stdout 仅返回版本。原资产模板及可选 DEB 参数调用保持原有语义。
 - `github/download_latest_stable_release_source.sh <owner/repo> <目标目录>` 读取最新非草稿、非预发布 Release，校验标签后浅克隆对应源码；成功时 stdout 只返回原始标签。参数、依赖与认证边界见下文的 [GitHub 最新正式 Release 源码](#github-最新正式-release-源码)。
-- `snap/download_stable_snap.sh <Snap 名称> <发布者账号> <amd64|arm64> <输出.snap>` 从 Snap Store 官方接口选择唯一的 `latest/stable` 条目，核对名称、发布者和架构，下载后校验官方 SHA3-384；成功时 stdout 仅返回实际版本。下载、版本、校验与调用边界见下文。
+- `snap/download_stable_snap.sh <Snap 名称> <发布者账号> <amd64|arm64> <输出.snap> [元数据 JSON 输出]` 从 Snap Store 官方接口选择唯一的 `latest/stable` 条目，核对名称、发布者和架构，下载后校验官方 SHA3-384；成功时 stdout 仅返回实际版本。下载、版本、校验与调用边界见下文。
 - `build/prepare_x86_64_workspace.sh` 接收项目根目录、`--skip-create`、一个清理后不创建的一级目录名，以及其余清理后重建的一级目录名。先检查 x86_64 和全部目录名，再只处理这个项目下明确传入的目录；应用自行决定哪些工作目录需要重建。
-- `arch/install_packages.sh` 保留 `--base` 和普通包名调用。只有显式指定 `--aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]` 时，才先安装额外软件包、复用公共 AUR 下载入口准备已校验 DEB，再交由 yay / makepkg 按原 PKGBUILD 校验和安装；使用独立来源缓存及构建目录，详见下文。 显式 `--aur-source <AUR 包名> <架构> <源文件名模板> <源文件输出> <来源版本文件> -- [额外软件包...]` 则保留安装阶段下载的原始来源，按同次元数据重新校验后导出归档及版本，不进行第二次下载；完整约束见下文。
+- `arch/install_packages.sh` 保留 `--base` 和普通包名调用。只有显式指定 `--aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]` 时，才先安装额外软件包、复用公共 AUR 下载入口准备已校验 DEB，再交由 yay / makepkg 按原 PKGBUILD 校验和安装；使用独立来源缓存及构建目录，详见下文。 显式 `--aur-source <AUR 包名> <架构> <源文件名模板> <源文件输出> <来源版本文件> -- [额外软件包...]` 则保留安装阶段下载的原始来源，按同次元数据重新校验后导出归档及版本，不进行第二次下载。可在分隔符前显式追加 `--snap-stable <Snap 名称> <发布者> <Snap 架构>`，先用官方稳定通道同步本次临时配方，再安装和导出同一份 Snap；完整约束见下文。
 - `arch/get_package_version.sh` 接收一个已安装的 Arch 软件包名，从 `pacman -Q` 读取版本并去掉 epoch 和发行版 `pkgrel`，只向 stdout 输出非空的上游版本。需要保留发行版修订号的应用不要调用该入口。
 - `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。`text <来源版本文件>` 读取同次下载保存的版本。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
@@ -61,7 +61,7 @@
 
 ### Snap Store 官方稳定通道
 
-入口为 `snap/download_stable_snap.sh`，四个位置参数依次是 Snap 名称、发布者账号、架构和输出文件。调用方提前提供 Bash、curl、jq、OpenSSL 及公共下载入口需要的工具。Snap 名称、发布者和输出路径均由调用方指定；架构支持 `amd64` 和 `arm64`。
+入口为 `snap/download_stable_snap.sh`，前四个位置参数依次是 Snap 名称、发布者账号、架构和输出文件；第五个参数可选，用于输出同次来源元数据 JSON。调用方提前提供 Bash、curl、jq、OpenSSL 及公共下载入口需要的工具。Snap 名称、发布者和输出路径均由调用方指定；架构支持 `amd64` 和 `arm64`。
 
 入口查询 Snap Store 官方元数据，只选择 `latest/stable` 中与传入架构一致的唯一条目，同时核对应用名称和发布者账号。版本、下载 URL 与 96 位十六进制 SHA3-384 必须有效；不存在唯一条目或字段不符时直接失败。元数据请求和 Snap 文件下载均显式使用 HTTP/1.1，并保留 5 次重试；重试间隔采用 curl 的指数退避，而非固定 2 秒。文件下载通过 `download/download_file.sh` 的可选参数启用该行为，校验通过后才替换输出 Snap；失败时清理本次临时文件。
 
@@ -73,6 +73,8 @@
 # 下载并校验官方稳定通道 Snap，同时保存本次来源版本。
 "$SCRIPT_DIR/../common/snap/download_stable_snap.sh" "<Snap 名称>" "<发布者账号>" "<amd64或arm64>" "<输出.snap>" > "<来源版本文件>"
 ```
+
+只有显式提供第五个参数时，才在 Snap 通过官方摘要后原子写出来源 JSON，字段为 `name`、`publisher`、`architecture`、`version`、`url` 和 `sha3_384`；这些值来自同次已核对的稳定通道响应，不重新查询或下载。元数据路径不能与 Snap 输出重合，写入失败会返回失败。原四参数调用的输出与下载行为保持不变。
 
 本入口不安装应用、不解包、不修改 desktop，也不处理启动参数和资源链接。应用安装使用对应公共安装入口；Snap 解包使用 `archive/extract_archive.sh`，调用方先安装提供 `unsquashfs` 的工具包。具体目录整理和启动兼容处理留在应用目录。
 
@@ -155,7 +157,7 @@ Release 查询复用 `github_api.sh`，认证依次取自 `GITHUB_TOKEN`、`GH_T
 
 入口为 `arch/install_packages.sh` 的显式 `--aur-source` 模式。适用于需要安装 AUR 应用及依赖，同时将本次下载的完整原始安装包用于后续打包的流程。该模式与预下载 DEB 的 `--aur-deb` 分开，原 `--base`、普通包名和 `--aur-deb` 调用保持原行为。
 
-参数依次为 AUR 包名、AUR 架构、源文件名模板、源文件输出路径和来源版本文件，之后必须提供 `--`，再列出额外软件包；额外包名可以为空。源文件名模板可含 `{version}`，由实际安装的上游版本替换。仅接受安全的单个文件名，不能包含目录。
+参数依次为 AUR 包名、AUR 架构、源文件名模板、源文件输出路径和来源版本文件，之后可以提供 `--snap-stable <Snap 名称> <发布者> <Snap 架构>`，随后必须提供 `--`，再列出额外软件包；额外包名可以为空。源文件名模板可含 `{version}`，由实际安装的上游版本替换。仅接受安全的单个文件名，不能包含目录。
 
 以下调用位于 GitHub Actions 的应用构建脚本中，工作区初始化后执行。尖括号参数须按实际来源替换；模板中的 `{version}` 保留给入口展开。调用方提前提供标准 Arch 构建环境、yay、Python 3 及基础工具。
 
@@ -164,7 +166,7 @@ Release 查询复用 `github_api.sh`，认证依次取自 `GITHUB_TOKEN`、`GH_T
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-source "<AUR 包名>" "<AUR 架构>" "<软件名>-{version}.<扩展名>" "<来源输出路径>" "<来源版本文件>" -- "<额外软件包>"
 ```
 
-入口先通过普通安装模式准备额外软件包，再为应用安装创建独立 `SRCDEST` 和 `--builddir`，由 `yay -S --noconfirm --needed` 按原 PKGBUILD 下载、校验和安装。临时根目录为 0711，来源与构建子目录为带粘滞位的 01777，仅供本次非 root 构建使用；共享 Action 的 yay 包装器通过 `sudo -HE` 保留 `SRCDEST`，不改全局配置。
+未提供 `--snap-stable` 时，入口先通过普通安装模式准备额外软件包，再为应用安装创建独立 `SRCDEST` 和 `--builddir`，由 `yay -S --noconfirm --needed` 按原 PKGBUILD 下载、校验和安装。临时根目录为 0711，来源与构建子目录为带粘滞位的 01777，仅供本次非 root 构建使用；共享 Action 的 yay 包装器通过 `sudo -HE` 保留 `SRCDEST`，不改全局配置。
 
 安装成功后，公共版本入口读取去掉 epoch 和 pkgrel 的实际版本，并与本次构建目录 `.SRCINFO` 的 `pkgver` 逐字核对。当前仅支持包基名与包名相同的单包配方，传入架构必须属于该配方或配方为 `any`。按源文件名在通用 `source` 和当前架构 `source_<架构>` 中唯一匹配，从同组、同索引取摘要；选中来源须为不含登录凭据的 HTTPS 地址。
 
@@ -173,6 +175,29 @@ Release 查询复用 `github_api.sh`，认证依次取自 `GITHUB_TOKEN`、`GH_T
 该模式要求本次安装实际留下指定原始文件和构建元数据；已有应用被 `--needed` 跳过或所需缓存缺失时返回失败，不把系统安装目录当作原始来源。任一步骤失败均停止，退出时只删除本次临时缓存和构建目录，已完成的系统安装不回滚。源文件与版本分别原子写入，版本写入失败时仍返回失败，不继续封装。版本写入文件，stdout 保留包管理器日志，不作为版本返回接口；最终 `dist/version.txt` 仍由应用在封装成功后调用公共保存入口生成。
 
 来源缓存与环境规则依据见 [makepkg.conf](https://man.archlinux.org/man/makepkg.conf.5.en#OPTIONS)、[makepkg](https://man.archlinux.org/man/makepkg.8.en#ENVIRONMENT_VARIABLES)及 [yay](https://github.com/Jguer/yay/blob/0938a75e98e63648ebf6e22ece6b4a30ec11a907/doc/yay.8)。同次来源导出属于本仓库公共组合能力；具体来源身份、归档格式和资源布局仍由调用方明确指定。
+
+#### 可选：AUR 安装使用官方稳定版 Snap
+
+仅在 `--aur-source` 的五个位置参数之后、`--` 分隔符之前显式传入 `--snap-stable` 时启用。三个选项值依次为 Snap 名称、发布者账号和 Snap 架构；AUR 架构与 Snap 架构必须对应 `x86_64` / `amd64` 或 `aarch64` / `arm64`，均由调用方明确给出。源文件名模板必须含 `{version}` 并以 `.snap` 结尾。
+
+调用位于 GitHub Actions 的应用构建脚本中，以下尖括号参数须按实际来源替换：
+
+```bash
+# 用官方稳定通道同步本次 AUR 配方，安装并导出同一份已校验 Snap。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-source "<AUR 包名>" "<AUR 架构>" \
+  "<软件名>-{version}.snap" "<Snap 输出>" "<来源版本文件>" \
+  --snap-stable "<Snap 名称>" "<发布者>" "<Snap 架构>" -- "<额外软件包>"
+```
+
+1. 通过普通安装模式准备额外包，再用 `yay -G` 只获取 AUR 配方及配套文件，不先下载或安装其中的旧版 Snap。
+2. 复用 `snap/download_stable_snap.sh` 下载一份官方 `latest/stable` 包，核对发布者、架构与 SHA3-384，并保留同次来源 JSON。
+3. 调用 [prepare_snap_source.py](./aur/prepare_snap_source.py)，要求新旧 URL 属于同一个官方 Snap ID。仅同步本次临时 PKGBUILD 的 `pkgver`、选中来源及同组同索引的 SHA-256 / SHA-512，其他来源、摘要、依赖与 package 函数保持原样。新摘要由通过官方 SHA3-384 的文件计算，不设置 `SKIP`，不关闭 makepkg 校验。
+4. 把同一份文件放进独立 `SRCDEST`，移除本次临时目录中过时的 `.SRCINFO`，由 `yay -Bi --noconfirm <临时配方目录>` 从更新后的 PKGBUILD 重新生成真实元数据、解析依赖并安装。该模式不传 `--needed`，避免已有旧版或相同包版本使本次来源被跳过。
+5. 安装后继续使用原导出逻辑，核对实际安装版本、重新生成的 `.SRCINFO` 和缓存摘要，再输出完整 Snap 与来源版本。安装、导出和后续 AppImage 解包使用同一份 Snap，不发生第二次 Snap 下载。
+
+配方同步只支持同名单包、普通 `pkgver` 赋值，以及与 `.SRCINFO` 一一对应的普通来源和摘要数组；选中来源可使用 `pkgname` / `pkgver` 变量。选中来源的校验只支持有效 SHA-256 / SHA-512；其他算法、动态数组或来源身份不符时停止，不猜测或绕过。只修改本次临时配方，不回写远端 AUR，也不修改 yay 全局配置；官方查询、下载、校验、配方同步或安装失败时直接停止，不退回旧版来源。
+
+实现依据为 [yay 的获取及本地构建选项](https://github.com/Jguer/yay/blob/0938a75e98e63648ebf6e22ece6b4a30ec11a907/doc/yay.8)和[缺少 .SRCINFO 时的实际生成及依赖解析](https://github.com/Jguer/yay/blob/0938a75e98e63648ebf6e22ece6b4a30ec11a907/local_install.go)。这是显式启用的公共组合能力，不改变未传选项的安装和来源导出模式。
 
 ### AUR 来源中的官方 DEB
 

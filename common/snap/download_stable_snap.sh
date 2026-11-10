@@ -5,18 +5,30 @@ SNAP_NAME="${1:-}"
 PUBLISHER="${2:-}"
 ARCHITECTURE="${3:-}"
 OUTPUT="${4:-}"
+METADATA_OUTPUT="${5:-}"
 
 [[ "$SNAP_NAME" =~ ^[a-z][a-z0-9-]*$ && -n "$PUBLISHER" &&
   "$ARCHITECTURE" =~ ^(amd64|arm64)$ && -n "$OUTPUT" ]] || {
-  echo "用法：$0 <Snap 名称> <发布者帐号> <amd64|arm64> <输出文件>" >&2
+  echo "用法：$0 <Snap 名称> <发布者帐号> <amd64|arm64> <输出文件> [元数据 JSON 输出]" >&2
   exit 1
 }
 
+# 可选元数据只用于同次来源衔接，不能覆盖 Snap 自身或写入目录。
+if [[ -n "$METADATA_OUTPUT" ]]; then
+  [[ "$METADATA_OUTPUT" != / && ! -d "$METADATA_OUTPUT" &&
+    "$(realpath -m -- "$METADATA_OUTPUT")" != "$(realpath -m -- "$OUTPUT")" ]] || {
+    echo "错误：Snap 元数据输出路径无效，或与 Snap 输出重合。" >&2
+    exit 1
+  }
+fi
+
 INFO_FILE="$(mktemp)"
 TEMP_SNAP=""
+TEMP_METADATA=""
 cleanup() {
   rm -f -- "$INFO_FILE"
   [[ -z "$TEMP_SNAP" ]] || rm -f -- "$TEMP_SNAP"
+  [[ -z "$TEMP_METADATA" ]] || rm -f -- "$TEMP_METADATA"
 }
 trap cleanup EXIT
 
@@ -71,4 +83,16 @@ ACTUAL_SHA3="$(openssl dgst -sha3-384 -r "$TEMP_SNAP" | awk '{print $1}')"
 }
 mv -f -- "$TEMP_SNAP" "$OUTPUT"
 TEMP_SNAP=""
+
+# 只有完整 Snap 通过官方摘要后，才按需导出同次版本、地址与身份。
+if [[ -n "$METADATA_OUTPUT" ]]; then
+  mkdir -p -- "$(dirname -- "$METADATA_OUTPUT")"
+  TEMP_METADATA="$(mktemp "${METADATA_OUTPUT}.part.XXXXXX")"
+  jq -n --arg name "$SNAP_NAME" --arg publisher "$PUBLISHER" --arg architecture "$ARCHITECTURE" \
+    --arg version "$VERSION" --arg url "$URL" --arg sha3_384 "$EXPECTED_SHA3" \
+    '{name: $name, publisher: $publisher, architecture: $architecture,
+      version: $version, url: $url, sha3_384: $sha3_384}' > "$TEMP_METADATA"
+  mv -f -- "$TEMP_METADATA" "$METADATA_OUTPUT"
+  TEMP_METADATA=""
+fi
 printf '%s\n' "$VERSION"

@@ -1,14 +1,14 @@
 # BlueMail 固定配置
 
-本文登记当前应用的来源标识、程序布局及运行参数，不固定应用版本或 Snap 修订号。最终版本跟随本次 AUR 配方动态取得；详细执行阶段见[模板差异](./template-deviations.md)。
+本文登记当前应用的来源标识、程序布局及运行参数，不固定应用版本或 Snap 修订号。最终版本从本次 Snap Store 稳定通道动态取得，并同步到临时 AUR 配方；详细执行阶段见[模板差异](./template-deviations.md)。
 
 ## 来源、路径与用途
 
 | 配置 | 取值 | 依据与用途 |
 | --- | --- | --- |
-| 官方来源 | AUR `bluemail`、架构 `x86_64`、源文件名模板 `bluemail-{version}.snap` | 从同次 AUR 构建元数据唯一匹配官方 HTTPS Snap 来源，按原索引读取摘要；当前配方使用 SHA-512；本仓库不固定下载 URL、应用版本或 Snap 修订号。 |
-| 系统应用包 | `bluemail` | 公共安装入口显式启用 `--aur-source`，安装应用及依赖，并保留同次下载的完整原始 Snap；最终程序不复制已裁剪的系统安装目录。 |
-| 来源与版本输出 | `work/bluemail.snap`、`work/source-version.txt` | 安装缓存重新校验后导出归档；实际安装版本须与同次 `.SRCINFO` 的 `pkgver` 一致，封装前再由公共 `text` 来源读取。 |
+| 官方来源 | AUR `bluemail` / `x86_64`；Snap `bluemail` / `blix` / `amd64`；源文件名模板 `bluemail-{version}.snap` | AUR 提供安装配方，Snap Store 提供动态 `latest/stable` 包。核对发布者、架构、官方 SHA3-384 及新旧 Snap ID 后，仅同步临时配方的版本、来源和摘要；不固定 URL、应用版本或修订号。 |
+| 系统应用包 | `bluemail` | 公共安装入口显式启用 `--aur-source` 与 `--snap-stable bluemail blix amd64`，由 yay 本地配方模式安装官方稳定版及依赖，并保留同一份完整 Snap；最终程序不复制已裁剪的系统安装目录。 |
+| 来源与版本输出 | `work/bluemail.snap`、`work/source-version.txt` | 官方稳定版只下载一次，安装缓存重新校验后导出归档；实际安装版本须与重新生成的 `.SRCINFO` 的 `pkgver` 一致，封装前再由公共 `text` 来源读取。 |
 | 工作目录 | `work`、`AppDir`、`dist` | 公共工作区入口只处理应用根目录下明确列出的一级目录。 |
 | 实际程序目录 | `AppDir/shared/bin` | 保持官方 Electron 程序、库和资源的相邻关系，继续使用已确认的布局。 |
 | 主程序及 helper | `bluemail`、`chrome_crashpad_handler` | 与现有 Snap 构建入口一致，显式交给 quick-sharun 收集。 |
@@ -24,7 +24,7 @@
 
 ## 已有故障事实与证据位置
 
-完整故障经过和已有实机结论继续保存在 [README](../README.md)，本页不以概括替代该记录。可核实的关键原文与对应配置如下：
+完整故障经过和已有实机结论继续保存在 [README](../README.md)，本页不以概括替代该记录。2026-11-11 的来源核对发现 AUR `1.143.44` 落后于当时官方稳定版 `1.143.65`；因此显式启用稳定通道同步，而非继续按旧版本配方取包。可核实的关键原文与对应配置如下：
 
 | 已保存的现象或原文 | 对应配置及作用 | 记录位置 |
 | --- | --- | --- |
