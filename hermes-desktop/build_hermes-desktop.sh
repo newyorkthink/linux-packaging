@@ -27,8 +27,9 @@ APPIMAGE="$DIST_DIR/hermes-desktop.AppImage"
 ############ 下载并准备应用 #############
 
 # 下载最新正式 Release 标签的源码，成功后取得原始标签名。
-SOURCE_REF="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" \
-  NousResearch/hermes-agent "$SOURCE_DIR")"
+SOURCE_REF="$(
+  "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" NousResearch/hermes-agent "$SOURCE_DIR"
+)"
 
 ############### 核心打包 ###############
 
