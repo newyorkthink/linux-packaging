@@ -2,23 +2,27 @@
 
 ## 来源与构建
 
-`build_discord.sh` 使用 [LinuxDeploy GTK DEB 标准模板](../templates/appimage/linuxdeploy-gtk-deb.sh)，由[仓库生成器](../scripts/build/generate_build_script.md)完整生成。程序来自 [Discord 官网稳定版 DEB](https://discord.com/api/download?platform=linux&format=deb)，通过公共 DEB 入口的 `--url` 模式下载、核对包名 `discord` 和架构 `amd64`，再将同一份 DEB 安装到构建环境并按原布局解包到 AppDir。版本取该 DEB 的完整 `Version` 元数据，不固定软件版本。
+[build_discord.sh](./build_discord.sh) 继续使用 [LinuxDeploy GTK DEB 标准模板](../templates/appimage/linuxdeploy-gtk-deb.sh)，由统一生成器原样输出。先通过公共入口下载并安装 [Discord 官方稳定版 DEB](https://discord.com/api/download?platform=linux&format=deb)，取得依赖、desktop 和图标；这个 DEB 只提供引导安装器，不能作为完整客户端。
 
-程序路径保留为 `AppDir/usr/share/discord/Discord`。构建直接使用 Ubuntu 22.04 runner，由 linuxdeploy 的 GTK3 插件部署依赖并生成中间包，最后通过公共 appimagetool 封装入口生成 `dist/discord.AppImage`、设置产物权限并保存 `dist/version.txt`。
+真实主程序与全部模块从 Discord [stable 更新清单](https://updates.discord.com/distributions/app/manifests/latest?channel=stable&platform=linux&arch=x64) 对应的多份 `full.distro` 取得，每份核对清单中的官方 SHA-256，并通过公共归档入口解包。最终版本读取完整主程序的 `resources/build_info.json`，与同次清单版本强制比对，不再使用引导 DEB 的版本作为成品版本。
+
+完整程序与相邻资源放在 `AppDir/usr/lib/discord`，主入口为 `usr/lib/discord/Discord`，由 linuxdeploy 递归收集其依赖。模块原文件保存在 `usr/share/discord-modules`；其动态加载的已确认运行库显式收集，NSS 复用现有公共入口。依赖部署后恢复官方主程序并逐字节比较，再由公共 appimagetool 入口生成 `dist/discord.AppImage` 和 `dist/version.txt`。
+
+## 模块与运行入口
+
+完整 AppRun 保持内联，由生成器接入普通模块准备脚本，再直接执行真实程序。包内配置使用 `newUpdater=false`；模块复制到当前用户的 `discord/<版本>/modules`，Krisp 日志也在这个可写目录内。来源变化或桌面核心缺失时，仅重新部署当前版本的模块缓存，不清空整个 Discord 配置。
+
+不手工创建 linuxdeploy hook 或 `AppRun.wrapped`，最终入口包装由官方插件实际产物决定。此次恢复仅针对完整来源、实际入口、模块写入及部署后的官方文件保留；旧 quick 版的 Krisp 二进制补丁、图形开关和中文环境没有整段迁入。
 
 ## 当前流程与维护
 
-正式入口为 [build_discord.sh](./build_discord.sh)，由统一 Build AppImages 工作流中的独立 Ubuntu Job 构建。构建脚本原样采用标准生成结果；旧 quick-sharun 版本完整保存在 [build_discord_old.sh](./build_discord_old.sh)，不参与 Actions。`build_discord_news.sh` 仍是未登记的旧对照稿。
+构建继续在现有 Ubuntu 22.04 独立 Job 中执行，发布路径保持 `dist/discord.AppImage`。旧版 [build_discord_old.sh](./build_discord_old.sh) 原文保留，不参与 Actions；`build_discord_news.sh` 仍未登记为正式入口。
 
-新脚本不混入旧版的完整分发包下载、模块部署 hook、`newUpdater` 改写、Krisp 补丁、主程序恢复或语言环境修复。这些旧处理及其验证范围保留在备份和下方历史记录中，不代表新路线已经验证。
+- [模板差异](./docs/template-deviations.md)：实际故障、生成参数及恢复范围。
+- [固定配置](./docs/hardcoded.md)：完整来源、版本、程序布局和模块目录。
+- [上游取舍](./docs/pkgforge-differences.md)：完整分发参考与本次 LinuxDeploy 处理。
 
-完整 AppRun 内联在正式构建脚本中；最终入口是否由插件自动包装，以实际工具产物为准，不手工创建 hook 或 `AppRun.wrapped`。
-
-- [模板差异](./docs/template-deviations.md)：当前模板、参数、公共入口和生成来源。
-- [上游取舍](./docs/pkgforge-differences.md)：pkgforge-dev 参考与旧 quick 流程的保留范围。
-- [固定配置](./docs/hardcoded.md)：官方 DEB 来源、实际路径、GTK 配置和产物位置。
-
-以下为原 quick-sharun 流程的历史记录，原文保留。当前 LinuxDeploy 路线的生成记录见文末。
+以下保留既有故障与实机记录原文。不同打包路线的验证结论按各自条目区分。
 
 ## 2026-09-23：首次 CI 构建失败
 
@@ -125,3 +129,11 @@ Build Discord 运行 35960141408 虽然构建成功，但日志明确显示构�
 生成请求来自提交 `06715f116aab3ad54e4616b284a837ee38835545`，生成器运行 [42782651674](https://github.com/newyorkthink/linux-packaging/actions/runs/42782651674) 成功，输出及其中 AppRun 通过生成器自带的 Bash 语法检查。正式脚本原样采用该次输出，并在同次覆盖中清空生成请求。
 
 本次完成模板逐字比对、构建调度与公共调用的静态核对；新路线的 AppImage 构建和桌面运行尚未验证。历史 quick-sharun 成品的实机记录继续保留，不作为本次 LinuxDeploy 成品的验证结论。
+
+## 2026-11-10：修正引导 DEB 与完整客户端的混淆
+
+用户运行约 31.4 MiB 的新成品时，AppRun 报告包内 `usr/share/discord/Discord` 不存在。构建运行 [42784000043](https://github.com/newyorkthink/linux-packaging/actions/runs/42784000043) 的日志显示，本次只下载了 2331 KiB 的官方 DEB，版本为 `1.0.168`。该包是引导器，原脚本既未取得完整客户端，又填写了不存在的启动路径；Job 成功不代表成品可以运行。
+
+本次按已有问题证据恢复完整分发下载和模块准备，继续使用 LinuxDeploy。官方 DEB 用于环境安装和桌面资源；实际客户端及模块改从 stable 清单下载、逐份校验，实际程序版本覆盖引导 DEB 版本。完整入口和桌面核心缺失、包内版本与清单不一致时，立即停止构建。
+
+正式脚本原样采用生成器运行 [42789334037](https://github.com/newyorkthink/linux-packaging/actions/runs/42789334037) 的结果；该结果及其中 AppRun 已通过生成器的 Bash 语法检查。两个专属 helper、调用路径、执行顺序和完整 diff 已作静态核对；修正后成品的构建及桌面运行结果尚未确认。

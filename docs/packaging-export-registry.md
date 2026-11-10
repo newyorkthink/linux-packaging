@@ -20,7 +20,7 @@
 
 例如，当前 Electron 直接下载模板要求 `DEPLOY_GTK=1`；`DEPLOY_OPENGL`、`DEPLOY_VULKAN` 则按当前应用的实际需要和已批准方案决定，不是所有程序的必填项。某个变量出现在官方脚本或登记表中，不等于所有应用都应启用。
 
-Discord 现按 [LinuxDeploy GTK DEB 标准](../discord/docs/template-deviations.md)完整生成，使用 `DEPLOY_GTK_VERSION=3` 及标准 AppRun 搜索路径。原 quick-sharun 开关和显式扫描仅保留在不参与 Actions 的 `build_discord_old.sh`，不带入当前正式入口。
+Discord 现按 [LinuxDeploy GTK DEB 标准](../discord/docs/template-deviations.md)生成，并启用完整应用及可写模块准备阶段；使用 `DEPLOY_GTK_VERSION=3`，AppRun 指向实际 `usr/lib/discord` 布局。原 quick-sharun 开关和显式扫描仍只保留在不参与 Actions 的 `build_discord_old.sh`。
 
 **必需项不能漏，已确认必要的配置不能擅删，不需要的配置不能为了统一而添加。** 不同程序的变量取值和经批准的专属项可以不同，不能把这些差异直接判为漏项或模板不一致。
 
@@ -49,7 +49,7 @@ Discord 现按 [LinuxDeploy GTK DEB 标准](../discord/docs/template-deviations.
 | `LDAI_RUNTIME_FILE` | linuxdeploy 使用的 AppImage runtime 文件。 | common |
 | `DEBIAN_FRONTEND` | apt 安装时不弹问题。非交互构建用 noninteractive。 | 5 个脚本，例如 rainlendar2、rvncconnect、remmina |
 | `NO_STRIP` | 打包时不剥调试符号。 | 例如 aionui、bluemail、chatgpt、todesk、webcamoid；discord 的旧 quick 备份保留主程序和原生模块符号 |
-| `VERSION` | 写进成品的实际软件版本，可包含官方软件包修订号。 | 例如 aionui、alttab、bluemail、tradingview；discord 从安装并解包的同一份官方 DEB 读取完整版本 |
+| `VERSION` | 写进成品的实际软件版本，可包含官方软件包修订号。 | 例如 aionui、alttab、bluemail、tradingview；discord 从同次官方完整主程序配置读取版本并与 stable manifest 比对，引导 DEB 版本只作临时记录 |
 | `OUTNAME` | 最终 AppImage 的文件名。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
 | `OUTPATH` | 最终 AppImage 的输出目录，一般是 ./dist。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
 | `APPNAME` | quick-sharun 用的应用名，用来生成入口和文件名。 | 例如 aionui、android-tools、bluemail、todesk |
@@ -121,7 +121,7 @@ Discord 现按 [LinuxDeploy GTK DEB 标准](../discord/docs/template-deviations.
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
 | `PATH` | 可执行文件搜索路径。包内 bin 放前面。 | 例如 baidunetdisk、binance、chatgpt；dingtalk 保留包内 usr/bin 与宿主原 PATH |
-| `LD_LIBRARY_PATH` | 动态库搜索路径。包内库放前面。 | 例如 baidunetdisk、binance、dconf-editor；dingtalk 按原顺序使用官方 release、CEF 与专属依赖目录；tradingview、todesk 仅在依赖收集命令前临时指定完整程序目录；discord 的标准 AppRun 将 `usr/share/discord` 与 `usr/lib` 放在原搜索路径前 |
+| `LD_LIBRARY_PATH` | 动态库搜索路径。包内库放前面。 | 例如 baidunetdisk、binance、dconf-editor；dingtalk 按原顺序使用官方 release、CEF 与专属依赖目录；tradingview、todesk 仅在依赖收集命令前临时指定完整程序目录；discord 的标准 AppRun 将真实程序目录 `usr/lib/discord` 与 `usr/lib` 放在原搜索路径前 |
 | `XDG_DATA_DIRS` | 共享数据搜索目录，包括 desktop、locale 和 schema。包内 usr/share 放前面。 | 16 个脚本，例如 baidunetdisk、binance、dconf-editor |
 | `XDG_CONFIG_DIRS` | 配置文件搜索目录。包内目录放前面。 | kde-suite |
 | `APPDIR` | AppImage 解包后的根目录。运行时用来拼包内路径。 | 8 个脚本，例如 dconf-editor、kitty、mission-center |

@@ -1,25 +1,26 @@
 # Discord 上游处理取舍
 
-## 当前构建依据
+## 本次核对来源
 
-正式入口 [build_discord.sh](../build_discord.sh) 按本次要求使用仓库 [LinuxDeploy GTK DEB 标准模板](../../templates/appimage/linuxdeploy-gtk-deb.sh)，由生成器原样生成。程序来自 Discord 官方稳定版 DEB，构建直接在 Ubuntu 22.04 runner 中运行。生成参数和公共入口见[模板差异](./template-deviations.md)。
+完整分发参考 [pkgforge-dev/Discord-AppImage](https://github.com/pkgforge-dev/Discord-AppImage/tree/3621ca5185b9f494894aaaef25e5208316bb74ac) 的 `3621ca5185b9f494894aaaef25e5208316bb74ac` 提交：
 
-pkgforge-dev 的 quick-sharun 方案保留为旧版参考，不与本次标准生成结果拼接。原 quick 流程逐字保存在 [build_discord_old.sh](../build_discord_old.sh)，不参与 Actions。
+- [get-dependencies.sh](https://github.com/pkgforge-dev/Discord-AppImage/blob/3621ca5185b9f494894aaaef25e5208316bb74ac/get-dependencies.sh)：使用官方 stable manifest 下载完整主程序与原生模块，生成 `installed.json`。
+- [make-appimage.sh](https://github.com/pkgforge-dev/Discord-AppImage/blob/3621ca5185b9f494894aaaef25e5208316bb74ac/make-appimage.sh)：quick-sharun 的依赖扫描及封装。
+- [disable-discord-updater.hook](https://github.com/pkgforge-dev/Discord-AppImage/blob/3621ca5185b9f494894aaaef25e5208316bb74ac/AppDir/bin/disable-discord-updater.hook)：旧 quick 方案的模块部署参考。
 
-## 已核对的旧版参考
+LinuxDeploy 扫描范围核对官方提交 `07333c6e942c7d71782b66be924c5d867f9dfdfc` 的 [appdir.cpp](https://github.com/linuxdeploy/linuxdeploy/blob/07333c6e942c7d71782b66be924c5d867f9dfdfc/src/core/appdir.cpp)：`usr/bin` 识别可执行文件，`usr/lib` 递归识别 ELF 并部署依赖；扫描后会处理 RPATH。因此完整程序放入 `usr/lib/discord` 参与扫描，部署后恢复官方主程序原文件。模块原文件放在 `usr/share/discord-modules`，其已确认的动态加载依赖显式收集。
 
-此前核对 [pkgforge-dev/Discord-AppImage](https://github.com/pkgforge-dev/Discord-AppImage/tree/3621ca5185b9f494894aaaef25e5208316bb74ac) 的 `3621ca5185b9f494894aaaef25e5208316bb74ac` 提交：
+完整客户端的运行依赖补查 [NixOS 当前 Linux 实现](https://github.com/NixOS/nixpkgs/blob/c0f37fa6dfb282ccf80dfeec471b984e276a7ce9/pkgs/by-name/di/discord/linux.nix)：包含 C++、PulseAudio 及 NSS 等运行库，并明确说明未使用的 `discord_dispatch` 仍链接旧 OpenSSL。本次不让模块模板参与全量 ELF 改写，保留其原文件；按明确的实际运行库列表准备 C++、PulseAudio 等依赖，不为该未使用模块引入旧 OpenSSL。
 
-- [get-dependencies.sh](https://github.com/pkgforge-dev/Discord-AppImage/blob/3621ca5185b9f494894aaaef25e5208316bb74ac/get-dependencies.sh)：stable manifest、完整主程序和模块下载。
-- [make-appimage.sh](https://github.com/pkgforge-dev/Discord-AppImage/blob/3621ca5185b9f494894aaaef25e5208316bb74ac/make-appimage.sh)：quick-sharun 的扫描及封装。
-- [disable-discord-updater.hook](https://github.com/pkgforge-dev/Discord-AppImage/blob/3621ca5185b9f494894aaaef25e5208316bb74ac/AppDir/bin/disable-discord-updater.hook)：模块链接与更新器设置。
-- [appimage.yml](https://github.com/pkgforge-dev/Discord-AppImage/blob/3621ca5185b9f494894aaaef25e5208316bb74ac/.github/workflows/appimage.yml)：Arch 容器中的构建与发布。
+## 当前处理
 
-| 旧方案处理 | 本次标准生成范围 |
+| 上游或旧版行为 | 本次取舍 |
 | --- | --- |
-| 通过 manifest 下载完整主程序及模块 | 新版使用官方 DEB 来源，不带入该下载逻辑。 |
-| 模块部署 hook、用户更新器设置与 `NODE_PRESERVE_SYMLINKS` | 新版不加入这些步骤或变量。 |
-| quick-sharun 扫描、图形开关和 Krisp 处理 | 仅保留旧备份，不移植到 LinuxDeploy 脚本。 |
-| Arch 容器 | 新版使用独立 Ubuntu runner，遵守 LinuxDeploy 禁止容器的要求。 |
+| 从 stable manifest 下载完整主程序和原生模块 | 采用；所有下载复用公共入口，并核对清单中的官方 SHA-256。 |
+| 使用 `Discord-Updater/1` | 采用官方分发所需的客户端标识，由公共下载入口接收，不自行实现下载器。 |
+| Arch 容器、quick-sharun 和 `AppDir/bin` | 保留 LinuxDeploy 的 Ubuntu runner、标准 AppRun、GTK3 部署和公共最终封装；真实程序改放 `usr/lib/discord` 以参与扫描。 |
+| 模块链接到用户版本目录 | 保留本仓库可写复制，避免模块和 Krisp 日志写入只读挂载点；通过普通 AppRun 调用准备，不创建 linuxdeploy hook。 |
+| 按 Arch 安装包读取版本 | 最终版本改取同次完整程序配置，并与 manifest 强制比对。 |
+| 图形开关、自更新、系统升级与上游测试 | 不迁入本次来源修复。 |
 
-此前 Flathub 配置及 `newUpdater` 问题的核对属于旧 quick 流程，不作为本次新增补丁的依据。原始模块故障、当时处理及历史实机结果继续保留在 [README](../README.md)；新路线的 AppImage 构建与桌面运行尚未验证。
+恢复的完整来源、模块复制和主程序比对均对应已有实际问题；旧 quick 的 Krisp JE/NOP 补丁未恢复。具体位置、生成参数与验证事实见[模板差异](./template-deviations.md)及 [README](../README.md)。

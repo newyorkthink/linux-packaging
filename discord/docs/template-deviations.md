@@ -1,31 +1,32 @@
 # Discord 模板差异说明
 
-## 当前标准与生成来源
+## 当前标准与实际问题
 
-[build_discord.sh](../build_discord.sh) 由固定模板 [linuxdeploy-gtk-deb.sh](../../templates/appimage/linuxdeploy-gtk-deb.sh) 完整生成，只填写允许变化的参数，正文、注释、顺序及空行原样保留。当前流程登记在[打包分类](../../docs/packaging-classification.md#linuxdeploy)，不再作为 quick-sharun 专用流程。
+[build_discord.sh](../build_discord.sh) 仍由固定 [LinuxDeploy GTK DEB 模板](../../templates/appimage/linuxdeploy-gtk-deb.sh)完整生成，保留 Ubuntu 22.04、GTK3、内联 AppRun 和公共最终封装。生成运行 [42789334037](https://github.com/newyorkthink/linux-packaging/actions/runs/42789334037) 来自提交 `c0ed3c55b4756077ccdc144776fee56b66cca875`，输出 SHA-256 为 `6ac3053d1e823813d2fd37161cb8a518156b4f94c1645335dee7a07b31dd1723`；正式脚本与该输出逐字一致。
 
-生成器运行 [42782651674](https://github.com/newyorkthink/linux-packaging/actions/runs/42782651674) 使用提交 `06715f116aab3ad54e4616b284a837ee38835545` 的模板与请求。输出 SHA-256 为 `da70e6600df9188533c16e1b6ec5b8864cdb9c5410011f9f60d413685325b043`；正式脚本直接采用该输出，覆盖时同步清空请求。
+上一轮运行 [42784000043](https://github.com/newyorkthink/linux-packaging/actions/runs/42784000043) 只取得 2331 KiB 的官方引导 DEB，未包含完整客户端，生成入口还指向不存在的 `usr/share/discord/Discord`。用户启动成品后报 `No such file or directory`。因此本次恢复有直接证据支持的完整来源与模块准备，不把旧 quick 流程整体搬回。
 
-## 应用参数
+## 固定标准与专属阶段
 
-| 参数 | 取值与依据 |
-| --- | --- |
-| 模板与构建环境 | `appimage/linuxdeploy-gtk-deb.sh`；Ubuntu 22.04 runner，直接运行，不使用容器。 |
-| `APP_NAME` | `discord`，对应构建目录、发布资产与版本登记。 |
-| `DEB_URL` | `https://discord.com/api/download?platform=linux&format=deb`，Discord 官方稳定版 Linux DEB。 |
-| `DEB_FILENAME` | `discord.deb`，本次下载包的存放名称。 |
-| `DEB_PACKAGE` / `DEB_ARCH` | `discord` / `amd64`，在安装前核对包身份。 |
-| `APP_BIN_DIR` / `APP_LIB_DIR` | `usr/share/discord`，保留官方应用及相邻库布局。 |
-| `MAIN_EXECUTABLE` | `usr/share/discord/Discord`，AppRun 直接执行官方入口并保留参数。 |
-| `GIO_MODULE_DIR` | `usr/lib/x86_64-linux-gnu/gio/modules`，与 Ubuntu amd64 的 GTK3 模块布局对应。 |
-| `APT_PACKAGES` | 标准 GTK3 开发、资源和 IBus 依赖；DEB 自身依赖由公共安装入口解析。 |
+| 位置 | 本次处理 | 依据与影响 |
+| --- | --- | --- |
+| 原 DEB 来源阶段 | 保留公共 `--url` 下载、安装及解包 | 取得构建环境依赖、官方 desktop 和图标，不能把其引导器当完整客户端。 |
+| `APPLICATION_PREPARE` | 调用 `patches/prepare_application.sh prepare` | 从同次 stable 清单下载完整主程序及全部模块，逐份核对官方 SHA-256，返回完整程序实际版本。 |
+| 程序与模块布局 | `usr/lib/discord`、`usr/share/discord-modules` | 完整主程序参与递归扫描；模块模板保持官方原文件，动态加载的已确认运行库显式收集。 |
+| `APPRUN_PREPARE` | 调用包内 `usr/lib/discord/prepare_modules.sh` | 把模块放入用户可写的版本目录，和包内 `newUpdater=false` 保持一致。 |
+| `APPLICATION_FINALIZE` | 调用 `patches/prepare_application.sh finalize` | 依赖部署后从本次已校验来源恢复官方主程序并逐字节比较；模块模板未交给 ELF 改写。 |
+| 原最终封装 | 继续调用 `common/linuxdeploy/package_appimage.sh` | 处理正式 AppImage、产物权限、SHA-256 和实际版本保存，发布路径不变。 |
 
-本次未提供官方 SHA-256，公共入口仍记录实际下载文件的 SHA-256；该记录不作为官方摘要校验的证明。后续来源提供官方摘要时，可通过同一模板的 `DEB_SHA256` 参数传入，无需应用自行实现下载或校验。
+## 参数与版本
 
-## 公共阶段
+`APP_BIN_DIR`、`APP_LIB_DIR` 为 `usr/lib/discord`，`MAIN_EXECUTABLE` 为 `usr/lib/discord/Discord`；`GIO_MODULE_DIR` 仍是 Ubuntu amd64 的 `usr/lib/x86_64-linux-gnu/gio/modules`。新增依赖提供 `jq`、Brotli、C++ 运行库及完整 Electron 程序需要的运行库，原 GTK 标准依赖保持原顺序。动态加载库按旧版已确认的明确列表收集，并补入完整模块需要的 `libc++.so.1`；依赖收集交给 linuxdeploy，NSS/NSPR 由现有公共入口统一准备。
 
-按标准顺序复用工作区准备、APT 安装、linuxdeploy 工具准备、空 AppDir 初始化、官方 DEB 下载与安装解包、完整 AppRun、GTK3 依赖部署和最终 appimagetool 封装。版本从所安装并解包的同一份 DEB 读取，由最终封装入口写入 `dist/version.txt`。
+引导 DEB 的临时版本由来源阶段取得；完整准备阶段用 `common/build/read_app_version.sh package-json` 读取真实 `build_info.json`，并与清单 `full.host_version` 数组还原的版本比较，最终 `version.txt` 使用该完整版本。
 
-正式脚本没有模板外的附加代码。原版 [build_discord_old.sh](../build_discord_old.sh) 保留旧 quick-sharun 流程，不参与 Actions；旧模块、Krisp、图形和语言处理均未恢复到新路线。完整故障历史原样保留在 [README](../README.md)。
+## 恢复范围与旧版保留
 
-本次已完成生成器语法检查和静态核对，AppImage 构建与桌面运行结果尚未验证。
+完整主程序、官方模块、版本比对和可写复制取自 [build_discord_old.sh](../build_discord_old.sh) 中直接对应本次故障的部分。新布局适配 LinuxDeploy，运行准备是普通脚本调用，不手写或注入 `apprun-hooks`，不伪造 `AppRun.wrapped`。模块按来源标记更新，已有模块自身升级不会仅因 `installed.json` 改变而被覆盖。
+
+旧 quick 的 Krisp JE/NOP 补丁、额外图形开关、locale、专属输入模块扫描和加载器布局不恢复。主程序与模块使用官方原文件；旧备份保留且不参与任何 Action。
+
+生成器已检查正式主脚本和内联 AppRun 的 Bash 语法；helper 已作静态核对，本次未作桌面运行验证。历史和实际错误见 [README](../README.md)。
