@@ -2,9 +2,19 @@
 
 ## 来源与构建
 
-`build_discord.sh` 从 [Discord 官网](https://discord.com/download)动态下载 stable Linux tar.gz，只提取官方 `discord.desktop` 和 `discord.png`。官网归档中的程序入口是 bootstrap，不作为 AppImage 主程序；完整 stable 主程序及模块从 Discord 官方更新清单对应的 `full.distro` 动态取得，并统一通过 `common/archive/extract_archive.sh` 解包。脚本核对清单版本与完整包内 `resources/build_info.json` 一致后，把真实程序树放入 `AppDir/shared/bin` 保持 Electron 相邻资源布局，再使用 quick-sharun 封装 `dist/discord.AppImage` 和 `dist/version.txt`。
+`build_discord.sh` 从 [Discord 官网](https://discord.com/download)动态下载 stable Linux tar.gz，只提取官方 `discord.desktop` 和 `discord.png`。官网归档中的程序入口是 bootstrap，不作为 AppImage 主程序；完整 stable 主程序及模块从 Discord 官方更新清单对应的 `full.distro` 动态取得，并统一通过 `common/archive/extract_archive.sh` 解包。真实程序树先放入 `AppDir/shared/bin` 保持 Electron 相邻资源布局，再将包内 `newUpdater` 设为 `false`，读取 `resources/build_info.json` 的版本并与清单比较，最后使用 quick-sharun 封装 `dist/discord.AppImage`，由公共入口保存 `dist/version.txt`。
 
-不运行官方 `postinst.sh` 或 bootstrap，不修改宿主机 AppArmor、服务或用户配置。官方完整程序下载需要访问 `updates.discord.com`；构建环境无法连接时构建会失败，不会发布只有安装器的假 AppImage。实际桌面运行状态以本 README 后续记录为准。
+不运行官方 `postinst.sh` 或 bootstrap，不修改宿主机 AppArmor 或服务。启动 hook 只在当前用户的 Discord 配置目录部署本版本模块，供程序正常读写。官方完整程序下载需要访问 `updates.discord.com`；构建环境无法连接时构建会失败，不会发布只有安装器的假 AppImage。实际桌面运行状态以本 README 后续记录为准。
+
+## 当前流程与维护
+
+当前正式构建入口为 [build_discord.sh](./build_discord.sh)，继续由统一的 Build AppImages 调度。固定模板适用片段优先参考 [electron-deb.sh](../templates/quick-sharun/electron-deb.sh)、已标准化的 [Cursor](../cursor/build_cursor.sh) 和 [Obsidian](../obsidian/build_obsidian.sh)；完整分发包、模块部署和 Krisp 处理作为 Discord 专用流程保留。
+
+- [模板差异](./docs/template-deviations.md)：固定模板不适用的原因、复用的公共入口和专属阶段。
+- [上游取舍](./docs/pkgforge-differences.md)：本次核对的 pkgforge-dev 源码及采用、未采用部分。
+- [固定配置](./docs/hardcoded.md)：模块根、程序布局、图形开关、版本和输入环境。
+
+`build_discord_news.sh` 是模板对照稿，未登记为正式构建入口；当前维护和发布均以 `build_discord.sh` 为准。
 
 ## 2026-09-23：首次 CI 构建失败
 
@@ -94,3 +104,12 @@ Build Discord 运行 35960141408 虽然构建成功，但日志明确显示构�
 
 同一次日志里的 Fontconfig 缓存版本不一致、`Glycin running without sandbox`、`vaInitialize failed`、`Failed to connect to Wayland display` 和 `gtk_widget_add_accelerator` 都没有阻止启动。这些不作为这次的打包故障。
 
+## 2026-11-10：修复 1.0.169 的模块目录不一致
+
+用户运行 Linux AppImage 1.0.169 时，包内 `app.asar` 的 `bundle.js` 报告 `Cannot find module 'discord_desktop_core'`。同一启动日志包含 `Starting updater.`，模块搜索根为默认配置目录下的 `discord/module_data`；已有 hook 则把完整模块复制到 `discord/<版本>/modules`，其中已有 `discord_desktop_core/index.js` 和 `core.asar`。故障来自搜索根与部署目录不一致。
+
+官方完整程序的 `resources/build_info.json` 使用 `newUpdater=true` 时选择新模块根；现有可写部署 hook 对应旧版模块根。因此在完整程序复制到 `AppDir/shared/bin` 后，仅把包内配置的 `newUpdater` 改为 `false`，随后由公共版本入口读取该配置的字符串版本，并与官方清单 `full.host_version` 数组还原的版本比较；不一致即停止构建。
+
+此次保留模块部署 hook 的原目标、复制机制和缓存判断，不设置指向只读 AppImage 挂载点的 `localModulesRoot`。Krisp 补丁、官方主程序恢复后的逐字节比较、两个显式 GTK3 输入模块、图形开关和中文环境继续保留。
+
+脚本同时复用标准工作区准备、包内版本读取和最终版本保存入口；最终产物权限由公共保存入口统一处理。本次完成静态核对，修复后的构建和运行结果以后续实际记录为准。

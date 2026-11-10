@@ -23,6 +23,8 @@ TradingView 条目于 2026-11-02 按应用名及 trading-view 别名单独复核
 
 Obsidian 条目于 2026-11-08 单独复核，更新依赖、封装及 workflow 的固定源码链接。
 
+Discord 条目于 2026-11-10 单独复核，更新完整分发、模块 hook 和封装流程的参考，专用流程及取舍见该行应用说明。
+
 | 本仓库项目 | 上游打包仓库 | 上游构建代码 | 本仓库说明 |
 | --- | --- | --- | --- |
 | [adspower-global](../adspower-global/build_adspower-global.sh) |  |  | [README](../adspower-global/README.md) |
@@ -44,7 +46,7 @@ Obsidian 条目于 2026-11-08 单独复核，更新依赖、封装及 workflow �
 | [deepseek-harness-desktop](../deepseek-harness-desktop/build_deepseek-harness-desktop.sh) |  |  | [模板差异](../deepseek-harness-desktop/docs/template-deviations.md) · [README](../deepseek-harness-desktop/README.md) |
 | [deskflow](../deskflow/build_deskflow.sh) |  |  | [README](../deskflow/README.md) |
 | [dingtalk](../dingtalk/build_dingtalk.sh) |  |  | [模板差异](../dingtalk/docs/template-deviations.md) · [固定参数](../dingtalk/docs/hardcoded.md) · [README](../dingtalk/README.md) |
-| [discord](../discord/build_discord.sh) | [Discord-AppImage](https://github.com/pkgforge-dev/Discord-AppImage) | [依赖](https://github.com/pkgforge-dev/Discord-AppImage/blob/1c4d7852f9272339885497587d2b5f6eb2829ae3/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Discord-AppImage/blob/1c4d7852f9272339885497587d2b5f6eb2829ae3/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Discord-AppImage/blob/1c4d7852f9272339885497587d2b5f6eb2829ae3/.github/workflows/appimage.yml) | [README](../discord/README.md) |
+| [discord](../discord/build_discord.sh) | [Discord-AppImage](https://github.com/pkgforge-dev/Discord-AppImage) | [依赖](https://github.com/pkgforge-dev/Discord-AppImage/blob/3621ca5185b9f494894aaaef25e5208316bb74ac/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Discord-AppImage/blob/3621ca5185b9f494894aaaef25e5208316bb74ac/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Discord-AppImage/blob/3621ca5185b9f494894aaaef25e5208316bb74ac/.github/workflows/appimage.yml) | [上游取舍](../discord/docs/pkgforge-differences.md) · [模板差异](../discord/docs/template-deviations.md) · [固定参数](../discord/docs/hardcoded.md) · [README](../discord/README.md) |
 | [escrcpy](../escrcpy/build_escrcpy.sh) |  |  | [README](../escrcpy/README.md) |
 | [feishu](../feishu/build_feishu.sh) |  |  | [README](../feishu/README.md) |
 | [file-roller](../file-roller/build_file-roller.sh) |  |  | [模板差异](../file-roller/docs/template-deviations.md) · [README](../file-roller/README.md) |

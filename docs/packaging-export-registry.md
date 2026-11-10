@@ -20,6 +20,8 @@
 
 例如，当前 Electron 直接下载模板要求 `DEPLOY_GTK=1`；`DEPLOY_OPENGL`、`DEPLOY_VULKAN` 则按当前应用的实际需要和已批准方案决定，不是所有程序的必填项。某个变量出现在官方脚本或登记表中，不等于所有应用都应启用。
 
+Discord 按[专用流程](../discord/docs/template-deviations.md)维护，保留 `DEPLOY_OPENGL=0`、`DEPLOY_VULKAN=0` 和 `NO_STRIP=1`，不设置 `DEPLOY_GTK=1`；两个 GTK3 输入模块仍显式扫描，不把通用模板的开关机械套入该程序。
+
 **必需项不能漏，已确认必要的配置不能擅删，不需要的配置不能为了统一而添加。** 不同程序的变量取值和经批准的专属项可以不同，不能把这些差异直接判为漏项或模板不一致。
 
 通用注释、排列顺序和空行遵守对应模板；专属差异及依据记录在对应应用的 docs，并同步维护受影响的应用说明。新增或修改 export 时必须核对登记表；涉及新增变量、用途或使用位置变化时，同步更新登记表。不得借此批量改动已经确认稳定的应用脚本。
@@ -46,8 +48,8 @@
 | `LDAI_NO_APPSTREAM` | linuxdeploy 不生成 AppStream 元数据。 | 3 个脚本，例如 mediainfo、poppler-utils |
 | `LDAI_RUNTIME_FILE` | linuxdeploy 使用的 AppImage runtime 文件。 | common |
 | `DEBIAN_FRONTEND` | apt 安装时不弹问题。非交互构建用 noninteractive。 | 5 个脚本，例如 rainlendar2、rvncconnect、remmina |
-| `NO_STRIP` | 打包时不剥调试符号。 | 例如 aionui、bluemail、chatgpt、todesk、webcamoid |
-| `VERSION` | 写进成品的实际软件版本，可包含官方软件包修订号。 | 例如 aionui、alttab、bluemail、tradingview |
+| `NO_STRIP` | 打包时不剥调试符号。 | 例如 aionui、bluemail、chatgpt、todesk、webcamoid；discord 保留主程序和原生模块符号 |
+| `VERSION` | 写进成品的实际软件版本，可包含官方软件包修订号。 | 例如 aionui、alttab、bluemail、tradingview；discord 从完整程序配置读取并与官方清单比较 |
 | `OUTNAME` | 最终 AppImage 的文件名。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
 | `OUTPATH` | 最终 AppImage 的输出目录，一般是 ./dist。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
 | `APPNAME` | quick-sharun 用的应用名，用来生成入口和文件名。 | 例如 aionui、android-tools、bluemail、todesk |
@@ -91,8 +93,8 @@
 | --- | --- | --- |
 | `I_WANT_FAT_APPIMAGE` | 构建时设为 `1`，允许已收集的 Mesa `libgallium` 保留对 LLVM 的依赖，并继续打包；不执行删库或精简软件包替换。 | `.github/workflows/build.yml` 的工作流级 `env`，供其中调用 quick-sharun 的构建使用；不写入应用运行时配置。 |
 | `DEPLOY_GTK` | quick-sharun 是否打入 GTK。 | 例如 Keyviz、aionui、antigravity-ide、grok-app、gemini、todesk |
-| `DEPLOY_OPENGL` | quick-sharun 是否打入 OpenGL / Mesa。 | 35 个脚本，例如 Keyviz、aionui、antigravity-ide、grok-app |
-| `DEPLOY_VULKAN` | quick-sharun 是否打入 Vulkan。 | 22 个脚本，例如 aionui、antigravity-ide、antigravity |
+| `DEPLOY_OPENGL` | quick-sharun 是否打入 OpenGL / Mesa。 | 35 个脚本，例如 Keyviz、aionui、antigravity-ide、grok-app；discord 固定为 0，关闭主动部署 |
+| `DEPLOY_VULKAN` | quick-sharun 是否打入 Vulkan。 | 22 个脚本，例如 aionui、antigravity-ide、antigravity；discord 固定为 0，关闭主动部署 |
 | `DEPLOY_PIPEWIRE` | quick-sharun 是否打入 PipeWire。 | 21 个脚本，例如 aionui、chatgpt、cursor |
 | `DEPLOY_PULSE` | quick-sharun 是否打入 PulseAudio。 | webcamoid |
 | `DEPLOY_QT` | quick-sharun 是否打入 Qt。 | 4 个脚本：copyq、freedownloadmanager、obs-studio、webcamoid |
@@ -109,8 +111,8 @@
 | `DEPLOY_COMMON_LIBS` | quick-sharun 是否打入一批常见系统库。 | chatgpt |
 | `DEPLOY_P11KIT` | quick-sharun 是否打入 p11-kit 证书模块。 | chatgpt |
 | `DEPLOY_DATADIR` | quick-sharun 是否把数据目录打进包。0 是不打。 | deepseek-harness |
-| `SHARUN_WORKING_DIR` | quick-sharun 的工作目录，一般是主程序所在目录。 | 例如 aionui、chatgpt、feishu；tradingview 和 mailmaster 在 `.env` 中指向包内 `bin`，todesk 在运行 hook 中指向可写副本 bin |
-| `SHARUN_EXTRA_LIBRARY_PATH` | quick-sharun 额外扫描这些目录里的库。 | 例如 aionui、chatgpt、feishu。mailmaster 在 `.env` 中加入包内 `bin` 和 `bin/lib`，todesk 在运行 hook 中指向可写副本 `bin` |
+| `SHARUN_WORKING_DIR` | quick-sharun 的工作目录，一般是主程序所在目录。 | 例如 aionui、chatgpt、feishu；tradingview 和 mailmaster 在 `.env` 中指向包内 `bin`，todesk 在运行 hook 中指向可写副本 bin；discord 在 `.env` 中指向真实程序树 `shared/bin` |
+| `SHARUN_EXTRA_LIBRARY_PATH` | quick-sharun 额外扫描这些目录里的库。 | 例如 aionui、chatgpt、feishu。mailmaster 在 `.env` 中加入包内 `bin` 和 `bin/lib`，todesk 在运行 hook 中指向可写副本 `bin`；discord 在 `.env` 中保留 `shared/bin` 相邻库路径 |
 | `SHARUN_ALLOW_QT_PLUGIN_PATH` | 允许 quick-sharun 保留应用自己设的 QT_PLUGIN_PATH，不把它清掉。 | mailmaster 和 wps-office-cn 在 `AppDir/.env` 中设置。 |
 | `NO_AT_BRIDGE` | 不连接无障碍总线，避免启动时卡住或刷警告。 | 3 个脚本，例如 joplin、peazip、ventoy |
 
@@ -119,7 +121,7 @@
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
 | `PATH` | 可执行文件搜索路径。包内 bin 放前面。 | 例如 baidunetdisk、binance、chatgpt；dingtalk 保留包内 usr/bin 与宿主原 PATH |
-| `LD_LIBRARY_PATH` | 动态库搜索路径。包内库放前面。 | 例如 baidunetdisk、binance、dconf-editor；dingtalk 按原顺序使用官方 release、CEF 与专属依赖目录；tradingview、todesk 仅在依赖收集命令前临时指定完整程序目录 |
+| `LD_LIBRARY_PATH` | 动态库搜索路径。包内库放前面。 | 例如 baidunetdisk、binance、dconf-editor；dingtalk 按原顺序使用官方 release、CEF 与专属依赖目录；tradingview、todesk、discord 仅在依赖收集命令前临时指定完整程序目录 |
 | `XDG_DATA_DIRS` | 共享数据搜索目录，包括 desktop、locale 和 schema。包内 usr/share 放前面。 | 16 个脚本，例如 baidunetdisk、binance、dconf-editor |
 | `XDG_CONFIG_DIRS` | 配置文件搜索目录。包内目录放前面。 | kde-suite |
 | `APPDIR` | AppImage 解包后的根目录。运行时用来拼包内路径。 | 8 个脚本，例如 dconf-editor、kitty、mission-center |
