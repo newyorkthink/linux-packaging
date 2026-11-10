@@ -44,6 +44,12 @@ export OUTPATH="$SCRIPT_DIR/dist"
 export OUTNAME="discord.AppImage"
 # 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
+# 本程序专属处理：关闭宿主 OpenGL 驱动的主动部署。
+export DEPLOY_OPENGL=0
+# 本程序专属处理：关闭宿主 Vulkan 驱动的主动部署。
+export DEPLOY_VULKAN=0
+# 本仓库兼容处理：保留程序和原生模块的符号。
+export NO_STRIP=1
 
 # 读取本次打包使用的版本。
 VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json "AppDir/bin/resources/build_info.json")"
