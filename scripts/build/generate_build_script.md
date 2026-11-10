@@ -68,6 +68,10 @@ python3 scripts/build/generate_build_script.py --template "<模板相对路径>"
 
 普通占位参数使用字符串，`VERSION_FIELD` 使用正整数。包名列表使用 JSON 数组，模板允许为空的依赖列表用 `[]`。
 
+`linuxdeploy-gtk-deb.sh` 支持两种互斥来源：原 GitHub 模式继续提供 `GITHUB_REPOSITORY` 与 `RELEASE_ASSET_PATTERN`；官网直链模式改为提供 `DEB_URL`、`DEB_PACKAGE`、`DEB_ARCH`，并按实际来源可选提供 `DEB_SHA256`。两种模式都提供 `DEB_FILENAME` 和原有路径、依赖参数。官网 URL 必须为 HTTPS，包名及架构用于安装前校验，版本读取本次 DEB 的完整元数据。
+
+`DEB_SHA256` 为官方提供的 64 位十六进制 SHA-256；官网没有摘要时省略该字段。公共入口会记录实际下载文件的 SHA-256。生成器只根据来源参数选择已登记的固定下载调用，AppRun、GTK 部署和封装阶段保持同一模板，不接受自定义代码块。
+
 `linuxdeploy-cli-apt.sh` 默认保持原有 Ubuntu APT 模式：提供 `APP_NAME`、`APT_PACKAGES`、`APT_MAIN_PACKAGE`、`APT_EXTRA_PACKAGES` 和 `MAIN_EXECUTABLE`。从已归档的官方 DEB 打包时，改为提供 `RELEASE_TAG`、`GITHUB_REPOSITORY`、`DEB_FILENAME`，不再填写 `APT_MAIN_PACKAGE` 和 `APT_EXTRA_PACKAGES`；软件版本取自本次校验通过的 DEB 元数据。此模式只使用现有的无框架插件模板，不自动启用 Qt、GTK 或 GStreamer 插件。
 
 归档 DEB 需要调整桌面入口时，可同时提供 `DESKTOP_FILE`（AppDir 内的 `usr/share/applications/*.desktop` 路径）、`ICON_FILE`（安装后的 `/usr/share/icons/*.png` 路径）、`DESKTOP_EXEC` 和 `DESKTOP_ICON`。生成器只修改从 DEB 提取的 desktop 副本，要求四项同时提供；未提供时原样保留上游桌面资源。

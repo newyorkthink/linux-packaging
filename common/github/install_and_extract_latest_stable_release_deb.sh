@@ -8,10 +8,13 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 ###### 读取调用参数 ######
 
-# 默认从 GitHub Release 下载，传入 --checksum 或 --html-checksum 时改用官网校验来源。
+# 默认从 GitHub Release 下载；显式选择时改用官网校验来源或 HTTPS DEB 直链。
 DOWNLOAD_SOURCE=github
 RELEASE_TAG=""
-if [[ "${1:-}" == --release-tag ]]; then
+if [[ "${1:-}" == --url ]]; then
+  DOWNLOAD_SOURCE=url
+  shift
+elif [[ "${1:-}" == --release-tag ]]; then
   (( $# >= 3 )) || {
     echo "用法：$0 --release-tag <标签> <owner/repo> <固定资产名> <下载 DEB 路径> <解包目录>" >&2
     exit 2
@@ -38,8 +41,12 @@ if [[ "$DOWNLOAD_SOURCE" == html-checksum && "${1:-}" == --json-html ]]; then
   shift 2
 fi
 
-# 根据下载来源检查参数数量，GitHub 模式保留可选的包名和架构校验。
-if [[ ( "$DOWNLOAD_SOURCE" == github || "$DOWNLOAD_SOURCE" == tagged-release ) && $# -ne 4 && $# -ne 6 ]] || [[ "$DOWNLOAD_SOURCE" == checksum && $# -ne 4 ]] || [[ "$DOWNLOAD_SOURCE" == html-checksum && $# -ne 5 && $# -ne 7 ]]; then
+# 根据下载来源检查参数数量，GitHub 和官网直链模式保留可选的包名与架构校验。
+if [[ ( "$DOWNLOAD_SOURCE" == github || "$DOWNLOAD_SOURCE" == tagged-release || "$DOWNLOAD_SOURCE" == url )
+      && $# -ne 4 && $# -ne 6 ]] ||
+   [[ "$DOWNLOAD_SOURCE" == checksum && $# -ne 4 ]] ||
+   [[ "$DOWNLOAD_SOURCE" == html-checksum && $# -ne 5 && $# -ne 7 ]]; then
+  echo "用法：$0 --url <HTTPS DEB URL> <SHA-256 或空字符串> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]" >&2
   echo "用法：$0 <owner/repo> '<包含 {version} 的资产名模板>' <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]" >&2
   echo "用法：$0 --release-tag <标签> <owner/repo> <固定资产名> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]" >&2
   echo "用法：$0 --checksum <HTTPS 校验清单 URL> '<完整资产名正则>' <下载 DEB 路径> <解包目录>" >&2
@@ -64,6 +71,9 @@ EXPECTED_DEB_ARCHITECTURE="${6:-}"
 
 # 根据下载来源选用已有入口，安装和解包入口保持共用。
 case "$DOWNLOAD_SOURCE" in
+  url)
+    DOWNLOAD_ASSET="$SCRIPT_DIR/../download/download_file.sh"
+    ;;
   github|tagged-release)
     DOWNLOAD_ASSET="$SCRIPT_DIR/download_latest_stable_release_asset.sh"
     ;;
@@ -78,13 +88,36 @@ INSTALL_PACKAGES="$SCRIPT_DIR/../apt/install_packages.sh"
 EXTRACT_ARCHIVE="$SCRIPT_DIR/../archive/extract_archive.sh"
 
 # 在下载或安装前检查本入口需要的参数，具体来源和摘要校验仍由下载入口负责。
-if [[ -z "$SOURCE_REF" || -z "$ASSET_SELECTOR" || -z "$DEB_FILE" || -z "$OUTPUT_DIR" ]]; then
+if [[ -z "$SOURCE_REF" || ( "$DOWNLOAD_SOURCE" != url && -z "$ASSET_SELECTOR" ) || -z "$DEB_FILE" || -z "$OUTPUT_DIR" ]]; then
   echo "错误：下载来源、资产匹配规则、DEB 保存路径和解包目录不能为空。" >&2
   exit 1
 fi
 if [[ "$DEB_FILE" != *.deb ]]; then
   echo "错误：安装包保存路径必须以 .deb 结尾。" >&2
   exit 1
+fi
+
+# 官网直链只接收不含登录凭据的 HTTPS URL；GitHub 资源继续使用原认证入口。
+if [[ "$DOWNLOAD_SOURCE" == url ]]; then
+  python3 - "$SOURCE_REF" <<'PY'
+import sys
+from urllib.parse import urlsplit
+
+source = urlsplit(sys.argv[1])
+host = (source.hostname or "").lower()
+if (
+    source.scheme != "https" or not host or source.username is not None
+    or source.password is not None or source.fragment
+    or any(character.isspace() for character in sys.argv[1])
+):
+    raise SystemExit("错误：官网 DEB 地址必须是不含登录凭据或片段的 HTTPS URL。")
+if host == "github.com" or host.endswith(".github.com") or host.endswith(".githubusercontent.com"):
+    raise SystemExit("错误：GitHub 资源必须使用现有的认证 Release 下载入口。")
+PY
+  if [[ -n "$ASSET_SELECTOR" && ! "$ASSET_SELECTOR" =~ ^[[:xdigit:]]{64}$ ]]; then
+    echo "错误：官网 DEB 的 SHA-256 必须为空或完整的 64 位十六进制值。" >&2
+    exit 1
+  fi
 fi
 
 # 统一转换为绝对路径，保证 APT 正确识别本地 DEB，并拒绝向根目录解包。
@@ -107,6 +140,14 @@ done
 
 # 下载并校验 DEB；GitHub 模式下可同时核对包名和架构。
 case "$DOWNLOAD_SOURCE" in
+  url)
+    "$DOWNLOAD_ASSET" "$SOURCE_REF" "$DEB_FILE" "$ASSET_SELECTOR" >&2
+    VERSION="$(dpkg-deb -f "$DEB_FILE" Version)"
+    "$SCRIPT_DIR/../archive/check_deb_metadata.sh" \
+      "$DEB_FILE" "$VERSION" "$EXPECTED_DEB_PACKAGE" "$EXPECTED_DEB_ARCHITECTURE"
+    # 记录本次官方下载包的 SHA-256，版本返回仍只写入 stdout。
+    sha256sum -- "$DEB_FILE" >&2
+    ;;
   github)
     VERSION="$("$DOWNLOAD_ASSET" "$SOURCE_REF" "$ASSET_SELECTOR" "$DEB_FILE" "$EXPECTED_DEB_PACKAGE" "$EXPECTED_DEB_ARCHITECTURE")"
     ;;

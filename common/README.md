@@ -40,6 +40,21 @@
 
 - `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../docs/appimage-scheme-handler.md)。
 
+### 官网 HTTPS DEB 直链
+
+`github/install_and_extract_latest_stable_release_deb.sh --url <HTTPS DEB URL> <SHA-256 或空字符串> <下载 DEB 路径> <解包目录> [DEB 包名] [DEB 架构]` 复用公共下载、DEB 元数据校验、APT 安装和归档解包。可选包名与架构成对提供。成功后 stdout 只返回 DEB 的完整 `Version`，保留 epoch 和 Debian 修订号；下载、元数据或安装解包失败时直接退出。
+
+URL 必须使用 HTTPS，不含登录凭据、空白或片段。GitHub 托管资源继续使用原认证 Release 模式，不通过本模式下载。提供官方 SHA-256 时由下载入口校验；官网没有摘要时，该位置明确传空字符串，并在 stderr 记录本次文件的 SHA-256。该记录用于标识实际文件，不作为官方摘要校验的替代。
+
+该入口需要调用方先准备公共 APT 环境、`dpkg-deb` 和 Python 3；安装同一份已下载 DEB 时使用 `--no-update`。安装和解包日志、SHA-256 均写入 stderr，不混入版本返回。原 GitHub、指定标签、校验清单和 HTML 校验来源的接口及版本规则保持不变。
+
+调用由 GitHub Actions 的应用构建脚本执行。以下参数均需按实际来源替换；无官方摘要时将第二个位置参数替换为 `""`。
+
+```bash
+# 下载官网 DEB，校验元数据并安装解包，成功后返回实际版本。
+VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" --url "<官方 HTTPS DEB URL>" "<官方 SHA-256>" "$SOURCE_DIR/<文件名>.deb" "$APPDIR" "<DEB 包名>" "<DEB 架构>")"
+```
+
 ### GitHub 最新正式 Release 源码
 
 入口为 `github/download_latest_stable_release_source.sh`，依赖 Bash、curl、jq 和 git。两个位置参数依次是 `owner/repo` 和源码目标目录，由调用方明确提供；目标目录必须非空、不能以 `-` 开头且必须不存在，本入口不清理或覆盖已有目录。

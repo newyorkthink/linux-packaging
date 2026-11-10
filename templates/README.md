@@ -10,7 +10,7 @@
 
 | 模板 | 适用场景 |
 | --- | --- |
-| [linuxdeploy-gtk-deb.sh](./appimage/linuxdeploy-gtk-deb.sh) | GTK3，GitHub 正式 Release DEB |
+| [linuxdeploy-gtk-deb.sh](./appimage/linuxdeploy-gtk-deb.sh) | GTK3，GitHub 正式 Release DEB 或官网 HTTPS DEB 直链 |
 | [linuxdeploy-gtk-apt.sh](./appimage/linuxdeploy-gtk-apt.sh) | GTK3，Ubuntu 仓库包 |
 | [linuxdeploy-gtk-gstreamer-apt.sh](./appimage/linuxdeploy-gtk-gstreamer-apt.sh) | GTK3 + GStreamer，Ubuntu 仓库包 |
 | [linuxdeploy-qt-deb.sh](./appimage/linuxdeploy-qt-deb.sh) | Qt，官网校验清单中的 DEB |

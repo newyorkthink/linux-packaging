@@ -6,7 +6,7 @@
 
 | 模板 | 适用条件 |
 | --- | --- |
-| [linuxdeploy-gtk-deb.sh](./templates/appimage/linuxdeploy-gtk-deb.sh) | GTK3，GitHub 正式 Release DEB |
+| [linuxdeploy-gtk-deb.sh](./templates/appimage/linuxdeploy-gtk-deb.sh) | GTK3，GitHub 正式 Release DEB 或官网 HTTPS DEB 直链 |
 | [linuxdeploy-gtk-apt.sh](./templates/appimage/linuxdeploy-gtk-apt.sh) | GTK3，Ubuntu 仓库包 |
 | [linuxdeploy-gtk-gstreamer-apt.sh](./templates/appimage/linuxdeploy-gtk-gstreamer-apt.sh) | GTK3 + GStreamer，Ubuntu 仓库包 |
 | [linuxdeploy-qt-deb.sh](./templates/appimage/linuxdeploy-qt-deb.sh) | Qt，官网校验清单中的 DEB |
@@ -27,6 +27,7 @@
 | `__GITHUB_REPOSITORY__`、`__RELEASE_ASSET_PATTERN__` | 官方仓库的 `owner/repo` 和正式 Release 的 DEB 资产名模板，保留公共入口所需的 `{version}`。 |
 | `__CHECKSUM_URL__`、`__DEB_ASSET_REGEX__` | 官方校验清单 URL 和完整 DEB 资产名的正则，保持模板的引号和转义。 |
 | `__DEB_FILENAME__` | 下载到 `source` 的本地 DEB 文件名。 |
+| `DEB_URL`、`DEB_PACKAGE`、`DEB_ARCH`、`DEB_SHA256` | GTK DEB 模板的官网来源参数；前三项必填，官方 SHA-256 按来源可选，与 GitHub 来源参数互斥。生成器据此展开固定下载调用。 |
 | `__MAIN_EXECUTABLE__`、`__APP_BIN_DIR__`、`__APP_LIB_DIR__` | 相对 AppDir 的真实程序入口及程序、运行库目录。 |
 | `__GIO_MODULE_DIR__` | 相对 AppDir 的实际 GIO 模块目录。GTK 模板使用包内 GSettings schema 与 GIO 模块。 |
 | `__QT_PLUGIN_DIR__`、`__QML_DIR__`、`__QT_TRANSLATIONS_DIR__` | 相对 AppDir 的 Qt 插件、QML 和翻译目录。 |
@@ -110,6 +111,7 @@ linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标�
 | 来源 | 公共入口 |
 | --- | --- |
 | GitHub 正式 Release 的 DEB | `common/github/install_and_extract_latest_stable_release_deb.sh`，返回实际版本。 |
+| 官网 HTTPS DEB 直链 | 同一入口的 `--url` 模式；调用方提供 URL、官方 SHA-256 或空字符串、下载路径、解包目录及可选包身份，安装并解包同一份 DEB，版本读取其完整元数据。 |
 | 官网校验清单中的 DEB | 同一入口的 `--checksum` 模式；使用同一份已校验 DEB 安装并解包。 |
 | 官网 HTML 校验表中的 DEB | 同一入口的 `--html-checksum` 模式，依次传入校验表 URL、完整资产名 Python 正则、资产目录 URL、下载 DEB 路径、AppDir，以及可选的包名与架构；解析、校验、安装、解包和版本返回均由公共入口完成，具体参数见 [公共入口说明](./common/README.md#html-校验表中的官方-deb)。 |
 | AUR 指向的官方 DEB | `common/aur/install_and_extract_deb_source.sh`；单行完成来源解析、摘要和包身份校验、安装、原布局解包及实际版本返回，保留同次 AUR 桌面资源。七项参数和版本适用范围见 [公共入口说明](./common/README.md#aur-来源中的官方-deb)。 |

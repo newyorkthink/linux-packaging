@@ -30,8 +30,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_
 
 ############ 下载并准备应用 #############
 
-# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
-VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" "__GITHUB_REPOSITORY__" '__RELEASE_ASSET_PATTERN__' "$SOURCE_DIR/__DEB_FILENAME__" "$APPDIR")"
+__GTK_DEB_SOURCE_BLOCK__
 
 ############# 准备 AppRun ##############
 

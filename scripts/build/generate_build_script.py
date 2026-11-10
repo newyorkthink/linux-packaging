@@ -184,6 +184,36 @@ def load_template(name):
 
 
 
+def gtk_deb_source_arguments(params):
+    """为 GTK DEB 标准保留 GitHub 来源，并支持官网 HTTPS 直链。"""
+    params = params.copy()
+    if "DEB_URL" in params:
+        url = clean_text(params["DEB_URL"], "DEB_URL")
+        if not re.fullmatch(r"https://[^\s#]+", url):
+            raise ValueError("DEB_URL 必须是不含空白或片段的 HTTPS URL。")
+        if {"GITHUB_REPOSITORY", "RELEASE_ASSET_PATTERN"} & params.keys():
+            raise ValueError("官网 DEB 与 GitHub Release 来源参数不能混用。")
+        checksum = params.pop("DEB_SHA256", "")
+        if not isinstance(checksum, str) or (
+            checksum and not re.fullmatch(r"[0-9a-fA-F]{64}", checksum)
+        ):
+            raise ValueError("DEB_SHA256 必须是完整的 64 位十六进制值；无官方摘要时省略。")
+        source = (
+            "# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。\n"
+            'VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" '
+            '--url "__DEB_URL__" '
+            f'"{checksum.lower()}" "$SOURCE_DIR/__DEB_FILENAME__" "$APPDIR" '
+            '"__DEB_PACKAGE__" "__DEB_ARCH__")"'
+        )
+    else:
+        source = (
+            "# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。\n"
+            'VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" '
+            '"__GITHUB_REPOSITORY__" \'__RELEASE_ASSET_PATTERN__\' "$SOURCE_DIR/__DEB_FILENAME__" "$APPDIR")"'
+        )
+    return params, source
+
+
 def cli_apt_source_arguments(params):
     """为无框架插件模板保留 APT 入口，并支持指定已归档的官方 DEB。"""
     params = params.copy()
@@ -244,6 +274,9 @@ def cli_apt_source_arguments(params):
 def render(template, params, family):
     if not isinstance(params, dict):
         raise ValueError("参数文件必须是 JSON 对象。")
+    if "__GTK_DEB_SOURCE_BLOCK__" in template:
+        params, source = gtk_deb_source_arguments(params)
+        template = template.replace("__GTK_DEB_SOURCE_BLOCK__", source)
     if "__CLI_SOURCE_BLOCK__" in template:
         params, derived = cli_apt_source_arguments(params)
         for marker, value in derived.items():
