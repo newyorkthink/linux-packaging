@@ -7,8 +7,8 @@
 ## 当前构建来源
 
 - 上游源码由公共脚本获取。构建时通过 `GITHUB_TOKEN` 认证，读取 `NousResearch/hermes-agent` 最新正式 Release 并检出对应标签。
-- Desktop 基于 Electron。构建使用上游 `scripts/bundles/desktop.py` 的带标签入口，按上游流程准备锁定的 Node.js、pnpm 和打包工具，再封装 AppImage。
-- x86_64 AppImage 内置 Hermes Agent 运行时，Linux 版通过更换 AppImage 更新。
+- Desktop 基于 Electron。构建使用上游 CI 的 PM 入口准备锁定的 Node.js 和 pnpm，按锁文件安装依赖，再走上游普通 Desktop 构建与 AppImage 封装流程。
+- x86_64 AppImage 提供普通 Desktop 客户端，可以连接已有 Gateway，也可以使用已有的本机 Agent 或按需安装。本仓库发布的桌面客户端通过更换 AppImage 更新。
 - 发布文件为 `latest` Release 中的 `hermes-desktop.AppImage`。AppImage 和 `version.txt` 使用同一个正式版本号。
 
 ## 官方构建迁移（2026-11-10）
@@ -18,6 +18,12 @@
 - 上游 `v0.23.1` 锁定的 electron-builder 在封装时把缺少模块声明的 CommonJS 图标工具复制到 Desktop 的 ES 模块目录，会触发 `require is not defined`。[上游打包入口](https://github.com/NousResearch/hermes-agent/blob/v0.23.1/apps/desktop/scripts/run-electron-builder.mjs#L68-L85) · [图标工具封装](https://github.com/electron-userland/electron-builder-binaries/blob/icons%401.2.1/packages/icons/assets/build.sh#L55-L104)
 - 构建只在检测到该工具仍缺少模块声明并需要按 CommonJS 加载时，为 Runner 的临时打包工具目录生成一份 `package.json`。上游准备的工具和源码直接交给官方打包入口。
 - 新版的构建结果、中文界面和钥匙串加密需以新产物验收为准。
+
+## 恢复普通 Desktop 构建（2026-11-10）
+
+- 上游 `bundled` 构建将本地 Agent、Python 环境和离线依赖缓存一并打包，发布的 AppImage 实际约为 1.887 GiB。[完整包构建日志](https://github.com/newyorkthink/linux-packaging/actions/runs/42749500950/job/129609540029)
+- 固定模板无法调用上游普通 Desktop 源码构建入口。本次经用户授权按专用构建例外处理，使用上游锁定的 pnpm 构建普通 Desktop，沿用图标工具的临时 CommonJS 声明。[上游构建说明](https://github.com/NousResearch/hermes-agent/blob/v0.23.1/apps/desktop/BUILDING.md#L378)
+- 构建脚本将 AppImage 复制到发布目录，由公共入口统一设置 `0755` 并写入版本。新产物的体积、中文界面和钥匙串表现待验收。
 
 ## 旧版 Linux AppImage 兼容处理
 
@@ -72,7 +78,7 @@
 
 ## 构建文件
 
-`build_hermes-desktop.sh` 负责获取上游正式标签源码、核对构建声明、调用上游构建入口并整理发布产物。
+`build_hermes-desktop.sh` 负责获取上游正式标签源码、准备锁定的 pnpm 工具链、调用上游普通 Desktop 构建并整理发布产物。
 
 ## 发布
 

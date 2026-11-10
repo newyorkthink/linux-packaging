@@ -37,61 +37,48 @@ SOURCE_REF="$(
   # 进入上游源码目录。
   cd -- "$SOURCE_DIR"
 
-  # 从正式标签读取官方构建声明，并核对标签对象和源码提交。
-  RELEASE_CLAIM="$(python3 -B - "$SOURCE_REF" <<'PY'
-import subprocess
-import sys
+  # 设置 Desktop 目录和正式版本号。
+  DESKTOP_DIR="$SOURCE_DIR/apps/desktop"
+  VERSION="${SOURCE_REF#v}"
 
-from scripts.releases.versioning import parse_attempt_ref, tag_record, version_from_tag
+  # 在源码目录外创建上游工具链的临时工作目录。
+  TOOLCHAIN_DIR="$(mktemp -d)"
 
+  # 使用上游 CI 的 PM 入口准备锁定的 Node.js 和 pnpm。
+  GITHUB_ENV=/dev/null GITHUB_OUTPUT=/dev/null GITHUB_PATH="$TOOLCHAIN_DIR/path" \
+    python3 -S scripts/ci/setup_toolchain.py install --toolchain node --home "$TOOLCHAIN_DIR"
 
-def git(*args):
-    return subprocess.check_output(["git", *args], encoding="utf-8").strip()
+  # 按上游工具链输出的顺序加载工具目录。
+  while IFS= read -r tool_dir; do
+    PATH="$tool_dir:$PATH"
+  done < "$TOOLCHAIN_DIR/path"
 
+  # 按上游锁文件安装 JavaScript 工作区依赖。
+  pnpm install --frozen-lockfile
 
-release_tag = sys.argv[1]
-release_ref = f"refs/tags/{release_tag}"
-release = tag_record(git("for-each-ref", "--format=%(contents)", release_ref))
-claim_tag = release["claimTag"]
-claim = parse_attempt_ref(claim_tag)
-version = version_from_tag(release_tag)
-if claim is None or claim[0] != version or release["version"] != version:
-    raise SystemExit("错误：官方构建声明与正式版本不匹配。")
+  # 读取上游正式标签对应的提交。
+  UPSTREAM_COMMIT="$(git rev-parse HEAD)"
 
-claim_ref = f"refs/tags/{claim_tag}"
-head, release_commit, claim_object, claim_commit = git(
-    "rev-parse", "HEAD", f"{release_ref}^{{commit}}", f"{claim_ref}^{{tag}}", f"{claim_ref}^{{commit}}"
-).splitlines()
-if (
-    not (head == release_commit == claim_commit == release["commit"])
-    or claim_object != release["claimTagObject"]
-):
-    raise SystemExit("错误：官方构建声明的标签对象或源码提交不匹配。")
+  # 构建普通 Desktop，并记录实际的上游提交和正式标签。
+  GITHUB_SHA="$UPSTREAM_COMMIT" GITHUB_REF_NAME="$SOURCE_REF" HERMES_PAYLOAD_TAG="$SOURCE_REF" \
+    pnpm --dir "$DESKTOP_DIR" run build
 
-print(f"{claim_tag}\t{claim_object}")
-PY
-)"
+  # 使用上游的 Linux AppImage 工具准备入口生成打包清单。
+  PACKAGER_DIR="$DESKTOP_DIR/build/packager/linux-x64"
+  node apps/desktop/scripts/prepare-packaging-tools.mjs --source "$SOURCE_DIR" --out "$PACKAGER_DIR" \
+    --target linux-x64 --cache "$SOURCE_DIR/.cache/desktop-inputs/packager" --format AppImage
 
-  # 读取官方构建入口所需的声明标签和对象。
-  IFS=$'\t' read -r RELEASE_CLAIM_TAG RELEASE_CLAIM_OBJECT <<< "$RELEASE_CLAIM"
-
-  # 使用上游正式版本的构建流程准备打包所需的依赖和工具。
-  RELEASE_CLAIM_TAG="$RELEASE_CLAIM_TAG" RELEASE_CLAIM_OBJECT="$RELEASE_CLAIM_OBJECT" \
-    python3 scripts/bundles/desktop.py --tag "$SOURCE_REF" --variant bundled --prepare-only
-
-  # 从上游构建清单读取打包工具和 Node.js 的路径。
-  PREPARED=".build/desktop-job/prepared.json"
-  PACKAGER="$(jq -er '.packager' "$PREPARED")"
-  NODE="$(jq -er '.node' "$PREPARED")"
+  # 从上游打包清单读取图标工具目录。
+  PACKAGER="$PACKAGER_DIR/prepared.json"
   ICONS_DIR="$(jq -r '.toolsets.icons // empty' "$PACKAGER")"
-  PACKAGING_TOOLS_DIR="apps/desktop/build/prepared-packaging-tools"
+  PACKAGING_TOOLS_DIR="$DESKTOP_DIR/build/prepared-packaging-tools"
 
   # 仅处理缺少模块声明且会被 Desktop 当作 ES 模块加载的 CommonJS 图标工具。
   if [[ -n "$ICONS_DIR" && -f "$ICONS_DIR/icon-tool.js" && ! -e "$ICONS_DIR/package.json" &&
         ! -e "$PACKAGING_TOOLS_DIR/package.json" ]] &&
-     jq -e '.type == "module"' apps/desktop/package.json >/dev/null &&
+     jq -e '.type == "module"' "$DESKTOP_DIR/package.json" >/dev/null &&
      grep -Fq 'require(' "$ICONS_DIR/icon-tool.js" &&
-     "$NODE" --input-type=commonjs --check < "$ICONS_DIR/icon-tool.js" >/dev/null 2>&1; then
+     node --input-type=commonjs --check < "$ICONS_DIR/icon-tool.js" >/dev/null 2>&1; then
     # 创建上游复制图标工具的临时目录。
     mkdir -p -- "$PACKAGING_TOOLS_DIR"
 
@@ -99,8 +86,9 @@ PY
     printf '%s\n' '{"type":"commonjs"}' > "$PACKAGING_TOOLS_DIR/package.json"
   fi
 
-  # 使用上游已经准备的依赖和工具生成 Linux AppImage。
-  python3 scripts/bundles/desktop.py --prepared "$PREPARED"
+  # 使用上游已准备的工具生成 AppImage，并设置正式产物版本。
+  pnpm --dir "$DESKTOP_DIR" run builder --prepared "$PACKAGER" --native-deps "$DESKTOP_DIR/build/native-deps" \
+    --linux AppImage --publish never "-c.extraMetadata.version=$VERSION"
 )
 
 ############### 整理产物 ###############
@@ -113,8 +101,8 @@ if (( ${#APPIMAGES[@]} != 1 )); then
   exit 1
 fi
 
-# 复制 AppImage 到发布目录并设置执行权限。
-install -m 0755 -- "${APPIMAGES[0]}" "$APPIMAGE"
+# 复制 AppImage 到发布目录。
+cp -- "${APPIMAGES[0]}" "$APPIMAGE"
 
 # 打包成功后用公共脚本记下版本。
 "$SCRIPT_DIR/../common/build/save_appimage_version.sh" "$APPIMAGE" "${SOURCE_REF#v}" "$DIST_DIR/version.txt"
