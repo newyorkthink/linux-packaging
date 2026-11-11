@@ -38,7 +38,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
-| `SRCDEST` | makepkg 来源缓存。公共 Arch 安装入口仅在显式 --aur-deb 或 --aur-source 模式为单次 yay 传入，配合独立构建目录使用；--snap-stable 将临时配方目录显式传给 yay -Bi，其他模式继续使用 --builddir；不写入 AppDir/.env 或改变宿主运行环境。 | common/arch/install_packages.sh；bluemail 显式启用 --aur-source；归档前由 todesk 显式启用 --aur-deb |
+| `SRCDEST` | makepkg 来源缓存。公共 Arch 安装入口仅在显式 --aur-deb 或 --aur-source 模式为本次安装设置；--snap-stable 仅在临时配方目录的子 Shell 中导出，供 makepkg 及其 sudo 子进程读取，其他模式继续为单次 yay 配合独立 --builddir 使用；不写入 AppDir/.env 或改变宿主运行环境。 | common/arch/install_packages.sh；bluemail 显式启用 --aur-source；归档前由 todesk 显式启用 --aur-deb |
 | `ARCH` | 向打包工具传入目标架构。 | 例如 Keyviz、adspower-global、aionui、gemini |
 | `QMAKE` | 告诉 linuxdeploy 的 Qt 插件用哪个 qmake。Qt5 和 Qt6 不能混。 | 4 个脚本，例如 goldendict、peazip、wemeet、xnviewmp |
 | `QT_SELECT` | 为 qtchooser 显式选择已配置的 Qt 安装；仅在实际调用该包装器且需要选择时使用。 | 例如 wemeet；goldendict 使用明确的 Qt5 QMAKE，不设置此变量。 |

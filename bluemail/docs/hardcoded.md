@@ -7,8 +7,8 @@
 | 配置 | 取值 | 依据与用途 |
 | --- | --- | --- |
 | 官方来源 | AUR `bluemail` / `x86_64`；Snap `bluemail` / `blix` / `amd64`；源文件名模板 `bluemail-{version}.snap` | AUR 提供安装配方，Snap Store 提供动态 `latest/stable` 包。核对发布者、架构、官方 SHA3-384 及新旧 Snap ID 后，仅同步临时配方的版本、来源和摘要；不固定 URL、应用版本或修订号。 |
-| 系统应用包 | `bluemail` | 公共安装入口显式启用 `--aur-source` 与 `--snap-stable bluemail blix amd64`，由 yay 本地配方模式安装官方稳定版及依赖，并保留同一份完整 Snap；最终程序不复制已裁剪的系统安装目录。 |
-| 来源与版本输出 | `work/bluemail.snap`、`work/source-version.txt` | 官方稳定版只下载一次，安装缓存重新校验后导出归档；实际安装版本须与重新生成的 `.SRCINFO` 的 `pkgver` 一致，封装前再由公共 `text` 来源读取。 |
+| 系统应用包 | `bluemail` | 公共安装入口显式启用 `--aur-source` 与 `--snap-stable bluemail blix amd64`，先由公共入口准备依赖，再在更新后的临时配方目录以其所属非 root 用户直接执行 makepkg 安装官方稳定版，并保留同一份完整 Snap；最终程序不复制已裁剪的系统安装目录。 |
+| 来源与版本输出 | `work/bluemail.snap`、`work/source-version.txt` | 官方稳定版只下载一次，安装缓存重新校验后导出归档；实际安装版本须同时与本次官方版本和重新生成的 `.SRCINFO` 的 `pkgver` 一致，封装前再由公共 `text` 来源读取。 |
 | 工作目录 | `work`、`AppDir`、`dist` | 公共工作区入口只处理应用根目录下明确列出的一级目录。 |
 | 实际程序目录 | `AppDir/shared/bin` | 保持官方 Electron 程序、库和资源的相邻关系，继续使用已确认的布局。 |
 | 主程序及 helper | `bluemail`、`chrome_crashpad_handler` | 与现有 Snap 构建入口一致，显式交给 quick-sharun 收集。 |

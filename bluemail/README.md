@@ -7,7 +7,7 @@
 ## 打包方式
 
 - `common/arch/install_packages.sh --base` 安装统一基础包；公共工作区准备完成后，同一入口通过 `--aur-source` 与显式 `--snap-stable bluemail blix amd64` 安装 `bluemail` 及已确认的运行库和 GTK3 输入模块，并保留同次下载来源。
-- 安装入口只获取 AUR 配方，不先下载或安装其旧版 Snap。公共 Snap 入口动态下载唯一的官方 `latest/stable` 包并核对 SHA3-384；配方同步助手核对新旧 Snap ID，仅更新临时 PKGBUILD 的版本、选中来源和对应 SHA-256 / SHA-512。yay 从更新后的 PKGBUILD 重新生成 `.SRCINFO`、解析依赖并安装；其他来源及其摘要保持原样。
+- 安装入口只获取 AUR 配方，不先下载或安装其旧版 Snap。公共 Snap 入口动态下载唯一的官方 `latest/stable` 包并核对 SHA3-384；配方同步助手核对新旧 Snap ID，仅更新临时 PKGBUILD 的版本、选中来源和对应 SHA-256 / SHA-512。公共入口准备配方声明的依赖后，在改好的配方目录中以其所属非 root 用户直接执行 makepkg，重新生成 `.SRCINFO` 并安装；其他来源及其摘要保持原样。
 - 安装后从同次 `.SRCINFO` 唯一匹配 `bluemail-{version}.snap`，重新校验同一份缓存，再导出 `work/bluemail.snap` 和 `work/source-version.txt`。当前配方使用 SHA-512；新摘要只从通过官方 SHA3-384 的文件计算，makepkg 校验照常执行，导出过程不再次下载 Snap。
 - `common/archive/extract_archive.sh` 解包 Snap。构建脚本保留 BlueMail 自带的 Electron/Chromium 程序、相邻库和资源，去掉 Snap 专用宿主运行时目录。
 - Arch Linux 容器中的 quick-sharun 收集主程序依赖并生成默认入口。构建脚本把需要保持相邻关系的官方 Snap 程序、库和 Electron 资源解包到自己创建的 `AppDir/shared/bin/`，因此通过 `AppDir/.env` 把该目录设为额外库目录和工作目录；这不是所有 Snap 的固定路径。`90-bluemail-arguments.hook` 通过 quick-sharun 通用 hook 机制保留官方 Snap 使用的 `--ozone-platform=x11 --no-sandbox` 参数。桌面图标与 desktop 文件来自同一 Snap。
@@ -30,7 +30,7 @@
 
 ## 版本元数据
 
-公共安装入口使用 Snap Store 同次稳定通道响应中的版本更新临时配方，安装后读取实际安装版本，与重新生成的 `.SRCINFO` 的 `pkgver` 核对一致后写入 `work/source-version.txt`；打包前由 `common/build/read_app_version.sh text` 读取，并通过 `VERSION` 传给 quick-sharun。最终 AppImage 成功生成后，`common/build/save_appimage_version.sh` 检查产物、统一执行权限并写入 `bluemail/dist/version.txt`，供正式工作流更新软件版本清单。
+公共安装入口使用 Snap Store 同次稳定通道响应中的版本更新临时配方，安装后要求实际版本与同次官方版本逐字一致，再与重新生成的 `.SRCINFO` 的 `pkgver` 核对后写入 `work/source-version.txt`；打包前由 `common/build/read_app_version.sh text` 读取，并通过 `VERSION` 传给 quick-sharun。最终 AppImage 成功生成后，`common/build/save_appimage_version.sh` 检查产物、统一执行权限并写入 `bluemail/dist/version.txt`，供正式工作流更新软件版本清单。
 
 ## 维护说明
 

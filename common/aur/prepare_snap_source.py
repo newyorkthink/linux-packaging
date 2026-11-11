@@ -104,6 +104,16 @@ def main():
     if len(fields.get("pkgver", [])) != 1:
         raise SystemExit("错误：AUR 配方的原版本不唯一。")
     old_version = fields["pkgver"][0]
+
+    # 输出本次配方声明的依赖，保留原配方中的版本约束供 makepkg 再次核对。
+    dependencies = set()
+    for key in ("depends", "makedepends", "checkdepends"):
+        for suffix in ("", "_" + architecture):
+            for dependency in fields.get(key + suffix, []):
+                name = re.split(r"[<>=]", dependency, maxsplit=1)[0]
+                if not re.fullmatch(r"[a-z0-9][a-z0-9@._+-]*", name) or name == package:
+                    raise SystemExit("错误：AUR 配方依赖无效或包含应用自身，停止安装。")
+                dependencies.add(name)
     metadata = json.loads(Path(metadata_path).read_text(encoding="utf-8"))
     if (metadata.get("version") != version or
             not re.fullmatch(r"[0-9]+(?:[.][0-9]+)+(?:[+._-][a-zA-Z0-9]+)*", version) or
@@ -190,9 +200,11 @@ def main():
     finally:
         Path(temporary).unlink(missing_ok=True)
 
-    # 保留配方文件的原所有者，让 yay 以构建用户重新生成真实 .SRCINFO。
+    # 保留配方文件的原所有者，由调用方直接执行 makepkg 重新生成真实 .SRCINFO。
     pkgbuild.write_text(script, encoding="utf-8")
     srcinfo.unlink()
+    for dependency in sorted(dependencies):
+        print(dependency)
     print("已同步本次 AUR Snap 来源：" + old_version + " -> " + version, file=sys.stderr)
 
 

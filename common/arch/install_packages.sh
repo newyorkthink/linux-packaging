@@ -27,6 +27,7 @@ if [[ "${1:-}" == --aur-source ]]; then
   SNAP_NAME=""
   SNAP_PUBLISHER=""
   SNAP_ARCH=""
+  SNAP_VERSION=""
   # 只有显式启用时，才用官方稳定通道更新本次 AUR 配方的 Snap 来源。
   if [[ "${1:-}" == --snap-stable ]]; then
     if (( $# < 5 )) || [[ "$SOURCE_PATTERN" != *'{version}'*.snap ]]; then
@@ -81,10 +82,37 @@ if [[ "${1:-}" == --aur-source ]]; then
     # 仅更新本次临时配方的版本、选中来源与摘要；其他来源和依赖保持原样。
     python3 "$SCRIPT_DIR/../aur/prepare_snap_source.py" "$AUR_PACKAGE" "$AUR_ARCH" "$SOURCE_PATTERN" \
       "$INSTALL_WORK/build/$AUR_PACKAGE" "$INSTALL_WORK/stable.snap" "$INSTALL_WORK/sources" \
-      "$INSTALL_WORK/snap-source.json" "$SNAP_VERSION"
+      "$INSTALL_WORK/snap-source.json" "$SNAP_VERSION" > "$INSTALL_WORK/dependencies.txt"
 
-    # 本地配方模式重新生成 .SRCINFO、解析依赖，并按新摘要安装同一份 Snap。
-    SRCDEST="$INSTALL_WORK/sources" yay -Bi --noconfirm "$INSTALL_WORK/build/$AUR_PACKAGE"
+    # 依赖仍交给公共安装入口处理，不让 AUR 应用安装重新解析并取回旧配方。
+    mapfile -t AUR_DEPENDENCIES < "$INSTALL_WORK/dependencies.txt"
+    if (( ${#AUR_DEPENDENCIES[@]} > 0 )); then
+      "$SCRIPT_DIR/install_packages.sh" "${AUR_DEPENDENCIES[@]}"
+    fi
+
+    AUR_BUILD_DIR="$INSTALL_WORK/build/$AUR_PACKAGE"
+    AUR_BUILD_UID="$(stat -c '%u' -- "$AUR_BUILD_DIR")"
+    if [[ "$AUR_BUILD_UID" == 0 || ( "$EUID" != 0 && "$AUR_BUILD_UID" != "$EUID" ) ]]; then
+      echo "错误：AUR 临时配方必须属于当前构建用户或可切换到的非 root 用户。" >&2
+      exit 1
+    fi
+
+    # 在配方所属的构建用户下直接执行 makepkg，不再经 yay 重建应用安装事务。
+    run_source_makepkg() {
+      if (( EUID == 0 )); then
+        sudo -HE -u "#$AUR_BUILD_UID" makepkg "$@"
+      else
+        makepkg "$@"
+      fi
+    }
+
+    # 在同一目录生成元数据并安装，来源缓存只在这个子 Shell 中生效。
+    (
+      cd "$AUR_BUILD_DIR"
+      export SRCDEST="$INSTALL_WORK/sources"
+      run_source_makepkg --printsrcinfo > .SRCINFO
+      run_source_makepkg --syncdeps --install --noconfirm
+    )
   else
     # makepkg 将原始文件保存在独立来源缓存，yay 继续按 AUR 配方校验和安装。
     SRCDEST="$INSTALL_WORK/sources" yay -S --noconfirm --needed --builddir "$INSTALL_WORK/build" "$AUR_PACKAGE"
@@ -92,6 +120,12 @@ if [[ "${1:-}" == --aur-source ]]; then
 
   # 版本取自实际安装结果，必须与本次构建目录中的来源元数据一致。
   VERSION="$("$SCRIPT_DIR/../build/read_app_version.sh" pacman "$AUR_PACKAGE")"
+  # 稳定通道模式不得把旧版本当成成功结果继续导出或发布。
+  if [[ -n "$SNAP_NAME" && "$VERSION" != "$SNAP_VERSION" ]]; then
+    printf '错误：实际安装版本 %s 与本次 Snap Store 稳定版 %s 不一致，停止导出。\n' \
+      "$VERSION" "$SNAP_VERSION" >&2
+    exit 1
+  fi
 
   # 只导出指定源文件，按同次元数据重新校验 SHA-256 或 SHA-512 后写入版本。
   python3 - "$AUR_PACKAGE" "$AUR_ARCH" "$SOURCE_PATTERN" "$INSTALL_WORK/build/$AUR_PACKAGE/.SRCINFO" \

@@ -192,12 +192,12 @@ Release 查询复用 `github_api.sh`，认证依次取自 `GITHUB_TOKEN`、`GH_T
 1. 通过普通安装模式准备额外包，再用 `yay -G` 只获取 AUR 配方及配套文件，不先下载或安装其中的旧版 Snap。
 2. 复用 `snap/download_stable_snap.sh` 下载一份官方 `latest/stable` 包，核对发布者、架构与 SHA3-384，并保留同次来源 JSON。
 3. 调用 [prepare_snap_source.py](./aur/prepare_snap_source.py)，要求新旧 URL 属于同一个官方 Snap ID。仅同步本次临时 PKGBUILD 的 `pkgver`、选中来源及同组同索引的 SHA-256 / SHA-512，其他来源、摘要、依赖与 package 函数保持原样。新摘要由通过官方 SHA3-384 的文件计算，不设置 `SKIP`，不关闭 makepkg 校验。
-4. 把同一份文件放进独立 `SRCDEST`，移除本次临时目录中过时的 `.SRCINFO`，由 `yay -Bi --noconfirm <临时配方目录>` 从更新后的 PKGBUILD 重新生成真实元数据、解析依赖并安装。该模式不传 `--needed`，避免已有旧版或相同包版本使本次来源被跳过。
-5. 安装后继续使用原导出逻辑，核对实际安装版本、重新生成的 `.SRCINFO` 和缓存摘要，再输出完整 Snap 与来源版本。安装、导出和后续 AppImage 解包使用同一份 Snap，不发生第二次 Snap 下载。
+4. 配方同步助手同时输出本次配方声明的运行、构建和检查依赖，仍由公共安装入口准备；版本约束保留在 PKGBUILD 中，由 makepkg 再次核对。随后按临时配方目录的实际所有者确定非 root 构建用户，不固定用户名。在同一目录直接执行 `makepkg --printsrcinfo` 和 `makepkg --syncdeps --install --noconfirm`，重新生成元数据并安装；`SRCDEST` 仅在该子 Shell 中导出，不再通过 yay 重建应用安装事务。该模式不传 `--needed`，确保执行本次配方安装。
+5. 实际安装版本必须先与本次 Snap Store 响应中的版本逐字一致，否则停止，不导出或发布。通过后继续核对重新生成的 `.SRCINFO` 和缓存摘要，再输出完整 Snap 与来源版本。安装、导出和后续 AppImage 解包使用同一份 Snap，不发生第二次 Snap 下载。
 
 配方同步只支持同名单包、普通 `pkgver` 赋值，以及与 `.SRCINFO` 一一对应的普通来源和摘要数组；选中来源可使用 `pkgname` / `pkgver` 变量。选中来源的校验只支持有效 SHA-256 / SHA-512；其他算法、动态数组或来源身份不符时停止，不猜测或绕过。只修改本次临时配方，不回写远端 AUR，也不修改 yay 全局配置；官方查询、下载、校验、配方同步或安装失败时直接停止，不退回旧版来源。
 
-实现依据为 [yay 的获取及本地构建选项](https://github.com/Jguer/yay/blob/0938a75e98e63648ebf6e22ece6b4a30ec11a907/doc/yay.8)和[缺少 .SRCINFO 时的实际生成及依赖解析](https://github.com/Jguer/yay/blob/0938a75e98e63648ebf6e22ece6b4a30ec11a907/local_install.go)。这是显式启用的公共组合能力，不改变未传选项的安装和来源导出模式。
+配方获取依据为 [yay 的获取选项](https://github.com/Jguer/yay/blob/0938a75e98e63648ebf6e22ece6b4a30ec11a907/doc/yay.8)。元数据生成、依赖核对及安装依据为 [makepkg](https://man.archlinux.org/man/makepkg.8.en)，root 构建环境通过 [sudo](https://man.archlinux.org/man/sudo.8.en) 切换到配方所属用户并保留来源环境。配方同步助手只向 stdout 输出去掉版本约束的依赖名称，诊断写入 stderr，列表由安装入口保存到本次临时文件。这是显式启用的公共组合能力，不改变未传选项的安装和来源导出模式。
 
 ### AUR 来源中的官方 DEB
 

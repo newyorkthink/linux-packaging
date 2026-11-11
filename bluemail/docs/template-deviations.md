@@ -10,7 +10,7 @@ BlueMail 的最终程序来自 Snap Store 官方稳定通道，AUR 安装和后�
 
 - [AUR bluemail 配方](https://github.com/archlinux/aur/blob/93194394dc31b63f585963289f24700e09fd716d/PKGBUILD)及[来源元数据](https://github.com/archlinux/aur/blob/93194394dc31b63f585963289f24700e09fd716d/.SRCINFO)表明该包使用预编译 Snap，且安装时会删除部分 Chromium 库和桌面资源；打包继续使用完整原始归档。
 - 公共 Arch 安装入口显式使用 `--aur-source` 与 `--snap-stable bluemail blix amd64`，先下载并核对官方 `latest/stable` 的 SHA3-384，再仅更新临时 AUR 配方的版本、同一 Snap ID 的下载地址及对应 SHA-256 / SHA-512。当前配方使用 SHA-512；新摘要从已通过官方摘要的文件计算，其他来源和校验保持原样。
-- yay 的 `-G` 只获取配方；`-Bi` 从本次临时目录重新生成 `.SRCINFO`、解析依赖并安装。依据为 [yay 手册](https://github.com/Jguer/yay/blob/0938a75e98e63648ebf6e22ece6b4a30ec11a907/doc/yay.8)及[本地配方安装实现](https://github.com/Jguer/yay/blob/0938a75e98e63648ebf6e22ece6b4a30ec11a907/local_install.go)。安装后继续按同次元数据核对版本和缓存，导出时不再下载 Snap。
+- yay 的 `-G` 只获取配方，公共安装入口准备该配方声明的依赖；随后在同一临时配方目录以其所属非 root 用户直接执行 makepkg，生成 `.SRCINFO` 并安装。依据为 [yay 获取选项](https://github.com/Jguer/yay/blob/0938a75e98e63648ebf6e22ece6b4a30ec11a907/doc/yay.8)、[makepkg 元数据与安装选项](https://man.archlinux.org/man/makepkg.8.en)及[sudo 用户切换](https://man.archlinux.org/man/sudo.8.en)。实际安装版本须与同次官方版本一致，再核对元数据和缓存后导出；不再下载 Snap。
 - 本次检索 pkgforge-dev 未找到对应的 BlueMail 打包仓库，不把本仓库处理标成逐字复用的官方代码。
 - 资源布局、中文输入、启动参数、Gmail 登录及回调的既有证据保存在[应用 README](../README.md)。本次稳定通道调整以提交 `abe5e72f70f4ab67fbf5ec7646fafb6698db1194` 为基线，核对完整脚本、公共接口、上述 AUR 快照及官方稳定通道；具体固定取值见[固定配置](./hardcoded.md)。
 
