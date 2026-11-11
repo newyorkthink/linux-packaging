@@ -7,6 +7,9 @@ ARCHITECTURE="${3:-}"
 OUTPUT="${4:-}"
 METADATA_OUTPUT="${5:-}"
 
+# 仅在 DNS 解析失败时使用 Cloudflare 的 HTTPS 备用解析服务。
+DOH_FALLBACK_URL="https://cloudflare-dns.com/dns-query"
+
 [[ "$SNAP_NAME" =~ ^[a-z][a-z0-9-]*$ && -n "$PUBLISHER" &&
   "$ARCHITECTURE" =~ ^(amd64|arm64)$ && -n "$OUTPUT" ]] || {
   echo "用法：$0 <Snap 名称> <发布者帐号> <amd64|arm64> <输出文件> [元数据 JSON 输出]" >&2
@@ -33,14 +36,29 @@ cleanup() {
 trap cleanup EXIT
 
 # 从 Snap Store 官方接口读取当前 latest/stable 通道元数据。
-# 使用 HTTP/1.1 和指数退避重试，保留原有请求次数和超时。
-curl --http1.1 --fail --silent --show-error --location \
-  --proto '=https' --tlsv1.2 \
-  --retry 5 --retry-all-errors --retry-delay 0 \
-  --connect-timeout 20 --max-time 120 \
-  --header 'Snap-Device-Series: 16' \
-  --output "$INFO_FILE" \
-  "https://api.snapcraft.io/v2/snaps/info/$SNAP_NAME"
+# 使用 HTTP/1.1 和指数退避重试，每轮保留原有请求次数和超时。
+fetch_snap_metadata() {
+  curl --http1.1 --fail --silent --show-error --location \
+    --proto '=https' --tlsv1.2 \
+    --retry 5 --retry-all-errors --retry-delay 0 \
+    --connect-timeout 20 --max-time 120 \
+    --header 'Snap-Device-Series: 16' \
+    "$@" \
+    --output "$INFO_FILE" \
+    "https://api.snapcraft.io/v2/snaps/info/$SNAP_NAME"
+}
+
+# 原请求仅在域名解析失败时改用 DoH，其他错误保留原退出状态。
+if fetch_snap_metadata; then
+  :
+else
+  SNAP_INFO_STATUS=$?
+  if (( SNAP_INFO_STATUS != 6 )); then
+    exit "$SNAP_INFO_STATUS"
+  fi
+  printf 'Snap Store 域名解析失败，改用 HTTPS 备用解析重试元数据。\n' >&2
+  fetch_snap_metadata --doh-url "$DOH_FALLBACK_URL"
+fi
 
 mapfile -t FIELDS < <(
   jq -er --arg name "$SNAP_NAME" --arg publisher "$PUBLISHER" \
@@ -74,8 +92,9 @@ mkdir -p -- "$(dirname -- "$OUTPUT")"
 TEMP_SNAP="$(mktemp "${OUTPUT}.part.XXXXXX")"
 
 # 下载完整 Snap，再以官方 SHA3-384 校验；成功后才替换目标文件。
-# 显式启用 HTTP/1.1 和指数退避，其他公共下载调用沿用默认行为。
-"$(dirname -- "${BASH_SOURCE[0]}")/../download/download_file.sh" "$URL" "$TEMP_SNAP" "" "" curl http1.1 0
+# 显式启用 HTTP/1.1、指数退避和 DNS 备用解析，其他公共下载调用沿用默认行为。
+"$(dirname -- "${BASH_SOURCE[0]}")/../download/download_file.sh" \
+  "$URL" "$TEMP_SNAP" "" "" curl http1.1 0 "$DOH_FALLBACK_URL"
 ACTUAL_SHA3="$(openssl dgst -sha3-384 -r "$TEMP_SNAP" | awk '{print $1}')"
 [[ "${ACTUAL_SHA3,,}" == "${EXPECTED_SHA3,,}" ]] || {
   echo "错误：$SNAP_NAME Snap 的 SHA3-384 校验失败。" >&2

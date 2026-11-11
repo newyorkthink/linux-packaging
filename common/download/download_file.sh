@@ -8,6 +8,7 @@ USER_AGENT="${4:-}"
 DOWNLOADER="${5:-curl}"
 HTTP_VERSION="${6:-auto}"
 CURL_RETRY_DELAY="${7:-2}"
+CURL_DOH_FALLBACK_URL="${8:-}"
 
 # 只有显式选择时使用其他下载器，原有调用继续使用 curl。
 [[ "$DOWNLOADER" == curl || "$DOWNLOADER" == wget || "$DOWNLOADER" == aria2c ]] || {
@@ -16,7 +17,7 @@ CURL_RETRY_DELAY="${7:-2}"
 }
 
 [[ -n "$URL" && -n "$OUTPUT" ]] || {
-  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256、sha512:<摘要> 或 blake2b:<摘要>] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔秒数，0 为指数退避]" >&2
+  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256、sha512:<摘要> 或 blake2b:<摘要>] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔秒数，0 为指数退避] [DNS 备用解析 HTTPS URL]" >&2
   exit 1
 }
 [[ "$URL" == https://* ]] || {
@@ -31,6 +32,13 @@ CURL_RETRY_DELAY="${7:-2}"
 }
 [[ "$DOWNLOADER" == curl || ( "$HTTP_VERSION" == auto && "$CURL_RETRY_DELAY" == 2 ) ]] || {
   echo "错误：可选 HTTP 协议与重试间隔只适用于 curl。" >&2
+  exit 2
+}
+
+# 仅在 curl 模式显式指定 HTTPS 服务时，允许 DNS 解析失败后的备用解析。
+[[ -z "$CURL_DOH_FALLBACK_URL" ||
+  ( "$DOWNLOADER" == curl && "$CURL_DOH_FALLBACK_URL" =~ ^https://[^[:space:]]+$ ) ]] || {
+  echo "错误：DNS 备用解析只支持 curl，且服务地址必须是非空白的 HTTPS URL。" >&2
   exit 2
 }
 
@@ -95,18 +103,33 @@ elif [[ "$DOWNLOADER" == aria2c ]]; then
   rm -f -- "${TEMP_FILE}.aria2"
 else
   # 使用统一的失败、重试和超时参数下载到同目录临时文件。
-  curl --fail --location \
-    "${CURL_PROTOCOL_ARGS[@]}" \
-    --proto '=https' \
-    --tlsv1.2 \
-    --retry 5 \
-    --retry-all-errors \
-    --retry-delay "$CURL_RETRY_DELAY" \
-    --connect-timeout 20 \
-    --max-time 900 \
-    "${CURL_USER_AGENT_ARGS[@]}" \
-    --output "$TEMP_FILE" \
-    "$URL"
+  download_with_curl() {
+    curl --fail --location \
+      "${CURL_PROTOCOL_ARGS[@]}" \
+      --proto '=https' \
+      --tlsv1.2 \
+      --retry 5 \
+      --retry-all-errors \
+      --retry-delay "$CURL_RETRY_DELAY" \
+      --connect-timeout 20 \
+      --max-time 900 \
+      "${CURL_USER_AGENT_ARGS[@]}" \
+      "$@" \
+      --output "$TEMP_FILE" \
+      "$URL"
+  }
+
+  # 先保留原请求；只有显式启用且退出码为 6 时，再使用 HTTPS 备用解析。
+  if download_with_curl; then
+    :
+  else
+    DOWNLOAD_STATUS=$?
+    if [[ "$DOWNLOAD_STATUS" != 6 || -z "$CURL_DOH_FALLBACK_URL" ]]; then
+      exit "$DOWNLOAD_STATUS"
+    fi
+    printf 'DNS 解析失败，改用 HTTPS 备用解析重试下载。\n' >&2
+    download_with_curl --doh-url "$CURL_DOH_FALLBACK_URL"
+  fi
 fi
 
 # 上游提供摘要时必须在替换正式文件前完成校验；无前缀继续按 SHA-256 处理。
