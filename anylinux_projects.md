@@ -527,3 +527,12 @@ GTK 3 输入模块由 quick-sharun 收集。构建环境里要已经装有这些
 | 构建脚本实际调用 `linuxdeploy` | [`linuxdeploy_projects.md`](./linuxdeploy_projects.md) |
 
 同一个应用不要两套一起上。选错路线时改脚本，不要用一个 `AppRun.sh` 把两条路线粘起来。
+
+### Qt 配置项
+
+| 打包工具 | 变量 | 用法 |
+| --- | --- | --- |
+| quick-sharun | `QT_DIR` | 指定构建环境中的 Qt 目录名。Arch 的 Qt5 使用 `qt`，插件位于 `/usr/lib/qt/plugins`。Qt6 使用 `qt6`，插件位于 `/usr/lib/qt6/plugins`。 |
+| linuxdeploy 的 Qt 插件 | `QMAKE` | 指定对应 Qt 主版本的 qmake 可执行文件名或路径。插件通过它查询 Qt 的插件和资源目录。 |
+
+Arch 的 Qt5 命令为 `qmake-qt5`，Qt6 命令为 `qmake6`。本仓库的 linuxdeploy 构建使用 Ubuntu，`QMAKE` 按该构建环境中实际安装的可执行文件设置。见 [Arch Qt5 文件清单](https://archlinux.org/packages/extra/x86_64/qt5-base/files/)、[Arch Qt6 文件清单](https://archlinux.org/packages/extra/x86_64/qt6-base/files/)和 [linuxdeploy 规范](./linuxdeploy_projects.md)。
