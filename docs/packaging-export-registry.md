@@ -71,6 +71,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `CPPFLAGS` | 编译时附加的头文件参数。只用于 alttab 编译。 | alttab |
 | `LIBS` | 编译时附加的链接参数。只用于 alttab 编译。 | alttab |
 | `QT_LOCATION` | 构建时 Qt 的安装位置。 | moderncsv |
+| `QT_DIR` | quick-sharun 构建时使用的 Qt 目录名。Arch 的 `qt` 对应 `/usr/lib/qt`。 | smplayer 设置 `qt`，收集 Qt5 插件。 |
 | `SOURCE_DIR` | 传给 st 配置生成脚本的源码目录。 | st |
 | `ST_FONT_PRIMARY` | 编译 st 时的主字体。 | st |
 | `ST_FONT_FALLBACKS` | 编译 st 时的备用字体。 | st |
@@ -144,7 +145,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `QML2_IMPORT_PATH` | Qt5 的 QML 模块目录。 | 3 个脚本，例如 kde-suite、xnviewmp |
 | `QML_DISABLE_DISK_CACHE` | 禁止 Qt Quick 写磁盘缓存。 | kde-suite |
 | `QT_QUICK_CONTROLS_STYLE` | Qt Quick Controls 的样式，例如 KDE Breeze。 | kde-suite |
-| `QT_STYLE_OVERRIDE` | 强制 Qt 控件样式，盖过应用默认样式。 | 例如 flameshot、peazip；webcamoid 在 .env 中使用 |
+| `QT_STYLE_OVERRIDE` | 强制 Qt 控件样式，盖过应用默认样式。 | 例如 flameshot、peazip。webcamoid、smplayer 在 .env 中使用。 |
 | `QT_AUTO_SCREEN_SCALE_FACTOR` | 让 Qt 按屏幕缩放界面。 | 4 个脚本，例如 dingtalk、peazip、wechat |
 | `QT_SCALE_FACTOR` | Qt 界面缩放倍数。 | peazip |
 | `QT_FONT_DPI` | 固定 Qt 字体 DPI。 | 2 个脚本，例如 peazip、xnviewmp |
@@ -193,7 +194,8 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 例如 goldendict、gitkraken、obs-studio、tencent-docs、grok-app、joplin、remmina、gemini、tradingview、ventoy、folo、copyq；bluemail 使用包内中文 locale |
 | `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 例如 goldendict、gemini、gitkraken、kde-suite、grok-app、joplin、tradingview、folo、copyq；bluemail 使用包内中文 locale |
 | `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | grok-app、gemini、tradingview、folo、copyq；bluemail 使用包内中文 locale |
-| `LC_ALL` | 强制整套 locale。有的构建用 C；图形程序要中文时才用 zh_CN.UTF-8。 | 例如 chatgpt、gitkraken |
+| `LC_ALL` | 强制整套 locale。有的构建用 C；图形程序要中文时才用 zh_CN.UTF-8。 | 例如 chatgpt、gitkraken。smplayer 在 .env 中清空全局覆盖。 |
+| `LC_NUMERIC` | 控制数值解析使用的 locale。`C` 使用小数点。 | smplayer 在 .env 中设置 `C`。 |
 | `LOCPATH` | 指定 locale 数据搜索目录；界面翻译和输入模块仍分别由应用资源和框架提供。 | goldendict、wemeet、grok-app、joplin、xnviewmp、remmina、gemini、tradingview、ventoy、folo、copyq；bluemail 指向包内 `lib/locale` |
 | `TZ` | 时区。腾讯会议按官方脚本设成 Asia/Shanghai。 | wemeet |
 | `XDG_SESSION_TYPE` | 当前会话类型。Wayland 上回退到 X11 时改成 x11。 | 2 个脚本，例如 jriver、wemeet |

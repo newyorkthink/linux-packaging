@@ -355,6 +355,12 @@ Qt 6 程序打包前安装 qt6ct、kvantum、lxqt-qtplugin。装上后由 quick-
 
 有窗口且使用 Qt 6 的程序，从系统入口收集时使用 [qt-installed.sh](./templates/quick-sharun/qt-installed.sh)。[OBS Studio](./obs-studio/build_obs-studio.sh) 保留为既有实现参考。相对 mpv 的默认形状，这个脚本增加了中文环境、Qt 主题插件，以及同一次交给 quick-sharun 的录制程序、模块目录、模块数据和脚本模块。图标、desktop、DEPLOY_* 和传给 quick-sharun 的路径来自该程序自己的官方包。
 
+### Qt 5 系统入口
+
+[SMPlayer](./smplayer/build_smplayer.sh) 使用 Arch 官方 Qt5 二进制包，按系统入口流程打包。包管理器正常安装 `fcitx5-qt` 及其依赖，`QT_DIR=qt` 指定 Arch 的 Qt5 插件目录。收集的 Qt 插件包括 Qt5 的 IBus、Fcitx5 输入模块和 Adwaita 深色样式。
+
+SMPlayer 使用公共安装、工作区和版本入口，中文 locale 按包内中文环境的公共格式生成。官方 Python 版 yt-dlp 通过固定资产名的公共入口下载并校验，官方直链失败时按同一资产 ID 认证回退。具体依据见[模板差异](./smplayer/docs/template-deviations.md)。
+
 ### 已有源码专用流程
 
 [Webcamoid](./webcamoid/README.md) 当前保留官方正式 Release 源码、四个补丁、CMake + Ninja 暂存安装以及 quick-sharun 封装的既有流程，已登记在 [专用打包流程](./docs/packaging-classification.md#专用打包流程)。这与本节从系统已安装 Qt 程序收集的来源不同，不能标成已逐字套用 qt-installed.sh，也不新增源码编译模板。
