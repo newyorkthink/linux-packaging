@@ -31,7 +31,7 @@ locale 和窗口 hook 来源为 [pkgforge-dev/mpv-AppImage 的固定源码](http
 ./mpv.AppImage
 ```
 
-## 维护说明与验证范围
+## 维护说明
 
 | 文档 | 用途 |
 | --- | --- |
@@ -39,7 +39,17 @@ locale 和窗口 hook 来源为 [pkgforge-dev/mpv-AppImage 的固定源码](http
 | [模板差异](./docs/template-deviations.md) | 说明原生系统入口基础模板之外实际启用的三个专属段及其阶段。 |
 | [pkgforge 取舍](./docs/pkgforge-differences.md) | 保存官方原文、用途、原因、采用项及未启用项；后续拟加入时先核实当前官方是否仍保留且适用。 |
 
-本次完成 Shell 语法、依赖覆盖、模板结构与文档引用的静态检查；未在本次任务执行正式打包或实机运行。不得把静态检查写成播放、MPRIS、在线解析、中文输入或跨发行版运行已经通过。mpv-mpris 继续安装，不据此宣称其脚本已在最终产物加载。固定 `LC_ALL=C.UTF-8` 会覆盖宿主 locale，本次不承诺保留宿主中文语言设置。
+标准化时完成 Shell 语法、依赖覆盖、模板结构与文档引用的静态检查。mpv-mpris 继续安装。固定 `LC_ALL=C.UTF-8` 会覆盖宿主 locale。
+
+## 实机验证
+
+### 2026-11-11：用户实机验证通过
+
+用户已确认 mpv AppImage 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| YouTube 视频 | 在终端使用 Firefox 登录会话播放测试视频，正常输出 1080p AV1 视频和 Opus 音频。 |
 
 ## 变更记录
 
@@ -51,4 +61,4 @@ locale 和窗口 hook 来源为 [pkgforge-dev/mpv-AppImage 的固定源码](http
 
 按本次确认的 52 行脚本统一严格模式、注释、空行、系统入口和公共版本接口；所有原有依赖由基础包或应用安装行继续覆盖。yt-dlp 保留构建时内置，下载改用公共入口动态选择正式资产并校验摘要；不采用官方运行时安装 yt-dlp 和自更新 hooks。
 
-旧 locale 两行已被本次明确批准的官方 `LC_ALL=C.UTF-8` 替代；旧脚本曾说明用于处理 `Non-C locale detected` 并保留 LANG，但没有提供原始运行日志，不将其扩写成已复现故障。旧注释及代码完整保存在 [固定配置依据](./docs/hardcoded.md#旧实现原始记录)。窗口 hook 从内联 heredoc 改为独立文件，保留官方可执行内容。同步补齐分类、标准与三份应用 docs；本次只确认上述静态检查，正式构建及实机运行结果未在本次核实。
+旧 locale 两行已被本次明确批准的官方 `LC_ALL=C.UTF-8` 替代；旧脚本曾说明用于处理 `Non-C locale detected` 并保留 LANG，但没有提供原始运行日志，不将其扩写成已复现故障。旧注释及代码完整保存在 [固定配置依据](./docs/hardcoded.md#旧实现原始记录)。窗口 hook 从内联 heredoc 改为独立文件，保留官方可执行内容。同步补齐分类、标准与三份应用 docs。
