@@ -57,7 +57,7 @@ else
     exit "$SNAP_INFO_STATUS"
   fi
   printf 'Snap Store 域名解析失败，改用 HTTPS 备用解析重试元数据。\n' >&2
-  fetch_snap_metadata --doh-url "$DOH_FALLBACK_URL"
+  fetch_snap_metadata --doh-url "$DOH_FALLBACK_URL" --verbose
 fi
 
 mapfile -t FIELDS < <(
