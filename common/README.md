@@ -66,9 +66,9 @@
 
 入口为 `snap/download_stable_snap.sh`，前四个位置参数依次是 Snap 名称、发布者账号、架构和输出文件；第五个参数可选，用于输出同次来源元数据 JSON；第六个参数显式选择 `curl` 或 `snap`，省略时保留原 `curl` 行为。调用方提前提供 Bash 4 或更新版本、curl、jq、OpenSSL 及公共下载入口需要的工具；可选来源 JSON 使用 GNU `realpath`。Snap 名称、发布者和输出路径均由调用方指定；架构支持 `amd64` 和 `arm64`。
 
-入口查询 Snap Store 官方元数据，只选择 `latest/stable` 中与传入架构一致的唯一条目，同时核对应用名称和发布者账号。版本、下载 URL 与 96 位十六进制 SHA3-384 必须有效；不存在唯一条目或字段不符时直接失败。元数据请求和 Snap 文件下载均显式使用 HTTP/1.1，并保留 5 次重试；重试间隔采用 curl 的指数退避，而非固定 2 秒。文件下载通过 `download/download_file.sh` 的可选参数启用该行为，校验通过后才替换输出 Snap；失败时清理本次临时文件。
+默认 `curl` 模式查询 Snap Store 官方元数据，只选择 `latest/stable` 中与传入架构一致的唯一条目，同时核对应用名称和发布者账号。版本、下载 URL 与 96 位十六进制 SHA3-384 必须有效；不存在唯一条目或字段不符时直接失败。元数据请求和 Snap 文件下载均显式使用 HTTP/1.1，并保留 5 次重试；重试间隔采用 curl 的指数退避，而非固定 2 秒。文件下载通过 `download/download_file.sh` 的可选参数启用该行为，校验通过后才替换输出 Snap；失败时清理本次临时文件。
 
-元数据请求与文件下载均先沿用默认 DNS；仅在各自请求最终返回 curl 退出码 `6` 时，使用 [Cloudflare 官方 DoH 服务](https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/make-api-requests/) `https://cloudflare-dns.com/dns-query` 重试一轮。文件下载通过公共入口的第八个可选参数显式启用，其他调用默认不启用。备用解析不改变 Snap Store 官方地址、稳定通道、发布者、架构和 SHA3-384 校验；不会回退旧版本或把失败写成成功。Cloudflare 服务域名仍需能够通过默认 DNS 解析。
+`curl` 模式的元数据请求与文件下载均先沿用默认 DNS；仅在各自请求最终返回 curl 退出码 `6` 时，使用 [Cloudflare 官方 DoH 服务](https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/make-api-requests/) `https://cloudflare-dns.com/dns-query` 重试一轮。文件下载通过公共入口的第八个可选参数显式启用，其他调用默认不启用。备用解析不改变 Snap Store 官方地址、稳定通道、发布者、架构和 SHA3-384 校验；不会回退旧版本或把失败写成成功。Cloudflare 服务域名仍需能够通过默认 DNS 解析。
 
 成功时 stdout 只输出一行实际版本，下载进度和诊断写入 stderr。应用可将 stdout 重定向到来源版本文件，再在打包元数据阶段用 `build/read_app_version.sh text` 读取。来源版本不代表最终 AppImage 已生成，最终版本仍须在封装成功后由 `build/save_appimage_version.sh` 写入。
 
