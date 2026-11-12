@@ -630,7 +630,7 @@
     },
     {
       "key": "bluemail",
-      "kind": "standard",
+      "kind": "special",
       "name": "BlueMail",
       "script": "bluemail/build_bluemail.sh",
       "dir": "bluemail",

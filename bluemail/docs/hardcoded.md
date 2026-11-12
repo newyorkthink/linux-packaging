@@ -7,6 +7,7 @@
 | 配置 | 取值 | 依据与用途 |
 | --- | --- | --- |
 | 官方来源 | AUR `bluemail` / `x86_64`；Snap `bluemail` / `blix` / `amd64`；源文件名模板 `bluemail-{version}.snap` | AUR 提供安装配方，Snap Store 提供动态 `latest/stable` 包。核对发布者、架构、官方 SHA3-384 及新旧 Snap ID 后，仅同步临时配方的版本、来源和摘要；不固定 URL、应用版本或修订号。 |
+| CI 来源传递 | Ubuntu 24.04 来源节点；当前 run 的 `bluemail-snap-source` Artifact；`snap-source/source.snap` 与 `snap-source/source.json` | 复用公共 APT 入口支持的 Ubuntu 环境，使用发行版预编译的 Snap 客户端下载并验证 Linux 稳定版；原 Arch 容器按绝对路径复用并复核来源。Artifact 保留一天，每次新 run 重新查询，不固定应用或客户端版本。 |
 | 系统应用包 | `bluemail` | 公共安装入口显式启用 `--aur-source` 与 `--snap-stable bluemail blix amd64`，先由公共入口准备依赖，再在更新后的临时配方目录以其所属非 root 用户直接执行 makepkg 安装官方稳定版，并保留同一份完整 Snap；最终程序不复制已裁剪的系统安装目录。 |
 | 来源与版本输出 | `work/bluemail.snap`、`work/source-version.txt` | 官方稳定版只下载一次，安装缓存重新校验后导出归档；实际安装版本须同时与本次官方版本和重新生成的 `.SRCINFO` 的 `pkgver` 一致，封装前再由公共 `text` 来源读取。 |
 | 工作目录 | `work`、`AppDir`、`dist` | 公共工作区入口只处理应用根目录下明确列出的一级目录。 |

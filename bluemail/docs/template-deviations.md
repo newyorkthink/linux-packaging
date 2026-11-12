@@ -35,4 +35,4 @@ BlueMail 的最终程序来自 Snap Store 官方稳定通道，AUR 安装和后�
 
 公共安装入口在 `--aur-source` 下新增可选 `--snap-stable`，只在调用方明确给出 Snap 名称、发布者和架构时更新本次临时配方；未传选项的来源导出、`--base`、普通包名和 `--aur-deb` 保持原行为。公共 Snap 入口按需输出同次来源 JSON，原四参数调用保持原行为。解包、版本读取、版本保存、工作区和协议 hook 继续使用现有接口。公共说明补充参数、独立缓存、同次元数据与摘要核对规则；应用专属布局及 OAuth 处理继续留在本目录。
 
-正式入口仍为 `bluemail/build_bluemail.sh`，由现有 Arch matrix 构建并发布 `bluemail.AppImage`。既有实机通过记录见[实机验证](../README.md#实机验证)。
+正式入口仍为 `bluemail/build_bluemail.sh`，由独立 BlueMail Job 在原 Arch 容器中构建并发布 `bluemail.AppImage`。Ubuntu 来源节点通过公共 APT 入口安装官方 Snap 客户端，调用同一公共 Snap 入口的显式 `snap` 模式，取得并验证当前 `latest/stable`；随后把 Snap 和来源 JSON 作为本次 workflow 的 Artifact 传入 Arch 节点。Arch 节点仍复用原 `arch_steps`，通过 `SNAP_SOURCE_DIRECTORY` 读取并重新核对身份、稳定通道与 SHA3-384，再走原有安装与打包流程。构建脚本、资源布局、中文输入、启动参数与 OAuth hook 保持原样，构建后仍立即发布本应用的软件版本清单。既有实机通过记录见[实机验证](../README.md#实机验证)。

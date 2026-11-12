@@ -38,6 +38,9 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
+| `UBUNTU_STORE_ARCH` | 为官方 Snap 客户端明确请求 `amd64` 或 `arm64` 的稳定版，避免按下载节点误选架构；只作用于本次 `snap download` 子进程。 | `common/snap/download_stable_snap.sh` 的显式 `snap` 模式；BlueMail 来源节点传入 `amd64`。 |
+| `SNAP_SOURCE_ARTIFACT` | 当前 workflow run 中的官方 Snap 来源 Artifact 名称；为空时跳过共享步骤中的取回。 | `.github/workflows/build.yml` 的独立 BlueMail Job 显式设置，其他应用不启用。 |
+| `SNAP_SOURCE_DIRECTORY` | 当前 run 的 Snap 来源解压到的绝对目录；公共 Snap 入口读取 `source.snap` 和 `source.json` 并重新核对身份、稳定通道、版本和 SHA3-384。 | BlueMail Job 设置；公共 Snap 入口读取，不写入 AppImage 运行配置。 |
 | `SRCDEST` | makepkg 来源缓存。公共 Arch 安装入口仅在显式 --aur-deb 或 --aur-source 模式为本次安装设置；--snap-stable 仅在临时配方目录的子 Shell 中导出，供 makepkg 及其 sudo 子进程读取，其他模式继续为单次 yay 配合独立 --builddir 使用；不写入 AppDir/.env 或改变宿主运行环境。 | common/arch/install_packages.sh；bluemail 显式启用 --aur-source；归档前由 todesk 显式启用 --aur-deb |
 | `ARCH` | 向打包工具传入目标架构。 | 例如 Keyviz、adspower-global、aionui、gemini |
 | `QMAKE` | 告诉 linuxdeploy 的 Qt 插件用哪个 qmake。Qt5 和 Qt6 不能混。 | 4 个脚本，例如 goldendict、peazip、wemeet、xnviewmp |

@@ -2,14 +2,15 @@
 
 ## 用途与产物
 
-本目录把 [Snap Store 官方稳定通道](https://snapcraft.io/bluemail)的 x86_64 Snap 重新封装为 `bluemail.AppImage`，由 `.github/workflows/build.yml` 的标准 Arch Linux matrix 构建。公共安装入口先获取 AUR [bluemail 软件包](https://aur.archlinux.org/packages/bluemail)配方，再动态取得并校验官方稳定版，更新本次临时配方的版本、Snap 来源及摘要后安装。安装和 AppImage 打包复用同一份完整 Snap，最终程序、图标和桌面入口均取自这份归档，不受 AUR 配方版本滞后的限制。
+本目录把 [Snap Store 官方稳定通道](https://snapcraft.io/bluemail)的 x86_64 Snap 重新封装为 `bluemail.AppImage`，由 `.github/workflows/build.yml` 的独立 BlueMail Job 在原 Arch Linux 容器中构建。Ubuntu 来源节点先用官方 `snap download` 取得 Linux 稳定版，通过本次 workflow 的 Artifact 传递同次 Snap 和来源元数据；公共安装入口再获取 AUR [bluemail 软件包](https://aur.archlinux.org/packages/bluemail)配方并重新校验来源，更新本次临时配方的版本、Snap 来源及摘要后安装。安装和 AppImage 打包复用同一份完整 Snap，最终程序、图标和桌面入口均取自这份归档，不受 AUR 配方版本滞后的限制。
 
 ## 打包方式
 
 - `common/arch/install_packages.sh --base` 安装统一基础包；公共工作区准备完成后，同一入口通过 `--aur-source` 与显式 `--snap-stable bluemail blix amd64` 安装 `bluemail` 及已确认的运行库和 GTK3 输入模块，并保留同次下载来源。
-- 安装入口只获取 AUR 配方，不先下载或安装其旧版 Snap。公共 Snap 入口动态下载唯一的官方 `latest/stable` 包并核对 SHA3-384；配方同步助手核对新旧 Snap ID，仅更新临时 PKGBUILD 的版本、选中来源和对应 SHA-256 / SHA-512。公共入口准备配方声明的依赖后，在改好的配方目录中以其所属非 root 用户直接执行 makepkg，重新生成 `.SRCINFO` 并安装；其他来源及其摘要保持原样。
+- Ubuntu 来源节点通过公共 APT 入口安装发行版提供的 Snap 客户端、PyYAML 和 SquashFS 工具，再由公共 Snap 入口显式使用 `snap` 模式取得官方 `latest/stable`。`snap download` 验证签名声明，公共入口再核对发布者、包内版本与架构、文件大小及 SHA3-384。Snap 和 JSON 一起存为本次 run 的 `bluemail-snap-source` Artifact，保留一天；Arch 节点取回后再次核对身份、通道和文件摘要。其他应用不依赖该来源节点。
+- 安装入口只获取 AUR 配方，不先下载或安装其旧版 Snap；配方同步助手核对新旧 Snap ID，仅更新临时 PKGBUILD 的版本、选中来源和对应 SHA-256 / SHA-512。公共入口准备配方声明的依赖后，在改好的配方目录中以其所属非 root 用户直接执行 makepkg，重新生成 `.SRCINFO` 并安装；其他来源及其摘要保持原样。
 - 安装后从同次 `.SRCINFO` 唯一匹配 `bluemail-{version}.snap`，重新校验同一份缓存，再导出 `work/bluemail.snap` 和 `work/source-version.txt`。当前配方使用 SHA-512；新摘要只从通过官方 SHA3-384 的文件计算，makepkg 校验照常执行，导出过程不再次下载 Snap。
-- 官方元数据请求和 Snap 下载仅在 DNS 解析失败时，由公共入口使用 Cloudflare DoH 备用解析重试，保留官方 HTTPS、来源身份和摘要校验；元数据回退请求通过 `curl --verbose` 将连接过程写入 stderr，便于定位连接超时。接口与适用条件见[公共 Snap 下载说明](../common/README.md#snap-store-官方稳定通道)。
+- 正式 CI 使用官方客户端模式，Arch 安装阶段只复用本次 run 的来源，不再请求 Snap Store 元数据；应用脚本与原 Arch 安装、解包及打包命令保持原样。公共入口原有 `curl` 模式仍保留 DNS 失败时的 DoH 备用解析，接口边界见[公共 Snap 下载说明](../common/README.md#snap-store-官方稳定通道)。
 - `common/archive/extract_archive.sh` 解包 Snap。构建脚本保留 BlueMail 自带的 Electron/Chromium 程序、相邻库和资源，去掉 Snap 专用宿主运行时目录。
 - Arch Linux 容器中的 quick-sharun 收集主程序依赖并生成默认入口。构建脚本把需要保持相邻关系的官方 Snap 程序、库和 Electron 资源解包到自己创建的 `AppDir/shared/bin/`，因此通过 `AppDir/.env` 把该目录设为额外库目录和工作目录；这不是所有 Snap 的固定路径。`90-bluemail-arguments.hook` 通过 quick-sharun 通用 hook 机制保留官方 Snap 使用的 `--ozone-platform=x11 --no-sandbox` 参数。桌面图标与 desktop 文件来自同一 Snap。
 - `20-bluemail-protocol.hook` 在每次启动时，把本次实际的 AppImage 路径写成 `~/.local/share/applications/bluemail.desktop`（`Exec` 使用 `%U`），并在 `~/.config/mimeapps.list` 的 `[Default Applications]` 中把 `x-scheme-handler/me.blueone.linux` 指到该文件。不修改 `mailto` 的现有默认程序。quick-sharun 使用的 DWARFS AppImage 不能靠 appimagelauncher 完成这项注册。

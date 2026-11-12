@@ -33,7 +33,7 @@
 - `github/resolve_latest_stable_release_asset.sh [--tag-prefix <标签前缀>] <owner/repo> '<固定资产名或含 {version} 的资产名模板>'` 保留原正式版本、唯一资产和 GitHub SHA-256 选择规则。只有显式传入前置的 `--tag-prefix` 时，才按字面值匹配并移除该非空前缀，再解析余下的可选 `v` 与点分数字版本；前缀不得含空白字符。`github/download_latest_stable_release_asset.sh` 同样在仓库名之前接受该选项，随后仍传入仓库、资产名模板、输出文件和可选的成对 DEB 包名、架构。下载、摘要校验、DEB 身份检查及只向 stdout 返回版本的行为不变；不传选项的旧调用保持原规则。前缀模式不能与 `--latest-with-checksum` 混用。 资产名可以是固定文件名，也可以包含 `{version}`；两者共用同一正式版本筛选、唯一资产匹配和 GitHub SHA-256 校验，固定名不另设应用特判。解析器可在其他选项之前显式接收 `--with-asset-id`，仅在原三行版本、下载地址和 SHA-256 之后追加同一资产的 ID；不传时仍输出原三行。该选项不能与 `--release-tag` 或 `--latest-with-checksum` 同用，原归档和校验清单模式的输出保持不变。
 - `github/download_latest_stable_release_asset.sh <owner/repo> '<包含 {version} 的资产名模板>' <输出文件> --latest-with-checksum <校验清单资产名> <commit 文件>` 从同一个 `/releases/latest` 响应定位主资产和校验清单，验证两者的 GitHub SHA-256，再用清单中唯一对应的 SHA-256 校验主资产。校验通过并解析 tag 对应的 Git commit 后，写出资产和 commit，stdout 仅返回版本。原资产模板及可选 DEB 参数调用保持原有语义。
 - `github/download_latest_stable_release_source.sh <owner/repo> <目标目录>` 读取最新非草稿、非预发布 Release，校验标签后浅克隆对应源码；成功时 stdout 只返回原始标签。参数、依赖与认证边界见下文的 [GitHub 最新正式 Release 源码](#github-最新正式-release-源码)。
-- `snap/download_stable_snap.sh <Snap 名称> <发布者账号> <amd64|arm64> <输出.snap> [元数据 JSON 输出]` 从 Snap Store 官方接口选择唯一的 `latest/stable` 条目，核对名称、发布者和架构，下载后校验官方 SHA3-384；成功时 stdout 仅返回实际版本。下载、版本、校验与调用边界见下文。
+- `snap/download_stable_snap.sh <Snap 名称> <发布者账号> <amd64|arm64> <输出.snap> [元数据 JSON 输出] [curl|snap]` 默认从 Snap Store 官方接口选择唯一的 `latest/stable` 条目，核对名称、发布者和架构，下载后校验官方 SHA3-384；成功时 stdout 仅返回实际版本。下载、版本、校验与调用边界见下文。
 - `build/prepare_x86_64_workspace.sh` 接收项目根目录、`--skip-create`、一个清理后不创建的一级目录名，以及其余清理后重建的一级目录名。先检查 x86_64 和全部目录名，再只处理这个项目下明确传入的目录；应用自行决定哪些工作目录需要重建。
 - `arch/install_packages.sh` 保留 `--base` 和普通包名调用。只有显式指定 `--aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]` 时，才先安装额外软件包、复用公共 AUR 下载入口准备已校验 DEB，再交由 yay / makepkg 按原 PKGBUILD 校验和安装；使用独立来源缓存及构建目录，详见下文。 显式 `--aur-source <AUR 包名> <架构> <源文件名模板> <源文件输出> <来源版本文件> -- [额外软件包...]` 则保留安装阶段下载的原始来源，按同次元数据重新校验后导出归档及版本，不进行第二次下载。可在分隔符前显式追加 `--snap-stable <Snap 名称> <发布者> <Snap 架构>`，先用官方稳定通道同步本次临时配方，再安装和导出同一份 Snap；完整约束见下文。
 - `arch/get_package_version.sh` 接收一个已安装的 Arch 软件包名，从 `pacman -Q` 读取版本并去掉 epoch 和发行版 `pkgrel`，只向 stdout 输出非空的上游版本。需要保留发行版修订号的应用不要调用该入口。
@@ -64,7 +64,7 @@
 
 ### Snap Store 官方稳定通道
 
-入口为 `snap/download_stable_snap.sh`，前四个位置参数依次是 Snap 名称、发布者账号、架构和输出文件；第五个参数可选，用于输出同次来源元数据 JSON。调用方提前提供 Bash、curl、jq、OpenSSL 及公共下载入口需要的工具。Snap 名称、发布者和输出路径均由调用方指定；架构支持 `amd64` 和 `arm64`。
+入口为 `snap/download_stable_snap.sh`，前四个位置参数依次是 Snap 名称、发布者账号、架构和输出文件；第五个参数可选，用于输出同次来源元数据 JSON；第六个参数显式选择 `curl` 或 `snap`，省略时保留原 `curl` 行为。调用方提前提供 Bash 4 或更新版本、curl、jq、OpenSSL 及公共下载入口需要的工具；可选来源 JSON 使用 GNU `realpath`。Snap 名称、发布者和输出路径均由调用方指定；架构支持 `amd64` 和 `arm64`。
 
 入口查询 Snap Store 官方元数据，只选择 `latest/stable` 中与传入架构一致的唯一条目，同时核对应用名称和发布者账号。版本、下载 URL 与 96 位十六进制 SHA3-384 必须有效；不存在唯一条目或字段不符时直接失败。元数据请求和 Snap 文件下载均显式使用 HTTP/1.1，并保留 5 次重试；重试间隔采用 curl 的指数退避，而非固定 2 秒。文件下载通过 `download/download_file.sh` 的可选参数启用该行为，校验通过后才替换输出 Snap；失败时清理本次临时文件。
 
@@ -79,7 +79,11 @@
 "$SCRIPT_DIR/../common/snap/download_stable_snap.sh" "<Snap 名称>" "<发布者账号>" "<amd64或arm64>" "<输出.snap>" > "<来源版本文件>"
 ```
 
-只有显式提供第五个参数时，才在 Snap 通过官方摘要后原子写出来源 JSON，字段为 `name`、`publisher`、`architecture`、`version`、`url` 和 `sha3_384`；这些值来自同次已核对的稳定通道响应，不重新查询或下载。元数据路径不能与 Snap 输出重合，写入失败会返回失败。原四参数调用的参数与输出保持不变，同样适用上述 DNS 备用解析。
+只有显式提供第五个参数时，才在 Snap 通过官方摘要后原子写出来源 JSON，字段为 `name`、`publisher`、`architecture`、`channel`、`version`、`url` 和 `sha3_384`；`channel` 为本次请求的 `latest/stable`；这些值对应同次已校验的稳定通道来源，不重新查询或下载。元数据路径不能与 Snap 输出重合，写入失败会返回失败。原四参数调用的参数与输出保持不变，同样适用上述 DNS 备用解析。
+
+显式选择 `snap` 时，调用方先提供发行版的 Snap 客户端、Python 3、PyYAML、`unsquashfs` 和 GNU `timeout`。入口通过 `UBUNTU_STORE_ARCH` 明确目标架构，执行 `snap download --channel=latest/stable`，同时取得 Snap 和 `.assert`；不启动 snapd 服务，也不安装 Snap 应用。客户端成功完成内存信任库中的签名链与文件校验后，公共入口从同次声明核对名称、Snap ID、发布者账号和修订，从包内 YAML 读取版本与架构，并再次核对 SHA3-384 和大小。缺少必要声明、身份不符或下载失败时停止，不退回旧版。调用方只使用原有一行公共入口，不自行解析客户端下载进度。
+
+显式设置 `SNAP_SOURCE_DIRECTORY` 时，原 `curl` 模式只读取该绝对目录中的普通文件 `source.snap` 和 `source.json`，不重新联网。JSON 中的名称、发布者、架构和稳定通道须与调用参数一致，版本、官方 URL 和 SHA3-384 继续使用原检查；实际文件复制后再次校验摘要，成功后才替换输出。调用方通过 `actions/download-artifact` 只传入当前 workflow run 的来源，缺失或不符时直接失败。每次新 run 都由下载节点重新获取稳定版，不复用其他 run 或仓库的文件。未显式启用的旧调用继续在线下载，位置参数与 stdout 版本接口保持兼容。
 
 本入口不安装应用、不解包、不修改 desktop，也不处理启动参数和资源链接。应用安装使用对应公共安装入口；Snap 解包使用 `archive/extract_archive.sh`，调用方先安装提供 `unsquashfs` 的工具包。具体目录整理和启动兼容处理留在应用目录。
 
