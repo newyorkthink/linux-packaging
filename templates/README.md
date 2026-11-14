@@ -14,7 +14,7 @@
 | [linuxdeploy-gtk-apt.sh](./appimage/linuxdeploy-gtk-apt.sh) | GTK3，Ubuntu 仓库包 |
 | [linuxdeploy-gtk-gstreamer-apt.sh](./appimage/linuxdeploy-gtk-gstreamer-apt.sh) | GTK3 + GStreamer，Ubuntu 仓库包 |
 | [linuxdeploy-qt-deb.sh](./appimage/linuxdeploy-qt-deb.sh) | Qt，官网校验清单中的 DEB |
-| [linuxdeploy-cli-apt.sh](./appimage/linuxdeploy-cli-apt.sh) | CLI / 无框架插件，Ubuntu 仓库包或指定标签的官方归档 DEB |
+| [linuxdeploy-cli-apt.sh](./appimage/linuxdeploy-cli-apt.sh) | CLI / 无框架插件，Ubuntu 仓库包、指定标签的官方归档 DEB 或 GitHub 正式 Release 的固定名称预编译归档 |
 | [appimagetool-direct.sh](./appimage/appimagetool-direct.sh) | 已有完整 AppDir，直接封装 |
 
 ## quick-sharun

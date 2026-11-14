@@ -252,9 +252,126 @@ def gtk_deb_source_arguments(params):
     return params, source
 
 
-def cli_apt_source_arguments(params):
-    """为无框架插件模板保留 APT 入口，并支持指定已归档的官方 DEB。"""
+def cli_archive_relative_path(value, name, allow_root=False):
+    """校验预编译归档中的目录、包内目录和应用资源路径。"""
+    value = clean_text(value, name)
+    if allow_root and value == ".":
+        return value
+    if (not re.fullmatch(r"[A-Za-z0-9_.+-]+(?:/[A-Za-z0-9_.+-]+)*", value)
+            or any(part in {".", ".."} for part in value.split("/"))):
+        raise ValueError(f"{name} 必须是无空段且不含 . 或 .. 的相对路径。")
+    return value
+
+
+def cli_archive_source_arguments(params):
+    """为 CLI 模板接入 GitHub 正式 Release 的固定名称预编译归档。"""
     params = params.copy()
+    conflicts = {
+        "APT_MAIN_PACKAGE", "APT_EXTRA_PACKAGES", "RELEASE_TAG", "DEB_FILENAME",
+        "RELEASE_ASSET_PATTERN", "DESKTOP_EXEC", "DESKTOP_ICON",
+    } & params.keys()
+    if conflicts:
+        raise ValueError("预编译归档不能混用 APT 或归档 DEB 参数：" + "、".join(sorted(conflicts)))
+    needed = {
+        "GITHUB_REPOSITORY", "ARCHIVE_ASSET_NAME", "ARCHIVE_FILENAME",
+        "ARCHIVE_PROGRAM_DIR", "ARCHIVE_INSTALL_DIR", "MAIN_EXECUTABLE",
+        "DESKTOP_FILE", "ICON_FILE",
+    }
+    if not needed <= params.keys():
+        raise ValueError("预编译归档缺少参数：" + "、".join(sorted(needed - params.keys())))
+
+    repo = clean_text(params.pop("GITHUB_REPOSITORY"), "GITHUB_REPOSITORY")
+    asset = clean_text(params.pop("ARCHIVE_ASSET_NAME"), "ARCHIVE_ASSET_NAME")
+    filename = clean_text(params.pop("ARCHIVE_FILENAME"), "ARCHIVE_FILENAME")
+    suffixes = (".zip", ".tar", ".tar.gz", ".tgz", ".tar.xz", ".txz", ".tar.bz2", ".tbz2")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
+        raise ValueError("GITHUB_REPOSITORY 必须是 owner/repo。")
+    if (not re.fullmatch(r"[A-Za-z0-9_.-]+", asset) or not asset.endswith(suffixes)
+            or not BASENAME.fullmatch(filename) or not filename.endswith(suffixes)):
+        raise ValueError("归档资产名和本地文件名必须是公共解包入口支持的 ZIP 或 tar 文件名。")
+    if asset.endswith(".zip") != filename.endswith(".zip"):
+        raise ValueError("归档资产和本地文件名必须使用一致的 ZIP 或 tar 格式。")
+
+    program_dir = cli_archive_relative_path(params.pop("ARCHIVE_PROGRAM_DIR"), "ARCHIVE_PROGRAM_DIR", True)
+    install_dir = cli_archive_relative_path(params.pop("ARCHIVE_INSTALL_DIR"), "ARCHIVE_INSTALL_DIR")
+    main = cli_archive_relative_path(params["MAIN_EXECUTABLE"], "MAIN_EXECUTABLE")
+    if not install_dir.startswith(("usr/", "opt/")) or not main.startswith(install_dir + "/"):
+        raise ValueError("归档安装目录必须位于 usr/ 或 opt/ 下，且 MAIN_EXECUTABLE 必须位于其中。")
+    library_dir = None
+    if "APP_LIB_DIR" in params:
+        library_dir = cli_archive_relative_path(params.pop("APP_LIB_DIR"), "APP_LIB_DIR")
+        if not (library_dir == "usr/lib" or library_dir == install_dir
+                or library_dir.startswith(install_dir + "/")):
+            raise ValueError("APP_LIB_DIR 必须是 usr/lib 或完整程序目录及其子目录。")
+
+    desktop = cli_archive_relative_path(params.pop("DESKTOP_FILE"), "DESKTOP_FILE")
+    icon = cli_archive_relative_path(params.pop("ICON_FILE"), "ICON_FILE")
+    if (not desktop.startswith("patches/") or not desktop.endswith(".desktop")
+            or not icon.startswith("patches/") or not icon.endswith((".png", ".svg", ".xpm"))):
+        raise ValueError("归档桌面资源必须是本应用 patches/ 内的 .desktop 和 PNG、SVG 或 XPM 文件。")
+
+    source_lines = [
+        "# 下载并校验官方预编译归档，成功后返回版本号。",
+        'VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_named_asset.sh" '
+        f'"{repo}" "{asset}" "$SOURCE_DIR/{filename}")"',
+        "",
+        "# 解包已校验的官方预编译归档。",
+        f'"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$SOURCE_DIR/{filename}" "$SOURCE_DIR/archive"',
+        "",
+        "# 复制完整程序目录，并保留相邻资源的相对布局。",
+        f'mkdir -p "$APPDIR/{install_dir}"',
+        f'cp -a "$SOURCE_DIR/archive/{program_dir}/." "$APPDIR/{install_dir}/"',
+        "",
+        "# 检查包内主程序和声明的运行库目录。",
+        f'[[ -f "$APPDIR/{main}" ]] || {{ echo "错误：归档中缺少指定的主程序。" >&2; exit 1; }}',
+    ]
+    if library_dir is not None:
+        source_lines.append(
+            f'[[ -d "$APPDIR/{library_dir}" ]] || {{ echo "错误：归档中缺少声明的运行库目录。" >&2; exit 1; }}'
+        )
+    source_lines.extend((
+        "",
+        "# 为包内主程序添加执行权限。",
+        f'chmod +x "$APPDIR/{main}"',
+    ))
+    desktop_block = (
+        "\n########## 准备桌面资源和运行库 #########\n\n"
+        "# 指定命令行程序的桌面入口和图标。\n"
+        f'DEPLOY_DESKTOP_FILE="$SCRIPT_DIR/{desktop}"\n'
+        f'ICON_FILE="$SCRIPT_DIR/{icon}"\n'
+        '[[ -f "$DEPLOY_DESKTOP_FILE" && -f "$ICON_FILE" ]] || { echo "错误：缺少指定的桌面入口或图标。" >&2; exit 1; }'
+    )
+    bin_dirs = ["usr/bin"]
+    main_dir = Path(main).parent.as_posix()
+    if main_dir not in bin_dirs:
+        bin_dirs.append(main_dir)
+    library_dirs = ["usr/lib"]
+    if library_dir is not None and library_dir not in library_dirs:
+        library_dirs.append(library_dir)
+    bin_search = ":".join("$HERE/" + path for path in bin_dirs)
+    library_search = ":".join("$HERE/" + path for path in library_dirs)
+    apprun_paths = "\n".join((
+        'export PATH="' + bin_search + '${PATH:+:$PATH}"',
+        'export LD_LIBRARY_PATH="' + library_search + '${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"',
+        'export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"',
+    ))
+    return params, {
+        "CLI_SOURCE_BLOCK": "\n".join(source_lines),
+        "CLI_DESKTOP_PREPARE": desktop_block,
+        "CLI_APPRUN_PATHS": apprun_paths,
+        "CLI_DEPLOY_ARGS": (
+            f'--deploy-deps-only "$APPDIR/{main}" --deploy-deps-only "$APPDIR/{install_dir}" '
+            '--desktop-file "$DEPLOY_DESKTOP_FILE" --icon-file "$ICON_FILE" '
+        ),
+    }
+
+
+def cli_apt_source_arguments(params):
+    """保留 APT 和归档 DEB 入口，并接入固定名称预编译归档。"""
+    params = params.copy()
+    archive_fields = {"ARCHIVE_ASSET_NAME", "ARCHIVE_FILENAME", "ARCHIVE_PROGRAM_DIR", "ARCHIVE_INSTALL_DIR"}
+    if archive_fields & params.keys():
+        return cli_archive_source_arguments(params)
     source = (
         "# 下载已安装版本的软件包并解包到 AppDir，成功后返回版本号。\n"
         'VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "__APT_MAIN_PACKAGE__" "$APPDIR" __APT_EXTRA_PACKAGES__)"'
@@ -305,6 +422,11 @@ def cli_apt_source_arguments(params):
     return params, {
         "CLI_SOURCE_BLOCK": source,
         "CLI_DESKTOP_PREPARE": desktop_block,
+        "CLI_APPRUN_PATHS": (
+            'export PATH="$HERE/usr/bin${PATH:+:$PATH}"\n'
+            'export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\n'
+            'export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"'
+        ),
         "CLI_DEPLOY_ARGS": deploy_args,
     }
 

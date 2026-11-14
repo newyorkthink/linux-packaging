@@ -82,6 +82,32 @@ python3 scripts/build/generate_build_script.py --template "<模板相对路径>"
 
 占位参数的完整定义见 [linuxdeploy 规范](../../linuxdeploy_projects.md#唯一标准模板) 和 [quick-sharun 规范](../../anylinux_projects.md#唯一标准模板)。
 
+### CLI 预编译归档来源
+
+`linuxdeploy-cli-apt.sh` 保留原文件名，新增与 APT、归档 DEB 互斥的 GitHub 预编译归档来源。不新增模板，不修改公共生成工作流或请求默认值。此模式仍提供 `APP_NAME`、`APT_PACKAGES` 和 `MAIN_EXECUTABLE`，另提供下表参数。
+
+| 参数 | 内容 |
+| --- | --- |
+| `GITHUB_REPOSITORY` | 官方仓库的 `owner/repo`。 |
+| `ARCHIVE_ASSET_NAME` | 正式 Release 中的完整固定资产名，不使用 `{version}`。 |
+| `ARCHIVE_FILENAME` | 下载到 `source` 的本地归档文件名。 |
+| `ARCHIVE_PROGRAM_DIR` | 解包后完整程序目录的相对路径；归档根目录直接使用 `.`，不猜测第一层目录。 |
+| `ARCHIVE_INSTALL_DIR` | AppDir 内 `usr/` 或 `opt/` 下的实际程序目录。完整目录及相邻资源一并复制到此处。 |
+| `MAIN_EXECUTABLE` | AppDir 内真实主程序的相对路径，必须位于 `ARCHIVE_INSTALL_DIR` 内。 |
+| `APP_LIB_DIR` | 可选。AppDir 内声明的运行库目录；只接受 `usr/lib`、完整程序目录或其子目录。存在相邻库或动态加载库时按实际布局填写。 |
+| `DESKTOP_FILE` | 相对当前应用目录的 `patches/*.desktop` 路径。 |
+| `ICON_FILE` | 相对当前应用目录的 `patches/` 内 PNG、SVG 或 XPM 图标路径；优先保存官方资源。 |
+
+归档来源不接受 `APT_MAIN_PACKAGE`、`APT_EXTRA_PACKAGES`、`RELEASE_TAG`、`DEB_FILENAME`、`RELEASE_ASSET_PATTERN`、`DESKTOP_EXEC` 或 `DESKTOP_ICON`；共用的 `APT_PACKAGES` 继续提供构建工具和实际依赖。
+
+支持公共解包入口已有的 `.zip`、`.tar`、`.tar.gz`、`.tgz`、`.tar.xz`、`.txz`、`.tar.bz2`、`.tbz2`。资产与本地文件名必须属于同一种 ZIP 或 tar 格式。目录和资源路径必须是无空段、不含 `.` 或 `..` 路径段的相对路径，仅允许字母、数字、下划线、点、加号、连字符和目录分隔符；只有 `ARCHIVE_PROGRAM_DIR` 可以单独填写 `.`。
+
+下载复用 `common/github/download_latest_stable_named_asset.sh`：同次正式 Release 的版本、完整资产名、官方 SHA-256 和资产 ID 保持绑定，直链失败后仍用同一资产 ID 认证回退。解包复用 `common/archive/extract_archive.sh`，在 `source/archive` 下准备输入；模板不重复实现版本解析、认证、下载或解包。
+
+生成结果检查复制后的主程序和显式声明的运行库目录，并只为真实主程序补执行权限。桌面入口和图标必须在应用的 `patches/` 中预先准备，不从宿主目录猜测，也不改写调用方的 desktop 内容。linuxdeploy 使用 `--deploy-deps-only` 收集包内主程序及完整程序目录的依赖，再部署显式提供的桌面资源；不通过 `--executable` 另造程序副本。
+
+AppRun 保留基础搜索路径，并按实际入口追加主程序所在目录；仅在显式提供 `APP_LIB_DIR` 时追加对应运行库目录。最终仍直接执行 `MAIN_EXECUTABLE` 并转交原有命令行参数。APT 和归档 DEB 来源不使用这些新参数，继续生成原有下载、部署及 AppRun 内容。
+
 ### 可选应用阶段
 
 `linuxdeploy-gtk-deb.sh` 支持三个按需启用的应用阶段。参数只填写路径，生成器输出固定调用，不接受 Shell 代码块；未填写时，调用及对应注释、空行均省略，原有生成结果保持不变。

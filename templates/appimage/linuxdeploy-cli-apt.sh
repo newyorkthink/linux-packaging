@@ -46,9 +46,7 @@ set -Eeuo pipefail
 HERE="$(dirname "$(readlink -f "${0}")")"
 
 # 设置程序、运行库和共享数据的搜索路径。
-export PATH="$HERE/usr/bin${PATH:+:$PATH}"
-export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+__CLI_APPRUN_PATHS__
 
 # 启动包内程序，并保留传入的命令行参数。
 exec "$HERE/__MAIN_EXECUTABLE__" "$@"
