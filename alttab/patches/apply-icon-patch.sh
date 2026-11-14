@@ -16,28 +16,28 @@ SOURCE_DIR="$(cd -- "$1" && pwd)"
 
 ###### 应用补丁 ######
 # 保留原有补丁参数；重复应用或上下文不匹配时直接失败。
-patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/desktop-icons.patch"
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/desktop-icons.patch"
 
 # 泛化回退：宿主图标查找失败时，从目标窗口所属 AppImage 的运行时 APPDIR 读取内嵌图标，不匹配具体应用名称。
-patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/appimage-icons.patch"
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/appimage-icons.patch"
 
 # AppImage 挂载兼容：保留原 APPDIR 回退逻辑，只补充通过目标进程 /proc/<pid>/root 访问其挂载命名空间。
-patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/appimage-mount-namespace.patch"
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/appimage-mount-namespace.patch"
 
 # RunImage 程序图标兼容：目标进程存在 RUNIMAGE 时，优先从它自己的根目录和可执行文件相对路径读取内置 PNG 图标。
-patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/runimage-program-icons.patch"
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/runimage-program-icons.patch"
 
 # 字体回退：保留 MonoLisa 主字体，主字体缺字时依次尝试中文、通用符号和 Nerd Font 备用字体。
-patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/font-fallback.patch"
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/font-fallback.patch"
 
 # 字形与排版补充：固定备用字体仍缺字时交给 Fontconfig 按字符匹配宿主字体，并增大多行标题行距。
-patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/glyph-layout.patch"
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/glyph-layout.patch"
 
 # 标题换行：按实际主字体/备用字体的像素宽度计算断行，避免中英混排标题被右侧裁掉。
-patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/title-wrap.patch"
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/title-wrap.patch"
 
 # 横向导航：保留上游自定义辅助键，并补充 Left/h 上一个、Right/l 下一个。
-patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/navigation-keys.patch"
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/navigation-keys.patch"
 
 # 安全键位：禁用上游默认的 k 关闭窗口行为；显式 -dk 仍可重新指定 kill key。
-patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/disable-default-kill-key.patch"
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/disable-default-kill-key.patch"

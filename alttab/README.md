@@ -4,7 +4,7 @@
 
 本目录将 [sagb/alttab](https://github.com/sagb/alttab) 官方最新稳定 Release 源码编译并封装为 `alttab.AppImage`，用于 X11 窗口切换。
 
-最终产物固定为 `alttab.AppImage`，由 `.github/workflows/build.yml` 中的 `Build AltTab` Job 构建并发布到 `latest` Release。上游主要使用 C、Xlib、Xft、Xrender、Xrandr、libpng、libXpm 和 uthash；本项目额外使用 GLib 解析 desktop 元数据。
+最终产物固定为 `alttab.AppImage`，由 `.github/workflows/build.yml` 的统一 Arch matrix 调度 `Build AltTab`，构建并发布到 `latest` Release。上游主要使用 C、Xlib、Xft、Xrender、Xrandr、libpng、libXpm 和 uthash；本项目额外使用 GLib 解析 desktop 元数据。
 
 ## 最终状态
 
@@ -25,7 +25,8 @@
 | 文件 | 用途 |
 | --- | --- |
 | `build_alttab.sh` | 获取上游最新稳定 Release、安装依赖、应用补丁、编译并调用 quick-sharun 打包 |
-| `apply-icon-patch.sh` | 历史文件名；当前实际按固定顺序应用全部独立兼容 patch |
+| `patches/apply-icon-patch.sh` | 历史文件名；当前实际按固定顺序应用全部独立兼容 patch |
+| `docs/template-deviations.md` | 同类参考、公共流程对齐、工作区和专属处理说明 |
 | `patches/desktop-icons.patch` | 宿主 XDG desktop / 图标主题映射、PNG 尺寸及透明背景处理 |
 | `patches/appimage-icons.patch` | 直接运行 AppImage 的 `APPDIR`、`.DirIcon`、desktop `Icon` 回退 |
 | `patches/appimage-mount-namespace.patch` | 通过 `/proc/<pid>/root` 访问目标 AppImage 自身挂载视图 |
@@ -38,18 +39,22 @@
 
 ## 打包方式
 
-正式构建使用 `.github/workflows/build.yml` 的 `Build AltTab` Job，并复用 `.github/actions/build-anylinux`。quick-sharun / sharun 的实际依赖收集与 AppDir 构建阶段运行在 Arch Linux 环境中。
+正式构建由 `.github/appimage-apps.json` 中的 AltTab 条目交给 `.github/workflows/build.yml` 的统一 Arch matrix，并复用 `.github/actions/build-anylinux`。quick-sharun / sharun 的实际依赖收集与 AppDir 构建阶段运行在 Arch Linux 环境中。
+
+本项目归入[专用打包流程](../docs/packaging-classification.md#专用打包流程)：官方正式版源码需要应用本仓库维护的九个独立补丁后再编译。按本次明确要求，不使用生成器，手动对照 Webcamoid、st 和 Newsboat 的公共入口、固定注释和排版；专属处理及对应依据见[模板差异说明](./docs/template-deviations.md)。
 
 构建流程：
 
-1. 从 `sagb/alttab` 的 `releases/latest` 获取最新稳定 Release，拒绝 draft / prerelease。
-2. 将 Release tag 解析到具体 commit SHA，再按该 commit 下载官方源码归档并输出 SHA-256。
-3. 调用 `apply-icon-patch.sh`，依次应用所有独立补丁；任一补丁不匹配时立即停止，不静默跳过。
-4. 使用上游 `configure --prefix=/usr` 与 `make` 编译，并加入 GLib 编译 / 链接参数。
-5. 生成 `alttab.desktop`，使用上游 `doc/alttab.svg` 作为 AltTab 自身图标。
-6. 由 quick-sharun 收集程序与动态依赖，生成 `dist/alttab.AppImage` 并发布到 `latest` Release。
+1. 调用公共 Arch 安装入口准备基础工具及原有编译、运行依赖。公共工作区入口清理 `AppDir`、`work`、`dist`，重建 `work` 和 `dist`。
+2. 通过 `common/github/download_latest_stable_release_source.sh` 的显式 `--archive` 模式从 `sagb/alttab` 的 `releases/latest` 获取最新稳定 Release，拒绝 draft / prerelease；标签解析为具体 commit SHA 后，下载并解包该提交的官方源码到 `work/source`，日志记录完整提交和归档 SHA-256。
+3. 计算现有构建指纹，调用 `patches/apply-icon-patch.sh` 依次应用所有独立补丁；任一补丁不匹配时立即停止，不静默跳过。
+4. 使用上游 `configure --prefix=/usr` 与原有 `make` 命令编译，并保留 GLib 编译 / 链接参数。
+5. 在 `work` 中生成 `alttab.desktop`，使用上游 `doc/alttab.svg` 作为 AltTab 自身图标，保留上游许可证。
+6. 由 quick-sharun 收集程序与动态依赖并封装 `dist/alttab.AppImage`；公共版本保存入口在产物成功生成后写入 `dist/version.txt`，既有 workflow 负责发布及更新软件版本清单。
 
-`build_alttab.sh` 不自行锁定 AltTab、quick-sharun 或 sharun 的旧版本；当前供应链下载与校验继续使用现有动态稳定入口和配套校验机制。
+`work/source` 和临时桌面资源保留在本应用的 `work` 工作区中，下一次构建由公共入口统一清理。本脚本不再创建独立临时源码目录或安装退出清理 trap；工作区管理与同类源码项目一致。
+
+`build_alttab.sh` 不自行锁定 AltTab、quick-sharun 或 sharun 的旧版本。源码查询、认证下载和解包复用公共入口，归档 SHA-256 用于日志审计；接口及校验范围见[公共源码入口说明](../common/README.md#github-最新正式-release-源码)。
 
 ## 版本元数据与更新判断
 
@@ -70,7 +75,7 @@ dist/version.txt
 构建指纹由以下输入确定：
 
 - `build_alttab.sh`：去除空行和纯注释行后参与计算；
-- `apply-icon-patch.sh`：去除空行和纯注释行后参与计算，因此补丁应用顺序变化也会改变指纹；
+- `patches/apply-icon-patch.sh`：去除空行和纯注释行后参与计算，因此补丁应用顺序变化也会改变指纹；
 - `patches/*.patch`：按文件名 A-Z 排序后，以文件名和 patch 原始内容参与计算。
 
 这样可以同时满足：
@@ -99,6 +104,12 @@ dist/version.txt
 ```
 
 横向窗口切换额外支持 `Left` / `h` 选择上一个窗口、`Right` / `l` 选择下一个窗口；仍需按住主修饰键。原有 `Tab` / `Shift+Tab` 以及 `-pk` / `-nk` 自定义键保持不变。`j` 不额外占用；上游原本默认把 `k` 作为 kill key，本项目现已取消该默认绑定，因此按住主修饰键时 `k` 不再关闭当前选中窗口。如确实需要 kill key，可继续显式使用 `-dk <keysym>` 指定。
+
+### 多显示器与虚拟副屏
+
+上游默认使用 `focus` 模式，按当前焦点窗口选择显示器。若希望切换界面跟随鼠标所在显示器，使用原生参数 `-vp pointer`；`-p center` 只控制界面在所选区域中居中，不决定选屏。参数含义见[上游说明](https://github.com/sagb/alttab/blob/125cfecfb173b058fea0606d785569feee61c95f/doc/alttab.1.ronn#L173)。
+
+原有启动示例保持原样。需要按鼠标选屏时，在现有启动参数中增加 `-vp pointer`。Linux 实机已确认该参数解决虚拟副屏上鼠标与切换界面显示位置不一致的问题，完整结果见[实机验证](#实机验证)。本次没有为此新增显示源码补丁。
 
 ## 图标兼容
 
@@ -134,7 +145,17 @@ dist/version.txt
 - `navigation-keys.patch`：横向 `Left` / `h`、`Right` / `l` 导航。
 - `disable-default-kill-key.patch`：取消默认 `k` kill key，保留显式 `-dk` 自定义能力。
 
-其中图标、字体和标题排版相关 patch 已完成 Linux 实机确认；键盘导航与默认 kill key 调整已完成正式构建。维护时只允许为新的独立问题新增对应 patch，禁止为了“整理”或“优化”重新改写已验证 patch。补丁路径和应用顺序统一由 `apply-icon-patch.sh` 管理；不得把兼容逻辑重新塞回 `build_alttab.sh`，也不得为验证加入 test workflow、smoke Job 或运行时测试代码。
+其中图标、字体和标题排版相关 patch 已完成 Linux 实机确认；键盘导航与默认 kill key 调整已完成正式构建。维护时只允许为新的独立问题新增对应 patch，禁止为了“整理”或“优化”重新改写已验证 patch。补丁路径和应用顺序统一由 `patches/apply-icon-patch.sh` 管理；不得把兼容逻辑重新塞回 `build_alttab.sh`，也不得为验证加入 test workflow、smoke Job 或运行时测试代码。
+
+## 实机验证
+
+### 2026-11-14：用户实机验证通过
+
+用户已确认 AltTab 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 虚拟副屏选屏 | 增加原生 `-vp pointer` 参数后，切换界面能够随鼠标显示在虚拟副屏，用户已实机确认正常。 |
 
 ## 修复记录
 
@@ -193,3 +214,10 @@ dist/version.txt
 - 相同上游版本下修改构建逻辑、补丁内容或补丁应用顺序会产生新版本；完全相同的代码重复构建时版本保持不变。
 - AppImage 内部 `VERSION` 仍保持纯上游版本，不修改既有图标、字体、标题排版、导航或 kill key 补丁内容。
 - 提交后按仓库规则不主动监控 Actions；实际 `software_versions.json` 新记录以下一次成功构建结果为准。
+
+### 2026-11-14：手动对齐公共打包流程与补丁目录
+
+- 修改 `build_alttab.sh`，将补丁应用脚本由 `apply-icon-patch.sh` 移到 `patches/apply-icon-patch.sh`，同步当前路径引用；九个 patch 的内容、应用参数及顺序保持不变。
+- 安装、工作区、正式版源码归档获取及版本保存使用现有公共入口；采用 `AppDir/work/dist` 布局，保留 GLib 参数、原编译和封装命令、桌面资源及许可证。
+- 构建指纹算法及版本格式保留，指纹输入中的补丁应用脚本同步为新路径；本次公共调用与路径变化会按既有机制产生新的构建指纹。
+- 同次新增[模板差异说明](./docs/template-deviations.md)，并在公共打包分类中登记专用流程。既有修复历史和有效启动命令继续保留。

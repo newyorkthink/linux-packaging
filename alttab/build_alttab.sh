@@ -1,78 +1,32 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
-# 定位同目录的补丁应用脚本。
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
+
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装源码编译及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" xorg-server xorg-server-common xorg-server-xvfb libx11 libxmu libxft libxrender libxrandr libpng libxpm uthash
 
-# 稳定基线说明：
-# - 只使用 sagb/alttab 官方最新稳定 GitHub Release 源码，不依赖 AUR 的 alttab/alttab-git 包。
-# - 每次构建先读取 releases/latest，再把发布 tag 解析到具体 commit SHA，并按该 commit 下载源码。
-# - 使用 Arch Linux 官方仓库提供的构建/运行依赖。
-# - 使用 quick-sharun 生成 AppImage。
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
 
-# 清理上一次构建生成的 AppDir。
-rm -rf AppDir || true
+# 设置本次构建使用的源码目录。
+SOURCE_DIR="$SCRIPT_DIR/work/source"
 
-# 创建最终输出目录。
-mkdir -p dist
-
-# 获取当前系统架构。
-ARCH="$(uname -m)"
-
-# 导出 AppImage 架构。
-export ARCH
-
-# 创建本次构建使用的临时目录。
-WORKDIR="$(mktemp -d)"
-
-# 退出时删除本次构建的临时目录。
-trap 'rm -rf "$WORKDIR"' EXIT
-
-# 定义上游最新稳定 Release API 和本地元数据路径。
-ALTTAB_RELEASE_API="https://api.github.com/repos/sagb/alttab/releases/latest"
-RELEASE_JSON="$WORKDIR/latest-release.json"
-
-# 安装现有 quick-sharun 打包、源码编译和 Release 解析依赖。
-yay -S --noconfirm gcc base-devel pkgconf wget git jq binutils patchelf coreutils appstream-glib desktop-file-utils util-linux zsync xorg-server xorg-server-common xorg-server-xvfb
-
-# 安装 alttab 官方声明的 X11、图形和 uthash 构建/运行依赖。
-yay -S --noconfirm libx11 libxmu libxft libxrender libxrandr libpng libxpm uthash
-
-# 读取上游最新稳定 GitHub Release；在 GitHub Actions 中优先使用现有 GH_TOKEN，避免匿名 API 限额。
-if [[ -n "${GH_TOKEN:-}" ]]; then
-  wget --quiet \
-    --header="Authorization: Bearer ${GH_TOKEN}" \
-    --header="Accept: application/vnd.github+json" \
-    --header="X-GitHub-Api-Version: 2022-11-28" \
-    -O "$RELEASE_JSON" \
-    "$ALTTAB_RELEASE_API"
-else
-  wget --quiet \
-    --header="Accept: application/vnd.github+json" \
-    --header="X-GitHub-Api-Version: 2022-11-28" \
-    -O "$RELEASE_JSON" \
-    "$ALTTAB_RELEASE_API"
-fi
-
-# 确认取得的是非草稿、非预发布的稳定 Release。
-jq -e '.draft == false and .prerelease == false' "$RELEASE_JSON" >/dev/null
-
-# 读取最新稳定 Release 的 tag。
-ALTTAB_TAG="$(jq -er '.tag_name | strings | select(length > 0)' "$RELEASE_JSON")"
-
-# 拒绝包含路径分隔符、空白或其他异常字符的 tag。
-if [[ ! "$ALTTAB_TAG" =~ ^[0-9A-Za-z][0-9A-Za-z._+-]*$ ]]; then
-  echo "错误：上游 Release tag 格式异常：$ALTTAB_TAG" >&2
-  exit 1
-fi
+# 读取本次打包使用的版本。
+ALTTAB_TAG="$(
+  bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" sagb/alttab "$SOURCE_DIR" --archive
+)"
 
 # 去掉常见的 v 前缀，作为 AppImage 版本信息；没有 v 前缀时保持原值。
 ALTTAB_VERSION="${ALTTAB_TAG#v}"
 
-###### 生成构建指纹 ######
+# 本程序专属处理：保留源码补丁和构建逻辑参与更新版本计算的机制。
 # AltTab 带有仓库维护的源码补丁，同一上游版本下补丁或打包逻辑变化也必须触发更新。
 # 构建脚本先忽略空行和纯注释行，避免只改说明文字就产生新的更新版本；patch 内容按原字节参与指纹。
 normalize_fingerprint_script() {
@@ -82,7 +36,7 @@ normalize_fingerprint_script() {
 ALTTAB_BUILD_FINGERPRINT="$(
   {
     normalize_fingerprint_script "$SCRIPT_DIR/build_alttab.sh"
-    normalize_fingerprint_script "$SCRIPT_DIR/apply-icon-patch.sh"
+    normalize_fingerprint_script "$SCRIPT_DIR/patches/apply-icon-patch.sh"
 
     while IFS= read -r patch_file; do
       printf '%s\0' "${patch_file#"$SCRIPT_DIR"/}"
@@ -96,74 +50,29 @@ ALTTAB_BUILD_FINGERPRINT="$(
 
 # software_versions.json 使用“上游版本 + 构建指纹”识别本仓库实际发布版本。
 ALTTAB_UPDATE_VERSION="${ALTTAB_VERSION}+linuxpackaging.${ALTTAB_BUILD_FINGERPRINT}"
+# 本程序专属处理：输出本仓库用于更新判断的版本。
 printf 'AltTab update version: %s\n' "$ALTTAB_UPDATE_VERSION"
 
-# 将 Release tag 解析到具体 commit；annotated tag 优先使用 peeled commit SHA。
-REMOTE_REFS="$(git ls-remote https://github.com/sagb/alttab.git \
-  "refs/tags/${ALTTAB_TAG}" \
-  "refs/tags/${ALTTAB_TAG}^{}")"
-ALTTAB_COMMIT="$(awk -v ref="refs/tags/${ALTTAB_TAG}^{}" '$2 == ref {print $1; exit}' <<< "$REMOTE_REFS")"
-if [[ -z "$ALTTAB_COMMIT" ]]; then
-  ALTTAB_COMMIT="$(awk -v ref="refs/tags/${ALTTAB_TAG}" '$2 == ref {print $1; exit}' <<< "$REMOTE_REFS")"
-fi
+# 本程序专属处理：按原顺序应用全部独立补丁，任一补丁不匹配时立即停止。
+bash "$SCRIPT_DIR/patches/apply-icon-patch.sh" "$SOURCE_DIR"
 
-# 确认 Release tag 最终解析到有效的 Git commit SHA。
-if [[ ! "$ALTTAB_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
-  echo "错误：无法把上游 Release tag $ALTTAB_TAG 解析到有效 commit。" >&2
-  exit 1
-fi
-
-# 记录本次实际构建的上游版本和 commit。
-printf 'AltTab release: %s\nAltTab commit: %s\n' "$ALTTAB_TAG" "$ALTTAB_COMMIT"
-
-# 按本次已解析出的不可变 commit SHA 构造官方源码下载地址。
-ALTTAB_SOURCE_URL="https://codeload.github.com/sagb/alttab/tar.gz/${ALTTAB_COMMIT}"
-SOURCE_ARCHIVE="$WORKDIR/alttab-${ALTTAB_COMMIT}.tar.gz"
-
-# 下载该 Release 对应 commit 的官方源码归档。
-wget -O "$SOURCE_ARCHIVE" "$ALTTAB_SOURCE_URL"
-
-# 输出本次源码归档 SHA-256，便于构建日志审计。
-sha256sum "$SOURCE_ARCHIVE"
-
-# 解压源码并去掉 GitHub 归档自动生成的顶层目录名。
-SOURCE_DIR="$WORKDIR/source"
-mkdir -p "$SOURCE_DIR"
-tar -xzf "$SOURCE_ARCHIVE" -C "$SOURCE_DIR" --strip-components=1
-
-# 确认关键源码、许可证和构建文件存在。
-test -f "$SOURCE_DIR/configure"
-test -f "$SOURCE_DIR/src/alttab.c"
-test -f "$SOURCE_DIR/doc/alttab.svg"
-test -f "$SOURCE_DIR/COPYING"
-
-###### 修复桌面图标读取 ######
-# 安装解析 XDG desktop 文件所需的 GLib；由 quick-sharun 收集动态依赖。
-yay -S --noconfirm glib2
-
-# 为本次下载的上游源码应用图标补丁；不匹配时停止，避免静默生成未修复产物。
-bash "$SCRIPT_DIR/apply-icon-patch.sh" "$SOURCE_DIR"
-
-# 传入 GLib 头文件与链接参数，保留现有 configure 和 make 命令。
+# 本程序专属处理：传入 GLib 头文件与链接参数，保留现有 configure 和 make 命令。
 ALTTAB_GLIB_CFLAGS="$(pkg-config --cflags glib-2.0)"
 ALTTAB_GLIB_LIBS="$(pkg-config --libs glib-2.0)"
 export CPPFLAGS="${CPPFLAGS:-} $ALTTAB_GLIB_CFLAGS"
 export LIBS="${LIBS:-} $ALTTAB_GLIB_LIBS"
 
-# 配置 alttab，保持标准 /usr 安装前缀。
+# 本程序专属处理：配置 alttab，保持标准 /usr 安装前缀。
 (
   cd "$SOURCE_DIR"
   ./configure --prefix=/usr
 )
 
-# 编译 alttab。
+# 本程序专属处理：编译 alttab。
 make -C "$SOURCE_DIR" -j"$(nproc)"
 
-# 确认编译后的主程序存在且可执行。
-test -x "$SOURCE_DIR/src/alttab"
-
-# 创建 AppImage 使用的 desktop 文件；alttab 是 X11 常驻窗口切换器。
-cat > "$WORKDIR/alttab.desktop" <<'EOF_DESKTOP'
+# 本程序专属处理：创建 AppImage 使用的 desktop 文件；alttab 是 X11 常驻窗口切换器。
+cat > "$SCRIPT_DIR/work/alttab.desktop" <<'EOF_DESKTOP'
 [Desktop Entry]
 Type=Application
 Name=AltTab
@@ -177,40 +86,34 @@ StartupWMClass=AltTab
 EOF_DESKTOP
 
 # 校验 desktop 文件语法。
-desktop-file-validate "$WORKDIR/alttab.desktop"
+desktop-file-validate "$SCRIPT_DIR/work/alttab.desktop"
 
-# 使用本次最新稳定 Release 的版本号作为 AppImage 版本信息。
-export VERSION="$ALTTAB_VERSION"
-
-# 使用上游 SVG 图标。
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 本程序专属处理：使用上游 SVG 图标。
 export ICON="$SOURCE_DIR/doc/alttab.svg"
-
-# 使用本次生成的 desktop 文件。
-export DESKTOP="$WORKDIR/alttab.desktop"
-
-# 设置 AppImage 输出目录。
-export OUTPATH=./dist
-
-# 固定最终 AppImage 文件名，便于 latest Release 持续覆盖更新。
+# 本程序专属处理：使用本次生成的 desktop 文件。
+export DESKTOP="$SCRIPT_DIR/work/alttab.desktop"
+# 包里的真实程序名。
+export MAIN_BIN=alttab
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
 export OUTNAME="alttab.AppImage"
 
-# 固定 AppImage 主程序为 alttab。
-export MAIN_BIN=alttab
+# 本程序专属处理：AppImage 内部保留纯上游版本号。
+export VERSION="$ALTTAB_VERSION"
 
-# 将刚刚从官方 Release 对应 commit 编译出的 alttab 及其动态依赖封装进 AppDir。
+# 收集程序及其运行依赖。
 quick-sharun "$SOURCE_DIR/src/alttab"
 
-# 将上游 GPL-3.0 许可证随 AppImage 一并保留。
+# 本程序专属处理：将上游 GPL-3.0 许可证随 AppImage 一并保留。
 mkdir -p AppDir/share/licenses/alttab
+# 本程序专属处理：复制上游许可证到包内对应目录。
 cp -a "$SOURCE_DIR/COPYING" AppDir/share/licenses/alttab/COPYING
 
-# 生成最终 alttab AppImage。
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-# 确认最终 AppImage 文件已经生成且不为空。
-test -s ./dist/alttab.AppImage
-
-###### 输出版本元数据 ######
-# AppImage 内部 VERSION 保持纯上游版本；更新清单额外携带构建指纹，区分同上游版本下的补丁变化。
-printf '%s\n' "$ALTTAB_UPDATE_VERSION" > ./dist/version.txt
-
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/alttab.AppImage "$ALTTAB_UPDATE_VERSION" dist/version.txt
