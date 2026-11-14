@@ -32,7 +32,7 @@
 - `github/download_latest_stable_named_asset.sh` 接收仓库、完整固定资产名、目标文件及可选的 DEB 包名和架构。复用正式版本解析器，在最近 100 个 Release 中排除草稿和预发布，按版本排序选择包含该名称唯一资产且具有有效 GitHub SHA-256 的正式版本；版本、下载地址、摘要和资产 ID 来自同次响应中的同一资产，不再另查 `latest`。已由调用方确定的带版本资产名继续定位对应 Release，不会因 `latest` 更新而改选其他文件；不含版本的固定资产名按同一规则选择最新可用正式版本。直链失败时仍用该资产 ID 和现有认证令牌回退，stdout 仅返回版本。参数及可选 DEB 身份校验保持不变；带 `{version}` 的资产仍使用原有模板入口。
 - `github/resolve_latest_stable_release_asset.sh [--tag-prefix <标签前缀>] <owner/repo> '<固定资产名或含 {version} 的资产名模板>'` 保留原正式版本、唯一资产和 GitHub SHA-256 选择规则。只有显式传入前置的 `--tag-prefix` 时，才按字面值匹配并移除该非空前缀，再解析余下的可选 `v` 与点分数字版本；前缀不得含空白字符。`github/download_latest_stable_release_asset.sh` 同样在仓库名之前接受该选项，随后仍传入仓库、资产名模板、输出文件和可选的成对 DEB 包名、架构。下载、摘要校验、DEB 身份检查及只向 stdout 返回版本的行为不变；不传选项的旧调用保持原规则。前缀模式不能与 `--latest-with-checksum` 混用。 资产名可以是固定文件名，也可以包含 `{version}`；两者共用同一正式版本筛选、唯一资产匹配和 GitHub SHA-256 校验，固定名不另设应用特判。解析器可在其他选项之前显式接收 `--with-asset-id`，仅在原三行版本、下载地址和 SHA-256 之后追加同一资产的 ID；不传时仍输出原三行。该选项不能与 `--release-tag` 或 `--latest-with-checksum` 同用，原归档和校验清单模式的输出保持不变。
 - `github/download_latest_stable_release_asset.sh <owner/repo> '<包含 {version} 的资产名模板>' <输出文件> --latest-with-checksum <校验清单资产名> <commit 文件>` 从同一个 `/releases/latest` 响应定位主资产和校验清单，验证两者的 GitHub SHA-256，再用清单中唯一对应的 SHA-256 校验主资产。校验通过并解析 tag 对应的 Git commit 后，写出资产和 commit，stdout 仅返回版本。原资产模板及可选 DEB 参数调用保持原有语义。
-- `github/download_latest_stable_release_source.sh <owner/repo> <目标目录>` 读取最新非草稿、非预发布 Release，校验标签后浅克隆对应源码；成功时 stdout 只返回原始标签。参数、依赖与认证边界见下文的 [GitHub 最新正式 Release 源码](#github-最新正式-release-源码)。
+- `github/download_latest_stable_release_source.sh <owner/repo> <目标目录> [--archive]` 读取最新非草稿、非预发布 Release。默认仍浅克隆对应标签；仅显式传入 `--archive` 时，将标签解析到具体提交，下载并解包该提交的源码归档。两种方式成功时 stdout 都只返回原始标签。参数、依赖、认证与清理范围见下文的 [GitHub 最新正式 Release 源码](#github-最新正式-release-源码)。
 - `snap/download_stable_snap.sh <Snap 名称> <发布者账号> <amd64|arm64> <输出.snap> [元数据 JSON 输出] [curl|snap]` 默认从 Snap Store 官方接口选择唯一的 `latest/stable` 条目，核对名称、发布者和架构，下载后校验官方 SHA3-384；成功时 stdout 仅返回实际版本。下载、版本、校验与调用边界见下文。
 - `build/prepare_x86_64_workspace.sh` 接收项目根目录、`--skip-create`、一个清理后不创建的一级目录名，以及其余清理后重建的一级目录名。先检查 x86_64 和全部目录名，再只处理这个项目下明确传入的目录；应用自行决定哪些工作目录需要重建。
 - `arch/install_packages.sh` 保留 `--base` 和普通包名调用。只有显式指定 `--aur-deb <AUR 包名> <架构> [--user-agent <客户端标识>] [--downloader curl|wget|aria2c] [--wayback] [--source-filename <DEB 文件名>] -- [额外软件包...]` 时，才先安装额外软件包、复用公共 AUR 下载入口准备已校验 DEB，再交由 yay / makepkg 按原 PKGBUILD 校验和安装；使用独立来源缓存及构建目录，详见下文。 显式 `--aur-source <AUR 包名> <架构> <源文件名模板> <源文件输出> <来源版本文件> -- [额外软件包...]` 则保留安装阶段下载的原始来源，按同次元数据重新校验后导出归档及版本，不进行第二次下载。可在分隔符前显式追加 `--snap-stable <Snap 名称> <发布者> <Snap 架构>`，先用官方稳定通道同步本次临时配方，再安装和导出同一份 Snap；完整约束见下文。
@@ -104,7 +104,7 @@ VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_relea
 
 ### GitHub 最新正式 Release 源码
 
-入口为 `github/download_latest_stable_release_source.sh`，依赖 Bash、curl、jq 和 git。两个位置参数依次是 `owner/repo` 和源码目标目录，由调用方明确提供；目标目录必须非空、不能以 `-` 开头且必须不存在，本入口不清理或覆盖已有目录。
+入口为 `github/download_latest_stable_release_source.sh`，依赖 Bash、curl、jq 和 git。两个位置参数依次是 `owner/repo` 和源码目标目录，由调用方明确提供；目标目录必须非空、不能以 `-` 开头且必须不存在，本入口不清理或覆盖已有目录。可在两个位置参数后显式追加 `--archive`；不追加时保留以下原有克隆流程。
 
 以下调用用于应用构建脚本的下载阶段，由 GitHub Actions 执行。`<owner/repo>` 和 `<源码目标目录>` 均须按实际来源替换：
 
@@ -115,9 +115,49 @@ SOURCE_REF="$(bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_
 
 通过 `/releases/latest` 读取最新正式 Release，要求 `draft` 和 `prerelease` 均为 false。标签须为三段点分数字，可带 `v` / `V` 前缀，以及由 `.`、`_`、`+`、`-` 分隔的字母数字后缀；不支持任意分支名或 nightly 标签。随后执行对应标签的浅克隆，不枚举其他标签、不自动初始化子模块，也不安装依赖或编译源码。
 
-Release 查询复用 `github_api.sh`，认证依次取自 `GITHUB_TOKEN`、`GH_TOKEN`、Git 配置中的 checkout 认证头；均未提供时沿用匿名请求。HTTPS 克隆使用 Git 自身的认证配置，本入口不会把 API 令牌另行传给 Git；私有源码克隆所需的 Git 认证须由调用方提前准备。
+默认克隆模式的 Release 查询复用 `github_api.sh`，认证依次取自 `GITHUB_TOKEN`、`GH_TOKEN`、Git 配置中的 checkout 认证头；均未提供时沿用匿名请求。HTTPS 克隆使用 Git 自身的认证配置，本入口不会把 API 令牌另行传给 Git；私有源码克隆所需的 Git 认证须由调用方提前准备。
 
 只有克隆成功后，stdout 才返回一行原始标签，保留前缀与后缀；克隆日志和错误写入 stderr。查询、标签解析或克隆失败时直接返回非零状态，不输出成功标签、不回退旧版本。本入口不下载 Release 二进制资产，也不执行源码摘要或标签签名校验，不能代替需要资产 SHA-256 校验的下载入口。
+
+#### 显式按提交下载源码归档
+
+仅在第三个参数显式填写 `--archive` 时启用；其他第三参数、重复选项或多余参数均被拒绝。它沿用同一次 `/releases/latest` 响应和上述正式标签规则，不切换到默认分支，也不选择 Release 二进制资产。
+
+| 参数 | 含义 |
+| --- | --- |
+| `<owner/repo>` | 当前软件的 GitHub 上游仓库，由调用方明确指定。 |
+| `<源码目标目录>` | 解包后源码的目标目录，必须不存在；普通文件、目录和符号链接均不覆盖。 |
+| `--archive` | 先解析正式标签对应的提交 SHA，再下载并解包该提交的源码归档。 |
+
+以下调用放在 GitHub Actions 应用构建脚本的源码准备阶段。尖括号参数均须按实际来源替换：
+
+```bash
+# 按最新正式 Release 的具体提交下载并解包源码，成功后取得原始标签名。
+SOURCE_REF="$(
+  bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" "<owner/repo>" "<源码目标目录>" --archive
+)"
+```
+
+归档模式先核对认证与工具。需要上述 Bash、curl、jq 和 git，以及 tar 和 GNU coreutils 提供的 `mktemp`、`sha256sum`、`mv`、`basename`、`dirname` 等基础命令。认证仍依次使用 `GITHUB_TOKEN`、`GH_TOKEN` 或 checkout 的 Git 认证头；缺少凭据或认证失败时终止，不改用匿名地址。原两参数克隆模式的认证行为保持不变。
+
+处理顺序：
+
+1. 从精确的 `refs/tags/<标签>` 读取 Git 对象；轻量标签直接取得提交，附注标签逐级解析。对象类型、完整 SHA 无效或出现循环引用时失败。
+2. 复用 `github_api.sh`，从该仓库的提交源码归档 API 下载固定提交的 tar.gz，沿用公共 HTTPS、重试和超时参数；解析完成后不再使用标签名下载。
+3. 在目标目录的上级创建独立临时目录，通过 `archive/extract_archive.sh` 解包。归档须包含唯一且不是符号链接的顶层目录；取其完整内容作为最终源码目录，不依赖归档顶层目录的名称。
+4. 源码准备完成后使用不覆盖模式移动到目标目录，再清理本次临时归档和目录。退出时也清理本次临时目录；按需创建的上级目录保留，不清理调用方的其他文件。
+
+| 输出位置 | 内容 |
+| --- | --- |
+| stdout | 仅在处理成功后返回一行原始 Release 标签，保留前缀与后缀。 |
+| stderr | 实际标签、完整提交 SHA、归档 SHA-256，以及下载、解包和错误日志。 |
+| 目标目录 | 对应固定提交的解包源码，不包含克隆产生的 `.git` 元数据。 |
+
+归档 SHA-256 只记录实际下载字节，供构建日志审计；本模式不执行官方摘要比对或标签签名验证。临时归档不作为额外产物保留，也不生成摘要文件。
+
+参数、认证、Release 查询、标签解析、下载、解包、目录交付或清理失败时返回非零状态，不输出成功标签，不回退旧版本或其他来源。目标在准备期间被创建时直接失败，不覆盖其内容。该模式不安装依赖、不编译源码，也不自动初始化子模块。
+
+原两参数调用、浅克隆命令及 stdout 标签接口继续保持原样；未传入 `--archive` 的调用方不会启用归档模式。本次只扩展公共入口与本文说明，不修改应用构建脚本、构建模板或 workflow。
 
 ### AUR 来源的独立 DEB 下载
 
