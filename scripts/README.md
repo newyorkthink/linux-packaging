@@ -8,7 +8,7 @@
 | --- | --- |
 | [归档](./archive/README.md) | 项目归档与发布清理 |
 | [构建脚本](./build/README.md) | 从标准模板预览和生成应用构建脚本 |
-| [提交](./commit/README.md) | 生成提交说明和实机验证记录 |
+| [提交](./commit/README.md) | 生成提交说明和实机验证记录，预览并撤回最新提交 |
 | [Release](./release/README.md) | Release 与附件维护 |
 
 ## 统一组织方式
