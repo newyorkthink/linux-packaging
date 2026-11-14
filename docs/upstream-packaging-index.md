@@ -105,6 +105,7 @@ Obsidian 条目于 2026-11-08 单独复核，更新依赖、封装及 workflow �
 | [winpodx](../winpodx/build_winpodx_release.sh) |  |  | [README](../winpodx/README.md) |
 | [workbuddy](../workbuddy/build_workbuddy.sh) |  |  | [模板差异](../workbuddy/docs/template-deviations.md) · [README](../workbuddy/README.md) |
 | [wps-office-cn](../wps-office-cn/build_wps-office-cn.sh) |  |  | [README](../wps-office-cn/README.md) |
+| [xberg](../xberg/build_xberg.sh) |  |  | [模板差异](../xberg/docs/template-deviations.md) · [README](../xberg/README.md) |
 | [xephyr](../xephyr/build_xephyr.sh) |  |  | [模板差异](../xephyr/docs/template-deviations.md) · [README](../xephyr/README.md) |
 | [xnviewmp](../xnviewmp/build_xnviewmp.sh) |  |  | [README](../xnviewmp/README.md) |
 | [zotero](../zotero/build_zotero.sh) |  |  | [README](../zotero/README.md) |

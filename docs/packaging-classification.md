@@ -172,6 +172,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | KDE Suite | [build_kde_suite.sh](../kde-suite/build_kde_suite.sh) | 多款 KDE 程序共享一个 AppImage 的挂载及 Qt 6 和 KF6 运行组件，最终封装前按套件结构分阶段部署应用和辅助工具。 | [KDE Suite README](../kde-suite/README.md) |
 | st | [build_st.sh](../st/build_st.sh) | 从 siduck/st 默认分支获取当前源码，按字体配置生成 config.h 并写入源码默认主题，经 make 安装后由 quick-sharun 封装程序、辅助脚本和 terminfo；与 Arch 原生软件包模板不同，不新增标准模板。 | [专属差异](../st/docs/template-deviations.md) · [实机验证](../st/README.md#实机验证) |
 | Webcamoid | [build_webcamoid.sh](../webcamoid/build_webcamoid.sh) | 现有流程从官方正式 Release 源码应用四个补丁，经 CMake + Ninja 安装到暂存目录，再由 quick-sharun 收集插件与运行库；不同于现有 Qt DEB / 系统入口模板，不新增标准模板。 | [当前基线与差异](../webcamoid/docs/template-deviations.md) · [实机验证](../webcamoid/README.md#实机验证) |
+| Xberg | [build_xberg.sh](../xberg/build_xberg.sh) | 独立下载官方 GNU 预编译归档，保留主程序及相邻共享库，由 quick-sharun 收集运行依赖并封装；现有系统入口和 DEB 模板不覆盖该来源布局。 | [专属差异](../xberg/docs/template-deviations.md) · [应用说明](../xberg/README.md) |
 
 ## 专属处理与维护入口
 

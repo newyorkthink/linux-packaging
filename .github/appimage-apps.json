@@ -948,6 +948,18 @@
       "software_key": "android-tools",
       "timeout_minutes": 60,
       "run_from_root": "false"
+    },
+    {
+      "key": "xberg",
+      "kind": "standard",
+      "name": "Xberg",
+      "script": "xberg/build_xberg.sh",
+      "dir": "xberg",
+      "artifact_dir": "xberg/dist",
+      "release_name": "xberg.AppImage",
+      "software_key": "xberg",
+      "timeout_minutes": 60,
+      "run_from_root": "false"
     }
   ]
 }
