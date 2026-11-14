@@ -6,7 +6,7 @@
 
 当前程序来自 Google 官方预编译 `platform-tools-latest-linux.zip`。现有 `arch-native.sh` 适用于安装 Arch 官方软件包后直接收集 `/usr/bin/<主程序>`；该路线无法原样表示本项目保留独立 ZIP、图标和 PATH hook 的流程。其他登记模板面向 DEB、Electron、Qt 等不同来源，同样不覆盖此完整流程。
 
-本项目已在 [官方预编译 ZIP 命令行工具](../../docs/packaging-classification.md#用-quick-sharun-打包的官方预编译-zip-命令行工具) 分类登记。继续维护已有入口，不新增模板、不批量改动其他程序；今后修改构建脚本仍须遵守仓库生成器规则。
+本项目已在 [官方预编译归档命令行工具](../../docs/packaging-classification.md#用-quick-sharun-打包的官方预编译归档命令行工具) 分类登记。继续维护已有入口，不新增模板、不批量改动其他程序；今后修改构建脚本仍须遵守仓库生成器规则。
 
 ## 实际保留的专属处理
 

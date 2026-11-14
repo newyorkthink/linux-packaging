@@ -1,8 +1,8 @@
-# Xberg 专用打包流程与模板差异
+# Xberg 预编译归档打包说明与模板差异
 
 ## 来源与分类
 
-采用 [xberg-io/xberg](https://github.com/xberg-io/xberg) 官方 GNU x86_64 预编译归档，保持主程序及相邻共享库的完整目录。当前固定模板中的 Arch 原生系统入口不覆盖官方 tar 归档的独立下载与入包；Qt、Electron 和 Tauri 的 DEB 模板也不适用。本流程手动对齐 quick-sharun 公共阶段，登记为专用流程，不创建新模板。
+采用 [xberg-io/xberg](https://github.com/xberg-io/xberg) 官方 GNU x86_64 预编译归档，保持主程序及相邻共享库的完整目录，归入 [quick-sharun 官方预编译归档命令行工具](../../docs/packaging-classification.md#用-quick-sharun-打包的官方预编译归档命令行工具) 分类。构建脚本复用现有 quick-sharun 公共入口，应用专属目录和资源准备按本文维护，不新增标准模板。
 
 在 pkgforge-dev 中按 Xberg 和 Kreuzberg 名称分别查找，未找到对应打包仓库；上游索引仅记录这个查找结果，不复制其他应用的 hooks、源码构建或专属设置。
 
@@ -25,11 +25,13 @@ AUR 公开来源检索未查到 Xberg / Kreuzberg 对应包，本流程不以 AU
 | 系统安装 | 公共下载和解包入口准备完整官方归档；应用专属目录复制到隔离构建系统的 `/opt/xberg`，提供系统命令入口。 |
 | 最终来源 | 第二次独立下载、校验和解包得到最终程序，整体复制到 `AppDir/bin`，不从系统安装目录复制。 |
 | 依赖收集 | `quick-sharun ./AppDir/bin/*` 明确以当前完整官方目录作为输入；不全盘搜索或拼接系统扫描清单。 |
-| 元数据 | `MAIN_BIN=xberg`、自备 CLI desktop 和官方 SVG。命令行参数由工具生成的 AppRun 传给 Xberg。 |
-| 许可证 | 保留官方 `LICENSE`、`THIRD_PARTY_LICENSES.md` 和品牌资源的 MIT 许可证。 |
+| 元数据 | `MAIN_BIN=xberg`、自备 CLI desktop 和 `patched/xberg.svg` 中的官方 SVG。命令行参数由工具生成的 AppRun 传给 Xberg。 |
+| 许可证 | 保留官方 `LICENSE`、`THIRD_PARTY_LICENSES.md` 和 `patched/branding-LICENSE` 中的品牌资源 MIT 许可证。 |
 | 封装和版本 | 使用原有 `quick-sharun --make-appimage` 与公共版本保存入口，最终文件名为 `xberg.AppImage`。 |
 
 ## 图标来源
+
+图标和品牌许可证分别原样保存在 [`patched/xberg.svg`](../patched/xberg.svg) 与 [`patched/branding-LICENSE`](../patched/branding-LICENSE)，构建时按原顺序复制到 `work`，后续图标设置和许可证入包路径保持不变。
 
 SVG 正文来自 [xberg-io/assets 的官方单色标志](https://github.com/xberg-io/assets/blob/4f164c20282374cb1fcdec578e300370c77014b9/logo/symbol-mono-black.svg)，图标与其内嵌图像保持原样。其 [MIT 许可证](https://github.com/xberg-io/assets/blob/4f164c20282374cb1fcdec578e300370c77014b9/LICENSE) 随包保留；遵循[品牌使用说明](https://github.com/xberg-io/assets/blob/4f164c20282374cb1fcdec578e300370c77014b9/logo_usage_rules.md)，不拉伸、旋转、重绘或改色。
 

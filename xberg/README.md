@@ -7,6 +7,8 @@
 | 文件 | 用途 |
 | --- | --- |
 | `build_xberg.sh` | 安装构建来源、独立下载最终归档、保留完整程序目录并封装 AppImage。 |
+| `patched/xberg.svg` | 原样保存的官方 SVG 图标。 |
+| `patched/branding-LICENSE` | 官方品牌资源的 MIT 许可证。 |
 | `docs/template-deviations.md` | 来源、公共入口、专属布局及维护依据。 |
 
 ## 打包流程
@@ -38,7 +40,7 @@
 
 GNU 包内的主程序和相邻 `.so` 是一个整体，不只提取主程序，也不按旧截图写死共享库名单。应用、REST API、MCP、格式支持等保留官方这份二进制已有的编译特性；不将官方不同发行资产的功能混作本包新增能力。
 
-图标采用 xberg-io/assets 官方原始 SVG，代码内保留其原文，并随包携带品牌资源 MIT 许可证；不重画或修改标志。详细定位与专属处理见[差异说明](./docs/template-deviations.md)。本项目登记为[专用打包流程](../docs/packaging-classification.md#专用打包流程)，不新增模板。
+图标和品牌资源 MIT 许可证分别原样保存在 [`patched/xberg.svg`](./patched/xberg.svg) 与 [`patched/branding-LICENSE`](./patched/branding-LICENSE)，构建时复制到工作区后随包保留；不重画或修改标志。详细定位与专属处理见[差异说明](./docs/template-deviations.md)。本项目归入 [quick-sharun 官方预编译归档命令行工具](../docs/packaging-classification.md#用-quick-sharun-打包的官方预编译归档命令行工具) 分类，不新增模板。
 
 ## 实机验证
 

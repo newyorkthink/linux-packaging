@@ -88,13 +88,14 @@ mpv 的 yt-dlp 继续在构建时下载、校验并内置，未启用官方运�
 
 htop 保留原有 MAIN_BIN、Open Files / Trace 辅助命令和运行时动态加载库，未照搬 pkgforge-dev 的静态源码构建、UPINFO 或 simple-test；仍使用 Arch 官方二进制和本仓库公共版本接口，具体依据见其应用文档。
 
-## 用 quick-sharun 打包的官方预编译 ZIP 命令行工具
+## 用 quick-sharun 打包的官方预编译归档命令行工具
 
-从软件官方网站独立下载预编译 Linux ZIP，解压后使用 quick-sharun 收集程序与运行依赖。该类不使用 Arch 系统入口模板，必要的应用专属处理以对应文档为准，不新增标准模板。
+从软件官方网站独立下载预编译 Linux ZIP 或 tar 归档，保留程序及配套运行库的实际布局，再使用 quick-sharun 收集其余运行依赖并封装。必要的应用专属处理以对应文档为准，不新增标准模板。
 
 | 项目 | 构建脚本 | 程序及版本来源 | 打包方式 | 专属差异说明 |
 | --- | --- | --- | --- | --- |
 | Android Platform Tools | [build_android-tools.sh](../android-tools/build_android-tools.sh) | 下载 Google 官方最新 Linux Platform Tools ZIP，从 `source.properties` 读取实际版本。 | 保留图标与 PATH hook，容器精简后恢复依赖，再由 quick-sharun 封装。 | [模板差异](../android-tools/docs/template-deviations.md) · [上游取舍](../android-tools/docs/pkgforge-differences.md) · [固定配置](../android-tools/docs/hardcoded.md) |
+| Xberg | [build_xberg.sh](../xberg/build_xberg.sh) | 公共入口下载、校验官方最新稳定 GNU x86_64 tar.gz，版本取自同次归档记录。 | 完整保留主程序、相邻共享库及许可证，由 quick-sharun 收集运行依赖并封装；提供 CLI desktop、官方图标和品牌许可证。 | [模板差异](../xberg/docs/template-deviations.md) · [应用说明](../xberg/README.md) |
 
 ## 用 quick-sharun 打包的 Qt 程序
 
@@ -172,7 +173,6 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | KDE Suite | [build_kde_suite.sh](../kde-suite/build_kde_suite.sh) | 多款 KDE 程序共享一个 AppImage 的挂载及 Qt 6 和 KF6 运行组件，最终封装前按套件结构分阶段部署应用和辅助工具。 | [KDE Suite README](../kde-suite/README.md) |
 | st | [build_st.sh](../st/build_st.sh) | 从 siduck/st 默认分支获取当前源码，按字体配置生成 config.h 并写入源码默认主题，经 make 安装后由 quick-sharun 封装程序、辅助脚本和 terminfo；与 Arch 原生软件包模板不同，不新增标准模板。 | [专属差异](../st/docs/template-deviations.md) · [实机验证](../st/README.md#实机验证) |
 | Webcamoid | [build_webcamoid.sh](../webcamoid/build_webcamoid.sh) | 现有流程从官方正式 Release 源码应用四个补丁，经 CMake + Ninja 安装到暂存目录，再由 quick-sharun 收集插件与运行库；不同于现有 Qt DEB / 系统入口模板，不新增标准模板。 | [当前基线与差异](../webcamoid/docs/template-deviations.md) · [实机验证](../webcamoid/README.md#实机验证) |
-| Xberg | [build_xberg.sh](../xberg/build_xberg.sh) | 独立下载官方 GNU 预编译归档，保留主程序及相邻共享库，由 quick-sharun 收集运行依赖并封装；现有系统入口和 DEB 模板不覆盖该来源布局。 | [专属差异](../xberg/docs/template-deviations.md) · [应用说明](../xberg/README.md) |
 
 ## 专属处理与维护入口
 
