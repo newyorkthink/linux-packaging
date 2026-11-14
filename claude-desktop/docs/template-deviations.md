@@ -2,7 +2,7 @@
 
 ## 当前采用的基础模板
 
-`build_claude-desktop.sh` 使用用户批准的 69 行 [Electron 直接下载基础模板](../../anylinux_projects.md#直接下载安装包的标准模板)。通用代码、22 条通用注释及 13 处空行的位置保持一致，只替换允许变化的应用参数；没有增加额外命令块。
+`build_claude-desktop.sh` 在已批准的 69 行基础上补入 11 行标准协议登记，脚本共 80 行。[Electron 直接下载基础模板](../../anylinux_projects.md#直接下载安装包的标准模板)
 
 ## 安装、下载与解包参数
 
@@ -15,6 +15,10 @@
 - 应用名、主程序、窗口类、图标和 desktop 直接赋值，来源见 [固定配置说明](hardcoded.md)。
 - 版本调用为 `read_app_version.sh pacman claude-desktop`，最终仍在成功生成 AppImage 后单行保存到 `dist/version.txt`。
 - quick-sharun 输入为 `AppDir/bin/*`，未增加未经确认的辅助程序参数，也没有额外的 `NO_STRIP`、`STRACE_MODE` 或许可证复制段。
+
+## 可选协议登记
+
+在写入包内 locale 后、最终封装前调用公共协议入口，生成 `AppDir/bin/20-claude-desktop-protocol.hook`。运行时把 `x-scheme-handler/claude` 指向用户级 `com.anthropic.Claude.desktop`，桌面入口通过 `%U` 将完整 URI 交给当前 AppImage。[构建脚本](../build_claude-desktop.sh#L65)
 
 ## 官方专属处理的状态
 

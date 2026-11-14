@@ -50,6 +50,13 @@ StartupWMClass=com.anthropic.Claude
 - 作用：由公共入口去掉 epoch 和 Arch pkgrel；最终产物存在且非空后，再由公共保存入口写入版本文件。
 - 原始报错：没有。此项属于用户批准的基础模板参数。
 
+## 登录回调协议
+
+浏览器收到 `claude://claude.ai/magic-link` 回调后显示搜索结果，登录没有回到桌面应用。
+
+- 桌面入口名为 `com.anthropic.Claude.desktop`，显示名为 `Claude`，说明为 `Desktop application for Claude.ai`，图标为 `claude-desktop`，窗口类为 `com.anthropic.Claude`，分类为 `Utility;Development;`。[Anthropic 仓库的 Linux 登录回跳报告](https://github.com/anthropics/claude-code/issues/93688)
+- 官方 desktop 声明 `MimeType=x-scheme-handler/claude;`，入口为 `Exec=claude-desktop %U`。公共 hook 使用相同的桌面入口名和协议，在用户目录写入当前 AppImage 的实际路径与 `%U`，由浏览器传入完整登录 URI。
+
 ## 未启用的固定配置
 
 pkgforge 的 QEMU / 固件路径、NSPR 环境设置和 asar 修改只保存在 [暂不采用的差异记录](pkgforge-differences.md) 中，没有进入当前构建脚本。后续加入前必须核实官方当前是否仍保留并重新取得针对该处理的授权。

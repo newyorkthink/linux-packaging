@@ -14,14 +14,15 @@
 
 ## 打包流程
 
-脚本为 `build_claude-desktop.sh`，严格采用 [Electron 直接下载基础模板](../anylinux_projects.md#直接下载安装包的标准模板) 的 69 行结构、通用注释及空行；只替换允许变化的应用参数。
+脚本为 `build_claude-desktop.sh`，在最终封装前接入公共协议登记。[Electron 直接下载基础模板](../anylinux_projects.md#直接下载安装包的标准模板)
 
 1. 先通过公共入口安装统一基础包，再安装 `claude-desktop fcitx5-gtk dpkg`。原脚本列出的 23 个基础包均已由 `--base` 覆盖，应用依赖仍由 AUR 包及明确追加项准备。
 2. 清理本应用的 AppDir、dist、旧 DEB 和解包目录。公共 `common/aur/download_deb_source.sh` 独立解析当前 AUR 来源并下载，通过 SHA-256 校验后写入 `claude-desktop.deb`；不从系统程序目录复制最终程序。
 3. 通过公共解包入口提取 DEB，把 `claude-desktop-unpacked/usr/lib/claude-desktop/` 整个程序目录原样放入 `AppDir/bin`。系统安装结果仅用于依赖、图标、desktop 及既定版本来源。
 4. 设置模板规定的打包元数据，对完整程序目录执行 `quick-sharun AppDir/bin/*`。不再单独部署 ELF 后补资源或手工建立资源链接。
 5. 按模板在第一次 quick-sharun 后生成包内 `zh_CN.UTF-8`，通过 `.env` 使用包内 locale。GTK3 输入模块由 quick-sharun 从已安装依赖收集。
-6. 生成最终 AppImage，成功后单行调用公共保存入口，写入 `dist/version.txt`。
+6. 调用公共协议入口生成 `AppDir/bin/20-claude-desktop-protocol.hook`。
+7. 生成最终 AppImage，成功后单行调用公共保存入口，写入 `dist/version.txt`。
 
 | 配置 | 当前值 |
 | --- | --- |
@@ -77,7 +78,7 @@ chmod +x ./claude-desktop.AppImage
 - 官方 Linux 支持范围为 Ubuntu / Debian；AppImage 的其他目标环境兼容性需以真实运行反馈为准。
 - 当前应用脚本完整复制 DEB 内程序目录，包括 `chrome-sandbox`，不手工追加禁用沙盒参数，也不创建自定义 AppRun。最终依赖部署和启动入口由 quick-sharun / sharun 负责。
 - 图形会话、输入法守护进程、桌面门户和凭据服务仍由目标 Linux 会话提供；脚本不在用户系统安装或启动这些服务。
-- 官方 desktop 的协议声明及 Desktop Actions 保留，由 quick-sharun 处理桌面集成；脚本不手工改写这些条目。
+- 包内 desktop 由 quick-sharun 收集，包含官方协议声明和 Desktop Actions。直接运行 AppImage 时，协议 hook 使用当前 AppImage 的实际路径写入用户级 `com.anthropic.Claude.desktop`，登记 `x-scheme-handler/claude`，并通过 `Exec` 中的 `%U` 将登录 URI 完整转交给应用。
 - AUR 应用包在 CI 系统安装时可能按其依赖关系带入 QEMU、固件等组件；这与是否将这些组件主动部署进 AppImage 是两回事。本次没有加入 pkgforge 的 QEMU / 固件复制、NSPR hook 或三条 asar 修改。
 - Cowork 需要宿主提供 QEMU、UEFI 固件、KVM，以及当前用户对 `/dev/kvm` 和 `/dev/vhost-vsock` 的访问权限。构建容器安装这些依赖不等于目标主机已经具备相应组件或权限；本 AppImage 不自动安装宿主依赖、加载内核模块或更改用户组。
 - 当前基础方案的构建或启动不能代替登录、中文输入、Claude Code 和 Cowork 的真实功能验证。
@@ -122,3 +123,11 @@ chmod +x ./claude-desktop.AppImage
 - 被替代的旧实现：单独部署 Electron ELF 后再复制资源、给 `shared/bin` 建立资源链接，以及旧脚本额外的 `NO_STRIP`、`STRACE_MODE` 和单独版权复制命令。当前仅保留基础模板，不再把这些旧代码描述为现有流程；上面的真实故障和修复历史完整保留。
 - 官方差异：仅在 [pkgforge 差异记录](docs/pkgforge-differences.md) 保存已读源码快照、作用和本次未采用的决定，不把其 hook 或补丁接入构建。后续拟加入时必须核实官方当前是否仍保留且适用。
 - 验证边界：提交前检查模板的 69 行、通用注释和空行位置、公共入口的调用与失败处理、文档链接和完整差异。此记录不代表新 AppImage 的登录、中文输入、Claude Code 或 Cowork 已经实机验收。
+
+### 2026-11-15 补齐浏览器登录回跳
+
+浏览器将 `claude://` 登录链接当作搜索词，回调未进入 Claude Desktop。原构建只将 desktop 收入 AppImage，直接启动时缺少把回调交给 AppImage 的用户级协议登记。
+
+在最终封装前生成协议 hook，启动时通过当前 AppImage 的实际路径登记 `claude://`。[构建脚本](build_claude-desktop.sh#L65) · [固定配置说明](docs/hardcoded.md#登录回调协议)
+
+提交前静态核对了构建顺序、协议登记和 URI 参数传递。

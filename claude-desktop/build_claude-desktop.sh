@@ -62,6 +62,17 @@ LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
 ENV
 
+# 本仓库兼容处理：启动时注册 claude://。包内 desktop 不会进入宿主 applications 目录。
+bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
+  --output AppDir/bin/20-claude-desktop-protocol.hook \
+  --desktop-file com.anthropic.Claude.desktop \
+  --name Claude \
+  --comment 'Desktop application for Claude.ai' \
+  --icon claude-desktop \
+  --wm-class com.anthropic.Claude \
+  --categories 'Utility;Development;' \
+  --scheme claude
+
 # 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 

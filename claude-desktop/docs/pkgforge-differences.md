@@ -18,6 +18,16 @@ AUR 安装阶段仍按应用包声明安装其正常依赖；这不等于主动�
 - [README.md](https://github.com/pkgforge-dev/Claude-Desktop-AppImage/blob/6dd10c7dffd99206b5dbcb25f3676a702aace8c2/README.md)：AppImage、便携运行和 self-updater 说明。
 - [.github/workflows/appimage.yml](https://github.com/pkgforge-dev/Claude-Desktop-AppImage/blob/6dd10c7dffd99206b5dbcb25f3676a702aace8c2/.github/workflows/appimage.yml)：官方在 Arch 容器中分别执行上述两个脚本，面向 x86_64 和 aarch64。本项目当前只批准 x86_64，不因本记录增加其他架构。
 
+## 登录回调的上游取舍
+
+pkgforge 将给包内 desktop 追加 `claude-desktop` 协议的命令保留为注释，未说明追加原因。[get-dependencies.sh](https://github.com/pkgforge-dev/Claude-Desktop-AppImage/blob/1ac8d93227b0e8314b04f48812cee0cb1761ce6d/get-dependencies.sh#L69)
+
+```sh
+# sed -i 's|MimeType=x-scheme-handler/claude;|MimeType=x-scheme-handler/claude;x-scheme-handler/claude-desktop;|' ./AppDir/share/applications/com.anthropic.Claude.desktop
+```
+
+本次回调使用 `claude` 协议。构建脚本调用本仓库的公共 hook，在用户目录登记该协议，并通过 `%U` 把登录 URI 交给当前 AppImage。[构建脚本](../build_claude-desktop.sh#L65)
+
 ## 各项作用、官方说明与本次状态
 
 以下“代码作用”根据已读命令和资源位置说明；它与“官方为何这样写”不是同一个问题。没有官方解释的项目，明确保留“官方未说明原因”，不把推断写成已确认的故障根因。
