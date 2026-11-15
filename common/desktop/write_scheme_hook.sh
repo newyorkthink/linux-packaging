@@ -134,6 +134,11 @@ export CHROME_DESKTOP="${{CHROME_DESKTOP:-{desktop}}}"
 	done
 
 	exec_escaped=$(printf '%s' "$APPIMAGE" | sed 'SED_EXPR') || exit 0
+	# 避免 xdg-open 将不必要的引号识别为路径中的字符。
+	exec_command=$exec_escaped
+	case "$exec_command" in
+		*[!A-Za-z0-9_./+-]*) exec_command="\\"$exec_command\\"" ;;
+	esac
 	tmp=$desktop.tmp.$$
 	{{
 		printf '%s\\n' \\
@@ -142,7 +147,7 @@ export CHROME_DESKTOP="${{CHROME_DESKTOP:-{desktop}}}"
 			'Type=Application' \\
 			'Name={name}' \\
 			'Comment={comment}'
-		printf 'Exec="%s" %%U\\n' "$exec_escaped"
+		printf 'Exec=%s %%U\\n' "$exec_command"
 		printf '%s\\n' \\
 			"$icon_line" \\
 			'Terminal=false' \\
