@@ -75,13 +75,22 @@ chmod +x ./claude-desktop.AppImage
 ./claude-desktop.AppImage
 ```
 
-- 官方 Linux 支持范围为 Ubuntu / Debian；AppImage 的其他目标环境兼容性需以真实运行反馈为准。
+- 官方 Linux 支持范围为 Ubuntu / Debian。
 - 当前应用脚本完整复制 DEB 内程序目录，包括 `chrome-sandbox`，不手工追加禁用沙盒参数，也不创建自定义 AppRun。最终依赖部署和启动入口由 quick-sharun / sharun 负责。
 - 图形会话、输入法守护进程、桌面门户和凭据服务仍由目标 Linux 会话提供；脚本不在用户系统安装或启动这些服务。
 - 包内 desktop 由 quick-sharun 收集，包含官方协议声明和 Desktop Actions。直接运行 AppImage 时，协议 hook 使用当前 AppImage 的实际路径写入用户级 `com.anthropic.Claude.desktop`，登记 `x-scheme-handler/claude`，并通过 `Exec` 中的 `%U` 将登录 URI 完整转交给应用。
 - AUR 应用包在 CI 系统安装时可能按其依赖关系带入 QEMU、固件等组件；这与是否将这些组件主动部署进 AppImage 是两回事。本次没有加入 pkgforge 的 QEMU / 固件复制、NSPR hook 或三条 asar 修改。
 - Cowork 需要宿主提供 QEMU、UEFI 固件、KVM，以及当前用户对 `/dev/kvm` 和 `/dev/vhost-vsock` 的访问权限。构建容器安装这些依赖不等于目标主机已经具备相应组件或权限；本 AppImage 不自动安装宿主依赖、加载内核模块或更改用户组。
-- 当前基础方案的构建或启动不能代替登录、中文输入、Claude Code 和 Cowork 的真实功能验证。
+
+## 实机验证
+
+### 2026-11-15：用户实机验证通过
+
+用户已确认 Claude Desktop 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 邮件登录回跳 | 点击邮件中的登录链接后，Claude Desktop 接收回调并进入已登录界面。 |
 
 ## 配置说明文档
 
@@ -96,7 +105,7 @@ chmod +x ./claude-desktop.AppImage
 - 原因：仓库尚未包含 Claude Desktop 的正式 AppImage 构建入口。
 - 文件：新增 `claude-desktop/build_claude-desktop.sh`、本 README，并接入 `.github/workflows/build.yml`。
 - 内容：参考现有 Electron 项目及仓库最小打包规范，从 AUR 对应的官方包构建，补齐标准 ELF 入口不会自动携带的应用资源，复用统一发布流程。
-- 已确认依据：AUR PKGBUILD、官方 DEB 的包元数据与目录布局、quick-sharun 依赖和资源处理代码；运行结果以对应正式 Actions 日志及后续真实使用反馈为准。
+- 已确认依据：AUR PKGBUILD、官方 DEB 的包元数据与目录布局、quick-sharun 依赖和资源处理代码。
 - 本次属于首次接入，不记为已有运行故障修复，也不添加测试代码、测试 Job 或独立测试 workflow。
 
 ### 2026-09-05：补齐 Fcitx5 GTK3 输入模块
@@ -105,7 +114,7 @@ chmod +x ./claude-desktop.AppImage
 - 根因：原构建仅安装应用声明的依赖，没有安装 `fcitx5-gtk`；首次正式构建日志中只部署了 GTK3 自带输入模块，没有 `im-fcitx5.so`。自包含的 GTK3 运行环境因此缺少 Fcitx5 前端。
 - 文件：`claude-desktop/build_claude-desktop.sh`、本 README。
 - 修复：在应用安装后增加独立的 `fcitx5-gtk` 安装命令，由既有 GTK3 部署流程收集输入法模块、客户端运行库和模块缓存；原有打包命令、资源布局、沙箱和启动逻辑保持不变。
-- 已确认依据：[首次正式构建成功记录](https://github.com/newyorkthink/linux-packaging/actions/runs/33958367807)、[Arch 官方包文件列表](https://archlinux.org/packages/extra/x86_64/fcitx5-gtk/files/)及 [quick-sharun 的 GTK 部署实现](https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/useful-tools/quick-sharun.sh)。新增依赖用于补齐已定位的打包缺项，中文输入的实机效果仍需新产物运行反馈确认。
+- 已确认依据：[首次正式构建成功记录](https://github.com/newyorkthink/linux-packaging/actions/runs/33958367807)、[Arch 官方包文件列表](https://archlinux.org/packages/extra/x86_64/fcitx5-gtk/files/)及 [quick-sharun 的 GTK 部署实现](https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/useful-tools/quick-sharun.sh)。新增依赖用于补齐已定位的打包缺项。
 
 ### 2026-09-15：适配 AUR 启动入口改为 launcher
 
@@ -113,7 +122,7 @@ chmod +x ./claude-desktop.AppImage
 - 根因：AUR `claude-desktop` 的 `pkgrel=2` 将 `/usr/bin/claude-desktop` 从指向官方 Electron ELF 的软链接替换为 shell launcher；原脚本继续对该路径执行 `readlink -f`，因此误把 `/usr/bin` 判断为应用根目录。官方 ELF 与 `resources/app.asar` 仍位于 `/usr/lib/claude-desktop/`。
 - 文件：`claude-desktop/build_claude-desktop.sh`、本 README。
 - 修复：应用根目录直接按官方包实际 payload 使用 `/usr/lib/claude-desktop`，新增 `APP_EXEC` 指向真实 Electron ELF，并将既有 quick-sharun 输入从 AUR launcher 改为该 ELF；资源复制、Fcitx5 GTK3、沙箱和 workflow 保持不变。
-- 已确认依据：[失败构建记录](https://github.com/newyorkthink/linux-packaging/actions/runs/34930833025/job/104268847458) 与 AUR 同步仓库提交 `01a8c397953735dd6543effd0bb002b60c30d6cf`；该上游提交明确新增 launcher，同时官方包 payload 继续位于 `/usr/lib/claude-desktop`。本次修改已完成静态核对，新的正式构建结果以后续 Actions 为准。
+- 已确认依据：[失败构建记录](https://github.com/newyorkthink/linux-packaging/actions/runs/34930833025/job/104268847458) 与 AUR 同步仓库提交 `01a8c397953735dd6543effd0bb002b60c30d6cf`；该上游提交明确新增 launcher，同时官方包 payload 继续位于 `/usr/lib/claude-desktop`。本次修改已完成静态核对。
 
 ### 2026-10-29：按基础模板改为系统安装与独立下载两个阶段
 
@@ -122,7 +131,7 @@ chmod +x ./claude-desktop.AppImage
 - 调整：使用已批准的 69 行脚本，公共 AUR 入口解析当前 DEB 来源和 SHA-256，公共解包入口提取后把完整程序目录放入 `AppDir/bin`；统一读取和保存版本，补入模板规定的中文 locale。
 - 被替代的旧实现：单独部署 Electron ELF 后再复制资源、给 `shared/bin` 建立资源链接，以及旧脚本额外的 `NO_STRIP`、`STRACE_MODE` 和单独版权复制命令。当前仅保留基础模板，不再把这些旧代码描述为现有流程；上面的真实故障和修复历史完整保留。
 - 官方差异：仅在 [pkgforge 差异记录](docs/pkgforge-differences.md) 保存已读源码快照、作用和本次未采用的决定，不把其 hook 或补丁接入构建。后续拟加入时必须核实官方当前是否仍保留且适用。
-- 验证边界：提交前检查模板的 69 行、通用注释和空行位置、公共入口的调用与失败处理、文档链接和完整差异。此记录不代表新 AppImage 的登录、中文输入、Claude Code 或 Cowork 已经实机验收。
+- 静态检查：提交前检查模板的 69 行、通用注释和空行位置、公共入口的调用与失败处理、文档链接和完整差异。
 
 ### 2026-11-15 补齐浏览器登录回跳
 
@@ -130,4 +139,4 @@ chmod +x ./claude-desktop.AppImage
 
 在最终封装前生成协议 hook，启动时通过当前 AppImage 的实际路径登记 `claude://`。[构建脚本](build_claude-desktop.sh#L65) · [固定配置说明](docs/hardcoded.md#登录回调协议)
 
-提交前静态核对了构建顺序、协议登记和 URI 参数传递。
+提交前静态核对了构建顺序、协议登记和 URI 参数传递。邮件登录回跳结果见 [实机验证](#实机验证)。

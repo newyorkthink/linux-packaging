@@ -1,6 +1,6 @@
 # Claude Desktop 固定配置依据
 
-## 来源记录与验证边界
+## 来源核对
 
 本次读取的 [AUR PKGBUILD](https://github.com/archlinux/aur/blob/claude-desktop/PKGBUILD) 的 Git blob SHA 为 `5f6e0d57bc59ed7d6a9ce2ce97e14fa7d62ec33a`。其 x86_64 来源为 Anthropic 的官方 DEB；本次下载用于核对布局的包版本是 `4.29.0`，SHA-256 为 `4aa0f763d6c05ac79502392dd50f5d7f5c455b2f0a405d5bdf1554acd8342a89`，与 AUR 提供的摘要一致。
 
@@ -52,10 +52,12 @@ StartupWMClass=com.anthropic.Claude
 
 ## 登录回调协议
 
-浏览器收到 `claude://claude.ai/magic-link` 回调后显示搜索结果，登录没有回到桌面应用。
+协议登记修复前，浏览器收到 `claude://claude.ai/magic-link` 回调后显示搜索结果，登录没有回到桌面应用。
 
 - 桌面入口名为 `com.anthropic.Claude.desktop`，显示名为 `Claude`，说明为 `Desktop application for Claude.ai`，图标为 `claude-desktop`，窗口类为 `com.anthropic.Claude`，分类为 `Utility;Development;`。[Anthropic 仓库的 Linux 登录回跳报告](https://github.com/anthropics/claude-code/issues/93688)
 - 官方 desktop 声明 `MimeType=x-scheme-handler/claude;`，入口为 `Exec=claude-desktop %U`。公共 hook 使用相同的桌面入口名和协议，在用户目录写入当前 AppImage 的实际路径与 `%U`，由浏览器传入完整登录 URI。
+
+邮件登录回跳结果见 [实机验证](../README.md#实机验证)。
 
 ## 未启用的固定配置
 
