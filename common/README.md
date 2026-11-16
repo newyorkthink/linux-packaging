@@ -293,7 +293,9 @@ VERSION="$("$SCRIPT_DIR/../common/aur/install_and_extract_deb_source.sh" "<AUR �
 "$SCRIPT_DIR/../common/download/download_apt_repository_deb.sh" "<HTTPS 仓库根地址>" "<suite>" "<component>" "<DEB 包名>" "<架构>" "<HTTPS 官方公钥地址>" "<DEB 输出文件>" "<来源版本文件>" [索引架构]
 ```
 
-支持常规 `dists/<suite>/` 布局中的 `InRelease`，以及所选 component、架构对应的 Packages、Packages.xz、Packages.gz；优先使用明文索引，缺少该记录时才选择 XZ 或 gzip。索引中的 DEB 路径须位于仓库根目录下的 `pool/`。不支持 flat 仓库、未签名仓库或仅提供 `Release` 与独立签名的来源，不自动切换其他仓库。
+支持常规 `dists/<suite>/` 布局中的 `InRelease`，以及所选 component、架构对应的 Packages.xz、Packages.gz、Packages；优先使用 XZ，其次 gzip，只有签名索引缺少两种压缩格式的记录时才选择明文。索引中的 DEB 路径须位于仓库根目录下的 `pool/`。不支持 flat 仓库、未签名仓库或仅提供 `Release` 与独立签名的来源，不自动切换其他仓库。
+
+Release 可能登记明文索引的摘要，而服务器实际只发布压缩索引。此前的明文优先顺序会在这种仓库中请求不存在的文件或 by-hash 地址并返回 404，故格式选择改为压缩优先；不能仅凭明文摘要存在就认定该文件可下载。选定格式后的下载、签名、摘要和大小校验仍保持原有失败即退出的行为。
 
 公钥地址须来自调用方核实的官方来源，可提供二进制或 ASCII armored 公钥。先验证签名，再核对 suite、component 和架构；存在 `Valid-Until` 时同时检查有效期。Packages 的摘要与大小取自已验证的 Release；仓库声明 `Acquire-By-Hash: yes` 时使用相应摘要地址，避免索引更新时混入其他快照。签名、索引摘要或下载失败时直接退出，不关闭校验，也不退回其他格式或旧版本。
 

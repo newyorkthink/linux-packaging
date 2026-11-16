@@ -146,10 +146,10 @@ def main():
         ):
             if expected not in release.get(plural, release.get(singular, "")).split():
                 fail("签名索引不包含请求的 component 或架构。")
-        # 只选择请求的 component 和索引架构；没有明文索引时支持 XZ、gzip 索引。
+        # 优先选择 XZ、gzip 索引，最后使用明文；Release 可能记录未发布的明文摘要。
         index_name = f"{component}/binary-{index_architecture}/Packages"
         matches = []
-        for index_path in (index_name, index_name + ".xz", index_name + ".gz"):
+        for index_path in (index_name + ".xz", index_name + ".gz", index_name):
             for line in release.get("SHA256", "").splitlines():
                 parts = line.split()
                 if len(parts) == 3 and parts[2] == index_path:
