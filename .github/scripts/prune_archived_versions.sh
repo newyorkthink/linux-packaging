@@ -137,6 +137,26 @@ read_snapshot() {
   return 1
 }
 
+# 完整查询确认清单缺失时，仅为附件规划使用临时空对象；不创建正式清单。
+read_cleanup_snapshot() {
+  local initial_row="" initial_attempt
+  manifest_available=false
+  for initial_attempt in 1 2 3 4 5; do
+    initial_row="$(read_manifest_row true)" || return 1
+    [[ -z "$initial_row" ]] || break
+    if (( initial_attempt < 5 )); then
+      sleep 2
+    fi
+  done
+  if [[ -z "$initial_row" ]]; then
+    printf '{}\n' > "$base_manifest"
+    refresh_assets
+    return $?
+  fi
+  read_snapshot || return 1
+  manifest_available=true
+}
+
 # 按活动构建清单和精确归档映射生成候选清单，不修改其他软件记录。
 plan_cleanup() {
   python3 .github/scripts/prune_archived_versions.py plan \
@@ -163,7 +183,7 @@ cleanup_archived_assets() {
   done <<< "$asset_names"
 
   # 附件删除并复查后重新读取清单与资产，避免沿用删除前的快照。
-  read_snapshot
+  read_cleanup_snapshot
 }
 
 # 日志和摘要只报告实际完成的清理，或明确说明本次没有修改。
@@ -175,9 +195,16 @@ report_cleanup() {
 require_current_main
 gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" > "$release_json"
 release_id="$(jq -er '.id | numbers' "$release_json")"
-read_snapshot
+read_cleanup_snapshot
 if [[ "$delete_archived_assets" == true ]]; then
   cleanup_archived_assets
+fi
+if [[ "$manifest_available" != true ]]; then
+  echo '完整查询未发现 software_versions.json，跳过版本条目清理；未创建或写入版本清单。'
+  if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+    printf '%s\n' '未发现 software_versions.json，跳过版本条目清理；未创建空清单。' >> "$GITHUB_STEP_SUMMARY"
+  fi
+  exit 0
 fi
 plan_cleanup
 if [[ "$(jq '.removed | length' "$report_json")" == 0 ]]; then
