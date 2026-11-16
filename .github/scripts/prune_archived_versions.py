@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""清理已被新名称接替或已确认归档的软件版本记录。"""
+"""规划归档附件的精确清理，并清理旧名称和归档软件的版本记录。"""
 
 from __future__ import annotations
 
@@ -100,6 +100,40 @@ def mentions(text: str, value: str) -> bool:
     return bool(re.search(r"(?<![A-Za-z0-9_./-])" + re.escape(value) + r"(?![A-Za-z0-9_./-])", text))
 
 
+def archive_reasons(
+    root: Path, catalog: dict, workflow_text: str, archive_index: str, row: dict, keys: list[str]
+) -> list[str]:
+    """统一核对归档完整性及活动入口，附件和版本清理使用相同条件。"""
+    directory, script, asset = row["dir"], row["script"], row["release_name"]
+    archived_dir = root / "archive" / directory
+    archived_script = root / "archive" / script
+    reasons = []
+    if (
+        archived_dir.is_symlink()
+        or (archived_dir / "README.md").is_symlink()
+        or not (archived_dir / "README.md").is_file()
+        or archived_script.is_symlink()
+        or not archived_script.is_file()
+        or not archived_script.resolve().is_relative_to(archived_dir.resolve())
+        or f"(./{directory}/README.md)" not in archive_index
+    ):
+        reasons.append("归档目录、脚本或归档登记不完整")
+    if (root / directory).exists() or (root / directory).is_symlink():
+        reasons.append("原应用目录仍存在")
+    for app in catalog["apps"]:
+        if (
+            app.get("software_key") in keys
+            or app.get("release_name") == asset
+            or app.get("dir") == directory
+            or app.get("script") == script
+        ):
+            reasons.append("活动构建清单仍有对应入口")
+            break
+    if any(mentions(workflow_text, value) for value in (*keys, asset, script, f"archive/{script}")):
+        reasons.append("工作流仍引用对应软件键、资产或脚本")
+    return reasons
+
+
 def plan(args: argparse.Namespace) -> None:
     root = Path.cwd()
     manifest = read_json(args.manifest)
@@ -156,30 +190,7 @@ def plan(args: argparse.Namespace) -> None:
         row = by_asset.get(asset) if isinstance(asset, str) else None
         if row is None:
             continue
-        directory, script = row["dir"], row["script"]
-        archived_dir = root / "archive" / directory
-        archived_script = root / "archive" / script
-        reasons = []
-        if (
-            not (archived_dir / "README.md").is_file()
-            or not archived_script.is_file()
-            or not archived_script.resolve().is_relative_to(root / "archive")
-            or f"(./{directory}/README.md)" not in archive_index
-        ):
-            reasons.append("归档目录、脚本或归档登记不完整")
-        if (root / directory).exists() or (root / directory).is_symlink():
-            reasons.append("原应用目录仍存在")
-        for app in catalog["apps"]:
-            if (
-                app.get("software_key") == key
-                or app.get("release_name") == asset
-                or app.get("dir") == directory
-                or app.get("script") == script
-            ):
-                reasons.append("活动构建清单仍有对应入口")
-                break
-        if any(mentions(workflow_text, value) for value in (key, asset, script, f"archive/{script}")):
-            reasons.append("工作流仍引用对应软件键、资产或脚本")
+        reasons = archive_reasons(root, catalog, workflow_text, archive_index, row, [key])
         if asset in asset_names:
             reasons.append("latest Release 仍有对应资产")
         if reasons:
@@ -196,7 +207,37 @@ def plan(args: argparse.Namespace) -> None:
         args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     else:
         args.output.write_bytes(args.manifest.read_bytes())
-    args.report.write_text(json.dumps({"removed": removed, "retained": retained}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    cleanup_report = {"removed": removed, "retained": retained}
+    if args.include_assets:
+        # 遍历固定归档映射，即使版本清单没有对应条目，也能清理已归档附件。
+        directories, scripts = set(), set()
+        assets_to_delete, retained_assets = [], []
+        for asset, row in by_asset.items():
+            if row["dir"] in directories or row["script"] in scripts:
+                raise SystemExit("归档映射的目录或脚本重复，禁止删除附件。")
+            directories.add(row["dir"])
+            scripts.add(row["script"])
+            matches = [item for item in assets if item["name"] == asset]
+            if not matches:
+                continue
+            if (
+                len(matches) != 1
+                or type(matches[0].get("id")) is not int
+                or matches[0]["id"] <= 0
+            ):
+                raise SystemExit(f"归档附件不唯一或编号无效，禁止删除：{asset}")
+            keys = [
+                key for key, entry in manifest.items()
+                if isinstance(entry, dict) and entry.get("asset") == asset
+            ]
+            reasons = archive_reasons(root, catalog, workflow_text, archive_index, row, keys)
+            if reasons:
+                retained_assets.append({"asset": asset, "reason": "；".join(reasons)})
+            else:
+                assets_to_delete.append({"asset": asset})
+        cleanup_report["assets_to_delete"] = assets_to_delete
+        cleanup_report["retained_assets"] = retained_assets
+    args.report.write_text(json.dumps(cleanup_report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def report(path: Path) -> None:
@@ -229,6 +270,7 @@ def main() -> None:
     planner = subparsers.add_parser("plan")
     for name in ("manifest", "assets", "output", "report"):
         planner.add_argument(f"--{name}", type=Path, required=True)
+    planner.add_argument("--include-assets", action="store_true", help="同时生成归档附件的删除计划，不执行删除")
     reporter = subparsers.add_parser("report")
     reporter.add_argument("path", type=Path)
     args = parser.parse_args()

@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# 仅显式启用附件清理；不带参数时保留原来的版本清理行为。
+delete_archived_assets=false
+if (( $# > 0 )); then
+  [[ $# -eq 1 && "$1" == "--delete-assets" ]] || {
+    echo '参数错误：仅支持不带参数，或使用 --delete-assets 清理归档附件。' >&2
+    exit 2
+  }
+  delete_archived_assets=true
+fi
+
 # 始终在已检出的仓库根目录处理清单，仅使用可信 main 的活动构建清单和归档映射。
 cd "$(git rev-parse --show-toplevel)"
 checkout_sha="$(git rev-parse HEAD)"
@@ -130,7 +140,30 @@ read_snapshot() {
 # 按活动构建清单和精确归档映射生成候选清单，不修改其他软件记录。
 plan_cleanup() {
   python3 .github/scripts/prune_archived_versions.py plan \
-    --manifest "$base_manifest" --assets "$assets_json" --output "$manifest" --report "$report_json"
+    --manifest "$base_manifest" --assets "$assets_json" --output "$manifest" --report "$report_json" "$@"
+}
+
+# 仅删除归档条件全部通过的精确附件；失败时停止，不继续上传版本清单。
+cleanup_archived_assets() {
+  local asset_names asset_name
+  plan_cleanup --include-assets
+  jq -r '.retained_assets[] | "保留归档附件：\(.asset)：\(.reason)。"' "$report_json"
+  asset_names="$(jq -r '.assets_to_delete[].asset' "$report_json")"
+  if [[ -z "$asset_names" ]]; then
+    echo '没有符合条件的归档附件需要删除。'
+    return 0
+  fi
+
+  while IFS= read -r asset_name; do
+    require_current_main
+    bash scripts/release/delete_asset.sh --repo "$GITHUB_REPOSITORY" --tag latest --asset "$asset_name" --yes
+    if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+      printf -- '- 已确认归档附件不存在：`%s`。\n' "$asset_name" >> "$GITHUB_STEP_SUMMARY"
+    fi
+  done <<< "$asset_names"
+
+  # 附件删除并复查后重新读取清单与资产，避免沿用删除前的快照。
+  read_snapshot
 }
 
 # 日志和摘要只报告实际完成的清理，或明确说明本次没有修改。
@@ -143,6 +176,9 @@ require_current_main
 gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" > "$release_json"
 release_id="$(jq -er '.id | numbers' "$release_json")"
 read_snapshot
+if [[ "$delete_archived_assets" == true ]]; then
+  cleanup_archived_assets
+fi
 plan_cleanup
 if [[ "$(jq '.removed | length' "$report_json")" == 0 ]]; then
   report_cleanup

@@ -14,7 +14,7 @@ usage() {
   --yes     确认执行删除；缺少时不查询、不删除。
   --help    显示说明。
 
-依赖：Bash、gh、jq；使用本机 gh 已有认证及目标仓库的发布写权限。
+依赖：Bash、gh、jq；使用运行环境已有认证（支持 GH_TOKEN）及目标仓库的发布写权限。
 目标已不存在且完整查询成功时返回 0；参数错误返回 2；其他失败返回非零。
 USAGE
 }
@@ -78,7 +78,7 @@ done
 command -v gh >/dev/null 2>&1 || die "缺少 gh，请先安装 GitHub CLI"
 command -v jq >/dev/null 2>&1 || die "缺少 jq，请先安装 jq"
 if ! gh auth status --hostname github.com >/dev/null 2>&1; then
-  die "gh 认证不可用，请先在本机检查 github.com 的登录状态"
+  die "gh 认证不可用，请检查运行环境的 github.com 认证"
 fi
 
 # 对标签进行 URL 编码，避免特殊字符改变查询路径。
@@ -133,8 +133,19 @@ case "$match_count" in
     ;;
 esac
 
-# 只删除本次完整查询中唯一匹配的附件编号。
-gh api --hostname github.com --method DELETE "repos/$repository/releases/assets/$asset_id"
+# 只删除本次完整查询中唯一匹配的附件编号；并发删除返回 404 时仍须完整复查。
+if delete_output="$(
+  gh api --hostname github.com --method DELETE "repos/$repository/releases/assets/$asset_id" 2>&1
+)"; then
+  :
+else
+  delete_status=$?
+  if [[ "$delete_output" != *"(HTTP 404)"* ]]; then
+    printf '%s\n' "$delete_output" >&2
+    exit "$delete_status"
+  fi
+  printf '删除期间附件已不存在，重新完整查询确认。\n'
+fi
 
 # 删除后重新查询全部分页，并确认仍是同一个 Release。
 assets_json="$(read_assets "$release_id")"

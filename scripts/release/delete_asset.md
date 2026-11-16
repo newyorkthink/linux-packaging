@@ -6,11 +6,11 @@
 
 脚本只删除指定附件，不删除整个 Release、Tag 或仓库文件，也不改写 `software_versions.json`。归档时的版本条目清理仍按 [现有写锁与独立清理机制](../../archive/README.md#独立归档清理)执行。
 
-完整应用归档统一使用 [archive_apps.sh](../archive/archive_apps.md)；该入口已经调用本脚本和现有版本清理入口，不需要手工重复删除。本页只说明独立删除单个附件的用法。
+AI 通过 GitHub 连接器提交归档后，由 [Clean Archived Versions](../../.github/workflows/check-archived-versions.yml) 自动调用本脚本，再执行现有版本清理。已有命令行归档入口 [archive_apps.sh](../archive/archive_apps.md) 也复用本脚本，不需要手工重复删除。本页只说明独立删除单个附件的用法。
 
 ## 运行条件
 
-需要 Bash、GitHub CLI（`gh`）和 `jq`，以及本机已有的 GitHub.com 认证和目标仓库的发布写权限。脚本检查现有依赖与认证，不安装软件或自动登录。浏览器登录不能代替 `gh` 登录。
+需要 Bash、GitHub CLI（`gh`）和 `jq`，以及运行环境已有的 GitHub.com 认证和目标仓库的发布写权限。在 Actions 中使用工作流提供的 `GH_TOKEN`，对应 `contents: write`；已有命令行入口继续使用原有认证。脚本检查现有依赖与认证，不安装软件或自动登录。浏览器登录不能代替 `gh` 认证。
 
 ## 使用方法
 
@@ -45,7 +45,7 @@ bash scripts/release/delete_asset.sh --repo "<所有者>/<仓库>" --tag "<Relea
 3. 再次确认标签仍指向同一个 Release，只对本次唯一匹配的附件 ID 发出一次删除请求；不保存或复用历史 ID。
 4. 重新读取全部附件分页并核对 Release 编号，只有目标名称已不存在，才报告完成。并发重新上传同名附件时复查失败，不继续删除新附件。
 
-退出码为 `0` 表示删除后复查通过，或完整查询确认目标原本不存在；参数错误为 `2`，其余失败为非零。删除请求失败、任何分页失败、无效响应、复查失败或 Release 被替换，都不得当成成功。删除请求可能已经生效但复查失败时，保留“未确认”结果，重新完整查询后再判断；不要用 `grep ... || echo gone` 掩盖查询错误。
+退出码为 `0` 表示删除后复查通过，或完整查询确认目标原本不存在；参数错误为 `2`，其余失败为非零。并发清理可能使删除请求返回 404，此时仍完整读取附件分页并核对 Release，只有同名附件确实不存在，才按完成处理。其他删除请求失败、任何分页失败、无效响应、复查失败或 Release 被替换，都不得当成成功。删除请求可能已经生效但复查失败时，保留“未确认”结果，重新完整查询后再判断；不要用 `grep ... || echo gone` 掩盖查询错误。
 
 实现使用 [gh api](https://cli.github.com/manual/gh_api) 和 GitHub 的 [删除 Release 附件 API](https://docs.github.com/en/rest/releases/assets#delete-a-release-asset)，按查询所得 ID 删除，避免按名称二次定位到并发上传的其他附件。
 

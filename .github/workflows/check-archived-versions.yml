@@ -1,4 +1,4 @@
-# 独立清理已确认归档的版本条目，不改变原有构建、监督或逐项发布流程。
+# 独立清理已确认归档的附件和版本条目，不改变原有构建、监督或逐项发布流程。
 name: Clean Archived Versions
 
 on:
@@ -9,6 +9,7 @@ on:
       - '.github/appimage-apps.json'
       - '.github/workflows/**'
       - '.github/scripts/prune_archived_versions.*'
+      - 'scripts/release/delete_asset.sh'
   workflow_run:
     workflows: [Build AppImages]
     types: [requested]
@@ -33,8 +34,8 @@ jobs:
         with:
           ref: main
 
-      - name: Remove confirmed archived version entries
+      - name: 清理已确认归档的附件和版本条目
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash .github/scripts/prune_archived_versions.sh
+        run: bash .github/scripts/prune_archived_versions.sh --delete-assets

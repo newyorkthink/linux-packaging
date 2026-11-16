@@ -890,7 +890,7 @@ AI 必须遵守最小修改原则。
 
 - 根目录 `scripts/` 存放人工或 AI 经授权后明确调用、可通过参数复用的仓库维护工具。分类、入口和运行方式见 [scripts/README.md](./scripts/README.md)。`common/` 继续负责应用构建公共入口，`.github/scripts/` 继续负责 Actions 脚本。
 - 文档统一采用总索引、分类索引、同名脚本说明三层结构：`scripts/README.md` 只维护分类与通用约定，`scripts/<分类>/README.md` 只维护脚本清单，具体用法写在同目录的 `<脚本名>.md`。新增、移动或重命名时同步维护这三层与外部引用，不把单个脚本的命令、参数表和异常处理堆入索引。
-- 删除已授权的单个 Release 附件时，统一调用 `scripts/release/delete_asset.sh`，明确传入仓库、标签、已核实的完整附件名和 `--yes`。完整用法见 [delete_asset.md](./scripts/release/delete_asset.md)。该维护入口使用本机已有 `gh` 认证、完整分页及按本次查询所得 ID 删除；查询、删除或复查失败不得宣称成功，不删除整个 Release。
+- 删除已授权的单个 Release 附件时，统一调用 `scripts/release/delete_asset.sh`，明确传入仓库、标签、已核实的完整附件名和 `--yes`。完整用法见 [delete_asset.md](./scripts/release/delete_asset.md)。该入口使用运行环境已有认证、完整分页及按本次查询所得 ID 删除；并发删除返回 404 时仍须完整复查，其他删除失败、查询失败或复查失败不得宣称成功，不删除整个 Release。AI 归档通过 GitHub 连接器提交，由独立归档清理工作流使用 `GITHUB_TOKEN` 执行附件删除，不要求连接器提供删除接口，也不回退本机操作。
 - `scripts/` 中的维护工具保持显式调用，不自动接入应用构建或定时任务。应用构建与打包下载继续使用 `common/`，不得借维护脚本绕过公共入口规则。
 - 代码、注释和示例使用通用参数或占位符，不记录个人路径、主机、设备、网络、账号配置或凭据；本机认证输出、截图与日志不得直接复制进公共仓库。
 
@@ -901,7 +901,7 @@ AI 必须遵守最小修改原则。
 - 在 `archive/README.md` 和该项目 README 顶部写明停用日期、原因，以及仍在使用的替代入口。
 - 从 `.github/workflows` 和 `.github/appimage-apps.json` 去掉对应构建，并删除 Release 上已经发出的对应产物。
 - 若 `latest` Release 的 `software_versions.json` 里有该应用条目，同一次归档必须删掉这一条。清单里本来没有的，不要新增。只删 AppImage、留下版本条目，发布完整性检查会失败；构建清单里的 `software_key` 已经去掉之后，它也不能自动重修。
-- 同次在 `archive/appimage-apps.json` 登记原目录、原脚本路径和准确的固定资产名，不得按名称猜测。独立的 `Clean Archived Versions` 在 main 的归档或构建入口变更、AppImage 新运行被请求时自动清理，也支持手动运行。只有归档完整、活动入口已移除且对应资产不存在的条目才会删除；与逐项发布共用现有清单写锁，取得锁后重新读取并保留其他条目，没有变化不上传。清理不会删除 AppImage 或整个版本清单，不修改原有监督、自愈或逐项发布代码。
+- 同次在 `archive/appimage-apps.json` 登记原目录、原脚本路径和准确的固定资产名，不得按名称猜测。独立的 `Clean Archived Versions` 在 main 的归档或构建入口变更、AppImage 新运行被请求时自动清理，也支持手动运行。工作流明确传入 `--delete-assets`，只有归档索引、README 和原脚本齐全，原目录及活动入口均已移除时，才复用附件删除入口精确清理对应 AppImage；不要求版本清单预先存在对应条目。附件删除并完整复查后重新读取最新快照，只有确认附件不存在的版本条目才会删除；与逐项发布共用现有清单写锁，取得锁后重新读取并保留其他条目，没有变化不上传。不带参数的原脚本入口仍只清理版本条目。不删除其他附件、整个 Release、归档源码或整个版本清单，不修改原有监督、自愈或逐项发布代码。归档授权清单必须说明提交会触发上述附件删除及版本清理，提交后仍禁止等待或监控 Actions。
 - `archive/` 里的旧文件默认不再修改。当前仍在使用的 RunImage 和 AppImage 不要放进去。
 
 ### 记录放在软件目录，根 README 不再保存待办
