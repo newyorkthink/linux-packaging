@@ -19,6 +19,14 @@ st 从 `siduck/st` 默认分支下载当前提交的源码，生成构建所需�
 - 保留 `MAIN_BIN=st`、`st-copyout`、`st-urlhandler`、`st-256color` 的 terminfo 和许可证封装，不改变运行入口。
 - 删除原构建脚本里重复的 `test` 存在性检查；输入缺失由后续实际构建命令报错，版本解析仍要求取得非空结果。
 
+## 划选自动复制补丁
+
+鼠标划选后自动复制到系统剪贴板采用 [suckless 官方 one clipboard 补丁](https://st.suckless.org/patches/clipboard/)；[原始补丁](https://st.suckless.org/patches/clipboard/st-clipboard-0.8.3.diff)保存在 `patches/clipboard.patch`，补丁正文原样保留。官方说明其用途是在选中文本时设置 `CLIPBOARD`，便于在终端与浏览器之间复制。
+
+本次核对的 [siduck/st 源码](https://github.com/siduck/st/blob/73a289ad83114e6fc6ac6d7d510f0b9c7a908158/x.c#L682)中，`setsel()` 原本只设置 `PRIMARY`；已有 `clipcopy()` 负责复制选区并取得 `CLIPBOARD` 所有权。补丁仅在 `setsel()` 末尾增加一行 `clipcopy(NULL);`，继续使用上游已有实现。
+
+`build_st.sh` 在字体和主题处理完成后、`make` 编译安装前应用补丁；构建基础包已包含 `patch`，不增加依赖、环境变量或运行时辅助程序。保留字体、主题、原有快捷键及其余打包步骤。补丁使用 `--batch --forward --fuzz=0`，上游上下文变化或已应用时明确退出，不反向修改源码。
+
 ## 已有实机记录
 
 本次通过记录与构建依据见 [README 的实机验证章节](../README.md#实机验证)；既有打开、输入及拼音候选框的确认记录继续保留在同一文档中。

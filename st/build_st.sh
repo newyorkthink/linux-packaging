@@ -30,6 +30,9 @@ source "$SCRIPT_DIR/patches/theme-config.sh"
 export ST_THEME_COLORS ST_THEME_BACKGROUND ST_THEME_FOREGROUND ST_THEME_CURSOR ST_THEME_REVERSE_CURSOR ST_THEME_ALPHA
 python "$SCRIPT_DIR/patches/apply_theme_config.py"
 
+# 本程序专属处理：划选完成后同步写入系统剪贴板。
+patch --batch --forward --fuzz=0 -d "$SOURCE_DIR" -p1 < "$SCRIPT_DIR/patches/clipboard.patch"
+
 # 本程序专属处理：编译上游源码并安装程序及桌面资源。
 make -C "$SOURCE_DIR" PREFIX=/usr install
 

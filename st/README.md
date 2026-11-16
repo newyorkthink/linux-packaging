@@ -12,9 +12,15 @@
 
 默认采用赛博朋克 2077 风格配色：深蓝黑背景、冷白蓝文字、霓虹青、荧光粉和赛博黄 ANSI 颜色，透明度为 1.0。修改 `patches/theme-config.sh` 后重新构建，`patches/apply_theme_config.py` 会在字体配置生成后将主题写入 `config.h`。该主题只改变 st 自身的默认颜色，不修改 lf、tmux 的配置，也不会生成截图中的发光边框。宿主机已加载的 `st.background`、`st.foreground`、`st.cursorColor`、`st.color0` 至 `st.color15` 等 Xresources 值仍可覆盖源码默认色。
 
+## 划选自动复制
+
+鼠标左键划选文字并松开后，同时更新 X11 的 `PRIMARY` 和 `CLIPBOARD`，可在浏览器等应用中用 `Ctrl+V` 粘贴。原有 `Ctrl+Shift+C`、`Ctrl+Shift+V`、`Shift+Insert` 和右键粘贴行为保留。
+
+构建时应用 [suckless 官方 clipboard 补丁](https://st.suckless.org/patches/clipboard/)，由 `patches/clipboard.patch` 在 `x.c` 的 `setsel()` 末尾增加 `clipcopy(NULL);`。这是编译进程序的行为；补丁来源和接入位置见 [专属打包差异](./docs/template-deviations.md#划选自动复制补丁)。
+
 ## 运行和构建
 
-图形会话运行 dist/st.AppImage；需要打开文件时可以显式执行 st.AppImage -e nvim /path/to/file，和原有 Rofi 搜索脚本互不依赖。构建脚本由仓库的统一 AppImage 工作流在 Arch 环境调用，从 siduck/st 默认分支获取当前源码，读取 font-config.sh 的字体设置，并由 patches/apply_font_config.py 生成 config.h，再由 patches/apply_theme_config.py 写入源码默认主题；随后通过 make 安装、quick-sharun 打包，同时封装 st-256color 的 terminfo。专用打包流程及与标准模板的差异见 docs/template-deviations.md。上游复制输出、处理 URL 的快捷键还会调用宿主机的 dmenu、xclip 等工具，使用这些快捷键前需要在宿主机安装相应程序。上游项目地址：https://github.com/siduck/st 。
+图形会话运行 dist/st.AppImage；需要打开文件时可以显式执行 st.AppImage -e nvim /path/to/file，和原有 Rofi 搜索脚本互不依赖。构建脚本由仓库的统一 AppImage 工作流在 Arch 环境调用，从 siduck/st 默认分支获取当前源码，读取 font-config.sh 的字体设置，并由 patches/apply_font_config.py 生成 config.h，再由 patches/apply_theme_config.py 写入源码默认主题；应用 patches/clipboard.patch 后，通过 make 安装、quick-sharun 打包，同时封装 st-256color 的 terminfo。专用打包流程及与标准模板的差异见 docs/template-deviations.md。上游复制输出、处理 URL 的快捷键还会调用宿主机的 dmenu、xclip 等工具，使用这些快捷键前需要在宿主机安装相应程序。上游项目地址：https://github.com/siduck/st 。
 
 ## 2026-09-24：实机确认能打开并输入
 
