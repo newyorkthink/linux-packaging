@@ -48,11 +48,34 @@ jobs:
 
           printf '准备删除 %d 条早于 %s 的已完成运行记录。\n' "${#run_ids[@]}" "${cutoff}"
 
+          # 每条删除请求最多尝试五次，仅对服务端错误按递增间隔重试。
           for run_id in "${run_ids[@]}"; do
-            gh api --method DELETE --silent \
-              -H 'Accept: application/vnd.github+json' \
-              -H 'X-GitHub-Api-Version: 2022-11-28' \
-              "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}"
+            for attempt in 1 2 3 4 5; do
+              if api_error="$(gh api --method DELETE --silent \
+                -H 'Accept: application/vnd.github+json' \
+                -H 'X-GitHub-Api-Version: 2022-11-28' \
+                "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" 2>&1)"; then
+                break
+              else
+                api_status=$?
+              fi
+
+              # 前次删除可能已经生效；仅在重试返回 404 时按已不存在处理。
+              if (( attempt > 1 )) && [[ "$api_error" == *"(HTTP 404)"* ]]; then
+                printf '运行记录 %s 在重试时已不存在，继续清理。\n' "$run_id"
+                break
+              fi
+
+              printf '%s\n' "$api_error" >&2
+              if [[ ! "$api_error" =~ HTTP[[:space:]]5[0-9][0-9] ]] || (( attempt == 5 )); then
+                exit "$api_status"
+              fi
+
+              retry_delay=$((5 * (2 ** (attempt - 1))))
+              printf '删除运行记录 %s 暂时失败，%d 秒后重试（已尝试 %d/5 次）。\n' \
+                "$run_id" "$retry_delay" "$attempt" >&2
+              sleep "$retry_delay"
+            done
           done
 
           printf '已删除 %d 条运行记录。\n' "${#run_ids[@]}"
