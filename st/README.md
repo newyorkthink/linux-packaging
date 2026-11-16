@@ -41,3 +41,11 @@ Linux 图形会话运行当时的 `st.AppImage`，终端窗口可以打开，she
 | tmux | zsh 窗口及底部状态栏显示正常。 |
 
 本次核对的构建基线：[专用流程整理](https://github.com/newyorkthink/linux-packaging/commit/05357af0ac4a02b6bf0c4a3292987bf42e83e60c)、[源码默认主题](https://github.com/newyorkthink/linux-packaging/commit/e1e198cd2019f549a5a85836c0c55235e4524a7c)、[ANSI 配色调整](https://github.com/newyorkthink/linux-packaging/commit/c86a61e1278122c3af8a4091888b93806f746b6f)。对应 [Actions #1316](https://github.com/newyorkthink/linux-packaging/actions/runs/42221291483) 首次运行成功，Build st 的构建、发布和版本清单写入均已完成。
+
+### 2026-11-16：用户实机验证通过
+
+用户已确认 st.AppImage 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 划选自动复制 | 鼠标划选文字后自动复制到系统剪贴板正常。 |
