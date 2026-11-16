@@ -12,7 +12,7 @@ on:
       - 'scripts/release/delete_asset.sh'
   workflow_run:
     workflows: [Build AppImages]
-    types: [requested]
+    types: [requested, completed]
     branches: [main]
   workflow_dispatch:
 

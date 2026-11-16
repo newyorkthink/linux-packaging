@@ -30,7 +30,8 @@ jobs:
 
           cutoff="$(date -u -d '7 days ago' '+%Y-%m-%dT%H:%M:%SZ')"
 
-          mapfile -t run_ids < <(
+          # 完整查询成功后才读取列表，避免分页失败被误报为清理成功。
+          run_ids_text="$(
             gh api --method GET --paginate \
               -H 'Accept: application/vnd.github+json' \
               -H 'X-GitHub-Api-Version: 2022-11-28' \
@@ -39,7 +40,11 @@ jobs:
               -f created="<${cutoff}" \
               -f per_page=100 \
               --jq '.workflow_runs[].id'
-          )
+          )"
+          run_ids=()
+          if [[ -n "$run_ids_text" ]]; then
+            mapfile -t run_ids <<< "$run_ids_text"
+          fi
 
           if (( ${#run_ids[@]} == 0 )); then
             printf '没有需要删除的运行记录。保留起点：%s\n' "${cutoff}"
