@@ -6,7 +6,8 @@
 
 | 位置 | 差异 | 原因 |
 | --- | --- | --- |
-| 下载并准备应用 | 除 `gufw` 外，显式解包 `python3-minimal`、当前版本的 `pythonX.Y-minimal`、`pythonX.Y`、`libpythonX.Y-minimal`、`libpythonX.Y-stdlib`、`python3-gi` 和 GTK/GI 包。仅当 `ldd` 看到共享 `libpython` 时追加其软件包 | 公共解包入口不递归依赖。解释器可能静态链接 Python 核心，没有共享库时不能把空包名交给解包入口 |
+| 下载并准备应用 | 原生运行库从当前 Ubuntu 24.04 环境显式解包 `python3-minimal`、当前版本的 `pythonX.Y-minimal`、`pythonX.Y`、`libpythonX.Y-minimal`、`libpythonX.Y-stdlib`、`python3-gi` 和 GTK/GI 包。仅当 `ldd` 看到共享 `libpython` 时追加其软件包 | 公共解包入口不递归依赖。解释器可能静态链接 Python 核心，没有共享库时不能把空包名交给解包入口 |
+| 下载并准备应用 | 通过公共签名 APT 下载入口从 `resolute / universe` 的 `amd64` 索引选择 `gufw` 的 `all` 包，仅解包界面应用 | 保留当前不依赖 WebKit 的应用版本，避免将 Ubuntu 26.04 的原生库带入包内；来源版本来自签名索引，原始 GLIBC 故障见 [README](../README.md#glibc-运行库兼容性) |
 | 准备桌面资源和运行库 | 调用 `patches/prepare_gufw_sources.py` | 改界面路径，并在 `ufw_backend.py` 的 `_run_cmd` 中清理宿主命令环境 |
 | 准备 AppRun | 第二次 linuxdeploy 之前安装拟采用的独立 `AppRun` | 正文较长，且必须在插件包装前就位 |
 | 核心打包 | 增加三项 `--deploy-deps-only`，不增加 `--executable` | 桌面入口是脚本。`--deploy-deps-only` 只收集已经解包的 ELF 依赖，不复制第二个程序 |

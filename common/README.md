@@ -286,18 +286,18 @@ VERSION="$("$SCRIPT_DIR/../common/aur/install_and_extract_deb_source.sh" "<AUR �
 
 入口为 `download/download_apt_repository_deb.sh`，依赖 Bash、Python 3、curl、GnuPG（`gpg`、`gpgv`）、`dpkg` 和 `dpkg-deb`。调用方提前准备依赖；脚本只查询和下载，不安装应用、不执行维护脚本、不添加系统软件源，也不读写宿主机的 GnuPG 密钥目录。
 
-参数依次为：HTTPS 仓库根地址、suite、component、DEB 包名、架构、HTTPS 官方公钥地址、DEB 输出文件和来源版本文件，共八项。应用名称、仓库、密钥、渠道、架构和输出路径均由调用方指定；不存在内置应用或固定版本。下面的调用放在应用 build 中，所有 `<…>` 均须按当前官方来源替换。
+参数依次为：HTTPS 仓库根地址、suite、component、DEB 包名、架构、HTTPS 官方公钥地址、DEB 输出文件和来源版本文件，共八项。可选第九项为索引架构，省略时与 DEB 架构相同；显式传入时分别核对索引架构和包架构，例如从 `binary-amd64` 索引选择 `Architecture: all` 的包。应用名称、仓库、密钥、渠道、架构和输出路径均由调用方指定；不存在内置应用或固定版本。下面的调用放在应用 build 中，所有 `<…>` 均须按当前官方来源替换。
 
 ```bash
 # 下载并校验官方 APT 仓库中的当前 DEB，同时记录来源版本。
-"$SCRIPT_DIR/../common/download/download_apt_repository_deb.sh" "<HTTPS 仓库根地址>" "<suite>" "<component>" "<DEB 包名>" "<架构>" "<HTTPS 官方公钥地址>" "<DEB 输出文件>" "<来源版本文件>"
+"$SCRIPT_DIR/../common/download/download_apt_repository_deb.sh" "<HTTPS 仓库根地址>" "<suite>" "<component>" "<DEB 包名>" "<架构>" "<HTTPS 官方公钥地址>" "<DEB 输出文件>" "<来源版本文件>" [索引架构]
 ```
 
 支持常规 `dists/<suite>/` 布局中的 `InRelease`，以及所选 component、架构对应的 Packages、Packages.xz、Packages.gz；优先使用明文索引，缺少该记录时才选择 XZ 或 gzip。索引中的 DEB 路径须位于仓库根目录下的 `pool/`。不支持 flat 仓库、未签名仓库或仅提供 `Release` 与独立签名的来源，不自动切换其他仓库。
 
 公钥地址须来自调用方核实的官方来源，可提供二进制或 ASCII armored 公钥。先验证签名，再核对 suite、component 和架构；存在 `Valid-Until` 时同时检查有效期。Packages 的摘要与大小取自已验证的 Release；仓库声明 `Acquire-By-Hash: yes` 时使用相应摘要地址，避免索引更新时混入其他快照。签名、索引摘要或下载失败时直接退出，不关闭校验，也不退回其他格式或旧版本。
 
-只匹配传入的包名和精确架构，不自动改用其他架构或 `all` 包；版本通过 `dpkg` 校验并比较，保留 epoch、预发布标记和 Debian 修订号。同一版本的路径、摘要或大小冲突，以及最高版本存在多种等价写法时直接失败。最终 DEB 必须同时符合签名索引中的 SHA-256、大小、Package、Architecture 和 Version。
+只匹配传入的包名和精确 DEB 架构，不自动改用其他架构或 `all` 包；签名 Release 的架构字段及 Packages 路径使用索引架构。版本通过 `dpkg` 校验并比较，保留 epoch、预发布标记和 Debian 修订号。同一版本的路径、摘要或大小冲突，以及最高版本存在多种等价写法时直接失败。最终 DEB 必须同时符合签名索引中的 SHA-256、大小、Package、Architecture 和 Version。
 
 全部校验通过后才替换两个输出文件。参数、元数据、签名、下载或校验失败时保留已有 DEB 和来源版本文件，并清理本次临时目录；下载仍复用原有 `download_file.sh` 的重试、超时及摘要处理。成功时 stdout 只有一行版本，诊断和摘要日志写入 stderr。
 

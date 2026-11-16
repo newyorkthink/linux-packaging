@@ -4,8 +4,8 @@
 set -Eeuo pipefail
 
 # 由调用方提供仓库、软件包和输出路径，不在公共入口固定应用。
-if (( $# != 8 )); then
-  echo "用法：$0 <HTTPS 仓库根地址> <suite> <component> <包名> <架构> <HTTPS 官方密钥地址> <输出 DEB> <来源版本文件>" >&2
+if (( $# != 8 && $# != 9 )); then
+  echo "用法：$0 <HTTPS 仓库根地址> <suite> <component> <包名> <架构> <HTTPS 官方密钥地址> <输出 DEB> <来源版本文件> [索引架构]" >&2
   exit 2
 fi
 # 定位现有公共下载入口，不依赖调用者当前目录。
@@ -82,12 +82,14 @@ def compare_versions(left, right):
 
 
 def main():
-    script_dir, repository, suite, component, package, architecture, key_url, output, version_file = sys.argv[1:]
+    script_dir, repository, suite, component, package, architecture, key_url, output, version_file = sys.argv[1:10]
+    # 索引架构默认沿用包架构；显式指定时可从架构索引精确选择 all 包。
+    index_architecture = sys.argv[10] if len(sys.argv) == 11 else architecture
     repository = https_url(repository).rstrip("/")
     key_url = https_url(key_url)
-    for token in (suite, component, package, architecture):
+    for token in (suite, component, package, architecture, index_architecture):
         if not re.fullmatch(r"[a-z0-9][a-z0-9+.-]*", token) or token in (".", ".."):
-            fail("suite、component、包名或架构无效。")
+            fail("suite、component、包名、包架构或索引架构无效。")
     if not output or not version_file:
         fail("DEB 和来源版本文件的输出路径不能为空。")
     output = Path(output).absolute()
@@ -139,13 +141,13 @@ def main():
         if suite not in (release.get("Suite"), release.get("Codename")):
             fail("签名索引与请求的 suite 不一致。")
         for plural, singular, expected in (
-            ("Architectures", "Architecture", architecture),
+            ("Architectures", "Architecture", index_architecture),
             ("Components", "Component", component),
         ):
             if expected not in release.get(plural, release.get(singular, "")).split():
                 fail("签名索引不包含请求的 component 或架构。")
-        # 只选择请求的 component 和架构；没有明文索引时支持 XZ、gzip 索引。
-        index_name = f"{component}/binary-{architecture}/Packages"
+        # 只选择请求的 component 和索引架构；没有明文索引时支持 XZ、gzip 索引。
+        index_name = f"{component}/binary-{index_architecture}/Packages"
         matches = []
         for index_path in (index_name, index_name + ".xz", index_name + ".gz"):
             for line in release.get("SHA256", "").splitlines():

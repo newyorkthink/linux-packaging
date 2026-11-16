@@ -284,7 +284,7 @@ esac
 apply_tree "$RUNTIME"
 restore_session
 if ! "$PY_BIN" -c 'import gi; gi.require_version("Gtk", "3.0"); from gi.repository import Gtk'; then
-  show_error "复制出的 Gufw 运行库无法加载。若 /tmp 禁止执行程序，root 同样无法启动。"
+  show_error "复制出的 Gufw Python/GTK 运行库加载失败，请查看上方原始错误。若提示 GLIBC 版本不存在，说明包内运行库与宿主 glibc 不兼容；提权无法解决。"
   exit 1
 fi
 

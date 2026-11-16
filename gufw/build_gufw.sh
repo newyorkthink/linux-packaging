@@ -17,7 +17,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 
 # 安装构建工具和应用所需的依赖包。
 "$SCRIPT_DIR/../common/apt/install_packages.sh" \
-  gufw python3 python3-minimal python3-gi gir1.2-gtk-3.0 gir1.2-glib-2.0 \
+  python3 python3-minimal python3-gi gir1.2-gtk-3.0 gir1.2-glib-2.0 \
   gir1.2-pango-1.0 gir1.2-gdkpixbuf-2.0 gir1.2-atk-1.0 libgtk-3-0t64 \
   libgtk-3-common libgtk-3-bin librsvg2-bin adwaita-icon-theme \
   hicolor-icon-theme gnome-themes-extra-data locales \
@@ -79,9 +79,18 @@ for package in "${RUNTIME_PACKAGES[@]}"; do
   }
 done
 
+# 本程序专属处理：只提取当前构建环境的原生运行库，不把解释器版本当作应用版本。
 # 下载已安装版本的软件包并解包到 AppDir，成功后返回版本号。
-VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "gufw" "$APPDIR" \
-  "${RUNTIME_PACKAGES[@]}")"
+"$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "python3" "$APPDIR" "${RUNTIME_PACKAGES[@]}" >/dev/null
+
+# 下载并校验官方 APT 仓库中的当前 DEB，同时记录来源版本。
+VERSION="$("$SCRIPT_DIR/../common/download/download_apt_repository_deb.sh" \
+  "https://archive.ubuntu.com/ubuntu" resolute universe gufw all \
+  "https://archive.ubuntu.com/ubuntu/project/ubuntu-archive-keyring.gpg" \
+  "$SOURCE_DIR/gufw.deb" "$SOURCE_DIR/gufw.version" amd64)"
+
+# 本程序专属处理：只解包架构无关的界面应用，不安装其他发行版的软件包或原生库。
+"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$SOURCE_DIR/gufw.deb" "$APPDIR"
 
 ########## 准备桌面资源和运行库 #########
 

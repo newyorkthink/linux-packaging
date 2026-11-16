@@ -506,7 +506,7 @@ jobs:
     name: Build Gufw
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).gufw == 'true'
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     concurrency:
       group: build-appimage-gufw.AppImage
