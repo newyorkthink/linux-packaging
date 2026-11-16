@@ -20,6 +20,15 @@ Gufw 26.04 是 GTK3、Python 3 和 PyGObject 程序，并且必须以 root 运�
 
 ## 运行
 
+Debian 系发行版可在终端执行以下依赖安装命令，需预先安装 aptitude。
+
+```bash
+# 安装 UFW、pkexec 和 Polkit 授权服务
+sudo aptitude install ufw pkexec polkitd
+```
+
+在本应用目录中运行 AppImage。
+
 ```bash
 ./dist/gufw.AppImage
 ```
