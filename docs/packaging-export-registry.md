@@ -132,6 +132,20 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `LD_PRELOAD` | 程序启动前先加载指定的 so。 | 3 个脚本，例如 dingtalk、peazip、runimage |
 | `FONTCONFIG_FILE` | 指定字体配置文件，按其中的目录和规则查找字体。 | 例如 goldendict、github-desktop、keepass、wps-office-cn |
 | `FONTCONFIG_PATH` | 字体配置的搜索目录。 | github-desktop |
+| `GUFW_SHARE` | Gufw 包内界面文件和图标等共享资源的根目录。 | `gufw/AppRun` |
+| `GUFW_PROFILES` | Gufw 包内预置应用规则的目录。 | `gufw/AppRun` |
+| `GUFW_LOCALE` | Gufw 包内翻译文件目录，供入口脚本绑定文本域。 | `gufw/AppRun` |
+| `PYTHONHOME` | 指定包内 Python 的标准库前缀，调用宿主命令前移除。 | `gufw/AppRun` |
+| `PYTHONNOUSERSITE` | 禁用包内 Python 的用户级 site-packages，调用宿主命令前移除。 | `gufw/AppRun` |
+| `PYTHONDONTWRITEBYTECODE` | 禁止运行时向程序目录写入 Python 字节码缓存，调用宿主命令前移除。 | `gufw/AppRun` |
+| `GTK_DATA_PREFIX` | 指定当前运行副本的 GTK 数据前缀，调用宿主命令前移除。 | `gufw/AppRun` |
+| `GTK_EXE_PREFIX` | 将官方 GTK 插件的执行前缀映射到当前运行副本，提权时显式传入，调用宿主命令前移除。 | `gufw/AppRun` |
+| `GDK_PIXBUF_MODULE_FILE` | 指定当前运行副本中的 GdkPixbuf 加载器缓存，调用宿主命令前移除。 | `gufw/AppRun` |
+| `DISPLAY` | 将调用用户的 X11 显示地址传给提权后的 GUI。 | `gufw/AppRun` |
+| `WAYLAND_DISPLAY` | 将调用用户的 Wayland 显示名称传给提权后的 GUI。 | `gufw/AppRun` |
+| `XAUTHORITY` | 将调用用户的 X11 授权文件路径传给提权后的 GUI。 | `gufw/AppRun` |
+| `DBUS_SESSION_BUS_ADDRESS` | 将调用用户的会话总线地址传给提权后的 GUI。 | `gufw/AppRun` |
+| `XDG_CURRENT_DESKTOP` | 保留调用用户的桌面环境标识，供提权后的 GUI 使用。 | `gufw/AppRun` |
 
 ## Qt
 

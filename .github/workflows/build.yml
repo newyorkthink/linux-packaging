@@ -57,6 +57,7 @@ on:
           - goldendict/build_goldendict.sh
           - grok-app/build_grok-app.sh
           - grok-bot/build_grok-bot.sh
+          - gufw/build_gufw.sh
           - hermes-desktop/build_hermes-desktop.sh
           - htop/build_htop.sh
           - i3wm/build_i3wm.sh
@@ -498,6 +499,59 @@ jobs:
           version_file: 'dconf-editor/dist/version.txt'
           asset_name: 'dconf-editor.AppImage'
           artifact_dir: 'dconf-editor/dist'
+          github_token: ${{ github.token }}
+
+
+  build_gufw:
+    name: Build Gufw
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).gufw == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    concurrency:
+      group: build-appimage-gufw.AppImage
+      queue: max
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build gufw AppImage
+        working-directory: gufw
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x build_gufw.sh
+          ./build_gufw.sh
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-gufw
+          path: gufw/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s gufw/dist/gufw.AppImage
+          gh release upload latest gufw/dist/gufw.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'gufw'
+          version_file: 'gufw/dist/version.txt'
+          asset_name: 'gufw.AppImage'
+          artifact_dir: 'gufw/dist'
           github_token: ${{ github.token }}
 
 

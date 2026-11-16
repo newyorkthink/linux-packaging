@@ -1,0 +1,371 @@
+#!/usr/bin/env bash
+set -u
+
+# 获取脚本所在目录的绝对路径。
+# 先保留插件写入的 APPDIR 和 GTK 变量，再定位当前入口。
+HOOK_APPDIR="${APPDIR:-}"
+ORIG_GTK_EXE_PREFIX="${GTK_EXE_PREFIX:-}"
+ORIG_GTK_PATH="${GTK_PATH:-}"
+ORIG_GTK_IM_MODULE_FILE="${GTK_IM_MODULE_FILE:-}"
+ORIG_GDK_PIXBUF_MODULE_FILE="${GDK_PIXBUF_MODULE_FILE:-}"
+ORIG_GTK_THEME="${GTK_THEME:-}"
+APPDIR="$(readlink -f "$(dirname "$0")")"
+HERE="$APPDIR"
+HOST_DISPLAY="${DISPLAY:-}"
+HOST_WAYLAND="${WAYLAND_DISPLAY:-}"
+HOST_XAUTHORITY="${XAUTHORITY:-}"
+HOST_RUNTIME="${XDG_RUNTIME_DIR:-}"
+HOST_DBUS="${DBUS_SESSION_BUS_ADDRESS:-}"
+HOST_DESKTOP="${XDG_CURRENT_DESKTOP:-}"
+HOST_SESSION="${XDG_SESSION_TYPE:-}"
+HOST_GDK="${GDK_BACKEND:-}"
+HOST_GTK_IM="${GTK_IM_MODULE:-}"
+HOST_QT_IM="${QT_IM_MODULE:-}"
+HOST_XMODIFIERS="${XMODIFIERS:-}"
+if [[ -z "$HOST_XAUTHORITY" && -n "${HOME:-}" && -r "$HOME/.Xauthority" ]]; then
+  HOST_XAUTHORITY="$HOME/.Xauthority"
+fi
+APP_ARGS=("$@")
+RUNTIME=
+
+# 把插件按挂载目录写出的路径改到当前根目录，并丢掉挂载目录和宿主机路径。
+relocate_mounted_path() {
+  local value="$1"
+  local new_root="$2"
+  local resolved=""
+  local result=""
+  [[ -n "$value" ]] || return 0
+  case "$value" in
+    "$HERE"|"$HERE"/*)
+      result="$new_root${value#"$HERE"}"
+      ;;
+    *)
+      if [[ -n "$HOOK_APPDIR" && ( "$value" == "$HOOK_APPDIR" || "$value" == "$HOOK_APPDIR"/* ) ]]; then
+        result="$new_root${value#"$HOOK_APPDIR"}"
+      elif [[ -e "$value" ]]; then
+        resolved="$(readlink -f "$value")"
+        case "$resolved" in
+          "$HERE"|"$HERE"/*) result="$new_root${resolved#"$HERE"}" ;;
+          *) result="$value" ;;
+        esac
+      else
+        result="$value"
+      fi
+      ;;
+  esac
+  printf '%s\n' "${result//\/\//\/}"
+}
+
+relocate_mounted_list() {
+  local value="$1"
+  local new_root="$2"
+  local item relocated=""
+  local IFS=':'
+  for item in $value; do
+    [[ -n "$item" ]] || continue
+    item="$(relocate_mounted_path "$item" "$new_root")"
+    case "$item" in
+      "$new_root"|"$new_root"/*) relocated+="${relocated:+:}$item" ;;
+    esac
+  done
+  printf '%s\n' "$relocated"
+}
+
+# 按插件实际写出的 GTK3 变量使用当前根目录。没有插件产物时才查看副本里的目录。
+apply_plugin_paths() {
+  local root="$1"
+  local exec_prefix="" path="" cache="" pixbuf="" glob_state=0
+  local -a caches=()
+  export GTK_DATA_PREFIX="$root"
+  if [[ -n "$ORIG_GTK_THEME" ]]; then
+    export GTK_THEME="$ORIG_GTK_THEME"
+  fi
+  if [[ -n "$ORIG_GTK_EXE_PREFIX" ]]; then
+    exec_prefix="$(relocate_mounted_list "$ORIG_GTK_EXE_PREFIX" "$root")"
+  fi
+  if [[ -z "$exec_prefix" && -d "$root/usr" ]]; then
+    exec_prefix="$root/usr"
+  fi
+  if [[ -n "$exec_prefix" ]]; then
+    export GTK_EXE_PREFIX="$exec_prefix"
+  else
+    unset GTK_EXE_PREFIX
+  fi
+  if [[ -n "$ORIG_GTK_PATH" ]]; then
+    path="$(relocate_mounted_list "$ORIG_GTK_PATH" "$root")"
+  fi
+  if [[ -z "$path" && -d "$root/usr/lib/gtk-3.0" ]]; then
+    path="$root/usr/lib/gtk-3.0"
+  elif [[ -z "$path" && -d "$root/usr/lib/x86_64-linux-gnu/gtk-3.0" ]]; then
+    path="$root/usr/lib/x86_64-linux-gnu/gtk-3.0"
+  fi
+  if [[ -n "$path" ]]; then
+    export GTK_PATH="$path"
+  else
+    unset GTK_PATH
+  fi
+  if [[ -n "$ORIG_GTK_IM_MODULE_FILE" ]]; then
+    cache="$(relocate_mounted_list "$ORIG_GTK_IM_MODULE_FILE" "$root")"
+  fi
+  if [[ ! -f "$cache" ]]; then
+    cache=""
+    shopt -q nullglob && glob_state=1
+    shopt -s nullglob
+    caches=(
+      "$root"/usr/lib/gtk-3.0/*/immodules.cache
+      "$root"/usr/lib/*/gtk-3.0/*/immodules.cache
+    )
+    if (( glob_state == 0 )); then
+      shopt -u nullglob
+    fi
+    if (( ${#caches[@]} > 0 )); then
+      cache="${caches[0]}"
+    fi
+  fi
+  if [[ -n "$cache" && -f "$cache" ]]; then
+    export GTK_IM_MODULE_FILE="$cache"
+  else
+    unset GTK_IM_MODULE_FILE
+  fi
+  if [[ -n "$ORIG_GDK_PIXBUF_MODULE_FILE" ]]; then
+    pixbuf="$(relocate_mounted_list "$ORIG_GDK_PIXBUF_MODULE_FILE" "$root")"
+  fi
+  if [[ -n "$pixbuf" && -f "$pixbuf" ]]; then
+    export GDK_PIXBUF_MODULE_FILE="$pixbuf"
+  fi
+}
+
+# 按指定根目录设置包内 Python 和 GTK 路径。不追加调用方的库路径。
+# 调用方路径可能指向普通用户的 FUSE 挂载，root 不能读取。
+apply_tree() {
+  local root="$1"
+  export APPDIR="$root"
+  export GUFW_SHARE="$root/usr/share/gufw"
+  export GUFW_PROFILES="$root/etc/gufw/app_profiles"
+  export GUFW_LOCALE="$root/usr/share/locale"
+  export PYTHONHOME="$root/usr"
+  export PYTHONPATH="$root/usr/lib/python3/dist-packages"
+  export PYTHONNOUSERSITE=1
+  export PYTHONDONTWRITEBYTECODE=1
+  # 设置程序、运行库和共享数据的搜索路径。
+  export PATH="$root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  export LD_LIBRARY_PATH="$root/usr/lib:$root/usr/lib/x86_64-linux-gnu"
+  export XDG_DATA_DIRS="$root/usr/share:/usr/local/share:/usr/share"
+  export GSETTINGS_SCHEMA_DIR="$root/usr/share/glib-2.0/schemas:/usr/share/glib-2.0/schemas"
+  export GI_TYPELIB_PATH="$root/usr/lib/x86_64-linux-gnu/girepository-1.0:$root/usr/lib/girepository-1.0"
+  export LOCPATH="$root/usr/lib/locale"
+  if [[ -d "$root/usr/lib/x86_64-linux-gnu/gio/modules" ]]; then
+    export GIO_MODULE_DIR="$root/usr/lib/x86_64-linux-gnu/gio/modules"
+  elif [[ -d "$root/usr/lib/gio/modules" ]]; then
+    export GIO_MODULE_DIR="$root/usr/lib/gio/modules"
+  else
+    unset GIO_MODULE_DIR
+  fi
+  unset GDK_PIXBUF_MODULE_FILE
+  local cache
+  for cache in \
+    "$root/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders.cache" \
+    "$root/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+  do
+    if [[ -f "$cache" ]]; then
+      export GDK_PIXBUF_MODULE_FILE="$cache"
+      break
+    fi
+  done
+  apply_plugin_paths "$root"
+  PY_BIN="$root/usr/bin/python3"
+  ENTRY="$root/usr/share/gufw/gufw/gufw.py"
+}
+
+# 设置简体中文界面环境。
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
+
+cleanup_runtime() {
+  if [[ -n "$RUNTIME" ]]; then
+    rm -rf "$RUNTIME"
+  fi
+}
+trap cleanup_runtime EXIT
+
+# 判断当前是否有可交互终端；用于决定图形授权失败后能否回退到 sudo。
+has_terminal() {
+  [[ -t 0 || -t 1 || -t 2 ]]
+}
+
+# 统一输出中文错误信息；没有终端时额外尝试发送桌面通知。
+show_error() {
+  local message="$1"
+  echo "$message" >&2
+  if ! has_terminal && command -v notify-send >/dev/null 2>&1; then
+    notify-send "Gufw" "$message" >/dev/null 2>&1 || true
+  fi
+}
+
+apply_tree "$HERE"
+
+if [[ -z "$HOST_DISPLAY" && -z "$HOST_WAYLAND" ]]; then
+  show_error "没有可用的图形会话，无法显示防火墙配置。"
+  exit 1
+fi
+
+if [[ ! -x /usr/sbin/ufw ]]; then
+  show_error "系统未安装 ufw。Gufw 只提供界面，规则由宿主机的 /usr/sbin/ufw 执行。"
+  exit 1
+fi
+
+if [[ ! -x "$PY_BIN" || ! -f "$ENTRY" || ! -d "$GUFW_SHARE/ui" || ! -d "$GUFW_PROFILES" ]]; then
+  show_error "AppImage 内缺少 Gufw 的 Python 入口或界面资源。"
+  exit 1
+fi
+
+restore_session() {
+  local key value
+  for key in \
+    DISPLAY WAYLAND_DISPLAY XAUTHORITY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS \
+    XDG_CURRENT_DESKTOP XDG_SESSION_TYPE GDK_BACKEND \
+    GTK_IM_MODULE QT_IM_MODULE XMODIFIERS
+  do
+    value=""
+    case "$key" in
+      DISPLAY) value="$HOST_DISPLAY" ;;
+      WAYLAND_DISPLAY) value="$HOST_WAYLAND" ;;
+      XAUTHORITY) value="$HOST_XAUTHORITY" ;;
+      XDG_RUNTIME_DIR) value="$HOST_RUNTIME" ;;
+      DBUS_SESSION_BUS_ADDRESS) value="$HOST_DBUS" ;;
+      XDG_CURRENT_DESKTOP) value="$HOST_DESKTOP" ;;
+      XDG_SESSION_TYPE) value="$HOST_SESSION" ;;
+      GDK_BACKEND) value="$HOST_GDK" ;;
+      GTK_IM_MODULE) value="$HOST_GTK_IM" ;;
+      QT_IM_MODULE) value="$HOST_QT_IM" ;;
+      XMODIFIERS) value="$HOST_XMODIFIERS" ;;
+    esac
+    if [[ -n "$value" ]]; then
+      export "$key=$value"
+    else
+      unset "$key"
+    fi
+  done
+}
+
+restore_session
+
+# 挂载已由 root 创建时直接启动。普通用户的 FUSE 挂载对 root 不可读。
+if (( EUID == 0 )); then
+  # 启动包内程序，并保留传入的命令行参数。
+  exec "$PY_BIN" "$ENTRY" "${APP_ARGS[@]}"
+fi
+
+# 先复制到普通文件系统。root 只执行这份副本，不再访问用户 FUSE 挂载。
+# 创建临时运行目录，失败时立即退出。
+if ! RUNTIME="$(mktemp -d /tmp/gufw-runtime.XXXXXX)"; then
+  show_error "无法创建 Gufw 临时运行目录。"
+  exit 1
+fi
+
+# 设置临时目录的访问权限，失败时立即退出。
+if ! chmod 755 "$RUNTIME"; then
+  show_error "无法设置 Gufw 临时运行目录的访问权限。"
+  exit 1
+fi
+if ! cp -a "$HERE/." "$RUNTIME/"; then
+  show_error "无法把 AppImage 复制到 root 可读的目录。"
+  exit 1
+fi
+chmod -R a+rX "$RUNTIME"
+resolved="$(readlink -f "$RUNTIME/usr/bin/python3")"
+case "$resolved" in
+  "$RUNTIME"/*) ;;
+  *)
+    show_error "包内 Python 没有留在 root 可读的副本中。"
+    exit 1
+    ;;
+esac
+apply_tree "$RUNTIME"
+restore_session
+if ! "$PY_BIN" -c 'import gi; gi.require_version("Gtk", "3.0"); from gi.repository import Gtk'; then
+  show_error "复制出的 Gufw 运行库无法加载。若 /tmp 禁止执行程序，root 同样无法启动。"
+  exit 1
+fi
+
+PKEXEC_BIN="$(command -v pkexec 2>/dev/null || true)"
+SUDO_BIN="$(command -v sudo 2>/dev/null || true)"
+if [[ ! -x /usr/bin/env ]]; then
+  show_error "系统缺少 /usr/bin/env，无法在提权后恢复图形环境。"
+  exit 1
+fi
+
+# 按指定授权方式以 root 启动副本中的 Gufw。
+# 直接执行 Python，不再进入 AppRun，因此不会重复挂载或重复授权。
+run_gufw() {
+  local mode="$1"
+  local key
+  local -a auth
+  local -a pass_env
+
+  case "$mode" in
+    sudo)
+      auth=("$SUDO_BIN")
+      ;;
+    pkexec)
+      auth=("$PKEXEC_BIN" --disable-internal-agent)
+      ;;
+    *)
+      return 125
+      ;;
+  esac
+
+  pass_env=()
+  for key in \
+    APPDIR GUFW_SHARE GUFW_PROFILES GUFW_LOCALE \
+    PYTHONHOME PYTHONPATH PYTHONNOUSERSITE PYTHONDONTWRITEBYTECODE \
+    PATH LD_LIBRARY_PATH XDG_DATA_DIRS GSETTINGS_SCHEMA_DIR GI_TYPELIB_PATH \
+    GIO_MODULE_DIR GDK_PIXBUF_MODULE_FILE \
+    GTK_DATA_PREFIX GTK_EXE_PREFIX GTK_PATH GTK_IM_MODULE_FILE GTK_THEME \
+    LOCPATH LANG LANGUAGE \
+    DISPLAY WAYLAND_DISPLAY XAUTHORITY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS \
+    XDG_CURRENT_DESKTOP XDG_SESSION_TYPE GDK_BACKEND \
+    GTK_IM_MODULE QT_IM_MODULE XMODIFIERS
+  do
+    if [[ -n "${!key+x}" && -n "${!key}" ]]; then
+      pass_env+=("${key}=${!key}")
+    fi
+  done
+
+  "${auth[@]}" /usr/bin/env "${pass_env[@]}" "$PY_BIN" "$ENTRY" "${APP_ARGS[@]}"
+}
+
+if [[ -n "$PKEXEC_BIN" ]]; then
+  run_gufw pkexec \
+    2> >(sed '/^Error executing command as another user:/d' >&2)
+  status=$?
+  case "$status" in
+    0)
+      exit 0
+      ;;
+    126)
+      exit 126
+      ;;
+    127)
+      if has_terminal && [[ -n "$SUDO_BIN" ]]; then
+        echo "Gufw：图形授权不可用，改用终端 sudo 授权。" >&2
+        run_gufw sudo
+        exit $?
+      fi
+      show_error "Gufw 图形授权不可用，且当前没有可用终端。"
+      exit 127
+      ;;
+    *)
+      exit "$status"
+      ;;
+  esac
+fi
+
+if has_terminal && [[ -n "$SUDO_BIN" ]]; then
+  echo "Gufw：系统没有 pkexec，改用终端 sudo 授权。" >&2
+  run_gufw sudo
+  exit $?
+fi
+
+show_error "系统缺少可用的 pkexec 图形授权，且当前无法使用终端 sudo。"
+exit 1

@@ -107,6 +107,15 @@
       "run_from_root": "false"
     },
     {
+      "key": "gufw",
+      "kind": "special",
+      "name": "Gufw",
+      "script": "gufw/build_gufw.sh",
+      "dir": "gufw",
+      "release_name": "gufw.AppImage",
+      "software_key": "gufw"
+    },
+    {
       "key": "htop",
       "kind": "standard",
       "name": "htop",
