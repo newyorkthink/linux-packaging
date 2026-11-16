@@ -10,6 +10,7 @@
 | 准备桌面资源和运行库 | 调用 `patches/prepare_gufw_sources.py` | 改界面路径，并在 `ufw_backend.py` 的 `_run_cmd` 中清理宿主命令环境 |
 | 准备 AppRun | 第二次 linuxdeploy 之前安装拟采用的独立 `AppRun` | 正文较长，且必须在插件包装前就位 |
 | 核心打包 | 增加三项 `--deploy-deps-only`，不增加 `--executable` | 桌面入口是脚本。`--deploy-deps-only` 只收集已经解包的 ELF 依赖，不复制第二个程序 |
+| 核心打包 | 显式传入 `--desktop-file "$APPDIR/usr/share/applications/gufw.desktop"` | Python 运行包也提供 desktop，自动选择曾误用 Python 入口并导致中间封装失败，详见[构建故障记录](./error.md) |
 | 运行 | 普通用户启动时将 AppDir 复制到 `/tmp`，再由 root 执行副本 | 为 root 提供可读取的普通文件系统路径，Gufw 保持 root 运行 |
 | 运行 | 将插件写出的 `GTK_EXE_PREFIX`、`GTK_PATH`、`GTK_IM_MODULE_FILE` 改到临时副本，并由 `pass_env` 传给 root | 插件按挂载目录写这些变量。输入法缓存只接受副本内的 `immodules.cache`，避免 root 读到挂载目录或宿主机缓存 |
 | 运行 | 不追加调用方的 `LD_LIBRARY_PATH` | 该值可能指向 FUSE 挂载，不能传给 root |

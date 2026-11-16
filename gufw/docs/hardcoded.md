@@ -3,6 +3,7 @@
 | 项目 | 值 | 依据 |
 | --- | --- | --- |
 | GTK | `DEPLOY_GTK_VERSION=3` | 上游 `gi.require_version('Gtk', '3.0')` |
+| 主 desktop | `AppDir/usr/share/applications/gufw.desktop` | Gufw 上游 desktop 的 `Exec=gufw`、`Icon=gufw`，第二次 linuxdeploy 显式选择此入口，依据见[故障记录](./error.md) |
 | 防火墙命令 | `/usr/sbin/ufw` | 上游 `UFW_PATH`。AppRun 只检查这个路径 |
 | 宿主命令 PATH | `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` | `ufw_backend.py` 补丁使用这份路径，避免删除规则和启停时走包内 Python |
 | 提权程序 | `/usr/bin/env` | 由 pkexec 或 sudo 提权后，通过该宿主命令恢复运行环境，再启动包内 Python |

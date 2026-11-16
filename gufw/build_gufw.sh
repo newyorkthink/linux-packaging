@@ -117,7 +117,8 @@ GTK_SO="$(readlink -f "$GTK_SO")"
 # 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
 export ARCH=x86_64; linuxdeploy --appdir AppDir \
   --deploy-deps-only "$PY_APP" --deploy-deps-only "$GI_SO" \
-  --deploy-deps-only "$GTK_SO" --plugin gtk --output appimage
+  --deploy-deps-only "$GTK_SO" --desktop-file "$APPDIR/usr/share/applications/gufw.desktop" \
+  --plugin gtk --output appimage
 
 ############### 整理产物 ###############
 
