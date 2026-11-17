@@ -25,6 +25,8 @@ if [[ -z "$HOST_XAUTHORITY" && -n "${HOME:-}" && -r "$HOME/.Xauthority" ]]; then
   HOST_XAUTHORITY="$HOME/.Xauthority"
 fi
 APP_ARGS=("$@")
+# 在界面子进程中一次传入中文配置，启动 Shell 保留宿主 locale。
+GUI_LOCALE=("LANG=zh_CN.UTF-8" "LANGUAGE=zh_CN:zh" "LC_ALL=zh_CN.UTF-8")
 RUNTIME=
 
 # 把插件按挂载目录写出的路径改到当前根目录，并丢掉挂载目录和宿主机路径。
@@ -175,12 +177,6 @@ apply_tree() {
   ENTRY="$root/usr/share/gufw/gufw/gufw.py"
 }
 
-# 设置简体中文界面环境。
-export LANG=zh_CN.UTF-8
-export LANGUAGE=zh_CN:zh
-# 避免调用方的 LC_ALL 或分类 locale 覆盖中文界面。
-export LC_ALL=zh_CN.UTF-8
-
 cleanup_runtime() {
   if [[ -n "$RUNTIME" ]]; then
     rm -rf "$RUNTIME"
@@ -259,7 +255,7 @@ restore_session
 # 挂载已由 root 创建时直接启动。普通用户的 FUSE 挂载对 root 不可读。
 if (( EUID == 0 )); then
   # 启动包内程序，并保留传入的命令行参数。
-  exec "$PY_BIN" "$ENTRY" "${APP_ARGS[@]}"
+  exec /usr/bin/env "${GUI_LOCALE[@]}" "$PY_BIN" "$ENTRY" "${APP_ARGS[@]}"
 fi
 
 # 先复制到普通文件系统。root 只执行这份副本，不再访问用户 FUSE 挂载。
@@ -289,7 +285,8 @@ case "$resolved" in
 esac
 apply_tree "$RUNTIME"
 restore_session
-if ! "$PY_BIN" -c 'import gi; gi.require_version("Gtk", "3.0"); from gi.repository import Gtk'; then
+if ! /usr/bin/env "${GUI_LOCALE[@]}" "$PY_BIN" \
+  -c 'import gi; gi.require_version("Gtk", "3.0"); from gi.repository import Gtk'; then
   show_error "复制出的 Gufw Python/GTK 运行库加载失败，请查看上方原始错误。若提示 GLIBC 版本不存在，说明包内运行库与宿主 glibc 不兼容；提权无法解决。"
   exit 1
 fi
@@ -321,14 +318,14 @@ run_gufw() {
       ;;
   esac
 
-  pass_env=()
+  pass_env=("${GUI_LOCALE[@]}")
   for key in \
     APPDIR GUFW_SHARE GUFW_PROFILES GUFW_LOCALE \
     PYTHONHOME PYTHONPATH PYTHONNOUSERSITE PYTHONDONTWRITEBYTECODE \
     PATH LD_LIBRARY_PATH XDG_DATA_DIRS GSETTINGS_SCHEMA_DIR GI_TYPELIB_PATH \
     GIO_MODULE_DIR GDK_PIXBUF_MODULE_FILE \
     GTK_DATA_PREFIX GTK_EXE_PREFIX GTK_PATH GTK_IM_MODULE_FILE GTK_THEME \
-    LOCPATH LANG LANGUAGE LC_ALL \
+    LOCPATH \
     DISPLAY WAYLAND_DISPLAY XAUTHORITY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS \
     XDG_CURRENT_DESKTOP XDG_SESSION_TYPE GDK_BACKEND \
     GTK_IM_MODULE QT_IM_MODULE XMODIFIERS

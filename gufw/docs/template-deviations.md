@@ -14,7 +14,7 @@
 | 核心打包 | 显式传入 `--desktop-file "$APPDIR/usr/share/applications/gufw.desktop"` | Python 运行包也提供 desktop，自动选择曾误用 Python 入口并导致中间封装失败，详见[构建故障记录](./error.md) |
 | 运行 | 普通用户启动时将 AppDir 复制到 `/tmp`，再由 root 执行副本 | 为 root 提供可读取的普通文件系统路径，Gufw 保持 root 运行 |
 | 运行 | 将插件写出的 `GTK_EXE_PREFIX`、`GTK_PATH`、`GTK_IM_MODULE_FILE` 改到临时副本，并由 `pass_env` 传给 root | 插件按挂载目录写这些变量。输入法缓存只接受副本内的 `immodules.cache`，避免 root 读到挂载目录或宿主机缓存 |
-| 运行 | 显式设置并向 root 传递 `LC_ALL=zh_CN.UTF-8`，主题使用 `Adwaita:dark` | 防止继承的 locale 覆盖中文配置，并覆盖插件探测不到桌面偏好时的亮色回退 |
+| 运行 | 先准备 `LOCPATH`，通过 `env` 为界面子进程传入中文 `LANG`、`LANGUAGE`、`LC_ALL`；主题使用 `Adwaita:dark` | 启动 Shell 保留宿主 locale，避免准备路径前切换中文时报警；子进程不受调用方 locale 覆盖，并覆盖插件的亮色回退 |
 | 运行 | 已有 X11 Fcitx／IBus XIM 会话时使用 `GTK_IM_MODULE=xim`，保留宿主 `XMODIFIERS` | root 界面通过 XIM 输入，避免跨用户连接输入法 D-Bus；原生 Wayland 和未配置 XIM 的会话保持宿主模块 |
 | 运行 | 不追加调用方的 `LD_LIBRARY_PATH` | 该值可能指向 FUSE 挂载，不能传给 root |
 
