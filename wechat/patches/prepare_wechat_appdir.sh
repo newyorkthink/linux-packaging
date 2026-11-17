@@ -13,7 +13,7 @@ APPDIR="${3:-}"
 
 case "$STAGE" in
   prepare)
-    # 本程序专属处理：保留官方 opt/wechat 布局，只把可显示的主桌面入口复制到 AppDir 根目录。
+    # 本程序专属处理：在 AppDir 内规范主桌面入口，根 desktop 和图标交给 linuxdeploy 部署。
     [[ -x "$APPDIR/opt/wechat/wechat" && -f "$APPDIR/usr/share/applications/wechat.desktop" ]] || {
       echo "错误：官方 DEB 缺少 WeChat 主程序或桌面入口。" >&2
       exit 1
@@ -22,24 +22,7 @@ case "$STAGE" in
       echo "错误：WeChat 主桌面入口被标记为隐藏。" >&2
       exit 1
     fi
-    install -Dm0644 "$APPDIR/usr/share/applications/wechat.desktop" "$APPDIR/wechat.desktop"
-    sed -i -e 's|^Exec=.*$|Exec=wechat %U|' -e 's|^Icon=.*$|Icon=wechat|' "$APPDIR/wechat.desktop"
-
-    # 本程序专属处理：沿用官方 PNG，选择文件体积最大的 wechat.png 作为根图标。
-    ICON_FILE=""
-    ICON_SIZE=0
-    while IFS= read -r -d '' CANDIDATE; do
-      CANDIDATE_SIZE="$(stat -c '%s' "$CANDIDATE")"
-      if (( CANDIDATE_SIZE > ICON_SIZE )); then
-        ICON_FILE="$CANDIDATE"
-        ICON_SIZE="$CANDIDATE_SIZE"
-      fi
-    done < <(find "$APPDIR/usr/share/icons" -type f -iname wechat.png -print0)
-    [[ -n "$ICON_FILE" ]] || {
-      echo "错误：官方 DEB 缺少 WeChat PNG 图标。" >&2
-      exit 1
-    }
-    install -Dm0644 "$ICON_FILE" "$APPDIR/wechat.png"
+    sed -i -e 's|^Exec=.*$|Exec=wechat %U|' -e 's|^Icon=.*$|Icon=wechat|' "$APPDIR/usr/share/applications/wechat.desktop"
 
     # 本程序专属处理：复用公共入口部署同一构建环境的 NSS/NSPR 及动态加载模块。
     "$SCRIPT_DIR/../../common/linuxdeploy/copy_nss_runtime.sh" "$APPDIR/usr/lib" --with-nspr >&2

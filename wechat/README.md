@@ -30,7 +30,7 @@
 
 2026-11-18，用户反馈旧 quick-sharun / DwarFS 包启动后挂载进程持续占用 CPU，退出微信后仍未停止，手动结束对应 `memfd:dwarfs` 后系统负载下降。该现象支持更换此包的挂载与封装路线，但不能仅据此认定 DwarFS 的某个参数就是根因，也不能断言全部系统负载都来自微信。
 
-本次已改用既有 linuxdeploy 流程和官方 SquashFS runtime，正式链路不再使用该 DwarFS 挂载进程。统一生成器已成功输出脚本；新包的启动、退出后负载、登录、消息、音视频和输入法尚未完成实机验证。生成成功不代表正式打包或运行验收成功。
+本次已改用既有 linuxdeploy 流程和官方 SquashFS runtime，正式链路不再使用该 DwarFS 挂载进程。统一生成器已成功输出脚本；首次正式构建在 linuxdeploy 的图标处理阶段因 desktop 保留绝对 `Icon` 路径而停止，现已修正包内输入文件，详情见修改记录。新包的启动、退出后负载、登录、消息、音视频和输入法尚未完成实机验证。生成成功不代表正式打包或运行验收成功。
 
 ## 维护说明
 
@@ -59,3 +59,10 @@
 - 原样复用工作区、APT、官方包下载与解包、工具准备、NSS/NSPR、最终封装和版本发布公共入口；只在应用阶段准备桌面资源及明确的依赖。
 - 从通用 Arch matrix 调度迁到 Ubuntu 24.04 原生 Job，继续沿用原发布名、软件 key 和版本清单。
 - 针对用户反馈的 DwarFS 挂载进程持续占用 CPU，更换最终文件系统与 runtime；当前验收边界见上文。
+
+### 2026-11-18：修正 linuxdeploy 重新部署 desktop 后的绝对图标路径
+
+- 现象：[首次正式构建](https://github.com/newyorkthink/linux-packaging/actions/runs/44136394716/job/134227063762) 停在中间 AppImage 的图标准备，提示 `Icon 名无法放到 AppDir 根目录：/usr/share/icons/hicolor/512x512/apps/wechat`。当时尚未执行 `finalize`。
+- 原因：准备阶段只规范了根 `wechat.desktop`，linuxdeploy 随后从 `usr/share/applications/wechat.desktop` 重新部署根文件，覆盖了已修改的 `Icon`。
+- 修改：先在 AppDir 内规范实际输入 desktop 的 `Exec` 和 `Icon`；根 desktop 和图标交给 linuxdeploy 部署，删除重复的根文件复制及 PNG 遍历。原始 DEB、生成器输出和公共工具保持原样。
+- `prepare` / `finalize` 每次重新构建仍需执行，不能在一次成功后直接删除；用途和保留条件见 [模板差异](./docs/template-deviations.md#阶段的保留条件)。此次仅核对现有失败日志及修正差异，不将其记为新包构建或实机验证通过。

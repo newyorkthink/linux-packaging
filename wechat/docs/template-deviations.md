@@ -23,8 +23,8 @@
 
 | 阶段 | 处理与依据 |
 | --- | --- |
-| prepare：桌面入口 | 取官方 `usr/share/applications/wechat.desktop`，保留原文件，只在根副本设置 `Exec=wechat %U`、`Icon=wechat`。不把 `NoDisplay=true` 的 WeChatAppEx 辅助入口当作主程序，保留 2026-10-13 故障对应的取舍。 |
-| prepare：图标 | 从官方 `usr/share/icons` 中选取文件体积最大的 `wechat.png` 复制到根目录，不绘制替代图标。最终 PNG 和权限整理仍交给公共入口。 |
+| prepare：桌面入口 | 在解包后的 AppDir 内，将 `usr/share/applications/wechat.desktop` 设置为 `Exec=wechat %U`、`Icon=wechat`；原始下载 DEB 不变。linuxdeploy 从这份包内 desktop 部署根入口，只修改根副本会被覆盖。保留 `NoDisplay=true` 辅助入口不作主程序的取舍。 |
+| 根 desktop 与图标 | 由 linuxdeploy 按包内 desktop 选择官方 `usr/share/icons` 中的 `wechat.png`，部署根 desktop 和图标；不再额外复制根文件或遍历 PNG。最终 PNG 和权限整理继续交给公共入口。 |
 | prepare：NSS/NSPR | 复用 `common/linuxdeploy/copy_nss_runtime.sh --with-nspr`，部署同一构建环境的核心库、动态加载模块和配套校验文件，在 linuxdeploy 扫描前准备完整集合。 |
 | prepare：返回值 | stdout 只返回同一份 DEB 的完整版本，准备日志写入 stderr，符合标准阶段接口。 |
 | finalize：依赖 | 模板已生成真实 AppRun 并完成 GTK 部署后，再用 `--deploy-deps-only` 明确处理 `opt/wechat/wechat`，并传入 `libpulse.so.0`、`libpulse-simple.so.0` 两项已有缺库依据的输入；传递依赖交给 linuxdeploy。 |
@@ -32,6 +32,12 @@
 官方 linuxdeploy 默认扫描 `usr/bin`，并跳过软链接，不能靠 desktop 的绝对 `Exec` 或一个软链接替代 `opt/wechat` 主 ELF 的依赖部署。采用 `--deploy-deps-only` 可保留真实入口位置，避免为填充 `usr/bin` 复制另一份主程序；其设置的 RPATH 保留 `$ORIGIN` 并指向包内 `usr/lib`。[官方扫描逻辑](https://github.com/linuxdeploy/linuxdeploy/blob/07333c6e942c7d71782b66be924c5d867f9dfdfc/src/core/appdir.cpp#L793)、[官方参数实现](https://github.com/linuxdeploy/linuxdeploy/blob/07333c6e942c7d71782b66be924c5d867f9dfdfc/src/main.cpp#L168)。
 
 依赖部署放在 finalize，是为了让这次 linuxdeploy 调用沿用已经存在的真实 AppRun，避免在入口尚未创建时按 `/opt/...` 的 desktop 字段选择失败。最终封装读取的是此次补齐后的同一 AppDir，不发布先前的中间包。
+
+## 阶段的保留条件
+
+`prepare` / `finalize` 是每次构建都需要执行的应用准备阶段。公共工作区入口会重建 AppDir，随后重新解包官方 DEB，因此一次打包成功不会把这些处理永久写回下次的输入。当前 `prepare` 负责官方 desktop 的 AppImage 路径和 NSS/NSPR，根 desktop 与图标由 linuxdeploy 部署；`finalize` 负责默认 `usr/bin` 扫描不会覆盖的 `opt/wechat/wechat` 及 PulseAudio 依赖。
+
+不能仅因新包构建成功就删除 helper 或 `finalize` 调用。以后若官方包布局或标准模板已能覆盖同一需要，再依据实际输入删除相应步骤。
 
 ## 私有组件与迁移边界
 
