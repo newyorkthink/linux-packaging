@@ -111,7 +111,7 @@
 - 打包 Fcitx5 Qt6 输入模块，Konsole 等 Qt6 应用可使用宿主 Fcitx5 输入中文。
 - 图片默认使用 Gwenview，视频和音频默认使用 Haruna，PDF 默认使用 Okular。
 - Haruna 内置 Arch 仓库版 `yt-dlp`、匹配的 `yt-dlp-ejs` 和 Deno，可解析 YouTube 等 yt-dlp 支持的网站链接；本地播放链路保持不变。
-- Haruna 通过专用启动入口使用上游默认的 `org.kde.desktop` Qt Quick 控件样式，为中文菜单动作与快捷键分别安排宽度；其他应用继续使用现有 `org.kde.breeze`。播放程序本体、yt-dlp 链路、快捷键绑定和用户配色配置保持原样，验证范围见下方修复记录。
+- Haruna 通过专用启动入口使用上游默认的 `org.kde.desktop` Qt Quick 控件样式，为中文菜单动作与快捷键分别安排宽度；播放程序本体、yt-dlp 链路、快捷键绑定和用户配色配置保持原样，已通过实机验收。Filelight 同样采用专用入口选择 `org.kde.desktop`，用于处理首页菜单文字与快捷键重叠，本次 Filelight 效果尚未实机验证；其余应用继续使用现有 `org.kde.breeze`。
 - Dolphin 可显示受支持 AppImage 的内置图标和元数据。
 - KDE Connect 图形入口会复用现有 `kdeconnectd`；不存在时才启动 AppImage 内后台。
 - Dolphin 会复用现有 `org.kde.ActivityManager`；不存在时由 AppImage 启动 `kactivitymanagerd`，不需要 `sudo`。
@@ -221,6 +221,14 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - **验证边界：** 上述云端结果是成品组件布局、依赖加载、入口与参数检查；完整 AppImage 构建与发布已成功，用户于 2026-10-23 明确反馈并提供截图，确认 Haruna 中文菜单动作名称与快捷键不再重叠，该项已完成实机验收。Dolphin 深色主题启动底色异常按已知上游问题保留。
 
 - **后续构建确认（2026-10-22）：** 提交 [`4ac2418d271e4935055f4f662122873ff10c9ae6`](https://github.com/newyorkthink/linux-packaging/commit/4ac2418d271e4935055f4f662122873ff10c9ae6) 对应 [Run `39698105440`](https://github.com/newyorkthink/linux-packaging/actions/runs/39698105440) 的 `Build KDE Suite`、`Build and publish AppImage` 和版本元数据发布步骤均已成功完成，现登记为当前功能源码基准。该结果确认构建与发布通过；实机验收范围仍以已有反馈为准。
+
+### 2026-11-17：Filelight 菜单文字与快捷键重叠的样式兼容处理
+
+- **原始故障与范围：** 用户提供的 Filelight 首页菜单截图显示，“配置”动作名称与快捷键 `Ctrl+Shift+,` 挤在一起；“打开使用手册”“关于 Filelight”仍可显示，中文字符没有缺字方框。本项是菜单布局兼容处理，不将字体外观偏好写成已确认缺字，也不把其他已验收功能重新标为待验证。
+- **源码依据：** [Filelight 的 `src/main.cpp`](https://github.com/KDE/filelight/blob/176cce0b6ac61127a2d41b0fe26b8f7675d694e4/src/main.cpp#L61) 在环境没有指定样式且平台主题未处理时选择 `org.kde.desktop`；套件现有公共 Hook 指定 `org.kde.breeze`，Filelight 因而不会使用这个默认选择。动作文字与快捷键由上游分别设置，不需要修改翻译字符串。现象与本目录已实机验收的 Haruna 菜单故障相似，但当前 Filelight 成品的实际布局尚未复现核对。
+- **修改文件与实现：** 在 `deploy_suite_apps.sh` 现有 Haruna 包装之后，复用相同入口布局：原 `bin/filelight` 改名为 `bin/kde-suite-filelight`，`shared/bin/kde-suite-filelight` 相对链接指向原始 `filelight`；新的 `bin/filelight` 只为当前进程设置 `QT_QUICK_CONTROLS_STYLE=org.kde.desktop`，再经同目录原始 sharun 入口用 `exec` 原样传递参数。原始 Filelight ELF、Haruna 包装、公共 Hook、KIO worker、图标、输入法和现有构建检查保持原样。
+- **来源与必要性：** 已核对 pkgforge-dev 的独立 Filelight 打包，未找到菜单专项修复。本次新增处理来自本仓库已验证的 Haruna 模式，不冒称官方代码。继续使用 Arch 官方仓库二进制与现有 quick-sharun 部署，不改变程序来源、不锁定版本。详见 [官方打包取舍](./docs/pkgforge-differences.md)、[模板差异](./docs/template-deviations.md) 和 [固定配置依据](./docs/hardcoded.md)。
+- **验证状态：** 已完成源码、调用顺序和拟提交差异的只读核对；没有运行本地命令、构建或 Filelight 实机检查。提交后由现有 push 工作流正常构建，不额外 dispatch，也不等待或监控 Actions；本条不提前宣布 Filelight 实机修复通过。
 
 ## 发布前检查
 

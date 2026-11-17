@@ -193,6 +193,20 @@ exec "$(dirname -- "$0")/kde-suite-haruna" "$@"
 EOF_HARUNA_WRAPPER
 chmod +x AppDir/bin/haruna AppDir/bin/kde-suite-haruna
 
+# 本仓库兼容处理：恢复 Filelight 的上游桌面控件样式，避免中文菜单与快捷键重叠。
+# 复用 Haruna 已验证的入口布局，原始 sharun 留在 bin，真实程序保留在 shared/bin。
+mv -- AppDir/bin/filelight AppDir/bin/kde-suite-filelight
+ln -s -- filelight AppDir/shared/bin/kde-suite-filelight
+cat > AppDir/bin/filelight <<'EOF_FILELIGHT_WRAPPER'
+#!/bin/sh
+
+# 只为本次 Filelight 进程选择已打包的桌面控件样式。
+export QT_QUICK_CONTROLS_STYLE=org.kde.desktop
+# 通过同目录的原始 sharun 入口启动，原样传递扫描目录和其他参数。
+exec "$(dirname -- "$0")/kde-suite-filelight" "$@"
+EOF_FILELIGHT_WRAPPER
+chmod +x AppDir/bin/filelight AppDir/bin/kde-suite-filelight
+
 # 最终静态检查：AppImage 图标、Haruna 在线链接、Dolphin 下载服务 QML、
 # 简体中文、MIME 默认项和 Breeze 主题均已部署。
 test -f AppDir/lib/qt6/plugins/kf6/thumbcreator/appimagethumbnail.so
