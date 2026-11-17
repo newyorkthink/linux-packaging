@@ -30,12 +30,12 @@
 
 2026-11-18，用户反馈旧 quick-sharun / DwarFS 包启动后挂载进程持续占用 CPU，退出微信后仍未停止，手动结束对应 `memfd:dwarfs` 后系统负载下降。该现象支持更换此包的挂载与封装路线，但不能仅据此认定 DwarFS 的某个参数就是根因，也不能断言全部系统负载都来自微信。
 
-本次已改用既有 linuxdeploy 流程和官方 SquashFS runtime，正式链路不再使用该 DwarFS 挂载进程。统一生成器已成功输出脚本；首次正式构建在 linuxdeploy 的图标处理阶段因 desktop 保留绝对 `Icon` 路径而停止，现已修正包内输入文件，详情见修改记录。新包的启动、退出后负载、登录、消息、音视频和输入法尚未完成实机验证。生成成功不代表正式打包或运行验收成功。
+当前采用既有 linuxdeploy 流程和官方 SquashFS runtime。首次正式构建的 desktop 绝对 `Icon` 路径问题已修正，必要命令直接内联主脚本。用户已确认当前包运行稳定，Linux 实机通过结果见 [实机验证](#实机验证)。
 
 ## 维护说明
 
 - 继续使用官网动态 DEB 和完整 control 版本，不手工固定旧版本。
-- `build_wechat_old.sh` 是迁移前的逐字节备份，只供查阅历史；构建清单和正式 workflow 不调用它。
+- 实机确认后已删除旧构建备份；历史实现保留在 Git 提交记录中。正式构建继续使用当前 `build_wechat.sh`。
 - 少量 desktop、NSS/NSPR 和主程序依赖部署命令直接写在 `build_wechat.sh`，不另设 `prepare/finalize` 脚本；公共机制继续调用 `common/`。版本直接沿用官方 DEB 公共入口的返回值。
 - 后续修改以实际故障为依据，不把旧版 sharun 的模块权限、路径覆盖或扫描整个私有目录的处理自动迁回标准脚本。
 
@@ -51,24 +51,48 @@
 - 现象：官方 4.1.13.26 deb 在 `usr/share/applications` 中同时有 `wechat.desktop` 和 `com.tencent.wechatappex.desktop`。后者 `NoDisplay=true`，`Exec` 指向 `RadiumWMPF/runtime/WeChatAppEx`。构建停在「应且只能找到一个 WeChat desktop 文件，实际为 2」。
 - 根因：查找条件是 `*wechat*.desktop`，`wechatappex` 也被算进去。
 - 修改：`wechat/build_wechat.sh` 跳过 `NoDisplay=true`，只把剩下的唯一可显示 desktop 当作主入口。
-- 结果：已提交。构建和实机运行尚未验证。
+- 结果：主入口选择已调整，后续通过结果见 [实机验证](#实机验证)。
 
 ### 2026-11-18：迁移到标准 linuxdeploy 与官方 SquashFS 封装
 
 - 原样备份旧脚本，通过统一生成器采用现有 GTK DEB 模板，主程序保持在官方 `opt/wechat/wechat`。
 - 原样复用工作区、APT、官方包下载与解包、工具准备、NSS/NSPR、最终封装和版本发布公共入口；只在应用阶段准备桌面资源及明确的依赖。
 - 从通用 Arch matrix 调度迁到 Ubuntu 24.04 原生 Job，继续沿用原发布名、软件 key 和版本清单。
-- 针对用户反馈的 DwarFS 挂载进程持续占用 CPU，更换最终文件系统与 runtime；当前验收边界见上文。
+- 针对用户反馈的 DwarFS 挂载进程持续占用 CPU，更换最终文件系统与 runtime；迁移后的通过结果见 [实机验证](#实机验证)。
 
 ### 2026-11-18：修正 linuxdeploy 重新部署 desktop 后的绝对图标路径
 
 - 现象：[首次正式构建](https://github.com/newyorkthink/linux-packaging/actions/runs/44136394716/job/134227063762) 停在中间 AppImage 的图标准备，提示 `Icon 名无法放到 AppDir 根目录：/usr/share/icons/hicolor/512x512/apps/wechat`。当时尚未执行 `finalize`。
 - 原因：准备阶段只规范了根 `wechat.desktop`，linuxdeploy 随后从 `usr/share/applications/wechat.desktop` 重新部署根文件，覆盖了已修改的 `Icon`。
 - 修改：先在 AppDir 内规范实际输入 desktop 的 `Exec` 和 `Icon`；根 desktop 和图标交给 linuxdeploy 部署，删除重复的根文件复制及 PNG 遍历。原始 DEB、生成器输出和公共工具保持原样。
-- 当时仍通过 `prepare` / `finalize` 调用保留必要操作；后续已将命令内联并删除独立脚本，见下一条记录。此次仅核对现有失败日志及修正差异，不将其记为新包构建或实机验证通过。
+- 当时仍通过 `prepare` / `finalize` 调用保留必要操作；后续已将命令内联并删除独立脚本，见下一条记录。后续通过结果见 [实机验证](#实机验证)。
 
 ### 2026-11-18：将少量准备命令直接内联到主构建脚本
 
 - 删除 `patches/prepare_wechat_appdir.sh` 及两个阶段调用，不保留参数分派、入口检查或重复的 DEB 版本读取。
 - 解包后直接规范实际 desktop，并调用公共 NSS/NSPR 入口；GTK 部署后直接执行主 ELF 和 PulseAudio 依赖收集，先后顺序保持原样。
-- 保留标准公共阶段和完整内联 AppRun，桌面与图标仍由 linuxdeploy 部署；当前实现及依据见 [模板差异](./docs/template-deviations.md)。本次仅整理代码位置与说明，未试构建或实机测试。
+- 保留标准公共阶段和完整内联 AppRun，桌面与图标仍由 linuxdeploy 部署；当前实现及依据见 [模板差异](./docs/template-deviations.md)。后续通过结果见 [实机验证](#实机验证)。
+
+### 2026-11-18：实机通过后清理旧构建备份
+
+- 用户确认当前包运行稳定，删除 `build_wechat_old.sh`，历史实现通过 Git 提交记录查阅。
+- 正式构建中的 `MULTIARCH`、主程序 `--deploy-deps-only` 和两个 PulseAudio 库部署命令保持原样。
+
+## 实机验证
+
+### 2026-11-18：用户实机验证通过
+
+用户已确认 WeChat AppImage 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 启动与主界面 | 程序正常启动，登录后的主界面和会话列表正常显示。 |
+| 中文输入 | 中文输入候选框正常显示，输入框能够输入中文。 |
+| 深色界面 | 主界面及相关页面正常显示深色样式。 |
+| 小程序页面与视频画面 | 小程序页面正常显示，视频窗口能够显示视频画面。 |
+| 运行稳定性与进程负载 | 用户确认当前包运行稳定；两张进程监控截图中，wechat 与 WeChatAppEx 的 CPU 读数均为 0.0%。 |
+
+#### 运行观察
+
+- 启动输出可见 IBus surrounding-text 能力提示，同次实测中文候选与中文输入正常。
+- 进程监控中旧 memfd:dwarfs 的跟踪栏显示 Dead，当前微信使用包内 opt/wechat 主程序。

@@ -30,10 +30,10 @@
 
 依赖收集保留在 GTK 部署之后，沿用已生成的真实 AppRun。最终封装读取的是此次补齐后的同一 AppDir，不发布先前的中间包。以上少量命令已直接内联，独立 helper、阶段分派及重复版本读取均已删除。
 
-## 私有组件与迁移边界
+## 私有组件与迁移处理
 
 WMPF、WeChatAppEx、VLC、ffmpeg 和原生模块按官方相邻目录保留，不遍历全部私有 ELF 后交给工具扁平化，也不把多个不同用途的 `libffmpeg.so` 当成一份公共库。主 ELF 依赖收集仍可能复制其解析到的私有依赖，不能将本处理描述成“完全不复制私有库”。
 
-旧 quick-sharun 的 `.node` 执行权限调整用于避免 sharun 包装原生模块；新流程没有 sharun，不自动恢复这一处理。旧版 `SHARUN_*`、强制 X11、Qt 缩放和 VLC 路径覆盖不混入标准 AppRun；完整历史仍保存在 `build_wechat_old.sh`。当前流程没有应用源码补丁。
+旧 quick-sharun 的 `.node` 执行权限调整用于避免 sharun 包装原生模块；新流程没有 sharun，不自动恢复这一处理。旧版 `SHARUN_*`、强制 X11、Qt 缩放和 VLC 路径覆盖不混入标准 AppRun；旧构建备份已在实机通过后删除，历史可从 [删除前的旧脚本](https://github.com/newyorkthink/linux-packaging/blob/a928f692d8ce2ac5eb57d71fd5a96f6ad8b92f45/wechat/build_wechat_old.sh) 查阅。当前流程没有应用源码补丁。
 
-用户反馈及新包验收状态见 [README](../README.md#当前迁移与验证状态)。
+用户已确认当前包运行稳定，完整结果见 [README 实机验证](../README.md#实机验证)。当前 `MULTIARCH`、主 ELF 的 `--deploy-deps-only` 与两个 PulseAudio 库部署命令保持原样。
