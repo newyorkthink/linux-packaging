@@ -25,7 +25,7 @@
 | `AppDir/bin/kde-suite-filelight` | 原始 sharun 启动器留在 `bin`，沿用已验证 Haruna 的目录布局。 |
 | `AppDir/shared/bin/kde-suite-filelight -> filelight` | 为改名后的 sharun 入口保留匹配的真实程序别名，原始 Filelight ELF 内容与位置不变。 |
 
-完整代码位于 [部署入口](../deploy_suite_apps.sh)。这组值来自已核实的程序名称、上游样式与现有 AppDir 结构，不是固定应用版本。Filelight 本次未完成实机验证，不能把 Haruna 的既有验收扩大为 Filelight 已通过。
+完整代码位于 [部署入口](../deploy_suite_apps.sh)。这组值来自已核实的程序名称、上游样式与现有 AppDir 结构，不是固定应用版本。菜单布局修复已通过用户实机验证，见 [README 实机验证记录](../README.md#实机验证)。
 
 ## 公共入口与应用集成文件的维护命名
 

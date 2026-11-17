@@ -32,6 +32,6 @@ get-debloated-pkgs --add-common --prefer-nano kiconthemes-mini
 | `ADD_HOOKS=self-updater.hook` | 未启用 | 本次无对应执行代码 | 本任务是菜单布局；不改变套件既有更新与发布方式。官方未说明它能解决菜单问题。 |
 | `ALWAYS_SOFTWARE=1` | 未启用 | 本次无对应执行代码 | 没有本次故障需要强制软件渲染的证据；官方未说明对这处菜单问题的作用。 |
 | `quick-sharun --test ./dist/*.AppImage` | 未启用 | 本次无对应执行代码 | 不增加测试调用或重复构建；保留本仓库既有构建检查。官方未说明此命令验证了菜单文字与快捷键的布局。 |
-| Filelight 单程序 `org.kde.desktop` 包装 | 本仓库新增兼容处理；非官方原样复用 | [`deploy_suite_apps.sh`](../deploy_suite_apps.sh)；完整代码见 [模板差异](./template-deviations.md) | 依据 Filelight 上游默认样式与本目录 Haruna 已验证模式处理；不修改 Filelight 源码、公共 Hook 或其他应用样式。本次尚未实机验证。 |
+| Filelight 单程序 `org.kde.desktop` 包装 | 本仓库新增兼容处理；非官方原样复用 | [`deploy_suite_apps.sh`](../deploy_suite_apps.sh)；完整代码见 [模板差异](./template-deviations.md) | 依据 Filelight 上游默认样式与本目录 Haruna 已验证模式处理；不修改 Filelight 源码、公共 Hook 或其他应用样式。菜单布局修复已通过用户实机验证，见 [README 实机验证记录](../README.md#实机验证)。 |
 
 本次只读核对不能证明官方独立 AppImage 是否在同一环境中出现相同现象，也不能把本仓库新增包装描述成官方修复。进一步的字体外观问题与菜单布局分别判断。
