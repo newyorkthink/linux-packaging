@@ -8,7 +8,6 @@ ORIG_GTK_EXE_PREFIX="${GTK_EXE_PREFIX:-}"
 ORIG_GTK_PATH="${GTK_PATH:-}"
 ORIG_GTK_IM_MODULE_FILE="${GTK_IM_MODULE_FILE:-}"
 ORIG_GDK_PIXBUF_MODULE_FILE="${GDK_PIXBUF_MODULE_FILE:-}"
-ORIG_GTK_THEME="${GTK_THEME:-}"
 APPDIR="$(readlink -f "$(dirname "$0")")"
 HERE="$APPDIR"
 HOST_DISPLAY="${DISPLAY:-}"
@@ -77,9 +76,8 @@ apply_plugin_paths() {
   local exec_prefix="" path="" cache="" pixbuf="" glob_state=0
   local -a caches=()
   export GTK_DATA_PREFIX="$root"
-  if [[ -n "$ORIG_GTK_THEME" ]]; then
-    export GTK_THEME="$ORIG_GTK_THEME"
-  fi
+  # 按已选择的深色界面覆盖插件探测结果，避免无桌面设置服务时回退为亮色。
+  export GTK_THEME=Adwaita:dark
   if [[ -n "$ORIG_GTK_EXE_PREFIX" ]]; then
     exec_prefix="$(relocate_mounted_list "$ORIG_GTK_EXE_PREFIX" "$root")"
   fi
@@ -180,6 +178,8 @@ apply_tree() {
 # 设置简体中文界面环境。
 export LANG=zh_CN.UTF-8
 export LANGUAGE=zh_CN:zh
+# 避免调用方的 LC_ALL 或分类 locale 覆盖中文界面。
+export LC_ALL=zh_CN.UTF-8
 
 cleanup_runtime() {
   if [[ -n "$RUNTIME" ]]; then
@@ -246,6 +246,12 @@ restore_session() {
       unset "$key"
     fi
   done
+  # root 的 X11 界面通过宿主 XIM 服务输入，避免直接连接普通用户的输入法 D-Bus。
+  if [[ -n "$HOST_DISPLAY" &&
+        ( -z "$HOST_WAYLAND" || "$HOST_SESSION" == x11 || "$HOST_GDK" == x11 ) &&
+        ( "$HOST_XMODIFIERS" == @im=fcitx || "$HOST_XMODIFIERS" == @im=ibus ) ]]; then
+    export GTK_IM_MODULE=xim
+  fi
 }
 
 restore_session
@@ -322,7 +328,7 @@ run_gufw() {
     PATH LD_LIBRARY_PATH XDG_DATA_DIRS GSETTINGS_SCHEMA_DIR GI_TYPELIB_PATH \
     GIO_MODULE_DIR GDK_PIXBUF_MODULE_FILE \
     GTK_DATA_PREFIX GTK_EXE_PREFIX GTK_PATH GTK_IM_MODULE_FILE GTK_THEME \
-    LOCPATH LANG LANGUAGE \
+    LOCPATH LANG LANGUAGE LC_ALL \
     DISPLAY WAYLAND_DISPLAY XAUTHORITY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS \
     XDG_CURRENT_DESKTOP XDG_SESSION_TYPE GDK_BACKEND \
     GTK_IM_MODULE QT_IM_MODULE XMODIFIERS

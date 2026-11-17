@@ -14,7 +14,10 @@
 | Python 包名 | 由当前解释器版本组成；共享 `libpython` 仅在 `ldd` 实际找到时追加 | 不写死 `3.14`，也不把缺少共享库当成错误。[Noble 当前解释器](https://packages.ubuntu.com/noble/python3-minimal) 为 Python 3.12，应用脚本仍从实际解释器动态读取系列号 |
 | GTK 包名 | `libgtk-3-0t64` | [Ubuntu Noble](https://packages.ubuntu.com/noble/libgtk-3-0t64) 使用该包名，与本次原生运行库基线一致 |
 | GTK 插件变量 | 不写死目录 | `GTK_EXE_PREFIX`、`GTK_PATH`、`GTK_IM_MODULE_FILE` 取插件产物并改到当前根目录。输入法缓存必须是副本内的文件 |
-| 界面语言 | `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh` | 软件包自带 `zh_CN` 翻译 |
+| 界面语言 | `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_ALL=zh_CN.UTF-8` | 软件包自带 `zh_CN` 翻译；显式 `LC_ALL` 避免调用方覆盖，且随授权环境传给 root。原始 locale 警告及复现结果见 [README 修复记录](../README.md#中文-locale深色主题窗口图标与-x11-输入) |
+| 主界面主题 | `GTK_THEME=Adwaita:dark` | 按已选择的深色界面覆盖插件亮色回退；隔离 GTK 界面测试通过，Polkit 对话框仍由宿主控制；普通规则与日志使用主题前景色，保留原有状态色 |
+| X11 root 输入 | 已有 Fcitx／IBus XIM 会话时 `GTK_IM_MODULE=xim` | 保留宿主 `XMODIFIERS`，通过 XIM 输入；原生 Wayland 与未配置 XIM 的会话不强制修改模块 |
+| 窗口图标 | `icon_name=gufw` | 三个 UI 文件原本写死宿主 PNG 路径并报缺图；改从包内 hicolor 图标资源查找 |
 | 库目录 | 同时加入 `usr/lib` 和 `usr/lib/x86_64-linux-gnu` | 只针对本次 x86_64 构建 |
 
-这些值没有经过 AppImage 实机运行确认。
+用户已实测正式产物的图形授权与主窗口启动；本次中文菜单、深色主题、窗口图标及输入模块配置通过隔离 GTK 测试。真实 root 与宿主输入法的跨用户联动尚未实测。

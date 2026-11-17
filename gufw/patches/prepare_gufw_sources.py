@@ -16,6 +16,11 @@ VIEW_FILES = (
     "usr/share/gufw/gufw/gufw/view/add.py",
     "usr/share/gufw/gufw/gufw/view/update.py",
 )
+UI_FILES = (
+    "usr/share/gufw/ui/gufw.ui",
+    "usr/share/gufw/ui/preferences.ui",
+    "usr/share/gufw/ui/about.ui",
+)
 BACKEND = "usr/share/gufw/gufw/gufw/model/ufw_backend.py"
 OLD_RUN = """    def _run_cmd(self, cmd, lang_c=False):
         if lang_c:
@@ -101,6 +106,23 @@ def main():
     add_text = (root / "usr/share/gufw/gufw/gufw/view/add.py").read_text(encoding="utf-8")
     if "os.environ['GUFW_PROFILES']" not in add_text:
         fail("预设规则目录仍指向固定系统路径")
+
+    # 窗口按图标名称从包内 hicolor 查找，不使用宿主绝对路径。
+    old_icon = '<property name="icon">/usr/share/icons/hicolor/48x48/apps/gufw.png</property>'
+    new_icon = '<property name="icon_name">gufw</property>'
+    for relative in UI_FILES:
+        path = root / relative
+        text = path.read_text(encoding="utf-8")
+        updated = text.replace(old_icon, new_icon)
+        if updated != text:
+            path.write_text(updated, encoding="utf-8")
+
+    # 普通规则和日志文本继承主题前景色，避免深色界面仍使用固定黑色。
+    main_view = root / VIEW_FILES[0]
+    text = main_view.read_text(encoding="utf-8")
+    updated = text.replace("    BLACK  = '#000000'", "    BLACK  = None")
+    if updated != text:
+        main_view.write_text(updated, encoding="utf-8")
 
     backend = root / BACKEND
     if not backend.is_file():

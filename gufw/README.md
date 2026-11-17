@@ -14,7 +14,11 @@ Gufw 26.04 是 GTK3、Python 3 和 PyGObject 程序，并且必须以 root 运�
 
 直接运行 AppImage，启动脚本优先使用 pkexec 图形授权，取消认证时退出。图形授权不可用且有终端时回退 sudo。Gufw 以 root 运行。普通用户启动时，脚本先将 AppDir 复制到 `/tmp` 的普通目录，再启动副本中的 Python，程序退出后删除副本。整个 AppImage 已由 root 挂载时直接使用该挂载。
 
-启动脚本保留官方 GTK3 插件生成的路径，将 `GTK_EXE_PREFIX`、`GTK_PATH` 和 `GTK_IM_MODULE_FILE` 映射到临时副本，再传给 root。插件未提供有效路径时，脚本按副本中的实际目录补齐。输入法缓存使用副本中实际存在的 `immodules.cache`，未找到时不设置 `GTK_IM_MODULE_FILE`。
+启动脚本保留官方 GTK3 插件生成的路径，将 `GTK_EXE_PREFIX`、`GTK_PATH` 和 `GTK_IM_MODULE_FILE` 映射到临时副本，再传给 root。插件未提供有效路径时，脚本按副本中的实际目录补齐。输入法缓存使用副本中实际存在的 `immodules.cache`，未找到时不设置 `GTK_IM_MODULE_FILE`。主界面使用包内 `Adwaita:dark` 深色主题；`LC_ALL=zh_CN.UTF-8` 与 `LANG`、`LANGUAGE`、`LOCPATH` 一同传给提权后的进程，避免继承的 locale 覆盖中文配置。
+
+root 界面处于 X11，且宿主已通过 `XMODIFIERS=@im=fcitx` 或 `@im=ibus` 配置 XIM 时，使用 `GTK_IM_MODULE=xim` 连接宿主输入法；其他会话保留宿主 GTK 输入模块。Fcitx／IBus GTK 模块和 XIM 模块仍随包保留。原生 Wayland 不强制使用 XIM。授权对话框由宿主 Polkit agent 显示，其语言和主题由宿主会话决定。
+
+主窗口、首选项和关于窗口的图标改用 GTK 图标名 `gufw`，从已有包内 `hicolor` 资源查找，避免访问宿主绝对图标路径。普通规则与日志文本继承 GTK 主题前景色，避免深色下固定黑色文字难以辨认；红、绿等状态色保持原样。
 
 宿主命令的环境清理是解包副本里 `gufw/model/ufw_backend.py` 的补丁，不是启动脚本里的包装程序。`_run_cmd` 改为调用 `_host_command_env`：删除规则、启停、改策略和改日志级别不再继承 `PYTHONHOME`、`PYTHONPATH` 和 `LD_LIBRARY_PATH`。同一函数里的 `grep`、`cat`、`ls` 和 `hostname` 也使用这份清理后的环境。
 
@@ -41,7 +45,11 @@ sudo aptitude install ufw pkexec polkitd
 
 ## 本次核对
 
-已静态核对 Ubuntu 官方软件包、现有依赖解包及启动链：原生运行库改用 Ubuntu 24.04，Gufw 保留官方当前的架构无关应用包。保留已有主 desktop 选择、资源补丁、临时副本和提权方式。公共签名下载入口的原八参数调用保持原有包架构及索引选择，新增第九参数只由本应用显式使用。本次基线调整后的正式构建、图形启动、授权和规则操作尚未验证。
+已静态核对 Ubuntu 官方软件包、现有依赖解包及启动链：原生运行库改用 Ubuntu 24.04，Gufw 保留官方当前的架构无关应用包。保留已有主 desktop 选择、资源补丁、临时副本和提权方式。公共签名下载入口的原八参数调用保持原有包架构及索引选择，新增第九参数只由本应用显式使用。后续正式产物已发布，用户实测图形授权及主窗口启动通过。
+
+针对本次中文 locale、主题与图标修复，已在临时副本、独立 Xvfb 和 D-Bus 中验证 GTK 界面的中文菜单、深色背景、普通文本主题前景色和三个窗口的包内图标；四种会话的授权环境传递均通过。独立 IBus 测试引擎经 XIM 提交“你好”，包内 GTK 文本框实际收到中文插入事件；这项测试验证输入通道，不代表真实拼音引擎或跨用户联动已通过。资源准备脚本重复执行保持幂等。
+
+隔离测试只加载 GTK 界面和文本框，不执行真实 ufw 后端，也不改变宿主规则。真实 root 与宿主输入法的跨用户联动尚未实测；规则增删和防火墙启停不在本次验证范围。上游中文翻译仍有缺项，例如 `Rules`、`Report`、`Routed`，本次保留上游翻译原文。
 
 ## 修复记录
 
@@ -50,7 +58,7 @@ sudo aptitude install ufw pkexec polkitd
 - 故障现象为第二次 linuxdeploy 自动选择 Python 的 desktop，随后以 `Icon 名无法放到 AppDir 根目录` 退出。[构建日志](https://github.com/newyorkthink/linux-packaging/actions/runs/43902110165/job/133421328107)
 - 根因是 `build_gufw.sh` 没有指定主 desktop，而 Python 运行包同时带入了 `python3.14.desktop`。
 - 修复位于 `build_gufw.sh`，为第二次 linuxdeploy 增加 Gufw 的 `--desktop-file` 参数。对应差异、固定路径和故障原文分别记录在 [模板差异](./docs/template-deviations.md)、[固定配置](./docs/hardcoded.md)和[构建故障记录](./docs/error.md)。
-- 已核对失败日志、官方 desktop、参数路径及调用顺序。修复后的正式构建结果尚未验证。
+- 已核对失败日志、官方 desktop、参数路径及调用顺序。后续正式产物已发布，用户实测图形授权及主窗口启动通过。
 
 ### GLIBC 运行库兼容性
 
@@ -70,3 +78,11 @@ ImportError: /usr/lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.43' not found
 - 修复将 Gufw Job 改为 Ubuntu 24.04，并将原生运行库与界面应用的来源分开。Ubuntu 24.04 自带的 Gufw 24.04 仍强依赖 WebKit，现有资源补丁也不适配其教程路径，因此不能仅降低 runner 后直接改装该旧应用包。保留 Ubuntu 官方当前 Gufw 的 `all` 包，避免引入旧 WebKit 的程序与 helper 部署问题。
 - Ubuntu 官方包资料：[Noble glibc](https://packages.ubuntu.com/noble/libc6)、[Noble PyGObject](https://packages.ubuntu.com/noble/python3-gi)、[Noble GTK3](https://packages.ubuntu.com/noble/libgtk-3-0t64)、[Noble Gufw](https://packages.ubuntu.com/noble/gufw)、[Resolute Gufw](https://packages.ubuntu.com/resolute/gufw)。索引和公钥来自 [Ubuntu 官方归档](https://archive.ubuntu.com/ubuntu/project/)。
 - `AppRun` 保留原始导入错误，并明确提示 GLIBC 缺失属于运行库兼容问题；不再把所有导入失败都附带解释为 `/tmp` 禁止执行。未引入 Python 插件，也未替换宿主 glibc。
+
+### 中文 locale、深色主题、窗口图标与 X11 输入
+
+- 用户实测主窗口可打开，但出现 `Locale not supported by C library. Using the fallback 'C' locale.`，菜单英文、部分 Python 文本中文；同时主窗口、首选项和关于窗口请求不存在的宿主路径 `/usr/share/icons/hicolor/48x48/apps/gufw.png`。
+- 隔离复现确认：继承的 `LC_ALL` 优先于 `LANG`。C locale 下 GTK/C 翻译未启用，而 Python gettext 仍按 `LANGUAGE` 加载中文，造成混合界面。`AppRun` 显式设置并向提权后的进程传递 `LC_ALL=zh_CN.UTF-8`，与包内 locale 一致。
+- GTK 插件在无法取得桌面颜色偏好时会回退为亮色；本应用按已选择的深色界面设置 `GTK_THEME=Adwaita:dark`。图标补丁只把三个 UI 文件的固定 `icon` 路径改为 `icon_name=gufw`，不改图标内容。普通规则和日志的固定黑色前景改为不指定颜色，由 GTK 主题提供前景色。
+- X11 的 root 输入优先使用已有 Fcitx／IBus XIM 会话，避免直接连接普通用户的输入法 D-Bus。原生 Wayland 与未配置 XIM 的会话保持原有模块。依据见 [Fcitx 官方 root 程序说明](https://fcitx-im.org/wiki/FAQ/en#Root_application_under_normal_user_X)。
+- 测试以正式发布资产及官方 SHA-256 校验后的临时副本进行；没有改动用户附件、宿主配置或防火墙规则。已通过的范围及输入法联动边界见“本次核对”。
