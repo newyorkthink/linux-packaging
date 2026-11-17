@@ -20,7 +20,7 @@ fi
 # Activities、Dolphin 下载服务的 Breeze QML 样式及 Haruna 在线链接所需的 yt-dlp、EJS 和 Deno 一并进入 AppDir。
 # Breeze 与 Breeze Dark 已由 build_core.sh 安装，不再安装完整 Flat Remix 及其额外继承主题。
 # Kate/KWrite 是独立编辑器，kuiserver 属于 Plasma 工作区；它们不是当前套件功能依赖，不因可忽略日志单独加入。
-yay -S --noconfirm okular ark gwenview haruna kfind kactivitymanagerd qqc2-breeze-style yt-dlp deno qt6-imageformats kimageformats
+"$SCRIPT_DIR/../common/arch/install_packages.sh" okular ark gwenview haruna kfind kactivitymanagerd qqc2-breeze-style yt-dlp deno qt6-imageformats kimageformats
 
 quick-sharun() {
     if [ "${1:-}" = "--make-appimage" ]; then
@@ -70,7 +70,7 @@ KDE_SUITE_BUILD_FILES=(
     deploy_utility_apps.sh
     kde-suite.svg
     kde_suite_launcher.cpp
-    okular_ark.sh
+    deploy_app_integration.sh
     org.kde.kdesuite.desktop
 )
 
@@ -114,8 +114,7 @@ if [ -z "$KDE_SUITE_BUILD_FINGERPRINT" ]; then
 fi
 
 KDE_SUITE_UPDATE_VERSION="kde-suite+linuxpackaging.$KDE_SUITE_BUILD_FINGERPRINT"
-test -s "$SCRIPT_DIR/dist/kde-suite.AppImage"
-printf '%s\n' "$KDE_SUITE_UPDATE_VERSION" > "$SCRIPT_DIR/dist/version.txt"
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "$SCRIPT_DIR/dist/kde-suite.AppImage" "$KDE_SUITE_UPDATE_VERSION" "$SCRIPT_DIR/dist/version.txt"
 printf 'KDE Suite updater version: %s\n' "$KDE_SUITE_UPDATE_VERSION"
 
 cleanup_kde_suite_fingerprint

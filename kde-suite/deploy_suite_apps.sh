@@ -1,5 +1,5 @@
 # 由 kde-suite/build_kde_suite.sh 在基础 AppDir 完成后、生成 AppImage 前加载。
-# 保留已经验证的 okular_ark.sh 原有逻辑，只在其外层补充套件级收尾处理。
+# 保留已经验证的 deploy_app_integration.sh 原有逻辑，只在其外层补充套件级收尾处理。
 
 if [ "${KDE_SUITE_DEPLOY_READY:-0}" = "1" ]; then
     return 0
@@ -83,8 +83,8 @@ PYTHONNOUSERSITE=1 \
 deploy_activities_files
 
 # 已验证的额外应用、KDE Connect、MIME、翻译、主题和 Fcitx5 集成保持原样。
-# shellcheck source=okular_ark.sh
-. "$SCRIPT_DIR/okular_ark.sh"
+# shellcheck source=deploy_app_integration.sh
+. "$SCRIPT_DIR/deploy_app_integration.sh"
 
 # 在现有运行时和 dbus-send 部署完成后接入 Activities，并统一使用 Breeze 图标。
 deploy_activities_integration

@@ -52,12 +52,10 @@ export DEPLOY_PIPEWIRE=1
 export STARTUPWMCLASS="kde-suite-launcher"
 
 # 基本依赖（包括常见的编译、打包工具以及 X11/Wayland 基础库）
-yay -S --noconfirm gcc base-devel pkgconf wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux glycin libheif zsync xorg-server xorg-server-common xorg-server-xvfb
+"$SCRIPT_DIR/../common/arch/install_packages.sh" gcc base-devel pkgconf wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux glycin libheif zsync xorg-server xorg-server-common xorg-server-xvfb
 
 # 常用包及剪贴板、输入法、Qt 主题、Breeze 风格和图标组件
-yay -S --noconfirm wl-clipboard xclip fcitx5-qt egl-wayland libxcb xcb-util xcb-util-keysyms libxss extra-cmake-modules \
-  xcb-util-renderutil xcb-util-wm xcb-util-image xcb-util-cursor libxkbcommon libxkbcommon-x11 mesa libglvnd \
-  adwaita-qt6 qt6-base qt6-svg qt6-tools qt6ct lxqt-qtplugin kvantum breeze breeze-icons
+"$SCRIPT_DIR/../common/arch/install_packages.sh" wl-clipboard xclip fcitx5-qt egl-wayland libxcb xcb-util xcb-util-keysyms libxss extra-cmake-modules xcb-util-renderutil xcb-util-wm xcb-util-image xcb-util-cursor libxkbcommon libxkbcommon-x11 mesa libglvnd adwaita-qt6 qt6-base qt6-svg qt6-tools qt6ct lxqt-qtplugin kvantum breeze breeze-icons
 
 # 编译通用 Qt6 Widgets 启动器。应用清单由 apps.ini 提供，后续增加应用不需要修改或重新设计启动器源码。
 LAUNCHER_BIN="/tmp/kde-suite-launcher"
@@ -65,10 +63,10 @@ g++ -std=c++17 -O2 -pipe -fPIC "$SCRIPT_DIR/kde_suite_launcher.cpp" -o "$LAUNCHE
   $(pkg-config --cflags --libs Qt6Widgets)
 
 # KDE Connect 及相关运行时依赖；SSHFS、KIO Extras、KDialog 和 Portal 用于文件浏览、发送和选择
-yay -S --noconfirm kdeconnect dbus glib2 glibc kconfig kcoreaddons kcrash kdbusaddons kdeclarative kguiaddons ki18n kio kirigami kirigami-addons kitemmodels kjobwidgets knotifications kpeople kservice kstatusnotifieritem kwindowsystem libei libevdev libfakekey libstdc++ libx11 libxkbcommon libxtst modemmanager-qt openssl pulseaudio-qt qqc2-desktop-style qt6-connectivity qt6-declarative qt6-multimedia solid wayland nautilus-python sshfs kpackage wayland-protocols nss openssh xdg-utils kio-extras kdialog xdg-desktop-portal-kde
+"$SCRIPT_DIR/../common/arch/install_packages.sh" kdeconnect dbus glib2 glibc kconfig kcoreaddons kcrash kdbusaddons kdeclarative kguiaddons ki18n kio kirigami kirigami-addons kitemmodels kjobwidgets knotifications kpeople kservice kstatusnotifieritem kwindowsystem libei libevdev libfakekey libstdc++ libx11 libxkbcommon libxtst modemmanager-qt openssl pulseaudio-qt qqc2-desktop-style qt6-connectivity qt6-declarative qt6-multimedia solid wayland nautilus-python sshfs kpackage wayland-protocols nss openssh xdg-utils kio-extras kdialog xdg-desktop-portal-kde
 
 # Dolphin、Konsole、Filelight 及其关联组件（作为内置文件管理器、终端和磁盘空间分析器）
-yay -S --noconfirm dolphin baloo baloo-widgets kbookmarks kcmutils kcodecs kcolorscheme kcompletion kconfigwidgets kfilemetadata kiconthemes knewstuff kparts ktextwidgets kuserfeedback kwidgetsaddons kxmlgui dolphin-plugins ffmpegthumbs filelight kde-cli-tools kdegraphics-thumbnailers kdenetwork-filesharing kdf kio-admin kompare konsole purpose extra-cmake-modules kdoctools libappimage openexr
+"$SCRIPT_DIR/../common/arch/install_packages.sh" dolphin baloo baloo-widgets kbookmarks kcmutils kcodecs kcolorscheme kcompletion kconfigwidgets kfilemetadata kiconthemes knewstuff kparts ktextwidgets kuserfeedback kwidgetsaddons kxmlgui dolphin-plugins ffmpegthumbs filelight kde-cli-tools kdegraphics-thumbnailers kdenetwork-filesharing kdf kio-admin kompare konsole purpose extra-cmake-modules kdoctools libappimage openexr
 
 quick-sharun \
   "$LAUNCHER_BIN" \

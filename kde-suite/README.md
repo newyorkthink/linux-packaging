@@ -154,7 +154,7 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - `deploy_suite_apps.sh`：最终部署入口，按顺序组合 Haruna、Python 版 yt-dlp、yt-dlp-ejs、Deno、Activities、现有应用集成、MIME、语言和主题检查。
 - `deploy_activities.sh`：部署 `kactivitymanagerd`、活动插件、Qt SQLite 驱动、D-Bus 描述和 Dolphin 启动包装。
 - `deploy_icon_theme.sh`：保留 Breeze/Breeze Dark，并创建 `Flat-Remix-Blue-Dark` 到 Breeze 的兼容入口。
-- `okular_ark.sh`：现有应用集成脚本，继续负责 Okular、Ark、Gwenview、Kompare、文件关联、KDE Connect 后台和 Fcitx5；文件名为历史名称，已验证逻辑保持不变。
+- `deploy_app_integration.sh`：应用集成脚本，负责 Okular、Ark、Gwenview、Kompare、文件关联、KDE Connect 后台、Qt6ct 运行环境、中文翻译和 Fcitx5；由原 `okular_ark.sh` 原样重命名，文件内容及调用顺序保持不变。
 - `apps.ini`：图形启动器的应用清单和中英文名称。
 
 ## 已知限制与非致命日志
@@ -230,6 +230,17 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - **来源与必要性：** 已核对 pkgforge-dev 的独立 Filelight 打包，未找到菜单专项修复。本次新增处理来自本仓库已验证的 Haruna 模式，不冒称官方代码。继续使用 Arch 官方仓库二进制与现有 quick-sharun 部署，不改变程序来源、不锁定版本。详见 [官方打包取舍](./docs/pkgforge-differences.md)、[模板差异](./docs/template-deviations.md) 和 [固定配置依据](./docs/hardcoded.md)。
 - **验证状态：** 已完成源码、调用顺序和拟提交差异的只读核对；没有运行本地命令、构建或 Filelight 实机检查。提交后由现有 push 工作流正常构建，不额外 dispatch，也不等待或监控 Actions；本条不提前宣布 Filelight 实机修复通过。
 
+### 2026-11-17：复用公共入口并整理应用集成文件
+
+本次是现有打包流程的维护整理，不作为新的应用故障修复或实机验收记录。
+
+- **公共包安装：** `build_core.sh` 的四组依赖和 `build_kde_suite.sh` 的额外应用统一调用 `common/arch/install_packages.sh`；原有包名、参数顺序和安装阶段均保留。公共入口使用 `yay -S --noconfirm --needed`，已安装且版本一致的包会跳过重复安装，不删除任何既有依赖。
+- **产物版本保存：** 保留“主要组件完整包版本 + 功能文件内容”的套件指纹计算；最终调用 `common/build/save_appimage_version.sh` 检查非空产物、统一产物权限为 `0755` 并保存原版本字符串，原成功提示和临时指纹清理继续保留。
+- **文件职责：** `okular_ark.sh` 原样重命名为 `deploy_app_integration.sh`，对应 source、shellcheck 路径和功能文件指纹清单同步更新。集成文件正文和已验证的 KIO、Activities、图标、翻译恢复、MIME、输入法以及 Haruna/Filelight 包装均保持原样。
+- **流程定位：** KDE Suite 继续采用已登记的多应用共享挂载专用流程，复用公共安装和产物保存入口，不套用单应用 Qt 模板。当前 matrix 调度说明与真实工作流对齐，未修改 workflow、公共脚本或软件版本清单。
+- **后续事项：** DwarFS AppImage 图标、视频信息面板黑屏、深色启动条纹及其他既有事项继续沿用原记录，本轮不实施补丁或重复失败尝试；Filelight 的实机状态仍以其独立记录为准。
+- **核对结果：** 已静态核对依赖参数、调用引用、改名前后集成文件内容一致性、版本保存顺序、文件权限和完整差异；本次没有运行本地命令、构建或新增运行测试。
+
 ## 发布前检查
 
 构建脚本会在压缩前自动检查启动器、`apps.ini` 中全部命令、Qt6ct/KFind/KDF、Qt6ct 配色路径迁移 Hook、KIO 服务与插件、SSHFS/FUSE 边界、Qt/Kirigami/Breeze、中文翻译、Fcitx5、MIME、图标、Activities、yt-dlp/Python/EJS/Deno，并在 Xvfb 中启动 Haruna 做 QML 运行时检查。
@@ -249,7 +260,7 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 
 ## GitHub Actions
 
-向 `main` 推送 `kde-suite/**` 下的变更时，`.github/workflows/build.yml` 会自动选择 KDE Suite，并由独立 `build_kde_suite` job 执行 `kde-suite/build_kde_suite.sh`，构建并上传 `kde-suite.AppImage`。
+向 `main` 推送 `kde-suite/**` 下的变更时，`.github/workflows/build.yml` 会根据 `.github/appimage-apps.json` 的 `kde_suite` 条目自动选择 KDE Suite，由 `build_standard` 的独立 matrix 任务执行 `kde-suite/build_kde_suite.sh`，构建并上传 `kde-suite.AppImage`。每个应用仍使用独立 runner 和 Arch 构建容器，套件依赖不会与其他应用串行混用。
 
 本仓库为 Public；正常代码提交和纯文档提交都不需要为了节省 Actions 分钟添加 `[skip ci]`、`[ci skip]`。只要变更命中现有 `push` 条件，就让正式 workflow 正常运行；只有当前任务明确要求跳过 CI 时才使用 skip 标记。
 
@@ -280,7 +291,7 @@ kde-suite+linuxpackaging.<12位指纹>
 该指纹同时包含两类输入：
 
 - **主要组件实际包版本**：Ark、Deno、Dolphin、Filelight、Gwenview、Haruna、KActivityManagerD、KDE Connect、KDF、KFind、Kompare、Konsole、Okular、Qt6ct、yt-dlp。
-- **套件自身功能文件内容**：`apps.ini`、`build_core.sh`、`build_kde_suite.sh`、各 deploy 脚本、启动器源码、desktop、图标和 `okular_ark.sh`。
+- **套件自身功能文件内容**：`apps.ini`、`build_core.sh`、`build_kde_suite.sh`、各 deploy 脚本（包含 `deploy_app_integration.sh`）、启动器源码、desktop 和图标。
 
 因此：
 
