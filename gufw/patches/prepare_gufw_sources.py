@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# 调整已解包副本：界面资源改到包内，宿主命令不再继承包内 Python 环境。
+# 调整已解包副本：界面资源留在包内，用户文件使用宿主目录，并隔离宿主命令环境。
 import pathlib
 import sys
 
@@ -48,6 +48,22 @@ NEW_RUN = """    def _host_command_env(self, lang_c):
         proc = subprocess.Popen(
             cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             env=self._host_command_env(lang_c))
+"""
+PROFILE_DIALOG_FOLDER = """        # 用户文件对话框使用启动用户主目录，不跟随包内预设规则的工作目录。
+        import pwd
+        folders = []
+        for value in (os.environ.get('PKEXEC_UID'), os.environ.get('SUDO_UID'),
+                      str(os.getuid())):
+            if not value:
+                continue
+            try:
+                folders.append(pwd.getpwuid(int(value)).pw_dir)
+            except (KeyError, ValueError, OverflowError):
+                continue
+        for folder in folders + ['/']:
+            if os.path.isabs(folder) and os.path.isdir(folder):
+                dialog.set_current_folder(folder)
+                break
 """
 LOCALE_BOOTSTRAP = """import os
 import locale
@@ -121,6 +137,12 @@ def main():
     main_view = root / VIEW_FILES[0]
     text = main_view.read_text(encoding="utf-8")
     updated = text.replace("    BLACK  = '#000000'", "    BLACK  = None")
+    # 导入导出对话框独立选择宿主目录，不改读取包内预设规则的工作目录。
+    if PROFILE_DIALOG_FOLDER not in updated:
+        needle = "        dialog.set_do_overwrite_confirmation(True)\n"
+        if updated.count(needle) != 1:
+            fail("未找到配置文件导入导出对话框的目录插入点")
+        updated = updated.replace(needle, needle + PROFILE_DIALOG_FOLDER, 1)
     if updated != text:
         main_view.write_text(updated, encoding="utf-8")
 

@@ -10,6 +10,7 @@
 | 防火墙命令 | `/usr/sbin/ufw` | 上游 `UFW_PATH`。AppRun 只检查这个路径 |
 | 宿主命令 PATH | `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` | `ufw_backend.py` 补丁使用这份路径，避免删除规则和启停时走包内 Python |
 | 提权程序 | `/usr/bin/env` | 由 pkexec 或 sudo 提权后，通过该宿主命令恢复运行环境，再启动包内 Python |
+| 配置文件对话框起始目录 | 按启动用户 UID 动态查询主目录，不写死个人路径 | 通过 `PKEXEC_UID`、`SUDO_UID` 及当前运行账号查询；不存在时回退到下一候选目录，最后使用 `/`，避免继承包内预设规则的工作目录。原始现象与处理见 [README 修复记录](../README.md#配置文件导入与导出默认目录) |
 | 运行副本 | `/tmp/gufw-runtime.*` | 普通文件系统，供 root 执行；`/tmp` 禁止执行时会失败 |
 | Python 包名 | 由当前解释器版本组成；共享 `libpython` 仅在 `ldd` 实际找到时追加 | 不写死 `3.14`，也不把缺少共享库当成错误。[Noble 当前解释器](https://packages.ubuntu.com/noble/python3-minimal) 为 Python 3.12，应用脚本仍从实际解释器动态读取系列号 |
 | GTK 包名 | `libgtk-3-0t64` | [Ubuntu Noble](https://packages.ubuntu.com/noble/libgtk-3-0t64) 使用该包名，与本次原生运行库基线一致 |

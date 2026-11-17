@@ -93,6 +93,12 @@ sudo ufw status numbered
 
 命令与按编号删除的含义见 [UFW 官方手册](https://manpages.ubuntu.com/manpages/noble/man8/ufw.8.html)。
 
+## 配置文件导入与导出
+
+文件菜单可导入、导出 Gufw 的 `.profile` 配置文件。文件选择器默认打开启动用户的主目录，也可以自行选择其他持久目录。
+
+Gufw 以 root 运行，对话框通过 `PKEXEC_UID` 或 `SUDO_UID` 查询启动用户的主目录；没有有效启动用户信息时，使用当前运行账号的主目录，再回退到根目录。它不再跟随读取包内预设规则时的工作目录。AppImage 的 `/tmp/gufw-runtime.*` 只用于运行副本，程序退出后会清理，不应作为导出文件的保存位置。
+
 ## 版本元数据
 
 公共签名 APT 下载入口返回实际 Gufw DEB 的完整版本，并保存同次来源版本文件；公共封装入口把该版本写入 `dist/version.txt`。GitHub Actions 在构建脚本成功退出后使用该文件发布 `gufw.AppImage` 并更新软件版本清单。
@@ -164,3 +170,10 @@ ImportError: /usr/lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.43' not found
 - 原处理在 `apply_tree` 准备包内 `LOCPATH` 之前，全局设置 `LC_ALL`，使 Bash 在尚未取得包内 locale 数据路径时就立即尝试切换中文 locale；这条警告与随后界面显示中文并不矛盾。隔离复现还确认，仅交换两个 `export` 的顺序不足以解决 Bash 当前进程的 locale 路径问题。
 - 现统一使用 `GUI_LOCALE` 参数数组，通过 `/usr/bin/env` 只为界面子进程设置中文配置。GTK 导入检查、root 直接启动和图形授权后的启动均先取得对应目录的 `LOCPATH`，再带入同一套中文配置；启动 Shell 沿用宿主 locale，不隐藏或重定向警告。
 - 使用附件内的 locale 数据及指向空目录的初始 `LOCPATH` 模拟宿主未提供中文 locale。旧脚本可复现同一警告；修复后的挂载目录、临时副本、root 直接启动及授权环境传递检查通过，中文 locale 正确且无该警告。Shell 语法检查通过，没有执行真实 ufw 后端。
+
+### 配置文件导入与导出默认目录
+
+- 用户实机发现导出对话框默认打开 `/tmp/gufw-runtime.XXXXXX/etc/gufw/app_profiles`，与临时运行副本的资源目录相同。
+- 上游 `Add._load_from_files` 使用 `os.chdir(DIR_PROFILES)`，会改变整个进程的工作目录；打包时该目录已映射到运行副本。导入、导出共用的 `_file_dialog` 没有指定起始目录，因此对话框会进入包内资源目录。保存在运行副本中的文件会随程序退出清理。
+- 修复位于 `patches/prepare_gufw_sources.py`：为配置文件选择器显式指定启动用户的主目录，按授权器提供的 UID 查询系统账号；目录不存在时逐级回退。补丁识别已有插入内容，避免重复添加；插入点不唯一时明确退出。
+- 已核对当前上游调用位置、现有提权环境传递、GTK 目录接口及完整补丁差异。依据：[预设规则读取](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/view/add.py#L503-L508)、[文件对话框](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/view/gufw.py#L670-L698)、[GTK 目录接口](https://docs.gtk.org/gtk3/method.FileChooser.set_current_folder.html)、[pkexec 启动用户信息](https://www.freedesktop.org/software/polkit/docs/latest/pkexec.1.html)、[sudo 环境变量](https://manpages.ubuntu.com/manpages/noble/man8/sudo.8.html)。
