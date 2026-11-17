@@ -202,7 +202,7 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 
 公共工具准备会安装外部 AppImage 输出入口，并按官方优先级接管中间封装：linuxdeploy 部署完依赖及根 desktop / 图标后，包装入口先复用公共权限和 PNG 准备，再将原始参数与 LDAI 环境交给动态下载并校验的官方输出插件。插件探测和第一次空 AppDir 初始化保持原接口；应用无需另加准备命令，不更改既有 `linuxdeploy ... --output appimage` 整行。详细机制与证据见 [linuxdeploy 更新与中间封装兼容](./docs/linuxdeploy-update-compatibility.md)。
 
-最终封装由 `common/linuxdeploy/package_appimage.sh` 使用官方 appimagetool 和明确的 Type 2 runtime 完成。权限及 PNG 根图标的公共处理见 [appimagetool 图标检查与 SVG 兼容处理](./docs/appimagetool-icon-compatibility.md)。不使用 `--no-check-permissions`，不因下载或封装失败而发布中间包。
+最终封装由 `common/linuxdeploy/package_appimage.sh` 使用官方 `AppImage/appimagetool` 和 `AppImage/type2-runtime` 完成，生成 SquashFS Type 2 包。依赖部署工具与最终文件系统 / runtime 是两项选择；只把收集工具换成 linuxdeploy、却继续使用 DwarFS 封装，并不会更换运行时的 DwarFS 挂载链路。权限及 PNG 根图标的公共处理见 [appimagetool 图标检查与 SVG 兼容处理](./docs/appimagetool-icon-compatibility.md)。不使用 `--no-check-permissions`，不因下载或封装失败而发布中间包。
 
 ## 检查与记录
 
@@ -225,6 +225,7 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 | Rainlendar2 | `rainlendar2/build_rainlendar2.sh` | linuxdeploy + GTK 插件 |
 | rvncconnect | `rvncconnect/build_rvncconnect.sh` | linuxdeploy + GTK 插件 |
 | RealVNC Viewer 7.15.1 | `vncviewer/build_vncviewer.sh` | 从 `original-package-archive` 获取官方 x64 DEB，使用 linuxdeploy 无框架插件模式与独立 appimagetool；桌面入口处理见 [README](./vncviewer/README.md)。 |
+| WeChat | `wechat/build_wechat.sh` | 官网动态 DEB，Ubuntu 24.04 原生 runner；保留完整 `opt/wechat`，GTK3 插件部署与官方 SquashFS Type 2 封装，见 [专属差异](./wechat/docs/template-deviations.md)。 |
 | 腾讯会议 | `wemeet/build_wemeet.sh` | linuxdeploy + Qt 插件 |
 
 仅在 README、注释或说明文字中出现 linuxdeploy，但构建脚本没有实际调用的项目，不计入本清单。清单只表示实际使用这条路线，不表示所有既有脚本已经完成模板对齐；本次规范更新不授权批量修改其他应用。

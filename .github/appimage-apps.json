@@ -675,7 +675,7 @@
     },
     {
       "key": "wechat",
-      "kind": "standard",
+      "kind": "special",
       "name": "WeChat",
       "script": "wechat/build_wechat.sh",
       "dir": "wechat",

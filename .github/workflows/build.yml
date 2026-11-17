@@ -555,6 +555,59 @@ jobs:
           github_token: ${{ github.token }}
 
 
+  build_wechat:
+    name: Build WeChat
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).wechat == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    concurrency:
+      group: build-appimage-wechat.AppImage
+      queue: max
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build wechat AppImage
+        working-directory: wechat
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x build_wechat.sh
+          ./build_wechat.sh
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-wechat
+          path: wechat/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s wechat/dist/wechat.AppImage
+          gh release upload latest wechat/dist/wechat.AppImage \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'wechat'
+          version_file: 'wechat/dist/version.txt'
+          asset_name: 'wechat.AppImage'
+          artifact_dir: 'wechat/dist'
+          github_token: ${{ github.token }}
+
+
   build_dingtalk:
     name: Build DingTalk
     needs: plan

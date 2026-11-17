@@ -20,6 +20,8 @@
 
 例如，当前 Electron 直接下载模板要求 `DEPLOY_GTK=1`；`DEPLOY_OPENGL`、`DEPLOY_VULKAN` 则按当前应用的实际需要和已批准方案决定，不是所有程序的必填项。某个变量出现在官方脚本或登记表中，不等于所有应用都应启用。
 
+WeChat 使用 LinuxDeploy GTK DEB 模板生成，设置 `DEPLOY_GTK_VERSION=3`。AppRun 的 `PATH`、`LD_LIBRARY_PATH` 保留真实 `opt/wechat` 与包内 `usr/bin`、`usr/lib`；`XDG_DATA_DIRS`、`GSETTINGS_SCHEMA_DIR`、`GIO_MODULE_DIR` 使用标准包内路径。旧版 `build_wechat_old.sh` 仅保留 quick-sharun、Qt 缩放和 VLC 路径等历史配置，不进入正式链路。[模板差异](../wechat/docs/template-deviations.md)
+
 Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及可写模块准备阶段，并设置 `DEPLOY_GTK_VERSION=3`。AppRun 指向 `usr/lib/discord`。旧版 `build_discord_old.sh` 保留了 quick-sharun 的开关与显式扫描。[模板差异](../archive/discord/docs/template-deviations.md)
 
 **必需项不能漏，已确认必要的配置不能擅删，不需要的配置不能为了统一而添加。** 不同程序的变量取值和经批准的专属项可以不同，不能把这些差异直接判为漏项或模板不一致。
@@ -45,7 +47,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `ARCH` | 向打包工具传入目标架构。 | 例如 Keyviz、adspower-global、aionui、gemini |
 | `QMAKE` | 告诉 linuxdeploy 的 Qt 插件用哪个 qmake。Qt5 和 Qt6 不能混。 | 4 个脚本，例如 goldendict、peazip、wemeet、xnviewmp |
 | `QT_SELECT` | 为 qtchooser 显式选择已配置的 Qt 安装；仅在实际调用该包装器且需要选择时使用。 | 例如 wemeet；goldendict 使用明确的 Qt5 QMAKE，不设置此变量。 |
-| `DEPLOY_GTK_VERSION` | 选择 linuxdeploy GTK 插件部署的主版本。 | 例如 baidunetdisk、binance、joplin；discord 使用 3 |
+| `DEPLOY_GTK_VERSION` | 选择 linuxdeploy GTK 插件部署的主版本。 | 例如 baidunetdisk、binance、joplin、wechat；discord 归档前使用 3 |
 | `APPIMAGE_EXTRACT_AND_RUN` | 让 AppImage 先解包再跑，不靠 FUSE。只在构建机使用，不写进最终包。 | 10 个脚本，例如 kitty、mediainfo、poppler-utils |
 | `LDAI_OUTPUT` | linuxdeploy 中间 AppImage 的输出路径。这个文件不进发布目录。 | 3 个脚本，例如 mediainfo、poppler-utils |
 | `LDAI_NO_APPSTREAM` | linuxdeploy 不生成 AppStream 元数据。 | 3 个脚本，例如 mediainfo、poppler-utils |
@@ -163,7 +165,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `QML_DISABLE_DISK_CACHE` | 禁止 Qt Quick 写磁盘缓存。 | kde-suite |
 | `QT_QUICK_CONTROLS_STYLE` | Qt Quick Controls 的样式，例如 KDE Breeze。 | kde-suite |
 | `QT_STYLE_OVERRIDE` | 强制 Qt 控件样式，盖过应用默认样式。 | 例如 flameshot、peazip。webcamoid、smplayer 在 .env 中使用。 |
-| `QT_AUTO_SCREEN_SCALE_FACTOR` | 让 Qt 按屏幕缩放界面。 | 4 个脚本，例如 dingtalk、peazip、wechat |
+| `QT_AUTO_SCREEN_SCALE_FACTOR` | 让 Qt 按屏幕缩放界面。 | 历史统计为 4 个脚本，例如 dingtalk、peazip；wechat 仅旧版备份保留 |
 | `QT_SCALE_FACTOR` | Qt 界面缩放倍数。 | peazip |
 | `QT_FONT_DPI` | 固定 Qt 字体 DPI。 | 2 个脚本，例如 peazip、xnviewmp |
 | `QT_XCB_GL_INTEGRATION` | XCB 下用哪种 OpenGL 集成，例如 xcb_egl。 | mailmaster |
@@ -229,7 +231,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `GSTREAMER_INCLUDE_BAD_PLUGINS` | 允许使用 GStreamer 的 bad 插件。 | remmina |
 | `OPENSSL_MODULES` | OpenSSL 3 的 provider 目录。必须和包内的 libcrypto 配套。 | remmina |
 | `FREERDP_PLUGIN_PATH` | Remmina 加载 FreeRDP 插件的目录。 | remmina |
-| `VLC_PLUGIN_PATH` | VLC 插件目录。 | wechat |
+| `VLC_PLUGIN_PATH` | VLC 插件目录。 | wechat 旧版 quick-sharun 备份；正式构建保留官方私有布局，不设置此覆盖。 |
 | `WEBKIT_EXEC_PATH` | WebKit 子进程所在目录。 | remmina |
 | `WEBKIT_DISABLE_DMABUF_RENDERER` | 关掉 WebKit 的 dmabuf 渲染，避免花屏。 | remmina |
 | `CHROME_DESKTOP` | 告诉 Electron / Chromium 对应哪一个 desktop 文件。 | 2 个脚本，例如 github-desktop；bluemail 由公共协议 hook 关联用户级 desktop |

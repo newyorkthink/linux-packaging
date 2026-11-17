@@ -1,393 +1,81 @@
 #!/usr/bin/env bash
-# 从微信官方 x86_64 deb 重新封装 AnyLinux AppImage。
-# 官方 AppImage 未包含主程序直接依赖的 libpulse.so.0 和 libpulse-simple.so.0，
-# 本脚本从官方 deb 自动提取程序、desktop 和最大尺寸 PNG 图标，并补齐全部运行库。
+
+############# 初始化脚本 #############
+
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
 set -Eeuo pipefail
 
+# 获取脚本所在目录的绝对路径。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-# 安装统一的 Arch AppImage 基础包
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-readonly SCRIPT_DIR
-cd "$SCRIPT_DIR"
+############# 准备构建目录 #############
 
-log() {
-  printf '[WeChat] %s\n' "$*"
-}
+# 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "wechat"
 
-die() {
-  printf '错误：%s\n' "$*" >&2
-  exit 1
-}
+############# 准备构建环境 #############
 
-HOST_ARCH="$(uname -m)"
-readonly HOST_ARCH
-[[ "$HOST_ARCH" == x86_64 ]] || die "当前仅支持 x86_64。"
-command -v yay >/dev/null 2>&1 || die "构建环境缺少命令：yay"
+# 安装构建工具和应用所需的依赖包。
+"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev pkgconf libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev librsvg2-dev librsvg2-common libpango1.0-dev ibus-gtk3 libibus-1.0-5 libpulse0 libvlc5 libjack-jackd2-0 libnss3 libnspr4 libasound2t64 libxss1 libsecret-1-0 libnotify4 libgbm1 libegl1 libgl1 libvulkan1 libpipewire-0.3-0t64 libxcb-cursor0 libxkbcommon-x11-0 libxcb-render-util0 libxcb-keysyms1 libxcb-image0 libxcb-icccm4 hicolor-icon-theme adwaita-icon-theme fonts-noto-cjk
 
-readonly OFFICIAL_DEB_URL="https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb"
-readonly SOURCE_DIR="$SCRIPT_DIR/source"
-readonly PACKAGE_ROOT="$SOURCE_DIR/package"
-readonly DEB_FILE="$SOURCE_DIR/WeChatLinux_x86_64.deb"
-readonly APPDIR="$SCRIPT_DIR/AppDir"
-readonly APP_ROOT="$APPDIR/bin"
-readonly DIST_DIR="$SCRIPT_DIR/dist"
-readonly OUTFILE="$DIST_DIR/wechat.AppImage"
-readonly VERIFY_DIR="$SCRIPT_DIR/verify"
-readonly BUILD_DESKTOP="$SCRIPT_DIR/wechat.desktop"
-readonly BUILD_ICON="$SCRIPT_DIR/wechat.png"
-readonly SMOKE_HOME="$SCRIPT_DIR/smoke-home"
-readonly SMOKE_RUNTIME="$SCRIPT_DIR/smoke-runtime"
-readonly SMOKE_LOG="$SCRIPT_DIR/wechat-smoke.log"
+############# 下载打包工具 #############
 
-# 每次只清理 WeChat 自己的构建目录、临时元数据和旧产物。
-rm -rf \
-  "$SOURCE_DIR" \
-  "$APPDIR" \
-  "$DIST_DIR" \
-  "$VERIFY_DIR" \
-  "$SMOKE_HOME" \
-  "$SMOKE_RUNTIME"
-rm -f "$BUILD_DESKTOP" "$BUILD_ICON" "$SMOKE_LOG"
-mkdir -p "$SOURCE_DIR" "$PACKAGE_ROOT" "$APP_ROOT" "$DIST_DIR"
+# 下载并校验打包工具及所需插件，随后加载构建环境配置。
+source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" gtk "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 
-# 安装 quick-sharun 打包工具、AUR wechat-bin 当前声明的运行依赖，
-# 以及图形启动测试、输入法、通知、摄像头和 PipeWire 所需组件。
-yay -S --noconfirm --needed \
-  base-devel binutils coreutils curl file findutils gawk grep inetutils patchelf sed tar xz \
-  appstream-glib desktop-file-utils util-linux zsync \
-  xorg-server xorg-server-common xorg-server-xvfb \
-  nss nspr xcb-util-renderutil xcb-util-keysyms xcb-util-image xcb-util-wm \
-  libxkbcommon-x11 libxkbcommon libxcb gcc-libs glibc zlib \
-  libxcomposite glib2 libxrender libxext libxi libxtst alsa-lib pipewire-jack dbus \
-  libxrandr fontconfig pango freetype2 libxfixes cairo libx11 expat \
-  libvlc libxdamage libdrm mesa libglvnd libpulse systemd-libs krb5 \
-  at-spi2-core cups gtk3 libnotify libsecret libxss shared-mime-info \
-  xdg-utils hicolor-icon-theme adwaita-icon-theme noto-fonts-cjk \
-  pipewire pipewire-audio ibus
+############ 初始化 AppDir #############
 
-for command_name in \
-  ar awk chmod curl dbus-run-session desktop-file-validate file find grep hostname \
-  install ldd quick-sharun readelf readlink sed sha256sum sort stat tar timeout xvfb-run; do
-  command -v "$command_name" >/dev/null 2>&1 || \
-    die "构建环境缺少命令：$command_name"
-done
+# 首次运行 linuxdeploy，创建 AppDir 的基础目录。
+"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
-log "下载微信官方 x86_64 deb"
-curl -fL \
-  --retry 5 \
-  --retry-all-errors \
-  --retry-delay 2 \
-  --connect-timeout 20 \
-  "$OFFICIAL_DEB_URL" \
-  -o "$DEB_FILE"
-[[ -s "$DEB_FILE" ]] || die "官方下载文件为空。"
-file "$DEB_FILE" | grep -q 'Debian binary package' || \
-  die "官方下载文件不是 Debian 软件包。"
-sha256sum "$DEB_FILE"
+############ 下载并准备应用 #############
 
-log "提取官方 deb"
-(
-  cd "$SOURCE_DIR"
-  ar x "$DEB_FILE"
-)
+# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
+VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" --url "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb" "" "$SOURCE_DIR/WeChatLinux_x86_64.deb" "$APPDIR" "wechat" "amd64")"
 
-shopt -s nullglob
-control_archives=("$SOURCE_DIR"/control.tar.*)
-data_archives=("$SOURCE_DIR"/data.tar.*)
-shopt -u nullglob
-[[ ${#control_archives[@]} -eq 1 ]] || \
-  die "官方 deb 中应且只能有一个 control.tar.*。"
-[[ ${#data_archives[@]} -eq 1 ]] || \
-  die "官方 deb 中应且只能有一个 data.tar.*。"
+# 本程序专属处理：准备完整应用及其资源，并取得实际版本。
+VERSION="$("$SCRIPT_DIR/patches/prepare_wechat_appdir.sh" prepare "$SOURCE_DIR" "$APPDIR")"
 
-VERSION="$(
-  tar -xOf "${control_archives[0]}" ./control \
-    | awk '$1 == "Version:" {print $2; exit}'
-)"
-[[ "$VERSION" =~ ^[0-9][0-9A-Za-z.+:~_-]*$ ]] || \
-  die "无法从官方 deb 解析有效版本：$VERSION"
-printf 'WeChat version: %s\n' "$VERSION"
+############# 准备 AppRun ##############
 
-tar -xf "${data_archives[0]}" -C "$PACKAGE_ROOT"
-readonly SOURCE_APP_ROOT="$PACKAGE_ROOT/opt/wechat"
-[[ -x "$SOURCE_APP_ROOT/wechat" ]] || die "官方 deb 缺少可执行主程序。"
-file "$SOURCE_APP_ROOT/wechat" | grep -q 'ELF 64-bit' || \
-  die "官方 WeChat 主程序不是 64 位 ELF。"
+# 在 AppDir 根目录创建完整的 AppRun 启动脚本。
+cat > "$APPDIR/AppRun" <<'APPRUN'
+#!/usr/bin/env bash
 
-# 官方包里匹配 *wechat*.desktop 的文件不一定都是主启动项。
-# 4.1.13.26 同时带有 com.tencent.wechatappex.desktop：NoDisplay=true，
-# Exec 指向 RadiumWMPF/runtime/WeChatAppEx，不能当作 AppImage 主入口。
-mapfile -d '' desktop_candidates < <(
-  find "$PACKAGE_ROOT/usr/share/applications" \
-    -maxdepth 1 \
-    -type f \
-    -iname '*wechat*.desktop' \
-    -print0
-)
-visible_desktops=()
-for desktop_candidate in "${desktop_candidates[@]}"; do
-  if grep -Eq '^NoDisplay=true$' "$desktop_candidate"; then
-    continue
-  fi
-  visible_desktops+=("$desktop_candidate")
-done
-[[ ${#visible_desktops[@]} -eq 1 ]] || \
-  die "官方 deb 中应且只能找到一个可显示的 WeChat desktop 文件，实际为 ${#visible_desktops[@]}。"
-readonly SOURCE_DESKTOP="${visible_desktops[0]}"
+# 启用严格模式，在命令执行失败、引用未定义变量或管道执行失败时退出。
+set -Eeuo pipefail
 
-# 从官方包内所有 wechat.png 中选择文件体积最大的图标，当前对应 256x256。
-mapfile -d '' icon_candidates < <(
-  find "$PACKAGE_ROOT/usr/share/icons" \
-    -type f \
-    -iname 'wechat.png' \
-    -print0
-)
-[[ ${#icon_candidates[@]} -gt 0 ]] || die "官方 deb 中未找到 wechat.png。"
+# 获取脚本所在目录的绝对路径。
+HERE="$(dirname "$(readlink -f "${0}")")"
 
-SOURCE_ICON="${icon_candidates[0]}"
-source_icon_size="$(stat -c '%s' "$SOURCE_ICON")"
-for icon_candidate in "${icon_candidates[@]:1}"; do
-  icon_size="$(stat -c '%s' "$icon_candidate")"
-  if (( icon_size > source_icon_size )); then
-    SOURCE_ICON="$icon_candidate"
-    source_icon_size="$icon_size"
-  fi
-done
-readonly SOURCE_ICON
-file "$SOURCE_ICON" | grep -q 'PNG image data' || die "找到的微信图标不是 PNG。"
-printf 'WeChat desktop: %s\nWeChat icon: %s\n' \
-  "${SOURCE_DESKTOP#"$PACKAGE_ROOT"/}" \
-  "${SOURCE_ICON#"$PACKAGE_ROOT"/}"
+# 设置程序、运行库和共享数据的搜索路径。
+export PATH="$HERE/opt/wechat:$HERE/usr/bin${PATH:+:$PATH}"
+export LD_LIBRARY_PATH="$HERE/opt/wechat:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 
-# 保持官方完整运行目录的相对布局，WeChat、VLC 插件和 WMPF 子进程均从该目录加载资源。
-cp -a "$SOURCE_APP_ROOT"/. "$APP_ROOT"/
+# GTK 运行环境：指定 GSettings schema 和 GIO 动态模块的目录。
+export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
+export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
 
-# Node 原生模块是供进程 dlopen 的共享对象，不应因官方包赋予执行位而被 sharun 当成程序包装。
-find "$APP_ROOT" -type f -name '*.node' -exec chmod 0644 {} +
+# 启动包内程序，并保留传入的命令行参数。
+exec "$HERE/opt/wechat/wechat" "$@"
+APPRUN
 
-# 收集官方运行目录内每一个实际含文件的目录，仅供构建阶段审计和解析嵌套私有库。
-# 运行时仍由官方各 ELF 自带的 RPATH/RUNPATH 选择同目录库，避免同名私有库相互覆盖。
-mapfile -t app_library_dirs < <(
-  find "$APP_ROOT" -type f -printf '%h\n' | sort -u
-)
-[[ ${#app_library_dirs[@]} -gt 0 ]] || die "官方运行目录为空。"
-BUILD_LIBRARY_PATH="$(IFS=:; printf '%s' "${app_library_dirs[*]}")"
-BUILD_LIBRARY_PATH="$BUILD_LIBRARY_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# 为启动脚本添加执行权限。
+chmod +x "$APPDIR/AppRun"
 
-# quick-sharun 从官方包内提取的 desktop 和 PNG 生成 AppImage 顶层桌面集成文件。
-install -Dm0644 "$SOURCE_DESKTOP" "$BUILD_DESKTOP"
-install -Dm0644 "$SOURCE_ICON" "$BUILD_ICON"
-[[ "$(grep -c '^Exec=' "$BUILD_DESKTOP")" -eq 1 ]] || \
-  die "官方 desktop 的 Exec 字段数量异常。"
-[[ "$(grep -c '^Icon=' "$BUILD_DESKTOP")" -eq 1 ]] || \
-  die "官方 desktop 的 Icon 字段数量异常。"
-sed -i \
-  -e 's|^Exec=.*|Exec=wechat %U|' \
-  -e 's|^Icon=.*|Icon=wechat|' \
-  "$BUILD_DESKTOP"
-if ! grep -q '^StartupWMClass=' "$BUILD_DESKTOP"; then
-  printf 'StartupWMClass=wechat\n' >> "$BUILD_DESKTOP"
-fi
-if ! grep -q '^X-AppImage-Version=' "$BUILD_DESKTOP"; then
-  printf 'X-AppImage-Version=%s\n' "$VERSION" >> "$BUILD_DESKTOP"
-fi
-desktop-file-validate "$BUILD_DESKTOP"
+############### 核心打包 ###############
 
-# 入口固定从包内程序目录启动，同时保留用户现有的输入法环境变量。
-cat > "$APPDIR/AppRun.sh" <<'APPRUN_EOF'
-#!/bin/sh
-set -e
+# 指定 GTK 主版本。
+export DEPLOY_GTK_VERSION=3
 
-export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}"
-export QT_AUTO_SCREEN_SCALE_FACTOR="${QT_AUTO_SCREEN_SCALE_FACTOR:-1}"
-export SHARUN_EXTRA_LIBRARY_PATH="$APPDIR/bin${SHARUN_EXTRA_LIBRARY_PATH:+:$SHARUN_EXTRA_LIBRARY_PATH}"
-export SHARUN_WORKING_DIR="$APPDIR/bin"
-export VLC_PLUGIN_PATH="$APPDIR/bin/vlc_plugins"
+# 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
+export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 
-cd "$APPDIR/bin"
-exec "$APPDIR/bin/wechat" "$@"
-APPRUN_EOF
-chmod 0755 "$APPDIR/AppRun.sh"
-bash -n "$APPDIR/AppRun.sh"
+############### 整理产物 ###############
 
-printf '%s\n' "$VERSION" > ~/version
+# 本程序专属处理：在依赖部署后完成应用文件整理。
+"$SCRIPT_DIR/patches/prepare_wechat_appdir.sh" finalize "$SOURCE_DIR" "$APPDIR"
 
-export ARCH=x86_64
-export VERSION
-export APPNAME=WeChat
-export MAIN_BIN=wechat
-export STARTUPWMCLASS=wechat
-export ICON="$BUILD_ICON"
-export DESKTOP="$BUILD_DESKTOP"
-export OUTPATH="$DIST_DIR"
-export OUTNAME=wechat.AppImage
-export DEPLOY_GTK=1
-export DEPLOY_OPENGL=1
-export DEPLOY_VULKAN=1
-export DEPLOY_PIPEWIRE=1
-
-# 扫描官方完整运行目录内的所有 ELF，而不只扫描主程序；这样 VLC、WMPF、
-# OCR、文件预览和音视频通话组件的外部系统库也会一并部署。
-elf_targets=()
-while IFS= read -r -d '' target; do
-  if readelf -h "$target" >/dev/null 2>&1; then
-    elf_targets+=("$target")
-  fi
-done < <(find "$APP_ROOT" -type f -print0)
-[[ ${#elf_targets[@]} -gt 0 ]] || die "官方运行目录中未找到 ELF 文件。"
-printf 'WeChat ELF files: %s\n' "${#elf_targets[@]}"
-
-# 在 quick-sharun 前一次性审计全部 ELF，并收集解析到官方目录之外的系统库。
-# 官方包含多个同名但 ABI 不同的私有库（例如三份 libffmpeg.so），不能把这些
-# 私有 ELF 直接交给 quick-sharun 扁平化，否则 WMPF 子进程会加载到 VLC 插件。
-missing_dependencies=0
-declare -A system_library_seen=()
-system_library_targets=()
-for target in "${elf_targets[@]}"; do
-  target_library_path="$(dirname -- "$target"):$BUILD_LIBRARY_PATH"
-  target_dependencies="$(LD_LIBRARY_PATH="$target_library_path" ldd "$target" 2>&1 || true)"
-  if grep -Fq 'not found' <<< "$target_dependencies"; then
-    printf '缺失依赖文件：%s\n%s\n' "$target" "$target_dependencies" >&2
-    missing_dependencies=1
-  fi
-
-  while IFS= read -r dependency_path; do
-    dependency_path="$(readlink -f "$dependency_path")"
-    [[ -f "$dependency_path" ]] || continue
-    [[ "$dependency_path" != "$APP_ROOT/"* ]] || continue
-    if [[ -z "${system_library_seen[$dependency_path]+x}" ]]; then
-      system_library_seen["$dependency_path"]=1
-      system_library_targets+=("$dependency_path")
-    fi
-  done < <(
-    awk '
-      $2 == "=>" && $3 ~ /^\// {print $3; next}
-      $1 ~ /^\// {print $1}
-    ' <<< "$target_dependencies"
-  )
-done
-[[ "$missing_dependencies" -eq 0 ]] || die "官方 WeChat 组件仍存在缺失动态库。"
-[[ ${#system_library_targets[@]} -gt 0 ]] || die "未解析到 WeChat 的外部系统库。"
-printf 'WeChat external libraries: %s\n' "${#system_library_targets[@]}"
-
-# 明确把 PulseAudio 客户端库交给 quick-sharun；这是官方 AppImage 缺失并导致
-# libpulse.so.0 启动错误的关键修复。libpulsecommon 的具体版本由当前 Arch 包决定。
-shopt -s nullglob
-pulse_targets=(
-  /usr/lib/libpulse.so.0
-  /usr/lib/libpulse-simple.so.0
-  /usr/lib/pulseaudio/libpulsecommon-*.so
-)
-shopt -u nullglob
-[[ -e /usr/lib/libpulse.so.0 ]] || die "构建环境缺少 libpulse.so.0。"
-[[ -e /usr/lib/libpulse-simple.so.0 ]] || die "构建环境缺少 libpulse-simple.so.0。"
-
-# 只部署主程序和上面审计得到的外部库；WMPF、VLC 等官方私有 ELF 保持原布局。
-LD_LIBRARY_PATH="$APP_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun \
-  "$APP_ROOT/wechat" \
-  "${system_library_targets[@]}" \
-  "${pulse_targets[@]}" \
-  /usr/bin/hostname
-
-# 嵌套官方程序必须仍是自身 ELF，不能被替换为 AppRun/sharun 的硬链接。
-mapfile -d '' preserved_nested_executables < <(
-  find "$APP_ROOT" -type f \
-    \( -name WeChatAppEx -o -name crashpad_handler \) \
-    -print0
-)
-[[ ${#preserved_nested_executables[@]} -gt 0 ]] || \
-  die "官方运行目录缺少需要保留的嵌套程序。"
-for nested_executable in "${preserved_nested_executables[@]}"; do
-  readelf -h "$nested_executable" >/dev/null 2>&1 || \
-    die "嵌套程序不再是 ELF：$nested_executable"
-  [[ ! "$nested_executable" -ef "$APPDIR/AppRun" ]] || \
-    die "嵌套程序被错误替换成 sharun：$nested_executable"
-done
-
-# 在封装前确认关键修复库已经进入 AppDir。
-mapfile -t bundled_pulse < <(
-  find "$APPDIR" \( -type f -o -type l \) -name 'libpulse.so.0' -print
-)
-mapfile -t bundled_pulse_simple < <(
-  find "$APPDIR" \( -type f -o -type l \) -name 'libpulse-simple.so.0' -print
-)
-[[ ${#bundled_pulse[@]} -gt 0 ]] || die "AppDir 未包含 libpulse.so.0。"
-[[ ${#bundled_pulse_simple[@]} -gt 0 ]] || die "AppDir 未包含 libpulse-simple.so.0。"
-
-quick-sharun --make-appimage
-[[ -s "$OUTFILE" ]] || die "未生成预期文件：$OUTFILE"
-chmod 0755 "$OUTFILE"
-
-# 解包最终 AppImage 再检查一次，避免只验证打包前的临时 AppDir。
-mkdir -p "$VERIFY_DIR"
-(
-  cd "$VERIFY_DIR"
-  "$OUTFILE" --appimage-extract >/dev/null
-)
-readonly VERIFY_APPDIR="$VERIFY_DIR/squashfs-root"
-[[ -x "$VERIFY_APPDIR/AppRun" ]] || die "最终 AppImage 缺少 AppRun。"
-[[ -f "$VERIFY_APPDIR/wechat.desktop" ]] || die "最终 AppImage 缺少 wechat.desktop。"
-[[ -f "$VERIFY_APPDIR/wechat.png" ]] || die "最终 AppImage 缺少 wechat.png。"
-
-verify_bundled_library() {
-  local library_pattern="$1"
-  local library_label="$2"
-  local library_path
-
-  library_path="$(
-    # DwarFS uruntime 将 squashfs-root 提取为指向 AppDir 的入口链接；只跟随这个命令行链接。
-    find -H "$VERIFY_APPDIR" \
-      -type f \
-      -name "$library_pattern" \
-      -print \
-      -quit
-  )"
-  [[ -n "$library_path" ]] || die "最终 AppImage 缺少 $library_label 的实际库文件。"
-}
-
-verify_bundled_library 'libpulse.so.*' libpulse.so.0
-verify_bundled_library 'libpulse-simple.so.*' libpulse-simple.so.0
-
-# 确认最终包内的 .node 仍是原生模块，没有被替换成与 AppRun 相同的 sharun 入口。
-mapfile -d '' verify_node_modules < <(
-  find -H "$VERIFY_APPDIR" -type f -name '*.node' -print0
-)
-[[ ${#verify_node_modules[@]} -gt 0 ]] || die "最终 AppImage 缺少 WeChat Node 原生模块。"
-for node_module in "${verify_node_modules[@]}"; do
-  readelf -h "$node_module" >/dev/null 2>&1 || \
-    die "最终 AppImage 中的 Node 模块不是 ELF：$node_module"
-  [[ ! "$node_module" -ef "$VERIFY_APPDIR/AppRun" ]] || \
-    die "最终 AppImage 中的 Node 模块被错误替换成 sharun：$node_module"
-done
-
-# 在隔离 HOME、D-Bus 会话和虚拟 X11 中直接启动最终 AppImage；正常 GUI 会持续运行到超时。
-mkdir -p "$SMOKE_HOME" "$SMOKE_RUNTIME"
-chmod 0700 "$SMOKE_RUNTIME"
-set +e
-HOME="$SMOKE_HOME" \
-XDG_RUNTIME_DIR="$SMOKE_RUNTIME" \
-QT_QPA_PLATFORM=xcb \
-APPIMAGE_EXTRACT_AND_RUN=1 \
-timeout 30s xvfb-run -a dbus-run-session -- \
-  "$OUTFILE" >"$SMOKE_LOG" 2>&1
-smoke_status=$?
-set -e
-
-if [[ "$smoke_status" -ne 124 ]]; then
-  tail -n 250 "$SMOKE_LOG" >&2 || true
-  die "最终 AppImage 图形启动测试提前退出，状态码：$smoke_status"
-fi
-if grep -Eqi \
-  'error while loading shared libraries|symbol lookup error|Could not load the Qt platform plugin|Segmentation fault|Aborted \(core dumped\)' \
-  "$SMOKE_LOG"; then
-  tail -n 250 "$SMOKE_LOG" >&2 || true
-  die "最终 AppImage 启动日志包含致命错误。"
-fi
-
-sha256sum "$OUTFILE" > "$OUTFILE.sha256"
-
-# 最终 AppImage 与图形启动检查成功后输出统一的软件版本元数据。
-printf '%s\n' "$VERSION" > "$DIST_DIR/version.txt"
-
-log "构建完成：$OUTFILE"
+# 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
+"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

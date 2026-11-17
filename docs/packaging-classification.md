@@ -142,6 +142,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | rvncconnect | [build_rvncconnect.sh](../rvncconnect/build_rvncconnect.sh) | 官方校验页面中的最新稳定版 x64 DEB；公共入口核对 SHA-256、安装并解包，返回包内实际版本。 | Flutter / GTK3；gtk | [专属差异](../rvncconnect/docs/template-deviations.md) |
 | RealVNC Viewer | [build_vncviewer.sh](../vncviewer/build_vncviewer.sh) | 固定从本仓库 `original-package-archive` 获取官方 x64 DEB，公共入口核对 GitHub SHA-256 并读取包内版本。 | X11；无 Qt/GTK 框架插件 | [应用说明](../vncviewer/README.md) |
 | Remmina | [build_remmina.sh](../remmina/build_remmina.sh) | Ubuntu 24.04 仓库的 Remmina 与协议插件；各包按已安装版本下载并解包，版本以 remmina 主包为准。 | GTK3 / WebKitGTK；gtk、gstreamer | [专属差异](../remmina/docs/template-deviations.md) |
+| WeChat | [build_wechat.sh](../wechat/build_wechat.sh) | 官网动态 x86_64 DEB；公共入口安装并按原布局解包同一份包，版本读取完整 control 元数据。 | 官方私有运行目录 / GTK3 部署；gtk | [专属差异](../wechat/docs/template-deviations.md) |
 | XnView MP | [build_xnviewmp.sh](../xnviewmp/build_xnviewmp.sh) | 官方校验清单中的最新稳定版 x64 DEB；公共入口校验后，将同一份包安装并按原布局解包，返回实际版本。 | Qt6；qt | [专属差异](../xnviewmp/docs/template-deviations.md) |
 
 专属补库、桌面入口调整、AppRun 和 patches 处理按各应用的差异说明保留，不作为同类程序的默认步骤。
