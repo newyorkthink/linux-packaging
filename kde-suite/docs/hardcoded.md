@@ -53,3 +53,14 @@ printf '%s\n' "$KDE_SUITE_UPDATE_VERSION" > "$SCRIPT_DIR/dist/version.txt"
 | `deploy_app_integration.sh` | 原 `okular_ark.sh` 的职责已覆盖多款应用和共享运行环境，新名称反映实际职责；仅重命名，文件内容、调用顺序和执行权限保留，source 与版本指纹清单同步更新。 |
 
 这些路径来自当前仓库结构和已存在的公共接口，不锁定应用或打包工具版本。配置文件不会写入宿主系统目录。
+
+## 静态资源来源目录
+
+本项为静态文件归类，没有新的故障日志。原构建脚本从当前软件目录直接读取 `kde-suite.svg` 与 `org.kde.kdesuite.desktop`；本次原样移动后，源路径对应改为：
+
+```sh
+export ICON="$SCRIPT_DIR/resources/kde-suite.svg"
+export DESKTOP="$SCRIPT_DIR/resources/org.kde.kdesuite.desktop"
+```
+
+`resources/` 只用于仓库内静态资源归类，选择依据是这两份文件属于套件入口与图标资源，不是构建脚本。复制源路径和功能文件指纹使用同一组真实相对路径；文件内容、成品中的资源位置、desktop 文件名、`Icon=kde-suite` 和 `Exec=kde-suite-launcher` 保持不变。没有固定用户主目录、临时挂载目录或应用版本。

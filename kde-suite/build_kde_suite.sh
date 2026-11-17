@@ -68,10 +68,10 @@ KDE_SUITE_BUILD_FILES=(
     deploy_icon_theme.sh
     deploy_suite_apps.sh
     deploy_utility_apps.sh
-    kde-suite.svg
+    resources/kde-suite.svg
     kde_suite_launcher.cpp
     deploy_app_integration.sh
-    org.kde.kdesuite.desktop
+    resources/org.kde.kdesuite.desktop
 )
 
 KDE_SUITE_FINGERPRINT_INPUT="$(mktemp)"

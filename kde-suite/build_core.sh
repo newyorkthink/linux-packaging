@@ -43,8 +43,8 @@ ARCH="$(uname -m)"
 export ARCH
 
 # KDE Suite 使用自己的启动器桌面文件和图标；直接运行 AppImage 或 kde-suite 入口时打开启动器。
-export ICON="$SCRIPT_DIR/kde-suite.svg"
-export DESKTOP="$SCRIPT_DIR/org.kde.kdesuite.desktop"
+export ICON="$SCRIPT_DIR/resources/kde-suite.svg"
+export DESKTOP="$SCRIPT_DIR/resources/org.kde.kdesuite.desktop"
 export OUTPATH="$SCRIPT_DIR/dist"
 export OUTNAME="kde-suite.AppImage"
 export DEPLOY_OPENGL=1
@@ -189,7 +189,7 @@ for icon_theme in breeze breeze-dark; do
 done
 mkdir -p AppDir/share/icons/hicolor/scalable/apps
 cp -a -- /usr/share/icons/hicolor/index.theme AppDir/share/icons/hicolor/index.theme
-cp -a -- "$SCRIPT_DIR/kde-suite.svg" AppDir/share/icons/hicolor/scalable/apps/kde-suite.svg
+cp -a -- "$SCRIPT_DIR/resources/kde-suite.svg" AppDir/share/icons/hicolor/scalable/apps/kde-suite.svg
 
 while IFS= read -r -d '' filelight_icon; do
     relative_icon="${filelight_icon#/usr/share/icons/}"
@@ -239,7 +239,7 @@ done
 
 # 为 kdeconnect:// 注册 AppImage 内部处理程序，使 Browse device 优先启动内置 Dolphin。
 mkdir -p AppDir/share/applications AppDir/share/kglobalaccel
-cp -a -- "$SCRIPT_DIR/org.kde.kdesuite.desktop" AppDir/share/applications/
+cp -a -- "$SCRIPT_DIR/resources/org.kde.kdesuite.desktop" AppDir/share/applications/
 cp -a -- /usr/share/applications/org.kde.konsole.desktop AppDir/share/applications/
 cp -a -- /usr/share/applications/org.kde.filelight.desktop AppDir/share/applications/
 cp -a -- /usr/share/kglobalaccel/org.kde.konsole.desktop AppDir/share/kglobalaccel/

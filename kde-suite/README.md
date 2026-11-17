@@ -156,6 +156,7 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - `deploy_icon_theme.sh`：保留 Breeze/Breeze Dark，并创建 `Flat-Remix-Blue-Dark` 到 Breeze 的兼容入口。
 - `deploy_app_integration.sh`：应用集成脚本，负责 Okular、Ark、Gwenview、Kompare、文件关联、KDE Connect 后台、Qt6ct 运行环境、中文翻译和 Fcitx5；由原 `okular_ark.sh` 原样重命名，文件内容及调用顺序保持不变。
 - `apps.ini`：图形启动器的应用清单和中英文名称。
+- `resources/`：套件静态资源，保存 `org.kde.kdesuite.desktop` 与 `kde-suite.svg`。构建脚本从这里读取，成品内仍使用既有 desktop 和图标位置。
 
 ## 已知限制与非致命日志
 
@@ -241,6 +242,12 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - **后续事项：** DwarFS AppImage 图标、视频信息面板黑屏、深色启动条纹及其他既有事项继续沿用原记录，本轮不实施补丁或重复失败尝试；Filelight 的实机状态仍以其独立记录为准。
 - **核对结果：** 已静态核对依赖参数、调用引用、改名前后集成文件内容一致性、版本保存顺序、文件权限和完整差异；本次没有运行本地命令、构建或新增运行测试。
 
+### 2026-11-17：将套件静态资源归入 resources
+
+- **目录整理：** 将 `org.kde.kdesuite.desktop` 与 `kde-suite.svg` 原样移入 `resources/`；两份资源内容及 `0644` 权限不变。
+- **引用同步：** 更新 `build_core.sh` 的 `ICON`、`DESKTOP` 和资源复制源路径，以及 `build_kde_suite.sh` 的功能文件指纹清单；输出仍使用原有 AppDir 根图标、Hicolor 图标和 applications desktop 路径，启动器和 desktop 内的名称及执行命令保持原样。
+- **核对结果：** 已静态核对所有源路径引用、版本指纹清单、成品路径和移动前后资源内容一致性。本次只做目录维护，没有新增补丁或运行测试。
+
 ## 发布前检查
 
 构建脚本会在压缩前自动检查启动器、`apps.ini` 中全部命令、Qt6ct/KFind/KDF、Qt6ct 配色路径迁移 Hook、KIO 服务与插件、SSHFS/FUSE 边界、Qt/Kirigami/Breeze、中文翻译、Fcitx5、MIME、图标、Activities、yt-dlp/Python/EJS/Deno，并在 Xvfb 中启动 Haruna 做 QML 运行时检查。
@@ -291,7 +298,7 @@ kde-suite+linuxpackaging.<12位指纹>
 该指纹同时包含两类输入：
 
 - **主要组件实际包版本**：Ark、Deno、Dolphin、Filelight、Gwenview、Haruna、KActivityManagerD、KDE Connect、KDF、KFind、Kompare、Konsole、Okular、Qt6ct、yt-dlp。
-- **套件自身功能文件内容**：`apps.ini`、`build_core.sh`、`build_kde_suite.sh`、各 deploy 脚本（包含 `deploy_app_integration.sh`）、启动器源码、desktop 和图标。
+- **套件自身功能文件内容**：`apps.ini`、`build_core.sh`、`build_kde_suite.sh`、各 deploy 脚本（包含 `deploy_app_integration.sh`）、启动器源码，以及 `resources/` 中的 desktop 和图标。
 
 因此：
 

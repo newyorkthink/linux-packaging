@@ -56,3 +56,14 @@ chmod +x AppDir/bin/filelight AppDir/bin/kde-suite-filelight
 ### 验证与维护范围
 
 本轮只做现有流程的公共步骤复用及文件职责整理，不增加依赖、补丁、测试脚本或 workflow。已进行只读源码与差异核对；未运行构建或实机检查。DwarFS 缩略图等原待处理事项与当前整理分别记录，原始历史及失败尝试保持完整。
+
+## 套件静态资源
+
+套件自身的 desktop 文件和 SVG 图标集中放在 `resources/`，程序清单继续放在 `apps.ini`。构建入口通过 `$SCRIPT_DIR/resources/` 定位资源，功能文件指纹清单同步使用这两个相对路径：
+
+```text
+resources/org.kde.kdesuite.desktop
+resources/kde-suite.svg
+```
+
+这里只调整仓库中的资源来源目录。成品中的根目录 `kde-suite.svg`、`share/icons/hicolor/scalable/apps/kde-suite.svg` 和 `share/applications/org.kde.kdesuite.desktop` 保持既有位置；启动器读取的包内路径、desktop 的 `Icon` 和 `Exec` 均保持原样。资源按原内容和 `0644` 权限移动，未改变资源生成方式或程序运行逻辑。
