@@ -39,6 +39,26 @@ sudo aptitude install ufw pkexec polkitd
 
 需要宿主机已经安装可执行的 `/usr/sbin/ufw` 和 Polkit。没有 pkexec 时，只能在终端里用 sudo 授权。`/tmp` 必须允许执行程序。不要在没有图形环境变量时用 sudo 启动整个 AppImage。若整个 AppImage 已经由 root 挂载，则直接使用该挂载，不再复制。
 
+## 首次启动与配置保存位置
+
+本 AppImage 先检查宿主机是否有可执行的 `/usr/sbin/ufw`。没有时会提示并退出，尚未启动 Gufw 的 Python 入口，因此不会初始化宿主 `/etc/gufw/`。安装 UFW 本身与 Gufw 的配置初始化是两个步骤。启动检查见 [AppRun](./AppRun#L208-L211)。
+
+通过启动检查并完成授权后，Gufw 读取宿主配置。当 `/etc/gufw/` 中一个 `*.profile` 都没有时，会自动创建家庭、办公室、公共三套方案，并记录当前配置。已有配置时读取、更新原文件，退出 AppImage 不会清理这些持久配置。
+
+Gufw 自己的主要配置放在系统目录，因此通常不会在用户的 `~/.config/` 中找到对应配置：
+
+| 位置 | 用途 |
+| --- | --- |
+| `/etc/gufw/gufw.cfg` | 当前选中的方案、窗口与界面偏好 |
+| `/etc/gufw/*.profile` | 各方案的状态、默认策略及 Gufw 保存的规则编辑信息 |
+| `/var/log/gufw.log` | Gufw 界面的操作日志 |
+| `/etc/ufw/user.rules`、`/etc/ufw/user6.rules` | UFW 的 IPv4、IPv6 用户规则 |
+| `/etc/default/ufw`、`/etc/ufw/ufw.conf` | UFW 的默认策略、启用状态等设置 |
+
+AppImage 的程序、Python、GTK 和其他运行资源留在包内或临时运行副本中，启动流程不会将它们安装到宿主 `/usr/`。副本中的 `etc/gufw/app_profiles` 是应用自带的预设规则资源，与宿主 `/etc/gufw/*.profile` 保存的个人配置方案用途不同。
+
+配置和日志路径见 [Gufw 后端](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/ufw_backend.py#L21-L28)，初始化条件见 [默认配置读取](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/firewall.py#L264-L291)，UFW 规则位置见 [官方框架手册](https://manpages.ubuntu.com/manpages/noble/man8/ufw-framework.8.html)。
+
 ## 界面颜色与监听报告
 
 Rules（规则）和 Report（报告）的策略颜色含义如下：
@@ -67,6 +87,18 @@ Report 来自 `ufw show listening`，显示监听端口和对应程序。程序�
 首选项中的“显示配置文件”只控制配置选择器等界面的显示；隐藏选择器不会删除这些配置。日志中的 `Home > 家庭` 等记录来自上游按界面语言处理配置名称的逻辑，不代表新建了另一套防火墙，也不能仅凭重复日志判定规则被重建。
 
 源码依据：[配置切换](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/firewall.py#L50-L97)、[默认配置与名称处理](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/firewall.py#L264-L318)、[显示配置开关](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/view/preferences.py#L182-L200)。
+
+### 只保留一个配置与清理旧配置
+
+只使用公共方案时，可以在 Gufw 首选项中删除未使用的家庭、办公室方案。删除的是所选方案的配置文件，不会因此清空当前公共方案的实际 UFW 规则；界面也会阻止删除当前正在使用的方案。
+
+保留公共的 `.profile`，且 `gufw.cfg` 仍指向它时，正常重启不会自动补回家庭、办公室。若所有 `.profile` 都被清理，后续正常启动会重新初始化三套方案；若当前方案记录为空或指向丢失的文件，也可能回退或重建相应方案。
+
+完全不用 Gufw 时，可在退出程序后清理不再需要的 `/etc/gufw/gufw.cfg` 和 `*.profile`，这会丢失相应偏好与方案。不要把整个 `/etc/gufw/` 一概当作缓存：系统安装的版本还可能在其中保存 `app_profiles` 预设资源。
+
+清理 Gufw 配置不等于卸载、关闭或重置 UFW，也不会自动清空系统当前的防火墙规则。`/etc/ufw/` 保存实际防火墙配置，不能混作 Gufw 界面缓存删除。
+
+源码依据：[当前方案删除保护](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/view/preferences.py#L148-L160)、[配置删除入口](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/firewall.py#L107-L109)、[配置文件删除](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/ufw_backend.py#L290-L295)、[初始化与回退](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/firewall.py#L264-L291)。
 
 ## 规则编辑与删除限制
 
@@ -99,6 +131,8 @@ sudo ufw status numbered
 
 Gufw 以 root 运行，对话框通过 `PKEXEC_UID` 或 `SUDO_UID` 查询启动用户的主目录；没有有效启动用户信息时，使用当前运行账号的主目录，再回退到根目录。它不再跟随读取包内预设规则时的工作目录。AppImage 的 `/tmp/gufw-runtime.*` 只用于运行副本，程序退出后会清理，不应作为导出文件的保存位置。
 
+导出的 `.profile` 是所选 Gufw 方案的副本。上游只保存带有 Gufw 编辑参数的规则，不能把它当作通过命令行或其他工具创建的全部 UFW 规则的完整备份。依据见 [方案写入逻辑](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/ufw_backend.py#L187-L229)。
+
 ## 版本元数据
 
 公共签名 APT 下载入口返回实际 Gufw DEB 的完整版本，并保存同次来源版本文件；公共封装入口把该版本写入 `dist/version.txt`。GitHub Actions 在构建脚本成功退出后使用该文件发布 `gufw.AppImage` 并更新软件版本清单。
@@ -115,10 +149,12 @@ Gufw 以 root 运行，对话框通过 `PKEXEC_UID` 或 `SUDO_UID` 查询启动�
 | 中文界面与深色主题 | 中文菜单、深色主窗口及列表文字显示正常。 |
 | X11 中文输入 | 授权后的界面文本框可以输入中文。 |
 | 规则与监听报告 | 规则列表及监听端口、应用程序报告正常显示。 |
+| 导出窗口默认目录 | 修复后默认打开启动用户的主目录。 |
 
 #### 运行观察
 
 - 实机删除操作后，界面显示“规则被删除”，日志记录了 UFW 删除命令调用。
+- 删除未使用的家庭、办公室方案后，界面保持选中公共方案并显示当前规则列表。
 
 ## 本次核对
 
@@ -176,4 +212,5 @@ ImportError: /usr/lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.43' not found
 - 用户实机发现导出对话框默认打开 `/tmp/gufw-runtime.XXXXXX/etc/gufw/app_profiles`，与临时运行副本的资源目录相同。
 - 上游 `Add._load_from_files` 使用 `os.chdir(DIR_PROFILES)`，会改变整个进程的工作目录；打包时该目录已映射到运行副本。导入、导出共用的 `_file_dialog` 没有指定起始目录，因此对话框会进入包内资源目录。保存在运行副本中的文件会随程序退出清理。
 - 修复位于 `patches/prepare_gufw_sources.py`：为配置文件选择器显式指定启动用户的主目录，按授权器提供的 UID 查询系统账号；目录不存在时逐级回退。补丁识别已有插入内容，避免重复添加；插入点不唯一时明确退出。
+- 后续用户实机截图确认，导出窗口默认打开启动用户的主目录；结果见[实机验证](#实机验证)。
 - 已核对当前上游调用位置、现有提权环境传递、GTK 目录接口及完整补丁差异。依据：[预设规则读取](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/view/add.py#L503-L508)、[文件对话框](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/view/gufw.py#L670-L698)、[GTK 目录接口](https://docs.gtk.org/gtk3/method.FileChooser.set_current_folder.html)、[pkexec 启动用户信息](https://www.freedesktop.org/software/polkit/docs/latest/pkexec.1.html)、[sudo 环境变量](https://manpages.ubuntu.com/manpages/noble/man8/sudo.8.html)。
