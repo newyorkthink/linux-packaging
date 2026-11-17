@@ -39,6 +39,16 @@ sudo aptitude install ufw pkexec polkitd
 
 需要宿主机已经安装可执行的 `/usr/sbin/ufw` 和 Polkit。没有 pkexec 时，只能在终端里用 sudo 授权。`/tmp` 必须允许执行程序。不要在没有图形环境变量时用 sudo 启动整个 AppImage。若整个 AppImage 已经由 root 挂载，则直接使用该挂载，不再复制。
 
+## 规则编辑与删除限制
+
+编辑规则时，如果出现“不变的规则／你不能编辑从 ufw 上添加的规则”，表示这条规则没有匹配到 Gufw 保存的编辑参数。常见于通过 `ufw` 命令行或其他工具添加的规则；Gufw 配置记录缺失或与当前规则不匹配时，也可能出现同一提示。
+
+- 通过 Gufw 创建，且能与当前配置中保存的编辑参数匹配的规则，可以在界面编辑。
+- 缺少这些信息的规则仍可在 Gufw 中显示和删除；删除按规则编号调用 UFW，不要求编辑参数。
+- 该提示只限制编辑，不会删除或停用现有规则。已有规则可继续用原工具管理，直接去掉弹窗也不能补齐编辑参数。
+
+这是上游的规则管理方式。源码依据：[编辑入口](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/view/gufw.py#L523-L529)、[配置记录匹配](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/firewall.py#L320-L352)、[删除实现](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/ufw_backend.py#L450-L458)。
+
 ## 版本元数据
 
 公共签名 APT 下载入口返回实际 Gufw DEB 的完整版本，并保存同次来源版本文件；公共封装入口把该版本写入 `dist/version.txt`。GitHub Actions 在构建脚本成功退出后使用该文件发布 `gufw.AppImage` 并更新软件版本清单。
