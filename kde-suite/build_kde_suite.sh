@@ -61,7 +61,7 @@ KDE_SUITE_COMPONENT_PACKAGES=(
 )
 
 KDE_SUITE_BUILD_FILES=(
-    apps.ini
+    config/apps.ini
     build_core.sh
     build_kde_suite.sh
     deploy_activities.sh
@@ -69,7 +69,7 @@ KDE_SUITE_BUILD_FILES=(
     deploy_suite_apps.sh
     deploy_utility_apps.sh
     resources/kde-suite.svg
-    kde_suite_launcher.cpp
+    src/kde_suite_launcher.cpp
     deploy_app_integration.sh
     resources/org.kde.kdesuite.desktop
 )

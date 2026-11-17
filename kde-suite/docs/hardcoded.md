@@ -64,3 +64,9 @@ export DESKTOP="$SCRIPT_DIR/resources/org.kde.kdesuite.desktop"
 ```
 
 `resources/` 只用于仓库内静态资源归类，选择依据是这两份文件属于套件入口与图标资源，不是构建脚本。复制源路径和功能文件指纹使用同一组真实相对路径；文件内容、成品中的资源位置、desktop 文件名、`Icon=kde-suite` 和 `Exec=kde-suite-launcher` 保持不变。没有固定用户主目录、临时挂载目录或应用版本。
+
+## 启动器配置与源码来源目录
+
+本项为文件职责归类，没有新的故障日志。`apps.ini` 和 `kde_suite_launcher.cpp` 分别原样归入 `config/` 和 `src/`，因此构建输入改为 `$SCRIPT_DIR/config/apps.ini` 与 `$SCRIPT_DIR/src/kde_suite_launcher.cpp`。两个目录分别表达应用清单和 C++ 源码的职责。
+
+成品中的 `AppDir/share/kde-suite/apps.ini`、原启动器二进制输出路径及其运行时读取路径保留；只改变仓库中的构建输入来源。配置与源码内容、`0644` 权限及功能文件指纹算法保持原样，指纹文件清单同步为真实新路径。

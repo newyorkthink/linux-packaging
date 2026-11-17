@@ -155,7 +155,8 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - `deploy_activities.sh`：部署 `kactivitymanagerd`、活动插件、Qt SQLite 驱动、D-Bus 描述和 Dolphin 启动包装。
 - `deploy_icon_theme.sh`：保留 Breeze/Breeze Dark，并创建 `Flat-Remix-Blue-Dark` 到 Breeze 的兼容入口。
 - `deploy_app_integration.sh`：应用集成脚本，负责 Okular、Ark、Gwenview、Kompare、文件关联、KDE Connect 后台、Qt6ct 运行环境、中文翻译和 Fcitx5；由原 `okular_ark.sh` 原样重命名，文件内容及调用顺序保持不变。
-- `apps.ini`：图形启动器的应用清单和中英文名称。
+- `config/apps.ini`：图形启动器的应用清单和中英文名称，构建时复制为包内 `share/kde-suite/apps.ini`。
+- `src/kde_suite_launcher.cpp`：Qt6 Widgets 启动器源码，由基础构建脚本编译；运行时继续读取包内应用清单。
 - `resources/`：套件静态资源，保存 `org.kde.kdesuite.desktop` 与 `kde-suite.svg`。构建脚本从这里读取，成品内仍使用既有 desktop 和图标位置。
 
 ## 已知限制与非致命日志
@@ -248,9 +249,15 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - **引用同步：** 更新 `build_core.sh` 的 `ICON`、`DESKTOP` 和资源复制源路径，以及 `build_kde_suite.sh` 的功能文件指纹清单；输出仍使用原有 AppDir 根图标、Hicolor 图标和 applications desktop 路径，启动器和 desktop 内的名称及执行命令保持原样。
 - **核对结果：** 已静态核对所有源路径引用、版本指纹清单、成品路径和移动前后资源内容一致性。本次只做目录维护，没有新增补丁或运行测试。
 
+### 2026-11-17：归类启动器配置与源码
+
+- **目录职责：** 将 `apps.ini` 原样移入 `config/`，将 `kde_suite_launcher.cpp` 原样移入 `src/`；文件内容和 `0644` 权限保持不变。
+- **引用同步：** 更新基础脚本的编译输入、清单复制源和相关说明，功能文件指纹使用 `config/apps.ini` 与 `src/kde_suite_launcher.cpp`。编译输出仍为原启动器路径，清单仍安装到 `AppDir/share/kde-suite/apps.ini`，启动器运行时路径与已有功能保持原样。
+- **核对结果：** 已静态核对源码包含关系、编译与复制路径、版本指纹和移动前后文件内容一致性。本次为目录维护，没有新增补丁或运行测试。
+
 ## 发布前检查
 
-构建脚本会在压缩前自动检查启动器、`apps.ini` 中全部命令、Qt6ct/KFind/KDF、Qt6ct 配色路径迁移 Hook、KIO 服务与插件、SSHFS/FUSE 边界、Qt/Kirigami/Breeze、中文翻译、Fcitx5、MIME、图标、Activities、yt-dlp/Python/EJS/Deno，并在 Xvfb 中启动 Haruna 做 QML 运行时检查。
+构建脚本会在压缩前自动检查启动器、`config/apps.ini` 中全部命令、Qt6ct/KFind/KDF、Qt6ct 配色路径迁移 Hook、KIO 服务与插件、SSHFS/FUSE 边界、Qt/Kirigami/Breeze、中文翻译、Fcitx5、MIME、图标、Activities、yt-dlp/Python/EJS/Deno，并在 Xvfb 中启动 Haruna 做 QML 运行时检查。
 
 发布后至少人工确认以下结果：
 
@@ -298,7 +305,7 @@ kde-suite+linuxpackaging.<12位指纹>
 该指纹同时包含两类输入：
 
 - **主要组件实际包版本**：Ark、Deno、Dolphin、Filelight、Gwenview、Haruna、KActivityManagerD、KDE Connect、KDF、KFind、Kompare、Konsole、Okular、Qt6ct、yt-dlp。
-- **套件自身功能文件内容**：`apps.ini`、`build_core.sh`、`build_kde_suite.sh`、各 deploy 脚本（包含 `deploy_app_integration.sh`）、启动器源码，以及 `resources/` 中的 desktop 和图标。
+- **套件自身功能文件内容**：`config/apps.ini`、`build_core.sh`、`build_kde_suite.sh`、各 deploy 脚本（包含 `deploy_app_integration.sh`）、`src/kde_suite_launcher.cpp`，以及 `resources/` 中的 desktop 和图标。
 
 因此：
 

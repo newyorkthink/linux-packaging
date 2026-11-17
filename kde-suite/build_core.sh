@@ -3,7 +3,7 @@
 # KDE Suite AppImage 构建说明
 #
 # 本脚本将 KDE Connect、Dolphin、Konsole、Filelight、KIO、SSHFS、KDialog 及必要的 KDE/KF6 运行组件打包为一个 KDE Suite AppImage。
-# - kde-suite.AppImage 默认启动可配置的 Qt6 Widgets 图形启动器，应用列表读取 kde-suite/apps.ini；以后增加程序只需打包程序并更新配置，不必改启动器源码。
+# - kde-suite.AppImage 默认启动可配置的 Qt6 Widgets 图形启动器，应用列表读取 kde-suite/config/apps.ini；以后增加程序只需打包程序并更新配置，不必改启动器源码。
 # - 启动器支持简体中文，并可在浅色与深色界面之间切换；Breeze 与 Breeze Dark 图标主题同时打包。
 # - kde-suite、kdeconnect、dolphin、konsole 等外部软链接都指向同一个 AppImage 文件，不需要分别制作或保存多个 AppImage。
 # - kde-suite 启动器从当前已挂载的 $APPDIR/bin 直接启动 KDE Connect、Dolphin、Konsole 和 Filelight；启动器保持运行期间，所有内部程序共用同一个 FUSE 挂载，不需要分别挂载。
@@ -57,9 +57,9 @@ export STARTUPWMCLASS="kde-suite-launcher"
 # 常用包及剪贴板、输入法、Qt 主题、Breeze 风格和图标组件
 "$SCRIPT_DIR/../common/arch/install_packages.sh" wl-clipboard xclip fcitx5-qt egl-wayland libxcb xcb-util xcb-util-keysyms libxss extra-cmake-modules xcb-util-renderutil xcb-util-wm xcb-util-image xcb-util-cursor libxkbcommon libxkbcommon-x11 mesa libglvnd adwaita-qt6 qt6-base qt6-svg qt6-tools qt6ct lxqt-qtplugin kvantum breeze breeze-icons
 
-# 编译通用 Qt6 Widgets 启动器。应用清单由 apps.ini 提供，后续增加应用不需要修改或重新设计启动器源码。
+# 编译通用 Qt6 Widgets 启动器。应用清单由 config/apps.ini 提供，后续增加应用不需要修改或重新设计启动器源码。
 LAUNCHER_BIN="/tmp/kde-suite-launcher"
-g++ -std=c++17 -O2 -pipe -fPIC "$SCRIPT_DIR/kde_suite_launcher.cpp" -o "$LAUNCHER_BIN" \
+g++ -std=c++17 -O2 -pipe -fPIC "$SCRIPT_DIR/src/kde_suite_launcher.cpp" -o "$LAUNCHER_BIN" \
   $(pkg-config --cflags --libs Qt6Widgets)
 
 # KDE Connect 及相关运行时依赖；SSHFS、KIO Extras、KDialog 和 Portal 用于文件浏览、发送和选择
@@ -118,7 +118,7 @@ fi
 # 安装启动器配置并创建明确的内部命令入口。
 # 外部 kde-suite、kdeconnect、dolphin、konsole、filelight 软链接会由 AppRun 按同名 bin 入口分派；不再依赖默认程序回退。
 mkdir -p AppDir/share/kde-suite
-cp -a -- "$SCRIPT_DIR/apps.ini" AppDir/share/kde-suite/apps.ini
+cp -a -- "$SCRIPT_DIR/config/apps.ini" AppDir/share/kde-suite/apps.ini
 ln -sfn kde-suite-launcher AppDir/bin/kde-suite
 ln -sfn kdeconnect-app AppDir/bin/kdeconnect
 

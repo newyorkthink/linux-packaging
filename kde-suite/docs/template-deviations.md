@@ -59,7 +59,7 @@ chmod +x AppDir/bin/filelight AppDir/bin/kde-suite-filelight
 
 ## 套件静态资源
 
-套件自身的 desktop 文件和 SVG 图标集中放在 `resources/`，程序清单继续放在 `apps.ini`。构建入口通过 `$SCRIPT_DIR/resources/` 定位资源，功能文件指纹清单同步使用这两个相对路径：
+套件自身的 desktop 文件和 SVG 图标集中放在 `resources/`，程序清单位于 `config/apps.ini`，启动器源码位于 `src/kde_suite_launcher.cpp`。构建入口通过 `$SCRIPT_DIR/resources/` 定位资源，功能文件指纹清单同步使用这两个相对路径：
 
 ```text
 resources/org.kde.kdesuite.desktop
@@ -67,3 +67,7 @@ resources/kde-suite.svg
 ```
 
 这里只调整仓库中的资源来源目录。成品中的根目录 `kde-suite.svg`、`share/icons/hicolor/scalable/apps/kde-suite.svg` 和 `share/applications/org.kde.kdesuite.desktop` 保持既有位置；启动器读取的包内路径、desktop 的 `Icon` 和 `Exec` 均保持原样。资源按原内容和 `0644` 权限移动，未改变资源生成方式或程序运行逻辑。
+
+## 启动器配置与源码
+
+`config/apps.ini` 保存应用清单，`src/kde_suite_launcher.cpp` 保存启动器 C++ 源码，两者不混入 desktop / 图标资源目录。文件按原内容和 `0644` 权限移动，基础脚本只调整编译输入和清单复制源；清单在成品内仍位于 `share/kde-suite/apps.ini`，启动器二进制输出和运行时路径保持原样。功能文件指纹清单同步使用新的仓库相对路径，保留原有指纹计算方式。
