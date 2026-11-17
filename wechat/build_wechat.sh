@@ -33,8 +33,11 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_
 # 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
 VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" --url "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb" "" "$SOURCE_DIR/WeChatLinux_x86_64.deb" "$APPDIR" "wechat" "amd64")"
 
-# 本程序专属处理：准备完整应用及其资源，并取得实际版本。
-VERSION="$("$SCRIPT_DIR/patches/prepare_wechat_appdir.sh" prepare "$SOURCE_DIR" "$APPDIR")"
+# 本程序专属处理：规范包内主桌面入口，根 desktop 和图标交给 linuxdeploy 部署。
+sed -i -e 's|^Exec=.*$|Exec=wechat %U|' -e 's|^Icon=.*$|Icon=wechat|' "$APPDIR/usr/share/applications/wechat.desktop"
+
+# 本程序专属处理：复用公共入口部署同一构建环境的 NSS/NSPR 及动态加载模块。
+"$SCRIPT_DIR/../common/linuxdeploy/copy_nss_runtime.sh" "$APPDIR/usr/lib" --with-nspr
 
 ############# 准备 AppRun ##############
 
@@ -74,8 +77,9 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 
 ############### 整理产物 ###############
 
-# 本程序专属处理：在依赖部署后完成应用文件整理。
-"$SCRIPT_DIR/patches/prepare_wechat_appdir.sh" finalize "$SOURCE_DIR" "$APPDIR"
+# 本程序专属处理：AppRun 和 GTK 部署完成后，收集 opt 主程序及已确认需要的 PulseAudio 库。
+MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
+linuxdeploy --appdir "$APPDIR" --deploy-deps-only "$APPDIR/opt/wechat/wechat" --library "/usr/lib/$MULTIARCH/libpulse.so.0" --library "/usr/lib/$MULTIARCH/libpulse-simple.so.0"
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

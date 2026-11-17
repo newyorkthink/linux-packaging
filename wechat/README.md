@@ -6,7 +6,7 @@
 
 ## 上游来源与打包方式
 
-采用现有 [linuxdeploy GTK DEB 模板](../templates/appimage/linuxdeploy-gtk-deb.sh)，由仓库统一远端生成器原样生成构建脚本。公共入口从[微信官方动态地址](https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb)下载同一份 DEB，核对包身份和架构、安装后按原布局解包，版本读取 control 的完整 `Version`，不固定软件版本。
+以现有 [linuxdeploy GTK DEB 模板](../templates/appimage/linuxdeploy-gtk-deb.sh) 为底稿，少量桌面资源和依赖部署命令直接写在主构建脚本的对应分区。公共入口从[微信官方动态地址](https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb)下载同一份 DEB，核对包身份和架构、安装后按原布局解包，版本读取 control 的完整 `Version`，不固定软件版本。
 
 完整保留 `opt/wechat` 以及 WMPF、VLC、ffmpeg 等相邻私有资源。使用官方可显示的 `wechat.desktop` 和 PNG 图标，GTK3 插件部署运行资源；主 ELF 的依赖通过 `--deploy-deps-only` 明确收集，既有 PulseAudio 缺库处理继续保留。最终使用官方 `AppImage/appimagetool` 与 `AppImage/type2-runtime` 封装 SquashFS Type 2 AppImage，发布最终包。
 
@@ -36,7 +36,7 @@
 
 - 继续使用官网动态 DEB 和完整 control 版本，不手工固定旧版本。
 - `build_wechat_old.sh` 是迁移前的逐字节备份，只供查阅历史；构建清单和正式 workflow 不调用它。
-- 程序专属处理放在 `patches/`；可复用机制继续调用 `common/`，不复制下载、安装、封装和版本发布逻辑。
+- 少量 desktop、NSS/NSPR 和主程序依赖部署命令直接写在 `build_wechat.sh`，不另设 `prepare/finalize` 脚本；公共机制继续调用 `common/`。版本直接沿用官方 DEB 公共入口的返回值。
 - 后续修改以实际故障为依据，不把旧版 sharun 的模块权限、路径覆盖或扫描整个私有目录的处理自动迁回标准脚本。
 
 ## 修改记录
@@ -65,4 +65,10 @@
 - 现象：[首次正式构建](https://github.com/newyorkthink/linux-packaging/actions/runs/44136394716/job/134227063762) 停在中间 AppImage 的图标准备，提示 `Icon 名无法放到 AppDir 根目录：/usr/share/icons/hicolor/512x512/apps/wechat`。当时尚未执行 `finalize`。
 - 原因：准备阶段只规范了根 `wechat.desktop`，linuxdeploy 随后从 `usr/share/applications/wechat.desktop` 重新部署根文件，覆盖了已修改的 `Icon`。
 - 修改：先在 AppDir 内规范实际输入 desktop 的 `Exec` 和 `Icon`；根 desktop 和图标交给 linuxdeploy 部署，删除重复的根文件复制及 PNG 遍历。原始 DEB、生成器输出和公共工具保持原样。
-- `prepare` / `finalize` 每次重新构建仍需执行，不能在一次成功后直接删除；用途和保留条件见 [模板差异](./docs/template-deviations.md#阶段的保留条件)。此次仅核对现有失败日志及修正差异，不将其记为新包构建或实机验证通过。
+- 当时仍通过 `prepare` / `finalize` 调用保留必要操作；后续已将命令内联并删除独立脚本，见下一条记录。此次仅核对现有失败日志及修正差异，不将其记为新包构建或实机验证通过。
+
+### 2026-11-18：将少量准备命令直接内联到主构建脚本
+
+- 删除 `patches/prepare_wechat_appdir.sh` 及两个阶段调用，不保留参数分派、入口检查或重复的 DEB 版本读取。
+- 解包后直接规范实际 desktop，并调用公共 NSS/NSPR 入口；GTK 部署后直接执行主 ELF 和 PulseAudio 依赖收集，先后顺序保持原样。
+- 保留标准公共阶段和完整内联 AppRun，桌面与图标仍由 linuxdeploy 部署；当前实现及依据见 [模板差异](./docs/template-deviations.md)。本次仅整理代码位置与说明，未试构建或实机测试。

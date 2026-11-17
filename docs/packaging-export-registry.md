@@ -20,7 +20,7 @@
 
 例如，当前 Electron 直接下载模板要求 `DEPLOY_GTK=1`；`DEPLOY_OPENGL`、`DEPLOY_VULKAN` 则按当前应用的实际需要和已批准方案决定，不是所有程序的必填项。某个变量出现在官方脚本或登记表中，不等于所有应用都应启用。
 
-WeChat 使用 LinuxDeploy GTK DEB 模板生成，设置 `DEPLOY_GTK_VERSION=3`。AppRun 的 `PATH`、`LD_LIBRARY_PATH` 保留真实 `opt/wechat` 与包内 `usr/bin`、`usr/lib`；`XDG_DATA_DIRS`、`GSETTINGS_SCHEMA_DIR`、`GIO_MODULE_DIR` 使用标准包内路径。旧版 `build_wechat_old.sh` 仅保留 quick-sharun、Qt 缩放和 VLC 路径等历史配置，不进入正式链路。[模板差异](../wechat/docs/template-deviations.md)
+WeChat 以 LinuxDeploy GTK DEB 模板为底稿，少量资源准备与依赖收集命令直接内联主脚本，设置 `DEPLOY_GTK_VERSION=3`。AppRun 的 `PATH`、`LD_LIBRARY_PATH` 保留真实 `opt/wechat` 与包内 `usr/bin`、`usr/lib`；`XDG_DATA_DIRS`、`GSETTINGS_SCHEMA_DIR`、`GIO_MODULE_DIR` 使用标准包内路径。旧版 `build_wechat_old.sh` 仅保留 quick-sharun、Qt 缩放和 VLC 路径等历史配置，不进入正式链路。[模板差异](../wechat/docs/template-deviations.md)
 
 Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及可写模块准备阶段，并设置 `DEPLOY_GTK_VERSION=3`。AppRun 指向 `usr/lib/discord`。旧版 `build_discord_old.sh` 保留了 quick-sharun 的开关与显式扫描。[模板差异](../archive/discord/docs/template-deviations.md)
 
