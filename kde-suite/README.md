@@ -39,9 +39,9 @@
 
 | 事项 | 出现位置与现象 | 当前处理决定 |
 | --- | --- | --- |
-| Dolphin 深色启动时文件夹树出现灰黑条纹 | Dolphin 左侧“文件夹”树中，各行底色明显灰黑相间；这是树视图的背景问题，与已恢复的侧栏单色图标分别记录。 | 已有上游同类问题记录，等待上游修复；不恢复已撤回的配色插件或启动注入。详见下节及 [配色方案参考](./docs/dolphin-palette-reference-20261022.md)。 |
+| Dolphin 深色启动时文件夹树出现灰黑条纹 | Dolphin 左侧“文件夹”树中，各行底色明显灰黑相间；这是树视图的背景问题，与已恢复的侧栏单色图标分别记录。 | 已有上游同类问题记录，等待上游修复；不恢复已撤回的配色插件或启动注入。详见下节及 [配色方案参考](./docs/dolphin-palette-reference.md)。 |
 | DwarFS AppImage 显示通用图标 | Dolphin 主文件区中，部分 DwarFS 格式的 `.AppImage` 文件显示通用图标，无法预览包内应用图标；此项与已恢复的文件夹内容拼贴预览分别记录，不能将所有通用图标都归因于 DwarFS。 | 现有读取链路存在格式支持缺口，替代组件尚未完成可靠集成；本轮不更换组件，不影响 AppImage 执行。详见 [DwarFS 缩略图记录](./docs/dwarfs-appimage-thumbnail-reference.md)。 |
-| Dolphin 信息面板部分视频有声音但黑屏 | Dolphin 右侧“信息”面板内的视频预览，部分视频播放时有声音但全程黑屏；与 Haruna 播放窗口分别记录。 | 尚未修复、根因未确定，不能断定属于上游或打包问题；本轮保留现状，不重复已无效的禁用硬件解码等方向，不加入补丁或启动干预。详见 [视频预览黑屏记录](./docs/dolphin-video-preview-black-screen-reference-20261022.md)。 |
+| Dolphin 信息面板部分视频有声音但黑屏 | Dolphin 右侧“信息”面板内的视频预览，部分视频播放时有声音但全程黑屏；与 Haruna 播放窗口分别记录。 | 尚未修复、根因未确定，不能断定属于上游或打包问题；本轮保留现状，不重复已无效的禁用硬件解码等方向，不加入补丁或启动干预。详见 [视频预览黑屏记录](./docs/dolphin-video-preview-black-screen-reference.md)。 |
 | Dolphin“属性 → 共享”提示服务不可用 | 在 Dolphin 中右键文件夹，打开“属性 → 共享”页面时提示“文件共享服务不可用”；这里是把本机文件夹通过 Samba/SMB 共享给其他设备的设置，与 KDE Connect 手机目录浏览分别记录。 | 当前共享页依赖宿主 Samba 服务；本轮不在 AppImage 内置并启动 Samba 服务器。需要使用该页发布 SMB 文件夹共享时，应在主机配置并启用服务。 |
 
 上述四项不作为要求用户重复验收已完成五项功能的理由。已有失败尝试和撤回方案继续保留历史；没有新的有效证据及针对该事项的明确修改授权时，不自动重试。
@@ -58,7 +58,7 @@
 
 上游 Bug 应留给上游维护者修复，本仓库默认保留上游原有实现及该 Bug。自行修改源码、打补丁或增加插件、注入等干预后，本地改动可能在上游正式修复后继续生效，与官方修复重复干预同一逻辑、覆盖官方行为，或因新版实现变化而不再兼容，进而引入新问题并增加升级和排查成本。因此，除非用户知晓上游归属及上述原因后仍明确强调要求修复，并批准具体修改清单，否则不得将这类本地修复接入或保留在正式构建、启动和发布链中。
 
-首次绘制前同步配色缓存的插件方案已按用户要求撤回，当前构建、启动和版本指纹均不包含该插件。技术证据、原始实现及验证边界保存在 [Dolphin 配色方案参考](./docs/dolphin-palette-reference-20261022.md)，仅供后续 AI 研究，不作为启用指令。文件夹预览、手机目录、单色图标、KDE Connect 图形界面和 Haruna 菜单的既有修复保持原样。
+首次绘制前同步配色缓存的插件方案已按用户要求撤回，当前构建、启动和版本指纹均不包含该插件。技术证据、原始实现及验证边界保存在 [Dolphin 配色方案参考](./docs/dolphin-palette-reference.md)，仅供后续 AI 研究，不作为启用指令。文件夹预览、手机目录、单色图标、KDE Connect 图形界面和 Haruna 菜单的既有修复保持原样。
 
 ## 稳定基线（2026.08.08）
 
@@ -164,7 +164,7 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - Dolphin“属性 → 共享”页面由 `kdenetwork-filesharing` 提供，但实际 Samba `smbd` 服务属于宿主系统，不在 AppImage 内启动。宿主未安装或未启用 Samba 时会显示“文件共享服务不可用”；如果不使用 Samba 文件夹共享功能可直接忽略，不影响 Dolphin 普通文件管理、KDE Connect 及套件其他功能。
 - i3/Kali 会话没有运行 `org.freedesktop.portal.Desktop` 时，终端可能出现 `qt.qpa.theme.gnome ... ServiceUnknown` 或 KDE Connect Input Capture 错误。文件共享、设备连接和播放正常时可忽略；不要仅为消除日志给 AppImage 增加权限或强行启动桌面服务。
 - KDE Connect 可能输出 QML `depends on non-bindable properties`、Breeze `Value is null`、通知扩展未实现或蓝牙 `Missing CAP_NET_ADMIN`。文件已完整送达、设备连接和多媒体控制正常时，这些是上游界面或可选能力日志。
-- AppImage 缩略图插件主要读取 SquashFS；遇到 DwarFS 或其他格式时可能反复输出 `This doesn't look like a squashfs image`，对应文件可能使用通用图标，不影响执行。
+- AppImage 缩略图插件主要读取 SquashFS；遇到 DwarFS 或其他格式时可能反复输出 `This doesn't look like a squashfs image`，对应文件可能使用通用图标，不影响执行。2026-11-17 已确认此项当前无法可靠修复，原因见 [DwarFS 图标记录](./docs/dwarfs-appimage-thumbnail-reference.md)。
 - Dolphin 信息面板使用 Qt Multimedia/FFmpeg 预览，与 Haruna 的播放链路不同。个别视频可能只有声音、画面为黑色，或输出 VDPAU/PipeWire/AAC 时间戳提示；同一文件在 Haruna 中画面和声音正常时属于预览后端或编码差异。
 - Okular 打开 Markdown 时会按 Markdown 标题层级使用不同字重，缺少完全匹配的中文字体时还可能回退到另一字重；内容和 PDF 输出正常时属于排版差异。
 - Haruna 设置页可能输出 QML `width/null`、`Binding loop` 或 `not placed in the graphics scene` 警告；设置页面和播放功能正常时属于上游界面日志。
@@ -189,12 +189,7 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 
 ### 2026-09-12：Dolphin 部分 AppImage 图标预览
 
-- **检查对象与范围：** 基于仓库提交 `9daecb62f06487341911024f9063722d85a15bb8`，完整阅读 `kde-suite/` 的 12 个文件，核对相关 workflow 的项目选择、独立 Arch 构建容器、公共 action、脚本调用顺序和产物路径。目录内 7 个 Shell 文件的仓库外 `bash -n` 语法检查通过；未发现明显的入口、脚本引用或产物路径错误。
-- **问题现象：** 真实运行截图中，Dolphin 的工具栏、文件夹等界面图标正常，部分 AppImage 显示应用图标，另一些显示通用文件图标。此次检查针对 AppImage 内置图标预览，不是整个图标主题失效。
-- **证据与已确认结论：** `deploy_suite_apps.sh` 已恢复 `appimagethumbnail.so` 和 AppImage 元数据插件，不能只因 `build_core.sh` 基础阶段移除插件就认定最终漏打包。[KDE 缩略图插件源码](https://github.com/KDE/kio-extras/blob/master/thumbnail/appimagecreator.cpp) 通过 libappimage 读取 `.DirIcon`；[libappimage 的 Type 2 读取实现](https://github.com/AppImageCommunity/libappimage/blob/master/src/libappimage/type2.c) 使用 SquashFS。[检查时的 quick-sharun](https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/useful-tools/quick-sharun.sh) 调用的 [pkgforge appimagetool](https://github.com/pkgforge-dev/appimagetool) 使用 DwarFS。该格式兼容缺口与现有“已知限制”及截图现象吻合；上游链接跟随分支变化，后续应重新核对。
-- **未确认事项：** 未逐个取得并检查截图中的实际 AppImage，未确认各文件的封装格式、`.DirIcon` 内容及链接目标，也未核对当前使用的 KDE Suite 成品。因此不能断言所有通用图标均由 DwarFS 导致，不能认定包内图标丢失，也不能把脚本语法通过视为构建或实机功能通过。本次未触发或监控 Actions，未重新构建或完成实机验证。
-- **当前处理建议：** 保留已验证的打包、主题和启动逻辑，不凭截图改动插件或更换封装工具。后续需要修复时，先对实际缺图标文件核实格式和 `.DirIcon`，再结合 Dolphin 的实际解析结果判断修改范围；证据不足时继续保持待确认。
-- **记录状态：** 本条是检查记录，本次仅补充 README，没有实施程序修复。后续有对应修复时，用修复记录替换已处理条目，保留尚未确认部分，并如实注明验证状态。
+本条检查记录已于 2026-11-17 原样迁入 [DwarFS 图标记录](./docs/dwarfs-appimage-thumbnail-reference.md)，与该问题的其他历史和当前结论集中保存。
 
 ### 2026-10-21：修复 KIO worker 绕过 sharun 的启动路径
 
@@ -254,6 +249,13 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 - **目录职责：** 将 `apps.ini` 原样移入 `config/`，将 `kde_suite_launcher.cpp` 原样移入 `src/`；文件内容和 `0644` 权限保持不变。
 - **引用同步：** 更新基础脚本的编译输入、清单复制源和相关说明，功能文件指纹使用 `config/apps.ini` 与 `src/kde_suite_launcher.cpp`。编译输出仍为原启动器路径，清单仍安装到 `AppDir/share/kde-suite/apps.ini`，启动器运行时路径与已有功能保持原样。
 - **核对结果：** 已静态核对源码包含关系、编译与复制路径、版本指纹和移动前后文件内容一致性。本次为目录维护，没有新增补丁或运行测试。
+
+### 2026-11-17：确认 DwarFS AppImage 图标无法可靠修复
+
+- **现象：** 用户实机截图中，Dolphin 同一目录下部分 AppImage 显示通用图标，其余正常显示应用图标，与既有 DwarFS 已知限制一致。
+- **复查结果：** Arch 仓库的 libappimage 仍只支持读取 SquashFS，KDE 对应功能请求仍未解决；上次试过的替代组件没有发布新版本。唯一未试过的方向需要撤掉现有 AppImage 缩略图插件并自写替代实现，属于对上游缺口的本地规避，不实施。
+- **处理决定：** 用户确认不再修复，按已知限制长期保留；不改动构建脚本、依赖和工作流。完整原因、重新评估条件及全部历史集中在 [DwarFS 图标记录](./docs/dwarfs-appimage-thumbnail-reference.md)，原 2026-09-12 检查记录已原样迁入该文件。
+- **文档整理：** 将 `dolphin-palette-reference-20261022.md`、`dolphin-video-preview-black-screen-reference-20261022.md` 按仓库命名规则改为不带日期的 `dolphin-palette-reference.md`、`dolphin-video-preview-black-screen-reference.md`，文件内容不变，本 README 中的链接同步更新。
 
 ## 实机验证
 
