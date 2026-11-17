@@ -6,11 +6,11 @@
 
 ## 技术栈与打包方式
 
-Gufw 26.04 是 GTK3、Python 3 和 PyGObject 程序，并且必须以 root 运行。脚本以 [GTK Ubuntu 仓库模板](../templates/appimage/linuxdeploy-gtk-apt.sh) 为底稿，但标准生成器覆盖不了 Python 运行包、宿主命令隔离和 root 启动，因此拟采用专用流程。例外范围见 [模板差异](./docs/template-deviations.md)。固定路径见 [固定配置](./docs/hardcoded.md)。
+Gufw 26.04 是 GTK3、Python 3 和 PyGObject 程序，并且必须以 root 运行。脚本以 [GTK Ubuntu 仓库模板](../templates/appimage/linuxdeploy-gtk-apt.sh) 为底稿，但标准生成器覆盖不了 Python 运行包、宿主命令隔离和 root 启动，因此采用已验证的专用流程。例外范围见 [模板差异](./docs/template-deviations.md)。固定路径见 [固定配置](./docs/hardcoded.md)。
 
 公共 APT 入口只安装构建环境的依赖，再按名称解包解释器、标准库、PyGObject、GI typelib 和 GTK3。Gufw 的 DEB 由公共签名 APT 下载入口取得：使用官方归档公钥验证 `InRelease`，从 `amd64` 索引精确选择包架构 `all`，核对索引和 DEB 的 SHA-256、大小及包身份，再通过公共归档入口解包。公共解包入口不会递归解依赖，缺少的包由构建脚本显式列出。解释器动态链接共享 `libpython` 时，再追加该库所属的软件包；静态链接时不追加，也不因此中止构建。linuxdeploy 使用 GTK 插件；解释器、`_gi.so` 和 `libgtk-3.so.0` 用 `--deploy-deps-only` 收集已经在 AppDir 里的文件的依赖，不使用 `--executable`。第二次部署显式指定 `usr/share/applications/gufw.desktop`，由该入口选择 Gufw 图标。
 
-拟采用的完整启动脚本在第二次 linuxdeploy 之前写入根 `AppRun`。官方插件若实际生成 hook，由 linuxdeploy 自行保留 `AppRun` → `AppRun.wrapped`。脚本不创建、不删除、也不要求 hook 存在。
+完整启动脚本在第二次 linuxdeploy 之前写入根 `AppRun`。官方插件若实际生成 hook，由 linuxdeploy 自行保留 `AppRun` → `AppRun.wrapped`。脚本不创建、不删除、也不要求 hook 存在。
 
 直接运行 AppImage，启动脚本优先使用 pkexec 图形授权，取消认证时退出。图形授权不可用且有终端时回退 sudo。Gufw 以 root 运行。普通用户启动时，脚本先将 AppDir 复制到 `/tmp` 的普通目录，再启动副本中的 Python，程序退出后删除副本。整个 AppImage 已由 root 挂载时直接使用该挂载。
 
@@ -39,6 +39,35 @@ sudo aptitude install ufw pkexec polkitd
 
 需要宿主机已经安装可执行的 `/usr/sbin/ufw` 和 Polkit。没有 pkexec 时，只能在终端里用 sudo 授权。`/tmp` 必须允许执行程序。不要在没有图形环境变量时用 sudo 启动整个 AppImage。若整个 AppImage 已经由 root 挂载，则直接使用该挂载，不再复制。
 
+## 界面颜色与监听报告
+
+Rules（规则）和 Report（报告）的策略颜色含义如下：
+
+| 颜色 | 策略含义 |
+| --- | --- |
+| 橙红色 | 允许（ALLOW） |
+| 绿色 | 阻止（DENY） |
+| 蓝色 | 拒绝（REJECT） |
+| 橙黄色 | 限速（LIMIT） |
+
+颜色表示规则策略，不表示当前正在传输数据。Report 的普通主题文字色表示没有单独标记策略颜色，不能据此判断端口是否放行或是否正在使用。防火墙是否启用，应看状态开关和 UFW 状态。
+
+Report 来自 `ufw show listening`，显示监听端口和对应程序。程序正在监听，不等于已有外部连接或正在传输流量；删除防火墙规则不会关闭程序的监听端口，因此删除后仍能在 Report 看到该程序。
+
+源码依据：[策略颜色](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/view/gufw.py#L657-L666)、[Report 着色](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/view/listening.py#L79-L96)、[监听数据来源](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/ufw_backend.py#L482-L525)。
+
+## 配置文件：家庭、办公室与公共
+
+家庭、办公室、公共是同一套 UFW 的不同配置方案，分别保存启用状态、默认策略和 Gufw 管理的规则。默认创建时，公共使用拒绝传入（REJECT），办公室使用阻止传入（DENY），家庭继承创建时的系统策略；这些设置可以修改，以当前配置为准。
+
+切换配置会移除上一配置中 Gufw 能识别的自有规则，再加载所选配置保存的规则，并应用其状态和默认策略。切换会实际改变系统防火墙，不能当成只切换列表分类。通过命令行或其他工具创建、没有 Gufw 编辑参数的规则通常会保留；配置切换不会为它们补齐编辑参数。
+
+在家庭配置下删除某条规则，会删除系统当前对应的 UFW 规则。若另一个配置保存了等效规则，切换过去时可能重新加载；外部工具再次执行配置也可能重建规则。是否发生应按实际规则内容核对，不能仅凭配置名称或重复编号判断删除无效。
+
+首选项中的“显示配置文件”只控制配置选择器等界面的显示；隐藏选择器不会删除这些配置。日志中的 `Home > 家庭` 等记录来自上游按界面语言处理配置名称的逻辑，不代表新建了另一套防火墙，也不能仅凭重复日志判定规则被重建。
+
+源码依据：[配置切换](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/firewall.py#L50-L97)、[默认配置与名称处理](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/firewall.py#L264-L318)、[显示配置开关](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/view/preferences.py#L182-L200)。
+
 ## 规则编辑与删除限制
 
 编辑规则时，如果出现“不变的规则／你不能编辑从 ufw 上添加的规则”，表示这条规则没有匹配到 Gufw 保存的编辑参数。常见于通过 `ufw` 命令行或其他工具添加的规则；Gufw 配置记录缺失或与当前规则不匹配时，也可能出现同一提示。
@@ -49,9 +78,41 @@ sudo aptitude install ufw pkexec polkitd
 
 这是上游的规则管理方式。源码依据：[编辑入口](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/view/gufw.py#L523-L529)、[配置记录匹配](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/firewall.py#L320-L352)、[删除实现](https://github.com/costales/gufw/blob/51397e7d6d660194d4d8d4c654f0ab89f67c7a6a/gufw/gufw/model/ufw_backend.py#L450-L458)。
 
+### 删除后如何确认
+
+删除前后可用下列只读命令查看 UFW 状态和带编号的规则；启用状态下会列出规则：
+
+```bash
+sudo ufw status numbered
+```
+
+- 对照规则内容，包括策略、协议、方向、端口、地址、接口以及 IPv4／IPv6，不只看编号。删除后后续编号会变化，同一个编号可能已经对应另一条规则。
+- 按编号删除只移除指定的一条规则；IPv4 与 IPv6、重复规则或其他范围相近的规则可能分别存在。
+- 判断规则是否删除，应看 Rules 和 UFW 规则内容；Report 中仍有监听程序不代表删除失败。
+- 某条规则消失也不表示相关端口一定不可访问；其他规则和默认策略仍会影响放行结果。
+
+命令与按编号删除的含义见 [UFW 官方手册](https://manpages.ubuntu.com/manpages/noble/man8/ufw.8.html)。
+
 ## 版本元数据
 
 公共签名 APT 下载入口返回实际 Gufw DEB 的完整版本，并保存同次来源版本文件；公共封装入口把该版本写入 `dist/version.txt`。GitHub Actions 在构建脚本成功退出后使用该文件发布 `gufw.AppImage` 并更新软件版本清单。
+
+## 实机验证
+
+### 2026-11-17：用户实机验证通过
+
+用户已确认 Gufw AppImage 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 启动与图形授权 | 图形授权后正常打开主窗口。 |
+| 中文界面与深色主题 | 中文菜单、深色主窗口及列表文字显示正常。 |
+| X11 中文输入 | 授权后的界面文本框可以输入中文。 |
+| 规则与监听报告 | 规则列表及监听端口、应用程序报告正常显示。 |
+
+#### 运行观察
+
+- 实机删除操作后，界面显示“规则被删除”，日志记录了 UFW 删除命令调用。
 
 ## 本次核对
 
@@ -59,7 +120,7 @@ sudo aptitude install ufw pkexec polkitd
 
 针对本次中文 locale、主题与图标修复，已在临时副本、独立 Xvfb 和 D-Bus 中验证 GTK 界面的中文菜单、深色背景、普通文本主题前景色和三个窗口的包内图标；四种会话的授权环境传递均通过。独立 IBus 测试引擎经 XIM 提交“你好”，包内 GTK 文本框实际收到中文插入事件；这项隔离测试仅验证输入通道，后续用户已实测图形授权后的 X11 中文输入成功。资源准备脚本重复执行保持幂等。
 
-隔离测试只加载 GTK 界面和文本框，不执行真实 ufw 后端，也不改变宿主规则。用户后续实测已确认图形授权后的深色主窗口、中文菜单与 X11 中文输入正常；规则增删和防火墙启停不在本次验证范围。上游中文翻译仍有缺项，例如 `Rules`、`Report`、`Routed`，本次保留上游翻译原文。
+隔离测试只加载 GTK 界面和文本框，不执行真实 ufw 后端，也不改变宿主规则。用户后续实测已确认图形授权后的深色主窗口、中文菜单与 X11 中文输入正常。上游中文翻译仍有缺项，例如 `Rules`、`Report`、`Routed`，本次保留上游翻译原文。
 
 ## 修复记录
 
@@ -95,7 +156,7 @@ ImportError: /usr/lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.43' not found
 - 隔离复现确认：继承的 `LC_ALL` 优先于 `LANG`。C locale 下 GTK/C 翻译未启用，而 Python gettext 仍按 `LANGUAGE` 加载中文，造成混合界面。`AppRun` 显式设置并向提权后的进程传递 `LC_ALL=zh_CN.UTF-8`，与包内 locale 一致。
 - GTK 插件在无法取得桌面颜色偏好时会回退为亮色；本应用按已选择的深色界面设置 `GTK_THEME=Adwaita:dark`。图标补丁只把三个 UI 文件的固定 `icon` 路径改为 `icon_name=gufw`，不改图标内容。普通规则和日志的固定黑色前景改为不指定颜色，由 GTK 主题提供前景色。
 - X11 的 root 输入优先使用已有 Fcitx／IBus XIM 会话，避免直接连接普通用户的输入法 D-Bus。原生 Wayland 与未配置 XIM 的会话保持原有模块。依据见 [Fcitx 官方 root 程序说明](https://fcitx-im.org/wiki/FAQ/en#Root_application_under_normal_user_X)。
-- 测试以正式发布资产及官方 SHA-256 校验后的临时副本进行；没有改动用户附件、宿主配置或防火墙规则。已通过的范围及输入法联动边界见“本次核对”。
+- 测试以正式发布资产及官方 SHA-256 校验后的临时副本进行；没有改动用户附件、宿主配置或防火墙规则。实机验证结果见[实机验证](#实机验证)，隔离检查过程见“本次核对”。
 
 ### 启动 Shell 的 locale 切换顺序
 
