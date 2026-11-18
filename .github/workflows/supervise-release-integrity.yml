@@ -16,7 +16,6 @@ jobs:
   supervise:
     name: Supervise latest Release integrity
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     env:
       SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
       IS_REPAIR_RUN: ${{ github.event.workflow_run.event == 'workflow_dispatch' && startsWith(github.event.workflow_run.display_title, 'Release integrity repair:') }}

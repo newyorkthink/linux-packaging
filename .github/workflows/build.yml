@@ -140,7 +140,6 @@ jobs:
   plan:
     name: Plan
     runs-on: &arch_runner ubuntu-latest
-    timeout-minutes: &arch_timeout 60
     outputs:
       should_build: ${{ steps.plan.outputs.should_build }}
       builds: ${{ steps.plan.outputs.builds }}
@@ -195,7 +194,6 @@ jobs:
       group: build-appimage-${{ matrix.release_name }}
       queue: max
     runs-on: *arch_runner
-    timeout-minutes: ${{ matrix.timeout_minutes }}
     container: &arch_container ghcr.io/pkgforge-dev/archlinux:latest
     permissions: &arch_permissions {contents: write, packages: read}
     env:
@@ -283,7 +281,6 @@ jobs:
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).bluemail == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
     permissions: {contents: read}
     steps:
       - uses: actions/checkout@v4
@@ -318,7 +315,6 @@ jobs:
       group: build-appimage-bluemail.AppImage
       queue: max
     runs-on: *arch_runner
-    timeout-minutes: 90
     container: *arch_container
     permissions: *arch_permissions
     env:
@@ -339,7 +335,6 @@ jobs:
       group: build-appimage-alacritty.AppImage
       queue: max
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
     permissions:
       contents: write
 
@@ -393,7 +388,6 @@ jobs:
       group: build-appimage-binance.AppImage
       queue: max
     runs-on: ubuntu-22.04
-    timeout-minutes: 90
     permissions:
       contents: write
     steps:
@@ -440,7 +434,6 @@ jobs:
       group: build-appimage-chatgpt.AppImage
       queue: max
     runs-on: *arch_runner
-    timeout-minutes: 90
     container:
       image: ghcr.io/pkgforge-dev/archlinux:latest
       options: --privileged
@@ -454,7 +447,6 @@ jobs:
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).dconf_editor == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
     concurrency:
       group: build-appimage-dconf-editor.AppImage
       queue: max
@@ -507,7 +499,6 @@ jobs:
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).gufw == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
     concurrency:
       group: build-appimage-gufw.AppImage
       queue: max
@@ -560,7 +551,6 @@ jobs:
     needs: plan
     if: fromJSON(needs.plan.outputs.builds).wechat == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
     concurrency:
       group: build-appimage-wechat.AppImage
       queue: max
@@ -616,7 +606,6 @@ jobs:
       group: build-appimage-dingtalk.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
     permissions:
       contents: write
     steps:
@@ -663,7 +652,6 @@ jobs:
       group: build-appimage-goldendict.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
     permissions:
       contents: write
     steps:
@@ -710,7 +698,6 @@ jobs:
       group: build-appimage-hermes-desktop.AppImage
       queue: max
     runs-on: ubuntu-latest
-    timeout-minutes: 90
     permissions:
       contents: write
 
@@ -766,7 +753,6 @@ jobs:
       group: build-appimage-file-roller.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -812,7 +798,6 @@ jobs:
       group: build-appimage-joplin.AppImage
       queue: max
     runs-on: ubuntu-22.04
-    timeout-minutes: 90
     permissions:
       contents: write
     steps:
@@ -860,7 +845,6 @@ jobs:
       queue: max
     runs-on: ubuntu-latest
     container: ghcr.io/pkgforge-dev/archlinux:latest
-    timeout-minutes: 60
     permissions:
       contents: write
       packages: read
@@ -936,7 +920,6 @@ jobs:
       group: build-appimage-mediainfo.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
     permissions:
       contents: write
 
@@ -1003,7 +986,6 @@ jobs:
       group: build-appimage-poppler-utils.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
     permissions:
       contents: write
 
@@ -1055,7 +1037,6 @@ jobs:
       queue: max
     runs-on: ubuntu-latest
     container: ghcr.io/pkgforge-dev/archlinux:latest
-    timeout-minutes: 120
     permissions:
       contents: write
       packages: read
@@ -1130,7 +1111,6 @@ jobs:
       group: build-appimage-peazip.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
     permissions:
       contents: write
 
@@ -1185,7 +1165,6 @@ jobs:
       group: build-appimage-rvncconnect.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
     permissions:
       contents: write
     steps:
@@ -1231,7 +1210,6 @@ jobs:
       group: build-appimage-vncviewer.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
     permissions:
       contents: write
     steps:
@@ -1281,7 +1259,6 @@ jobs:
       group: build-appimage-remmina.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
     permissions:
       contents: write
 
@@ -1388,7 +1365,6 @@ jobs:
       group: build-appimage-wemeet.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
     permissions:
       contents: write
     steps:
@@ -1435,7 +1411,6 @@ jobs:
       group: build-appimage-wine.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
     permissions:
       contents: write
 
@@ -1487,7 +1462,6 @@ jobs:
       group: build-appimage-winpodx.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
     permissions:
       contents: write
     steps:
@@ -1547,7 +1521,6 @@ jobs:
       group: build-appimage-workbuddy.AppImage
       queue: max
     runs-on: ubuntu-latest
-    timeout-minutes: 90
     container: ghcr.io/pkgforge-dev/archlinux:latest
     permissions:
       contents: write
@@ -1670,7 +1643,6 @@ jobs:
       group: build-appimage-xnviewmp.AppImage
       queue: max
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
     permissions:
       contents: write
     steps:

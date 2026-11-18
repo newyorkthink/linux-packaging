@@ -167,7 +167,6 @@ def main() -> None:
                 "artifact_dir": app["artifact_dir"],
                 "release_name": app["release_name"],
                 "software_key": app.get("software_key", ""),
-                "timeout_minutes": int(app.get("timeout_minutes", 60)),
                 "run_from_root": app.get("run_from_root", "false"),
             }
             for app in selected_standard

@@ -164,7 +164,6 @@ jobs:
     needs: plan
     if: needs.plan.outputs.browser == 'true'
     runs-on: &runimage_runner ubuntu-latest
-    timeout-minutes: &runimage_timeout 60
     permissions: &runimage_permissions {contents: write}
     env: {SCRIPT: 'runimage/browser/setup_browser.sh'}
     steps: &runimage_steps
@@ -245,7 +244,6 @@ jobs:
     needs: plan
     if: needs.plan.outputs.general_env == 'true'
     runs-on: *runimage_runner
-    timeout-minutes: *runimage_timeout
     permissions: *runimage_permissions
     env: {SCRIPT: 'runimage/setup_general_env.sh'}
     steps: *runimage_steps
@@ -255,7 +253,6 @@ jobs:
     needs: plan
     if: needs.plan.outputs.trading_env == 'true'
     runs-on: *runimage_runner
-    timeout-minutes: *runimage_timeout
     permissions: *runimage_permissions
     env: {SCRIPT: 'runimage/setup_trading_env.sh'}
     steps: *runimage_steps
@@ -265,7 +262,6 @@ jobs:
     needs: plan
     if: needs.plan.outputs.jriver == 'true'
     runs-on: *runimage_runner
-    timeout-minutes: *runimage_timeout
     permissions: *runimage_permissions
     env: {SCRIPT: 'runimage/jriver-media-center/setup_jriver.sh'}
     steps: *runimage_steps
@@ -275,7 +271,6 @@ jobs:
     needs: plan
     if: needs.plan.outputs.touchegg == 'true'
     runs-on: *runimage_runner
-    timeout-minutes: *runimage_timeout
     permissions: *runimage_permissions
     env: {SCRIPT: 'runimage/setup_touchegg.sh'}
     steps: *runimage_steps

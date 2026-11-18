@@ -10,7 +10,6 @@
       "artifact_dir": "rustdesk/dist",
       "release_name": "rustdesk.AppImage",
       "software_key": "rustdesk",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -31,7 +30,6 @@
       "artifact_dir": "antigravity-ide/dist",
       "release_name": "antigravity-ide.AppImage",
       "software_key": "antigravity-ide",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -43,7 +41,6 @@
       "artifact_dir": "antigravity/dist",
       "release_name": "antigravity.AppImage",
       "software_key": "antigravity",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -55,7 +52,6 @@
       "artifact_dir": "cc-switch/dist",
       "release_name": "cc-switch.AppImage",
       "software_key": "cc-switch",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -67,7 +63,6 @@
       "artifact_dir": "copyq/dist",
       "release_name": "copyq.AppImage",
       "software_key": "copyq",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -79,7 +74,6 @@
       "artifact_dir": "goldendict/dist",
       "release_name": "goldendict.AppImage",
       "software_key": "goldendict",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -91,7 +85,6 @@
       "artifact_dir": "grok-app/dist",
       "release_name": "grok-app.AppImage",
       "software_key": "grok-app",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -103,7 +96,6 @@
       "artifact_dir": "grok-bot/dist",
       "release_name": "grok-bot.AppImage",
       "software_key": "grok-bot",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -124,7 +116,6 @@
       "artifact_dir": "htop/dist",
       "release_name": "htop.AppImage",
       "software_key": "htop",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -136,7 +127,6 @@
       "artifact_dir": "i3wm/dist",
       "release_name": "i3.AppImage",
       "software_key": "i3",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -148,7 +138,6 @@
       "artifact_dir": "keepassxc/dist",
       "release_name": "keepassxc.AppImage",
       "software_key": "keepassxc",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -160,7 +149,6 @@
       "artifact_dir": "dist",
       "release_name": "keepass.AppImage",
       "software_key": "keepass",
-      "timeout_minutes": 60,
       "run_from_root": "true"
     },
     {
@@ -172,7 +160,6 @@
       "artifact_dir": "kde-suite/dist",
       "release_name": "kde-suite.AppImage",
       "software_key": "kde-suite",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -184,7 +171,6 @@
       "artifact_dir": "kitty/dist",
       "release_name": "kitty.AppImage",
       "software_key": "kitty",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -196,7 +182,6 @@
       "artifact_dir": "mpv/dist",
       "release_name": "mpv.AppImage",
       "software_key": "mpv",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -208,7 +193,6 @@
       "artifact_dir": "nvtop/dist",
       "release_name": "nvtop.AppImage",
       "software_key": "nvtop",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -220,7 +204,6 @@
       "artifact_dir": "ripdrag/dist",
       "release_name": "ripdrag.AppImage",
       "software_key": "ripdrag",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -232,7 +215,6 @@
       "artifact_dir": "smplayer/dist",
       "release_name": "smplayer.AppImage",
       "software_key": "smplayer",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -244,7 +226,6 @@
       "artifact_dir": "sunshine/dist",
       "release_name": "sunshine.AppImage",
       "software_key": "sunshine",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -256,7 +237,6 @@
       "artifact_dir": "freerdp/dist",
       "release_name": "xfreerdp3.AppImage",
       "software_key": "xfreerdp3",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -268,7 +248,6 @@
       "artifact_dir": "newsboat/dist",
       "release_name": "newsboat.AppImage",
       "software_key": "newsboat",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -280,7 +259,6 @@
       "artifact_dir": "zotero/dist",
       "release_name": "zotero.AppImage",
       "software_key": "zotero",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -292,7 +270,6 @@
       "artifact_dir": "vscode/dist",
       "release_name": "vscode.AppImage",
       "software_key": "vscode",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -304,7 +281,6 @@
       "artifact_dir": "simplescreenrecorder/dist",
       "release_name": "simplescreenrecorder.AppImage",
       "software_key": "simplescreenrecorder",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -316,7 +292,6 @@
       "artifact_dir": "rofi/dist",
       "release_name": "rofi.AppImage",
       "software_key": "rofi",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -328,7 +303,6 @@
       "artifact_dir": "picom/dist",
       "release_name": "picom.AppImage",
       "software_key": "picom",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -340,7 +314,6 @@
       "artifact_dir": "poppler-utils/dist",
       "release_name": "poppler-utils.AppImage",
       "software_key": "poppler-utils",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -352,7 +325,6 @@
       "artifact_dir": "obsidian/dist",
       "release_name": "obsidian.AppImage",
       "software_key": "obsidian",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -364,7 +336,6 @@
       "artifact_dir": "parsec/dist",
       "release_name": "parsec.AppImage",
       "software_key": "parsec",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -376,7 +347,6 @@
       "artifact_dir": "peazip/dist",
       "release_name": "peazip.AppImage",
       "software_key": "peazip",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -388,7 +358,6 @@
       "artifact_dir": "freedownloadmanager/dist",
       "release_name": "freedownloadmanager.AppImage",
       "software_key": "freedownloadmanager",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -400,7 +369,6 @@
       "artifact_dir": "deskflow/dist",
       "release_name": "deskflow.AppImage",
       "software_key": "deskflow",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -412,7 +380,6 @@
       "artifact_dir": "cursor/dist",
       "release_name": "cursor.AppImage",
       "software_key": "cursor",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -424,7 +391,6 @@
       "artifact_dir": "trae/dist",
       "release_name": "trae.AppImage",
       "software_key": "trae",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -436,7 +402,6 @@
       "artifact_dir": "deepseek-harness-desktop/dist",
       "release_name": "deepseek-harness-desktop.AppImage",
       "software_key": "deepseek-harness-desktop",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -466,7 +431,6 @@
       "artifact_dir": "escrcpy/dist",
       "release_name": "escrcpy.AppImage",
       "software_key": "escrcpy",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -478,7 +442,6 @@
       "artifact_dir": "wine/dist",
       "release_name": "wine.AppImage",
       "software_key": "wine",
-      "timeout_minutes": 180,
       "run_from_root": "false"
     },
     {
@@ -535,7 +498,6 @@
       "artifact_dir": "rainlendar2/dist",
       "release_name": "rainlendar2.AppImage",
       "software_key": "rainlendar2",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -547,7 +509,6 @@
       "artifact_dir": "rvncconnect/dist",
       "release_name": "rvncconnect.AppImage",
       "software_key": "rvncconnect",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -559,7 +520,6 @@
       "artifact_dir": "vncviewer/dist",
       "release_name": "vncviewer.AppImage",
       "software_key": "vncviewer",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -571,7 +531,6 @@
       "artifact_dir": "gemini/dist",
       "release_name": "Gemini.AppImage",
       "software_key": "Gemini",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -601,7 +560,6 @@
       "artifact_dir": "mailmaster/dist",
       "release_name": "mailmaster.AppImage",
       "software_key": "mailmaster",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -613,7 +571,6 @@
       "artifact_dir": "mediainfo/dist",
       "release_name": "mediainfo.AppImage",
       "software_key": "mediainfo",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -625,7 +582,6 @@
       "artifact_dir": "alttab/dist",
       "release_name": "alttab.AppImage",
       "software_key": "alttab",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -646,7 +602,6 @@
       "artifact_dir": "bluemail/dist",
       "release_name": "bluemail.AppImage",
       "software_key": "bluemail",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -658,7 +613,6 @@
       "artifact_dir": "tradingview/dist",
       "release_name": "tradingview.AppImage",
       "software_key": "tradingview",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -670,7 +624,6 @@
       "artifact_dir": "aionui/dist",
       "release_name": "aionui.AppImage",
       "software_key": "aionui",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -682,7 +635,6 @@
       "artifact_dir": "wechat/dist",
       "release_name": "wechat.AppImage",
       "software_key": "wechat",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -694,7 +646,6 @@
       "artifact_dir": "wps-office-cn/dist",
       "release_name": "wps.AppImage",
       "software_key": "wps",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -706,7 +657,6 @@
       "artifact_dir": "folo/dist",
       "release_name": "folo.AppImage",
       "software_key": "folo",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -718,7 +668,6 @@
       "artifact_dir": "feishu/dist",
       "release_name": "feishu.AppImage",
       "software_key": "feishu",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -757,7 +706,6 @@
       "artifact_dir": "claude-desktop/dist",
       "release_name": "claude-desktop.AppImage",
       "software_key": "claude-desktop",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -769,7 +717,6 @@
       "artifact_dir": "xephyr/dist",
       "release_name": "Xephyr.AppImage",
       "software_key": "Xephyr",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -781,7 +728,6 @@
       "artifact_dir": "v2rayn/dist",
       "release_name": "v2rayn.AppImage",
       "software_key": "v2rayn",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -802,7 +748,6 @@
       "artifact_dir": "st/dist",
       "release_name": "st.AppImage",
       "software_key": "st",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -814,7 +759,6 @@
       "artifact_dir": "stacer/dist",
       "release_name": "stacer.AppImage",
       "software_key": "stacer",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -826,7 +770,6 @@
       "artifact_dir": "stacher/dist",
       "release_name": "stacher.AppImage",
       "software_key": "stacher",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -847,7 +790,6 @@
       "artifact_dir": "webcamoid/dist",
       "release_name": "webcamoid.AppImage",
       "software_key": "webcamoid",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -859,7 +801,6 @@
       "artifact_dir": "ventoy/dist",
       "release_name": "ventoy.AppImage",
       "software_key": "ventoy",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -871,7 +812,6 @@
       "artifact_dir": "moderncsv/dist",
       "release_name": "moderncsv.AppImage",
       "software_key": "moderncsv",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -883,7 +823,6 @@
       "artifact_dir": "gitkraken/dist",
       "release_name": "gitkraken.AppImage",
       "software_key": "gitkraken",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -895,7 +834,6 @@
       "artifact_dir": "mission-center/dist",
       "release_name": "mission-center.AppImage",
       "software_key": "mission-center",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -907,7 +845,6 @@
       "artifact_dir": "chromium/dist",
       "release_name": "chromium.AppImage",
       "software_key": "chromium",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -919,7 +856,6 @@
       "artifact_dir": "adspower-global/dist",
       "release_name": "adspower-global.AppImage",
       "software_key": "adspower-global",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -931,7 +867,6 @@
       "artifact_dir": "qemu/dist",
       "release_name": "qemu.AppImage",
       "software_key": "qemu",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -943,7 +878,6 @@
       "artifact_dir": "qq/dist",
       "release_name": "qq.AppImage",
       "software_key": "qq",
-      "timeout_minutes": 90,
       "run_from_root": "false"
     },
     {
@@ -955,7 +889,6 @@
       "artifact_dir": "android-tools/dist",
       "release_name": "android-tools.AppImage",
       "software_key": "android-tools",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     },
     {
@@ -967,7 +900,6 @@
       "artifact_dir": "xberg/dist",
       "release_name": "xberg.AppImage",
       "software_key": "xberg",
-      "timeout_minutes": 60,
       "run_from_root": "false"
     }
   ]

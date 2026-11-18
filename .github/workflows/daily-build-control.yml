@@ -39,7 +39,6 @@ jobs:
   control:
     name: Control Daily Build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
 
     steps:
       - name: 暂停或恢复每日构建

@@ -19,7 +19,6 @@ jobs:
   cleanup:
     name: Cleanup completed runs older than 7 days
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
