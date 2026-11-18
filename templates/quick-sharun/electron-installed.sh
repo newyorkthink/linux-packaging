@@ -39,6 +39,7 @@ export OUTNAME="__APP_BASENAME__.AppImage"
 # 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
 
+__QUICK_SHARUN_OPTIONS__
 # 读取本次打包使用的版本。
 VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman "__SYSTEM_PACKAGE__")"
 

@@ -147,6 +147,18 @@ AppRun 保留基础搜索路径，并按实际入口追加主程序所在目录�
 
 以后增加其他可选步骤时，由适用模板在对应构建阶段声明独占一行的占位项，由生成器登记其参数校验和固定输出。生成请求沿用现有 `params` 结构，只提供已登记的配置数据。
 
+### 可选 quick-sharun 部署与构建探测
+
+`quick-sharun/electron-installed.sh` 支持在 `params` 中设置 `QUICK_SHARUN_OPTIONS`。生成器在 GTK 部署配置后、读取版本前输出当前应用启用的选项。
+
+| 参数 | 输出 |
+| --- | --- |
+| `deploy_opengl` | 设为 `true` 时输出 `DEPLOY_OPENGL=1`，显式部署 OpenGL 运行依赖。 |
+| `uruntime_preload` | 设为 `true` 时输出 `URUNTIME_PRELOAD=1`，要求运行时保持 AppImage 挂载点。 |
+| `strace_args` | 非空的单词参数数组。用 `MAIN_BIN` 设置 `STRACE_BINARY`，把参数传给 `STRACE_FLAGS`，仅用于构建期依赖探测。 |
+
+省略 `QUICK_SHARUN_OPTIONS` 时，输出逐字保持原样。仅填写应用确有需要的选项。
+
 ## 执行结果
 
 预览输出与目标脚本的差异，已有内容完全相同时输出为空。实际写入成功后输出目标路径。模板、参数、路径或语法检查失败时返回非零退出码。生成器本身只检查语法和生成结果。

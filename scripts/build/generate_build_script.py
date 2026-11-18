@@ -203,11 +203,43 @@ def render_apprun_prepare(value, template_values):
     )
 
 
+def render_quick_sharun_options(value, template_values):
+    if not isinstance(value, dict) or not value or value.keys() - {"deploy_opengl", "uruntime_preload", "strace_args"}:
+        raise ValueError("QUICK_SHARUN_OPTIONS 必须是含有已登记部署或探测选项的对象。")
+
+    lines = []
+    for name, comment, export in (
+        ("deploy_opengl", "# 本程序专属处理：部署 OpenGL 运行依赖。", "export DEPLOY_OPENGL=1"),
+        ("uruntime_preload", "# 本程序专属处理：保持 AppImage 挂载点。", "export URUNTIME_PRELOAD=1"),
+    ):
+        if name in value:
+            if value[name] is not True:
+                raise ValueError(f"QUICK_SHARUN_OPTIONS.{name} 必须是 true。")
+            lines.extend((comment, export))
+
+    if "strace_args" in value:
+        binary = template_values.get("MAIN_BIN", "")
+        if not BASENAME.fullmatch(binary):
+            raise ValueError("QUICK_SHARUN_OPTIONS.strace_args 要求模板声明 MAIN_BIN。")
+        args = value["strace_args"]
+        if not isinstance(args, list) or not args or not all(
+            isinstance(arg, str) and re.fullmatch(r"[A-Za-z0-9_./:=+-]+", arg) for arg in args
+        ):
+            raise ValueError("QUICK_SHARUN_OPTIONS.strace_args 必须是非空的单词参数数组。")
+        lines.extend((
+            "# 本程序专属处理：在构建阶段探测主程序动态加载的依赖。",
+            f"export STRACE_BINARY={binary}",
+            f"export STRACE_FLAGS={shlex.quote(' '.join(args))}",
+        ))
+    return "\n".join(lines)
+
+
 OPTIONAL_SECTIONS = {
     "PROTOCOL_HANDLER": render_protocol_handler,
     "APPLICATION_PREPARE": render_application_prepare,
     "APPLICATION_FINALIZE": render_application_finalize,
     "APPRUN_PREPARE": render_apprun_prepare,
+    "QUICK_SHARUN_OPTIONS": render_quick_sharun_options,
 }
 
 
