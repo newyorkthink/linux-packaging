@@ -39,6 +39,14 @@ export OUTNAME="chromium.AppImage"
 # 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
 
+# 本程序专属处理：部署 OpenGL 运行依赖。
+export DEPLOY_OPENGL=1
+# 本程序专属处理：保持 AppImage 挂载点。
+export URUNTIME_PRELOAD=1
+# 本程序专属处理：在构建阶段探测主程序动态加载的依赖。
+export STRACE_BINARY=chromium
+export STRACE_FLAGS='about:blank --no-sandbox'
+
 # 读取本次打包使用的版本。
 VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman "chromium")"
 

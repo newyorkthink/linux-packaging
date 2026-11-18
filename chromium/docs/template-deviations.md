@@ -11,14 +11,12 @@
 | GTK3 输入 | `SCAN_ARGS` 包含 `AppDir/bin/*`、`im-ibus.so` 和 `im-fcitx5.so`。输入模块依赖为 `ibus` 和 `fcitx5-gtk`。 |
 | 桌面与版本 | 使用系统的 `chromium.desktop` 和 hicolor 256×256 图标。版本从实际安装的软件包读取，发布版本写入 `dist/version.txt`。 |
 
-## 旧版专项记录
+## 专属处理
 
-以下处理可在[重写前的构建脚本](../build_chromium_old.sh)和 [README 的修复记录](../README.md#修复记录)中查阅。正式脚本使用生成器输出。
+生成器通过 `QUICK_SHARUN_OPTIONS` 在 GTK 部署配置后、读取版本和收集依赖前输出以下三项。固定取值和旧版依据见[固定配置](./hardcoded.md)。
 
-| 旧版处理 | 用途 |
+| 配置 | 用途与依据 |
 | --- | --- |
-| `URUNTIME_PRELOAD=1` | 保持多进程浏览器使用的 AppImage 挂载点。 |
-| `STRACE_BINARY=chromium` 与 `STRACE_FLAGS='about:blank --no-sandbox'` | 构建时对浏览器主程序探测动态加载的依赖。 |
-| `DEPLOY_OPENGL=1` | 显式启用 OpenGL 部署。 |
-| `LANGUAGE=zh-CN` | 修复旧版 UI 继承宿主英文的问题。当前模板生成包内中文 locale。 |
-| desktop 暂存与 `chromium --version` | 旧版写入 `~/version` 和 desktop 的 `X-AppImage-Version`。 |
+| `DEPLOY_OPENGL=1` | 采用 [旧版脚本](../build_chromium_old.sh#L40) 的设置，显式部署 OpenGL 运行依赖。 |
+| `URUNTIME_PRELOAD=1` | 保持多进程 Chromium 使用的 AppImage 挂载点，依据见 [旧版修复记录](../README.md#2026-09-06补充-chromium-多进程-appimage-挂载保持)。 |
+| `STRACE_BINARY=chromium` 与 `STRACE_FLAGS='about:blank --no-sandbox'` | 构建期对实际主程序探测动态加载的依赖。空白页用于离线探测，沙箱参数仅用于这次临时进程。依据见[旧版启动修复](../README.md#2026-09-06修复-appimage-启动立即退出)。 |

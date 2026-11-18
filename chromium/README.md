@@ -17,7 +17,8 @@ Chromium / Blink，GTK3 原生界面组件。依赖由 `pacman`/`yay` 按 `chrom
 - 使用仓库生成器的[完整程序目录模板](../templates/quick-sharun/electron-installed.sh)，归入 [Arch 官方仓库程序](../docs/packaging-classification.md#从系统完整程序目录收集)。Arch 的 `/usr/bin/chromium` 是启动器，模板将 `/usr/lib/chromium/` 的主程序和相邻资源完整复制到 `AppDir/bin/`。
 - 公共入口从本次安装的 `chromium` 包读取版本，在封装成功后写入 `dist/version.txt`。桌面入口和图标使用 Arch 官方包的文件。
 - Chromium 的生成参数显式安装 `qt6-base`，满足 `libqt6_shim.so` 的依赖，并收集 IBus 与 Fcitx5 的 GTK3 输入模块。中文 locale 由模板生成。
-- [专项处理与旧版差异](docs/template-deviations.md)记录扫描参数、既有报错和旧实现的对应位置。
+- 使用生成参数保留 OpenGL 部署、AppImage 挂载保持和构建期依赖探测。`about:blank --no-sandbox` 只传给构建期间临时启动的 Chromium，发布的 AppImage 使用浏览器默认沙箱。
+- 专项的用途和原始依据见[模板差异](docs/template-deviations.md)和[固定配置](docs/hardcoded.md)。
 
 ## 运行与兼容说明
 
@@ -28,6 +29,8 @@ Chromium / Blink，GTK3 原生界面组件。依赖由 `pacman`/`yay` 按 `chrom
 - 模板收集 Fcitx5 和 IBus 的 GTK3 输入模块。历史实机记录见[稳定基准版](#稳定基准版)。
 
 ### Ubuntu 上的沙箱兼容性
+
+Ubuntu 26.04 LTS 和 26.10 仍提供 AppArmor 的非特权用户命名空间限制。换系统后若遇到同样的 SUID helper 报错，先运行下面的第一条命令检查限制值。值为 `1` 时可用第二条临时调整，再启动同一个 AppImage 做对照。第三条用于需要重启后持续生效的情形。三条命令均在运行 AppImage 的宿主执行。 [Ubuntu 安全特性](https://documentation.ubuntu.com/security/security-features/security-features-overview/#security-features)
 
 启用 AppArmor 非特权用户命名空间限制的 Ubuntu 环境可能无法使用 Chromium 的命名空间沙箱。此时 Chromium 会尝试 SUID helper。实测版本中 `bin/chrome-sandbox` 的模式为 `0755`，无法满足 SUID 回退要求，启动会因 `The SUID sandbox helper binary was found, but is not configured correctly` 中止。
 
