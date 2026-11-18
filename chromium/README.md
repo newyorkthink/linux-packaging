@@ -165,10 +165,3 @@ libva error: /tmp/.mount_chrom<id>/lib/dri/virtio_gpu_drv_video.so init failed
 | Linux 启动 | 直接执行 `./chromium.AppImage`，浏览器正常打开并显示新标签页。 |
 | 简体中文界面 | 浏览器界面和新标签页以简体中文显示。 |
 | 地址栏中文输入 | 地址栏可以输入汉字并显示中文候选词。 |
-
-#### 运行观察
-
-- `libva error: /tmp/.mount_chrom<id>/lib/dri/virtio_gpu_drv_video.so init failed`
-- `[4273:4273:1118/132255.557734:ERROR:media/gpu/vaapi/vaapi_wrapper.cc:1793] vaInitialize failed: resource allocation failed`
-- `[4329:9:1118/132255.701335:ERROR:gpu/ipc/client/command_buffer_proxy_impl.cc:277] ContextResult::kTransientFailure: Failed to send GpuControl.CreateCommandBuffer.`
-- 实测中浏览器界面和地址栏输入正常，终端在按下 `Ctrl+C` 后返回命令提示符。
