@@ -88,6 +88,14 @@ mpv 的 yt-dlp 继续在构建时下载、校验并内置，未启用官方运�
 
 htop 保留原有 MAIN_BIN、Open Files / Trace 辅助命令和运行时动态加载库，未照搬 pkgforge-dev 的静态源码构建、UPINFO 或 simple-test；仍使用 Arch 官方二进制和本仓库公共版本接口，具体依据见其应用文档。
 
+### 从系统完整程序目录收集
+
+从 Arch 官方仓库安装 Chromium，再将 `/usr/lib/chromium/` 连同相邻资源交给 quick-sharun。生成器使用现有的[完整程序目录模板](../templates/quick-sharun/electron-installed.sh)。
+
+| 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属处理 |
+| --- | --- | --- | --- |
+| Chromium | [build_chromium.sh](../chromium/build_chromium.sh) | Arch 官方 `chromium` 包，使用完整程序目录，公共入口读取实际安装版本。 | [Qt6 shim、GTK3 输入模块和旧版专项记录](../chromium/docs/template-deviations.md) |
+
 ## 用 quick-sharun 打包的官方预编译归档命令行工具
 
 从软件官方网站独立下载预编译 Linux ZIP 或 tar 归档，保留程序及配套运行库的实际布局，再使用 quick-sharun 收集其余运行依赖并封装。必要的应用专属处理以对应文档为准，不新增标准模板。
@@ -170,7 +178,6 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | Alacritty | [build_alacritty.sh](../alacritty/build_alacritty.sh) | 现有 X11 IME 修复需要在官方正式版源码中应用补丁并编译，再由 LinuxDeploy 部署、appimagetool 封装；固定 APT 模板不支持此专属过程。 | [专属差异](../alacritty/docs/template-deviations.md) · [上游取舍](../alacritty/docs/pkgforge-differences.md) · [历史与验证](../alacritty/README.md) |
 | AltTab | [build_alttab.sh](../alttab/build_alttab.sh) | 官方正式 Release 对应提交的源码需依次应用九个独立补丁，经 configure / make 编译后由 quick-sharun 封装，并以构建指纹识别本仓库更新；公共阶段按同类项目手动对齐。 | [专属差异与参考](../alttab/docs/template-deviations.md) · [稳定基线与历史](../alttab/README.md#稳定基线与维护规则) · [实机验证](../alttab/README.md#实机验证) |
 | BlueMail | [build_bluemail.sh](../bluemail/build_bluemail.sh) | AUR 安装前同步官方稳定版 Snap、同次原始归档复用、`shared/bin` 相邻资源布局及 OAuth hook 需要应用专属准备；现有 DEB 模板不覆盖这些步骤。公共注释、工作区和版本接口按统一标准维护。 | [模板差异](../bluemail/docs/template-deviations.md) · [固定配置](../bluemail/docs/hardcoded.md) · [实现与实测记录](../bluemail/README.md) |
-| Chromium | [build_chromium.sh](../chromium/build_chromium.sh) | Arch 官方包的 `/usr/bin/chromium` 是启动器，需保留 `/usr/lib/chromium` 的程序及相邻资源、运行时挂载和构建期依赖探测。沿用 quick-sharun，并复用公共安装、工作目录及版本接口。 | [运行与兼容说明](../chromium/README.md#运行与兼容说明) · [实机验证](../chromium/README.md#实机验证) |
 | Gufw | [build_gufw.sh](../gufw/build_gufw.sh) | Python/GI 运行包需显式部署，资源路径和宿主命令环境需应用补丁，root 启动需临时副本与图形授权。采用 linuxdeploy GTK3 部署及官方 appimagetool 封装，标准 APT 模板不覆盖这些步骤。 | [模板差异](../gufw/docs/template-deviations.md) · [固定配置](../gufw/docs/hardcoded.md) · [当前核对与验证状态](../gufw/README.md#本次核对) |
 | Hermes Desktop | [build_hermes-desktop.sh](../hermes-desktop/build_hermes-desktop.sh) | 从上游正式 Release 标签获取源码，使用上游锁定的 pnpm 构建，并由 electron-builder 生成普通 Desktop AppImage。现有模板无法覆盖这条源码构建与封装流程。桌面客户端可连接已有 Gateway，也可使用单独安装的本机 Agent。 | [构建来源、旧版实机记录和当前验收状态](../hermes-desktop/README.md) |
 | KDE Suite | [build_kde_suite.sh](../kde-suite/build_kde_suite.sh) | 多款 KDE 程序共享一个 AppImage 的挂载及 Qt 6 和 KF6 运行组件，最终封装前按套件结构分阶段部署应用和辅助工具。 | [KDE Suite README](../kde-suite/README.md) |
