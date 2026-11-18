@@ -1,5 +1,26 @@
 {
-  "template": "",
-  "output": "",
-  "params": {}
+  "template": "quick-sharun/electron-installed.sh",
+  "output": "chromium/build_chromium.sh",
+  "params": {
+    "SYSTEM_PACKAGE": "chromium",
+    "DEPENDENCY_ARGS": [
+      "qt6-base",
+      "ibus",
+      "fcitx5-gtk"
+    ],
+    "INSTALLED_PROGRAM_DIR": "/usr/lib/chromium",
+    "APP_NAME": "Chromium",
+    "MAIN_BIN": "chromium",
+    "STARTUPWMCLASS": "chromium",
+    "ICON": "/usr/share/icons/hicolor/256x256/apps/chromium.png",
+    "DESKTOP": "/usr/share/applications/chromium.desktop",
+    "APP_BASENAME": "chromium",
+    "SCAN_ARGS": [
+      {
+        "glob": "AppDir/bin/*"
+      },
+      "/usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so",
+      "/usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so"
+    ]
+  }
 }
