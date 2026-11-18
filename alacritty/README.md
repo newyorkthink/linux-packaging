@@ -7,7 +7,7 @@
 - 正式脚本：[build_alacritty.sh](./build_alacritty.sh)。GitHub Actions 的 Alacritty 专用 Job 与应用清单均指向该脚本；产物为 `dist/alacritty.AppImage`。
 - 构建环境使用 GitHub Actions 的 Ubuntu 22.04 Runner。LinuxDeploy 及最终 appimagetool 封装继续复用公共入口，版本信息在封装成功后统一保存。
 - 通过公共入口获取上游最新正式版源码，在编译前检查并应用现有 X11 IME 补丁；补丁不匹配即停止构建，不跳过修复继续发布。
-- 已删除两个旧构建脚本和不再使用的外置 AppRun。历史故障、旧版运行记录和实验结论保留在本文；与当前实现不一致的历史流程不再作为执行依据。
+- 已移除外置 AppRun。历史故障、旧版运行记录和实验结论保留在本文；与当前实现不一致的历史流程不再作为执行依据。
 - 当前实现的依据见[专属差异](./docs/template-deviations.md)、[上游取舍](./docs/pkgforge-differences.md)与[固定配置](./docs/hardcoded.md)。
 - 当前正式版已通过用户 Linux 实机启动验证，继续沿用 Ubuntu 22.04 + LinuxDeploy 及现有 X11 IME 补丁。
 

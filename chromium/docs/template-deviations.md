@@ -13,10 +13,10 @@
 
 ## 专属处理
 
-生成器通过 `QUICK_SHARUN_OPTIONS` 在 GTK 部署配置后、读取版本和收集依赖前输出以下三项。固定取值和旧版依据见[固定配置](./hardcoded.md)。
+生成器通过 `QUICK_SHARUN_OPTIONS` 在 GTK 部署配置后、读取版本和收集依赖前输出以下三项。具体取值和作用见[固定配置](./hardcoded.md)。
 
 | 配置 | 用途与依据 |
 | --- | --- |
-| `DEPLOY_OPENGL=1` | 采用 [旧版脚本](https://github.com/newyorkthink/linux-packaging/blob/d93ce1379e509cbcfe7d64b188bd6e226fe4dac8/chromium/build_chromium_old.sh#L40) 的设置，显式部署 OpenGL 运行依赖。 |
+| `DEPLOY_OPENGL=1` | 显式部署 OpenGL 运行依赖。 |
 | `URUNTIME_PRELOAD=1` | 保持多进程 Chromium 使用的 AppImage 挂载点，依据见 [旧版修复记录](../README.md#2026-09-06补充-chromium-多进程-appimage-挂载保持)。 |
 | `STRACE_BINARY=chromium` 与 `STRACE_FLAGS='about:blank --no-sandbox'` | 构建期对实际主程序探测动态加载的依赖。空白页用于离线探测，沙箱参数仅用于这次临时进程。依据见[旧版启动修复](../README.md#2026-09-06修复-appimage-启动立即退出)。 |

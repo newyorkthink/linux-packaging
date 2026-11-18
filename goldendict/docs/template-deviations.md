@@ -19,7 +19,7 @@
 
 ## 构建与维护入口
 
-正式入口为 [build_goldendict.sh](../build_goldendict.sh)，仍由既有 Ubuntu 24.04 Job 执行。临时旧版备份已经删除，原始实现从 Git 历史追溯；应用清单和 workflow 继续只登记正式入口。
+正式入口为 [build_goldendict.sh](../build_goldendict.sh)，仍由既有 Ubuntu 24.04 Job 执行。应用清单和 workflow 只登记该入口。
 
 `patches/prepare_libao_runtime.sh <AppDir>` 只在现有 AppDir 中执行原 libao 处理，不安装软件、不下载工具、不重新解包或封装 AppImage。该入口在依赖部署后执行，与准备阶段的 Qt 输入插件、翻译和中文资源处理分开。
 

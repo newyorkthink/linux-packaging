@@ -33,8 +33,6 @@
 - 系统安装准备运行依赖、图标和 desktop；最终程序文件来自第二阶段独立下载、校验和解包的官方 DEB。
 - 版本读取同次下载产生的 `work/source-version.txt`，跟随 AUR 配方，不写死某次查询得到的版本。
 
-## 旧版清理
-
-用户实机验证通过后，已删除同目录的 `build_adspower-global_old.sh`。旧版下载解析、ICU 输入检查、desktop 调整、图标选择以及 runtime / strace 配置可由 [首次标准重写提交](https://github.com/newyorkthink/linux-packaging/commit/f47eef2df23b5d3e2cf720b28c2201e666bf02dd) 追溯，不另存备份或归档。
+## 正式入口与实机验证
 
 正式入口继续使用 `build_adspower-global.sh`，当前 build、公共脚本和工作流保持不变。实机通过结果与运行观察见 [README 的实机验证记录](../README.md#实机验证)。

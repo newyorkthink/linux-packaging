@@ -35,7 +35,6 @@
 ## 维护说明
 
 - 继续使用官网动态 DEB 和完整 control 版本，不手工固定旧版本。
-- 实机确认后已删除旧构建备份；历史实现保留在 Git 提交记录中。正式构建继续使用当前 `build_wechat.sh`。
 - 少量 desktop、NSS/NSPR 和主程序依赖部署命令直接写在 `build_wechat.sh`，不另设 `prepare/finalize` 脚本；公共机制继续调用 `common/`。版本直接沿用官方 DEB 公共入口的返回值。
 - 后续修改以实际故障为依据，不把旧版 sharun 的模块权限、路径覆盖或扫描整个私有目录的处理自动迁回标准脚本。
 
@@ -73,9 +72,9 @@
 - 解包后直接规范实际 desktop，并调用公共 NSS/NSPR 入口；GTK 部署后直接执行主 ELF 和 PulseAudio 依赖收集，先后顺序保持原样。
 - 保留标准公共阶段和完整内联 AppRun，桌面与图标仍由 linuxdeploy 部署；当前实现及依据见 [模板差异](./docs/template-deviations.md)。后续通过结果见 [实机验证](#实机验证)。
 
-### 2026-11-18：实机通过后清理旧构建备份
+### 2026-11-18：实机验证后确认构建配置
 
-- 用户确认当前包运行稳定，删除 `build_wechat_old.sh`，历史实现通过 Git 提交记录查阅。
+- 用户确认当前包运行稳定。
 - 正式构建中的 `MULTIARCH`、主程序 `--deploy-deps-only` 和两个 PulseAudio 库部署命令保持原样。
 
 ## 实机验证

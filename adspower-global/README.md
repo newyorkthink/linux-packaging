@@ -27,7 +27,7 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 标准模板：正式脚本原样采用仓库生成器的 AUR DEB 模板输出；原有 `URUNTIME_PRELOAD`、`STRACE_BINARY`、`STRACE_FLAGS` 及其他模板外处理未追加到当前脚本，旧版实现通过 Git 历史追溯。本次模板选择与生成记录见 [模板记录](./docs/template-deviations.md)。
 - 中文输入法：在构建环境安装 `fcitx5-gtk`，由 quick-sharun 收集运行依赖；输入模块通过宿主已有的 Fcitx5 会话工作，本项目不启动输入法守护进程，也不覆盖宿主输入法配置。
 - 中文环境：依赖收集完成后生成包内 `zh_CN.utf8`，在 `AppDir/.env` 设置 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_MESSAGES=zh_CN.UTF-8` 与 `LOCPATH=${SHARUN_DIR}/lib/locale`，不修改宿主机全局 locale。
-- workflow：由 `.github/appimage-apps.json` 的 `adspower_global` 标准应用条目接入 `.github/workflows/build.yml`，沿用统一 AnyLinux 构建与 `latest` Release 发布流程。旧版备份已在实机验证通过后删除。
+- workflow：由 `.github/appimage-apps.json` 的 `adspower_global` 标准应用条目接入 `.github/workflows/build.yml`，沿用统一 AnyLinux 构建与 `latest` Release 发布流程。
 
 ## 运行与兼容说明
 
@@ -110,5 +110,4 @@ AdsPower Global 为专有桌面应用，Linux 包包含 Chromium / Electron 体�
 - 故障：旧脚本从官网下载页提取 Linux x64 DEB 地址时输出 `Error: failed to resolve the current AdsPower Linux x64 package URL.`。官网已使用 `version-v2.adspower.net`，旧正则仅匹配 `version.adspower.net`。
 - 处理：按已确认的生成稿改用 AUR `adspower-global-bin` 的官方 DEB 来源。安装、独立下载、摘要校验、解包、版本读取和保存均调用现有公共入口，未修改公共脚本或标准模板。
 - 首次生成稿：原样写入生成任务 [41879128128](https://github.com/newyorkthink/linux-packaging/actions/runs/41879128128) 的输出，SHA-256 为 `9af6631ecfbb6c77041fe5ae2d7b0096f99b3b495110d2b44cfb29e1d4754610`。生成器已完成 Bash 语法检查，该任务未执行应用打包。
-- 旧版备份：按标准重写时原样保存的 `build_adspower-global_old.sh` 与写入前脚本的 Git blob SHA `c4d41bb4e90d5a6e5b41103270658a68d40a291b` 一致，未参与 Actions；用户实机验证通过后已删除。旧版实现可由 [首次标准重写提交](https://github.com/newyorkthink/linux-packaging/commit/f47eef2df23b5d3e2cf720b28c2201e666bf02dd) 追溯。
 - 相关说明：[模板与生成记录](./docs/template-deviations.md)、[固定参数依据](./docs/hardcoded.md)、[pkgforge 上游核对](./docs/pkgforge-differences.md)。

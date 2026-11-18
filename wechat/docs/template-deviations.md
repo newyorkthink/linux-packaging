@@ -34,6 +34,6 @@
 
 WMPF、WeChatAppEx、VLC、ffmpeg 和原生模块按官方相邻目录保留，不遍历全部私有 ELF 后交给工具扁平化，也不把多个不同用途的 `libffmpeg.so` 当成一份公共库。主 ELF 依赖收集仍可能复制其解析到的私有依赖，不能将本处理描述成“完全不复制私有库”。
 
-旧 quick-sharun 的 `.node` 执行权限调整用于避免 sharun 包装原生模块；新流程没有 sharun，不自动恢复这一处理。旧版 `SHARUN_*`、强制 X11、Qt 缩放和 VLC 路径覆盖不混入标准 AppRun；旧构建备份已在实机通过后删除，历史可从 [删除前的旧脚本](https://github.com/newyorkthink/linux-packaging/blob/a928f692d8ce2ac5eb57d71fd5a96f6ad8b92f45/wechat/build_wechat_old.sh) 查阅。当前流程没有应用源码补丁。
+旧 quick-sharun 的 `.node` 执行权限调整用于避免 sharun 包装原生模块；新流程没有 sharun，不自动恢复这一处理。旧版 `SHARUN_*`、强制 X11、Qt 缩放和 VLC 路径覆盖不混入标准 AppRun。当前流程没有应用源码补丁。
 
 用户已确认当前包运行稳定，完整结果见 [README 实机验证](../README.md#实机验证)。当前 `MULTIARCH`、主 ELF 的 `--deploy-deps-only` 与两个 PulseAudio 库部署命令保持原样。
