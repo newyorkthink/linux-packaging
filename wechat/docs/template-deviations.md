@@ -21,8 +21,8 @@
 
 | 位置 | 处理与依据 |
 | --- | --- |
-| 下载并准备应用：desktop | 在解包后的 AppDir 内，将 `usr/share/applications/wechat.desktop` 设置为 `Exec=wechat %U`、`Icon=wechat`。linuxdeploy 从这份包内 desktop 部署根入口，只修改根副本会被覆盖。只规范主 desktop，官方原始 DEB 不变。 |
-| 根 desktop 与图标 | 由 linuxdeploy 按包内 desktop 选择官方 `usr/share/icons` 中的 `wechat.png`，部署根 desktop 和图标；不额外复制根文件或遍历 PNG。最终 PNG 和权限整理继续交给公共入口。 |
+| 下载并准备应用：desktop | 在解包后的 AppDir 内，将 `usr/share/applications/wechat.desktop` 设置为 `Exec=wechat %U`、`Icon=wechat`。两次 linuxdeploy 均通过 `--desktop-file` 选中这份主入口。只规范主 desktop，官方原始 DEB 不变。 |
+| 根 desktop 与图标 | linuxdeploy 根据指定的主 desktop 部署根入口和官方 `wechat.png`。辅助 `com.tencent.wechatappex.desktop` 随包保留。最终 PNG 和权限整理继续交给公共入口。 |
 | 下载并准备应用：NSS/NSPR | 直接调用 `common/linuxdeploy/copy_nss_runtime.sh` 并传入目标目录及 `--with-nspr`，在 linuxdeploy 扫描前准备同一构建环境的完整集合。 |
 | 整理产物：依赖 | 真实 AppRun 和 GTK 部署完成后，直接用 `--deploy-deps-only` 处理 `opt/wechat/wechat`，并传入 `libpulse.so.0`、`libpulse-simple.so.0` 两项已有缺库依据的输入；传递依赖交给 linuxdeploy。 |
 

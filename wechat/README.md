@@ -77,6 +77,19 @@
 - 用户确认当前包运行稳定。
 - 正式构建中的 `MULTIARCH`、主程序 `--deploy-deps-only` 和两个 PulseAudio 库部署命令保持原样。
 
+### 2026-11-18：固定 linuxdeploy 的微信主桌面入口
+
+- [失败构建](https://github.com/newyorkthink/linux-packaging/actions/runs/44240228763/job/134586089679) 自动选中了隐藏的 WeChatAppEx 桌面入口。中间 AppImage 封装因该入口缺少 `Categories` 中止。
+
+```text
+WARNING: No desktop file specified, using first desktop file found: AppDir/usr/share/applications/com.tencent.wechatappex.desktop
+[appimage/stderr] Categories entry not found in desktop file
+[appimage/stderr] ::error::.desktop file is missing a Categories= key
+```
+
+- [成功构建](https://github.com/newyorkthink/linux-packaging/actions/runs/44139808896/job/134239292899) 使用相同的 DEB 4.1.13.26、linuxdeploy 和 appimagetool，当时两次均自动选中了 `wechat.desktop`。
+- GTK 封装和后续主程序依赖部署均显式指定 `wechat.desktop`。辅助桌面文件和 WeChatAppEx 程序随包保留。
+
 ## 实机验证
 
 ### 2026-11-18：用户实机验证通过

@@ -73,13 +73,13 @@ chmod +x "$APPDIR/AppRun"
 export DEPLOY_GTK_VERSION=3
 
 # 再次运行 linuxdeploy，部署运行资源并生成中间 AppImage。
-export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
+export ARCH=x86_64; linuxdeploy --appdir AppDir --desktop-file "$APPDIR/usr/share/applications/wechat.desktop" --plugin gtk --output appimage
 
 ############### 整理产物 ###############
 
 # 本程序专属处理：AppRun 和 GTK 部署完成后，收集 opt 主程序及已确认需要的 PulseAudio 库。
 MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
-linuxdeploy --appdir "$APPDIR" --deploy-deps-only "$APPDIR/opt/wechat/wechat" --library "/usr/lib/$MULTIARCH/libpulse.so.0" --library "/usr/lib/$MULTIARCH/libpulse-simple.so.0"
+linuxdeploy --appdir "$APPDIR" --desktop-file "$APPDIR/usr/share/applications/wechat.desktop" --deploy-deps-only "$APPDIR/opt/wechat/wechat" --library "/usr/lib/$MULTIARCH/libpulse.so.0" --library "/usr/lib/$MULTIARCH/libpulse-simple.so.0"
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
