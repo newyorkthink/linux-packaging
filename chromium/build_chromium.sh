@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
 # 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
@@ -7,85 +9,50 @@ cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装官方软件包及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" "chromium" qt6-base ibus fcitx5-gtk
 
 # 清掉上次的打包目录。
 "$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
-rm -f -- chromium.desktop chromium.png
+rm -f -- chromium.desktop
+
+# 整个程序目录原样放进 AppDir/bin。
+CHROMIUM_DIR=/usr/lib/chromium
+test -x "$CHROMIUM_DIR/chromium"
+mkdir -p ./AppDir/bin
+cp -a "$CHROMIUM_DIR"/. ./AppDir/bin/
+cp -v /usr/share/applications/chromium.desktop ./chromium.desktop
 
 # 把当前机器架构传给 quick-sharun。
 export ARCH="$(uname -m)"
-export STARTUPWMCLASS=chromium
-export OUTPATH=./dist
+# 使用系统里装好的图标。
+export ICON="/usr/share/icons/hicolor/256x256/apps/chromium.png"
+# 使用系统里装好的桌面入口文件。
+export DESKTOP="./chromium.desktop"
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
 export OUTNAME="chromium.AppImage"
-export URUNTIME_PRELOAD=1
+# 让窗口对上 desktop 里的 StartupWMClass。
+export STARTUPWMCLASS=chromium
+# 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
 export DEPLOY_OPENGL=1
+export URUNTIME_PRELOAD=1
 export STRACE_BINARY=chromium
 export STRACE_FLAGS='about:blank --no-sandbox'
-
-###### 安装 Chromium 官方仓库包、Qt6 shim 依赖及中文输入法（IBus / Fcitx5）GTK3 组件 ######
-# Chromium 上游没有官方通用 Linux 二进制发行版；这里使用 Arch [extra] 官方仓库的 chromium 包，
-# 该包直接基于 Google chromium-browser-official 官方源码构建，随 Arch 仓库持续更新，天然满足
-# “应用版本必须动态获取”的要求。Arch chromium 包自带 libqt6_shim.so，但 qt6-base 被声明为
-# 可选依赖；由于构建会把 AppDir/bin/* 整体交给 quick-sharun，因此需要显式安装 qt6-base，
-# 让该上游 shim 的 Qt6 依赖完整可解析。中文输入法组件继续额外安装 IBus / Fcitx5 GTK3 模块。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" chromium qt6-base ibus fcitx5-gtk
-
-if [ ! -x /usr/bin/chromium ]; then
-  echo "Error: /usr/bin/chromium not found after installing the chromium package." >&2
-  exit 1
-fi
-
-###### 使用 Arch Chromium 的真实程序目录，避免把 /usr/bin/chromium 启动器误当成主二进制 ######
-CHROMIUM_DIR=/usr/lib/chromium
-if [ ! -x "$CHROMIUM_DIR/chromium" ]; then
-  echo "Error: $CHROMIUM_DIR/chromium not found after installing the chromium package." >&2
-  exit 1
-fi
-
-###### 准备 Chromium AppDir：完整保留主程序、资源、locales、sandbox 与随包运行库 ######
-mkdir -p ./AppDir/bin
-cp -a "$CHROMIUM_DIR"/. ./AppDir/bin/
-
-###### 准备 desktop 与图标：复制官方文件到本地再注入版本信息，不改系统原文件、不自制品牌 ######
-if [ ! -f /usr/share/applications/chromium.desktop ]; then
-  echo "Error: /usr/share/applications/chromium.desktop not found." >&2
-  exit 1
-fi
-cp -v /usr/share/applications/chromium.desktop ./chromium.desktop
-
-ICON_SRC=""
-for candidate in \
-  /usr/share/icons/hicolor/256x256/apps/chromium.png \
-  /usr/share/icons/hicolor/128x128/apps/chromium.png \
-  /usr/share/pixmaps/chromium.png; do
-  if [ -f "$candidate" ]; then
-    ICON_SRC="$candidate"
-    break
-  fi
-done
-if [ -z "$ICON_SRC" ]; then
-  echo "Error: no chromium icon found under hicolor/pixmaps." >&2
-  exit 1
-fi
-cp -v "$ICON_SRC" ./chromium.png
-
-export DESKTOP=./chromium.desktop
-export ICON=./chromium.png
 
 # 读取本次打包使用的版本。
 VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" command /usr/bin/chromium --version-file "$HOME/version" --desktop "$DESKTOP" --field 2 -- --version)"
 
-###### 核心打包：以真实 Chromium 主程序及完整资源目录为输入，补充 GTK3 中文输入法模块 ######
-quick-sharun \
-  ./AppDir/bin/* \
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so \
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
+# 收集程序及其运行依赖。
+quick-sharun ./AppDir/bin/* /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
 
-###### 固定 AppImage 内 Chromium 的 Linux 界面语言为简体中文，不改宿主机 locale ######
+# 本仓库兼容处理：设置包内简体中文界面语言。
 printf '%s\n' 'LANGUAGE=zh-CN' >> ./AppDir/.env
 
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/chromium.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/chromium.AppImage" "$VERSION" dist/version.txt

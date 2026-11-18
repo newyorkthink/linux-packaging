@@ -16,7 +16,7 @@ Chromium / Blink，GTK3 原生界面组件。依赖由 `pacman`/`yay` 按 `chrom
 
 - 路线：Arch Linux 环境内使用 quick-sharun，按[专用打包流程](../docs/packaging-classification.md#专用打包流程)维护。`/usr/bin/chromium` 是启动器，浏览器需要保留 `/usr/lib/chromium` 的程序与相邻资源。
 - 公共步骤：复用 Arch 安装、x86_64 工作目录以及版本读写入口。版本由 `chromium --version` 动态取得，保留 `~/version`、desktop 的 `X-AppImage-Version` 和发布用的 `dist/version.txt`。
-- desktop / 图标：直接复制官方包安装的 `/usr/share/applications/chromium.desktop` 与 hicolor/pixmaps 中的官方图标，不自制、不改品牌。
+- desktop / 图标：复制 Arch 官方 desktop 用于写入版本元数据。图标直接使用 Arch 官方包的 hicolor 256×256 PNG。
 - 主程序与资源：Arch 的 `/usr/bin/chromium` 是启动器，真正的 Chromium 主程序及 `resources.pak`、`icudtl.dat`、`locales/`、`chrome-sandbox`、ANGLE / SwiftShader 运行文件都位于 `/usr/lib/chromium/`。构建时把该目录完整复制到 `AppDir/bin/`，再交给 quick-sharun 部署，避免只打包启动器而遗漏真正的浏览器程序和资源。
 - Qt6 shim：Arch Chromium 包自带 `libqt6_shim.so`，同时把 `qt6-base` 声明为可选的 Qt 支持依赖。由于构建会把 `AppDir/bin/*` 整体交给 quick-sharun，脚本显式安装官方 Arch `qt6-base`，让该上游 shim 的 `libQt6Core.so.6`、`libQt6Gui.so.6`、`libQt6Widgets.so.6` 依赖可解析；quick-sharun 检测到 `libQt6Core` 后会自动启用 Qt6 部署。
 - 动态依赖探测：显式设置 `STRACE_BINARY=chromium` 与 `STRACE_FLAGS='about:blank --no-sandbox'`，让 quick-sharun 在构建阶段针对真正的 Chromium 主二进制收集动态加载依赖。
