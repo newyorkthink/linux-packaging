@@ -1,22 +1,19 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-###### 定位脚本目录，保证在仓库任意位置调用都固定在 chromium/ 目录内构建 ######
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-
-# 安装统一的 Arch AppImage 基础包
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 cd "$SCRIPT_DIR"
 
-rm -rf AppDir dist chromium.desktop chromium.png || true
+# 打包工具。GTK、输入法不要塞进这一行。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
 
-ARCH="$(uname -m)"
-if [ "$ARCH" != "x86_64" ]; then
-  echo "Error: this script only supports x86_64." >&2
-  exit 1
-fi
-export ARCH
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
+rm -f -- chromium.desktop chromium.png
 
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
 export STARTUPWMCLASS=chromium
 export OUTPATH=./dist
 export OUTNAME="chromium.AppImage"
@@ -26,18 +23,13 @@ export DEPLOY_OPENGL=1
 export STRACE_BINARY=chromium
 export STRACE_FLAGS='about:blank --no-sandbox'
 
-###### 准备构建环境：安装最小基础包 ######
-yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
-  grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
-  desktop-file-utils zsync ca-certificates
-
 ###### 安装 Chromium 官方仓库包、Qt6 shim 依赖及中文输入法（IBus / Fcitx5）GTK3 组件 ######
 # Chromium 上游没有官方通用 Linux 二进制发行版；这里使用 Arch [extra] 官方仓库的 chromium 包，
 # 该包直接基于 Google chromium-browser-official 官方源码构建，随 Arch 仓库持续更新，天然满足
 # “应用版本必须动态获取”的要求。Arch chromium 包自带 libqt6_shim.so，但 qt6-base 被声明为
 # 可选依赖；由于构建会把 AppDir/bin/* 整体交给 quick-sharun，因此需要显式安装 qt6-base，
 # 让该上游 shim 的 Qt6 依赖完整可解析。中文输入法组件继续额外安装 IBus / Fcitx5 GTK3 模块。
-yay -S --noconfirm chromium qt6-base ibus fcitx5-gtk
+"$SCRIPT_DIR/../common/arch/install_packages.sh" chromium qt6-base ibus fcitx5-gtk
 
 if [ ! -x /usr/bin/chromium ]; then
   echo "Error: /usr/bin/chromium not found after installing the chromium package." >&2
@@ -81,17 +73,8 @@ cp -v "$ICON_SRC" ./chromium.png
 export DESKTOP=./chromium.desktop
 export ICON=./chromium.png
 
-###### 记录版本，供 Release / desktop 元数据使用 ######
-VERSION="$(chromium --version | grep -oE '[0-9]+(\.[0-9]+){3}' | head -n1 || true)"
-if [ -z "$VERSION" ]; then
-  echo "Error: failed to determine Chromium version." >&2
-  exit 1
-fi
-echo "$VERSION" > ~/version
-echo "Chromium version: $VERSION"
-if ! grep -q '^X-AppImage-Version=' ./chromium.desktop; then
-  echo "X-AppImage-Version=$VERSION" >> ./chromium.desktop
-fi
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" command /usr/bin/chromium --version-file "$HOME/version" --desktop "$DESKTOP" --field 2 -- --version)"
 
 ###### 核心打包：以真实 Chromium 主程序及完整资源目录为输入，补充 GTK3 中文输入法模块 ######
 quick-sharun \
@@ -104,5 +87,5 @@ printf '%s\n' 'LANGUAGE=zh-CN' >> ./AppDir/.env
 
 quick-sharun --make-appimage
 
-# 构建成功后输出统一的软件版本元数据。
-printf '%s\n' "$VERSION" > ./dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/chromium.AppImage "$VERSION" dist/version.txt

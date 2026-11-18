@@ -218,6 +218,8 @@ quick-sharun __SCAN_ARGS__
 
 适用于选择 Arch 官方仓库原生二进制包、且 `/usr/bin/<主程序>` 为真实可执行程序的路线。先安装基础包、应用及已确认依赖，再从系统入口收集；不另行下载同一主程序，不预复制程序到 `AppDir/bin`，不把 Electron 的 shell launcher 当成原生入口。本类已标准化项目见 [打包分类](./docs/packaging-classification.md)。
 
+Chromium 的 Arch 包由 `/usr/bin/chromium` 启动器调用 `/usr/lib/chromium` 下的实际浏览器，按[专用流程](./docs/packaging-classification.md#专用打包流程)保留程序目录、运行资源及多进程挂载配置。公共安装、工作目录和版本元数据继续复用。
+
 以下是系统入口流程的既有示例。按标准重写时使用 [arch-native.sh](./templates/quick-sharun/arch-native.sh)，参数替换和适用条件以上面的模板表为准。
 
 ```bash
@@ -407,6 +409,8 @@ HOOK
 ```
 
 `STRACE_FLAGS` 只控制构建期间的 strace，传给 `quick-sharun --test` 或 `--simple-test` 的参数也只用于对应检查；这些都不会把固定参数写入最终 AppImage，不能代替运行时 hook。
+
+Chromium 的构建期 strace 使用 `--no-sandbox` 探测依赖，成品仍使用浏览器默认沙箱。Ubuntu 的 AppArmor 用户命名空间限制属于宿主策略。诊断 SUID helper 报错及处理方式见 [Chromium 兼容说明](./chromium/README.md#ubuntu-上的沙箱兼容性)。
 
 只有 `.env` 和 hook 都解决不了，并且应用 README 写明了失败证据，才允许加别的启动包装。已有并且已经验证过的 `AppRun.sh` 不要为了本条删掉。
 
