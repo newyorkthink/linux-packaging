@@ -22,6 +22,18 @@ chmod +x falkon.AppImage
 ./falkon.AppImage
 ```
 
+### VPS 远程桌面启动（RDP、VNC 等）
+
+在 VPS 的远程桌面终端中，以 root 启动且遇到 GLX/EGL 初始化失败时，可使用软件渲染。以下命令会关闭本次启动的 Chromium 沙箱。
+
+```bash
+QTWEBENGINE_DISABLE_SANDBOX=1 \
+QTWEBENGINE_CHROMIUM_FLAGS='--disable-gpu --use-gl=disabled' \
+falkon
+```
+
+在当前目录直接运行 AppImage 时，把最后一行换成 `./falkon.AppImage`。普通用户遇到相同的图形错误时，只设置 `QTWEBENGINE_CHROMIUM_FLAGS`，即可保留默认沙箱设置。
+
 ## 实机验证
 
 ### 2026-11-24：用户实机验证通过
