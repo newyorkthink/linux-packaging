@@ -181,6 +181,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | Gufw | [build_gufw.sh](../gufw/build_gufw.sh) | Python/GI 运行包需显式部署，资源路径和宿主命令环境需应用补丁，root 启动需临时副本与图形授权。采用 linuxdeploy GTK3 部署及官方 appimagetool 封装，标准 APT 模板不覆盖这些步骤。 | [模板差异](../gufw/docs/template-deviations.md) · [固定配置](../gufw/docs/hardcoded.md) · [当前核对与验证状态](../gufw/README.md#本次核对) |
 | Hermes Desktop | [build_hermes-desktop.sh](../hermes-desktop/build_hermes-desktop.sh) | 从上游正式 Release 标签获取源码，使用上游锁定的 pnpm 构建，并由 electron-builder 生成普通 Desktop AppImage。现有模板无法覆盖这条源码构建与封装流程。桌面客户端可连接已有 Gateway，也可使用单独安装的本机 Agent。 | [构建来源、旧版实机记录和当前验收状态](../hermes-desktop/README.md) |
 | KDE Suite | [build_kde_suite.sh](../kde-suite/build_kde_suite.sh) | 多款 KDE 程序共享一个 AppImage 的挂载及 Qt 6 和 KF6 运行组件，最终封装前按套件结构分阶段部署应用和辅助工具。 | [KDE Suite README](../kde-suite/README.md) |
+| QQ | [build_qq.sh](../qq/build_qq.sh) | 校验后原样同步腾讯官方 x86_64 AppImage。现有打包模板面向重新封装，QQ 采用已通过实机验证的原包同步流程。 | [打包方式](../qq/README.md#打包方式) · [修复与实机记录](../qq/README.md#修复记录) |
 | st | [build_st.sh](../st/build_st.sh) | 从 siduck/st 默认分支获取当前源码，按字体配置生成 config.h 并写入源码默认主题，经 make 安装后由 quick-sharun 封装程序、辅助脚本和 terminfo；与 Arch 原生软件包模板不同，不新增标准模板。 | [专属差异](../st/docs/template-deviations.md) · [实机验证](../st/README.md#实机验证) |
 | Webcamoid | [build_webcamoid.sh](../webcamoid/build_webcamoid.sh) | 现有流程从官方正式 Release 源码应用四个补丁，经 CMake + Ninja 安装到暂存目录，再由 quick-sharun 收集插件与运行库；不同于现有 Qt DEB / 系统入口模板，不新增标准模板。 | [当前基线与差异](../webcamoid/docs/template-deviations.md) · [实机验证](../webcamoid/README.md#实机验证) |
 

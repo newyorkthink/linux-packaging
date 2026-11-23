@@ -15,11 +15,9 @@
 
 当前路线是「官方 AppImage 原样同步」，不用 quick-sharun、linuxdeploy 或 appimagetool 重打包。
 
-1. 读取 AUR `linuxqq-appimage` 的 `PKGBUILD`，只取 `_image_url_x86_64` 和 `_image_sha256sums_x86_64`。AUR 配方本身不作为二进制来源。
-2. 通过腾讯 `UrlSign` 接口取得当前 CDN 签名地址，下载官方 AppImage。
-3. 按 AUR 声明的 SHA-256 校验。
-4. 从官方文件名解析版本（`QQ_<version>_<date>_x86_64_01.AppImage`），写入 `dist/version.txt`。
-5. 原样复制为 `qq/dist/qq.AppImage`。
+1. 公共 AUR 入口从 `linuxqq-appimage` 的 `PKGBUILD` 读取下载地址和 SHA-256。版本优先取自官方文件名，未匹配时使用配方中的版本字段。
+2. 公共下载入口通过腾讯 `UrlSign` 接口取得签名地址，下载官方 AppImage 并校验 SHA-256，校验通过后原样写入 `qq/dist/qq.AppImage`。
+3. 公共产物收尾入口设置执行权限，并将本次版本写入 `dist/version.txt`。
 
 不再从官方 DEB 用 Arch 库重封。该路线会把构建容器里的 Fontconfig / GTK / Glycin 打进包，在滚动发行版上与宿主缓存冲突，实机窗口全黑卡住；官方安装包和官方 AppImage 都不走这条路径。
 
