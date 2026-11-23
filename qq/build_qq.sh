@@ -16,6 +16,7 @@ source "$SCRIPT_DIR/../common/aur/download_pkgbuild_asset.sh"
 
 ############# 准备构建目录 #############
 
+# 设置构建目录、发布产物和来源版本文件的路径。
 SOURCE_DIR="$SCRIPT_DIR/source"
 DIST_DIR="$SCRIPT_DIR/dist"
 OUTFILE="$DIST_DIR/qq.AppImage"
@@ -26,6 +27,7 @@ SOURCE_VERSION_FILE="$SOURCE_DIR/version.txt"
 
 ############ 下载并准备应用 #############
 
+# 设置上游配方和下载签名接口的地址。
 AUR_PKGBUILD_URL='https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=linuxqq-appimage'
 QQ_SIGN_URL='https://im.qq.com/http2rpc/gotrpc/noauth/trpc.qqntv2.urlsign.UrlSign/GetSign'
 
