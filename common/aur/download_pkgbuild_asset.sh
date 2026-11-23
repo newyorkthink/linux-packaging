@@ -7,7 +7,9 @@ download_pkgbuild_asset() (
   if (( $# < 6 )); then
     printf '%s\n' \
       '用法：download_pkgbuild_asset <PKGBUILD URL> <地址字段> <SHA-256 字段> <版本字段> <输出文件> <版本文件>' \
-      '      [--url-regex <正则>] [--version-regex <正则>] [--resolve-url <Bash 函数>]' >&2
+      '      [--url-regex <正则>] [--version-regex <正则>] [--downloader <下载器>]' \
+      '      [--resolve-url <函数> | --resolve-json-url <Cookie URL> <POST URL> <请求字段> <返回字段路径>]' \
+      '      [--resolve-header <请求头>]...' >&2
     return 2
   fi
 
@@ -22,6 +24,9 @@ download_pkgbuild_asset() (
   url_regex=''
   version_regex=''
   resolver=''
+  downloader=''
+  resolve_args=()
+  resolve_headers=()
   while (( $# )); do
     if (( $# < 2 )) || [[ -z "$2" ]]; then
       printf '错误：%s 缺少参数值。\n' "$1" >&2
@@ -31,6 +36,17 @@ download_pkgbuild_asset() (
       --url-regex) url_regex="$2" ;;
       --version-regex) version_regex="$2" ;;
       --resolve-url) resolver="$2" ;;
+      --downloader) downloader="$2" ;;
+      --resolve-json-url)
+        if (( $# < 5 )) || (( ${#resolve_args[@]} )); then
+          printf '错误：--resolve-json-url 需要四个参数，且只能设置一次。\n' >&2
+          return 2
+        fi
+        resolve_args=("$1" "$2" "$3" "$4" "$5")
+        shift 5
+        continue
+        ;;
+      --resolve-header) resolve_headers+=("$1" "$2") ;;
       *)
         printf '错误：未知参数 %s。\n' "$1" >&2
         return 2
@@ -48,6 +64,21 @@ download_pkgbuild_asset() (
   fi
   if [[ -n "$resolver" ]] && { [[ ! "$resolver" =~ $identifier ]] || ! declare -F -- "$resolver" >/dev/null; }; then
     printf '错误：地址处理函数须在调用入口前定义。\n' >&2
+    return 2
+  fi
+
+  if [[ -n "$downloader" && "$downloader" != curl && "$downloader" != wget && "$downloader" != aria2c ]]; then
+    printf '错误：下载器只能为 curl、wget 或 aria2c。\n' >&2
+    return 2
+  fi
+  if (( ${#resolve_args[@]} )); then
+    if [[ -n "$resolver" ]]; then
+      printf '错误：两种地址处理方式只能选择一种。\n' >&2
+      return 2
+    fi
+    resolve_args+=("${resolve_headers[@]}" --)
+  elif (( ${#resolve_headers[@]} )); then
+    printf '错误：--resolve-header 需要同时指定 --resolve-json-url。\n' >&2
     return 2
   fi
 
@@ -175,7 +206,12 @@ download_pkgbuild_asset() (
   mkdir -p -- "$(dirname -- "$version_file")" || return
   version_temp="$(mktemp -- "$version_file.part.XXXXXXXX")" || return
   printf '%s\n' "$version" > "$version_temp" || return
-  "$download_file" "$asset_url" "$output" "$checksum" >&2 || return
+  # 下载器只用于文件传输，取链接配置由公共下载入口处理。
+  download_args=("$asset_url" "$output" "$checksum")
+  if [[ -n "$downloader" ]]; then
+    download_args+=("" "$downloader")
+  fi
+  "$download_file" "${resolve_args[@]}" "${download_args[@]}" >&2 || return
   mv -fT -- "$version_temp" "$version_file" || return
   version_temp=''
 )

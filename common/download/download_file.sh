@@ -1,6 +1,37 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# 只有显式选择取链接模式时才读取请求配置。
+RESOLVE_JSON_URL=0
+if [[ "${1:-}" == --resolve-json-url ]]; then
+  if (( $# < 8 )); then
+    printf '%s\n' '用法：--resolve-json-url <Cookie URL> <JSON POST URL> <请求字段> <返回字段路径>' \
+      '      [--resolve-header <请求头>]... -- <原始 HTTPS URL> <输出文件> [原有下载参数]' >&2
+    exit 2
+  fi
+  RESOLVE_JSON_URL=1
+  COOKIE_URL="$2"
+  POST_URL="$3"
+  REQUEST_FIELD="$4"
+  RESPONSE_FIELD="$5"
+  shift 5
+
+  RESOLVE_HEADER_ARGS=()
+  while [[ "${1:-}" == --resolve-header ]]; do
+    if (( $# < 2 )) || [[ "$2" != *:* || ! "${2%%:*}" =~ ^[A-Za-z0-9-]+$ || "$2" == *[[:cntrl:]]* ]]; then
+      printf '错误：--resolve-header 需要有效的 HTTP 请求头。\n' >&2
+      exit 2
+    fi
+    RESOLVE_HEADER_ARGS+=(--header "$2")
+    shift 2
+  done
+  if [[ "${1:-}" != -- ]]; then
+    printf '错误：取链接选项与原有下载参数之间必须使用 -- 分隔。\n' >&2
+    exit 2
+  fi
+  shift
+fi
+
 URL="${1:-}"
 OUTPUT="${2:-}"
 EXPECTED_CHECKSUM="${3:-}"
@@ -47,6 +78,45 @@ CURL_DOH_FALLBACK_URL="${8:-}"
   echo "错误：User-Agent 不得包含换行符。" >&2
   exit 1
 }
+
+if (( RESOLVE_JSON_URL )); then
+  HTTPS_URL='^https://[^/?#@[:space:][:cntrl:]]+([/?#][^[:space:][:cntrl:]]*)?$'
+  if [[ ! "$COOKIE_URL" =~ $HTTPS_URL || ! "$POST_URL" =~ $HTTPS_URL || ! "$URL" =~ $HTTPS_URL ||
+        -z "$REQUEST_FIELD" || "$REQUEST_FIELD" == *[[:cntrl:]]* ||
+        ! "$RESPONSE_FIELD" =~ ^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$ ]]; then
+    printf '错误：取链接模式需要有效的 HTTPS 地址、请求字段和返回字段路径。\n' >&2
+    exit 2
+  fi
+
+  # 先取下载地址。会话 Cookie 和请求头仅供取链接请求使用。
+  resolve_json_url() (
+    # 取得本次请求的 Cookie，并在请求结束时清理。
+    cookie_file="$(mktemp)" || exit
+    trap 'rm -f -- "$cookie_file"' EXIT
+    request_options=(--fail --silent --show-error --proto '=https' --globoff
+      --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 900)
+    curl --disable "${request_options[@]}" --cookie-jar "$cookie_file" \
+      --output /dev/null -- "$COOKIE_URL" || exit
+
+    # 将原始链接作为 JSON 字段提交，并读取一份 JSON 响应。
+    payload="$(jq -nc --arg field "$REQUEST_FIELD" --arg url "$URL" '{($field):$url}')" || exit
+    response="$(curl --disable "${request_options[@]}" --cookie "$cookie_file" \
+      --header 'Content-Type: application/json' --header 'Accept: application/json' \
+      "${RESOLVE_HEADER_ARGS[@]}" --data-binary "$payload" -- "$POST_URL")" || exit
+
+    # 从指定字段返回一条下载地址。
+    jq -ser --arg field "$RESPONSE_FIELD" '
+      if length == 1 then .[0] | getpath($field | split(".")) | strings else empty end
+    ' <<< "$response"
+  )
+
+  # 公共下载器使用解析后的 HTTPS 地址。
+  URL="$(resolve_json_url)"
+  if [[ ! "$URL" =~ $HTTPS_URL ]]; then
+    printf '错误：返回字段未提供有效的 HTTPS 下载地址。\n' >&2
+    exit 1
+  fi
+fi
 
 OUTPUT_DIR="$(dirname -- "$OUTPUT")"
 mkdir -p "$OUTPUT_DIR"

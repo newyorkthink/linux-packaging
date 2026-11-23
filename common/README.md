@@ -23,7 +23,7 @@
 - `aur/download_deb_source.sh` 接收 AUR 包名、架构和 DEB 输出文件三个参数。复用上述解析入口，在独立临时目录中读取当前来源和 `SOURCE_CHECKSUM`，再调用 `download/download_file.sh` 按指定算法校验并下载；成功或失败后均清理本次临时元数据。原有三个参数保持不变，不安装应用、不解包、不替调用方选择版本元数据，也不写死应用名或下载地址。 可在三个位置参数后显式启用 `--user-agent`、`--downloader`、`--wayback`、`--deb`、`--version-file`、`--package-version-file`、`--makepkg-source-dir` 和 `--source-filename`；不传选项的调用保持原行为，详见下文。
 - `aur/install_and_extract_deb_source.sh` 接收 AUR 包名、AUR 架构、来源工作目录、DEB 路径、解包目录、预期 DEB 包名和 DEB 架构。组合现有来源解析、摘要下载、版本读取、元数据校验、APT 安装和归档解包入口；全部成功后仅向 stdout 返回一行实际版本。保留同次 AUR 快照、来源元数据和依赖清单，不执行 PKGBUILD，也不改旧入口。参数与使用边界见下文。
 - `aur/download_tar_source.sh <AUR 包名> <架构> <输出.tar.gz> <元数据输出文件>` 从同次 `.SRCINFO` 读取唯一的架构专用 HTTPS tar.gz 来源和 BLAKE2b-512 摘要。摘要缺失、无效或为 `SKIP` 时拒绝下载；校验通过后写入归档及可由 Bash 读取的版本、pkgrel 和来源元数据。现有 DEB 入口继续使用原调用方式。
-- `aur/download_pkgbuild_asset.sh` 从同一份 PKGBUILD 文本读取指定的地址、SHA-256 和版本字段，支持可选的地址处理函数，并复用公共下载入口校验文件。成功后写入来源版本，详见下文。
+- `aur/download_pkgbuild_asset.sh` 从同一份 PKGBUILD 文本读取指定的地址、SHA-256 和版本字段，支持可选的地址处理函数和 JSON 取链接模式，并复用公共下载入口校验文件。成功后写入来源版本，详见下文。
 - `download/download_file.sh <HTTPS URL> <输出文件> [摘要] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔] [DNS 备用解析 HTTPS URL]` 保留原下载、重试、超时和原子替换行为。不传摘要时保持原行为；无前缀的 64 位十六进制摘要和 `sha256:<摘要>` 使用 SHA-256，新增的 `sha512:<128 位十六进制摘要>` 使用 SHA-512，`blake2b:<128 位十六进制摘要>` 使用 GNU `b2sum` 校验 BLAKE2b-512。摘要格式错误或校验失败时不替换已有输出文件。该扩展不改变其他专用下载入口各自的摘要格式。 第四个可选参数指定客户端标识，显式值优先；省略或传空字符串时，curl / wget 保留原默认标识，aria2c 使用仓库公共配置中的标识；不校验摘要而指定客户端标识时，第三个参数传空字符串。客户端标识包含回车或换行时拒绝下载。第五个可选参数显式选择下载器，默认仍为 `curl`；`wget` 共用原摘要校验、失败清理和原子替换，只用于直达 HTTPS 文件，不跟随重定向。该模式需要已有 `wget` 和 GNU `timeout`，总时限 900 秒，保留证书校验并使用 TLS 1.2；不读取 wget 配置或 netrc，不写 HSTS 文件。 `aria2c` 显式读取 [公共 HTTP 下载配置](./config/download/aria2.conf)，单服务器连接上限和分段数均为 16，最小分段和分块大小均为 1M；配置包含公开的模拟浏览器标识、IPv4 和 gzip 请求设置。它不读取个人 aria2 配置或 netrc；总时限仍为 900 秒，默认 TLS、证书校验、临时输出、原摘要校验、原子替换和失败清理保持不变，不自动跟随 Torrent / Metalink。公共配置按用途归类，规则见 [配置目录](./config/README.md)。
 - `download/download_apt_repository_deb.sh` 从调用方指定的 HTTPS APT 仓库读取签名索引，使用指定的官方密钥验证 `InRelease`，核对索引与 DEB 的 SHA-256、大小，以及 DEB 的包名、架构和版本；按 Debian 版本规则选择最高版本，成功后写入 DEB 与来源版本文件，stdout 只返回版本。不安装应用、不配置系统 APT 源；现有下载、版本读取和归档接口保持不变。完整参数与支持范围见下文。
 - `download/download_omaha_package.sh` 查询 Omaha 3.0 XML 更新服务，按调用方提供的应用 ID、渠道、平台、架构、下载源、路径前缀和文件名规则选择完整安装包，复用 `download_file.sh` 校验 SHA-256，并核对响应中的文件大小。成功后写入指定的安装包和版本文件，stdout 只返回版本；不安装或执行软件。完整参数、约束及调用方式见下文。
@@ -62,6 +62,19 @@
 # 显式使用 HTTP/1.1 和指数退避重试下载文件。
 "$SCRIPT_DIR/../common/download/download_file.sh" "<HTTPS URL>" "<输出文件>" "" "" curl http1.1 0
 ```
+
+### 从 JSON 请求取得下载地址
+
+上游要求先取得会话 Cookie，再以 JSON POST 提交原始地址时，用公共下载入口的可选取链接模式。Cookie 地址、POST 地址、请求字段名和返回字段路径由调用方传入。返回字段路径用点分隔，如 `data.url`。需要自定义请求头时，可重复传入 `--resolve-header`。`--` 后仍使用现有位置参数。
+
+```bash
+# 获取可下载地址，再使用原有下载器下载并校验文件。
+"$SCRIPT_DIR/../common/download/download_file.sh" \
+  --resolve-json-url "<Cookie URL>" "<POST URL>" "<请求字段>" "<返回字段路径>" \
+  --resolve-header "<请求头>" -- "<原始下载 URL>" "<输出文件>" "<SHA-256>" "" aria2c
+```
+
+两个接口和取到的下载地址都使用 HTTPS。取链接需要 curl 和 jq，Cookie 和自定义请求头只用于请求对应接口。接口请求不跟随重定向，文件下载按所选下载器的既有方式传输和校验。请求失败、返回字段无效或校验失败时，原有目标文件保留。
 
 ### Snap Store 官方稳定通道
 
@@ -203,6 +216,8 @@ download_pkgbuild_asset "<PKGBUILD URL>" "<地址字段>" "<SHA-256 字段>" "<�
 - `--url-regex "<地址正则>"` 使用 Bash 扩展正则检查配方中的原始地址，可限定来源主机及文件名。
 - `--version-regex "<版本正则>"` 匹配原始地址。首个捕获组为版本，第二组非空时以连字符追加。正则未匹配时使用配方中的备用版本字段。
 - `--resolve-url "<Bash 函数名>"` 调用调用方预先定义的 Bash 函数。函数接收原始地址，仅向 stdout 输出一行最终 HTTPS 地址，诊断信息写入 stderr；函数失败时终止下载。省略该选项时也可直接执行公共脚本。
+- `--resolve-json-url "<Cookie URL>" "<POST URL>" "<请求字段>" "<返回字段路径>"` 直接使用公共取链接功能。需要自定义请求头时，追加 `--resolve-header "<请求头>"`，可重复传入。两种地址处理方式只能选其一。
+- `--downloader "<curl|wget|aria2c>"` 只选择上游文件的下载器。配方和取链接请求继续用公共 curl 入口。省略该选项时使用现有默认方式。
 
 入口复用 `download/download_file.sh` 完成文件传输和 SHA-256 校验。下载并校验通过后才替换版本文件。下载或校验失败时保留已有文件及版本。校验日志写入 stderr，来源版本通过文件交给后续构建。
 
