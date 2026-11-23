@@ -11,7 +11,7 @@ Falkon 是基于 Qt 6 和 Qt WebEngine 的 KDE 浏览器。此目录用于准备
 
 ## 当前状态
 
-构建脚本已由标准生成器输出并通过 Bash 语法检查。AppImage 构建结果和 Ubuntu 24.04 x86_64 普通用户 X11 会话的运行结果待验证。
+构建脚本已由标准生成器输出并通过 Bash 语法检查。Falkon AppImage 的首次标准构建已成功并发布。
 
 ## 运行
 
@@ -22,4 +22,15 @@ chmod +x falkon.AppImage
 ./falkon.AppImage
 ```
 
-运行验收包含窗口启动、HTTPS 和 JavaScript 页面加载及 Qt WebEngine 沙箱。
+## 实机验证
+
+### 2026-11-24：用户实机验证通过
+
+用户已确认 Falkon AppImage 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| AppImage 启动 | 浏览器在 Linux 图形会话中正常启动。 |
+| 中文界面和输入法 | 中文界面正常显示，地址栏可输入中文并显示输入法候选词。 |
+| 网页和图片 | 百度首页、DuckDuckGo 搜索结果和图片搜索均能正常加载和显示。 |
+| 快速访问页 | 四张网站预览缩略图均正常显示。 |
