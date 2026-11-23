@@ -660,6 +660,17 @@
       "run_from_root": "false"
     },
     {
+      "key": "falkon",
+      "kind": "standard",
+      "name": "Falkon",
+      "script": "falkon/build_falkon.sh",
+      "dir": "falkon",
+      "artifact_dir": "falkon/dist",
+      "release_name": "falkon.AppImage",
+      "software_key": "falkon",
+      "run_from_root": "false"
+    },
+    {
       "key": "feishu",
       "kind": "standard",
       "name": "Feishu",

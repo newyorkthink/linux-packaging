@@ -1,14 +1,5 @@
 {
-  "template": "quick-sharun/qt-installed.sh",
-  "output": "falkon/build_falkon.sh",
-  "params": {
-    "SYSTEM_PACKAGE": "falkon",
-    "DEPENDENCY_ARGS": [],
-    "ICON": "/usr/share/icons/hicolor/256x256/apps/falkon.png",
-    "DESKTOP": "/usr/share/applications/org.kde.falkon.desktop",
-    "APP_BASENAME": "falkon",
-    "SCAN_ARGS": [
-      "/usr/bin/falkon"
-    ]
-  }
+  "template": "",
+  "output": "",
+  "params": {}
 }

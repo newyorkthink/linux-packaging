@@ -45,6 +45,7 @@ Obsidian 条目于 2026-11-08 单独复核，更新依赖、封装及 workflow �
 | [deskflow](../deskflow/build_deskflow.sh) |  |  | [README](../deskflow/README.md) |
 | [dingtalk](../dingtalk/build_dingtalk.sh) |  |  | [模板差异](../dingtalk/docs/template-deviations.md) · [固定参数](../dingtalk/docs/hardcoded.md) · [README](../dingtalk/README.md) |
 | [escrcpy](../escrcpy/build_escrcpy.sh) |  |  | [README](../escrcpy/README.md) |
+| [falkon](../falkon/build_falkon.sh) |  |  | [README](../falkon/README.md) |
 | [feishu](../feishu/build_feishu.sh) |  |  | [README](../feishu/README.md) |
 | [file-roller](../file-roller/build_file-roller.sh) |  |  | [模板差异](../file-roller/docs/template-deviations.md) · [README](../file-roller/README.md) |
 | [folo](../folo/build_folo.sh) |  |  | [README](../folo/README.md) |

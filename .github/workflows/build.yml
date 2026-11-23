@@ -47,6 +47,7 @@ on:
           - deskflow/build_deskflow.sh
           - dingtalk/build_dingtalk.sh
           - escrcpy/build_escrcpy.sh
+          - falkon/build_falkon.sh
           - feishu/build_feishu.sh
           - file-roller/build_file-roller.sh
           - folo/build_folo.sh
