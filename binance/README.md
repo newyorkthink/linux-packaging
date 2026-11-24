@@ -21,16 +21,11 @@
 ## 打包方式
 
 - GitHub Actions 使用独立 Job，运行环境固定为 `ubuntu-22.04`。
-- 路线是 linuxdeploy + 官方 GTK 插件，最后由 `appimagetool` 和 Type 2 runtime 封装。不发布 linuxdeploy 中间 AppImage。
-- 标准 `source` / `AppDir` / `dist` / `source/tools` 由 `common/linuxdeploy/prepare_build_workspace.sh` 处理。
-- 同一份官方 DEB 既安装到构建环境，也按上游布局解包到 `AppDir/opt/Binance`。不制造 `AppDir/usr/bin/binance` 转发脚本。
-- 官方 desktop 的 `Exec=/opt/Binance/binance %U` 会在 AppImage 里指向宿主机路径，因此改为 `Exec=binance %U`，`Icon` 保持 `binance`。`MimeType=x-scheme-handler/binance` 原样保留。
-- 根 `AppRun` 直接执行 `opt/Binance/binance`。`PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS` 分别包含 `usr/bin`、`usr/lib`、`usr/share`。`/opt/Binance` 加入程序和库搜索路径，`LD_LIBRARY_PATH` 同时包含已确认存在的 `usr/lib/x86_64-linux-gnu`。
-- `copy_nss_runtime.sh` 放入同一套 Ubuntu 22.04 NSS 核心库和 dlopen 模块，避免 AppImage 内 NSS 与宿主机 NSS 混用。
-- 第二次 linuxdeploy 使用 `DEPLOY_GTK_VERSION=3`，并精确追加 `-l`：`libsecret-1.so.0`、`libnotify.so`。
-- `ibus-gtk3` 只负责把 GTK3 IBus 输入模块带进 AppDir。AppRun 不写 `GTK_IM_MODULE`、`QT_IM_MODULE` 或 `XMODIFIERS`。
-- Adwaita 图标和 GTK 主题包通过 `download_and_extract_packages.sh` 按原始布局放进 AppDir。不设置 `GTK_THEME`。
-- 2026-09-23 的正式 `binance.AppImage` 已解包确认：当前官方 GTK 插件生成了 `apprun-hooks/linuxdeploy-plugin-gtk.sh`，顶层 `AppRun` 加载该 hook 后执行 `AppRun.wrapped`。构建脚本现在直接写入这份已核对的根 AppRun，不再调用 `normalize_apprun_paths.sh`。脚本仍不手工补 hook。
+- 2026-11-24 起，正式构建脚本 [build_binance.sh](./build_binance.sh) 以固定模板 [linuxdeploy-gtk-deb.sh](../templates/appimage/linuxdeploy-gtk-deb.sh) 经统一远端生成器生成的标准稿（Run `45347274483`，SHA-256：`b023633047b8bba14f4977ecabce35d2786bfdaa1829fbafc1b16560a0a05f0e`）为底稿，在对应分区内联三项必要专属处理，`AppRun` 保持标准模板原样；完整差异见 [模板差异](./docs/template-deviations.md)。
+- 路线仍为 linuxdeploy + 官方 GTK 插件，最后由 `appimagetool` 和 Type 2 runtime 封装；不发布 linuxdeploy 中间 AppImage。
+- 标准 `source` / `AppDir` / `dist` / `source/tools` 由 `common/linuxdeploy/prepare_build_workspace.sh` 处理；工具与环境配置统一由 `common/linuxdeploy/prepare_linuxdeploy_tools.sh` 处理；官方 GitHub 正式 Release DEB 下载、安装与原布局解包统一调用 `common/github/install_and_extract_latest_stable_release_deb.sh`。
+- 根 `AppRun` 沿用标准模板；成品解包确认 `usr/share/applications/` 仅含 `binance.desktop`、`usr/share/icons/hicolor/` 仅含 `512x512/apps/binance.png`，且 `usr/lib/x86_64-linux-gnu` 仅含 `gio` 目录，因此无需显式传 `--desktop-file` / `--icon-file` 或追加 multiarch 库路径。
+- 内联保留的三项专属处理：规范 `binance.desktop` 的 `Exec`/`Icon`；调用 `common/linuxdeploy/copy_nss_runtime.sh` 部署同版本 NSS 模块；第二次 `linuxdeploy` 追加 `-l libsecret-1.so.0` 与 `-l libnotify.so`。Adwaita 主题包解包及 `LD_LIBRARY_PATH` 追加 multiarch 目录本次未带入。
 
 ## 运行
 
@@ -68,6 +63,10 @@ chmod +x ./binance.AppImage
 - 仍未单独验证：输入框里的中文输入、系统通知、密钥环写入，以及无 user namespace 时的沙盒提示。没有这些新证据前不改 AppRun。
 
 ## 变更记录
+
+### 2026-11-24：按标准模板重写并内联三项必要专属处理
+
+通过统一远端生成工作流（Run `45347274483`）按 `appimage/linuxdeploy-gtk-deb.sh` 模板生成标准底稿，并按本次明确要求在 [build_binance.sh](./build_binance.sh) 内联补入主 desktop 规范、公共 NSS 部署及 `-l libsecret-1.so.0` / `-l libnotify.so`，`AppRun` 保持标准模板原样，同步记录于 [模板差异](./docs/template-deviations.md)。未带入显式 `--desktop-file`/`--icon-file`、Adwaita 主题包与 multiarch 库路径；新版待正式构建及实机验证。
 
 ### 2026-09-23：固化已确认的 AppRun
 
