@@ -18,7 +18,7 @@
 # undo-preview 无须输入 JSON，只读预览当前分支最近一次普通提交，并返回 undo_id。
 # undo 接收 commit（预览中的完整提交号）和 undo_id；调用者须先取得本次明确的撤回同意。
 # 撤回只把当前分支移到该提交的父提交，保留工作区、暂存区和未跟踪文件，不新增反向提交。
-# 撤回记录保留在分支 reflog 中。初始提交、合并提交和未完成的 Git 操作不支持撤回。
+# 撤回记录保留在分支 reflog 中。初始提交、合并提交、已包含在本地已知远端跟踪分支中的提交及未完成的 Git 操作不支持撤回。
 # 撤回后可继续修改文件，再使用 inspect、preview 和 commit 重新提交。
 #
 # inspect 和 preview 只读，不写入仓库文件、索引或预览文件。commit 写入本地 Git 索引和历史，
@@ -376,6 +376,18 @@ def undo_snapshot(root: Path) -> UndoSnapshot:
         raise CommitError("初始提交没有父提交，不支持撤回。")
     if len(parents) != 2:
         raise CommitError("合并提交有多个父提交，不支持直接撤回。")
+    remote_raw = git(
+        root, "for-each-ref", "--contains", head,
+        "--format=%(symref)\t%(refname:short)", "refs/remotes",
+    )
+    remote_refs = []
+    for line in os.fsdecode(remote_raw).splitlines():
+        symref, ref_name = line.split("\t", 1)
+        if not symref:
+            remote_refs.append(ref_name)
+    if remote_refs:
+        refs_text = "、".join(sorted(remote_refs))
+        raise CommitError(f"提交 {head} 已包含在本地已知远端跟踪分支（{refs_text}）中，不支持本地撤回。")
     parent = parents[1]
     subject = git(root, "log", "-1", "--format=%s", head).decode("utf-8", errors="replace").rstrip("\n")
     status = git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames")
