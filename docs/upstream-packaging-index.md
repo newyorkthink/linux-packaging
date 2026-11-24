@@ -56,6 +56,7 @@ Obsidian 条目于 2026-11-08 单独复核，更新依赖、封装及 workflow �
 | [goldendict](../goldendict/build_goldendict.sh) |  |  | [README](../goldendict/README.md) |
 | [grok-app](../grok-app/build_grok-app.sh) |  |  | [模板差异](../grok-app/docs/template-deviations.md) · [README](../grok-app/README.md) |
 | [grok-bot](../grok-bot/build_grok-bot.sh) |  |  | [模板差异](../grok-bot/docs/template-deviations.md) · [README](../grok-bot/README.md) |
+| [gufw](../gufw/build_gufw.sh) |  |  | [模板差异](../gufw/docs/template-deviations.md) · [固定配置](../gufw/docs/hardcoded.md) · [README](../gufw/README.md) |
 | [hermes-desktop](../hermes-desktop/build_hermes-desktop.sh) |  |  | [README](../hermes-desktop/README.md) |
 | [htop](../htop/build_htop.sh) | [htop-AppImage](https://github.com/pkgforge-dev/htop-AppImage) | [依赖](https://github.com/pkgforge-dev/htop-AppImage/blob/138bc266d885f0ac987921a99417aa1278169b76/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/htop-AppImage/blob/138bc266d885f0ac987921a99417aa1278169b76/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/htop-AppImage/blob/138bc266d885f0ac987921a99417aa1278169b76/.github/workflows/appimage.yml) | [上游差异](../htop/docs/pkgforge-differences.md) · [模板差异](../htop/docs/template-deviations.md) · [README](../htop/README.md) |
 | [i3wm](../i3wm/build_i3wm.sh) |  |  | [README](../i3wm/README.md) |
