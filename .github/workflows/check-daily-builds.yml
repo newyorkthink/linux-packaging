@@ -1,0 +1,59 @@
+# 每日构建兜底巡检：检查当天 AppImage、RunImage、Termux 是否已启动全量构建，未启动且未暂停时自动补发一次。
+name: Check Daily Builds
+
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch' && format('Check daily builds ({0}{1})', inputs.target, inputs.dry_run && ', dry-run' || '') || 'Check daily builds' }}
+
+on:
+  schedule:
+    # 避开 UTC 00:xx 高峰并留出缓冲，对应北京时间 10:37、14:37、18:37。
+    - cron: '37 2 * * *'
+    - cron: '37 6 * * *'
+    - cron: '37 10 * * *'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '选择要检查的每日构建类型'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - appimage
+          - runimage
+          - termux
+      dry_run:
+        description: '仅检查并输出汇总，不实际补发构建'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: write
+  issues: read
+
+concurrency:
+  group: check-daily-builds
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check Daily Builds
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: 检查并补发当日未启动的每日构建
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHECK_TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || 'all' }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+        run: python3 .github/scripts/check_daily_builds.py
