@@ -25,3 +25,7 @@
 ## 未继续保留的旧版导出变量
 
 - **`STARTUPWMCLASS=xfreerdp3`**：仓库维护的 [freerdp.desktop](../freerdp.desktop#L2) 已经显式声明 `StartupWMClass=xfreerdp3`；已核对 `quick-sharun.sh` 检测到 desktop 文件已含 `StartupWMClass=` 时会直接跳过环境变量，省略与保留等价。
+
+## 实机验证
+
+实机验证通过记录见 [FreeRDP README](../README.md#实机验证)。

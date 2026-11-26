@@ -69,3 +69,19 @@ AppImage 主入口为 `xfreerdp3`，实际 RDP 参数沿用 FreeRDP 3 的命令�
 - 核实 `pkgforge-dev` 无 `freerdp` 仓库，确认沿用 Arch 官方 `extra/freerdp` 原生包路线。
 - 按 [arch-native.sh](../templates/quick-sharun/arch-native.sh) 重写 [build_freerdp.sh](./build_freerdp.sh)，统一接入公共安装、工作区与版本脚本；完整保留仓库图标/desktop、9 个可执行入口、代理插件收集与检查及 `PATH_MAPPING` 配置，省略与 `freerdp.desktop` 重复的 `STARTUPWMCLASS`，并新增 [模板差异说明](./docs/template-deviations.md)。
 - 本次仅做静态核对，提交后按仓库规则不主动监控 Actions。
+
+## 实机验证
+
+### 2026-11-27：用户实机验证通过
+
+用户已确认 FreeRDP `3.33.1` 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| Linux 实机获取与校验 | `xfreerdp3.AppImage`（`3.33.1`）下载完成并通过 SHA-256 校验。 |
+| Windows 远程桌面连接 | 使用动态分辨率、硬件 GDI、剪贴板、PulseAudio 音频与目录共享参数成功登录并进入 Windows 桌面。 |
+| 虚拟通道与设备加载 | 日志确认 `rdpsnd`（静态与动态 PulseAudio 后端）、`ainput`、`rdpgfx`、`disp` 通道及共享目录设备均正常加载注册。 |
+
+#### 运行观察
+
+- 命令行使用 `/p:` 传参、扩展键码缺少 RDP scancode 映射、首次/变更主机证书交互确认以及未配置默认 Kerberos realm 均输出常规非阻断提示，确认证书后会话正常建立并进入桌面。
