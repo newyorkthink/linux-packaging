@@ -75,7 +75,6 @@ Stacer 是 C++17 / Qt6 原生 Linux 桌面程序，核心依赖：
 - **检查范围：** 上游关闭逻辑；本仓库同类 Qt6 GUI 的打包路线；是否应改成 `linuxdeploy --appdir AppDir --plugin qt --output appimage`。
 - **证据来源：** 上游 `stacer/app.cpp` 的 `closeEvent`；仪表盘 `checkUpdate()` 请求 `https://api.github.com/repos/QuentiumYT/Stacer/releases/latest`；启动时的 `QIODevice::read (QSslSocket): device not open`；实机约 10 秒后自行退出的运行反馈。
 - **已确认结论：** 关窗卡住不是缺少 `linuxdeploy --plugin qt`。同类从 Arch 安装的 Qt6 GUI 在本仓库走 quick-sharun。上游在“不再询问”且选择 `close` 时，GUI 线程先 `QThreadPool::waitForDone()`（无超时）再 `QApplication::quit()`。等待期间界面不再刷新，所以看起来像黑屏卡住，线程池任务结束后窗口才会消失。仪表盘启动就会发 GitHub 更新检查，TLS 读写失败时常见约 10 秒才返回。`linuxdeploy --output appimage` 不得作为本仓库最终封装方式，也不改这条上游关闭逻辑。
-- **未确认事项：** 这 10 秒具体卡在 GitHub 更新检查、服务/软件包页的 `QtConcurrent` 任务，还是二者一起。不改变“不是打包链选型错误”的结论。
 - **是否建议修改：** 否。保持 Arch + quick-sharun，不改程序关闭逻辑，不改成 linuxdeploy Qt plugin。
 
 ### 2026-09-17：接入本仓库并避开官方 jammy AppImage 的旧 glibc
@@ -84,4 +83,15 @@ Stacer 是 C++17 / Qt6 原生 Linux 桌面程序，核心依赖：
 - **根因：** 上游正式 AppImage 在 Ubuntu 22.04 (jammy) 上使用 go-appimage `appimagetool -s deploy`，会把 jammy 的 glibc 2.35 打进包内。子进程若继承了其他 AppImage 的库搜索路径，就会拿新库去链这份旧 libc，从而找不到 `GLIBC_2.38`。官方源码仓库本身能在 Ubuntu 22.04 / 24.04 上成功出包，问题出在这份 jammy AppImage 的运行库组合，而不是 Stacer 程序逻辑。
 - **修改文件：** 新增 `stacer/build_stacer.sh`、`stacer/README.md`，并在 `.github/appimage-apps.json` 增加标准应用 `stacer`。
 - **修复内容：** 不同步官方 AppImage。改为在 Arch Linux 上从官方源码安装当前稳定 Stacer，用 `quick-sharun` 收集与二进制匹配的 Qt6 / glibc / 输入上下文，并补上翻译目录链接。
-- **已知结果：** 已提交正式构建入口，未监控 GitHub Actions，构建及实机结果待验证。
+- **已知结果：** 已提交正式构建入口，未监控 GitHub Actions。
+
+## 实机验证
+
+### 2026-11-27：用户实机验证通过
+
+用户已确认 Stacer 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 仪表盘启动与中文界面 | 正常启动并显示简体中文仪表盘，实时展示 CPU、内存、磁盘、系统信息与网络收发面板。 |
+| 页面切换与中文输入 | 搜索页正常打开，搜索框支持中文输入法正常输入。 |

@@ -20,3 +20,7 @@
 | --- | --- | --- |
 | `export STARTUPWMCLASS="deskflow"` | [build_deskflow.sh](../build_deskflow.sh#L21-L22) | 保留原脚本窗口类设置，使窗口与 desktop 中的 `StartupWMClass` 对应。 |
 | 复制上游翻译目录并建立软链接 | [build_deskflow.sh](../build_deskflow.sh#L50-L56) | Deskflow 从主程序同级 `translations` 与 `../share/deskflow/translations` 加载全部 `.qm` 翻译文件；仅收集 ELF 不会带入该目录，故沿用 2026-10-12 既定修复，复制 `/usr/share/deskflow/translations` 并链接到 `AppDir/bin/translations`（及存在时的 `AppDir/shared/bin/translations`）。 |
+
+## 实机验证
+
+实机验证通过记录见 [Deskflow README](../README.md#实机验证)。

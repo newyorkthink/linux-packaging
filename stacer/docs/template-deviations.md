@@ -19,3 +19,7 @@
 | --- | --- | --- |
 | `export STARTUPWMCLASS="stacer"` | [build_stacer.sh](../build_stacer.sh#L21-L22) | 保留原脚本窗口类设置，使窗口与 desktop 中的 `StartupWMClass` 对应。 |
 | 显式收集 `/usr/share/stacer` 并链接翻译目录 | [build_stacer.sh](../build_stacer.sh#L38)、[build_stacer.sh](../build_stacer.sh#L50-L60) | 上游查找翻译的回退路径为 `applicationDirPath()/translations`；打包阶段一并收集 `/usr/share/stacer`，校验 `AppDir/share/stacer/translations` 存在后软链接至 `AppDir/bin/translations`（及存在时的 `AppDir/shared/bin/translations`），缺失时中止构建。 |
+
+## 实机验证
+
+实机验证通过记录见 [Stacer README](../README.md#实机验证)。

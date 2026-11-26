@@ -25,3 +25,7 @@
 
 - 不打包 `/usr/bin/perl`（单独打包会缺少核心模块，`i3-dmenu-desktop`、`i3-save-tree` 等继续使用宿主 Perl）。
 - 不打包 `i3lock` 与 `slock`（与主 AppImage 的认证及权限模型冲突），仅保留 `xss-lock` 调用宿主锁屏程序。
+
+## 实机验证
+
+实机验证通过记录见 [i3wm README](../README.md#实机验证)。
