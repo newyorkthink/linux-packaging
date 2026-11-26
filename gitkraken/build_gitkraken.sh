@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_D
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev pkgconf libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev librsvg2-dev librsvg2-common libpango1.0-dev libssl3t64 ibus-gtk3 fcitx5-frontend-gtk3 locales hicolor-icon-theme adwaita-icon-theme
+"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev pkgconf libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev librsvg2-dev librsvg2-common libpango1.0-dev libnss3 libnspr4 libssl3t64 ibus-gtk3 fcitx5-frontend-gtk3 locales hicolor-icon-theme adwaita-icon-theme
 
 ############# 下载打包工具 #############
 
@@ -101,6 +101,9 @@ PATH="/usr/lib/$MULTIARCH/libgtk-3-0t64:$PATH" \
     --plugin gtk --output appimage
 
 ############### 整理产物 ###############
+
+# 复制构建环境中的 NSS 核心库及其配套动态加载模块。
+"$SCRIPT_DIR/../common/linuxdeploy/copy_nss_runtime.sh" "$APPDIR/usr/lib" --with-nspr
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
 "$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

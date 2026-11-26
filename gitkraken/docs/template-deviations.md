@@ -8,6 +8,7 @@
 | 桌面资源 | DEB 提供一个主桌面入口和两个隐藏的 URI 入口，部署时明确选择 `gitkraken.desktop`。主入口使用 `Exec=gitkraken %U` 和 `Icon=gitkraken`，两个 URI desktop 保留在包内。将 `usr/bin/gitkraken` 的绝对链接改为指向官方 CLI launcher 的相对链接。 |
 | AppRun | 保留完整 `usr/share/gitkraken` 目录、相邻 `libffmpeg.so`、应用资源和官方 `chrome-sandbox` 文件。AppRun 将真实程序目录加入库搜索路径，直接执行主 ELF。 |
 | 依赖 | 对真实程序和 `chrome_crashpad_handler` 使用 `--deploy-deps-only`。显式部署 `libssl.so.3`、`libgssapi_krb5.so.2` 和 `libxkbfile.so.1`，由 linuxdeploy 继续收集传递依赖。包内 `*.node` 保留原布局，依赖扫描仅选已确认的 ELF 和库。 |
+| NSS/NSPR | 用户实测启动因包内 `libnssutil3.so` 与宿主 `libsoftokn3.so` 的符号版本不匹配而退出。显式安装 `libnss3` 和 `libnspr4`，在 linuxdeploy 结束后调用 `copy_nss_runtime.sh` 将同一构建环境的 NSS、动态模块、`.chk` 和 NSPR 部署到 `AppDir/usr/lib`。放在最终封装前可保留模块原始字节。 |
 | 主题与输入法 | GTK3 插件部署桌面运行资源并按宿主浅色或深色偏好选择 Adwaita 变体。Ubuntu 24.04 的 `gtk-query-immodules-3.0` 位于 `libgtk-3-0t64` 私有目录，构建调用临时补充 `PATH`，以便生成 IBus/Fcitx5 缓存。 |
 | 中文环境 | 公共入口在 AppDir 内生成 `zh_CN.UTF-8`，AppRun 设置 `LOCPATH`、`LANG`、`LANGUAGE`。GTK 输入法沿用宿主会话的选择。 |
 | 封装与发布 | Ubuntu 24.04 独立任务继续使用 `gitkraken.AppImage` 和 `gitkraken` 软件键，沿用按分页列表精确匹配资产名的发布方式。公共封装入口使用 Type 2 runtime，输出最终 SHA-256，并写入 `dist/version.txt`。 |

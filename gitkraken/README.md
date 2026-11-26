@@ -24,9 +24,24 @@ GitKraken Desktop 是基于 Electron / Chromium 的图形化 Git 客户端。本
 
 - 静态核对已提供的 AMD64 DEB，确认真实程序、桌面入口、官方图标、crashpad、`libffmpeg.so` 及 Node 原生模块的布局，并读取主程序和原生模块的 ELF 依赖。
 - 对照 GTK DEB 模板和仓库既有项目核对公共调用、专属参数、作业入口与发布路径。
-- Ubuntu 构建、普通用户窗口启动、主题切换和中文输入的实跑结果待记录。公共封装入口会清除 `chrome-sandbox` 的 setuid 位，普通用户沙箱启动取决于宿主允许的用户命名空间。
+- 已核对用户提供的 AppImage 与 `latest` Release 资产 SHA-256 一致。该版本在普通用户启动时因 NSS 初始化失败而退出。
+- 修复版的构建、窗口启动、主题切换和中文输入待实跑确认。公共封装入口会清除 `chrome-sandbox` 的 setuid 位，普通用户沙箱启动取决于宿主允许的用户命名空间。
 
 ## 变更记录
+
+### 2026-11-26 补齐 linuxdeploy 产物的 NSS/NSPR
+
+GitKraken 启动时出现以下致命报错。挂载路径已缩写。
+
+```text
+<AppDir>/usr/lib/libnssutil3.so: version `NSSUTIL_3.108' not found (required by /usr/lib/x86_64-linux-gnu/libsoftokn3.so)
+FATAL:crypto/nss_util.cc:146] nss_error=-5925, os_error=0
+```
+
+只读核对发布产物发现，包内缺少 `libsoftokn3.so`，`libnssutil3.so` 最高只提供 `NSSUTIL_3.94`。NSS 回退加载宿主的 `libsoftokn3.so` 后遇到符号版本冲突。
+
+构建依赖增加 `libnss3` 与 `libnspr4`。linuxdeploy 完成后，通过公共入口把同一 Ubuntu runner 的 NSS 核心库、动态加载模块、配套 `.chk` 和 NSPR 放入 `AppDir/usr/lib`，随后统一封装。该顺序保留动态模块与 `.chk` 的对应关系。修复版运行结果待验证。
+
 
 ### 2026-09-02：首次加入 GitKraken AppImage 与中文环境
 
