@@ -18,6 +18,7 @@ quick-sharun 按标准重写时，从 [唯一标准模板](../anylinux_projects.
 
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
+| AdsPower Global | [build_adspower-global.sh](../adspower-global/build_adspower-global.sh) | 按 AUR `adspower-global-bin` 配方安装；公共 AUR 入口独立下载官方 DEB 并校验摘要，版本读取同次下载记录。采用 `qt-deb.sh` 的 AUR DEB 流程，依赖参数填写 `fcitx5-gtk`。 | 无 | [模板记录](../adspower-global/docs/template-deviations.md) · [上游取舍](../adspower-global/docs/pkgforge-differences.md) |
 | Antigravity | [build_antigravity.sh](../antigravity/build_antigravity.sh) | 官网独立下载 Linux x64 tar；实际下载链接的版本先保存为文本，再由公共版本入口读取。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../antigravity/docs/template-deviations.md) |
 | Antigravity IDE | [build_antigravity-ide.sh](../antigravity-ide/build_antigravity-ide.sh) | 官网独立下载 Linux x64 tar；实际下载链接的版本先保存为文本，再由公共版本入口读取。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../antigravity-ide/docs/template-deviations.md) |
 | ChatGPT | [build_chatgpt.sh](../chatgpt/build_chatgpt.sh) | 先安装 chatgpt-desktop；公共 AUR 入口独立下载 OpenAI 官方 DEB 并校验 SHA-256，版本读取本次包内 Linux 元数据。 | export DEPLOY_GTK=1 | [模板差异](../chatgpt/docs/template-deviations.md) |
@@ -64,6 +65,7 @@ Gemini 保留现有中文启动器、已识别 PE 模块移除顺序及非 stick
 | --- | --- | --- | --- | --- |
 | CC Switch | [build_cc-switch.sh](../cc-switch/build_cc-switch.sh) | 独立下载官方正式 Release DEB，核对 GitHub SHA-256、包名和架构；公共版本入口读取同一下载操作记录的版本文本。 | export DEPLOY_GTK=1 | [模板差异](../cc-switch/docs/template-deviations.md) |
 | Grok App | [build_grok-app.sh](../grok-app/build_grok-app.sh) | 独立下载 RongleCat/grok-app 正式 Release DEB；版本由同次下载记录。按用户确认的 DEB 例外只安装真实运行依赖，桌面资源取自 DEB。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_WEBKIT2GTK=1<br>export WEBKIT2GTK_DIR=/usr/lib/webkit2gtk-4.1 | [模板差异](../grok-app/docs/template-deviations.md) |
+| v2rayN | [build_v2rayn.sh](../v2rayn/build_v2rayn.sh) | 先安装 AUR `v2rayn-bin`；公共入口从官方正式 Release 独立下载 `v2rayN-linux-64.deb`，核对 GitHub SHA-256、包名和架构，版本读取同次下载记录（.NET/Avalonia 客户端，套用 `tauri-gtk-deb.sh` 模板）。 | export DEPLOY_GTK=1 | [应用说明](../v2rayn/README.md) |
 
 Grok App 尚未核实同源 Arch/AUR 应用包，本次采用用户明确确认的官方 DEB 路线，作为安装阶段的应用专属例外；不改变其他项目先安装应用、再独立下载的默认要求。其选目录工具、宿主 bwrap 和协议登记保留原有依据。Grok Bot 则完整执行标准两阶段，并保留音频、启动兼容及登录回调；这些专属段不加入通用模板。
 
