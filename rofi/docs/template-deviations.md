@@ -29,3 +29,7 @@
 - `export URUNTIME_PRELOAD=1`（未启用）
 - `get-dependencies.sh` 源码 `meson` 编译与 `get-debloated-pkgs`（未启用）
 - `ADD_HOOKS="self-updater.hook"`、`UPINFO`、`quick-sharun --test`（未启用）
+
+## 实机验证
+
+实机验证通过记录见 [Rofi README](../README.md#实机验证)。

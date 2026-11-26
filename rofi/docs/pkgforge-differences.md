@@ -113,6 +113,6 @@ git clone --depth 1 "https://github.com/davatorium/rofi.git" ./rofi && (
 /usr/bin/rofi -v | awk -F'[- ]' '{print $2; exit}' > ~/version
 ```
 
-## 验证边界
+## 实机验证
 
-- 本次标准化与接入 `rofi-datadir.src.hook` 仅完成源码核对与静态检查，尚未经正式 CI 构建和实机运行验收。
+实机验证通过记录见 [Rofi README](../README.md#实机验证)。

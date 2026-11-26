@@ -31,3 +31,14 @@ workflow 将其上传为 `software-version-picom`，成功构建后增量写入 
 - 增加最终 AppImage 存在性构建守卫，并在成功后输出 `dist/version.txt`。
 - workflow 接入 `SOFTWARE_KEY=picom` 与统一 `software_versions.json`。
 - 本次仅做静态核对，提交后按仓库规则不主动监控 Actions。
+
+## 实机验证
+
+### 2026-11-27：用户实机验证通过
+
+用户已确认 Picom `13` 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| Linux 实机获取与校验 | `picom.AppImage`（`13`）下载完成并通过 SHA-256 校验。 |
+| Linux 实机运行 | 用户确认实机运行正常，无异常问题。 |

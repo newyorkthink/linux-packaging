@@ -23,3 +23,7 @@
 
 - **`APPNAME="picom"`**：已核对上游 `yshui/picom` 的 `picom.desktop` 已有 `Name=picom`，且 `uruntime2appimage.sh` 未设置 `APPNAME` 时自动读取 `Name=` 字段，同时本脚本已固定 `OUTNAME="picom.AppImage"`，省略与保留等价。
 - **`STARTUPWMCLASS="picom"`**：上游 `picom.desktop` 声明了 `NoDisplay=true`、`StartupNotify=false` 与 `Exec=picom`（无窗口后台合成器）；已核对 `quick-sharun.sh` 未设置 `STARTUPWMCLASS` 时仅输出提示警告并自动写入相同的 `StartupWMClass=picom`，不改变最终 desktop 内容。
+
+## 实机验证
+
+实机验证通过记录见 [Picom README](../README.md#实机验证)。

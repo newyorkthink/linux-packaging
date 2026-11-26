@@ -32,3 +32,14 @@ workflow 将其上传为 `software-version-rofi`，成功构建后增量写入 `
 - 增加最终 AppImage 存在性构建守卫，并在成功后输出 `dist/version.txt`。
 - workflow 接入 `SOFTWARE_KEY=rofi` 与统一 `software_versions.json`。
 - 本次仅做静态核对，提交后按仓库规则不主动监控 Actions。
+
+## 实机验证
+
+### 2026-11-27：用户实机验证通过
+
+用户已确认 Rofi 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 内置主题目录自动初始化 | 首次启动后，复用的 `rofi-datadir.src.hook` 已将包内内置主题文件自动复制至 `~/.local/share/rofi/themes`。 |
+| 窗口启动与中文输入 | 正常弹出 `combi` 交互窗口，支持中文输入法候选词显示与输入。 |

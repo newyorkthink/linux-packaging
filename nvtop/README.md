@@ -30,3 +30,14 @@ workflow 将其上传为 `software-version-nvtop`，成功构建后增量写入 
 - 增加最终 AppImage 存在性构建守卫，并在成功后输出 `dist/version.txt`。
 - workflow 接入 `SOFTWARE_KEY=nvtop` 与统一 `software_versions.json`。
 - 本次仅做静态核对，提交后按仓库规则不主动监控 Actions。
+
+## 实机验证
+
+### 2026-11-27：用户实机验证通过
+
+用户已确认 nvtop `3.4.0` 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| Linux 实机获取与校验 | `nvtop.AppImage`（`3.4.0`）下载完成并通过 SHA-256 校验。 |
+| 终端启动与多卡监控 | 正常启动并识别双显卡设备，实时显示显卡占用与显存曲线及图形进程列表。 |
