@@ -196,7 +196,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | --- | --- | --- |
 | `GTK_IM_MODULE` | GTK 文本框用哪个输入法模块，常见是 ibus 或 fcitx。 | 例如 aionui、dconf-editor、dingtalk；`gufw/AppRun` 在已有 X11 Fcitx／IBus XIM 会话中为 root 界面选择 `xim` |
 | `GTK_IM_MODULE_FILE` | GTK 输入法模块缓存文件的路径。 | 4 个脚本，例如 dconf-editor、rainlendar2、remmina |
-| `GTK_THEME` | 强制使用的 GTK 主题名。 | joplin、rainlendar2、ripdrag、rvncconnect；`gufw/AppRun` 按已选择的深色界面使用 `Adwaita:dark` |
+| `GTK_THEME` | 强制使用的 GTK 主题名。 | joplin、rainlendar2、ripdrag、rvncconnect、gitkraken；`gufw/AppRun` 按已选择的深色界面使用 `Adwaita:dark` |
 | `GTK_PATH` | GTK 模块搜索路径。 | keepass |
 | `GTK_DIR` | GTK 模块所在的目录名，例如 gtk-4.0。 | mission-center |
 | `GTK2_RC_FILES` | GTK2 的主题配置文件。 | keepass |
@@ -210,12 +210,12 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `GLFW_IM_MODULE` | kitty 的 GLFW 用哪个输入法模块。这里是 ibus。 | kitty |
 | `IBUS_ADDRESS` | 这次启动要连的 IBus 套接字，不用外部环境里可能失效的地址。 | kitty |
 | `IBUS_USE_PORTAL` | 让 Qt 自带 IBus 插件走会话总线上的 org.freedesktop.portal.IBus。Fcitx5 的 IBus 前端提供这个名字，因此不要求宿主安装 ibus-daemon。 | xnviewmp |
-| `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 例如 goldendict、gitkraken、obs-studio、tencent-docs、grok-app、joplin、remmina、gemini、tradingview、ventoy、folo、copyq；bluemail 使用包内中文 locale |
-| `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 例如 goldendict、gemini、gitkraken、kde-suite、grok-app、joplin、tradingview、folo、copyq；bluemail 使用包内中文 locale |
+| `LANG` | 界面语言。图形程序常用 zh_CN.UTF-8。 | 例如 goldendict、obs-studio、tencent-docs、grok-app、joplin、remmina、gemini、tradingview、ventoy、folo、copyq；bluemail 使用包内中文 locale |
+| `LANGUAGE` | 翻译语言的回退顺序，例如 zh_CN:zh。locale 不可用时用来保留中文界面。 | 例如 goldendict、gemini、kde-suite、grok-app、joplin、tradingview、folo、copyq；bluemail 使用包内中文 locale |
 | `LC_MESSAGES` | 指定中文消息语言，配合包内中文 locale。 | grok-app、gemini、tradingview、folo、copyq；bluemail 使用包内中文 locale |
-| `LC_ALL` | 强制整套 locale。有的构建用 C；图形程序要中文时才用 zh_CN.UTF-8。 | 例如 chatgpt、gitkraken；`gufw/AppRun` 显式设置 `zh_CN.UTF-8` 并传入提权后的界面进程，避免调用方覆盖中文 locale。smplayer 在 .env 中清空全局覆盖。 |
+| `LC_ALL` | 强制整套 locale。有的构建用 C；图形程序要中文时才用 zh_CN.UTF-8。 | 例如 chatgpt；`gufw/AppRun` 显式设置 `zh_CN.UTF-8` 并传入提权后的界面进程，避免调用方覆盖中文 locale。smplayer 在 .env 中清空全局覆盖。 |
 | `LC_NUMERIC` | 控制数值解析使用的 locale。`C` 使用小数点。 | smplayer 在 .env 中设置 `C`。 |
-| `LOCPATH` | 指定 locale 数据搜索目录；界面翻译和输入模块仍分别由应用资源和框架提供。 | goldendict、wemeet、grok-app、joplin、xnviewmp、remmina、gemini、tradingview、ventoy、folo、copyq；bluemail 指向包内 `lib/locale` |
+| `LOCPATH` | 指定 locale 数据搜索目录；界面翻译和输入模块仍分别由应用资源和框架提供。 | goldendict、gitkraken、wemeet、grok-app、joplin、xnviewmp、remmina、gemini、tradingview、ventoy、folo、copyq；bluemail 指向包内 `lib/locale` |
 | `TZ` | 时区。腾讯会议按官方脚本设成 Asia/Shanghai。 | wemeet |
 | `XDG_SESSION_TYPE` | 当前会话类型。Wayland 上回退到 X11 时改成 x11。 | 2 个脚本，例如 jriver、wemeet |
 
@@ -238,7 +238,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `ELECTRON_FORCE_IS_PACKAGED` | 让 Electron 把自己当成已打包程序，而不是开发模式。 | workbuddy |
 | `GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION` | GitHub Desktop 关闭硬件加速。 | github-desktop |
 | `GNOME_KEYRING_CONTROL` | 把已解开的 gnome-keyring 套接字传给后续进程。 | hermes-desktop |
-| `APPIMAGE_GTK_THEME` | 指定 AppImage 里 GTK 用哪套主题。 | rvncconnect |
+| `APPIMAGE_GTK_THEME` | 指定 AppImage 里 GTK 用哪套主题。 | rvncconnect、gitkraken |
 | `DSH_HOME` | DeepSeek Harness 的配置目录。默认是用户自己的 ~/.dsh，升级包不覆盖。 | deepseek-harness |
 | `HOME` | 临时改家目录。只在该脚本明确需要时用。 | hermes-desktop |
 | `XDG_RUNTIME_DIR` | 运行时套接字和临时文件目录。 | hermes-desktop |

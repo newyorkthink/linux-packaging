@@ -140,6 +140,13 @@ def main() -> None:
                     if any(marker in script_text for marker in markers):
                         build[app["key"]] = True
 
+            # 公共发布脚本由共享 Arch 构建步骤和 GitKraken 独立任务调用。
+            if "common/github/publish_release_asset.sh" in files:
+                standalone_publish_jobs = {"bluemail", "chatgpt", "gitkraken", "tencent_docs"}
+                for app in catalog:
+                    if app.get("kind") == "standard" or app["key"] in standalone_publish_jobs:
+                        build[app["key"]] = True
+
             for path in files:
                 if path == ".github/scripts/ci_build_dingtalk.sh":
                     build["dingtalk"] = True

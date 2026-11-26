@@ -18,16 +18,33 @@ GitKraken Desktop 是基于 Electron / Chromium 的图形化 Git 客户端。本
 ./gitkraken.AppImage
 ```
 
-包内提供 `zh_CN.UTF-8` locale 和 GTK3 的 IBus、Fcitx5 输入模块。输入法使用宿主已启用的会话。GTK 插件按宿主浅色或深色偏好选择 Adwaita 变体，GitKraken 界面主题仍由应用设置决定。界面文字使用官方发行包的资源。
+包内提供 `zh_CN.UTF-8` locale 和 GTK3 的 IBus、Fcitx5 输入模块。启动时沿用宿主的语言和输入法设置。宿主选用 `zh_CN.UTF-8` 但缺少对应 locale 时，使用包内数据。GitKraken 界面文字使用官方发行包的资源。
+
+当前 GTK 插件生成启动钩子，linuxdeploy 生成的顶层 `AppRun` 加载钩子后执行 `AppRun.wrapped`。应用入口将原生 GTK 菜单默认设为 `Adwaita:dark`，显式设置的 `APPIMAGE_GTK_THEME` 优先。主界面主题由 GitKraken 的应用设置决定。
 
 ## 验证
 
 - 静态核对已提供的 AMD64 DEB，确认真实程序、桌面入口、官方图标、crashpad、`libffmpeg.so` 及 Node 原生模块的布局，并读取主程序和原生模块的 ELF 依赖。
 - 对照 GTK DEB 模板和仓库既有项目核对公共调用、专属参数、作业入口与发布路径。
-- 已核对用户提供的 AppImage 与 `latest` Release 资产 SHA-256 一致。该版本在普通用户启动时因 NSS 初始化失败而退出。
-- 修复版的构建、窗口启动、主题切换和中文输入待实跑确认。公共封装入口会清除 `chrome-sandbox` 的 setuid 位，普通用户沙箱启动取决于宿主允许的用户命名空间。
+- NSS 修复前，已核对用户提供的 AppImage 与当时 `latest` Release 资产的 SHA-256 一致。该产物在普通用户启动时因 NSS 初始化失败而退出。
+- 公共封装入口会清除 `chrome-sandbox` 的 setuid 位，普通用户沙箱启动取决于宿主允许的用户命名空间。
+
+## 实机验证
+
+### 2026-11-26：用户实机验证通过
+
+用户已确认 GitKraken `12.7.0` 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 窗口启动 | 补齐 NSS/NSPR 的 AppImage 正常打开主窗口。 |
+| 中文输入 | 仓库搜索框可以输入中文，输入法候选词正常显示。 |
 
 ## 变更记录
+
+### 2026-11-26 调整 GTK 菜单默认配色
+
+实机显示 GitKraken 主界面为深色，顶部原生菜单为浅色。包内 GTK 钩子在未取得桌面配色偏好时回退到 `Adwaita:light`。`build_gitkraken.sh` 在应用入口将菜单默认设为 `Adwaita:dark`，并允许调用方通过 `APPIMAGE_GTK_THEME` 选择主题。
 
 ### 2026-11-26 补齐 linuxdeploy 产物的 NSS/NSPR
 
@@ -40,7 +57,7 @@ FATAL:crypto/nss_util.cc:146] nss_error=-5925, os_error=0
 
 只读核对发布产物发现，包内缺少 `libsoftokn3.so`，`libnssutil3.so` 最高只提供 `NSSUTIL_3.94`。NSS 回退加载宿主的 `libsoftokn3.so` 后遇到符号版本冲突。
 
-构建依赖增加 `libnss3` 与 `libnspr4`。linuxdeploy 完成后，通过公共入口把同一 Ubuntu runner 的 NSS 核心库、动态加载模块、配套 `.chk` 和 NSPR 放入 `AppDir/usr/lib`，随后统一封装。该顺序保留动态模块与 `.chk` 的对应关系。修复版运行结果待验证。
+构建依赖增加 `libnss3` 与 `libnspr4`。linuxdeploy 完成后，通过公共入口把同一 Ubuntu runner 的 NSS 核心库、动态加载模块、配套 `.chk` 和 NSPR 放入 `AppDir/usr/lib`，随后统一封装。该顺序保留动态模块与 `.chk` 的对应关系。修复版的启动和中文输入结果见[实机验证](#实机验证)。
 
 
 ### 2026-09-02：首次加入 GitKraken AppImage 与中文环境

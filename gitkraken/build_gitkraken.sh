@@ -61,10 +61,11 @@ set -Eeuo pipefail
 # 获取脚本所在目录的绝对路径。
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-# 本程序专属处理：使用包内中文 UTF-8 locale，继承宿主的输入法选择。
-export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
-export LANG=zh_CN.UTF-8
-export LANGUAGE=zh_CN:zh
+# 本程序专属处理：宿主选用简体中文 UTF-8 且缺少对应 locale 时，使用包内数据。
+if [[ "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" == zh_CN.UTF-8 ]] &&
+   [[ "$(locale charmap 2>/dev/null)" != UTF-8 ]]; then
+  export LOCPATH="$HERE/usr/lib/locale${LOCPATH:+:$LOCPATH}"
+fi
 
 # 设置程序、运行库和共享数据的搜索路径。
 export PATH="$HERE/usr/share/gitkraken:$HERE/usr/bin${PATH:+:$PATH}"
@@ -74,6 +75,9 @@ export XDG_DATA_DIRS="$HERE/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
 # GTK 运行环境：指定 GSettings schema 和 GIO 动态模块的目录。
 export GSETTINGS_SCHEMA_DIR="$HERE/usr/share/glib-2.0/schemas${GSETTINGS_SCHEMA_DIR:+:$GSETTINGS_SCHEMA_DIR}"
 export GIO_MODULE_DIR="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
+
+# 本程序专属处理：GTK 菜单默认使用深色主题，显式指定的主题优先。
+export GTK_THEME="${APPIMAGE_GTK_THEME:-Adwaita:dark}"
 
 # 启动包内程序，并保留传入的命令行参数。
 exec "$HERE/usr/share/gitkraken/gitkraken" "$@"
