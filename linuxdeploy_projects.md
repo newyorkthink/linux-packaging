@@ -225,6 +225,7 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 | Rainlendar2 | `rainlendar2/build_rainlendar2.sh` | linuxdeploy + GTK 插件 |
 | rvncconnect | `rvncconnect/build_rvncconnect.sh` | linuxdeploy + GTK 插件 |
 | RealVNC Viewer 7.15.1 | `vncviewer/build_vncviewer.sh` | 从 `original-package-archive` 获取官方 x64 DEB，使用 linuxdeploy 无框架插件模式与独立 appimagetool；桌面入口处理见 [README](./vncviewer/README.md)。 |
+| GitKraken | `gitkraken/build_gitkraken.sh` | Ubuntu 24.04 原生 runner 从官方稳定 AMD64 DEB 保留完整 Electron 程序目录，使用 GTK3 插件和官方 Type 2 封装。 [专属差异](./gitkraken/docs/template-deviations.md) |
 | WeChat | `wechat/build_wechat.sh` | 官网动态 DEB，Ubuntu 24.04 原生 runner；保留完整 `opt/wechat`，GTK3 插件部署与官方 SquashFS Type 2 封装，见 [专属差异](./wechat/docs/template-deviations.md)。 |
 | 腾讯会议 | `wemeet/build_wemeet.sh` | linuxdeploy + Qt 插件 |
 

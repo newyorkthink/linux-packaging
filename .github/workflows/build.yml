@@ -645,6 +645,89 @@ jobs:
           github_token: ${{ github.token }}
 
 
+  build_gitkraken:
+    name: Build GitKraken
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).gitkraken == 'true'
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: build-appimage-gitkraken.AppImage
+      queue: max
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build GitKraken AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: gitkraken
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./build_gitkraken.sh
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-gitkraken
+          path: gitkraken/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_NAME="gitkraken.AppImage"
+          RELEASE_FILE="gitkraken/dist/$RELEASE_NAME"
+          test -s "$RELEASE_FILE"
+
+          # Release 资产超过单页时，按完整分页列表精确删除本应用旧资产。
+          # gh release upload --clobber 曾未识别已有同名资产，连续返回 422。
+          for attempt in 1 2 3 4 5 6 7 8; do
+            # 查询失败后进入本轮退避，不使用分页未完成时的部分结果。
+            if release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/latest" --jq .id)" &&
+               asset_ids="$(gh api --paginate \
+                 "repos/$GITHUB_REPOSITORY/releases/$release_id/assets?per_page=100" \
+                 | jq -r --arg name "$RELEASE_NAME" '.[] | select(.name == $name) | .id')"; then
+              assets_deleted=true
+              for asset_id in $asset_ids; do
+                if ! gh api --method DELETE \
+                  "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id"; then
+                  assets_deleted=false
+                  break
+                fi
+              done
+              # 删除失败后重新列举附件；仅在全部删除成功时进入上传。
+              if [[ "$assets_deleted" == true ]] &&
+                 timeout 180 gh release upload latest "$RELEASE_FILE" \
+                   --repo "$GITHUB_REPOSITORY"; then
+                break
+              fi
+            fi
+            if [[ "$attempt" -eq 8 ]]; then
+              echo '发布 Release 资产失败，已尝试 8 次。' >&2
+              exit 1
+            fi
+            echo "发布 Release 资产失败，$((attempt * 5)) 秒后重试（$attempt/8）。" >&2
+            sleep $((attempt * 5))
+          done
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'gitkraken'
+          version_file: 'gitkraken/dist/version.txt'
+          asset_name: 'gitkraken.AppImage'
+          artifact_dir: 'gitkraken/dist'
+          github_token: ${{ github.token }}
+
+
   build_goldendict:
     name: Build GoldenDict
     needs: plan

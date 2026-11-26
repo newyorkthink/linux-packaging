@@ -827,7 +827,7 @@
     },
     {
       "key": "gitkraken",
-      "kind": "standard",
+      "kind": "special",
       "name": "GitKraken",
       "script": "gitkraken/build_gitkraken.sh",
       "dir": "gitkraken",
