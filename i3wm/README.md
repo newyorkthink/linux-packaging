@@ -6,7 +6,7 @@
 
 ## 技术栈与打包方式
 
-i3 为 X11 窗口管理器，主体使用 C。构建脚本通过 Arch 软件包安装 i3 及相关工具，保留默认 `/etc/i3` 与 `/etc/i3status.conf`，使用 quick-sharun 收集程序和运行依赖并生成固定资产 `i3.AppImage`。
+i3 为 X11 窗口管理器，主体使用 C。构建脚本已对齐标准模板 [arch-native.sh](../templates/quick-sharun/arch-native.sh)，统一通过 `common/` 公共脚本完成安装、工作区准备与版本读写；保留 `STARTUPWMCLASS="i3"`、`PATH_MAPPING`、20 个程序入口及默认 `/etc/i3` 与 `/etc/i3status.conf` 配置，详见 [模板差异说明](./docs/template-deviations.md)。
 
 ## 运行与兼容说明
 
@@ -23,6 +23,12 @@ Perl 辅助脚本继续依赖宿主 Perl；i3lock/slock 不进入本 AppImage。
 构建时从本次实际安装的 `i3-wm` 包读取版本，去掉 Arch epoch 与 pkgrel 后写入 `dist/version.txt`。统一版本清单键使用 `i3`，对应 Release 资产 `i3.AppImage`。
 
 ## 变更记录
+
+### 2026-11-27：按标准模板重写 `build_i3wm.sh`
+
+- 核实 `pkgforge-dev` 无 `i3` 仓库，确认沿用 Arch 官方 `extra/i3-wm` 原生包路线。
+- 按 [arch-native.sh](../templates/quick-sharun/arch-native.sh) 重写 [build_i3wm.sh](./build_i3wm.sh)，统一接入公共安装、工作区与版本脚本；完整保留 `STARTUPWMCLASS="i3"`、`PATH_MAPPING`、全部 20 个入口及默认配置复制，并新增 [模板差异说明](./docs/template-deviations.md)。
+- 本次仅做静态核对，提交后按仓库规则不主动监控 Actions。
 
 ### 2026-09-16：接入统一软件版本元数据
 

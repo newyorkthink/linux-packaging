@@ -1,79 +1,52 @@
 #!/usr/bin/env bash
-set -e
 
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
+
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装官方软件包及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" "i3-wm" xorg-server xorg-server-common xorg-server-xvfb i3status dmenu xss-lock perl-anyevent-i3 perl-json-xs xorg-xrandr xorg-xset xorg-xprop xorg-xmodmap xorg-xsetroot xorg-xmessage
 
-# 注意：
-# 1. 不将 /usr/bin/perl 加入 AppImage；单独打包解释器会缺少 strict.pm 等核心模块，
-#    i3-dmenu-desktop、i3-save-tree 等 Perl 脚本继续使用主机 Perl。
-# 2. i3lock 单独制作成独立 AppImage 时可以正常解锁；但不能将 i3lock 一并打入 i3 AppImage，
-#    两者的运行环境和认证依赖会发生冲突，导致输入正确密码也无法解锁。
-# 3. slock 依赖主机用户组或 setuid 权限，同样不打包；锁屏程序请在主机安装并配置。
-# 4. AppImage 仅保留 xss-lock，由 i3 配置指定它调用主机锁屏程序。
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
 
-rm -rf AppDir || true
 
-ARCH="$(uname -m)"
-export ARCH
-
-# 使用 i3 软件包自带的 desktop 和 icon 文件
-export ICON=/usr/share/doc/i3/logo-30.png
-export DESKTOP=/usr/share/applications/i3.desktop
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 本程序专属处理：让窗口对上 desktop 里的 StartupWMClass。
 export STARTUPWMCLASS="i3"
-export OUTPATH=./dist
+# 使用系统里装好的图标。
+export ICON="/usr/share/doc/i3/logo-30.png"
+# 使用系统里装好的桌面入口文件。
+export DESKTOP="/usr/share/applications/i3.desktop"
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
 export OUTNAME="i3.AppImage"
-
-# 将默认配置映射到 AppImage 内部
+# 本程序专属处理：将默认配置目录映射到包内路径。
 export PATH_MAPPING='
 /etc/i3:${SHARUN_DIR}/etc/i3
 /etc/i3status.conf:${SHARUN_DIR}/etc/i3status.conf
 '
 
-# 基本打包依赖
-yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux zsync xorg-server xorg-server-common xorg-server-xvfb
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman "i3-wm")"
 
-# i3wm、默认状态栏、启动器及常用 X11 工具
-yay -S --noconfirm i3-wm i3status dmenu xss-lock perl perl-anyevent-i3 perl-json-xs dbus xorg-xrandr xorg-xset xorg-xprop xorg-xmodmap xorg-xsetroot xorg-xmessage
+# 收集程序及其运行依赖。
+quick-sharun /usr/bin/i3 /usr/bin/i3bar /usr/bin/i3-config-wizard /usr/bin/i3-dmenu-desktop /usr/bin/i3-dump-log /usr/bin/i3-input /usr/bin/i3-migrate-config-to-v4 /usr/bin/i3-msg /usr/bin/i3-nagbar /usr/bin/i3-save-tree /usr/bin/i3-sensible-editor /usr/bin/i3-sensible-pager /usr/bin/i3-sensible-terminal /usr/bin/i3-with-shmlog /usr/bin/i3status /usr/bin/dmenu /usr/bin/dmenu_path /usr/bin/dmenu_run /usr/bin/stest /usr/bin/xss-lock
 
-I3_PACKAGE_VERSION="$(pacman -Q i3-wm | awk '{print $2}')"
-I3_VERSION="${I3_PACKAGE_VERSION#*:}"
-I3_VERSION="${I3_VERSION%-*}"
-if [ -z "$I3_VERSION" ]; then
-  echo "错误：无法解析 i3-wm 版本。" >&2
-  exit 1
-fi
-
-# 打包 i3wm 及其全部常用工具
-quick-sharun \
-  /usr/bin/i3 \
-  /usr/bin/i3bar \
-  /usr/bin/i3-config-wizard \
-  /usr/bin/i3-dmenu-desktop \
-  /usr/bin/i3-dump-log \
-  /usr/bin/i3-input \
-  /usr/bin/i3-migrate-config-to-v4 \
-  /usr/bin/i3-msg \
-  /usr/bin/i3-nagbar \
-  /usr/bin/i3-save-tree \
-  /usr/bin/i3-sensible-editor \
-  /usr/bin/i3-sensible-pager \
-  /usr/bin/i3-sensible-terminal \
-  /usr/bin/i3-with-shmlog \
-  /usr/bin/i3status \
-  /usr/bin/dmenu \
-  /usr/bin/dmenu_path \
-  /usr/bin/dmenu_run \
-  /usr/bin/stest \
-  /usr/bin/xss-lock
-
-# 保留 i3 和 i3status 的默认配置
+# 本程序专属处理：保留 i3 和 i3status 的默认配置。
 mkdir -p AppDir/etc/i3
 cp -a /etc/i3/. AppDir/etc/i3/
 cp -a /etc/i3status.conf AppDir/etc/i3status.conf
 
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-printf '%s\n' "$I3_VERSION" > ./dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/i3.AppImage" "$VERSION" dist/version.txt

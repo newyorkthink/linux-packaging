@@ -31,15 +31,13 @@ Stacer 是 C++17 / Qt6 原生 Linux 桌面程序，核心依赖：
 
 不采用“官方 AppImage 原样同步”。官方 jammy AppImage 已确认会把旧 glibc 打进包内，在继承了更新共享库的环境中会直接无法启动。
 
-当前路线是仓库标准 Arch Linux + `quick-sharun`：
+当前路线是仓库标准 Arch Linux + `quick-sharun`，构建脚本已对齐 [qt-installed.sh](../templates/quick-sharun/qt-installed.sh)，专属差异与依赖覆盖见 [模板差异说明](./docs/template-deviations.md)：
 
-1. 安装 quick-sharun 所需最小基础工具，不预装 Qt / Fcitx / Mesa。
-2. `yay -S stacer` 安装 AUR 当前稳定版；由包管理器按真实依赖拉入 Qt6 Charts / SVG 等运行时。应用版本不写死在仓库里。
-3. 再单独安装 `fcitx5-qt`，为 Qt6 GUI 提供同主版本的 `platforminputcontexts` 插件。
-4. 将 `/usr/bin/stacer` 与 `/usr/share/stacer` 交给 `quick-sharun` 收集依赖和翻译。
-5. 按上游查找顺序，把翻译目录链接到主程序同级的 `translations/`，对应 `applicationDirPath()/translations` 回退路径。
-6. `quick-sharun --make-appimage` 生成稳定文件名 `dist/stacer.AppImage`。
-7. 从本次实际安装的 `stacer` 包解析上游版本，去掉 epoch / pkgrel 后写入 `dist/version.txt`。workflow 使用 `SOFTWARE_KEY=stacer` 接入统一 `software_versions.json`。
+1. 通过 `common/arch/install_packages.sh --base` 安装统一打包基础包，再经公共入口安装 AUR `stacer` 以及 Qt6 输入与主题插件（`fcitx5-qt`、`qt6ct`、`kvantum`、`lxqt-qtplugin`），并由 `common/build/prepare_x86_64_workspace.sh` 清理工作区。
+2. 设置 `DEPLOY_QT=1` 与 `STARTUPWMCLASS="stacer"`，通过 `common/build/read_app_version.sh` 读取本次实际安装的 `stacer` 版本。
+3. 将 `/usr/bin/stacer` 与 `/usr/share/stacer` 交给 `quick-sharun` 收集依赖和翻译，按模板生成包内中文 locale。
+4. 按上游查找顺序，校验 `AppDir/share/stacer/translations` 并将翻译目录链接到主程序同级的 `translations/`，对应 `applicationDirPath()/translations` 回退路径。
+5. `quick-sharun --make-appimage` 生成稳定文件名 `dist/stacer.AppImage`，成功后经 `common/build/save_appimage_version.sh` 校验产物并写入 `dist/version.txt`。workflow 使用 `SOFTWARE_KEY=stacer` 接入统一 `software_versions.json`。
 
 ## 运行与兼容说明
 
@@ -63,6 +61,12 @@ Stacer 是 C++17 / Qt6 原生 Linux 桌面程序，核心依赖：
 - Debian / Ubuntu 专属的 APT 源管理等功能在非 Debian 宿主上按上游原样不可用，不是本打包引入的回归。
 
 ## 修复记录
+
+### 2026-11-27：按标准模板重写 `build_stacer.sh`
+
+- 核实 `pkgforge-dev` 无 `stacer` 仓库，继续沿用 AUR `stacer`（Qt6）来源以避开官方 jammy AppImage 的旧 glibc 2.35。
+- 按 [qt-installed.sh](../templates/quick-sharun/qt-installed.sh) 重写 [build_stacer.sh](./build_stacer.sh)，统一接入公共安装、工作区与版本脚本，补齐 Qt6 主题插件（`qt6ct`、`kvantum`、`lxqt-qtplugin`）、`DEPLOY_QT=1` 与包内中文 locale，保留 `STARTUPWMCLASS="stacer"` 及翻译目录收集、软链接与存在性检查，并新增 [模板差异说明](./docs/template-deviations.md)。
+- 本次仅做静态核对，提交后按仓库规则不主动监控 Actions。
 
 ### 2026-09-17：检查关闭窗口黑屏是否由打包链引起
 

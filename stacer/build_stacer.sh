@@ -1,87 +1,66 @@
 #!/usr/bin/env bash
-# 将 AUR 当前稳定 Stacer（官方源码、Qt6）打包为 AnyLinux AppImage。
-# 不使用官方 jammy AppImage：其 go-appimage deploy 会打入构建环境的旧 glibc。
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-
-# 安装统一的 Arch AppImage 基础包
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-readonly SCRIPT_DIR
 cd "$SCRIPT_DIR"
 
-die() {
-  printf '错误：%s\n' "$*" >&2
-  exit 1
-}
+# 打包工具。GTK、输入法不要塞进这一行。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装官方软件包及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" "stacer" fcitx5-qt qt6ct kvantum lxqt-qtplugin
 
-###### 准备构建环境 ######
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
 
-APPDIR="$SCRIPT_DIR/AppDir"
-DIST_DIR="$SCRIPT_DIR/dist"
-OUTFILE="$DIST_DIR/stacer.AppImage"
 
-# 只清理本目录构建产物，避免影响仓库其他应用。
-rm -rf "$APPDIR" "$DIST_DIR"
-mkdir -p "$DIST_DIR"
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 本程序专属处理：让窗口对上 desktop 里的 StartupWMClass。
+export STARTUPWMCLASS="stacer"
+# 使用系统里装好的图标。
+export ICON="/usr/share/icons/hicolor/scalable/apps/stacer.svg"
+# 使用系统里装好的桌面入口文件。
+export DESKTOP="/usr/share/applications/stacer.desktop"
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
+export OUTNAME="stacer.AppImage"
+# 官方包依赖 qt6-base，打包时打入 Qt。
+export DEPLOY_QT=1
 
-ARCH="$(uname -m)"
-export ARCH
-[[ "$ARCH" == x86_64 ]] || die "当前仅支持 x86_64，检测到：$ARCH"
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman "stacer")"
 
-export STARTUPWMCLASS=stacer
-export ICON=/usr/share/icons/hicolor/scalable/apps/stacer.svg
-export DESKTOP=/usr/share/applications/stacer.desktop
-export OUTPATH="$DIST_DIR"
-export OUTNAME="$(basename "$OUTFILE")"
-
-# 安装 quick-sharun / AppImage 打包所需的最小基础工具。
-yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
-  grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
-  desktop-file-utils zsync ca-certificates
-
-###### 安装 Stacer 与同主版本 Qt6 输入上下文 ######
-
-# AUR stacer 从 QuentiumYT/Stacer 官方源码编译，并按包依赖拉入 qt6-base / qt6-charts / qt6-svg。
-yay -S --noconfirm stacer
-
-# Stacer 是 Qt6 GUI。按仓库 Qt 主版本一致规则，补入同一主版本的 Fcitx5 输入上下文插件。
-yay -S --noconfirm fcitx5-qt
-
-command -v stacer >/dev/null 2>&1 || die "AUR stacer 安装后找不到 /usr/bin/stacer。"
-[[ -s "$ICON" ]] || die "缺少 Stacer 图标：$ICON"
-[[ -s "$DESKTOP" ]] || die "缺少 Stacer desktop 文件：$DESKTOP"
-[[ -d /usr/share/stacer/translations ]] || die "缺少 Stacer 翻译目录：/usr/share/stacer/translations"
-
-STACER_PACKAGE_VERSION="$(pacman -Q stacer | awk '{print $2}')"
-STACER_VERSION="${STACER_PACKAGE_VERSION#*:}"
-STACER_VERSION="${STACER_VERSION%-*}"
-[[ -n "$STACER_VERSION" ]] || die "无法解析 Stacer 版本。"
-
-###### 核心打包 ######
-
-# 同时收集 /usr/share/stacer，避免只封装 ELF 后丢失翻译。
+# 收集程序及其运行依赖。
 quick-sharun /usr/bin/stacer /usr/share/stacer
 
-# 上游按以下顺序查找翻译：
-# 1. 宿主 /usr/share/stacer/translations
-# 2. Flatpak /app/share/stacer/translations
-# 3. applicationDirPath()/translations
-# AppImage 内 1/2 通常不存在，因此把随包翻译链接到主程序同级目录。
-if [[ -d "$APPDIR/share/stacer/translations" ]]; then
-  mkdir -p "$APPDIR/bin"
-  ln -sfn ../share/stacer/translations "$APPDIR/bin/translations"
-  if [[ -d "$APPDIR/shared/bin" ]]; then
-    ln -sfn ../../share/stacer/translations "$APPDIR/shared/bin/translations"
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'ENV'
+LANG=zh_CN.UTF-8
+LANGUAGE=zh_CN:zh
+LC_MESSAGES=zh_CN.UTF-8
+LOCPATH=${SHARUN_DIR}/lib/locale
+ENV
+
+# 本程序专属处理：将包内翻译目录链接到主程序同级目录，匹配上游回退路径。
+if [[ -d AppDir/share/stacer/translations ]]; then
+  mkdir -p AppDir/bin
+  ln -sfn ../share/stacer/translations AppDir/bin/translations
+  if [[ -d AppDir/shared/bin ]]; then
+    ln -sfn ../../share/stacer/translations AppDir/shared/bin/translations
   fi
 else
-  die "quick-sharun 未把 Stacer 翻译目录收集进 AppDir。"
+  echo "错误：quick-sharun 未把 Stacer 翻译目录收集进 AppDir。" >&2
+  exit 1
 fi
 
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-###### 整理产物 ######
-
-[[ -s "$OUTFILE" ]] || die "未生成 $OUTFILE"
-printf '%s\n' "$STACER_VERSION" > "$DIST_DIR/version.txt"
-printf '已生成：%s（版本 %s）\n' "$OUTFILE" "$STACER_VERSION"
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/stacer.AppImage" "$VERSION" dist/version.txt

@@ -44,7 +44,7 @@ Falkon 条目于 2026-11-26 按 `falkon`、`qupzilla` 单独复核，未查到�
 | [cursor](../cursor/build_cursor.sh) | [Cursor-AppImage-Enhanced](https://github.com/pkgforge-dev/Cursor-AppImage-Enhanced) | [依赖](https://github.com/pkgforge-dev/Cursor-AppImage-Enhanced/blob/9ba59031ad223ade70bfcafdc14d35c58d123a60/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Cursor-AppImage-Enhanced/blob/9ba59031ad223ade70bfcafdc14d35c58d123a60/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Cursor-AppImage-Enhanced/blob/9ba59031ad223ade70bfcafdc14d35c58d123a60/.github/workflows/appimage.yml) | [模板差异](../cursor/docs/template-deviations.md) · [README](../cursor/README.md) |
 | [dconf-editor](../dconf-editor/build_dconf-editor.sh) |  |  | [README](../dconf-editor/README.md) |
 | [deepseek-harness-desktop](../deepseek-harness-desktop/build_deepseek-harness-desktop.sh) |  |  | [模板差异](../deepseek-harness-desktop/docs/template-deviations.md) · [README](../deepseek-harness-desktop/README.md) |
-| [deskflow](../deskflow/build_deskflow.sh) |  |  | [README](../deskflow/README.md) |
+| [deskflow](../deskflow/build_deskflow.sh) |  |  | [模板差异](../deskflow/docs/template-deviations.md) · [README](../deskflow/README.md) |
 | [dingtalk](../dingtalk/build_dingtalk.sh) |  |  | [模板差异](../dingtalk/docs/template-deviations.md) · [固定参数](../dingtalk/docs/hardcoded.md) · [README](../dingtalk/README.md) |
 | [escrcpy](../escrcpy/build_escrcpy.sh) |  |  | [README](../escrcpy/README.md) |
 | [falkon](../falkon/build_falkon.sh) |  |  | [模板差异](../falkon/docs/template-deviations.md) · [固定配置](../falkon/docs/hardcoded.md) · [README](../falkon/README.md) |
@@ -61,7 +61,7 @@ Falkon 条目于 2026-11-26 按 `falkon`、`qupzilla` 单独复核，未查到�
 | [gufw](../gufw/build_gufw.sh) |  |  | [模板差异](../gufw/docs/template-deviations.md) · [固定配置](../gufw/docs/hardcoded.md) · [README](../gufw/README.md) |
 | [hermes-desktop](../hermes-desktop/build_hermes-desktop.sh) |  |  | [README](../hermes-desktop/README.md) |
 | [htop](../htop/build_htop.sh) | [htop-AppImage](https://github.com/pkgforge-dev/htop-AppImage) | [依赖](https://github.com/pkgforge-dev/htop-AppImage/blob/138bc266d885f0ac987921a99417aa1278169b76/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/htop-AppImage/blob/138bc266d885f0ac987921a99417aa1278169b76/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/htop-AppImage/blob/138bc266d885f0ac987921a99417aa1278169b76/.github/workflows/appimage.yml) | [上游差异](../htop/docs/pkgforge-differences.md) · [模板差异](../htop/docs/template-deviations.md) · [README](../htop/README.md) |
-| [i3wm](../i3wm/build_i3wm.sh) |  |  | [README](../i3wm/README.md) |
+| [i3wm](../i3wm/build_i3wm.sh) |  |  | [模板差异](../i3wm/docs/template-deviations.md) · [README](../i3wm/README.md) |
 | [joplin](../joplin/build_joplin.sh) | [Joplin-Desktop-AppImage](https://github.com/pkgforge-dev/Joplin-Desktop-AppImage) | [依赖](https://github.com/pkgforge-dev/Joplin-Desktop-AppImage/blob/8fbdda883b6d276938d7b67a237032e0282a7252/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Joplin-Desktop-AppImage/blob/8fbdda883b6d276938d7b67a237032e0282a7252/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Joplin-Desktop-AppImage/blob/8fbdda883b6d276938d7b67a237032e0282a7252/.github/workflows/appimage.yml) | [README](../joplin/README.md) |
 | [kde-suite](../kde-suite/build_kde_suite.sh) |  |  | [README](../kde-suite/README.md) |
 | [keepass](../keepass/build_keepass.sh) |  |  | [README](../keepass/README.md) |
@@ -92,7 +92,7 @@ Falkon 条目于 2026-11-26 按 `falkon`、`qupzilla` 单独复核，未查到�
 | [simplescreenrecorder](../simplescreenrecorder/build_simplescreenrecorder.sh) |  |  | [README](../simplescreenrecorder/README.md) |
 | [smplayer](../smplayer/build_smplayer.sh) |  |  | [README](../smplayer/README.md) |
 | [st](../st/build_st.sh) | [st-AppImage](https://github.com/pkgforge-dev/st-AppImage) | [依赖](https://github.com/pkgforge-dev/st-AppImage/blob/e994638f6786bfdee6d147d6e0e9a476a3ce2119/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/st-AppImage/blob/e994638f6786bfdee6d147d6e0e9a476a3ce2119/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/st-AppImage/blob/e994638f6786bfdee6d147d6e0e9a476a3ce2119/.github/workflows/appimage.yml) | [README](../st/README.md) |
-| [stacer](../stacer/build_stacer.sh) |  |  | [README](../stacer/README.md) |
+| [stacer](../stacer/build_stacer.sh) |  |  | [模板差异](../stacer/docs/template-deviations.md) · [README](../stacer/README.md) |
 | [stacher](../stacher/build_stacher.sh) |  |  | [README](../stacher/README.md) |
 | [sunshine](../sunshine/build_sunshine.sh) |  |  | [README](../sunshine/README.md) |
 | [tencent-docs](../tencent-docs/build_tencent-docs.sh) |  |  | [README](../tencent-docs/README.md) |
