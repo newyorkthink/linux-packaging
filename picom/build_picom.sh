@@ -1,67 +1,42 @@
 #!/usr/bin/env bash
-set -e
 
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
+
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装官方软件包及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" "picom" xorg-server xorg-server-common bash glibc gcc-libs libconfig libepoxy libev libglvnd pcre2 pixman libx11 libxext libxcb libxrender libxrandr libxinerama libxdamage libxfixes xcb-util-image xcb-util-renderutil xorg-xprop xorg-xwininfo
 
-rm -rf AppDir dist || true
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
 
-# 安装基础打包工具
-yay -S --noconfirm \
-  gcc base-devel wget git binutils patchelf coreutils \
-  appstream-glib desktop-file-utils util-linux zsync \
-  xorg-server xorg-server-common
 
-# 安装 picom 和运行依赖
-yay -S --noconfirm \
-  picom \
-  bash glibc gcc-libs \
-  hicolor-icon-theme \
-  libconfig dbus libepoxy libev libglvnd pcre2 pixman \
-  libx11 libxext libxcb libxrender libxrandr libxinerama libxdamage libxfixes \
-  xcb-util-image xcb-util-renderutil \
-  xorg-xprop xorg-xwininfo
-
-# 读取本次实际安装的 Arch 包版本，并去掉仅用于 Arch 打包排序的 epoch / pkgrel。
-PICOM_PACKAGE_VERSION="$(pacman -Q picom | awk '{print $2}')"
-PICOM_VERSION="${PICOM_PACKAGE_VERSION#*:}"
-PICOM_VERSION="${PICOM_VERSION%-*}"
-[[ -n "$PICOM_VERSION" ]] || {
-  echo "错误：无法解析 Picom 版本。" >&2
-  exit 1
-}
-
-ARCH="$(uname -m)"
-export ARCH
-
-export APPNAME="picom"
-export STARTUPWMCLASS="picom"
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 使用系统里装好的图标。
 export ICON="/usr/share/icons/hicolor/scalable/apps/compton.svg"
+# 使用系统里装好的桌面入口文件。
 export DESKTOP="/usr/share/applications/picom.desktop"
-export OUTPATH=./dist
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
 export OUTNAME="picom.AppImage"
-
-# 保留 OpenGL/EGL 相关库，picom 可用 xrender/glx 后端
+# 本程序专属处理：部署 OpenGL 运行依赖。
 export DEPLOY_OPENGL=1
 
-# 使用 quick-sharun 构建 AppDir
-quick-sharun \
-  /usr/bin/picom \
-  /usr/bin/picom-trans \
-  /usr/bin/picom-inspect \
-  /usr/bin/compton \
-  /usr/bin/compton-trans \
-  /usr/bin/xprop \
-  /usr/bin/xwininfo \
-  /etc/xdg/picom.conf
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman "picom")"
 
-# 构建 AppImage
+# 收集程序及其运行依赖。
+quick-sharun /usr/bin/picom /usr/bin/picom-trans /usr/bin/picom-inspect /usr/bin/compton /usr/bin/compton-trans /usr/bin/xprop /usr/bin/xwininfo /etc/xdg/picom.conf
+
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-# 确认最终 AppImage 文件已经生成且不为空。
-test -s ./dist/picom.AppImage
-
-# 构建成功后输出统一的软件版本元数据。
-printf '%s\n' "$PICOM_VERSION" > ./dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/picom.AppImage" "$VERSION" dist/version.txt

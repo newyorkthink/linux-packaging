@@ -12,11 +12,18 @@ workflow 将其上传为 `software-version-nvtop`，成功构建后增量写入 
 
 ## 维护说明
 
-- 保持现有 quick-sharun 打包方式及依赖集合。
+- 构建脚本已对齐标准模板 [arch-native.sh](../templates/quick-sharun/arch-native.sh)，统一通过 `common/arch/install_packages.sh`、`common/build/prepare_x86_64_workspace.sh`、`common/build/read_app_version.sh` 和 `common/build/save_appimage_version.sh` 执行安装、工作区清理与版本处理。
+- 保持原有 quick-sharun 打包方式及全部运行依赖覆盖（`--base` 未覆盖的 `ncurses`、`systemd-libs`、`systemd`、`gtest` 显式保留在应用安装行）。
 - 版本值来自本次实际安装的软件包，不手工写死。
 - 版本元数据接入不改变最终资产名 `nvtop.AppImage`。
 
 ## 修改记录
+
+### 2026-11-26：按标准模板重写 `build_nvtop.sh`
+
+- 核实 `pkgforge-dev` 无 `nvtop` 仓库，确认沿用 Arch 官方 `extra/nvtop` 原生包路线。
+- 按 [arch-native.sh](../templates/quick-sharun/arch-native.sh) 重写 [build_nvtop.sh](./build_nvtop.sh)，去除脚本内直接 `yay`/`pacman -Q`/`rm -rf` 写法，统一接入公共安装、工作区与版本脚本；无模板外专属差异。
+- 本次仅做静态核对，提交后按仓库规则不主动监控 Actions。
 
 ### 2026-09-16：接入统一软件版本元数据
 

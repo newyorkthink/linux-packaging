@@ -1,55 +1,48 @@
 #!/usr/bin/env bash
-set -e
 
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
+
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+# 安装官方软件包及运行依赖。
+"$SCRIPT_DIR/../common/arch/install_packages.sh" "rofi" xorg-server xorg-server-common rofi-emoji bash cairo glibc libxcb libxkbcommon-x11 startup-notification wayland xcb-imdkit xcb-util xcb-util-cursor xcb-util-keysyms xcb-util-wm libva libvdpau
 
-rm -rf AppDir || true
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
 
-# 安装基础打包工具和依赖
-yay -S --noconfirm gcc base-devel wget binutils patchelf coreutils appstream-glib desktop-file-utils util-linux zsync xorg-server xorg-server-common
 
-# 安装 rofi 及其 emoji 插件，以及其它运行时所需的依赖
-yay -S --noconfirm rofi rofi-emoji \
-  bash cairo gdk-pixbuf2 glib2 glibc hicolor-icon-theme \
-  libxcb libxkbcommon libxkbcommon-x11 pango startup-notification \
-  wayland xcb-imdkit xcb-util xcb-util-cursor xcb-util-keysyms xcb-util-wm \
-  libva libvdpau
-
-# 读取本次实际安装的 Arch 包版本，并去掉仅用于 Arch 打包排序的 epoch / pkgrel。
-ROFI_PACKAGE_VERSION="$(pacman -Q rofi | awk '{print $2}')"
-ROFI_VERSION="${ROFI_PACKAGE_VERSION#*:}"
-ROFI_VERSION="${ROFI_VERSION%-*}"
-[[ -n "$ROFI_VERSION" ]] || {
-  echo "错误：无法解析 Rofi 版本。" >&2
-  exit 1
-}
-
-ARCH="$(uname -m)"
-export ARCH
-
-export STARTUPWMCLASS=rofi
-export ICON=/usr/share/icons/hicolor/scalable/apps/rofi.svg
-export DESKTOP=/usr/share/applications/rofi.desktop
-export OUTPATH=./dist
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 本程序专属处理：让窗口对上 desktop 里的 StartupWMClass。
+export STARTUPWMCLASS="rofi"
+# 使用系统里装好的图标。
+export ICON="/usr/share/icons/hicolor/scalable/apps/rofi.svg"
+# 使用系统里装好的桌面入口文件。
+export DESKTOP="/usr/share/applications/rofi.desktop"
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
 export OUTNAME="rofi.AppImage"
+# 本程序专属处理：部署 OpenGL 运行依赖。
 export DEPLOY_OPENGL=1
 
-# 使用 quick-sharun 构建 AppDir，并包含指定的二进制文件
-quick-sharun \
-  /usr/bin/rofi \
-  /usr/bin/rofi-sensible-terminal \
-  /usr/bin/rofi-theme-selector
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman "rofi")"
 
+# 收集程序及其运行依赖。
+quick-sharun /usr/bin/rofi /usr/bin/rofi-sensible-terminal /usr/bin/rofi-theme-selector
 
+mkdir -p AppDir/bin
+# 文件内容复用官方代码：补充运行数据目录并在首次启动时复制内置主题。
+cp "$SCRIPT_DIR/rofi-datadir.src.hook" AppDir/bin/rofi-datadir.src.hook
 
-# 构建 AppImage
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-# 确认最终 AppImage 文件已经生成且不为空。
-test -s ./dist/rofi.AppImage
-
-# 构建成功后输出统一的软件版本元数据。
-printf '%s\n' "$ROFI_VERSION" > ./dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/rofi.AppImage" "$VERSION" dist/version.txt
