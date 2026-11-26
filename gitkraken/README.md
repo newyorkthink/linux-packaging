@@ -39,6 +39,7 @@ GitKraken Desktop 是基于 Electron / Chromium 的图形化 Git 客户端。本
 | --- | --- |
 | 窗口启动 | 补齐 NSS/NSPR 的 AppImage 正常打开主窗口。 |
 | 中文输入 | 仓库搜索框可以输入中文，输入法候选词正常显示。 |
+| 顶部菜单 | 原生 GTK 菜单显示为深色。 |
 
 ## 变更记录
 
