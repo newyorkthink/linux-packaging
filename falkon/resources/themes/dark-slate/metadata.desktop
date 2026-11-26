@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Dark Slate
+Comment=Dark slate gray theme based on Falkon Linux theme
+Icon=theme.png
+Type=Service
+X-Falkon-Author=linux-packaging
+X-Falkon-License=GPL-3.0-or-later

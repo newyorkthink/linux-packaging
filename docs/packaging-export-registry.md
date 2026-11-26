@@ -156,7 +156,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `QT_PLUGIN_PATH` | Qt 插件目录。官方或应用自带目录放前面，linuxdeploy 的 usr/plugins 放后面。 | 10 个脚本，例如 dingtalk、kde-suite、mailmaster |
 | `QT_QPA_PLATFORM_PLUGIN_PATH` | 只放平台插件的目录，比 QT_PLUGIN_PATH 更窄。官方目录放前面。 | 6 个脚本，例如 dingtalk、mailmaster、wemeet |
 | `QT_QPA_PLATFORM` | Qt 用哪个平台插件。xcb 是 X11，wayland 是 Wayland。 | 例如 dingtalk、mailmaster |
-| `QT_QPA_PLATFORMTHEME` | Qt 平台主题，用来跟桌面外观。例如 qt6ct。 | 2 个脚本，例如 kde-suite、peazip |
+| `QT_QPA_PLATFORMTHEME` | Qt 平台主题，用来跟桌面外观。例如 qt6ct。 | kde-suite、peazip、falkon（运行时 hook 默认值） |
 | `QT_IM_MODULE` | Qt 输入法模块，常见是 fcitx 或 ibus。 | 5 个脚本，例如 dingtalk、kde-suite、mailmaster、xnviewmp |
 | `QT_IM_MODULES` | Qt 6.7 及更新版本的输入法模块列表，分号分隔，优先于 QT_IM_MODULE。XnView 固定为 ibus，避免宿主的 wayland;fcitx 盖掉自带 IBus 插件。 | xnviewmp |
 | `QT_TRANSLATIONS_PATH` | Qt 翻译文件目录。 | 3 个脚本，例如 goldendict、peazip、xnviewmp |
@@ -175,6 +175,8 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `QSG_RHI_BACKEND` | 指定 Qt RHI 的图形 API。 | webcamoid 的 .env 使用 opengl |
 | `QSG_RENDER_LOOP` | 指定 Qt Quick 的渲染循环。 | webcamoid 的 .env 使用 basic |
 | `QT_OPENGL` | 指定 Qt 请求的 OpenGL 实现。 | webcamoid 的 .env 使用 desktop |
+| `QTWEBENGINE_DISABLE_SANDBOX` | 关闭 QtWebEngine 的 Chromium 沙箱。 | falkon 的启动 hook 仅在 root 且外部未定义时设为 1 |
+| `QTWEBENGINE_CHROMIUM_FLAGS` | 传给 QtWebEngine 内置 Chromium 的启动参数。 | falkon 的启动 hook 仅在无可用 `/dev/dri/renderD*` 且外部未定义时设为 `--disable-gpu --use-gl=disabled` |
 
 ## 图形驱动路径覆盖
 

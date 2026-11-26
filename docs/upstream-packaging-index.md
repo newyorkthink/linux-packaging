@@ -23,6 +23,8 @@ TradingView 条目于 2026-11-02 按应用名及 trading-view 别名单独复核
 
 Obsidian 条目于 2026-11-08 单独复核，更新依赖、封装及 workflow 的固定源码链接。
 
+Falkon 条目于 2026-11-26 按 `falkon`、`qupzilla` 单独复核，未查到对应 pkgforge-dev 仓库，两列继续留空；当前模板差异与固定配置见该行的应用说明。
+
 | 本仓库项目 | 上游打包仓库 | 上游构建代码 | 本仓库说明 |
 | --- | --- | --- | --- |
 | [adspower-global](../adspower-global/build_adspower-global.sh) |  |  | [README](../adspower-global/README.md) |
@@ -45,7 +47,7 @@ Obsidian 条目于 2026-11-08 单独复核，更新依赖、封装及 workflow �
 | [deskflow](../deskflow/build_deskflow.sh) |  |  | [README](../deskflow/README.md) |
 | [dingtalk](../dingtalk/build_dingtalk.sh) |  |  | [模板差异](../dingtalk/docs/template-deviations.md) · [固定参数](../dingtalk/docs/hardcoded.md) · [README](../dingtalk/README.md) |
 | [escrcpy](../escrcpy/build_escrcpy.sh) |  |  | [README](../escrcpy/README.md) |
-| [falkon](../falkon/build_falkon.sh) |  |  | [README](../falkon/README.md) |
+| [falkon](../falkon/build_falkon.sh) |  |  | [模板差异](../falkon/docs/template-deviations.md) · [固定配置](../falkon/docs/hardcoded.md) · [README](../falkon/README.md) |
 | [feishu](../feishu/build_feishu.sh) |  |  | [README](../feishu/README.md) |
 | [file-roller](../file-roller/build_file-roller.sh) |  |  | [模板差异](../file-roller/docs/template-deviations.md) · [README](../file-roller/README.md) |
 | [folo](../folo/build_folo.sh) |  |  | [README](../folo/README.md) |
