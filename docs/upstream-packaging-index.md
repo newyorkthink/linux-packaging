@@ -52,7 +52,7 @@ Falkon 条目于 2026-11-26 按 `falkon`、`qupzilla` 单独复核，未查到�
 | [file-roller](../file-roller/build_file-roller.sh) |  |  | [模板差异](../file-roller/docs/template-deviations.md) · [README](../file-roller/README.md) |
 | [folo](../folo/build_folo.sh) |  |  | [README](../folo/README.md) |
 | [freedownloadmanager](../freedownloadmanager/build_freedownloadmanager.sh) |  |  | [README](../freedownloadmanager/README.md) |
-| [freerdp](../freerdp/build_freerdp.sh) |  |  | [README](../freerdp/README.md) |
+| [freerdp](../freerdp/build_freerdp.sh) |  |  | [模板差异](../freerdp/docs/template-deviations.md) · [README](../freerdp/README.md) |
 | [gemini](../gemini/build_gemini.sh) | [Gemini-Desktop-AppImage](https://github.com/pkgforge-dev/Gemini-Desktop-AppImage) | [依赖](https://github.com/pkgforge-dev/Gemini-Desktop-AppImage/blob/e7bf2237e223c0cb8b2625dfdd0b1d2f211ccabc/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Gemini-Desktop-AppImage/blob/e7bf2237e223c0cb8b2625dfdd0b1d2f211ccabc/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Gemini-Desktop-AppImage/blob/e7bf2237e223c0cb8b2625dfdd0b1d2f211ccabc/.github/workflows/appimage.yml) | [上游差异](../gemini/docs/pkgforge-differences.md) · [模板差异](../gemini/docs/template-deviations.md) · [固定参数](../gemini/docs/hardcoded.md) · [README](../gemini/README.md) |
 | [gitkraken](../gitkraken/build_gitkraken.sh) |  |  | [README](../gitkraken/README.md) |
 | [goldendict](../goldendict/build_goldendict.sh) |  |  | [README](../goldendict/README.md) |

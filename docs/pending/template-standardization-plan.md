@@ -1,6 +1,6 @@
 # 待办：推进剩余 AppImage 构建脚本按标准模板整理
 
-**状态：待分批处理。** 本页汇总全仓活跃 AppImage 项目中，尚未按[固定 13 份打包模板](../../templates/README.md)整理且未登记到[专用打包流程](../packaging-classification.md#专用打包流程)的 **29 个项目**，供维护者与后续 AI 按批推进。
+**状态：待分批处理。** 本页汇总全仓活跃 AppImage 项目中，尚未按[固定 13 份打包模板](../../templates/README.md)整理且未登记到[专用打包流程](../packaging-classification.md#专用打包流程)的 **28 个项目**，供维护者与后续 AI 按批推进。
 
 ## 处理目标与执行规则
 
@@ -12,17 +12,16 @@
 4. **模板无法覆盖时走专用流程**：确因源码打补丁编译、原包同步或双架构封装等与固定模板冲突时，不新增模板，按规则取得逐次授权后接入公共下载/版本/封装入口，并登记到[专用打包流程](../packaging-classification.md#专用打包流程)。
 5. **单项验收后同步清理**：项目完成模板整理并补登到[打包分类](../packaging-classification.md)（若保留了 `build_*_old.sh` 备份，须在实机验证后同次删除备份及其引用）后，从本页对应分组移除该行。
 
-## 未按模板标准的项目清单（29 个）
+## 未按模板标准的项目清单（28 个）
 
 以下分组按改造复杂度与模板契合度由简到繁排列，便于分批推进；具体处理顺序仍以当次任务指定为准。
 
-### 一、Arch 官方仓库原生包及常规 Qt / GTK 系统包（quick-sharun，8 个）
+### 一、Arch 官方仓库原生包及常规 Qt / GTK 系统包（quick-sharun，7 个）
 
 此类来源明确、改动相对集中，适合优先核实并按 `arch-native.sh`、`qt-installed.sh` 或对应固定模板推进：
 
 | 应用 | 构建脚本 | 当前主要偏离 | 待确认处理方向 |
 | --- | --- | --- | --- |
-| FreeRDP | [build_freerdp.sh](../../freerdp/build_freerdp.sh) | 旧式脚本，直接 `yay`/`pacman -Q`，未用公共版本入口 | 核实代理插件与 `PATH_MAPPING` 专属处理后按 `arch-native.sh` 整理 |
 | i3wm | [build_i3wm.sh](../../i3wm/build_i3wm.sh) | 旧式脚本，直接 `yay`/`pacman -Q`，未用公共版本入口 | 核实默认配置复制与 `PATH_MAPPING` 专属处理后按 `arch-native.sh` 整理 |
 | QEMU | [build_qemu.sh](../../qemu/build_qemu.sh) | 旧式脚本，直接 `yay`/`pacman -Q`，未用公共版本入口 | 核实多二进制收集与 `virt-viewer` 翻译处理后按 `arch-native.sh` 整理 |
 | Deskflow | [build_deskflow.sh](../../deskflow/build_deskflow.sh) | 旧式脚本，直接 `yay`/`pacman -Q`，缺少 `DEPLOY_QT=1`、中文 locale 与公共版本入口 | 核实翻译目录软链接需求后套用 `quick-sharun/qt-installed.sh` |

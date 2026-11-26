@@ -81,6 +81,7 @@ Grok App 尚未核实同源 Arch/AUR 应用包，本次采用用户明确确认�
 
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
+| FreeRDP | [build_freerdp.sh](../freerdp/build_freerdp.sh) | 安装 Arch 官方 `freerdp` 及原有依赖，直接收集 9 个 FreeRDP / WinPR 入口与代理插件 `.so`；公共入口读取实际安装版本。 | export PATH_MAPPING（代理插件路径映射） | [模板差异](../freerdp/docs/template-deviations.md) |
 | htop | [build_htop.sh](../htop/build_htop.sh) | 安装 Arch 官方 htop 及原有依赖，直接收集 `/usr/bin/htop` 与既有辅助程序、动态库；公共入口读取实际安装版本。 | 无 | [模板差异](../htop/docs/template-deviations.md) |
 | mpv | [build_mpv.sh](../mpv/build_mpv.sh) | 安装 Arch 官方 mpv 及依赖，直接收集 `/usr/bin/mpv`；公共入口读取实际安装版本。 | 无 | [模板差异](../mpv/docs/template-deviations.md) |
 | Newsboat | [build_newsboat.sh](../newsboat/build_newsboat.sh) | 安装 Arch 官方 newsboat 及原有依赖，一次收集同包的 newsboat 和 podboat，公共入口读取实际安装版本。 | export STARTUPWMCLASS=newsboat | [模板差异](../newsboat/docs/template-deviations.md) |

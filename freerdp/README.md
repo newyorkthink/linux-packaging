@@ -19,12 +19,12 @@ FreeRDP 主要由 C / C++ 实现。本目录不重新编译 FreeRDP 源码，而
 
 ## 打包方式
 
-当前路线为 **Arch Linux + quick-sharun**：
+当前路线为 **Arch Linux + quick-sharun**，构建脚本已对齐标准模板 [arch-native.sh](../templates/quick-sharun/arch-native.sh)，专属差异及依赖覆盖核对见 [模板差异说明](./docs/template-deviations.md)：
 
-1. 通过 `yay` 安装 FreeRDP 及当前打包所需依赖。
-2. 使用 quick-sharun 收集 FreeRDP 可执行文件、动态库、proxy plugins、desktop 和图标。
-3. 使用 quick-sharun 的 `PATH_MAPPING` 支持，将 FreeRDP proxy plugins 的固定系统路径映射到 AppImage 内部。
-4. 由 `quick-sharun --make-appimage` 生成 `dist/xfreerdp3.AppImage`。
+1. 通过 `common/arch/install_packages.sh` 安装基础包、`freerdp` 及运行依赖，并由 `common/build/prepare_x86_64_workspace.sh` 清理工作区。
+2. 通过 `common/build/read_app_version.sh` 读取当前安装的 Arch `freerdp` 版本，使用仓库维护的 `freerdp.png` 与 `freerdp.desktop`，并设置 `PATH_MAPPING` 将 `/usr/lib/freerdp/server/proxy/plugins` 映射到 AppImage 内部。
+3. 使用 quick-sharun 收集 9 个 FreeRDP / WinPR 可执行文件及代理插件 `.so`，核对代理插件、`AppDir/lib/sharun-preload/path-mapping.so` 与 `AppDir/.env` 映射配置。
+4. 由 `quick-sharun --make-appimage` 生成 `dist/xfreerdp3.AppImage`，成功后经 `common/build/save_appimage_version.sh` 校验产物并写入 `dist/version.txt`。
 5. 正式 workflow 将产物发布到 `latest` Release。
 
 应用版本由 Arch Linux 仓库中的当前稳定 `freerdp` 包动态取得，构建脚本不固定 FreeRDP 版本号。
@@ -63,3 +63,9 @@ AppImage 主入口为 `xfreerdp3`，实际 RDP 参数沿用 FreeRDP 3 的命令�
 - 构建时从本次实际安装的 Arch `freerdp` 包读取版本，去掉 Arch epoch 与 pkgrel 后写入 `dist/version.txt`。
 - 统一版本清单键使用 `xfreerdp3`，对应本机及 Release 的稳定资产名 `xfreerdp3.AppImage`。
 - 本次不修改 FreeRDP 程序集合、proxy plugins、PATH_MAPPING 或 quick-sharun 打包基线。
+
+## 2026-11-27：按标准模板重写 `build_freerdp.sh`
+
+- 核实 `pkgforge-dev` 无 `freerdp` 仓库，确认沿用 Arch 官方 `extra/freerdp` 原生包路线。
+- 按 [arch-native.sh](../templates/quick-sharun/arch-native.sh) 重写 [build_freerdp.sh](./build_freerdp.sh)，统一接入公共安装、工作区与版本脚本；完整保留仓库图标/desktop、9 个可执行入口、代理插件收集与检查及 `PATH_MAPPING` 配置，省略与 `freerdp.desktop` 重复的 `STARTUPWMCLASS`，并新增 [模板差异说明](./docs/template-deviations.md)。
+- 本次仅做静态核对，提交后按仓库规则不主动监控 Actions。
