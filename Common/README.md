@@ -24,6 +24,7 @@
 - `aur/install_and_extract_deb_source.sh` 接收 AUR 包名、AUR 架构、来源工作目录、DEB 路径、解包目录、预期 DEB 包名和 DEB 架构。组合现有来源解析、摘要下载、版本读取、元数据校验、APT 安装和归档解包入口；全部成功后仅向 stdout 返回一行实际版本。保留同次 AUR 快照、来源元数据和依赖清单，不执行 PKGBUILD，也不改旧入口。参数与使用边界见下文。
 - `aur/download_tar_source.sh <AUR 包名> <架构> <输出.tar.gz> <元数据输出文件>` 从同次 `.SRCINFO` 读取唯一的架构专用 HTTPS tar.gz 来源和 BLAKE2b-512 摘要。摘要缺失、无效或为 `SKIP` 时拒绝下载；校验通过后写入归档及可由 Bash 读取的版本、pkgrel 和来源元数据。现有 DEB 入口继续使用原调用方式。
 - `aur/download_pkgbuild_asset.sh` 从同一份 PKGBUILD 文本读取指定的地址、SHA-256 和版本字段，支持可选的地址处理函数和 JSON 取链接模式，并复用公共下载入口校验文件。成功后写入来源版本，详见下文。
+- `download/download_json_asset.sh` 从官方 JSON 取得资产地址与版本，可用本仓库已发布的同版本 SHA-256 校验下载，并支持复用配方取包和签名取链入口。
 - `download/download_file.sh <HTTPS URL> <输出文件> [摘要] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔] [DNS 备用解析 HTTPS URL]` 保留原下载、重试、超时和原子替换行为。不传摘要时保持原行为；无前缀的 64 位十六进制摘要和 `sha256:<摘要>` 使用 SHA-256，新增的 `sha512:<128 位十六进制摘要>` 使用 SHA-512，`blake2b:<128 位十六进制摘要>` 使用 GNU `b2sum` 校验 BLAKE2b-512。摘要格式错误或校验失败时不替换已有输出文件。该扩展不改变其他专用下载入口各自的摘要格式。 第四个可选参数指定客户端标识，显式值优先；省略或传空字符串时，curl / wget 保留原默认标识，aria2c 使用仓库公共配置中的标识；不校验摘要而指定客户端标识时，第三个参数传空字符串。客户端标识包含回车或换行时拒绝下载。第五个可选参数显式选择下载器，默认仍为 `curl`；`wget` 共用原摘要校验、失败清理和原子替换，只用于直达 HTTPS 文件，不跟随重定向。该模式需要已有 `wget` 和 GNU `timeout`，总时限 900 秒，保留证书校验并使用 TLS 1.2；不读取 wget 配置或 netrc，不写 HSTS 文件。 `aria2c` 显式读取 [公共 HTTP 下载配置](./config/download/aria2.conf)，单服务器连接上限和分段数均为 16，最小分段和分块大小均为 1M；配置包含公开的模拟浏览器标识、IPv4 和 gzip 请求设置。它不读取个人 aria2 配置或 netrc；总时限仍为 900 秒，默认 TLS、证书校验、临时输出、原摘要校验、原子替换和失败清理保持不变，不自动跟随 Torrent / Metalink。公共配置按用途归类，规则见 [配置目录](./config/README.md)。
 - `download/download_apt_repository_deb.sh` 从调用方指定的 HTTPS APT 仓库读取签名索引，使用指定的官方密钥验证 `InRelease`，核对索引与 DEB 的 SHA-256、大小，以及 DEB 的包名、架构和版本；按 Debian 版本规则选择最高版本，成功后写入 DEB 与来源版本文件，stdout 只返回版本。不安装应用、不配置系统 APT 源；现有下载、版本读取和归档接口保持不变。完整参数与支持范围见下文。
 - `download/download_omaha_package.sh` 查询 Omaha 3.0 XML 更新服务，按调用方提供的应用 ID、渠道、平台、架构、下载源、路径前缀和文件名规则选择完整安装包，复用 `download_file.sh` 校验 SHA-256，并核对响应中的文件大小。成功后写入指定的安装包和版本文件，stdout 只返回版本；不安装或执行软件。完整参数、约束及调用方式见下文。
@@ -230,6 +231,16 @@ download_pkgbuild_asset "<PKGBUILD URL>" "<地址字段>" "<SHA-256 字段>" "<�
 | --- | --- |
 | 构建目录、发布产物和来源版本文件 | `# 设置构建目录、发布产物和来源版本文件的路径。` |
 | 上游配方地址和下载签名接口 | `# 设置上游配方和下载签名接口的地址。` |
+
+### 官方 JSON 取包与同版本摘要核对
+
+[`download/download_json_asset.sh`](./download/download_json_asset.sh) 依次接收官方 JSON 地址、提取资产地址的 jq 表达式、允许的地址正则、版本正则、发布仓库、软件键、发布资产名、输出文件和版本文件。版本正则的第一个捕获组用于版本，可选的第二个组用连字符追加。
+
+- `--metadata-alternate <JSON URL>` 在首个官方地址无法给出有效资产链接时读取另一个官方配置地址。
+- `--pkgbuild <URL> <地址字段> <SHA-256 字段> <版本字段>` 优先复用配方下载入口，失败后使用官方 JSON 取包。
+- `--resolve-json-url` 及其 `--resolve-header` 参数沿用 [PKGBUILD 入口的取链用法](#pkgbuild-字面量字段中的下载来源)，应放在上述来源选项之后。
+
+JSON 路线使用受认证的 GitHub 查询和公共 Release 下载入口校验 `latest` 的 `software_versions.json`，再核对同版本条目的资产名及其 SHA-256。摘要必须与 Release 附件摘要一致。最终下载通过公共入口校验同一 SHA-256，完成后才保存版本文件。
 
 ### Arch 安装时复用已校验的 AUR DEB
 

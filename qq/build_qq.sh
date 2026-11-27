@@ -11,9 +11,6 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # 安装统一的 Arch AppImage 基础包
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 
-# 加载公共 AUR 下载入口。
-source "$SCRIPT_DIR/../Common/aur/download_pkgbuild_asset.sh"
-
 ############# 准备构建目录 #############
 
 # 设置构建目录、发布产物和来源版本文件的路径。
@@ -31,14 +28,8 @@ SOURCE_VERSION_FILE="$SOURCE_DIR/version.txt"
 AUR_PKGBUILD_URL='https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=linuxqq-appimage'
 QQ_SIGN_URL='https://im.qq.com/http2rpc/gotrpc/noauth/trpc.qqntv2.urlsign.UrlSign/GetSign'
 
-# 从配方读取当前版本，通过公共入口取得签名地址并下载校验官方 AppImage。
-download_pkgbuild_asset \
-  "$AUR_PKGBUILD_URL" _image_url_x86_64 _image_sha256sums_x86_64 _version \
-  "$OUTFILE" "$SOURCE_VERSION_FILE" \
-  --url-regex '^https://qqdl\.gtimg\.cn/qqfile/QQNTV2/.+_x86_64_01\.AppImage$' \
-  --version-regex 'QQ_([0-9]+\.[0-9]+\.[0-9]+)_([0-9]{6})_x86_64_01\.AppImage$' \
-  --resolve-json-url 'https://im.qq.com' "$QQ_SIGN_URL" url data.url \
-  --resolve-header 'x-oidb: {"uint32_command":"0x9b8e","uint32_service_type":1}'
+# 通过公共入口取签名并下载校验官方 AppImage，配方不可用时从腾讯下载配置取链接。
+"$SCRIPT_DIR/../Common/download/download_json_asset.sh" 'https://qq-web.cdn-go.cn/im.qq.com_new/latest/rainbow/pcConfig.json' '.Linux.x64DownloadUrl.appimage' '^https://qqdl\.gtimg\.cn/qqfile/QQNTV2/.+_x86_64_01\.AppImage$' 'QQ_([0-9]+\.[0-9]+\.[0-9]+)_([0-9]{6})_x86_64_01\.AppImage$' newyorkthink/linux-packaging qq qq.AppImage "$OUTFILE" "$SOURCE_VERSION_FILE" --metadata-alternate 'https://im.qq.com/proxy/domain/cdn-go.cn/qq-web/im.qq.com_new/latest/rainbow/pcConfig.json' --pkgbuild "$AUR_PKGBUILD_URL" _image_url_x86_64 _image_sha256sums_x86_64 _version --resolve-json-url 'https://im.qq.com' "$QQ_SIGN_URL" url data.url --resolve-header 'x-oidb: {"uint32_command":"0x9b8e","uint32_service_type":1}'
 
 ############### 整理产物 ###############
 
