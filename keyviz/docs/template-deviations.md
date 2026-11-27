@@ -56,3 +56,5 @@ tauri-plugin-store (v2.5.1) : @tauri-apps/plugin-store (v2.4.1)
 ## 工作流说明
 
 `.github/workflows/build.yml` 中的独立 `build_keyviz` Job 继续保留已验证的 `anylinux-setup-action` v2 环境，脚本与产物路径统一为 `keyviz/` 与 `keyviz/dist/`，并在构建步骤显式传入 `GITHUB_TOKEN` 供公共 GitHub API 入口认证。
+
+实机运行结果见 [实机验证](../README.md#实机验证)。

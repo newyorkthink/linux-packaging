@@ -44,3 +44,20 @@ GitHub Actions 由独立 `build_keyviz` Job 调用 `keyviz/build_keyviz.sh`，�
 
 - 目录由 `Keyviz/` 统一改为小写 `keyviz/`，移除旧 `version.conf`，依赖安装、工作区准备、源码获取与版本保存全部接入 `common/` 公共入口。
 - 核实官方 `mulaRahul/keyviz`（`v2.1.2`）已内置 `zh-CN` 简体中文界面与托盘翻译、并将 `tao` 升级至 `0.37.2`；因此从停更的汉化分支 `zetaloop/keyviz` 切换回官方最新正式 Release 源码，移除旧的 `tao 0.34.8` 变通，将 `05_linux_overlay.py` 适配为精确锚点注入（保留上游 Windows / macOS 分支与原样翻译），详见 [template-deviations.md](./docs/template-deviations.md)。
+
+## 实机验证
+
+### 2026-11-27：用户实机验证通过
+
+用户已确认 Keyviz 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 程序启动与中文界面 | 程序正常启动，通用设置和关于页面均显示中文。 |
+| 键盘按键可视化 | 在其他应用窗口中显示 `Alt`、`2`、`F1` 的悬浮提示。 |
+| 鼠标左键可视化 | 在 Keyviz 设置窗口及其他应用窗口中显示 `Left` 的悬浮提示。 |
+
+#### 运行观察
+
+- 关于页面显示 `v2.1.1-beta`，与官方 `v2.1.2` 源码使用的界面版本文字一致。[上游关于页面源码](https://github.com/mulaRahul/keyviz/blob/v2.1.2/src/components/settings/about.tsx#L82)
+- 终端出现 `libayatana-appindicator is deprecated. Please use libayatana-appindicator-glib in newly written code.` 和 `Gdk-CRITICAL` 提示，后者包含 `gdk_window_thaw_toplevel_updates: assertion 'window->update_and_descendants_freeze_count > 0' failed`。终端截图中仍显示 `Left` 悬浮提示。

@@ -14,3 +14,5 @@
 | WebKitGTK 运行目录与部署开关 | `DEPLOY_GTK=1`、`DEPLOY_OPENGL=1`、`DEPLOY_WEBKIT2GTK=1`、`WEBKIT2GTK_DIR=/usr/lib/webkit2gtk-4.1` | 沿用仓库 Tauri / WebKitGTK 4.1 的 quick-sharun 基线，完整收集 GTK、OpenGL 与 WebKitGTK 子进程目录，[构建位置](../build_keyviz.sh#L108-L115)。 |
 | 收集目标 | `/usr/bin/keyviz`、`/usr/bin/xdg-open`、`/usr/bin/xdg-mime` | 保留主程序及外链/MIME 打开辅助命令，[构建位置](../build_keyviz.sh#L117-L118)。 |
 | 桌面入口与产物路径 | `STARTUPWMCLASS=keyviz`、`dist/keyviz.AppImage`、`dist/version.txt` | 对齐 `.github/appimage-apps.json` 中的 `keyviz` 资产名与统一软件版本清单接口，[构建位置](../build_keyviz.sh#L96-L107)、[保存位置](../build_keyviz.sh#L133-L134)。 |
+
+实机运行结果见 [实机验证](../README.md#实机验证)。
