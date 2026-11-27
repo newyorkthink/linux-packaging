@@ -15,10 +15,14 @@ cd "$SCRIPT_DIR"
 # 清掉上次的打包目录。
 "$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
 
-# 本程序专属处理：下载汉化版默认分支的当前源码并解包。
-COMMIT="$("$SCRIPT_DIR/../common/github/download_default_branch_source.sh" zetaloop/keyviz "$SCRIPT_DIR/work/keyviz.tar.gz")"
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$SCRIPT_DIR/work/keyviz.tar.gz" "$SCRIPT_DIR/work"
-SOURCE_DIR="$SCRIPT_DIR/work/keyviz-$COMMIT"
+# 设置本次构建使用的源码目录。
+SOURCE_DIR="$SCRIPT_DIR/work/source"
+
+# 读取本次打包使用的版本。
+KEYVIZ_TAG="$(
+  bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" mulaRahul/keyviz "$SOURCE_DIR" --archive
+)"
+VERSION="${KEYVIZ_TAG#v}"
 
 # 本程序专属处理：按顺序应用全部独立源码补丁，上游源码变化时在编译前主动停止。
 python "$SCRIPT_DIR/patches/01_key_event.py" "$SOURCE_DIR"
@@ -54,14 +58,11 @@ fi
   grep -Fq 'x11 = ' src-tauri/crates/rdev/Cargo.toml
 )
 
-# 本程序专属处理：将 tao 固定升至 0.34.8，规避 0.34.5 的 Linux event_loop unwrap 崩溃，并校验锁文件。
-TAO_VERSION="0.34.8"
+# 本程序专属处理：Cargo.toml 新增 Linux gtk 直接依赖后同步锁文件，并校验 gtk 0.18 与 --locked 一致性。
 (
   cd "$SOURCE_DIR/src-tauri"
-  cargo update -p tao --precise "$TAO_VERSION"
   cargo metadata --format-version 1 > "$SCRIPT_DIR/work/cargo-metadata.json"
   jq -e '.packages[] | select(.name == "gtk" and (.version | startswith("0.18.")))' "$SCRIPT_DIR/work/cargo-metadata.json" >/dev/null
-  jq -e --arg tao "$TAO_VERSION" '.packages[] | select(.name == "tao" and .version == $tao)' "$SCRIPT_DIR/work/cargo-metadata.json" >/dev/null
   cargo metadata --locked --format-version 1 >/dev/null
   rm -f "$SCRIPT_DIR/work/cargo-metadata.json"
 )
@@ -112,9 +113,6 @@ export DEPLOY_OPENGL=1
 export DEPLOY_WEBKIT2GTK=1
 # 本程序专属处理：使用构建系统提供的 WebKitGTK 运行目录。
 export WEBKIT2GTK_DIR=/usr/lib/webkit2gtk-4.1
-
-# 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json "$SOURCE_DIR/src-tauri/tauri.conf.json")"
 
 # 收集程序及其运行依赖。
 quick-sharun /usr/bin/keyviz /usr/bin/xdg-open /usr/bin/xdg-mime

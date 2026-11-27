@@ -1,75 +1,40 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import hashlib
 import sys
 
-# 修补 5：Linux/X11/i3 Overlay 稳定修复。
-# 这里故意校验固定汉化版 window.rs 的 SHA256；以后升级上游时如果该文件变化，
-# 构建会在编译前停止，避免把旧 Overlay 逻辑强行覆盖到新源码。
+# 修补 5：为官方 window.rs 补充 Linux/X11/i3 Overlay 窗口处理。
+# 仅对 config_window 中确切锚点做唯一匹配替换，保留上游 Windows 与 macOS 逻辑；
+# 若上游已新增 Linux 分支或改动对应调用，会在编译前主动报错并停止。
 root = Path(sys.argv[1])
 path = root / "src-tauri/src/app/window.rs"
 text = path.read_text()
 
-expected_sha256 = "86565b3651f08b411ca61c439ba89978b824686d8172c9d91012dc637d15e670"
-actual_sha256 = hashlib.sha256(text.encode()).hexdigest()
-if actual_sha256 != expected_sha256:
+if '#[cfg(target_os = "linux")]' in text:
     raise SystemExit(
-        "错误：05_linux_overlay.py 检测到 window.rs 已变化，请先核对新版源码再更新补丁。"
+        "错误：05_linux_overlay.py 检测到 window.rs 已包含 Linux 分支，请先人工核对新版源码。"
     )
 
-patched = '''pub fn config_window(window: &tauri::WebviewWindow) {
+old_top = '''    window
+        .set_always_on_top(true)
+        .expect("Failed to set always on top");
+
+    window
+        .set_ignore_cursor_events(true)
+        .expect("Failed to set ignore cursor events");'''
+
+new_top = '''    #[cfg(not(target_os = "linux"))]
+    window
+        .set_always_on_top(true)
+        .expect("Failed to set always on top");
+
     #[cfg(not(target_os = "linux"))]
     window
         .set_ignore_cursor_events(true)
-        .expect("Failed to set ignore cursor events");
+        .expect("Failed to set ignore cursor events");'''
 
-    #[cfg(target_os = "windows")]
-    {
-        use windows::Win32::Foundation::HWND;
-        use windows::Win32::UI::WindowsAndMessaging::{
-            SetWindowPos, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE,
-        };
+old_show = '    window.show().expect("Failed to show window");'
 
-        let hwnd = HWND(window.hwnd().unwrap().0 as isize);
-        unsafe {
-            let _ = SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        if let Ok(Some(monitor)) = window.primary_monitor() {
-            let position = monitor.position();
-            let size = monitor.size();
-
-            window
-                .set_position(tauri::PhysicalPosition {
-                    x: position.x,
-                    y: position.y,
-                })
-                .unwrap();
-            window
-                .set_size(tauri::PhysicalSize {
-                    width: size.width,
-                    height: size.height,
-                })
-                .unwrap();
-        }
-
-        use cocoa::appkit::{NSWindow, NSWindowCollectionBehavior};
-        use cocoa::base::id;
-
-        unsafe {
-            let ns_window = window.ns_window().unwrap() as id;
-            ns_window.setLevel_(1000);
-
-            ns_window.setCollectionBehavior_(
-                NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces,
-            );
-        }
-    }
-
-    #[cfg(target_os = "linux")]
+new_show = '''    #[cfg(target_os = "linux")]
     {
         use gtk::prelude::*;
 
@@ -134,8 +99,13 @@ patched = '''pub fn config_window(window: &tauri::WebviewWindow) {
 
         // unmanaged 覆盖层保持在最上层；点击穿透由 Tauri input shape 单独负责。
         gdk_window.raise();
-    }
-}
-'''
+    }'''
 
-path.write_text(patched)
+if text.count(old_top) != 1 or text.count(old_show) != 1:
+    raise SystemExit(
+        "错误：05_linux_overlay.py 与当前 Keyviz window.rs 不匹配，请先检查新版源码差异。"
+    )
+
+text = text.replace(old_top, new_top, 1)
+text = text.replace(old_show, new_show, 1)
+path.write_text(text)
