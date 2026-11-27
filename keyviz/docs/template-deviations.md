@@ -37,6 +37,22 @@
 | Tauri 无打包编译与系统路径安装 | [build_keyviz.sh](../build_keyviz.sh#L70-L94) | 仅编译 release 二进制（不调用 Tauri 自带 AppImage bundler），安装二进制、图标及通过 `desktop-file-validate` 校验的 `keyviz.desktop` 到 `/usr` 供 quick-sharun 收集。 |
 | WebKitGTK / OpenGL 导出与辅助命令收集 | [build_keyviz.sh](../build_keyviz.sh#L110-L118) | 保留 `DEPLOY_OPENGL=1`、`DEPLOY_WEBKIT2GTK=1`、`WEBKIT2GTK_DIR=/usr/lib/webkit2gtk-4.1`，并同次收集 `/usr/bin/keyviz`、`/usr/bin/xdg-open` 与 `/usr/bin/xdg-mime`。 |
 
+## Tauri 包版本不匹配
+
+构建官方 `v2.1.2` 时，`npm ci` 和 `cargo metadata --locked` 已通过，`npm run tauri -- build --no-bundle` 在编译前的 Tauri 版本一致性检查中以退出码 `1` 结束。[构建日志](https://github.com/newyorkthink/linux-packaging/actions/runs/45941508605/job/140316738936)
+
+```text
+Error Found version mismatched Tauri packages. Make sure the NPM package and Rust crate versions are on the same major/minor releases:
+tauri (v2.12.5) : @tauri-apps/api (v2.9.1)
+tauri-plugin-fs (v2.7.1) : @tauri-apps/plugin-fs (v2.4.4)
+tauri-plugin-opener (v2.7.3) : @tauri-apps/plugin-opener (v2.5.2)
+tauri-plugin-os (v2.4.0) : @tauri-apps/plugin-os (v2.3.2)
+tauri-plugin-dialog (v2.8.4) : @tauri-apps/plugin-dialog (v2.4.2)
+tauri-plugin-store (v2.5.1) : @tauri-apps/plugin-store (v2.4.1)
+```
+
+官方 `v2.1.2` 的两份锁文件已存在上述差异。构建命令使用锁定的 Tauri CLI `2.9.6` 提供的 `--ignore-version-mismatches`，让预检记录版本差异后继续构建。该参数只改变预检的退出行为，前端依赖安装和 Linux GTK 依赖的锁文件同步照旧执行。[npm 锁文件](https://github.com/mulaRahul/keyviz/blob/v2.1.2/package-lock.json) · [Cargo 锁文件](https://github.com/mulaRahul/keyviz/blob/v2.1.2/src-tauri/Cargo.lock) · [Tauri CLI 源码](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.9.6/crates/tauri-cli/src/build.rs#L154-L163)
+
 ## 工作流说明
 
 `.github/workflows/build.yml` 中的独立 `build_keyviz` Job 继续保留已验证的 `anylinux-setup-action` v2 环境，脚本与产物路径统一为 `keyviz/` 与 `keyviz/dist/`，并在构建步骤显式传入 `GITHUB_TOKEN` 供公共 GitHub API 入口认证。

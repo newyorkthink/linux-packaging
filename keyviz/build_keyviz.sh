@@ -67,10 +67,10 @@ fi
   rm -f "$SCRIPT_DIR/work/cargo-metadata.json"
 )
 
-# 本程序专属处理：仅通过 Tauri 编译 release 主程序，不调用 Tauri 自带的 AppImage bundler。
+# 本程序专属处理：仅用 Tauri 编译 release 主程序，允许构建在上游锁定的 Tauri 小版本不一致时继续。
 (
   cd "$SOURCE_DIR"
-  npm run tauri -- build --no-bundle
+  npm run tauri -- build --no-bundle --ignore-version-mismatches
 )
 
 # 本程序专属处理：安装编译产物、图标和桌面入口到系统路径，供 quick-sharun 收集。

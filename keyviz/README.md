@@ -27,6 +27,7 @@ GitHub Actions 由独立 `build_keyviz` Job 调用 `keyviz/build_keyviz.sh`，�
 2. 不要删除补丁检查后硬编译；如果上游改动了被修补文件或新增了原生 Linux 分支，对应补丁会在编译前主动报错并停止，避免旧修复误覆盖新版源码。
 3. Linux Overlay 修复单独放在 `patches/05_linux_overlay.py`，仅针对 `config_window` 精确锚点插入 Linux 处理，保留上游 Windows 与 macOS 代码。
 4. 构建保持 `anylinux-setup-action` v2 与 quick-sharun 封装，并按仓库 GTK 3 GUI 规范内置中文 locale 与 `fcitx5-gtk` 输入模块。
+5. Keyviz `v2.1.2` 的 npm 与 Rust Tauri 包存在小版本差异，构建使用 Tauri CLI 的 `--ignore-version-mismatches` 参数继续编译，详见 [Tauri 包版本不匹配](./docs/template-deviations.md#tauri-包版本不匹配)。
 
 ## 当前基线
 
