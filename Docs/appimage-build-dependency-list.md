@@ -38,6 +38,7 @@ yay -S --noconfirm base-devel archlinux-keyring gcc make pkgconf patch autoconf 
 
 - **适用**：直接链接 Arch 系统 Qt / GTK 运行库的应用（例如 Arch 官方仓库原生程序、AUR 源码编译程序，或不自带 Qt / GTK 运行库的独立二进制）。
 - **不适用于自带 Qt 运行时的第三方预编译包**：如果上游 DEB / tar 已自带私有 Qt 运行库（尤其是闭源 Qt 6 商业程序，如 Modern CSV），**不要盲目调用 `--qt6` 替换上游 Qt 运行时**。Arch 官方 `qt6-base` 编译启用了 `-DFEATURE_no_direct_extern_access=ON`（带 `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`），对受保护 Qt 函数存在 `R_X86_64_64` 直接符号引用的第三方二进制切换至 Arch Qt 6 后会直接触发启动崩溃；此外主程序 `DT_RPATH` / `DT_RUNPATH` 指向 `$ORIGIN/lib` 时，与 Arch 系统 Qt 混装还会造成 Qt 插件小版本 ABI 冲突。此类应用应保留上游自带 Qt 目录（配合 `QT_LOCATION` 或完整程序目录布局），只安装非 Qt 系统依赖，并从同代 Qt 小版本的签名发行版仓库补齐缺失的输入法插件（如 Debian 对应发行版的 `fcitx5-frontend-qt6`）。
+  - 自带 Qt 6 的应用需要深色主题时，也须从同代 Qt 小版本的签名发行版仓库补齐主题插件和配套运行库。例如，Modern CSV 使用 Bookworm 的 `adwaita-qt6` 及配套库，在 `.env` 中设置 `QT_STYLE_OVERRIDE=Adwaita-Dark`。
 - **不适用于自带 Chromium 运行时的 Electron 包**：保留上游自带运行库，只按需补充 GTK 3 / NSS / 音频等系统依赖，不套用 `--qt*`。
 
 | 应用类别 | 该类别的起始包组 | 仅在实际使用时追加 |

@@ -2,7 +2,7 @@
 
 ## 用途
 
-本目录将 Modern CSV Linux 稳定版重新封装为 AppImage，产物名固定为：
+本目录将 Modern CSV 官方 Linux 2.x 稳定版重新封装为 AppImage，产物名固定为：
 
 ```text
 moderncsv.AppImage
@@ -11,14 +11,14 @@ moderncsv.AppImage
 上游与打包参考：
 
 - Modern CSV：`https://www.moderncsv.com/`
-- 官方原始包归档（构建默认来源）：[`newyorkthink/linux-packaging` 的 `original-package-archive`](https://github.com/newyorkthink/linux-packaging/releases/tag/original-package-archive)（通过 [Archive Original Packages](../.github/workflows/archive_original_packages.yml) 从官方签名 APT 仓库 `https://www.moderncsv.com/release/apt` 手动归档最新 3.x DEB 及同版本 `tar.gz`，自动保留最新 2 个版本）
+- [Modern CSV 官方旧版下载](https://www.moderncsv.com/download-older-versions/)提供 2.x 的 Linux `tar.gz`。通过 [Archive Original Packages](../.github/workflows/archive_original_packages.yml) 手动维护 [`original-package-archive`](https://github.com/newyorkthink/linux-packaging/releases/tag/original-package-archive) 中的原包。为继续使用 2.x 许可证，当前归档维持在 2.x，构建默认取匹配文件名模板的最高版本。
 - pkgforge-dev `quick-sharun`：`https://github.com/pkgforge-dev/Anylinux-AppImages`
 - 官方说明：`https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/HOW-TO-MAKE-THESE.md`
 - 模板差异与固定配置：[template-deviations.md](./docs/template-deviations.md) · [hardcoded.md](./docs/hardcoded.md)
 
 ## 打包环境
 
-Modern CSV 使用仓库统一的 Arch Linux / AnyLinux quick-sharun 构建环境，归类于[用 quick-sharun 打包的 Qt 程序 → 直接下载安装包](../Docs/packaging-classification.md#用-quick-sharun-打包的-qt-程序)。
+Modern CSV 使用仓库统一的 Arch Linux / AnyLinux quick-sharun 构建环境，按[专用打包流程](../Docs/packaging-classification.md#专用打包流程)维护。
 
 `.github/workflows/build.yml` 中的 Modern CSV Job 通过统一矩阵调度复用：
 
@@ -30,42 +30,33 @@ pkgforge-dev/anylinux-setup-action
 
 应用脚本本身不再启动额外 Docker / chroot，也不重复下载 quick-sharun。
 
-官方 3.x DEB 自带完整 **Qt 6.8.3** 运行时与全套原生 Qt 6 插件（包括 `libqxcb.so`、`compose`、`ibus`、`tls`、`sqldrivers`、`printsupport` 等），不再存在 2.4.3 时期的 Qt 5 混杂插件问题；但主程序仍对受保护 Qt 函数存在 `R_X86_64_64` 直接符号引用，不能替换为 Arch 系统 Qt 6（Arch `qt6-base` 启用了 `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`，替换会导致启动崩溃）。因此当前打包完整保留官方 Qt 6.8.3 运行时和全部原生插件，只从同代 Qt 6.8 系列（Qt 6.8.2）的 Debian 13（Trixie）签名 APT 仓库补入缺失的 Fcitx5 Qt 6 输入插件及其运行库。
+2.x 流程沿用官方 Qt 6.4.3 运行时和同包的 `libqxcb.so`，其余插件按用途从 Debian 12（Bookworm）的 Qt 6.4.2 同代组件中选取。旧版 AppImage 替换成 Arch 系统 Qt 6 后曾发生 `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` 启动崩溃，故构建依赖只安装所需的非 Qt 软件包。故障经过见下文修复记录。
 
 ## 打包流程
 
-`build_moderncsv.sh` 已全部切换至仓库 `Common/` 公共入口，主流程如下：
+`build_moderncsv.sh` 通过仓库 `Common/` 公共入口下载、验签、解包和保存版本。
 
-1. 调用 `Common/arch/install_packages.sh --base` 安装基础工具，另起一行只安装 DEB 校验与官方 Qt 6.8.3 插件及 Fcitx5 兼容库所需的非 Qt 运行依赖（`dpkg`、`fontconfig`、`gtk3`、`libcups`、`libglvnd`、`libunwind`、`libx11`、`libxcb`、`libxkbcommon-x11`、`mesa`、`wayland`、`xcb-util*`）；**不调用 `--qt6`，不安装 Arch `qt6-*` 或 `fcitx5-qt`**。
-2. 调用 `Common/build/prepare_x86_64_workspace.sh` 准备 `AppDir`、`dist`、`work`。
-3. 通过 `Common/github/download_tagged_release_asset.sh` 从本仓库 `original-package-archive` 归档标签自动选择最高版本的 `moderncsv_{version}_amd64.deb`（认证 GitHub API + 官方 Release 直链优先 + 资产 ID 认证回退 + 官方 SHA-256 校验 + DEB 包名/架构/版本核对），调用 `Common/archive/extract_archive.sh` 解包，保留完整 `work/unpacked/opt/moderncsv/` 目录树作为 `SOURCE_DIR`。需要升级 Modern CSV 时先手动运行 [Archive Original Packages](../.github/workflows/archive_original_packages.yml) 将官方新版归档至 `original-package-archive`（保留最新 2 个版本便于回退），日常/定时/按需构建不再直接请求 `moderncsv.com`。
-4. 通过 `Common/download/download_apt_repository_deb.sh` 从 Debian 13（`trixie`）签名 APT 仓库动态下载并验签 `fcitx5-frontend-qt6`、`libfcitx5-qt6-1`、`libfcitx5utils2`，仅将以下 Fcitx5 Qt 6 组件补入官方目录，不复制任何 Debian `libQt6*.so`：
-
-```text
-plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so  Debian Trixie Qt 6.8.2 ABI
-lib/libFcitx5Qt6DBusAddons.so.*                                       Debian Trixie
-lib/libFcitx5Utils.so.*                                               Debian Trixie
-```
-
-5. 导出 `ARCH`、`APPNAME`、`MAIN_BIN`、`STARTUPWMCLASS`、`ICON`（`usr/share/pixmaps/moderncsv.png`）、`DESKTOP`（`usr/share/applications/moderncsv.desktop`）、`OUTPATH`、`OUTNAME`、`DEPLOY_QT=1`、`DEPLOY_OPENGL=1` 与 `QT_LOCATION="$SOURCE_DIR"`；调用 `Common/build/read_app_version.sh` 读取同次下载版本。
-6. 仅在构建调用期间临时设置 `LD_LIBRARY_PATH="$SOURCE_DIR/lib..."`，将主程序、Fcitx5 两个运行库 SONAME 以及 `/usr/lib/libssl.so.3`、`/usr/lib/libcrypto.so.3` 一同交给 `quick-sharun` 收集，随后生成包内中文 locale（`AppDir/lib/locale/zh_CN.utf8` 与 `AppDir/.env`，不强制设置 `QT_IM_MODULE`）。
+1. 调用 `Common/arch/install_packages.sh --base` 安装基础工具，另起一行安装 `dpkg`、`fontconfig`、`libglvnd`、`libunwind`、`libx11`、`libxcb`、`libxkbcommon-x11`、`mesa` 及 `xcb-util*` 等非 Qt 运行依赖。
+2. 调用 `Common/build/prepare_x86_64_workspace.sh` 准备 `AppDir`、`dist`、`work`。通过 `Common/github/download_tagged_release_asset.sh` 从 `original-package-archive` 选取最高版本的 `ModernCSV-Linux-v{version}.tar.gz`，使用公共入口的认证查询、Release 下载回退和 SHA-256 校验，并保留同次下载的版本记录。
+3. 调用 `Common/archive/extract_archive.sh` 解包。保留主程序、官方 Qt 6.4.3 库及 `libqxcb.so`，其余原包插件由同代兼容组件按需补齐。
+4. 通过 `Common/download/download_apt_repository_deb.sh` 从 Debian Bookworm 签名 APT 仓库下载八个兼容包。仅提取 Compose、IBus、Fcitx5 输入插件、TLS 后端、Adwaita Qt 6 样式插件及其配套运行库，完整保留所需的库符号链接链。Qt 库继续使用官方原包内容。
+5. 以解包目录为 `QT_LOCATION`，使用包内官方图标和 desktop。将工作目录中解出的 desktop 副本里的绝对 `Icon=` 路径改为 `moderncsv`，由 AppImage 提供对应图标。
+6. 仅在部署依赖时为 `quick-sharun` 设置 `LD_LIBRARY_PATH` 指向官方运行库，并显式传入主程序、Fcitx5 和 Adwaita 运行库及 OpenSSL 3 库。随后生成包内中文 locale 并由 `AppDir/.env` 加载。
 7. 执行 `quick-sharun --make-appimage`，最后调用 `Common/build/save_appimage_version.sh` 校验产物并写入 `dist/version.txt`。
 
 ## AppDir 结构说明
 
-官方 DEB 的 `opt/moderncsv/` 解包在 `$SCRIPT_DIR/work/unpacked/opt/moderncsv` 并作为 `QT_LOCATION`，使 `quick-sharun` 直接从官方 Qt 6.8.3 运行时和完整插件树收集内容，不触碰 Arch Qt。Fcitx5 运行库按完整 SONAME 链复制后再以精确 SONAME 路径输入 `quick-sharun`，由 `quick-sharun` 统一部署到 AppDir 标准目录。
+解包后的程序目录保留官方 `lib/` 布局，按需整理 `plugins/` 后交给 `quick-sharun` 收集。工具将真实程序和依赖放入 AppDir 自身目录，并生成 sharun 启动入口。Fcitx5 和 Adwaita 运行库以精确 SONAME 路径加入收集清单。
 
 ## Qt 与中文输入
 
-Modern CSV 3.x 主程序自带 Qt 6.8.3，必须保持为运行时基线，避免再次触发 Arch Qt 6 的 `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` 启动崩溃。官方 3.0 已原生提供 Qt 6.8.3 版本的 Compose、IBus 输入插件与 OpenSSL/证书 TLS backend，只需额外补入同代 Qt 6.8 ABI 的 Debian Trixie Fcitx5 Qt 6 输入插件及运行库，同时在包内生成 `zh_CN.UTF-8` locale。
-
-本脚本不强制设置 `QT_IM_MODULE`，由宿主输入法环境选择 Fcitx5、IBus 或 Compose；不向 Modern CSV 注入非官方中文界面翻译。
+包内生成 `AppDir/lib/locale/zh_CN.utf8`，在 `AppDir/.env` 中设置 `LANG`、`LANGUAGE`、`LC_MESSAGES` 和 `LOCPATH`。Fcitx5、IBus 或 Compose 由宿主输入法环境选择，脚本不强制设置 `QT_IM_MODULE`。中文 locale 和输入法支持不涉及界面翻译。Qt 样式通过 `QT_STYLE_OVERRIDE=Adwaita-Dark` 设置。
 
 ## 特殊处理原则
 
 CopyQ 中 `lib/copyq/plugins` 的符号链接修复属于 CopyQ 自身插件搜索行为，不复制到 Modern CSV。
 
-Modern CSV 的核心约束是“第三方闭源预编译 Qt 6.8.3 二进制存在受保护符号直接引用，不能替换为 Arch 系统 Qt 6”。因此必须保持 `QT_LOCATION` 指向官方自带 Qt 目录，并仅从同代 Qt 6.8 ABI 源补入缺失的 Fcitx5 插件；详细依据见 [template-deviations.md](./docs/template-deviations.md) 与 [hardcoded.md](./docs/hardcoded.md)。
+保留 `QT_LOCATION`、Qt 运行库隔离方式和兼容插件清单的依据，见 [template-deviations.md](./docs/template-deviations.md) 与 [hardcoded.md](./docs/hardcoded.md)。
 
 ## 修复记录
 
@@ -188,3 +179,8 @@ Modern CSV 的核心约束是“第三方闭源预编译 Qt 6.8.3 二进制存�
 
 - 故障现象：GitHub Actions 出口访问 `www.moderncsv.com/release/apt/` 时仍会偶发收到约 12 KB 的 HTML 挑战页，导致 `gpg --dearmor` 报 `gpg: no valid OpenPGP data found.` 退出。[GitHub Actions 失败日志](https://github.com/newyorkthink/linux-packaging/actions/runs/45972050809/job/140414653877)
 - 调整内容：在 [archive_original_packages.yml](../.github/workflows/archive_original_packages.yml) 将 `moderncsv` 手动归档升级为同时归档官方签名 APT 最新 3.x DEB 与同版本 `tar.gz` 并自动保留最新 2 个版本（便于新版本注册异常时回退上一版本）；`build_moderncsv.sh` 改用公共入口 `Common/github/download_tagged_release_asset.sh` 从本仓库 `original-package-archive` 自动选择最高版本 `moderncsv_{version}_amd64.deb` 并校验官方 SHA-256 与 DEB 元数据，日常、定时与按需构建不再直接访问 `moderncsv.com`。
+
+### 2026-11-27：恢复 2.x 稳定版打包
+
+- 官方提供 [2.x Linux 旧版下载](https://www.moderncsv.com/download-older-versions/)，适用于继续使用现有 2.x 许可证的用户。手动归档和日常打包分别从官方旧版原包与本仓库 `original-package-archive` 取包，构建自动读取本次下载对应的实际版本。
+- 恢复官方 Qt 6.4.3 和 Debian Bookworm Qt 6.4.2 的插件组合。补齐中文输入和 TLS 插件，继续使用包内中文 locale，加入 Adwaita 深色样式，并修正打包用 desktop 副本的图标字段。

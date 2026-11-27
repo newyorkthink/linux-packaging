@@ -121,9 +121,8 @@ htop 保留原有 MAIN_BIN、Open Files / Trace 辅助命令和运行时动态�
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
 | MailMaster | [build_mailmaster.sh](../mailmaster/build_mailmaster.sh) | 按当前 AUR 配方安装，独立校验并解包主 DEB，公共入口读取同次下载的版本。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1<br>export DEPLOY_PIPEWIRE=1 | [模板差异](../mailmaster/docs/template-deviations.md) |
-| Modern CSV | [build_moderncsv.sh](../moderncsv/build_moderncsv.sh) | 通过公共入口从本仓库 `original-package-archive` 归档标签自动选择最高版本 `moderncsv_{version}_amd64.deb`，核对 GitHub SHA-256 与 DEB 元数据并读取包内版本；完整保留官方 Qt 6.8.3 运行时与全部原生 Qt 6 插件，仅从 Debian 13 (Trixie) 签名 APT 仓库补入同代 Qt 6.8 ABI 的 Fcitx5 输入插件与运行库。 | export DEPLOY_QT=1<br>export DEPLOY_OPENGL=1<br>export QT_LOCATION="$SOURCE_DIR" | [模板差异](../moderncsv/docs/template-deviations.md) · [固定配置](../moderncsv/docs/hardcoded.md) |
 
-Modern CSV 未安装同源 Arch/AUR 应用包，只安装官方 Qt 6.8.3 插件及 Fcitx5 兼容库所需的非 Qt 运行依赖，并直接使用 DEB 内的桌面入口与图标；其 `original-package-archive` 归档标签按版本选包（避免上游站点对 CI 出口偶发返回挑战页）、`QT_LOCATION` 保留自带 Qt 6.8.3（避免 Arch Qt 6 的 `GNU_PROPERTY` 启动崩溃）及从 Debian Trixie 签名仓库补入同代 Fcitx5 Qt 6 插件均作为本应用专属处理保留，不改变其他项目的默认模板要求。
+Modern CSV 使用官方 TAR 原始包，登记在[专用打包流程](#专用打包流程)。
 
 ### 从系统真实入口收集
 
@@ -197,6 +196,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | Hermes Desktop | [build_hermes-desktop.sh](../hermes-desktop/build_hermes-desktop.sh) | 从上游正式 Release 标签获取源码，使用上游锁定的 pnpm 构建，并由 electron-builder 生成普通 Desktop AppImage。现有模板无法覆盖这条源码构建与封装流程。桌面客户端可连接已有 Gateway，也可使用单独安装的本机 Agent。 | [构建来源、旧版实机记录和当前验收状态](../hermes-desktop/README.md) |
 | KDE Suite | [build_kde_suite.sh](../kde-suite/build_kde_suite.sh) | 多款 KDE 程序共享一个 AppImage 的挂载及 Qt 6 和 KF6 运行组件，最终封装前按套件结构分阶段部署应用和辅助工具。 | [KDE Suite README](../kde-suite/README.md) |
 | Keyviz | [build_keyviz.sh](../keyviz/build_keyviz.sh) | 从官方 `mulaRahul/keyviz` 最新正式 Release 获取源码，应用 5 份 Linux/X11/i3 补丁后经 Tauri 编译、quick-sharun 封装；官方未提供 Linux 现成包且缺少 Linux 覆盖层处理，公共阶段已对齐仓库入口。 | [模板差异](../keyviz/docs/template-deviations.md) · [固定配置](../keyviz/docs/hardcoded.md) · [应用说明](../keyviz/README.md) |
+| Modern CSV | [build_moderncsv.sh](../moderncsv/build_moderncsv.sh) | 默认从本仓库 `original-package-archive` 选取匹配 `ModernCSV-Linux-v{version}.tar.gz` 的最高版本。保留自带 Qt 6.4.3 和 Qt 6 XCB 插件，从 Debian 12 Bookworm 签名 APT 仓库补入同代 Qt 6.4.2 的输入法、TLS 插件和 Adwaita 深色主题及其运行库。固定 Qt 模板不支持这套 TAR 布局和插件处理流程。 | [应用说明](../moderncsv/README.md) · [模板差异](../moderncsv/docs/template-deviations.md) · [固定配置](../moderncsv/docs/hardcoded.md) |
 | QQ | [build_qq.sh](../qq/build_qq.sh) | 校验后原样同步腾讯官方 x86_64 AppImage。现有打包模板面向重新封装，QQ 采用已通过实机验证的原包同步流程。 | [打包方式](../qq/README.md#打包方式) · [修复与实机记录](../qq/README.md#修复记录) |
 | st | [build_st.sh](../st/build_st.sh) | 从 siduck/st 默认分支获取当前源码，按字体配置生成 config.h 并写入源码默认主题，经 make 安装后由 quick-sharun 封装程序、辅助脚本和 terminfo；与 Arch 原生软件包模板不同，不新增标准模板。 | [专属差异](../st/docs/template-deviations.md) · [实机验证](../st/README.md#实机验证) |
 | Webcamoid | [build_webcamoid.sh](../webcamoid/build_webcamoid.sh) | 现有流程从官方正式 Release 源码应用四个补丁，经 CMake + Ninja 安装到暂存目录，再由 quick-sharun 收集插件与运行库；不同于现有 Qt DEB / 系统入口模板，不新增标准模板。 | [当前基线与差异](../webcamoid/docs/template-deviations.md) · [实机验证](../webcamoid/README.md#实机验证) |

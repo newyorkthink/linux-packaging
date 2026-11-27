@@ -164,7 +164,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `QML2_IMPORT_PATH` | Qt5 的 QML 模块目录。 | 3 个脚本，例如 kde-suite、xnviewmp |
 | `QML_DISABLE_DISK_CACHE` | 禁止 Qt Quick 写磁盘缓存。 | kde-suite |
 | `QT_QUICK_CONTROLS_STYLE` | Qt Quick Controls 的样式，例如 KDE Breeze。 | kde-suite |
-| `QT_STYLE_OVERRIDE` | 强制 Qt 控件样式，盖过应用默认样式。 | 例如 flameshot、peazip。webcamoid、smplayer 在 .env 中使用。 |
+| `QT_STYLE_OVERRIDE` | 强制 Qt 控件样式，盖过应用默认样式。 | 例如 flameshot、peazip。webcamoid、smplayer、moderncsv 在 `.env` 中使用，moderncsv 的值为 `Adwaita-Dark`。 |
 | `QT_AUTO_SCREEN_SCALE_FACTOR` | 让 Qt 按屏幕缩放界面。 | 历史统计为 4 个脚本，例如 dingtalk、peazip；wechat 的旧配置随备份文件删除，历史可从 Git 查阅 |
 | `QT_SCALE_FACTOR` | Qt 界面缩放倍数。 | peazip |
 | `QT_FONT_DPI` | 固定 Qt 字体 DPI。 | 2 个脚本，例如 peazip、xnviewmp |
