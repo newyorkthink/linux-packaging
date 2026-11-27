@@ -11,3 +11,5 @@
 | 封装与发布 | 保留 linuxdeploy 生成的 GTK hook 和启动包装层。官方 appimagetool 使用 Type 2 runtime 输出 `rainlendar2.AppImage`，发布后由同一 Job 即时更新 `rainlendar2` 版本条目。 |
 
 旧版曾为默认铃声和同步线程加入专属兼容处理，源码保留了对应的触发条件和补丁边界。[旧版 AppRun 与铃声处理](https://github.com/newyorkthink/linux-packaging/blob/f0490b8/rainlendar2/build_rainlendar2.sh#L189-L328) · [GetPath 修复依据及原补丁](https://github.com/newyorkthink/linux-packaging/blob/f0490b8/rainlendar2/build_rainlendar2.sh#L330-L545)
+
+实测结果见[应用 README 的实机验证记录](../README.md#实机验证)。
