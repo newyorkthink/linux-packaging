@@ -1,6 +1,55 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# 单个 AUR 包显式启用来源校验重试时，每次都在独立目录中获取源文件。
+if [[ "${1:-}" == --aur-source-retry ]]; then
+  if (( $# != 3 )) || [[ ! "$2" =~ ^[a-z0-9][a-z0-9@._+-]*$ || "$2" == *..* || ! "$3" =~ ^[1-9][0-9]*$ ]]; then
+    echo "用法：$0 --aur-source-retry <AUR 包名> <重试等待秒数（正整数）>" >&2
+    exit 2
+  fi
+  AUR_PACKAGE="$2"
+  RETRY_DELAY="$3"
+  command -v yay >/dev/null 2>&1 || {
+    echo "错误：Arch 构建环境缺少 yay。" >&2
+    exit 1
+  }
+
+  # 只清理本次安装创建的临时工作区。
+  INSTALL_WORK="$(mktemp -d "${TMPDIR:-/tmp}/arch-aur-retry.XXXXXXXX")"
+  # 退出时清理两次尝试的临时来源和构建目录。
+  cleanup() {
+    rm -rf -- "$INSTALL_WORK"
+  }
+  trap cleanup EXIT
+  chmod 711 "$INSTALL_WORK"
+
+  for attempt in 1 2; do
+    # 分开隔离 makepkg 的来源与 yay 的构建缓存，避免再次使用校验失败的文件。
+    ATTEMPT_DIR="$INSTALL_WORK/$attempt"
+    INSTALL_LOG="$ATTEMPT_DIR/yay.log"
+    mkdir -p "$ATTEMPT_DIR/sources" "$ATTEMPT_DIR/build"
+    chmod 711 "$ATTEMPT_DIR"
+    chmod 1777 "$ATTEMPT_DIR/sources" "$ATTEMPT_DIR/build"
+
+    # 保留 AUR 的下载、校验和安装流程，用固定语言记录本次失败原因。
+    if LC_ALL=C SRCDEST="$ATTEMPT_DIR/sources" yay -S --aur --noconfirm --builddir "$ATTEMPT_DIR/build" "$AUR_PACKAGE" 2>&1 | tee "$INSTALL_LOG"; then
+      exit 0
+    else
+      install_status=("${PIPESTATUS[@]}")
+    fi
+    if (( install_status[1] != 0 )); then
+      exit "${install_status[1]}"
+    fi
+
+    # 只有源文件校验失败才等待并重新下载一次，其他失败沿用安装退出码。
+    if (( attempt == 2 )) || ! grep -Fq 'One or more files did not pass the validity check!' "$INSTALL_LOG"; then
+      exit "${install_status[0]}"
+    fi
+    printf 'AUR 包 %s 的源文件校验失败，等待 %s 秒后重新下载并安装一次。\n' "$AUR_PACKAGE" "$RETRY_DELAY" >&2
+    sleep "$RETRY_DELAY"
+  done
+fi
+
 # 显式安装 AUR 应用并导出同次下载的原始源文件，普通安装调用保持原样。
 if [[ "${1:-}" == --aur-source ]]; then
   shift
