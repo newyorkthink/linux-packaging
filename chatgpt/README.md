@@ -132,5 +132,5 @@ OpenAI 当前将 Linux 桌面版标记为预览版，并正式支持指定版本
 
 - 在 Codex 桌面端连接 GitHub 插件时，浏览器将 `codex://connector/oauth_callback` 当成搜索，桌面端仍提示在浏览器完成连接。
 - 原构建只将 desktop 带入 AppImage，直接运行时缺少在宿主登记 `x-scheme-handler/codex` 的步骤。
-- 在 [构建脚本](build_chatgpt.sh#L79-L87) 的最终封装前调用 [公共协议入口](../common/desktop/write_scheme_hook.sh)，生成 `20-chatgpt-protocol.hook`。启动时按当前 AppImage 的实际路径写入用户级 desktop，通过 `%U` 将回调 URI 传给程序。
+- 在 [构建脚本](build_chatgpt.sh#L79-L87) 的最终封装前调用 [公共协议入口](../Common/desktop/write_scheme_hook.sh)，生成 `20-chatgpt-protocol.hook`。启动时按当前 AppImage 的实际路径写入用户级 desktop，通过 `%U` 将回调 URI 传给程序。
 - 本次核对了构建参数、封装顺序和 URI 传递链。GitHub 授权手动回跳已通过 Linux 实机验证，见 [实机验证](#实机验证)。

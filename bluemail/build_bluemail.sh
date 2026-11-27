@@ -8,22 +8,22 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 
 # 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
 mkdir -p AppDir/shared/bin work
 
 APP_ROOT="$SCRIPT_DIR/AppDir/shared/bin"
 
 # 应用本身。包管理器会拉入它声明的依赖。
 # 本程序专属处理：AUR 安装改用官方稳定版，并保留同次校验通过的原始 Snap。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-source bluemail x86_64 \
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --aur-source bluemail x86_64 \
   'bluemail-{version}.snap' work/bluemail.snap work/source-version.txt --snap-stable bluemail blix amd64 -- \
   squashfs-tools openssl gtk3 nss libnotify libsecret libappindicator libxtst libxss ibus fcitx5-gtk
 
 # 本程序专属处理：解包官方 Snap。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" work/bluemail.snap "$APP_ROOT"
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/bluemail.snap "$APP_ROOT"
 
 # 本程序专属处理：保留官方桌面入口和图标，并设置浏览器回调协议。
 cp -a "$APP_ROOT/meta/gui/bluemail.desktop" work/bluemail.desktop
@@ -61,7 +61,7 @@ export NO_STRIP=1
 export STRACE_MODE=0
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text work/source-version.txt)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" text work/source-version.txt)"
 
 # 本程序专属处理：向打包工具传入本次实际版本。
 export VERSION
@@ -115,7 +115,7 @@ fi
 HOOK
 
 # 本仓库兼容处理：启动时注册 me.blueone.linux://。包内 desktop 不会进入宿主 applications 目录。
-bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
+bash "$SCRIPT_DIR/../Common/desktop/write_scheme_hook.sh" \
   --output "$SCRIPT_DIR/AppDir/bin/20-bluemail-protocol.hook" \
   --desktop-file bluemail.desktop \
   --name BlueMail \
@@ -137,4 +137,4 @@ done
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/bluemail.AppImage" "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "dist/bluemail.AppImage" "$VERSION" dist/version.txt

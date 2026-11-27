@@ -1,13 +1,13 @@
 # GoldenDict 专属差异
 
-公共分区、通用注释和执行阶段按 [linuxdeploy 规范](../../linuxdeploy_projects.md) 与 [固定注释标准](../../docs/linuxdeploy-comments.md) 整理，对照 [XnView MP](../../xnviewmp/build_xnviewmp.sh)、[Remmina](../../remmina/build_remmina.sh) 和 [MediaInfo](../../mediainfo/build_mediainfo_linuxdeploy.sh)。
+公共分区、通用注释和执行阶段按 [linuxdeploy 规范](../../linuxdeploy_projects.md) 与 [固定注释标准](../../Docs/linuxdeploy-comments.md) 整理，对照 [XnView MP](../../xnviewmp/build_xnviewmp.sh)、[Remmina](../../remmina/build_remmina.sh) 和 [MediaInfo](../../mediainfo/build_mediainfo_linuxdeploy.sh)。
 
 现有 Qt 模板面向官网校验清单中的 DEB；本程序使用 Ubuntu 24.04 仓库的原版 GoldenDict，并同时需要 Qt5 与 GStreamer。来源、完整 DEB 版本号和已经确认的专属处理按下表保留，不改成 GoldenDict-ng，不为套用模板更换软件来源。
 
 | 位置 | 专属处理及原因 | 代码或依据 |
 | --- | --- | --- |
 | 应用来源与版本 | 安装 Ubuntu 官方 `goldendict` 后，保留原 `dpkg-query` 的完整版本号，再精确下载同版本 DEB。公共 `extract_installed_package.sh` 会去掉 epoch / revision，因此这里保留原版本读取和解包命令。 | [版本读取](../build_goldendict.sh#L22)、[同版本解包](../build_goldendict.sh#L40)；[版本约定](../README.md#来源与打包) |
-| 工具准备 | 使用公共入口的 `qt,gstreamer` 组合，一次准备工具及两个官方插件并加载环境；不再单独下载 GStreamer 源码、复制插件或重复加载环境。官方 GStreamer 脚本的 Git blob 校验由公共入口负责。 | [工具准备](../build_goldendict.sh#L27)；[公共实现](../../common/linuxdeploy/prepare_linuxdeploy_tools.sh) |
+| 工具准备 | 使用公共入口的 `qt,gstreamer` 组合，一次准备工具及两个官方插件并加载环境；不再单独下载 GStreamer 源码、复制插件或重复加载环境。官方 GStreamer 脚本的 Git blob 校验由公共入口负责。 | [工具准备](../build_goldendict.sh#L27)；[公共实现](../../Common/linuxdeploy/prepare_linuxdeploy_tools.sh) |
 | Qt 查询与扫描 | 保留 Qt5 的 `QMAKE=/usr/lib/qt5/bin/qmake` 和 `qtdeclarative5-dev-tools`。当前官方插件根据该 qmake 查询 `QT_INSTALL_LIBEXECS` / `QT_INSTALL_BINS`，直接定位 Qt5 的 `qmlimportscanner`，不再设置多余的 `QT_SELECT`。QMAKE 仍在资源准备前设置，供插件目录查询和后续部署共用。 | [Qt5 查询工具](../build_goldendict.sh#L30)、[插件目录查询](../build_goldendict.sh#L60)；[官方 qmake 选择](https://github.com/linuxdeploy/linuxdeploy-plugin-qt/blob/9b9fca179e7312ae4a433ad6c3183d73c116180b/src/util.cpp#L57)、[扫描器定位](https://github.com/linuxdeploy/linuxdeploy-plugin-qt/blob/9b9fca179e7312ae4a433ad6c3183d73c116180b/src/qml.cpp#L28)、[Ubuntu 工具包文件清单](https://packages.ubuntu.com/noble-updates/amd64/qtdeclarative5-dev-tools/filelist) |
 | 资源回退路径 | 保留官方 DEB 的完整目录布局，以及程序旁的 `locale`、`help` 符号链接，不改写主程序二进制。 | [资源路径](../build_goldendict.sh#L45)；[原始实现](https://github.com/newyorkthink/linux-packaging/blob/1646da1929c78009f1935fbd7e725dd39e31a2e9/goldendict/build_goldendict.sh) |
 | 中文资源与输入 | 保留文泉驿字体、Qt 中文翻译及同一套 Qt5 compose / IBus / Fcitx5 输入插件。locale 由公共入口生成并创建输出父目录，主脚本不重复创建该目录；源名称、字符集和输出目录保持一致，输入法服务和选择沿用宿主会话。 | [字体和目录](../build_goldendict.sh#L51)、[locale 生成](../build_goldendict.sh#L57)、[Qt 输入插件](../build_goldendict.sh#L63) |
@@ -27,4 +27,4 @@
 
 ## 上游参考核对
 
-2026-11-06 查阅 [上游打包参考索引](../../docs/upstream-packaging-index.md) 并在 pkgforge-dev 中检索 GoldenDict。结果只有 [GoldenDict-ng-AppImage](https://github.com/pkgforge-dev/GoldenDict-ng-AppImage)，它对应独立维护的 GoldenDict-ng，不作为本目录原版 GoldenDict 的同名打包实现。本次没有引入其应用专属代码；本程序的资源、正文与发音处理继续以本目录已有实现和实机记录为依据。
+2026-11-06 查阅 [上游打包参考索引](../../Docs/upstream-packaging-index.md) 并在 pkgforge-dev 中检索 GoldenDict。结果只有 [GoldenDict-ng-AppImage](https://github.com/pkgforge-dev/GoldenDict-ng-AppImage)，它对应独立维护的 GoldenDict-ng，不作为本目录原版 GoldenDict 的同名打包实现。本次没有引入其应用专属代码；本程序的资源、正文与发音处理继续以本目录已有实现和实机记录为依据。

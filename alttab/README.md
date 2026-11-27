@@ -41,12 +41,12 @@
 
 正式构建由 `.github/appimage-apps.json` 中的 AltTab 条目交给 `.github/workflows/build.yml` 的统一 Arch matrix，并复用 `.github/actions/build-anylinux`。quick-sharun / sharun 的实际依赖收集与 AppDir 构建阶段运行在 Arch Linux 环境中。
 
-本项目归入[专用打包流程](../docs/packaging-classification.md#专用打包流程)：官方正式版源码需要应用本仓库维护的九个独立补丁后再编译。按本次明确要求，不使用生成器，手动对照 Webcamoid、st 和 Newsboat 的公共入口、固定注释和排版；专属处理及对应依据见[模板差异说明](./docs/template-deviations.md)。
+本项目归入[专用打包流程](../Docs/packaging-classification.md#专用打包流程)：官方正式版源码需要应用本仓库维护的九个独立补丁后再编译。按本次明确要求，不使用生成器，手动对照 Webcamoid、st 和 Newsboat 的公共入口、固定注释和排版；专属处理及对应依据见[模板差异说明](./docs/template-deviations.md)。
 
 构建流程：
 
 1. 调用公共 Arch 安装入口准备基础工具及原有编译、运行依赖。公共工作区入口清理 `AppDir`、`work`、`dist`，重建 `work` 和 `dist`。
-2. 通过 `common/github/download_latest_stable_release_source.sh` 的显式 `--archive` 模式从 `sagb/alttab` 的 `releases/latest` 获取最新稳定 Release，拒绝 draft / prerelease；标签解析为具体 commit SHA 后，下载并解包该提交的官方源码到 `work/source`，日志记录完整提交和归档 SHA-256。
+2. 通过 `Common/github/download_latest_stable_release_source.sh` 的显式 `--archive` 模式从 `sagb/alttab` 的 `releases/latest` 获取最新稳定 Release，拒绝 draft / prerelease；标签解析为具体 commit SHA 后，下载并解包该提交的官方源码到 `work/source`，日志记录完整提交和归档 SHA-256。
 3. 计算现有构建指纹，调用 `patches/apply-icon-patch.sh` 依次应用所有独立补丁；任一补丁不匹配时立即停止，不静默跳过。
 4. 使用上游 `configure --prefix=/usr` 与原有 `make` 命令编译，并保留 GLib 编译 / 链接参数。
 5. 在 `work` 中生成 `alttab.desktop`，使用上游 `doc/alttab.svg` 作为 AltTab 自身图标，保留上游许可证。
@@ -54,7 +54,7 @@
 
 `work/source` 和临时桌面资源保留在本应用的 `work` 工作区中，下一次构建由公共入口统一清理。本脚本不再创建独立临时源码目录或安装退出清理 trap；工作区管理与同类源码项目一致。
 
-`build_alttab.sh` 不自行锁定 AltTab、quick-sharun 或 sharun 的旧版本。源码查询、认证下载和解包复用公共入口，归档 SHA-256 用于日志审计；接口及校验范围见[公共源码入口说明](../common/README.md#github-最新正式-release-源码)。
+`build_alttab.sh` 不自行锁定 AltTab、quick-sharun 或 sharun 的旧版本。源码查询、认证下载和解包复用公共入口，归档 SHA-256 用于日志审计；接口及校验范围见[公共源码入口说明](../Common/README.md#github-最新正式-release-源码)。
 
 ## 版本元数据与更新判断
 

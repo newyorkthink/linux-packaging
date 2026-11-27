@@ -231,8 +231,8 @@ KDE Suite 统一使用标准 `breeze` 和 `breeze-dark` 图标，不再打包完
 
 本次是现有打包流程的维护整理，不作为新的应用故障修复或实机验收记录。
 
-- **公共包安装：** `build_core.sh` 的四组依赖和 `build_kde_suite.sh` 的额外应用统一调用 `common/arch/install_packages.sh`；原有包名、参数顺序和安装阶段均保留。公共入口使用 `yay -S --noconfirm --needed`，已安装且版本一致的包会跳过重复安装，不删除任何既有依赖。
-- **产物版本保存：** 保留“主要组件完整包版本 + 功能文件内容”的套件指纹计算；最终调用 `common/build/save_appimage_version.sh` 检查非空产物、统一产物权限为 `0755` 并保存原版本字符串，原成功提示和临时指纹清理继续保留。
+- **公共包安装：** `build_core.sh` 的四组依赖和 `build_kde_suite.sh` 的额外应用统一调用 `Common/arch/install_packages.sh`；原有包名、参数顺序和安装阶段均保留。公共入口使用 `yay -S --noconfirm --needed`，已安装且版本一致的包会跳过重复安装，不删除任何既有依赖。
+- **产物版本保存：** 保留“主要组件完整包版本 + 功能文件内容”的套件指纹计算；最终调用 `Common/build/save_appimage_version.sh` 检查非空产物、统一产物权限为 `0755` 并保存原版本字符串，原成功提示和临时指纹清理继续保留。
 - **文件职责：** `okular_ark.sh` 原样重命名为 `deploy_app_integration.sh`，对应 source、shellcheck 路径和功能文件指纹清单同步更新。集成文件正文和已验证的 KIO、Activities、图标、翻译恢复、MIME、输入法以及 Haruna/Filelight 包装均保持原样。
 - **流程定位：** KDE Suite 继续采用已登记的多应用共享挂载专用流程，复用公共安装和产物保存入口，不套用单应用 Qt 模板。当前 matrix 调度说明与真实工作流对齐，未修改 workflow、公共脚本或软件版本清单。
 - **后续事项：** DwarFS AppImage 图标、视频信息面板黑屏、深色启动条纹及其他既有事项继续沿用原记录，本轮不实施补丁或重复失败尝试；Filelight 的实机状态仍以其独立记录为准。

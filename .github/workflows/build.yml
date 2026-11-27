@@ -230,7 +230,7 @@ jobs:
       - name: Preparing Container
         uses: pkgforge-dev/anylinux-setup-action@8872fabe63f9a00b35e25b2f46da62a05afc9a7d # v1
         env:
-          BASH_ENV: ./common/arch/retry_setup_pacman.sh
+          BASH_ENV: ./Common/arch/retry_setup_pacman.sh
       - name: Download official Snap source
         if: env.SNAP_SOURCE_ARTIFACT != ''
         uses: actions/download-artifact@v4
@@ -289,12 +289,12 @@ jobs:
         shell: bash
         run: |
           # 通过公共入口安装发行版提供的 Snap 客户端与来源校验工具。
-          common/apt/install_packages.sh snapd python3-yaml squashfs-tools
+          Common/apt/install_packages.sh snapd python3-yaml squashfs-tools
       - name: Download official stable Snap
         shell: bash
         run: |
           # 由官方客户端下载 Linux 稳定版并验证签名，导出同次来源元数据。
-          common/snap/download_stable_snap.sh bluemail blix amd64 \
+          Common/snap/download_stable_snap.sh bluemail blix amd64 \
             snap-source/source.snap snap-source/source.json snap
       - name: Upload official Snap source
         uses: actions/upload-artifact@v4
@@ -683,7 +683,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          "$GITHUB_WORKSPACE/common/github/publish_release_asset.sh" "$GITHUB_REPOSITORY" gitkraken/dist/gitkraken.AppImage
+          "$GITHUB_WORKSPACE/Common/github/publish_release_asset.sh" "$GITHUB_REPOSITORY" gitkraken/dist/gitkraken.AppImage
 
       - name: Publish software version immediately
         uses: ./.github/actions/publish-software-versions

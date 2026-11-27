@@ -8,7 +8,7 @@
 
 ## 依赖覆盖核对
 
-对照 [install_packages.sh](../../common/arch/install_packages.sh#L357-L370) 的 `--base` 清单，原脚本依赖完整覆盖如下：
+对照 [install_packages.sh](../../Common/arch/install_packages.sh#L357-L370) 的 `--base` 清单，原脚本依赖完整覆盖如下：
 
 - **`--base` 已覆盖（12 项）**：`gcc`、`base-devel`、`wget`、`binutils`、`patchelf`、`coreutils`、`appstream-glib`、`desktop-file-utils`、`util-linux`、`zsync`、`perl`、`dbus`。
 - **在 [build_i3wm.sh](../build_i3wm.sh#L13) 显式保留（14 项）**：`xorg-server`、`xorg-server-common`、`xorg-server-xvfb`、`i3status`、`dmenu`、`xss-lock`、`perl-anyevent-i3`、`perl-json-xs`、`xorg-xrandr`、`xorg-xset`、`xorg-xprop`、`xorg-xmodmap`、`xorg-xsetroot`、`xorg-xmessage`。

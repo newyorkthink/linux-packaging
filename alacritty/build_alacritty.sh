@@ -11,27 +11,27 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ############# 准备构建目录 #############
 
 # 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "alacritty"
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "alacritty"
 
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" build-essential ca-certificates cmake curl git jq libfontconfig1-dev libx11-data libxcb-xfixes0-dev libxkbcommon-dev libxkbcommon-x11-0 python3 xkb-data librsvg2-bin
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" build-essential ca-certificates cmake curl git jq libfontconfig1-dev libx11-data libxcb-xfixes0-dev libxkbcommon-dev libxkbcommon-x11-0 python3 xkb-data librsvg2-bin
 
 ############# 下载打包工具 #############
 
 # 下载并校验打包工具及所需插件，随后加载构建环境配置。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" "" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" "" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 
 ############ 初始化 AppDir #############
 
 # 首次运行 linuxdeploy，创建 AppDir 的基础目录。
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
+"$SCRIPT_DIR/../Common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
 ############ 下载并准备应用 #############
 
 # 本程序专属处理：通过公共认证入口获取官方最新正式版源码和标签。
-TAG="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" alacritty/alacritty "$SOURCE_DIR/alacritty-src")"
+TAG="$("$SCRIPT_DIR/../Common/github/download_latest_stable_release_source.sh" alacritty/alacritty "$SOURCE_DIR/alacritty-src")"
 VERSION="${TAG#v}"
 if [[ -z "$VERSION" ]]; then
   echo "错误：无法读取 Alacritty 正式版版本号。" >&2
@@ -113,4 +113,4 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage \
 ############### 整理产物 ###############
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+"$SCRIPT_DIR/../Common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

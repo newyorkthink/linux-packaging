@@ -6,7 +6,7 @@
 
 - 本次按 DeepSeek Harness、deepseek-harness-desktop 等名称核实，未找到 pkgforge-dev 对应打包仓库；不编造官方专属代码或不存在的 hook。
 - [官方桌面打包说明](https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/desktop/packaging/README.md) 明确 Linux 不是受支持的桌面发布目标；当前 [AUR PKGBUILD](https://github.com/archlinux/aur/blob/deepseek-harness-desktop/PKGBUILD) 和 [.SRCINFO](https://github.com/archlinux/aur/blob/deepseek-harness-desktop/.SRCINFO) 从官方 Git tag 获取源码，并应用社区 Linux 适配。
-- 当前未找到可用于此桌面版的 Linux DEB 或其他适用预编译安装包。因此采用 [从系统里已安装的程序取得](../../docs/packaging-classification.md#从系统里已安装的程序取得) 分类：先由 AUR 构建并安装，再复制完整程序目录。与已有二进制包时的两阶段规则区分，不把 simdjson 库包下载误写成应用安装包下载。
+- 当前未找到可用于此桌面版的 Linux DEB 或其他适用预编译安装包。因此采用 [从系统里已安装的程序取得](../../Docs/packaging-classification.md#从系统里已安装的程序取得) 分类：先由 AUR 构建并安装，再复制完整程序目录。与已有二进制包时的两阶段规则区分，不把 simdjson 库包下载误写成应用安装包下载。
 
 ## 当前保留的差异
 

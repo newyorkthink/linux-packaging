@@ -8,7 +8,7 @@
 
 Webcamoid 为 C++ / Qt 6 / QML 摄像头与多媒体应用。当前脚本在 Arch Linux 环境中使用 CMake + Ninja 构建上游源码，并用 quick-sharun 收集 Qt Multimedia、FFmpeg、PipeWire、V4L2、v4l-utils、libuvc 与 Qt 6 主题等运行依赖。
 
-源码获取统一调用 [公共源码下载入口](../common/github/download_latest_stable_release_source.sh)，通过公共 GitHub API 认证查询 `webcamoid/webcamoid` 的最新非草稿、非预发布 Release，并按该标签浅克隆到 `work/source`。公共入口成功后只向 stdout 返回原始标签，克隆日志写入 stderr；不递归拉取 ExtraPlugins 子模块。
+源码获取统一调用 [公共源码下载入口](../Common/github/download_latest_stable_release_source.sh)，通过公共 GitHub API 认证查询 `webcamoid/webcamoid` 的最新非草稿、非预发布 Release，并按该标签浅克隆到 `work/source`。公共入口成功后只向 stdout 返回原始标签，克隆日志写入 stderr；不递归拉取 ExtraPlugins 子模块。
 
 现有四个源码补丁分别负责深色配色、关闭 QSharedMemory 单实例检测、过滤 Dummy / loopback 摄像头输入，以及跳过指定硬件编码器。当前编译参数关闭 GStreamer、libavdevice 和 wlroots；安装后移除指定桌面捕获插件，保留音频 PipeWire。各项作用和影响见下方专属文档。
 
@@ -46,7 +46,7 @@ webcamoid/build_webcamoid.sh
 | [pkgforge 打包差异](./docs/pkgforge-differences.md) | 上游打包源码快照、实际采用的公共步骤和未启用的上游专属处理。 |
 | [错误与处理记录](./docs/error.md) | 原 runtime-errors.md 中的硬件编码器、桌面捕获与 GStreamer 历史记录。 |
 
-当前属于 [专用打包流程](../docs/packaging-classification.md#专用打包流程)。现有 Qt 模板分别面向官方 DEB 或系统已安装程序，不包含这里的源码补丁、CMake 安装和暂存目录部署。本目录不作为新增标准模板，也不表示已由生成器按某份 Qt 模板全量生成。
+当前属于 [专用打包流程](../Docs/packaging-classification.md#专用打包流程)。现有 Qt 模板分别面向官方 DEB 或系统已安装程序，不包含这里的源码补丁、CMake 安装和暂存目录部署。本目录不作为新增标准模板，也不表示已由生成器按某份 Qt 模板全量生成。
 
 ## 实机验证
 
@@ -79,7 +79,7 @@ webcamoid/build_webcamoid.sh
 
 ### 2026-11-05：源码获取改用公共入口
 
-- [f99c379](https://github.com/newyorkthink/linux-packaging/commit/f99c3792bb33457a0ff0a48facf5b8e13d031661) 新增 `common/github/download_latest_stable_release_source.sh`，统一正式 Release 查询、标签格式校验与对应源码浅克隆。
+- [f99c379](https://github.com/newyorkthink/linux-packaging/commit/f99c3792bb33457a0ff0a48facf5b8e13d031661) 新增 `Common/github/download_latest_stable_release_source.sh`，统一正式 Release 查询、标签格式校验与对应源码浅克隆。
 - [93103ef](https://github.com/newyorkthink/linux-packaging/commit/93103ef4eaecc6551df063dc46bca4e4dcd9a174) 在 `build_webcamoid.sh` 中接入该入口，替代原匿名 Release 请求、单独的 JSON 解析和 `git clone`。
 - 返回标签继续用于 `WEBCAMOID_REF` 和 `dist/version.txt`；现有源码补丁、CMake 参数、依赖收集、封装和发布入口保持原样。
 

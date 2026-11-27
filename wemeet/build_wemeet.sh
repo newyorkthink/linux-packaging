@@ -5,7 +5,7 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 使用公共工作区入口统一设置路径、检查架构，并清理、重建标准构建目录。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" wemeet
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" wemeet
 
 DEB_FILE="$SOURCE_DIR/wemeet.deb"
 APP_ROOT="$APPDIR/opt/wemeet"
@@ -17,7 +17,7 @@ OFFICIAL='https://meeting.tencent.com/web-service/query-download-info?q=%5B%7B%2
 ###### 准备构建环境 ######
 
 # 安装 Qt5 插件部署工具，以及腾讯会议明确需要的 XCB、音频和系统运行库。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" \
   dpkg qtchooser qt5-qmake qt5-qmake-bin qtbase5-dev qtbase5-dev-tools qttools5-dev-tools \
   libqt5svg5 qttranslations5-l10n qt5-gtk-platformtheme qtwayland5 \
   fcitx5-frontend-qt5 libfcitx5-qt1 \
@@ -36,17 +36,17 @@ PULSE_COMMON_LIB=("/usr/lib/$MULTIARCH/pulseaudio/"libpulsecommon-*.so)
 ###### 下载打包工具 ######
 
 # 动态取得 linuxdeploy、Qt 插件、appimagetool 和官方 Type 2 runtime。
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" qt
+"$SCRIPT_DIR/../Common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" qt
 
 ###### 初始化 AppDir ######
 
 # 第一次只运行普通 linuxdeploy，创建空 AppDir 的 usr/bin、usr/lib 和 usr/share 基础目录。
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
+"$SCRIPT_DIR/../Common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
 ###### 下载并准备腾讯会议 ######
 
 # 官方接口返回当前版本和 CDN 地址；公共入口核对域名、文件名、版本、包名和架构。
-VERSION="$("$SCRIPT_DIR/../common/download/download_json_deb_asset.sh" \
+VERSION="$("$SCRIPT_DIR/../Common/download/download_json_deb_asset.sh" \
   "$OFFICIAL" \
   '."info-list"[0].version' \
   '."info-list"[0].url' \
@@ -55,8 +55,8 @@ VERSION="$("$SCRIPT_DIR/../common/download/download_json_deb_asset.sh" \
   wemeet amd64 "$DEB_FILE")"
 
 # 把同一官方 DEB 安装到隔离构建环境供依赖扫描，并按上游原始布局解包到 AppDir。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB_FILE"
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$DEB_FILE" "$APPDIR"
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" --no-update "$DEB_FILE"
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" "$DEB_FILE" "$APPDIR"
 
 [[ -x "$APP_ROOT/bin/wemeetapp" ]] || {
   echo '错误：官方包缺少腾讯会议主程序。' >&2
@@ -87,7 +87,7 @@ localedef --no-archive -i zh_CN -f UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
 ###### 核心打包 ######
 
 # 公共入口配置 linuxdeploy 通用环境；Qt5 工具和腾讯会议私有库仅在当前项目追加。
-source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" \
+source "$SCRIPT_DIR/../Common/linuxdeploy/configure_environment.sh" \
   "$TOOLS_DIR" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 export QT_SELECT=qt5
 export PATH="$APP_ROOT/bin:/opt/wemeet/bin:$QT5_BIN_DIR:$PATH"
@@ -151,5 +151,5 @@ export ARCH=x86_64; linuxdeploy \
 ###### 整理产物 ######
 
 # 忽略 linuxdeploy 中间产物，由 appimagetool 和官方 Type 2 runtime 封装唯一正式资产。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
+"$SCRIPT_DIR/../Common/linuxdeploy/package_appimage.sh" \
   "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

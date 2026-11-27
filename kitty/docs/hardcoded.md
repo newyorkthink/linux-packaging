@@ -32,7 +32,7 @@ appimagetool: no AppImage was created because .DirIcon is not valid.
 ##[error]Process completed with exit code 1.
 ~~~
 
-desktop 继续使用 `Icon=kitty`。资源准备末尾调用既有 `common/appimage/prepare_appdir_for_appimagetool.sh`，优先使用包内同名 PNG；SVG 仍可保留作为应用图标。随后把 `.DirIcon` 明确链接到 `kitty.png`，避免最终封装继续读到 SVG。
+desktop 继续使用 `Icon=kitty`。资源准备末尾调用既有 `Common/appimage/prepare_appdir_for_appimagetool.sh`，优先使用包内同名 PNG；SVG 仍可保留作为应用图标。随后把 `.DirIcon` 明确链接到 `kitty.png`，避免最终封装继续读到 SVG。
 
 上面的构建号只用于记录故障，不用于固定工具版本。`appimagetool` 和 `Type 2 runtime` 的原 `continuous` 下载入口保持不变。
 

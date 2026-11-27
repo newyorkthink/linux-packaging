@@ -1,6 +1,6 @@
 # TradingView 标准模板差异
 
-`build_tradingview.sh` 按 [Electron 直接下载标准](../../anylinux_projects.md#直接下载安装包的标准模板) 和 [固定注释](../../docs/quick-sharun-comments.md) 整理。公共阶段与 Cursor / WorkBuddy 对齐；下列专属参数和处理保留在各自阶段，不加入通用模板。
+`build_tradingview.sh` 按 [Electron 直接下载标准](../../anylinux_projects.md#直接下载安装包的标准模板) 和 [固定注释](../../Docs/quick-sharun-comments.md) 整理。公共阶段与 Cursor / WorkBuddy 对齐；下列专属参数和处理保留在各自阶段，不加入通用模板。
 
 ## 来源核实与两阶段安装
 

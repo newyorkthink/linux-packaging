@@ -12,7 +12,7 @@
 - Linux 安装说明：仓库 `README_ZH.md` 的 AppImage / deb 一节
 - 官方资产：最新正式 semver Release 中的 `Grok_<版本>_amd64.deb`
 
-构建不固定应用版本。`build_grok-app.sh` 通过 `common/github/download_latest_stable_release_asset.sh` 选择版本号最高的正式 Release，只接受唯一匹配的 `Grok_{version}_amd64.deb`，并校验 GitHub SHA-256 与 DEB 包名 `grok`、架构 `amd64`。
+构建不固定应用版本。`build_grok-app.sh` 通过 `Common/github/download_latest_stable_release_asset.sh` 选择版本号最高的正式 Release，只接受唯一匹配的 `Grok_{version}_amd64.deb`，并校验 GitHub SHA-256 与 DEB 包名 `grok`、架构 `amd64`。
 
 ## 技术栈
 

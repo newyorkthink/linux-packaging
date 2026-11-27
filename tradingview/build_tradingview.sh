@@ -8,21 +8,21 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" tradingview-bin-latest dpkg gtk3 libsecret libnotify fcitx5-gtk
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" tradingview-bin-latest dpkg gtk3 libsecret libnotify fcitx5-gtk
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist source tradingview.deb tradingview-unpacked tradingview-source-version.txt
 mkdir -p AppDir/bin dist
 
 # 下载官方当前 DEB。
-"$SCRIPT_DIR/../common/download/download_apt_repository_deb.sh" \
+"$SCRIPT_DIR/../Common/download/download_apt_repository_deb.sh" \
   https://tvd-packages.tradingview.com/ubuntu/stable jammy multiverse tradingview amd64 \
   https://tvd-packages.tradingview.com/keyring.gpg tradingview.deb tradingview-source-version.txt
 
 # 解包官方 DEB。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" tradingview.deb tradingview-unpacked
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" tradingview.deb tradingview-unpacked
 
 # 整个程序目录原样放进 AppDir/bin。
 cp -a tradingview-unpacked/opt/TradingView/. AppDir/bin/
@@ -52,7 +52,7 @@ export NO_STRIP=1
 export STRACE_MODE=0
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text tradingview-source-version.txt)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" text tradingview-source-version.txt)"
 # 沿用原有版本环境，供打包工具读取。
 export VERSION
 
@@ -80,7 +80,7 @@ set -- --no-sandbox "$@"
 HOOK
 
 # 本仓库兼容处理：启动时注册 tradingview://。包内 desktop 不会进入宿主 applications 目录。
-bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
+bash "$SCRIPT_DIR/../Common/desktop/write_scheme_hook.sh" \
   --output AppDir/bin/20-tradingview-protocol.hook \
   --desktop-file tradingview.desktop \
   --name TradingView \
@@ -94,4 +94,4 @@ bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/tradingview.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/tradingview.AppImage "$VERSION" dist/version.txt

@@ -51,7 +51,7 @@ ASSET_TEMPLATE="${2:-}"
   exit 1
 }
 
-# shellcheck source=common/github/github_api.sh
+# shellcheck source=Common/github/github_api.sh
 source "$GITHUB_API"
 
 for command_name in curl jq sort tail; do

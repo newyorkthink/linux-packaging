@@ -11,22 +11,22 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ############# 准备构建目录 #############
 
 # 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" dingtalk
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" dingtalk
 
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev libgl1 libegl1 libglu1-mesa libgbm1 libxss1 libasound2t64 libpulse0 libpulse-mainloop-glib0 libopus0 libcups2t64 libnss3 libnspr4 libcrypt1 libgtk2.0-0t64 libfcitx5-qt1 libdbus-1-3 libinput10 libmtdev1t64 libxkbcommon0 libxkbcommon-x11-0 libxcb1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0 libxcomposite1 libxdamage1 libxrandr2 libxtst6 librsvg2-bin zenity
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" dpkg-dev libgl1 libegl1 libglu1-mesa libgbm1 libxss1 libasound2t64 libpulse0 libpulse-mainloop-glib0 libopus0 libcups2t64 libnss3 libnspr4 libcrypt1 libgtk2.0-0t64 libfcitx5-qt1 libdbus-1-3 libinput10 libmtdev1t64 libxkbcommon0 libxkbcommon-x11-0 libxcb1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0 libxcomposite1 libxdamage1 libxrandr2 libxtst6 librsvg2-bin zenity
 
 ############# 下载打包工具 #############
 
 # 下载并校验最终封装工具及运行时，并设置执行权限。
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" --appimagetool "$APPIMAGETOOL" "$RUNTIME_FILE"
+"$SCRIPT_DIR/../Common/linuxdeploy/prepare_linuxdeploy_tools.sh" --appimagetool "$APPIMAGETOOL" "$RUNTIME_FILE"
 
 ############ 下载并准备应用 #############
 
 # 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
-VERSION="$("$SCRIPT_DIR/../common/aur/install_and_extract_deb_source.sh" dingtalk-bin x86_64 "$SOURCE_DIR" "$SOURCE_DIR/dingtalk.deb" "$APPDIR" com.alibabainc.dingtalk amd64)"
+VERSION="$("$SCRIPT_DIR/../Common/aur/install_and_extract_deb_source.sh" dingtalk-bin x86_64 "$SOURCE_DIR" "$SOURCE_DIR/dingtalk.deb" "$APPDIR" com.alibabainc.dingtalk amd64)"
 
 ########## 准备桌面资源和运行库 #########
 
@@ -34,7 +34,7 @@ VERSION="$("$SCRIPT_DIR/../common/aur/install_and_extract_deb_source.sh" dingtal
 "$SCRIPT_DIR/patches/prepare_appdir.sh" "$APPDIR" "$SOURCE_DIR/dingtalk-bin"
 
 # 复制构建环境中的 NSS 核心库及其配套动态加载模块。
-"$SCRIPT_DIR/../common/linuxdeploy/copy_nss_runtime.sh" "$APPDIR/opt/dingtalk/release" --with-nspr
+"$SCRIPT_DIR/../Common/linuxdeploy/copy_nss_runtime.sh" "$APPDIR/opt/dingtalk/release" --with-nspr
 
 # 本程序专属处理：保留钉钉的 NSS 符号检查、可执行栈清理、递归依赖收集及缺失依赖检查。
 "$SCRIPT_DIR/patches/collect_runtime.sh" "$APPDIR"
@@ -90,4 +90,4 @@ chmod +x "$APPDIR/AppRun"
 ############### 整理产物 ###############
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+"$SCRIPT_DIR/../Common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

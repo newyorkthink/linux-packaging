@@ -6,8 +6,8 @@
 
 ## 打包方式
 
-- `common/arch/install_packages.sh` 分别安装公共基础工具和应用包、GTK3、Fcitx5、libsecret、libnotify 及 DEB 工具。原有 IBus、NSS、OpenSSL、SquashFS 工具继续由公共基础包提供。
-- `common/download/download_apt_repository_deb.sh` 读取官方 `stable / jammy / multiverse` 仓库，验证官方密钥签名、Packages 和 DEB 的 SHA-256 与大小，并核对包名、amd64 架构和实际版本。版本按 Debian 规则动态选择，不使用 AUR 的静态版本字段。
+- `Common/arch/install_packages.sh` 分别安装公共基础工具和应用包、GTK3、Fcitx5、libsecret、libnotify 及 DEB 工具。原有 IBus、NSS、OpenSSL、SquashFS 工具继续由公共基础包提供。
+- `Common/download/download_apt_repository_deb.sh` 读取官方 `stable / jammy / multiverse` 仓库，验证官方密钥签名、Packages 和 DEB 的 SHA-256 与大小，并核对包名、amd64 架构和实际版本。版本按 Debian 规则动态选择，不使用 AUR 的静态版本字段。
 - 公共归档入口解包 DEB，完整的 `opt/TradingView/` 原样复制到 `AppDir/bin/`，保留 Electron/Chromium、自带库、ICU、PAK、`locales`、`resources` 和 `chrome-sandbox`。不另装独立 Chromium，不再整理 Snap 宿主目录或追加资源链接。
 - quick-sharun 对完整程序目录、`keytar.node` 和 `libnotify.so.4` 收集依赖。临时 `LD_LIBRARY_PATH` 让构建期间从当前程序目录解析私有库；运行时的额外库路径由 quick-sharun 的 Electron 部署机制写入，工作目录通过 `.env` 指向 `bin`。
 - `DEPLOY_GTK=1` 保留 GTK3 和输入模块部署；第一次 quick-sharun 后按标准生成包内中文 locale，并追加语言环境。输入法继续使用宿主已有设置，不额外强制 IBus 或 Fcitx5。
@@ -43,7 +43,7 @@ TradingView 为专有软件，使用和再分发应遵守其许可条款。构�
 
 - [模板差异](docs/template-deviations.md)：两阶段来源、依赖覆盖、程序布局、中文环境、额外库和协议 hook。
 - [固定参数与来源依据](docs/hardcoded.md)：实际 APT、AUR、目录、版本、运行参数及原始下载故障。
-- [公共 APT 下载接口](../common/README.md#签名-apt-仓库中的官方-deb)：签名、摘要、版本选择和失败保护。
+- [公共 APT 下载接口](../Common/README.md#签名-apt-仓库中的官方-deb)：签名、摘要、版本选择和失败保护。
 
 ## 既有修复与实测历史
 
@@ -68,7 +68,7 @@ Linux 实机运行入口迁移后的 `tradingview.AppImage`，程序能够启动
 
 ## 2026-09-24：注册 tradingview:// 登录回调
 
-登录会打开系统默认网页浏览器。官方 desktop 使用 `tradingview://`，`Exec` 必须带 `%U` 才能把回调交回程序。直接运行 AppImage 时，包内 desktop 不会进入宿主的 `applications` 目录。构建脚本现将入口规范为 `Exec=tradingview %U`，并用 `common/desktop/write_scheme_hook.sh` 在启动时把当前 AppImage 注册为 `x-scheme-handler/tradingview` 的处理程序。
+登录会打开系统默认网页浏览器。官方 desktop 使用 `tradingview://`，`Exec` 必须带 `%U` 才能把回调交回程序。直接运行 AppImage 时，包内 desktop 不会进入宿主的 `applications` 目录。构建脚本现将入口规范为 `Exec=tradingview %U`，并用 `Common/desktop/write_scheme_hook.sh` 在启动时把当前 AppImage 注册为 `x-scheme-handler/tradingview` 的处理程序。
 
 
 ## 2026-09-24：tradingview:// 登录回调实机确认

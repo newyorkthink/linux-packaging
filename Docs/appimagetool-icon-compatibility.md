@@ -20,7 +20,7 @@
 
 ## 仓库公共处理
 
-`common/linuxdeploy/package_appimage.sh` 在原有 appimagetool 命令之前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。直接使用 appimagetool 的项目也可以复用这个准备入口。
+`Common/linuxdeploy/package_appimage.sh` 在原有 appimagetool 命令之前调用 `Common/appimage/prepare_appdir_for_appimagetool.sh`。直接使用 appimagetool 的项目也可以复用这个准备入口。
 
 准备入口只接收一个 AppDir 路径，保持现有处理顺序：
 
@@ -36,7 +36,7 @@
 
 ## Ubuntu 构建依赖
 
-Ubuntu 的 [librsvg2-bin 软件包](https://packages.ubuntu.com/en/noble/graphics/librsvg2-bin) 提供 `rsvg-convert`。需要从 SVG 补 PNG 的 Ubuntu 项目，应在应用自己的 `common/apt/install_packages.sh` 调用中追加 `librsvg2-bin`。
+Ubuntu 的 [librsvg2-bin 软件包](https://packages.ubuntu.com/en/noble/graphics/librsvg2-bin) 提供 `rsvg-convert`。需要从 SVG 补 PNG 的 Ubuntu 项目，应在应用自己的 `Common/apt/install_packages.sh` 调用中追加 `librsvg2-bin`。
 
 转换工具按现有实现依次选择 `rsvg-convert`、`magick`、`convert`，任意一个可用即可；不要求同时安装三套工具。依赖由应用构建脚本安装，公共图标准备入口不自动安装软件包，也不修改统一基础包。
 

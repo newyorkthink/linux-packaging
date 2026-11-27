@@ -4,7 +4,7 @@
 
 ## 为什么暂存这份方案
 
-2026-11-27 的排查确认：即使 `i3wm/build_i3wm.sh` 已按标准模板整理、包内 `i3` 本体（`4.25.1`）与全部 12 个二进制逐字节未变，上游 `pkgforge-dev/Anylinux-sharun` 运行时从 `3.2.2` 升级到 `3.11.0` 后，仍改变了 `i3` 通过 `execl` 启动桌面子进程时的环境变量恢复行为，导致部分外部程序出现闪退或崩溃（完整证据与分析见 [从 i3wm AppImage 启动别的程序](../../docs/known-risks/i3wm-appimage-child-launch.md)）。
+2026-11-27 的排查确认：即使 `i3wm/build_i3wm.sh` 已按标准模板整理、包内 `i3` 本体（`4.25.1`）与全部 12 个二进制逐字节未变，上游 `pkgforge-dev/Anylinux-sharun` 运行时从 `3.2.2` 升级到 `3.11.0` 后，仍改变了 `i3` 通过 `execl` 启动桌面子进程时的环境变量恢复行为，导致部分外部程序出现闪退或崩溃（完整证据与分析见 [从 i3wm AppImage 启动别的程序](../../Docs/known-risks/i3wm-appimage-child-launch.md)）。
 
 本备选方案用于提供一条**不依赖 `Anylinux-sharun` / `anylinux.so` 运行时拦截层**的退路：
 
@@ -42,7 +42,7 @@
    - `.github/appimage-apps.json`：将 `i3wm` 的 `kind` 从 `standard` 改为 `special`，`script` 改为 `i3wm/build_i3wm_linuxdeploy.sh`（保持 `artifact_dir: "i3wm/dist"`、`release_name: "i3.AppImage"`、`software_key: "i3"` 不变）。
    - `.github/workflows/build.yml`：将 `workflow_dispatch.inputs.script_to_build.options` 中的 `i3wm/build_i3wm.sh` 同步改为 `i3wm/build_i3wm_linuxdeploy.sh`，并新增独立 Job `build_i3wm`（参考下方 YAML 片段）。
    - `.github/scripts/plan_appimage_jobs.py`：在 `standalone_publish_jobs` 集合中加入 `"i3wm"`。
-   - `i3wm/README.md`、`i3wm/docs/template-deviations.md`、`docs/packaging-classification.md`、`docs/upstream-packaging-index.md`、`linuxdeploy_projects.md`、`docs/packaging-export-registry.md`：同步更新脚本路径、打包路线、差异说明与 `export` 登记位置（`PATH_MAPPING` 移除 `i3wm`，`XDG_CONFIG_DIRS` 与构建期 `LD_LIBRARY_PATH` 补充 `i3wm`，不新增 `export` 变量）。
+   - `i3wm/README.md`、`i3wm/docs/template-deviations.md`、`Docs/packaging-classification.md`、`Docs/upstream-packaging-index.md`、`linuxdeploy_projects.md`、`Docs/packaging-export-registry.md`：同步更新脚本路径、打包路线、差异说明与 `export` 登记位置（`PATH_MAPPING` 移除 `i3wm`，`XDG_CONFIG_DIRS` 与构建期 `LD_LIBRARY_PATH` 补充 `i3wm`，不新增 `export` 变量）。
 3. **切换并实机验收重点**：
    - 确认 `i3 --version`、`i3bar`、`i3status`、`i3-msg`、`i3-input`、`dmenu`、`xss-lock` 及原地重启正常；
    - 重点验证从 `i3` 直接启动的外部图形工具、终端客户端与嵌套 AppImage 是否全部正常。
@@ -85,7 +85,7 @@
         shell: bash
         run: |
           set -Eeuo pipefail
-          "$GITHUB_WORKSPACE/common/github/publish_release_asset.sh" "$GITHUB_REPOSITORY" i3wm/dist/i3.AppImage
+          "$GITHUB_WORKSPACE/Common/github/publish_release_asset.sh" "$GITHUB_REPOSITORY" i3wm/dist/i3.AppImage
       - name: Publish software version immediately
         uses: ./.github/actions/publish-software-versions
         with:

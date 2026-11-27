@@ -7,31 +7,31 @@
 [build_joplin.sh](./build_joplin.sh) 是 GTK 类型标准参考；Qt 和 CLI 分别使用 XnView MP、MediaInfo，统一规则见 [linuxdeploy 规范](../linuxdeploy_projects.md)。
 
 - 当前 Joplin 为 93 行、31 行空行，不要求其他程序凑成相同行数。
-- 通用注释逐字复用 [固定注释标准](../docs/linuxdeploy-comments.md)。
+- 通用注释逐字复用 [固定注释标准](../Docs/linuxdeploy-comments.md)。
 - 本项目的依赖、主题、NSS 和 AppRun 说明见 [专属差异](./docs/template-deviations.md)，不作为所有 GTK 程序的固定清单。
 
 本项目直接使用 Ubuntu 22.04 runner，禁止 Docker；已确认的 GTK3、IBus/GIO、Adwaita 深色主题和 NSS 配置保持原样。
 
 ## 构建来源
 
-- 构建脚本单行调用 `common/github/install_and_extract_latest_stable_release_deb.sh`，由它复用 `common/github/download_latest_stable_release_asset.sh` 读取 Joplin 官方 Releases，忽略 draft / prerelease，选择版本号最高且唯一提供 `Joplin-<版本>.deb` 的 Linux x64 正式版本，校验 GitHub Release 的 SHA-256 digest 后，将同一份 DEB 安装到构建环境并解包到 AppDir，全部成功后返回版本号。
+- 构建脚本单行调用 `Common/github/install_and_extract_latest_stable_release_deb.sh`，由它复用 `Common/github/download_latest_stable_release_asset.sh` 读取 Joplin 官方 Releases，忽略 draft / prerelease，选择版本号最高且唯一提供 `Joplin-<版本>.deb` 的 Linux x64 正式版本，校验 GitHub Release 的 SHA-256 digest 后，将同一份 DEB 安装到构建环境并解包到 AppDir，全部成功后返回版本号。
 - 保留官方 `/opt/Joplin`、`resources/app.asar`、Node 原生模块、desktop 文件和图标，不修改 Joplin 官方 `app.asar`。
 - GitHub Releases API 在 Actions 中优先使用现有 GitHub 认证，避免匿名 API 请求触发限流或 403。
 
 ## 构建环境与依赖
 
 - GitHub Actions 构建环境固定为 `ubuntu-22.04`，由 Ubuntu runner 直接执行 `build_joplin.sh`，不使用 Docker、Dockerfile、Compose 或额外容器包装。
-- 标准 `source` / `AppDir` / `dist` / `source/tools` 工作区和 x86_64 检查由 `common/linuxdeploy/prepare_build_workspace.sh` 统一处理；构建依赖通过 `common/apt/install_packages.sh` 安装，官方 DEB 的下载、校验、安装和解包统一由组合入口负责。
+- 标准 `source` / `AppDir` / `dist` / `source/tools` 工作区和 x86_64 检查由 `Common/linuxdeploy/prepare_build_workspace.sh` 统一处理；构建依赖通过 `Common/apt/install_packages.sh` 安装，官方 DEB 的下载、校验、安装和解包统一由组合入口负责。
 - 同一份官方 DEB 既安装到当前 Ubuntu runner 供 linuxdeploy 解析依赖，也按上游布局解包到 AppDir。
 - 安装 GTK3、GLib/GIO、GDK Pixbuf、Pango、IBus、NSS、X11/Electron 等运行依赖。
 - `ibus-gtk3` 和 `libibus-1.0-5` 负责把 GTK3 的 IBus 输入模块及运行库带入 AppDir；已解包成品可见 `im-ibus.so`、`libibus-1.0.so.5` 等文件，因此运行日志中的 `IBUS-WARNING` 不是构建环境未安装 IBus。不在 AppRun 中强制写死 `GTK_IM_MODULE`、`QT_IM_MODULE` 或 `XMODIFIERS`，输入法选择继续由宿主机会话管理。
-- `adwaita-icon-theme`、`adwaita-icon-theme-full`、`gnome-themes-extra-data` 通过 `common/apt/download_and_extract_packages.sh` 下载并按原始 DEB 布局解包进 AppDir，保证 Adwaita 图标和 GTK 主题资源完整。
+- `adwaita-icon-theme`、`adwaita-icon-theme-full`、`gnome-themes-extra-data` 通过 `Common/apt/download_and_extract_packages.sh` 下载并按原始 DEB 布局解包进 AppDir，保证 Adwaita 图标和 GTK 主题资源完整。
 
 ## linuxdeploy 规范流程
 
-- 单行 `source common/linuxdeploy/prepare_linuxdeploy_tools.sh`，传入工具目录、gtk 插件、中间 AppImage 和 runtime 四个参数；下载完成后在当前脚本中加载通用环境，不再单独调用 `configure_environment.sh`。
+- 单行 `source Common/linuxdeploy/prepare_linuxdeploy_tools.sh`，传入工具目录、gtk 插件、中间 AppImage 和 runtime 四个参数；下载完成后在当前脚本中加载通用环境，不再单独调用 `configure_environment.sh`。
 - 动态取得 linuxdeploy、官方 GTK 插件、appimagetool 和 Type 2 runtime；GTK 插件上游未提供 Release digest，因此从官方仓库默认分支解析当前文件并核对 Git blob SHA。公共准备脚本随后仅在上游仍缺少时补入已验证的 GIO modules 复制逻辑，并输出最终文件的本地 SHA-256。
-- 单行调用 `common/linuxdeploy/initialize_appdir.sh`，由公共入口在空目录执行原始普通 linuxdeploy 命令。
+- 单行调用 `Common/linuxdeploy/initialize_appdir.sh`，由公共入口在空目录执行原始普通 linuxdeploy 命令。
 - 初始化后才下载官方 DEB；应用主体保持在 `AppDir/opt/Joplin`，不再创建人工 `AppDir/usr/bin/joplin` 二次转发入口。
 - 第二次 linuxdeploy 前写入完整根 `AppDir/AppRun`，直接执行 `opt/Joplin/joplin`。根 AppRun 固定把 `usr/bin`、`usr/lib`、`usr/share` 分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`，并只把 `/opt/Joplin` 加入程序和库搜索路径。
 - 第二次执行 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage`；linuxdeploy 检测到 GTK hook 后生成顶层启动入口，并把实际 Joplin 启动逻辑保留到 `AppRun.wrapped`。
@@ -42,7 +42,7 @@
 
 ## 包内中文 locale
 
-构建依赖增加 `locales`。在应用解包后的资源准备阶段，单行调用 `common/linuxdeploy/prepare_locale.sh zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"`，将中文 locale 数据生成到 AppDir；正式 linuxdeploy 随后部署依赖和运行资源，最终封装入口沿用原有调用。
+构建依赖增加 `locales`。在应用解包后的资源准备阶段，单行调用 `Common/linuxdeploy/prepare_locale.sh zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"`，将中文 locale 数据生成到 AppDir；正式 linuxdeploy 随后部署依赖和运行资源，最终封装入口沿用原有调用。
 
 AppRun 先把包内 `usr/lib/locale` 放在 `LOCPATH` 首位，再设置 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`，确保切换语言时已经能找到包内数据。独立生成的数据用于提供中文 locale；软件翻译继续由 Joplin 官方资源提供，中文输入继续使用既有 IBus 与宿主会话配置。此步骤不生成 quick-sharun 的 `.env`，不更改输入法、主题、GIO、NSS 或已有程序入口。
 
@@ -50,7 +50,7 @@ AppRun 先把包内 `usr/lib/locale` 放在 `LOCPATH` 首位，再设置 `LANG=z
 
 ## NSS
 
-Electron/NSS 会通过 `dlopen` 动态加载 NSS 模块。为避免 AppImage 内旧版 NSS 与宿主机新版 NSS 混用，构建时调用 `common/linuxdeploy/copy_nss_runtime.sh`，把 Ubuntu 22.04 同一套 `libnss3` 核心库和 NSS modules 一起放入 `AppDir/usr/lib`；公共 helper 内保持原先已经实际运行确认的文件清单。
+Electron/NSS 会通过 `dlopen` 动态加载 NSS 模块。为避免 AppImage 内旧版 NSS 与宿主机新版 NSS 混用，构建时调用 `Common/linuxdeploy/copy_nss_runtime.sh`，把 Ubuntu 22.04 同一套 `libnss3` 核心库和 NSS modules 一起放入 `AppDir/usr/lib`；公共 helper 内保持原先已经实际运行确认的文件清单。
 
 这部分用于避免类似以下版本冲突：
 
@@ -67,11 +67,11 @@ libnssutil3.so: version `NSSUTIL_xxx' not found
 export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage
 ```
 
-项目脚本最终单行调用 `common/linuxdeploy/package_appimage.sh`；公共入口内部仍由官方 `appimagetool` 使用指定的 Type-2 runtime 封装，并统一负责最终资产非空检查、可执行权限、SHA-256 输出，以及在封装成功后写入版本元数据：
+项目脚本最终单行调用 `Common/linuxdeploy/package_appimage.sh`；公共入口内部仍由官方 `appimagetool` 使用指定的 Type-2 runtime 封装，并统一负责最终资产非空检查、可执行权限、SHA-256 输出，以及在封装成功后写入版本元数据：
 
 ```bash
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+"$SCRIPT_DIR/../Common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
 ```
 
 不得把 linuxdeploy 的中间 AppImage 发布为正式资产，也不得因为 appimagetool、runtime、GitHub 或 CDN 的临时网络错误增加自动 fallback 到其他封装方式；下载失败应由当前构建直接失败，后续正常重试。
@@ -123,7 +123,7 @@ libnssutil3.so: version `NSSUTIL_...' not found
 
 ### 2026-11-02：接入公共中文 locale 生成入口
 
-按用户本次要求新增独立的 `common/linuxdeploy/prepare_locale.sh`，先在 Joplin 接入，其他应用和 quick-sharun 脚本不变。原脚本没有包内中文 locale 生成步骤，也未显式设置中文语言；本次补入资源准备调用与 AppRun 的语言、消息和 locale 搜索路径设置，不把它记录为已经发生的启动或输入法故障修复。公共入口及固定注释、export 登记同步更新。
+按用户本次要求新增独立的 `Common/linuxdeploy/prepare_locale.sh`，先在 Joplin 接入，其他应用和 quick-sharun 脚本不变。原脚本没有包内中文 locale 生成步骤，也未显式设置中文语言；本次补入资源准备调用与 AppRun 的语言、消息和 locale 搜索路径设置，不把它记录为已经发生的启动或输入法故障修复。公共入口及固定注释、export 登记同步更新。
 
 ### 2026-10-31：确认唯一标准模板并同步公共入口说明
 
@@ -135,13 +135,13 @@ libnssutil3.so: version `NSSUTIL_...' not found
 
 ### 2026-09-21：复用 linuxdeploy 公共构建入口
 
-Joplin 构建脚本现与仓库当前 linuxdeploy 规范对齐：标准工作区、x86_64 检查、APT 安装、GitHub 正式 Release 解析 + 下载、主题包下载 + 解包、NSS 运行库复制、linuxdeploy 通用环境和最终 appimagetool 封装分别交给对应 `common/` 入口。应用脚本只保留 Joplin 自身依赖、desktop 调整、已验证 AppRun、GTK3 选择和第二次 linuxdeploy。
+Joplin 构建脚本现与仓库当前 linuxdeploy 规范对齐：标准工作区、x86_64 检查、APT 安装、GitHub 正式 Release 解析 + 下载、主题包下载 + 解包、NSS 运行库复制、linuxdeploy 通用环境和最终 appimagetool 封装分别交给对应 `Common/` 入口。应用脚本只保留 Joplin 自身依赖、desktop 调整、已验证 AppRun、GTK3 选择和第二次 linuxdeploy。
 
 同时删除应用脚本内的 `die` / `uname -m`、Release `mapfile` 元数据拆分、直接 `apt-get download` + DEB 遍历、重复 NSS 文件清单、`desktop-file-validate`、固定 AppRun 的内联 `bash -n`、最终 AppImage 重复检查和手写 `version.txt`。后续取消对官方 1024×1024 Joplin 图标的主动删除，保持上游 DEB 内容完整。本次没有改动已经实际运行确认的 Joplin 根 AppRun、GTK3、IBus/GIO、Adwaita 深色主题、NSS 文件集合和第二次 `export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin gtk --output appimage` 命令；`.github/workflows/build.yml` 的 Ubuntu 22.04 独立 Job 也保持不变。
 
 ### 2026-09-20：复用公共空 AppDir 初始化入口
 
-第一次普通 linuxdeploy 已集中到 `common/linuxdeploy/initialize_appdir.sh`；本项目构建脚本只保留一行调用。Joplin 专用 GTK、GIO、AppRun 和第二次 linuxdeploy 逻辑均未改变。
+第一次普通 linuxdeploy 已集中到 `Common/linuxdeploy/initialize_appdir.sh`；本项目构建脚本只保留一行调用。Joplin 专用 GTK、GIO、AppRun 和第二次 linuxdeploy 逻辑均未改变。
 
 ### 2026-09-20：固化最终 AppRun
 
@@ -149,7 +149,7 @@ Joplin 构建脚本现与仓库当前 linuxdeploy 规范对齐：标准工作区
 
 ### 2026-09-20：复用公共 GitHub API 与 Release 解析入口
 
-原脚本内重复维护 GitHub 认证头、API 下载和 Python Release 筛选。现已把 `GITHUB_TOKEN`、`GH_TOKEN`、checkout extraheader 的认证优先级与请求参数提取到 `common/github/github_api.sh`，并把“正式 semver Release + `{version}` 资产名模板 + GitHub SHA-256 digest”提取到 `common/github/resolve_latest_stable_release_asset.sh`。Joplin 脚本只保留官方仓库名和 `Joplin-{version}.deb` 资产模板，不再需要内嵌 Python；linuxdeploy 工具准备也复用同一 GitHub API 入口。
+原脚本内重复维护 GitHub 认证头、API 下载和 Python Release 筛选。现已把 `GITHUB_TOKEN`、`GH_TOKEN`、checkout extraheader 的认证优先级与请求参数提取到 `Common/github/github_api.sh`，并把“正式 semver Release + `{version}` 资产名模板 + GitHub SHA-256 digest”提取到 `Common/github/resolve_latest_stable_release_asset.sh`。Joplin 脚本只保留官方仓库名和 `Joplin-{version}.deb` 资产模板，不再需要内嵌 Python；linuxdeploy 工具准备也复用同一 GitHub API 入口。
 
 ### 2026-09-20：恢复 GTK 插件的 GIO modules 部署
 

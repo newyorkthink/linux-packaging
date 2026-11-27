@@ -8,7 +8,7 @@
 
 ## 依赖覆盖核对
 
-对照 [install_packages.sh](../../common/arch/install_packages.sh#L357-L370) 的 `--base` 清单，原脚本依赖完整覆盖如下：
+对照 [install_packages.sh](../../Common/arch/install_packages.sh#L357-L370) 的 `--base` 清单，原脚本依赖完整覆盖如下：
 
 - **`--base` 已覆盖（13 项）**：`gcc`、`base-devel`、`wget`、`git`、`binutils`、`patchelf`、`coreutils`、`appstream-glib`、`desktop-file-utils`、`util-linux`、`zsync`、`hicolor-icon-theme`、`dbus`。
 - **在 [build_picom.sh](../build_picom.sh#L13) 显式保留（23 项）**：`xorg-server`、`xorg-server-common`、`bash`、`glibc`、`gcc-libs`、`libconfig`、`libepoxy`、`libev`、`libglvnd`、`pcre2`、`pixman`、`libx11`、`libxext`、`libxcb`、`libxrender`、`libxrandr`、`libxinerama`、`libxdamage`、`libxfixes`、`xcb-util-image`、`xcb-util-renderutil`、`xorg-xprop`、`xorg-xwininfo`。

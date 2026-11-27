@@ -39,7 +39,7 @@
 
 ## 不能直接套用的处理
 
-- ChatGPT 使用 `codex://connector/oauth_callback`，其协议登记由 [公共 scheme hook](../../common/desktop/write_scheme_hook.sh)处理。大师本次请求使用 HTTP 地址，新增自定义协议登记不能替代其内部回调处理。
+- ChatGPT 使用 `codex://connector/oauth_callback`，其协议登记由 [公共 scheme hook](../../Common/desktop/write_scheme_hook.sh)处理。大师本次请求使用 HTTP 地址，新增自定义协议登记不能替代其内部回调处理。
 - 大师已有内部收码分支，不能仅因地址为 `http://localhost`，就认定必须另外启动 80 端口监听程序；也没有证据表明把回调地址作为 AppImage 启动参数传入就能交给该向导。
 - 代理入口标为 mixed 时，不能仅按某个常见端口号认定 HTTP / SOCKS5 选错。界面检测失败也不足以证明代理客户端未运行，或证明检测实现本身已经损坏。
 - `Could not bind NETLINK socket`、营销页缺失及推送消息解析异常，与本次授权回跳分别记录和判断。现有材料不足以认定它们造成了此次失败，也不足以断言上游推送协议已经更换。

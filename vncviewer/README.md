@@ -55,4 +55,4 @@
 
 后续根据官方 DEB 的原始桌面入口修正打包处理：主入口保持 `Exec=vncviewer %f`，新建连接快捷方式保持 `Exec=vncviewer`，构建脚本不再替换任何 `Exec=` 字段。AppImage 产物统一命名为 `vncviewer.AppImage`。
 
-本项目依据仓库已有的 [linuxdeploy 规范](../linuxdeploy_projects.md)、[标准模板](../Templates/appimage/linuxdeploy-cli-apt.sh) 和 [固定注释](../docs/linuxdeploy-comments.md) 整理。应用专属 desktop 副本调整不改变其他项目的启动逻辑。
+本项目依据仓库已有的 [linuxdeploy 规范](../linuxdeploy_projects.md)、[标准模板](../Templates/appimage/linuxdeploy-cli-apt.sh) 和 [固定注释](../Docs/linuxdeploy-comments.md) 整理。应用专属 desktop 副本调整不改变其他项目的启动逻辑。

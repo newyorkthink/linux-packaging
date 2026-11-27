@@ -47,8 +47,8 @@ printf '%s\n' "$KDE_SUITE_UPDATE_VERSION" > "$SCRIPT_DIR/dist/version.txt"
 
 | 固定内容 | 选择原因与作用 |
 | --- | --- |
-| `$SCRIPT_DIR/../common/arch/install_packages.sh` | 仓库已有公共安装入口，相对当前软件目录定位；原包名、安装顺序和阶段保留。公共入口增加 `--needed` 跳过相同版本的重复安装。 |
-| `$SCRIPT_DIR/../common/build/save_appimage_version.sh` | 仓库已有产物与版本保存入口，检查非空产物、统一执行权限并写入调用方提供的版本。 |
+| `$SCRIPT_DIR/../Common/arch/install_packages.sh` | 仓库已有公共安装入口，相对当前软件目录定位；原包名、安装顺序和阶段保留。公共入口增加 `--needed` 跳过相同版本的重复安装。 |
+| `$SCRIPT_DIR/../Common/build/save_appimage_version.sh` | 仓库已有产物与版本保存入口，检查非空产物、统一执行权限并写入调用方提供的版本。 |
 | `$SCRIPT_DIR/dist/kde-suite.AppImage` 与 `$SCRIPT_DIR/dist/version.txt` | 既有产物与版本文件路径，继续传入公共入口；不迁移 AppDir 或输出目录。 |
 | `deploy_app_integration.sh` | 原 `okular_ark.sh` 的职责已覆盖多款应用和共享运行环境，新名称反映实际职责；仅重命名，文件内容、调用顺序和执行权限保留，source 与版本指纹清单同步更新。 |
 

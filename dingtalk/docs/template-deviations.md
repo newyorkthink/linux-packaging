@@ -1,6 +1,6 @@
 # DingTalk 专属差异
 
-钉钉采用 AppDir / 官方 appimagetool 体系的直接封装模式，按 [统一规范](../../linuxdeploy_projects.md) 与 [固定注释](../../docs/linuxdeploy-comments.md) 维护。公共流程在主 build 中单行调用；以下仅保留 Qt/CEF 产品实际需要的差异。
+钉钉采用 AppDir / 官方 appimagetool 体系的直接封装模式，按 [统一规范](../../linuxdeploy_projects.md) 与 [固定注释](../../Docs/linuxdeploy-comments.md) 维护。公共流程在主 build 中单行调用；以下仅保留 Qt/CEF 产品实际需要的差异。
 
 ## 来源与版本
 
@@ -8,7 +8,7 @@
 
 AUR 当前快照为 [9f15353cb6556398d3cd3ac594a57ca4a824200a](https://aur.archlinux.org/cgit/aur.git/log/?h=dingtalk-bin&id=9f15353cb6556398d3cd3ac594a57ca4a824200a)，已读取同次 [PKGBUILD](https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=dingtalk-bin&id=9f15353cb6556398d3cd3ac594a57ca4a824200a)、`.SRCINFO`、desktop、SVG 和启动脚本。PKGBUILD 的 `source_x86_64` 指向钉钉官方 HTTPS DEB，`sha512sums_x86_64` 提供对应完整摘要；软件官方网站为 [dingtalk.com](https://www.dingtalk.com/)。快照仅作为说明依据，正式构建始终动态读取当前 AUR 来源，不固定此 commit 或软件版本。
 
-主 build 使用 `common/aur/install_and_extract_deb_source.sh`，在一次调用中下载、校验、安装并按原布局解包同一 DEB，返回实际版本；不执行 PKGBUILD、makepkg 或 Docker。AUR `pkgver` 与 DEB Version 精确核对，AUR `pkgrel` 不写入软件版本；同次 AUR 资源和依赖清单留在 source。最终版本只由公共封装入口写入 `dist/version.txt`。
+主 build 使用 `Common/aur/install_and_extract_deb_source.sh`，在一次调用中下载、校验、安装并按原布局解包同一 DEB，返回实际版本；不执行 PKGBUILD、makepkg 或 Docker。AUR `pkgver` 与 DEB Version 精确核对，AUR `pkgrel` 不写入软件版本；同次 AUR 资源和依赖清单留在 source。最终版本只由公共封装入口写入 `dist/version.txt`。
 
 ## 专属处理位置
 

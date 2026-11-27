@@ -2,7 +2,7 @@
 # 适配 appimagetool 对 AppDir 权限和 .DirIcon 有效性的检查，不改变封装命令。
 # 上游不再主动用 SVG 生成 .DirIcon；本入口在缺少同名 PNG / XPM 根图标时补 PNG，并保留原 SVG。
 # SVG 转换需要构建环境提供 rsvg-convert、magick 或 convert；Ubuntu 可安装 librsvg2-bin。
-# 上游变更、适用条件和依赖说明见 docs/appimagetool-icon-compatibility.md。
+# 上游变更、适用条件和依赖说明见 Docs/appimagetool-icon-compatibility.md。
 set -Eeuo pipefail
 
 die() {

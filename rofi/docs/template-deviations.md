@@ -9,7 +9,7 @@
 
 ## 依赖覆盖核对
 
-对照 [install_packages.sh](../../common/arch/install_packages.sh#L357-L370) 的 `--base` 清单，原脚本依赖完整覆盖如下：
+对照 [install_packages.sh](../../Common/arch/install_packages.sh#L357-L370) 的 `--base` 清单，原脚本依赖完整覆盖如下：
 
 - **`--base` 已覆盖（15 项）**：`gcc`、`base-devel`、`wget`、`binutils`、`patchelf`、`coreutils`、`appstream-glib`、`desktop-file-utils`、`util-linux`、`zsync`、`gdk-pixbuf2`、`glib2`、`hicolor-icon-theme`、`libxkbcommon`、`pango`。
 - **在 [build_rofi.sh](../build_rofi.sh#L13) 显式保留（17 项）**：`xorg-server`、`xorg-server-common`、`rofi-emoji`、`bash`、`cairo`、`glibc`、`libxcb`、`libxkbcommon-x11`、`startup-notification`、`wayland`、`xcb-imdkit`、`xcb-util`、`xcb-util-cursor`、`xcb-util-keysyms`、`xcb-util-wm`、`libva`、`libvdpau`。

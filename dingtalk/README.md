@@ -10,7 +10,7 @@
 
 - [模板差异、来源和 CI 说明](./docs/template-deviations.md)
 - [固定配置与原始故障依据](./docs/hardcoded.md)
-- [打包分类](../docs/packaging-classification.md#直接-appimagetool)
+- [打包分类](../Docs/packaging-classification.md#直接-appimagetool)
 
 ## 本次核对与验证
 

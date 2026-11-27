@@ -22,7 +22,7 @@ KeePassXC 为 C++ 桌面应用，自 2.8.0 起使用 Qt6。构建脚本安装 Ar
 
 首次 quick-sharun 后，原 `bin/keepassxc-proxy` 启动器和 `shared/bin/keepassxc-proxy` 代理程序分别改名为同目录的 `keepassxc-proxy.real`，原位置新建两个仅执行 `exec` 的转发入口。两条调用路径最终均由 `bin/keepassxc-proxy.real`（原 sharun）加载 `shared/bin/keepassxc-proxy.real`（原代理），完整保留参数及标准输入输出。
 
-原生消息 JSON 仍由 KeePassXC 自身生成和更新；构建脚本不写宿主浏览器配置，不写死 AppImage 临时挂载路径，也不修改 KeePassXC/Qt 源码或二进制内容。通用机制和适用条件见 [Qt5 转 Qt6 的程序路径说明](../docs/packaging-cases/quick-sharun-qt6-resources.md)。本应用的详细对照与验证边界见 [Qt6 路径专项记录](./docs/quick-sharun-qt6-paths.md)。
+原生消息 JSON 仍由 KeePassXC 自身生成和更新；构建脚本不写宿主浏览器配置，不写死 AppImage 临时挂载路径，也不修改 KeePassXC/Qt 源码或二进制内容。通用机制和适用条件见 [Qt5 转 Qt6 的程序路径说明](../Docs/packaging-cases/quick-sharun-qt6-resources.md)。本应用的详细对照与验证边界见 [Qt6 路径专项记录](./docs/quick-sharun-qt6-paths.md)。
 
 ## 版本元数据
 

@@ -7,7 +7,7 @@
 ## 安装、下载与解包参数
 
 - 安装：`claude-desktop fcitx5-gtk dpkg`。先在构建系统安装应用与依赖，原有基础工具由 `--base` 覆盖。
-- 下载：`common/aur/download_deb_source.sh claude-desktop x86_64 claude-desktop.deb`，保持模板的三行调用。公共入口复用现有 AUR 解析与公共下载，不在应用脚本添加来源解析或校验代码。
+- 下载：`Common/aur/download_deb_source.sh claude-desktop x86_64 claude-desktop.deb`，保持模板的三行调用。公共入口复用现有 AUR 解析与公共下载，不在应用脚本添加来源解析或校验代码。
 - 解包和复制：公共解包入口提取到 `claude-desktop-unpacked`，完整复制其中 `usr/lib/claude-desktop/` 到 `AppDir/bin/`。程序文件不取自系统安装目录。
 
 ## 打包元数据与版本参数

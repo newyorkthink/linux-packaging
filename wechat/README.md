@@ -35,7 +35,7 @@
 ## 维护说明
 
 - 继续使用官网动态 DEB 和完整 control 版本，不手工固定旧版本。
-- 少量 desktop、NSS/NSPR 和主程序依赖部署命令直接写在 `build_wechat.sh`，不另设 `prepare/finalize` 脚本；公共机制继续调用 `common/`。版本直接沿用官方 DEB 公共入口的返回值。
+- 少量 desktop、NSS/NSPR 和主程序依赖部署命令直接写在 `build_wechat.sh`，不另设 `prepare/finalize` 脚本；公共机制继续调用 `Common/`。版本直接沿用官方 DEB 公共入口的返回值。
 - 后续修改以实际故障为依据，不把旧版 sharun 的模块权限、路径覆盖或扫描整个私有目录的处理自动迁回标准脚本。
 
 ## 修改记录

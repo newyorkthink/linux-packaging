@@ -8,19 +8,19 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-deb mailmaster "$(uname -m)" --source-filename 'mailmaster-{version}.deb' -- dpkg fcitx5-qt qt5-base xorg-server xorg-server-common xorg-server-xvfb alsa-lib cups gtk3 libnotify libsecret adwaita-icon-theme libx11 libxext libxi libxrender libxrandr libxinerama libxcomposite libxdamage libxfixes libxss libxtst libxcb xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm libxkbcommon-x11 mesa libglvnd libva libvdpau pulseaudio pulseaudio-alsa pipewire-audio
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --aur-deb mailmaster "$(uname -m)" --source-filename 'mailmaster-{version}.deb' -- dpkg fcitx5-qt qt5-base xorg-server xorg-server-common xorg-server-xvfb alsa-lib cups gtk3 libnotify libsecret adwaita-icon-theme libx11 libxext libxi libxrender libxrandr libxinerama libxcomposite libxdamage libxfixes libxss libxtst libxcb xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm libxkbcommon-x11 mesa libglvnd libva libvdpau pulseaudio pulseaudio-alsa pipewire-audio
 
 # 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create work AppDir dist
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create work AppDir dist
 mkdir -p work AppDir/bin AppDir/share/licenses
 
 # 下载官方当前 DEB。
-"$SCRIPT_DIR/../common/aur/download_deb_source.sh" mailmaster "$(uname -m)" work/mailmaster.deb --source-filename 'mailmaster-{version}.deb' --version-file work/source-version.txt
+"$SCRIPT_DIR/../Common/aur/download_deb_source.sh" mailmaster "$(uname -m)" work/mailmaster.deb --source-filename 'mailmaster-{version}.deb' --version-file work/source-version.txt
 
 # 解包官方 DEB。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" work/mailmaster.deb work/mailmaster-unpacked
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/mailmaster.deb work/mailmaster-unpacked
 
 # 整个程序目录原样放进 AppDir/bin。
 cp -a work/mailmaster-unpacked/opt/mailmaster/. AppDir/bin/
@@ -78,7 +78,7 @@ export DEPLOY_VULKAN=1
 export DEPLOY_PIPEWIRE=1
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text work/source-version.txt)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" text work/source-version.txt)"
 
 # 收集程序及其运行依赖。
 LD_LIBRARY_PATH="$SCRIPT_DIR/AppDir/bin:$SCRIPT_DIR/AppDir/bin/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun AppDir/bin/* /usr/bin/curl /usr/bin/hostname /usr/lib/libnss* /usr/lib/libsoftokn3.so /usr/lib/libfreeblpriv3.so /usr/lib/pkcs11/* "AppDir/bin/plugins/platforminputcontexts/libibusplatforminputcontextplugin.so" "AppDir/bin/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so"
@@ -115,4 +115,4 @@ HOOK
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/mailmaster.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/mailmaster.AppImage "$VERSION" dist/version.txt

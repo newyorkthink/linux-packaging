@@ -14,13 +14,13 @@ OBS Studio 为 Qt 6 / C++ 桌面应用。安装 Arch 官方软件包后，原样
 
 脚本安装 `qt6ct`、`kvantum` 和 `lxqt-qtplugin`，由 quick-sharun 收集对应的 Qt 6 主题插件。
 
-这三个主题插件包必须保留；缺少插件时的红字属于主题支持警告，完整原文见 [Qt 主题插件说明](../docs/packaging-cases/quick-sharun.md#qt-主题插件警告)。当前结构与既有专属处理见 [模板差异](./docs/template-deviations.md)。
+这三个主题插件包必须保留；缺少插件时的红字属于主题支持警告，完整原文见 [Qt 主题插件说明](../Docs/packaging-cases/quick-sharun.md#qt-主题插件警告)。当前结构与既有专属处理见 [模板差异](./docs/template-deviations.md)。
 
 相关路径的用途和原始故障记录见 [OBS Studio 写死的路径](./docs/hardcoded.md)。
 
 ## 版本元数据
 
-`build_obs-studio.sh` 在第一次 quick-sharun 之前，通过 `common/build/read_app_version.sh pacman obs-studio` 读取实际安装版本，去掉 epoch 和 pkgrel，保存到 `VERSION`。最终 AppImage 成功生成后，单行调用 `common/build/save_appimage_version.sh` 写入：
+`build_obs-studio.sh` 在第一次 quick-sharun 之前，通过 `Common/build/read_app_version.sh pacman obs-studio` 读取实际安装版本，去掉 epoch 和 pkgrel，保存到 `VERSION`。最终 AppImage 成功生成后，单行调用 `Common/build/save_appimage_version.sh` 写入：
 
 ```text
 dist/version.txt
@@ -57,7 +57,7 @@ obs-studio/build_obs-studio.sh
 
 - 构建失败是因为脚本把已经不存在的 `/usr/lib/obs-plugins` 交给 `quick-sharun`，原文是 `'/usr/lib/obs-plugins' is NOT present!`。OBS 33.0.0 的模块在 `/usr/lib/obs-modules`。
 - 删掉安装后和打包后的一串存在性检查、自定义启动包装，以及已经不存在的 `obs-studio-plugin-browser`、`/usr/lib/cef`。
-- 安装改走 `common/arch/install_packages.sh`。中文环境按规范写 `.env`，不再设置 `LC_ALL`，也不再默认写入 Yami 主题。
+- 安装改走 `Common/arch/install_packages.sh`。中文环境按规范写 `.env`，不再设置 `LC_ALL`，也不再默认写入 Yami 主题。
 
 
 ### 2026-09-16：接入统一软件版本元数据

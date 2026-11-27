@@ -14,14 +14,14 @@
 
 | 负责安装的入口 | 保留的原依赖 |
 | --- | --- |
-| `common/arch/install_packages.sh --base` | gcc、base-devel、wget、binutils、patchelf、coreutils、appstream-glib、desktop-file-utils、util-linux、zsync，共 10 项。 |
+| `Common/arch/install_packages.sh --base` | gcc、base-devel、wget、binutils、patchelf、coreutils、appstream-glib、desktop-file-utils、util-linux、zsync，共 10 项。 |
 | 应用级安装行 | htop、ncurses、libcap、libnl、lm_sensors、lsof、strace，共 7 项。 |
 
 [build_htop.sh 第 12 行](https://github.com/newyorkthink/linux-packaging/blob/main/htop/build_htop.sh#L12)：
 
 ```bash
 # 安装官方软件包及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" htop ncurses libcap libnl lm_sensors lsof strace
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" htop ncurses libcap libnl lm_sensors lsof strace
 ```
 
 只合并到公共安装接口，不删减原有包；统一基础包及公共安装实现没有修改。

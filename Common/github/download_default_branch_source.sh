@@ -9,9 +9,9 @@ case "$REPOSITORY" in
 esac
 
 ROOT="$(cd -- "$(dirname -- "$0")/../.." && pwd)"
-source "$ROOT/common/github/github_api.sh"
+source "$ROOT/Common/github/github_api.sh"
 COMMIT="$(github_api_get "https://api.github.com/repos/$REPOSITORY/commits?per_page=1" |
   jq -er '.[0].sha | select(test("^[0-9a-f]{40}$"))')"
-"$ROOT/common/download/download_file.sh" \
+"$ROOT/Common/download/download_file.sh" \
   "https://codeload.github.com/$REPOSITORY/tar.gz/$COMMIT" "$ARCHIVE"
 printf '%s\n' "$COMMIT"

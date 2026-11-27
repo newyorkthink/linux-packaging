@@ -2,7 +2,7 @@
 
 ## 构建入口与标准
 
-正式入口为 [build_alacritty.sh](../build_alacritty.sh)，由[统一工作流](../../.github/workflows/build.yml)中的 Alacritty 专用 Job 执行。脚本保留[LinuxDeploy 规范](../../linuxdeploy_projects.md)的十个标准阶段和[固定注释](../../docs/linuxdeploy-comments.md)，额外步骤均用 `# 本程序专属处理：` 标注。
+正式入口为 [build_alacritty.sh](../build_alacritty.sh)，由[统一工作流](../../.github/workflows/build.yml)中的 Alacritty 专用 Job 执行。脚本保留[LinuxDeploy 规范](../../linuxdeploy_projects.md)的十个标准阶段和[固定注释](../../Docs/linuxdeploy-comments.md)，额外步骤均用 `# 本程序专属处理：` 标注。
 
 现有 [linuxdeploy-cli-apt.sh](../../Templates/appimage/linuxdeploy-cli-apt.sh) 面向 Ubuntu 软件包，不具备源码编译及应用 X11 IME 补丁的阶段。直接使用旧版 APT 软件包无法保留此前输入故障的修复。因此，本程序继续采用既有 LinuxDeploy 专用源码流程；不修改公共模板，不将此特例推广给其他程序。
 

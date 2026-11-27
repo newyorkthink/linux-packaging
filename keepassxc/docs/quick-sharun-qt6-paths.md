@@ -1,6 +1,6 @@
 # KeePassXC 的 Qt6 路径问题记录
 
-本页保存从通用笔记迁入的应用专属证据、失败尝试、修复历史和验证边界。通用机制与排查方法见 [quick-sharun 下 Qt5 转 Qt6 的程序路径变化](../../docs/packaging-cases/quick-sharun-qt6-resources.md)。
+本页保存从通用笔记迁入的应用专属证据、失败尝试、修复历史和验证边界。通用机制与排查方法见 [quick-sharun 下 Qt5 转 Qt6 的程序路径变化](../../Docs/packaging-cases/quick-sharun-qt6-resources.md)。
 
 ## quick-sharun 与 Qt6 的资源路径：翻译存在但界面找不到（KeePassXC 实测案例）
 

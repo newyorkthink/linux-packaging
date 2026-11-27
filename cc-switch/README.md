@@ -45,7 +45,7 @@ chmod +x cc-switch.AppImage
 
 - [固定配置依据](docs/hardcoded.md)：包内路径、资产模板、托盘库、版本文件和现有故障记录。
 - [模板差异说明](docs/template-deviations.md)：Tauri / GTK 布局、依赖覆盖、下载版本来源及工具自动部署依据。
-- [打包分类](../docs/packaging-classification.md#用-quick-sharun-打包的-tauri--gtk-程序)：只登记已经按当前标准完成重写的项目。
+- [打包分类](../Docs/packaging-classification.md#用-quick-sharun-打包的-tauri--gtk-程序)：只登记已经按当前标准完成重写的项目。
 
 ## 修复记录
 

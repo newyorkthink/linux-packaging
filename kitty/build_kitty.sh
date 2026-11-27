@@ -9,7 +9,7 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 安装统一的 Arch AppImage 基础包
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 
 trap 'rc=$?; echo "::error file=build_kitty.sh,line=${LINENO}::命令失败（退出码 ${rc}）：${BASH_COMMAND}" >&2; exit "$rc"' ERR
 
@@ -35,21 +35,21 @@ rm -f "$OUTFILE" "$OUTFILE.zsync"
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" ca-certificates curl file kitty-terminfo libxcb ncurses squashfs-tools tar xz zsync
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" ca-certificates curl file kitty-terminfo libxcb ncurses squashfs-tools tar xz zsync
 
 ############ 下载并准备应用 #############
 
 # 本程序专属处理：通过公共入口获取 Kitty 最新正式版预编译包对应的版本。
-KITTY_RELEASE_VERSION="$("$SCRIPT_DIR/../common/github/resolve_latest_stable_release_asset.sh" kovidgoyal/kitty 'kitty-{version}-x86_64.txz' | sed -n '1p')"
+KITTY_RELEASE_VERSION="$("$SCRIPT_DIR/../Common/github/resolve_latest_stable_release_asset.sh" kovidgoyal/kitty 'kitty-{version}-x86_64.txz' | sed -n '1p')"
 
 # 本程序专属处理：通过公共脚本下载并校验 Kitty 官方预编译包。
-"$SCRIPT_DIR/../common/github/download_latest_stable_named_asset.sh" kovidgoyal/kitty "kitty-${KITTY_RELEASE_VERSION}-x86_64.txz" /tmp/kitty.txz
+"$SCRIPT_DIR/../Common/github/download_latest_stable_named_asset.sh" kovidgoyal/kitty "kitty-${KITTY_RELEASE_VERSION}-x86_64.txz" /tmp/kitty.txz
 
 # 本程序专属处理：通过公共归档入口解压预编译包，保留原有目录结构。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" /tmp/kitty.txz "$KITTY_DIR"
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" /tmp/kitty.txz "$KITTY_DIR"
 
 # 读取本次打包使用的版本。
-KITTY_VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" command "$KITTY_DIR/bin/kitty" --field 2 -- --version)"
+KITTY_VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" command "$KITTY_DIR/bin/kitty" --field 2 -- --version)"
 
 ########## 准备桌面资源和运行库 #########
 
@@ -67,9 +67,9 @@ chmod +x "$APPDIR/AppRun"
 ############# 下载打包工具 #############
 
 # 下载并校验最终封装工具及运行时，并设置执行权限。
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" --appimagetool /tmp/appimagetool /tmp/runtime-x86_64
+"$SCRIPT_DIR/../Common/linuxdeploy/prepare_linuxdeploy_tools.sh" --appimagetool /tmp/appimagetool /tmp/runtime-x86_64
 
 ############### 整理产物 ###############
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" /tmp/appimagetool "$APPDIR" "$OUTFILE" /tmp/runtime-x86_64 "$KITTY_VERSION"
+"$SCRIPT_DIR/../Common/linuxdeploy/package_appimage.sh" /tmp/appimagetool "$APPDIR" "$OUTFILE" /tmp/runtime-x86_64 "$KITTY_VERSION"

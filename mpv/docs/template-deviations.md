@@ -12,7 +12,7 @@
 
 ```bash
 # 安装官方软件包及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" mpv mpv-mpris glycin libheif xorg-server xorg-server-common xorg-server-xvfb
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" mpv mpv-mpris glycin libheif xorg-server xorg-server-common xorg-server-xvfb
 ```
 
 ## 实际启用的专属段
@@ -37,7 +37,7 @@ echo 'LC_ALL=C.UTF-8' >> ./AppDir/.env
 ```bash
 # 本仓库兼容处理：在依赖收集后下载并校验独立辅助程序。
 mkdir -p AppDir/usr/bin
-"$SCRIPT_DIR/../common/github/download_latest_stable_named_asset.sh" yt-dlp/yt-dlp yt-dlp_linux AppDir/usr/bin/yt-dlp
+"$SCRIPT_DIR/../Common/github/download_latest_stable_named_asset.sh" yt-dlp/yt-dlp yt-dlp_linux AppDir/usr/bin/yt-dlp
 chmod +x AppDir/usr/bin/yt-dlp
 ```
 

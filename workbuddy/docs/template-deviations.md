@@ -5,7 +5,7 @@
 ## JSON 下载入口与 DEB 校验
 
 - 位置：清理构建目录之后、设置打包元数据之前。
-- 参数：使用 `common/download/download_json_deb_asset.sh`，将官方 JSON 地址、版本和 URL 字段、下载地址正则、文件名模板、包名、架构和摘要字段作为调用参数。
+- 参数：使用 `Common/download/download_json_deb_asset.sh`，将官方 JSON 地址、版本和 URL 字段、下载地址正则、文件名模板、包名、架构和摘要字段作为调用参数。
 - 依据与影响：接口版本包含构建号，DEB 的 `Version` 使用三段版本；过滤器只提取 DEB 校验所需的前三段，文件名匹配保留构建号，SHA-256 来自同一 JSON 的 `.sha256hash`。下载阶段的校验版本不覆盖应用脚本的 `VERSION`。
 
 ## AUR 依赖、版本、图标和桌面入口

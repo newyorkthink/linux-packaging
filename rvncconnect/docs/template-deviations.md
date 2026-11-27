@@ -2,7 +2,7 @@
 
 ## 标准链路
 
-按根目录 [linuxdeploy 规范](../../linuxdeploy_projects.md) 和 [固定注释](../../docs/linuxdeploy-comments.md) 排列阶段，直接使用 Ubuntu 24.04。工具、官方来源解析、下载校验、安装解包、PNG 图标处理、最终封装及版本保存均复用现有公共脚本。
+按根目录 [linuxdeploy 规范](../../linuxdeploy_projects.md) 和 [固定注释](../../Docs/linuxdeploy-comments.md) 排列阶段，直接使用 Ubuntu 24.04。工具、官方来源解析、下载校验、安装解包、PNG 图标处理、最终封装及版本保存均复用现有公共脚本。
 
 两次 linuxdeploy 分别用于空目录初始化和正式 GTK3 部署。自定义完整 AppRun 在第二次运行前写入根目录；hooks、AppRun.wrapped 和中间 AppImage 由官方工具自行生成，不手工创建或覆盖。
 

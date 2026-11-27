@@ -1,6 +1,6 @@
 # Keyviz AppImage 构建维护
 
-本目录维护官方 Keyviz AppImage，采用上游正式 Release 源码打补丁编译加 quick-sharun 封装的[专用打包流程](../docs/packaging-classification.md#专用打包流程)。模板差异见 [template-deviations.md](./docs/template-deviations.md)，固定配置见 [hardcoded.md](./docs/hardcoded.md)。
+本目录维护官方 Keyviz AppImage，采用上游正式 Release 源码打补丁编译加 quick-sharun 封装的[专用打包流程](../Docs/packaging-classification.md#专用打包流程)。模板差异见 [template-deviations.md](./docs/template-deviations.md)，固定配置见 [hardcoded.md](./docs/hardcoded.md)。
 
 ## 目录
 
@@ -23,7 +23,7 @@ GitHub Actions 由独立 `build_keyviz` Job 调用 `keyviz/build_keyviz.sh`，�
 
 ## 构建来源与升级说明
 
-1. 构建通过 `common/github/download_latest_stable_release_source.sh` 的 `--archive` 模式动态拉取官方仓库 `mulaRahul/keyviz` 最新正式 Release 对应提交的源码归档，版本号取自该 Release 标签（去掉 `v` 前缀）。官方源码已自带 `zh-CN` 简体中文界面与托盘翻译，本仓库不修改官方翻译文件。
+1. 构建通过 `Common/github/download_latest_stable_release_source.sh` 的 `--archive` 模式动态拉取官方仓库 `mulaRahul/keyviz` 最新正式 Release 对应提交的源码归档，版本号取自该 Release 标签（去掉 `v` 前缀）。官方源码已自带 `zh-CN` 简体中文界面与托盘翻译，本仓库不修改官方翻译文件。
 2. 不要删除补丁检查后硬编译；如果上游改动了被修补文件或新增了原生 Linux 分支，对应补丁会在编译前主动报错并停止，避免旧修复误覆盖新版源码。
 3. Linux Overlay 修复单独放在 `patches/05_linux_overlay.py`，仅针对 `config_window` 精确锚点插入 Linux 处理，保留上游 Windows 与 macOS 代码。
 4. 构建保持 `anylinux-setup-action` v2 与 quick-sharun 封装，并按仓库 GTK 3 GUI 规范内置中文 locale 与 `fcitx5-gtk` 输入模块。
@@ -42,7 +42,7 @@ GitHub Actions 由独立 `build_keyviz` Job 调用 `keyviz/build_keyviz.sh`，�
 
 ## 2026-11-27：目录统一小写、按专用流程标准化并切换至官方源码
 
-- 目录由 `Keyviz/` 统一改为小写 `keyviz/`，移除旧 `version.conf`，依赖安装、工作区准备、源码获取与版本保存全部接入 `common/` 公共入口。
+- 目录由 `Keyviz/` 统一改为小写 `keyviz/`，移除旧 `version.conf`，依赖安装、工作区准备、源码获取与版本保存全部接入 `Common/` 公共入口。
 - 核实官方 `mulaRahul/keyviz`（`v2.1.2`）已内置 `zh-CN` 简体中文界面与托盘翻译、并将 `tao` 升级至 `0.37.2`；因此从停更的汉化分支 `zetaloop/keyviz` 切换回官方最新正式 Release 源码，移除旧的 `tao 0.34.8` 变通，将 `05_linux_overlay.py` 适配为精确锚点注入（保留上游 Windows / macOS 分支与原样翻译），详见 [template-deviations.md](./docs/template-deviations.md)。
 
 ## 实机验证

@@ -8,19 +8,19 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装源码编译及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" xorg-server xorg-server-common xorg-server-xvfb libx11 libxmu libxft libxrender libxrandr libpng libxpm uthash
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" xorg-server xorg-server-common xorg-server-xvfb libx11 libxmu libxft libxrender libxrandr libpng libxpm uthash
 
 # 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
 
 # 设置本次构建使用的源码目录。
 SOURCE_DIR="$SCRIPT_DIR/work/source"
 
 # 读取本次打包使用的版本。
 ALTTAB_TAG="$(
-  bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" sagb/alttab "$SOURCE_DIR" --archive
+  bash "$SCRIPT_DIR/../Common/github/download_latest_stable_release_source.sh" sagb/alttab "$SOURCE_DIR" --archive
 )"
 
 # 去掉常见的 v 前缀，作为 AppImage 版本信息；没有 v 前缀时保持原值。
@@ -116,4 +116,4 @@ cp -a "$SOURCE_DIR/COPYING" AppDir/share/licenses/alttab/COPYING
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/alttab.AppImage "$ALTTAB_UPDATE_VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/alttab.AppImage "$ALTTAB_UPDATE_VERSION" dist/version.txt

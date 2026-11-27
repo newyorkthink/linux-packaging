@@ -2,11 +2,11 @@
 
 ## 永久置顶规则：所有下载只能通过公共脚本（不可豁免）
 
-**仓库中的所有下载必须且只能通过 `common/` 的公共脚本执行。任何情况下都禁止在应用的 `build_*.sh` 中实现下载功能。本条不设例外。**
+**仓库中的所有下载必须且只能通过 `Common/` 的公共脚本执行。任何情况下都禁止在应用的 `build_*.sh` 中实现下载功能。本条不设例外。**
 
 - 适用于软件包、源码、构建工具、依赖和资源等文件，以及为下载取得链接、网页或 API 元数据、摘要、Cookie、认证和签名的请求。下载方式选择、重定向、传输与下载校验由公共入口负责。
 - 应用脚本、应用目录内的辅助脚本及工作流内联代码只能直接调用对应的公共脚本并传入所需参数。禁止直接调用 `curl`、`wget`、`aria2c`、`git clone`、`gh api` 或其他方式实现下载及下载相关请求。
-- 公共入口不支持时，必须先在 `common/` 新增或扩展通用兼容。兼容未完成时停止该下载。官方原样复用、应用专用流程、历史实现和临时处理均受本条约束。
+- 公共入口不支持时，必须先在 `Common/` 新增或扩展通用兼容。兼容未完成时停止该下载。官方原样复用、应用专用流程、历史实现和临时处理均受本条约束。
 
 ## 永久置顶规则：GitHub API 必须认证，Release 下载允许直链失败后认证回退（不可豁免）
 
@@ -72,7 +72,7 @@
 
 按来源、技术栈与实际入口选用清单内的一份完整模板，仅填写允许变化的参数。现有模板确实不适用时，说明具体冲突。经用户按本次清单明确授权后，执行文首专用构建例外。授权前保留已有构建脚本。专属处理继续遵守既有授权和记录规则，模板清单固定。
 
-已有项目采用专用打包流程时，核对当前构建入口、现有模板与实际流程的具体差异，以及可追溯的稳定基线和验证记录。核实后在[专用打包流程](./docs/packaging-classification.md#专用打包流程)登记，按应用 README 中已验证的流程维护。后续需要修改 `build_*.sh` 时，按文首的默认生成流程或逐次授权的例外执行。
+已有项目采用专用打包流程时，核对当前构建入口、现有模板与实际流程的具体差异，以及可追溯的稳定基线和验证记录。核实后在[专用打包流程](./Docs/packaging-classification.md#专用打包流程)登记，按应用 README 中已验证的流程维护。后续需要修改 `build_*.sh` 时，按文首的默认生成流程或逐次授权的例外执行。
 
 ## 永久置顶规则：禁止任何本地操作，非本地任务只能使用连接器（不可豁免）
 
@@ -139,10 +139,10 @@
 **仓库顶层目录必须按用途区分首字母大小写，后续新建同类顶层目录必须直接遵守本规则：**
 
 - **具体应用程序目录与打包体系目录**：统一使用小写字母开头（例如 `keyviz/`、`alttab/`、`runimage/`、`termux/`）。
-- **与单个程序无关的仓库维护、文档、脚本、模板、归档、暂存及公共基础目录**：统一使用大写字母开头（例如 `Temporary/`、`Scripts/`、`Archive/`、`Templates/`，以及待分批迁移的 `Docs/`、`Common/`）。
+- **与单个程序无关的仓库维护、文档、脚本、模板、归档、暂存及公共基础目录**：统一使用大写字母开头（例如 `Temporary/`、`Scripts/`、`Archive/`、`Templates/`、`Docs/`、`Common/`）。
 - **平台保留目录**：`.github/` 等平台约定的隐藏目录保持原样。
 
-存量尚未改名的非程序顶层目录按 [顶层目录大小写迁移待办](./docs/pending/top-level-directory-casing.md) 分批推进，每次仅处理明确获准的批次，禁止借无关任务顺手改名。
+后续目录改名必须列入本次任务的明确授权范围，禁止借无关任务顺手改名。
 
 ## 永久置顶规则：实机验证通过后只记录通过结果（不可豁免）
 
@@ -154,7 +154,7 @@
 
 **本条优先于下文关于说明验证状态、验证范围和保留历史的所有一般性要求。** 对已经写明实机通过的应用，不得借其他条款继续追加保留性验收声明。用户后续明确提出的新问题按该次任务记录事实，不回写或降级既有的实机通过结论。
 
-**实机验证通过记录必须使用统一文档模板。** 新增或更新此类记录前，必须先阅读 [文档模板使用说明](./docs/templates/documentation/README.md)，再按 [实机验证通过记录模板](./docs/templates/documentation/real-machine-validation.md) 填写通过结论和已有实测事实，并按实际材料选用模板规定的可选内容。完整记录写入对应应用 README，其他相关文档链接到该记录；不因接入模板而批量改写既有通过记录、故障历史或有效命令。
+**实机验证通过记录必须使用统一文档模板。** 新增或更新此类记录前，必须先阅读 [文档模板使用说明](./Docs/templates/documentation/README.md)，再按 [实机验证通过记录模板](./Docs/templates/documentation/real-machine-validation.md) 填写通过结论和已有实测事实，并按实际材料选用模板规定的可选内容。完整记录写入对应应用 README，其他相关文档链接到该记录；不因接入模板而批量改写既有通过记录、故障历史或有效命令。
 
 **AI 新增或更新实机验证通过记录时，必须使用 [提交格式脚本](./Scripts/commit/format_submission.md) 生成正文。** 只填写已有证据支持的字段。选填内容缺少依据时直接省略。
 
@@ -162,7 +162,7 @@
 
 **只有具体应用的 `build_*.sh` 自身构建逻辑发生实际错误，才在对应应用目录的 `docs/` 新增或修改该次故障记录，并按需更新该应用 README。** 记录报错原文、发生阶段、触发条件、已核实的原因和处理状态；原因尚未查明时明确标注，公开记录须去除个人环境信息和敏感数据。
 
-**公共脚本和公共流程的错误不写故障记录，不得写进任何应用的 README 或 `docs/`，也不得为此另建公共错误记录文件。** 包括 `common/` 公共脚本、共享 Action、workflow 公共阶段、GitHub API、Release 上传、软件版本清单发布及并发写锁等错误。此类问题只修改获准的公共实现，在聊天和提交说明中交代必要内容。
+**公共脚本和公共流程的错误不写故障记录，不得写进任何应用的 README 或 `docs/`，也不得为此另建公共错误记录文件。** 包括 `Common/` 公共脚本、共享 Action、workflow 公共阶段、GitHub API、Release 上传、软件版本清单发布及并发写锁等错误。此类问题只修改获准的公共实现，在聊天和提交说明中交代必要内容。
 
 必须先按实际失败命令和故障归属区分两类问题。不得仅因 Job 名称是“Build 某应用”，或公共错误导致该 Job、构建脚本退出，就把公共错误记成应用自身的构建故障。应用构建已经成功、后续公共发布或清单更新失败时，不新增或修改该应用的错误记录与 README。
 
@@ -275,13 +275,13 @@ AI 只能执行用户当前明确要求的任务，并将读取、搜索、分�
 
 **任何新建、修改、修复、迁移或重写应用打包脚本的任务，都必须先到 [pkgforge-dev 官方组织](https://github.com/pkgforge-dev) 查找当前应用是否已有官方打包仓库。不得跳过查找，直接凭经验、旧脚本或本仓库模板编写。** **本项核实必须在展示草稿之前完成。必须提供所读固定 commit、原文件及对应原文；禁止先凭经验贴代码、再补查官方，或用“规则已经写明”代替实际核实。**
 
-**修改应用的 `build_*.sh` 前，必须先查阅 [上游打包参考索引](./docs/upstream-packaging-index.md) 中当前应用的对应行，再阅读所列上游的当前构建代码、相关 workflow、实际调用的 hook / wrapper，以及本仓库应用 README 和已有差异说明。** 固定 commit 链接用于定位所读快照，不得代替修改时对当前上游实现的核实；上游单元格留空仅表示登记时未查到，仍须针对当前应用及其别名查找，不得扩大到其他项目。索引只提供入口，不构成采用上游处理、改变已验证基线或恢复未启用方案的授权。
+**修改应用的 `build_*.sh` 前，必须先查阅 [上游打包参考索引](./Docs/upstream-packaging-index.md) 中当前应用的对应行，再阅读所列上游的当前构建代码、相关 workflow、实际调用的 hook / wrapper，以及本仓库应用 README 和已有差异说明。** 固定 commit 链接用于定位所读快照，不得代替修改时对当前上游实现的核实；上游单元格留空仅表示登记时未查到，仍须针对当前应用及其别名查找，不得扩大到其他项目。索引只提供入口，不构成采用上游处理、改变已验证基线或恢复未启用方案的授权。
 
 1. 查找只限当前应用及其名称别名。找到对应官方仓库后，核对其实际构建脚本、相关 workflow 及被调用的 hook、wrapper 和说明文件，确认官方是否有当前应用的专属处理；不得借此遍历整个组织或检查其他应用。
 2. 官方存在专属处理时，必须先按下文判断当前场景是否必要；本次决定采用并直接复用的对应命令和源码，下载相关部分按文首公共下载规则执行，其余部分必须逐字原样保留在本仓库的 `build_*.sh` 中。命令、参数、路径、引号、大小写、通配符、管道、重定向、代码续行及执行顺序均不得改动；必要的变量赋值、函数定义和调用上下文不得漏掉。**逐字保留只针对可执行代码和命令本身，代码中的字符串及运行提示同样不得改写；上游注释不属于必须逐字保留的代码。**
 3. **禁止修改本次决定直接复用的上游官方打包命令。** 不得作等价改写，不得增删参数、替换程序、改路径、调整顺序、拆分或合并命令，禁止以“功能相同”代替原样复用。官方下载步骤必须由本仓库的公共脚本执行。
 4. 本次决定采用的官方独立 hook、wrapper 等配套文件，必须在本仓库中按独立文件保存，其可执行代码逐字保留，禁止自行重写、简化或内联改造成另一套实现。注释按第 5 项处理，原有版权和许可证声明必须保留。其构建引用仍放在本应用的 `build_*.sh` 中；本仓库自写的引用或复制命令不得冒称官方原命令。
-5. 直接复用的官方代码块正上方，必须用一行中文注释，采用“复用官方代码：……”清楚说明其通用用途。说明必须泛化，不夹带具体应用名、专属路径或版本号。**本次涉及的上游注释过于简略或不清楚时，可以补充或替换为通顺、完整的中文说明，不要求逐字保留原注释；不得因此改动任何可执行代码。** 只处理本次复用涉及的注释，不得改写范围外或已经确认的其他原注释。引用独立配套文件时，应明确写“文件内容复用官方代码”，不得把自写的文件复制命令标成官方原命令；补充解释仍须遵守第 7 项的官方原因与证据要求。 **同一用途的来源标注和标准注释必须逐字一致。直接采用官方命令统一使用“复用官方代码：”；引用官方独立文件统一使用“文件内容复用官方代码：”，不得用“保留原有处理”或“参考官方”替代。与官方原文不同的既有兼容代码必须明确标为“本仓库兼容处理：”，并列出差异，禁止冒称原样复用。quick-sharun 的通用注释以 `docs/quick-sharun-comments.md` 为准，来源标注及既定专项用途继续遵循 `anylinux_projects.md` 中的注释表；不得在草稿或实际文件中自行换词。**
+5. 直接复用的官方代码块正上方，必须用一行中文注释，采用“复用官方代码：……”清楚说明其通用用途。说明必须泛化，不夹带具体应用名、专属路径或版本号。**本次涉及的上游注释过于简略或不清楚时，可以补充或替换为通顺、完整的中文说明，不要求逐字保留原注释；不得因此改动任何可执行代码。** 只处理本次复用涉及的注释，不得改写范围外或已经确认的其他原注释。引用独立配套文件时，应明确写“文件内容复用官方代码”，不得把自写的文件复制命令标成官方原命令；补充解释仍须遵守第 7 项的官方原因与证据要求。 **同一用途的来源标注和标准注释必须逐字一致。直接采用官方命令统一使用“复用官方代码：”；引用官方独立文件统一使用“文件内容复用官方代码：”，不得用“保留原有处理”或“参考官方”替代。与官方原文不同的既有兼容代码必须明确标为“本仓库兼容处理：”，并列出差异，禁止冒称原样复用。quick-sharun 的通用注释以 `Docs/quick-sharun-comments.md` 为准，来源标注及既定专项用途继续遵循 `anylinux_projects.md` 中的注释表；不得在草稿或实际文件中自行换词。**
 6. 对应应用的 `docs/template-deviations.md` 必须记录官方仓库、原文件路径、固定 commit 的源码链接、复用的具体代码及其所在构建阶段、用途、影响和官方原始原因；涉及固定配置时同步记入该应用的 `docs/hardcoded.md`。该应用的 `README.md` 必须说明复用了哪些官方处理、来自何处、官方为何这样做，并链接对应详细记录。代码和说明必须在同一次获批修改中完成，不得只写“参考官方”。
 7. 官方原因必须以其源码注释、README、文档或 Issue 中的实际说明为依据，并给出原始出处。官方没有解释原因时，必须明确写“官方未说明原因”，禁止用 AI 推测、习惯判断或“应该需要”冒充官方理由。官方没有专属处理时，按本仓库标准模板执行，不添加或罗列不存在的特殊步骤。
 
@@ -470,7 +470,7 @@ Plan 的选择规则：
 
 - 改了某个应用目录里的任何文件，包括该目录的 `README.md`，就会构建这个应用。
 - 改了 `.github/actions/build-anylinux/`，会构建全部应用。没有明确任务要改共享构建入口时，禁止碰这个目录。
-- 改了 `common/` 里被构建脚本引用的文件，会构建所有引用它的应用。
+- 改了 `Common/` 里被构建脚本引用的文件，会构建所有引用它的应用。
 - 只改根目录 Markdown，Plan 不会选中任何应用。
 
 因此：
@@ -496,28 +496,28 @@ Plan 的选择规则：
 - 软件的状态、故障、修复、待确认结果，只写进该软件目录的 `README.md`、目录内已有历史文件或 `<应用目录>/docs/` 中的专属记录。
 - 禁止把这些记录追加到根目录 `README.md`。从根目录迁走已有记录时，必须把原文放进对应软件目录；禁止只删除、不迁移。
 - 禁止重新创建根目录 `PENDING_AI_TASKS.md` 或任何新的根目录记录文件。
-- 根目录 `README.md` 只保留仓库入口。发布机制的旧说明在 `docs/release-history.md`，不要再往根 README 搬回去。
+- 根目录 `README.md` 只保留仓库入口。发布机制的旧说明在 `Docs/release-history.md`，不要再往根 README 搬回去。
 
 
 ## 文档定位与完整阅读要求
 
-`AGENTS.md` 是面向 AI coding agents 的**完整、权威、必须全文阅读**的仓库规范。根目录 [README.md](./README.md) 是仓库入口和当前状态说明，[docs/maintainer-guide.md](./docs/maintainer-guide.md) 是面向人工维护者的操作导航，各应用目录的 `README.md` 是对应应用的技术实现、稳定基线、检查结果和修复历史。后三者都不能替代本文件。
+`AGENTS.md` 是面向 AI coding agents 的**完整、权威、必须全文阅读**的仓库规范。根目录 [README.md](./README.md) 是仓库入口和当前状态说明，[Docs/maintainer-guide.md](./Docs/maintainer-guide.md) 是面向人工维护者的操作导航，各应用目录的 `README.md` 是对应应用的技术实现、稳定基线、检查结果和修复历史。后三者都不能替代本文件。
 
-专项问题通过 [docs/README.md](./docs/README.md) 统一检索。处理应用前，先查文档索引，再完整阅读对应应用 README 和与当前问题有关的专项记录；历史方案、已知隐患和其他应用的修复都不构成本次修改授权，不得据此批量改包。
+专项问题通过 [Docs/README.md](./Docs/README.md) 统一检索。处理应用前，先查文档索引，再完整阅读对应应用 README 和与当前问题有关的专项记录；历史方案、已知隐患和其他应用的修复都不构成本次修改授权，不得据此批量改包。
 
-- 应用的当前状态、具体实现和修复历史仍以该应用目录的 README 或目录内历史文件为准。通用机制与排查方法放在 `docs/packaging-cases/`，具体应用的专项记录放在 `<应用目录>/docs/`；暂时不改的问题继续放在 `docs/known-risks/`。
-- 新增或更新通用笔记时，同步维护 `docs/README.md` 的主题、关键词、范围和链接；新增或更新应用专属记录时，由对应应用 README 提供链接。保留已有详细历史，不用索引替代正文。
+- 应用的当前状态、具体实现和修复历史仍以该应用目录的 README 或目录内历史文件为准。通用机制与排查方法放在 `Docs/packaging-cases/`，具体应用的专项记录放在 `<应用目录>/docs/`；暂时不改的问题继续放在 `Docs/known-risks/`。
+- 新增或更新通用笔记时，同步维护 `Docs/README.md` 的主题、关键词、范围和链接；新增或更新应用专属记录时，由对应应用 README 提供链接。保留已有详细历史，不用索引替代正文。
 - **仓库自有 Markdown 文档按主题命名，禁止在文件名中加入日期或时间戳。** 不得使用 `20261023.md`、`quick-sharun-qt6-resources-20261023.md` 等名称；应使用 `quick-sharun-qt6-resources.md` 等稳定主题名，日期只写在正文或修复记录标题中。本规则适用于新建和重命名文档，不授权批量重命名既有文件。
 
 ### 通用问题笔记与应用专属记录必须分开
 
-**`docs/packaging-cases/` 只记录可跨应用复用的通用问题、原理、适用条件和排查方法，禁止写入具体被打包应用的名称或个案。**
+**`Docs/packaging-cases/` 只记录可跨应用复用的通用问题、原理、适用条件和排查方法，禁止写入具体被打包应用的名称或个案。**
 
 - 文件名、标题、正文、代码块、表格、关键词和链接均须遵守；不得出现具体应用的名称、包名、资源前缀或应用专属仓库链接，也不得以示例、附录或“实测案例”为由夹带个案。Qt、sharun 等框架和打包工具名称可以按主题正常使用。
 - 通用笔记不得保存具体应用的产物版本、大小、哈希、故障日志、修复时间线或验收状态。更换标题、删除应用名称或使用占位符，不能把仍然依赖单个应用的记录变成通用笔记。
 - 通用示例中的应用名、程序名和随环境变化的参数、路径必须使用 `<应用>`、`<程序>`、`<辅助程序>` 等明确占位符，并注明需按实际环境替换，不得让后续使用者照抄某个应用的实际值。
 - 具体应用的问题、产物证据、失败尝试、修复过程和验证边界放在该应用自己的 `docs/` 专属目录，由应用 README 提供明显链接。已有 README 和目录内历史文件中的有效记录保留；误放在通用目录的详细记录必须完整迁入应用专属目录，不能删除后只留摘要。
-- `docs/README.md` 的通用问题条目只保留通用主题、关键词、适用范围和通用文档链接，不得夹带具体应用名称、个案链接或个别应用的验收结论。应用专属记录从对应应用 README 查找。
+- `Docs/README.md` 的通用问题条目只保留通用主题、关键词、适用范围和通用文档链接，不得夹带具体应用名称、个案链接或个别应用的验收结论。应用专属记录从对应应用 README 查找。
 - 拆分文档前后必须核对历史内容完整、相对链接有效、通用正文和索引条目没有遗留应用个案；整理文档不得改动已经验证有效的构建脚本、命令或配置。
 
 整理本文件时必须遵守：
@@ -531,7 +531,7 @@ Plan 的选择规则：
 
 | 范围 | 主要内容 |
 | --- | --- |
-| 文首永久规则 | 禁止擅自扩大任务与检查范围、已知错误禁止写入仓库、修复记录只增不删、GitHub 提交步骤、手动只跑指定应用时禁止默认全量、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、按程序类型和翻译能力配置中文环境与输入、打包 export 必须先登记、测试代码边界与必要验证、workflow 只负责打包、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入、没有故障原始记录就禁止写死、新增或更新写死时必须在同一次修改里写好该程序的 `docs/hardcoded.md`、不得等用户提醒、打包分类见 `docs/packaging-classification.md` |
+| 文首永久规则 | 禁止擅自扩大任务与检查范围、已知错误禁止写入仓库、修复记录只增不删、GitHub 提交步骤、手动只跑指定应用时禁止默认全量、linuxdeploy 必须完整遵守 `linuxdeploy_projects.md`、quick-sharun 必须完整遵守 `anylinux_projects.md`、按程序类型和翻译能力配置中文环境与输入、打包 export 必须先登记、测试代码边界与必要验证、workflow 只负责打包、修改后及时提交、公共下载与安装入口、Git 分支、撤销提交、仓库独立运行、版本清单即时写入、没有故障原始记录就禁止写死、新增或更新写死时必须在同一次修改里写好该程序的 `docs/hardcoded.md`、不得等用户提醒、打包分类见 `Docs/packaging-classification.md` |
 | 第 1～2 节 | 仓库目标、最小修改、应用 README、检查记录、迁移完整性 |
 | 第 3～5 节 | 宿主安全、Shell 与中文说明、上游来源、授权、动态版本和版本元数据 |
 | 第 6 节 | AppImage 内容、AppRun、libunionpreload、打包路线、linuxdeploy、Qt 与 quick-sharun |
@@ -573,9 +573,9 @@ Plan 的选择规则：
 
 直接模式新增或修改对应操作时：
 
-1. 命令输出的版本读取、字段提取和格式校验复用 `common/build/read_app_version.sh` 的 `command` 来源；字段和查询参数由当前应用明确传入，不在主脚本重复写 awk、grep 或版本正则。
-2. 一次调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh --appimagetool <appimagetool 输出路径> <runtime 输出路径>`，统一下载、核对官方摘要并设置两个文件的执行权限；主脚本不再分别下载工具或补 `chmod +x`。
-3. 最终调用 `common/linuxdeploy/package_appimage.sh`，统一完成 PNG / 权限准备、正式封装、有效产物检查、SHA-256 输出和版本保存；不重复实现这些步骤。
+1. 命令输出的版本读取、字段提取和格式校验复用 `Common/build/read_app_version.sh` 的 `command` 来源；字段和查询参数由当前应用明确传入，不在主脚本重复写 awk、grep 或版本正则。
+2. 一次调用 `Common/linuxdeploy/prepare_linuxdeploy_tools.sh --appimagetool <appimagetool 输出路径> <runtime 输出路径>`，统一下载、核对官方摘要并设置两个文件的执行权限；主脚本不再分别下载工具或补 `chmod +x`。
+3. 最终调用 `Common/linuxdeploy/package_appimage.sh`，统一完成 PNG / 权限准备、正式封装、有效产物检查、SHA-256 输出和版本保存；不重复实现这些步骤。
 4. 分区、通用注释和空行沿用同一体系的对应阶段，只保留真实需要的步骤。程序专属资源放在当前应用的 `patches/`，仅经批准的长 AppRun 可独立保存并逐字复制到 `AppDir/AppRun`。
 5. 公共入口已经提供必要结果输出时，不再在主脚本末尾添加仅表示“已生成”的重复 echo；不借此删除程序实际需要的输出或其他已验证运行逻辑。
 
@@ -586,9 +586,9 @@ Plan 的选择规则：
 **所有实际调用 linuxdeploy 的项目，均须先完整阅读并严格遵守 [linuxdeploy_projects.md](./linuxdeploy_projects.md)。** 按标准重写时，只能使用其中登记的 [唯一标准模板](./linuxdeploy_projects.md#唯一标准模板)，不得自行拼接或混用打包路线。
 
 - 通用命令、注释、顺序、缩进和空行逐字保留；命令保持单行，不加反斜杠续行。依赖、路径、AppRun 及框架配置按程序实际需要确定，不照抄其他应用的专属修复，也不为凑行数加入无关内容。
-- [linuxdeploy-comments.md](./docs/linuxdeploy-comments.md) 只收录跨项目共用的固定注释。程序专属注释在构建脚本中使用 `# 本程序专属处理：`，修复、路径调整和补库的依据记录在本项目的 `docs/template-deviations.md`，无需在公共注释表登记。
+- [linuxdeploy-comments.md](./Docs/linuxdeploy-comments.md) 只收录跨项目共用的固定注释。程序专属注释在构建脚本中使用 `# 本程序专属处理：`，修复、路径调整和补库的依据记录在本项目的 `docs/template-deviations.md`，无需在公共注释表登记。
 - linuxdeploy 专属差异和配置只简记处理位置、原因、必要代码或依据，由 README 提供入口；不重复整份脚本或 AppRun。既有 `hardcoded.md` 和故障历史保留，不重复扩写同一说明。此项为 linuxdeploy 文档约定，其他打包路线不变。
-- linuxdeploy 项目的专属补丁和修复脚本统一放入本项目的 `patches/`：源码或文本补丁使用 `.patch`，资源准备和运行时修复按任务使用 `.sh` 或 `.py`。公共机制仍放在 `common/`，不把单个应用的修复公共化，也不要求每个项目创建相同脚本。
+- linuxdeploy 项目的专属补丁和修复脚本统一放入本项目的 `patches/`：源码或文本补丁使用 `.patch`，资源准备和运行时修复按任务使用 `.sh` 或 `.py`。公共机制仍放在 `Common/`，不把单个应用的修复公共化，也不要求每个项目创建相同脚本。
 - 主 build 按实际阶段单行调用 `patches/` 脚本；源码补丁在下载并准备应用时应用，资源准备放在准备桌面资源和运行库，依赖部署后的修复放在整理产物且先于最终封装。AppRun 按上文规则完整内联在主 build，仅允许经批准的长脚本例外。旧入口须在调用方获准迁移后再移除，不同时执行新旧修复。
 - 增删步骤或调整已确认配置，须先说明具体改动、原因与依据并取得本次明确同意；不得借标准化批量修改未指定的项目。已验证代码、命令和未涉及的注释保持原样。
 - **任何 linuxdeploy 打包一律禁止使用 Docker。** 脚本、workflow、公共入口和应用 helper 均不得直接或间接通过 Docker、Compose 或容器 Action 执行；构建直接使用已确认的 GitHub Actions Ubuntu runner。
@@ -617,7 +617,7 @@ Plan 的选择规则：
 - 不得只看本节摘要。先核实 pkgforge-dev 打包及 AUR、软件官方网站等现成包来源；Arch 官方仓库原生程序按该文件的系统入口标准直接收集真实 `/usr/bin/<主程序>`，不预复制主程序。其他已有适用二进制包的项目必须先安装到构建系统，再独立下载、解包并把完整程序目录放入 `AppDir/bin`；仅未找到适用现成包时，才按对应一般示例判断。
 - 非必要不得自己写 `AppRun.sh`，也不得覆盖 quick-sharun 生成的 `AppRun`。补参数用 hook，补环境变量用 `AppDir/.env`。
 - 调用 `linuxdeploy` 的项目继续只遵守 `linuxdeploy_projects.md`，不得改成 quick-sharun，也不得两套混用。
-- 通用注释须逐字复用 [quick-sharun 固定注释标准](./docs/quick-sharun-comments.md)，位置、缩进和空行遵循对应分类模板。只收录跨项目必须统一的注释；应用专属说明留在本应用目录，不借注释整理批量改写稳定脚本。
+- 通用注释须逐字复用 [quick-sharun 固定注释标准](./Docs/quick-sharun-comments.md)，位置、缩进和空行遵循对应分类模板。只收录跨项目必须统一的注释；应用专属说明留在本应用目录，不借注释整理批量改写稳定脚本。
 
 **quick-sharun 固定注释及来源标注必须执行以下规则。**
 
@@ -632,7 +632,7 @@ Plan 的选择规则：
 
 ## 永久规则：打包 export 必须先登记（不可豁免）
 
-**构建脚本、AppRun、hook、`.env` 和 workflow 里新增或修改的 `export`，必须已经写在 [`docs/packaging-export-registry.md`](./docs/packaging-export-registry.md)。表里没有的变量不准用。**
+**构建脚本、AppRun、hook、`.env` 和 workflow 里新增或修改的 `export`，必须已经写在 [`Docs/packaging-export-registry.md`](./Docs/packaging-export-registry.md)。表里没有的变量不准用。**
 
 - 登记表说明当前 `.sh` 里每个环境变量干什么、哪里在用。新增变量必须在同一次提交里补进登记表，写清用途和用在哪个程序。
 - 禁止设置 `EXTRA_QT_MODULES`，包括 `core` 和 `gui`。不得用手工指定 Qt 模块绕过插件扫描。
@@ -674,7 +674,7 @@ Plan 的选择规则：
 - 验证过程产生的临时脚本、日志、缓存、解包目录、测试 fixture、mock、测试专用断言和其他临时文件不得纳入提交。
 - 禁止为了验证打包修改，在 `build_*.sh`、`AppRun`、wrapper、helper、源码、Makefile、CMake、package script 或其他正式文件中加入 unit test、integration test、E2E test、regression test、临时 smoke test、startup test、health check、自测代码或等价逻辑；按需调用下述短时公共函数不属于临时测试代码。
 - 禁止新增临时或长期的 `test workflow`、测试 Job、测试 Step；禁止为了验证构建而创建 `.github/workflows/*test*.yml`、`smoke` Job或等价 CI 入口。
-- 禁止所有应用默认执行图形启动检查，也禁止在应用脚本或其他 helper 中重复编写 `timeout ... AppRun`、`xvfb-run ... AppRun`、`SMOKE_RC=...`、`smoke.log` 判断等临时或长时间冒烟逻辑。确有需要的应用可以显式调用 `common/gui/check_appimage_gui.sh`，仅对最终 AppImage 做最长 20 秒的隔离图形启动检查；时长、启动参数、会话包裹顺序、成功条件、可选窗口标题和致命日志特征由调用方传入。该检查不能代替实机验证，也不得扩展为登录、代理、中文输入或应用功能测试。
+- 禁止所有应用默认执行图形启动检查，也禁止在应用脚本或其他 helper 中重复编写 `timeout ... AppRun`、`xvfb-run ... AppRun`、`SMOKE_RC=...`、`smoke.log` 判断等临时或长时间冒烟逻辑。确有需要的应用可以显式调用 `Common/gui/check_appimage_gui.sh`，仅对最终 AppImage 做最长 20 秒的隔离图形启动检查；时长、启动参数、会话包裹顺序、成功条件、可选窗口标题和致命日志特征由调用方传入。该检查不能代替实机验证，也不得扩展为登录、代理、中文输入或应用功能测试。
 - `test`、`[`、`[[`、`grep`、`timeout`、`ldd` 等命令本身不属于禁用命令；生产构建确有需要时可以保留或使用，但不得仅为验证当前提交而把测试断言长期塞进构建脚本。
 - 正常构建流程本身必需的错误处理、输入存在性检查、下载失败退出、架构判断、上游元数据判断、官方摘要校验和包管理器错误处理属于生产逻辑，不应误删或误判成测试代码。
 - 不得以验证为由反复提交、反复触发 GitHub Actions 或用正式 workflow 试错；正常 `push` 自动触发的正式构建不需要关闭，提交后是否跟踪结果按第 7 节执行。
@@ -728,7 +728,7 @@ Plan 的选择规则：
 
 linuxdeploy 项目的记录位置与简写格式按前述 linuxdeploy 专属文档约定执行；已有记录继续保留。以下 `docs/hardcoded.md` 约定适用于其他打包路线。
 
-每条写死必须先写在该程序自己的目录下的 `docs/hardcoded.md`。不得放在仓库根 `docs/`、其他应用目录，或只写在对话、提交说明里。该文件至少写明这四项，缺一项就不得写死：
+每条写死必须先写在该程序自己的目录下的 `docs/hardcoded.md`。不得放在仓库根 `Docs/`、其他应用目录，或只写在对话、提交说明里。该文件至少写明这四项，缺一项就不得写死：
 
 - 为什么要写死这条路径。
 - 写死的具体内容。
@@ -809,30 +809,30 @@ AppDir / 官方 appimagetool 体系的标准底稿统一存放在 `Templates/app
 
 ## 永久规则：构建脚本只能单行调用公共下载、安装、解包与初始化入口（不可豁免）
 
-**新增应用或当前修改触及对应代码时，`build_*.sh`、workflow 内联构建段或应用专用 helper 都不得自行实现软件包、应用、打包工具或其他联网文件的下载、Release / API 查询、校验清单解析、最新版选择、摘要校验参数拼装、包管理器安装流程、通用归档格式解包或第一次空 AppDir 初始化检查。每一次下载、安装、解包或空 AppDir 初始化操作只能保留一条对仓库 `common/` 公共入口的实际调用命令；需要修复通用行为时只修公共实现，不得在各应用脚本重复补丁。**
+**新增应用或当前修改触及对应代码时，`build_*.sh`、workflow 内联构建段或应用专用 helper 都不得自行实现软件包、应用、打包工具或其他联网文件的下载、Release / API 查询、校验清单解析、最新版选择、摘要校验参数拼装、包管理器安装流程、通用归档格式解包或第一次空 AppDir 初始化检查。每一次下载、安装、解包或空 AppDir 初始化操作只能保留一条对仓库 `Common/` 公共入口的实际调用命令；需要修复通用行为时只修公共实现，不得在各应用脚本重复补丁。**
 
-**任何情况下都禁止在应用目录及其子目录新增或拆出脚本承担公共职责。** 通用来源解析、文件下载、摘要校验、版本元数据、安装和解包等操作，必须直接调用 `common/` 对应入口。缺少可复用能力时，只能在 `common/` 新增或扩展入口。禁止以缩短构建脚本、仅供一个应用使用或包装公共调用为由，在应用目录另建脚本承接这些职责，即使该脚本内部仍调用 `common/` 也不例外。
+**任何情况下都禁止在应用目录及其子目录新增或拆出脚本承担公共职责。** 通用来源解析、文件下载、摘要校验、版本元数据、安装和解包等操作，必须直接调用 `Common/` 对应入口。缺少可复用能力时，只能在 `Common/` 新增或扩展入口。禁止以缩短构建脚本、仅供一个应用使用或包装公共调用为由，在应用目录另建脚本承接这些职责，即使该脚本内部仍调用 `Common/` 也不例外。
 
 强制范围：
 
 - 禁止在应用构建脚本中新增或保留用于联网获取文件的 `curl`、`wget`、`aria2c`、`git clone`、`gh api`、GitHub / GitLab API 请求、自制重试函数和同类实现；普通 HTTPS、GitHub Release、官方校验清单、linuxdeploy 工具等必须分别调用仓库已有的对应公共脚本。
-- 禁止在应用构建脚本中解析 Release JSON、HTML、校验清单或远端目录后自行选择最新版、拼接下载地址、提取摘要再二次下载。已有公共入口支持该来源时，调用处只能是一条命令；尚无合适入口时，必须先在 `common/` 新增或扩展可复用实现，再由应用脚本单行调用。符合“正式 semver Release + `{version}` 资产模板 + GitHub SHA-256 digest”的 GitHub 资产需要直接下载时，统一调用 `common/github/download_latest_stable_release_asset.sh`，应用脚本不得再保留 `mapfile`、URL / digest 拆分和二次 `download_file.sh` 调用。
-- 禁止在应用构建脚本中直接执行 `apt-get update`、`apt-get install` 或重复实现 root / sudo、非交互安装和通用包管理器错误处理。Debian / Ubuntu 构建统一调用 `common/apt/install_packages.sh`；应用专用依赖名称或本地 DEB 路径只能作为这一条调用命令的参数。只需要把指定 APT 包下载并解包进 AppDir、而不安装到构建环境时，统一调用 `common/apt/download_and_extract_packages.sh`，不得在应用脚本自行保留 `apt-get download` + DEB 遍历解包循环。
-- DEB 与 tar 系列归档统一调用 `common/archive/extract_archive.sh` 解包；应用脚本只能传入归档文件和目标目录，不得自行保留 `dpkg-deb -x` 或 `tar -x`。应用特有的文件定位、目录调整、desktop / icon 修改和 AppRun 内容仍留在应用脚本。
-- 所有 linuxdeploy 项目的第一次空 AppDir 初始化统一调用 `common/linuxdeploy/initialize_appdir.sh`。应用构建脚本只能保留一行调用，不得重复原始 linuxdeploy 命令或增加额外检查。
-- 新增项目或当前修改触及标准 `source`、`AppDir`、`dist`、`source/tools` 布局时，统一单行 `source common/linuxdeploy/prepare_build_workspace.sh` 设置公共路径并清理、重建工作目录；当前公共 linuxdeploy 工具链的 x86_64 架构检查也由该入口统一负责，项目脚本不得再重复 `uname -m` / 自定义 `die` 预检查。项目脚本只保留 DEB、desktop、icon 等应用专用路径，不得重复公共变量和目录初始化代码。
-- linuxdeploy 的 `ARCH`、`APPIMAGE_EXTRACT_AND_RUN`、工具目录 `PATH`、`LDAI_NO_APPSTREAM`、`LDAI_OUTPUT` 和 `LDAI_RUNTIME_FILE` 统一由 `common/linuxdeploy/configure_environment.sh` 设置。Qt 项目按实际工具调用设置 `QMAKE` 和必要的 Qt 工具路径；仅在实际通过 qtchooser 且需要显式选择安装时配置 `QT_SELECT`，不因使用 Qt5 或 Qt6 就机械追加该变量；GTK 项目自行追加 `DEPLOY_GTK_VERSION`，公共实现不得写死技术栈。需要把同一 Debian / Ubuntu 运行环境的 NSS 核心库与 dlopen 模块按当前稳定清单放入 AppDir 时，调用 `common/linuxdeploy/copy_nss_runtime.sh`，应用脚本不得重复维护同一组 NSS 文件列表。
-- 使用官方 appimagetool 与 Type 2 runtime 最终封装时，统一单行调用 `common/linuxdeploy/package_appimage.sh`；appimagetool 调用、最终资产非空检查、执行权限和 SHA-256 输出只在公共实现维护。调用方已经可靠取得当前软件版本时，应把版本作为第五参数交给该公共入口，由它在最终资产成功生成后写入同目录 `version.txt`，应用脚本不得再重复 `[[ -s ... ]]` 或 `printf ... > version.txt`。
+- 禁止在应用构建脚本中解析 Release JSON、HTML、校验清单或远端目录后自行选择最新版、拼接下载地址、提取摘要再二次下载。已有公共入口支持该来源时，调用处只能是一条命令；尚无合适入口时，必须先在 `Common/` 新增或扩展可复用实现，再由应用脚本单行调用。符合“正式 semver Release + `{version}` 资产模板 + GitHub SHA-256 digest”的 GitHub 资产需要直接下载时，统一调用 `Common/github/download_latest_stable_release_asset.sh`，应用脚本不得再保留 `mapfile`、URL / digest 拆分和二次 `download_file.sh` 调用。
+- 禁止在应用构建脚本中直接执行 `apt-get update`、`apt-get install` 或重复实现 root / sudo、非交互安装和通用包管理器错误处理。Debian / Ubuntu 构建统一调用 `Common/apt/install_packages.sh`；应用专用依赖名称或本地 DEB 路径只能作为这一条调用命令的参数。只需要把指定 APT 包下载并解包进 AppDir、而不安装到构建环境时，统一调用 `Common/apt/download_and_extract_packages.sh`，不得在应用脚本自行保留 `apt-get download` + DEB 遍历解包循环。
+- DEB 与 tar 系列归档统一调用 `Common/archive/extract_archive.sh` 解包；应用脚本只能传入归档文件和目标目录，不得自行保留 `dpkg-deb -x` 或 `tar -x`。应用特有的文件定位、目录调整、desktop / icon 修改和 AppRun 内容仍留在应用脚本。
+- 所有 linuxdeploy 项目的第一次空 AppDir 初始化统一调用 `Common/linuxdeploy/initialize_appdir.sh`。应用构建脚本只能保留一行调用，不得重复原始 linuxdeploy 命令或增加额外检查。
+- 新增项目或当前修改触及标准 `source`、`AppDir`、`dist`、`source/tools` 布局时，统一单行 `source Common/linuxdeploy/prepare_build_workspace.sh` 设置公共路径并清理、重建工作目录；当前公共 linuxdeploy 工具链的 x86_64 架构检查也由该入口统一负责，项目脚本不得再重复 `uname -m` / 自定义 `die` 预检查。项目脚本只保留 DEB、desktop、icon 等应用专用路径，不得重复公共变量和目录初始化代码。
+- linuxdeploy 的 `ARCH`、`APPIMAGE_EXTRACT_AND_RUN`、工具目录 `PATH`、`LDAI_NO_APPSTREAM`、`LDAI_OUTPUT` 和 `LDAI_RUNTIME_FILE` 统一由 `Common/linuxdeploy/configure_environment.sh` 设置。Qt 项目按实际工具调用设置 `QMAKE` 和必要的 Qt 工具路径；仅在实际通过 qtchooser 且需要显式选择安装时配置 `QT_SELECT`，不因使用 Qt5 或 Qt6 就机械追加该变量；GTK 项目自行追加 `DEPLOY_GTK_VERSION`，公共实现不得写死技术栈。需要把同一 Debian / Ubuntu 运行环境的 NSS 核心库与 dlopen 模块按当前稳定清单放入 AppDir 时，调用 `Common/linuxdeploy/copy_nss_runtime.sh`，应用脚本不得重复维护同一组 NSS 文件列表。
+- 使用官方 appimagetool 与 Type 2 runtime 最终封装时，统一单行调用 `Common/linuxdeploy/package_appimage.sh`；appimagetool 调用、最终资产非空检查、执行权限和 SHA-256 输出只在公共实现维护。调用方已经可靠取得当前软件版本时，应把版本作为第五参数交给该公共入口，由它在最终资产成功生成后写入同目录 `version.txt`，应用脚本不得再重复 `[[ -s ... ]]` 或 `printf ... > version.txt`。
 - “只保留一条调用”是指每一次独立下载、安装、解包或空 AppDir 初始化操作在调用方只有一条实际命令。允许把当前应用的官方 URL、仓库名、资产名模板、完整资产名正则、输出路径、版本文件、明确依赖列表、归档文件或 AppDir 路径作为参数传入；禁止在调用前后再复制公共脚本内部已经负责的解析、校验、重试、权限判断、安装、解包或初始化检查逻辑。
-- 下载完成后的通用格式解包由 `common/archive/extract_archive.sh` 负责；应用专用文件定位、布局调整、desktop / icon 修改和 AppRun 内容仍留在应用脚本。公共代码负责获取、校验、版本选择、版本元数据、通用安装和格式解包，应用代码负责使用已经取得并解包的文件完成自身打包。
-- 公共入口出现通用故障时，只修改对应 `common/` 实现并核对所有调用者接口；不得只在当前应用增加特殊重试、备用下载器或第二套解析。只有上游来源本身存在无法通用化的客观差异时，才允许增加新的公共接口参数或新的可复用公共 helper。
-- `common/` 中新增 helper 必须按可复用的协议、来源类型、文件格式或通用操作命名和实现，不得使用应用名、品牌名或把单一应用的 URL、JSON 字段、域名白名单、包名、资产名等硬编码进公共 helper。此类应用专用值应作为公共入口参数留在应用脚本；下载相关协议由公共入口兼容。应用的专属运行、界面和其他与下载无关的处理按各自规则维护。
+- 下载完成后的通用格式解包由 `Common/archive/extract_archive.sh` 负责；应用专用文件定位、布局调整、desktop / icon 修改和 AppRun 内容仍留在应用脚本。公共代码负责获取、校验、版本选择、版本元数据、通用安装和格式解包，应用代码负责使用已经取得并解包的文件完成自身打包。
+- 公共入口出现通用故障时，只修改对应 `Common/` 实现并核对所有调用者接口；不得只在当前应用增加特殊重试、备用下载器或第二套解析。只有上游来源本身存在无法通用化的客观差异时，才允许增加新的公共接口参数或新的可复用公共 helper。
+- `Common/` 中新增 helper 必须按可复用的协议、来源类型、文件格式或通用操作命名和实现，不得使用应用名、品牌名或把单一应用的 URL、JSON 字段、域名白名单、包名、资产名等硬编码进公共 helper。此类应用专用值应作为公共入口参数留在应用脚本；下载相关协议由公共入口兼容。应用的专属运行、界面和其他与下载无关的处理按各自规则维护。
 - 新增应用必须从一开始遵守本规则。修改既有应用且当前任务触及其下载、安装或解包段时，必须同时把该段迁移到公共入口；本规则不授权在无关任务中批量重写所有稳定项目。
 - 公共脚本只能依赖本仓库和软件官方上游，禁止调用、引用或提及其他代码仓库作为运行时实现来源。
 
 ## 永久规则：应用构建脚本不得堆通用验证，长参数按行宽排版（不可豁免）
 
-**可复用的命令检查、参数检查和输入检查只能由 `common/` 公共入口统一负责；应用 `build_*.sh` 不得重复堆放 `command -v` 循环、解包后的整组 `[[ -f ... ]]` / `[[ -x ... ]]` 清单或只为提前报错而存在的验证代码。没有公共复用价值、且后续正式命令本身会失败的检查直接删除。**
+**可复用的命令检查、参数检查和输入检查只能由 `Common/` 公共入口统一负责；应用 `build_*.sh` 不得重复堆放 `command -v` 循环、解包后的整组 `[[ -f ... ]]` / `[[ -x ... ]]` 清单或只为提前报错而存在的验证代码。没有公共复用价值、且后续正式命令本身会失败的检查直接删除。**
 
 强制范围：
 
@@ -928,10 +928,10 @@ AI 必须遵守最小修改原则。
 
 ### 仓库维护脚本的目录分工
 
-- 根目录 `Scripts/` 存放人工或 AI 经授权后明确调用、可通过参数复用的仓库维护工具。分类、入口和运行方式见 [Scripts/README.md](./Scripts/README.md)。`common/` 继续负责应用构建公共入口，`.github/scripts/` 继续负责 Actions 脚本。
+- 根目录 `Scripts/` 存放人工或 AI 经授权后明确调用、可通过参数复用的仓库维护工具。分类、入口和运行方式见 [Scripts/README.md](./Scripts/README.md)。`Common/` 继续负责应用构建公共入口，`.github/scripts/` 继续负责 Actions 脚本。
 - 文档统一采用总索引、分类索引、同名脚本说明三层结构：`Scripts/README.md` 只维护分类与通用约定，`Scripts/<分类>/README.md` 只维护脚本清单，具体用法写在同目录的 `<脚本名>.md`。新增、移动或重命名时同步维护这三层与外部引用，不把单个脚本的命令、参数表和异常处理堆入索引。
 - 删除已授权的单个 Release 附件时，统一调用 `Scripts/release/delete_asset.sh`，明确传入仓库、标签、已核实的完整附件名和 `--yes`。完整用法见 [delete_asset.md](./Scripts/release/delete_asset.md)。该入口使用运行环境已有认证、完整分页及按本次查询所得 ID 删除；并发删除返回 404 时仍须完整复查，其他删除失败、查询失败或复查失败不得宣称成功，不删除整个 Release。AI 归档通过 GitHub 连接器提交，由独立归档清理工作流使用 `GITHUB_TOKEN` 执行附件删除，不要求连接器提供删除接口，也不回退本机操作。
-- `Scripts/` 中的维护工具保持显式调用，不自动接入应用构建或定时任务。应用构建与打包下载继续使用 `common/`，不得借维护脚本绕过公共入口规则。
+- `Scripts/` 中的维护工具保持显式调用，不自动接入应用构建或定时任务。应用构建与打包下载继续使用 `Common/`，不得借维护脚本绕过公共入口规则。
 - 代码、注释和示例使用通用参数或占位符，不记录个人路径、主机、设备、网络、账号配置或凭据；本机认证输出、截图与日志不得直接复制进公共仓库。
 
 ### 不再使用的项目移入 archive
@@ -1125,7 +1125,7 @@ GitHub Actions 的临时 CI 容器 / runner 内可以使用 `pacman`、`yay`、`
 - 不允许静默吞掉关键错误；`|| true` 只能用于明确允许失败且后续有正常构建处理的非关键步骤。
 - 路径和变量必须正确引用，避免 word splitting 和 glob 意外展开。
 
-仓库内简单 HTTPS 文件下载必须通过 `common/download/download_file.sh`，由应用脚本传入当前上游 URL、输出路径和可选 SHA-256；不得在每个项目中重复维护相同的 curl 重试、超时、临时文件和摘要校验逻辑。应用构建与打包下载中的 GitHub API 请求统一复用 `common/github/github_api.sh` 的认证与请求入口；符合“正式 semver Release + 包含 `{version}` 的资产名 + GitHub SHA-256 digest”模式时，优先调用 `common/github/resolve_latest_stable_release_asset.sh`。linuxdeploy 项目准备 linuxdeploy、appimagetool、Type 2 runtime 及当前已支持的 GTK / Qt 插件时，优先调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh`。下载涉及特殊请求头、API、签名、认证或上游协议时，也必须由公共入口兼容。应用脚本只传入项目所需参数。已经稳定且本次未涉及的项目不为统一形式批量重构。
+仓库内简单 HTTPS 文件下载必须通过 `Common/download/download_file.sh`，由应用脚本传入当前上游 URL、输出路径和可选 SHA-256；不得在每个项目中重复维护相同的 curl 重试、超时、临时文件和摘要校验逻辑。应用构建与打包下载中的 GitHub API 请求统一复用 `Common/github/github_api.sh` 的认证与请求入口；符合“正式 semver Release + 包含 `{version}` 的资产名 + GitHub SHA-256 digest”模式时，优先调用 `Common/github/resolve_latest_stable_release_asset.sh`。linuxdeploy 项目准备 linuxdeploy、appimagetool、Type 2 runtime 及当前已支持的 GTK / Qt 插件时，优先调用 `Common/linuxdeploy/prepare_linuxdeploy_tools.sh`。下载涉及特殊请求头、API、签名、认证或上游协议时，也必须由公共入口兼容。应用脚本只传入项目所需参数。已经稳定且本次未涉及的项目不为统一形式批量重构。
 
 ### 构建脚本必须使用中文分区注释
 
@@ -1281,15 +1281,15 @@ AppImage 应只包含应用正常运行所需内容。
 
 凡使用 linuxdeploy 的项目，标准链路固定为三个阶段：
 
-1. 项目脚本单行调用 `common/linuxdeploy/initialize_appdir.sh`，由公共入口在空目录执行第一次普通 linuxdeploy，只创建 AppDir 的 `usr/bin`、`usr/lib`、`usr/share` 等基础目录；此时不提前放入应用、desktop、icon 或 AppRun。
+1. 项目脚本单行调用 `Common/linuxdeploy/initialize_appdir.sh`，由公共入口在空目录执行第一次普通 linuxdeploy，只创建 AppDir 的 `usr/bin`、`usr/lib`、`usr/share` 等基础目录；此时不提前放入应用、desktop、icon 或 AppRun。
 2. 初始化完成后再获取应用：发行版软件包同时安装到隔离构建环境并下载、解压到 AppDir，tar / GitHub Release 按上游布局解压到 AppDir；随后写完整根 `AppDir/AppRun`，第二次 linuxdeploy 再按技术栈部署插件并生成中间 AppImage；只有当前官方插件自身实际生成 hook 时，linuxdeploy 才自动生成对应 `apprun-hooks`、顶层 `AppRun` 和 `AppRun.wrapped`，禁止人工补齐。
-3. 只有确需整理路径并获准时才调用 `common/linuxdeploy/normalize_apprun_paths.sh`，只处理现有路径型 export；已确认的准确路径直接保留。已有临时调用在成品确认后再固化并移除。最后由官方 appimagetool 配合明确的 Type 2 runtime 封装正式 AppImage，只有最终产物可以发布。
+3. 只有确需整理路径并获准时才调用 `Common/linuxdeploy/normalize_apprun_paths.sh`，只处理现有路径型 export；已确认的准确路径直接保留。已有临时调用在成品确认后再固化并移除。最后由官方 appimagetool 配合明确的 Type 2 runtime 封装正式 AppImage，只有最终产物可以发布。
 
 完整顺序、普通 / Qt / GTK 命令、`DEPLOY_GTK_VERSION`、额外 `-l` 库和本地已验证命令统一见根目录 `linuxdeploy_projects.md`。核心结构如下：
 
 ```bash
 # 单行调用公共入口；其内部保留原始 linuxdeploy 命令并核对初始化结果
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR"
+"$SCRIPT_DIR/../Common/linuxdeploy/initialize_appdir.sh" "$APPDIR"
 
 # 此处下载应用：安装到构建环境，并按上游真实布局解压到 AppDir
 
@@ -1331,7 +1331,7 @@ linuxdeploy 插件分为输入 / bundling 插件和输出插件。输入插件�
 - 一个项目只启用其技术栈和已确认运行需求所需的输入插件。Qt 使用 `--plugin qt`，GTK 使用 `--plugin gtk`，GStreamer 按需使用 `--plugin gstreamer`；不得为了“打得更全”一次启用全部插件。
 - Qt 插件只解决 Qt 框架资源部署，不替代与主程序主版本一致的 Qt 运行库、qmake / qtpaths 和 plugins，也不替代 linuxdeploy 对普通 ELF 依赖的收集。
 - GTK 插件支持通过 `DEPLOY_GTK_VERSION` 明确 GTK 2 / 3 / 4；已确认主版本时应显式设置，避免依赖自动检测产生歧义。
-- 官方 `linuxdeploy-plugin-gtk` 当前没有复制 GIO dynamic modules。新增、迁移或重做 GTK linuxdeploy 项目时，必须通过 `common/linuxdeploy/prepare_linuxdeploy_tools.sh <工具目录> gtk` 取得经过 Git blob 校验并按需补入 GIO modules 复制逻辑的插件；不得直接下载未修补的官方脚本作为最终构建输入。公共脚本只在上游仍缺少 `gio_moduledir` 时应用一次最小修复，上游加入等价实现后自动跳过。已经验证稳定且本次未涉及的旧项目不为套用该规则批量改写。
+- 官方 `linuxdeploy-plugin-gtk` 当前没有复制 GIO dynamic modules。新增、迁移或重做 GTK linuxdeploy 项目时，必须通过 `Common/linuxdeploy/prepare_linuxdeploy_tools.sh <工具目录> gtk` 取得经过 Git blob 校验并按需补入 GIO modules 复制逻辑的插件；不得直接下载未修补的官方脚本作为最终构建输入。公共脚本只在上游仍缺少 `gio_moduledir` 时应用一次最小修复，上游加入等价实现后自动跳过。已经验证稳定且本次未涉及的旧项目不为套用该规则批量改写。
 - linuxdeploy 自动发现不到的 `dlopen` 库、NSS / provider、helper 或其他运行时模块，须根据当前应用的源码、ELF、日志、已有产物或真实运行反馈精确补入；保留本项目已获准的收集方式，不得复制其他项目的整组库。
 - `--plugin <名称>` 与 `--output appimage` 应在第二次 linuxdeploy 命令中同时使用：输入插件部署当前版本实际提供的资源，输出阶段产生中间 AppImage；只有插件自身生成非空 hook 时才由 linuxdeploy 自动生成顶层 AppRun / AppRun.wrapped。
 - 对应应用 README 的“打包方式”必须写清实际启用了哪些输入插件、为什么需要、额外补入了哪些库，以及最终 appimagetool / runtime 封装方式。
@@ -1355,7 +1355,7 @@ linuxdeploy 插件分为输入 / bundling 插件和输出插件。输入插件�
 
 linuxdeploy 额外规则：
 
-- 第一次必须由项目脚本单行调用 `common/linuxdeploy/initialize_appdir.sh`；该公共入口在空目录执行普通 `linuxdeploy --appdir AppDir --output appimage`，只由 linuxdeploy 创建 AppDir 基础目录。应用文件、desktop、icon、AppRun 和对应命令参数都在该次初始化完成后准备。
+- 第一次必须由项目脚本单行调用 `Common/linuxdeploy/initialize_appdir.sh`；该公共入口在空目录执行普通 `linuxdeploy --appdir AppDir --output appimage`，只由 linuxdeploy 创建 AppDir 基础目录。应用文件、desktop、icon、AppRun 和对应命令参数都在该次初始化完成后准备。
 - **所有 linuxdeploy 项目的自定义启动入口位置固定为 AppDir 根目录的 `AppDir/AppRun`，没有 Qt、GTK、GStreamer 或普通应用之分，也不得改到其他路径。** 应用安装 / 解压到 AppDir 后、第二次 linuxdeploy 前，把当前项目完整的自定义启动逻辑写入 `AppDir/AppRun` 并赋予执行权限。
 - 根 AppRun 必须把 `$HERE/usr/bin`、`$HERE/usr/lib`、`$HERE/usr/share` 分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`。当前项目额外需要的 `/opt`、Qt / GTK 环境、工作目录和最终 `exec ... "$@"` 继续直接写在这个根 `AppDir/AppRun` 中；不得遗漏三个 `/usr` 基础路径，也不得把核心启动逻辑写进新建的 `AppDir/usr/bin/<程序名>`、其他 wrapper 或 launcher 后再让根 AppRun 二次转发。
 - **`AppDir/usr/bin/` 允许为空。** linuxdeploy 第一次执行时可能自动创建 `AppDir/usr/bin/`，目录被创建不代表项目必须把程序入口放进去，也不代表必须补文件。上游 DEB 或归档如果把应用本体放在 `/opt/<应用>/` 且没有真实的 `usr/bin` 入口，就保持 `AppDir/opt/<应用>/` 原布局并忽略空的 `AppDir/usr/bin/`；根 `AppDir/AppRun` 必须直接执行 `$HERE/opt/<应用>/<真实主程序>`。
@@ -1367,7 +1367,7 @@ linuxdeploy 额外规则：
 - AppRun 只加入当前应用真实需要的路径、Qt / GTK 环境和兼容设置，最后直接执行当前应用的真实入口并原样传递 `"$@"`。
 - 第二次按技术栈执行普通、Qt、GTK 或 GStreamer 命令，并且必须保留 `--output appimage`。只有当前官方插件自身实际生成非空 `apprun-hooks` 时，linuxdeploy 输出阶段才会把自定义 `AppRun` 保存为 `AppRun.wrapped`，再生成新的顶层 `AppRun` 加载 hooks 并执行 `AppRun.wrapped`；没有 hook 时完整根 `AppRun` 保持为顶层入口。
 - **禁止手工创建、复制、下载、修改或注入任何 linuxdeploy hook；禁止用空 hook、`true` hook、兼容 hook或占位 hook触发包装；禁止因当前插件没有生成 `AppRun.wrapped` 而自行补造或让构建失败。**
-- 不得手工创建或覆盖 `AppRun.wrapped`，也不得覆盖 linuxdeploy 生成的顶层 hook AppRun。`common/linuxdeploy/normalize_apprun_paths.sh` 只在确需整理路径并获准时使用，且只能修改现有路径型 export。已有临时调用在用户确认成品并核对真实目录后，再将准确 export 固化回构建脚本并移除；已确定的项目不重复加入该调用。
+- 不得手工创建或覆盖 `AppRun.wrapped`，也不得覆盖 linuxdeploy 生成的顶层 hook AppRun。`Common/linuxdeploy/normalize_apprun_paths.sh` 只在确需整理路径并获准时使用，且只能修改现有路径型 export。已有临时调用在用户确认成品并核对真实目录后，再将准确 export 固化回构建脚本并移除；已确定的项目不重复加入该调用。
 - linuxdeploy 完成后必须按实际产物核对入口：有官方插件生成的 hook 时核对 `AppRun → AppRun.wrapped` 执行链；没有 hook 时核对完整自定义逻辑仍保留在顶层 `AppRun`。
 - linuxdeploy 输出的 AppImage 只用于完成自身输出阶段，不进入发布目录；最终使用官方 appimagetool 和明确的 Type 2 runtime 对同一个 AppDir 重新封装。
 
@@ -1582,7 +1582,7 @@ AI 应根据当前任务和修改风险选择最小且有效的检查，不需�
 
 先按第 6 节确定当前项目的路线。quick-sharun 的完整做法、mpv 这类短写法和“非必要不写 AppRun.sh”以根目录 `anylinux_projects.md` 为准；本节只保留最短链路。官方 AppImage 原样同步不套用本节的依赖收集和封装命令，选择 linuxdeploy 的项目仍执行其专属流程。已有稳定实现保持原样。
 
-**以后所有新建或本次修改涉及的基础包统一按 [`docs/appimage-build-dependency-list.md`](./docs/appimage-build-dependency-list.md) 执行。** Arch 和 Ubuntu 使用各自系统中一一对应的精确包名，不得混用。Arch 应用通过 `common/arch/install_packages.sh --base` 安装完整的 95 项基础包，后续参数只用于追加当前应用的软件包；Ubuntu 应用通过 `common/apt/install_packages.sh` 自动追加完整的 Ubuntu 对应包。
+**以后所有新建或本次修改涉及的基础包统一按 [`Docs/appimage-build-dependency-list.md`](./Docs/appimage-build-dependency-list.md) 执行。** Arch 和 Ubuntu 使用各自系统中一一对应的精确包名，不得混用。Arch 应用通过 `Common/arch/install_packages.sh --base` 安装完整的 95 项基础包，后续参数只用于追加当前应用的软件包；Ubuntu 应用通过 `Common/apt/install_packages.sh` 自动追加完整的 Ubuntu 对应包。
 
 **v2rayN 是有故障记录的特例：** 提前安装整套 Arch 基础包曾使其图形检查出现 `free(): invalid pointer`；改在产物与图形检查之后安装又不参与打包。因此 `v2rayn/build_v2rayn.sh` 只在打包前安装该应用已核实的精确依赖及发布所需的 `github-cli`，不调用末尾的 `--base`。此特例不改变统一基础包清单，也不适用于其他应用；原因和未验证状态见 `v2rayn/README.md`。
 
@@ -1630,9 +1630,9 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装官方软件包及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" <应用包> <已确认的运行依赖>
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" <应用包> <已确认的运行依赖>
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist
@@ -1650,7 +1650,7 @@ export OUTPATH="$SCRIPT_DIR/dist"
 export OUTNAME=<应用名>.AppImage
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman <应用包>)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman <应用包>)"
 
 # 收集程序及其运行依赖。
 quick-sharun /usr/bin/<主程序>
@@ -1659,7 +1659,7 @@ quick-sharun /usr/bin/<主程序>
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/<应用名>.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/<应用名>.AppImage "$VERSION" dist/version.txt
 ```
 
 实际脚本中不得保留示例占位符，变量只设置当前项目真实需要的值；不需要的 export 不得为了模板完整而硬加。应用存在标准 `/usr/bin` 入口时，**不得先手工复制整个程序、依赖库或 plugin 到 AppDir，再调用 quick-sharun**。
@@ -1680,7 +1680,7 @@ mkdir -p ./AppDir/shared/bin
 cp -a /opt/<应用目录>/. ./AppDir/shared/bin/
 
 # 或 tar 应用：通过公共入口按上游真实目录结构解压到 shared/bin
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" "<上游归档>" "./AppDir/shared/bin"
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" "<上游归档>" "./AppDir/shared/bin"
 
 # 对 shared/bin 中的真实主程序执行 quick-sharun
 quick-sharun ./AppDir/shared/bin/<主程序>

@@ -8,21 +8,21 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" chatgpt-desktop dpkg fcitx5-gtk bubblewrap cups freetype2 libxi libxtst libxkbfile libva libvdpau wayland pipewire pipewire-audio libcap adwaita-icon-theme
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" chatgpt-desktop dpkg fcitx5-gtk bubblewrap cups freetype2 libxi libxtst libxkbfile libva libvdpau wayland pipewire pipewire-audio libcap adwaita-icon-theme
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist chatgpt.deb chatgpt-unpacked
 mkdir -p AppDir/bin dist
 
 # 下载官方当前 DEB。
-"$SCRIPT_DIR/../common/aur/download_deb_source.sh" \
+"$SCRIPT_DIR/../Common/aur/download_deb_source.sh" \
   chatgpt-desktop x86_64 \
   chatgpt.deb
 
 # 解包官方 DEB。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" chatgpt.deb chatgpt-unpacked
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" chatgpt.deb chatgpt-unpacked
 
 # 整个程序目录原样放进 AppDir/bin。
 cp -a chatgpt-unpacked/usr/lib/chatgpt/. AppDir/bin/
@@ -50,7 +50,7 @@ export OUTNAME=chatgpt.AppImage
 export DEPLOY_GTK=1
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json AppDir/bin/resources/linux-package-metadata.json)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" package-json AppDir/bin/resources/linux-package-metadata.json)"
 
 # 复用官方代码：收集程序及其运行依赖。
 quick-sharun ./AppDir/bin/*
@@ -76,7 +76,7 @@ set -- --no-sandbox --disable-setuid-sandbox "$@"
 HOOK
 
 # 本仓库兼容处理：启动时注册 codex://。包内 desktop 不会进入宿主 applications 目录。
-bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
+bash "$SCRIPT_DIR/../Common/desktop/write_scheme_hook.sh" \
   --output AppDir/bin/20-chatgpt-protocol.hook \
   --desktop-file chatgpt.desktop \
   --name ChatGPT \
@@ -90,4 +90,4 @@ bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/chatgpt.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/chatgpt.AppImage "$VERSION" dist/version.txt

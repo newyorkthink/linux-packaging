@@ -24,7 +24,7 @@ Folo 为 Electron / GTK3 桌面应用。构建脚本由 [Electron GitHub DEB 标
 
 ## 实机验证
 
-记录格式采用[实机验证通过记录模板](../docs/templates/documentation/real-machine-validation.md)。
+记录格式采用[实机验证通过记录模板](../Docs/templates/documentation/real-machine-validation.md)。
 
 ### 2026-11-04：用户实机验证通过（1.17.0）
 
@@ -59,7 +59,7 @@ Folo 为 Electron / GTK3 桌面应用。构建脚本由 [Electron GitHub DEB 标
 - 故障现象：构建读取 Folo Releases API 时收到 HTTP 403，在下载官方 AppImage 前退出。
 - 根因：应用脚本直接发起未认证的 GitHub API 请求，容易触发匿名请求限额。
 - 修改文件：`folo/build_folo.sh`、本 README。
-- 修复内容：改用仓库现有 `common/github/github_api.sh` 请求 Release 元数据，自动使用 workflow 提供的 `GH_TOKEN`，并保留原有稳定版筛选、资产 URL 与摘要校验逻辑。
+- 修复内容：改用仓库现有 `Common/github/github_api.sh` 请求 Release 元数据，自动使用 workflow 提供的 `GH_TOKEN`，并保留原有稳定版筛选、资产 URL 与摘要校验逻辑。
 - 已知结果：API 请求已接入统一认证与重试入口；后续构建与实机通过结果见上文。
 
 ### 2026-11-03：通过生成器迁移到标准 DEB 模板

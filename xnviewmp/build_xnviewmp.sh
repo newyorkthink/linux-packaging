@@ -11,32 +11,32 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ############# 准备构建目录 #############
 
 # 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" xnviewmp
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" xnviewmp
 
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg qmake6 qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n qt6-wayland fcitx5-frontend-qt6 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good libpipewire-0.3-0t64 libpulse0 libpulse-mainloop-glib0 libva2 libva-drm2 libva-x11-2 libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 libudev1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1 locales
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" dpkg qmake6 qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools qt6-qpa-plugins qt6-gtk-platformtheme qt6-translations-l10n qt6-wayland fcitx5-frontend-qt6 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good libpipewire-0.3-0t64 libpulse0 libpulse-mainloop-glib0 libva2 libva-drm2 libva-x11-2 libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 libudev1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1 locales
 
 ############# 下载打包工具 #############
 
 # 下载并校验打包工具及所需插件，随后加载构建环境配置。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" qt "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" qt "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 
 ############ 初始化 AppDir #############
 
 # 首次运行 linuxdeploy，创建 AppDir 的基础目录。
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
+"$SCRIPT_DIR/../Common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
 ############ 下载并准备应用 #############
 
 # 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
-VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" --checksum "https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt" '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$SOURCE_DIR/XnView_MP.deb" "$APPDIR")"
+VERSION="$("$SCRIPT_DIR/../Common/github/install_and_extract_latest_stable_release_deb.sh" --checksum "https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt" '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.deb$' "$SOURCE_DIR/XnView_MP.deb" "$APPDIR")"
 
 ########## 准备桌面资源和运行库 #########
 
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
+"$SCRIPT_DIR/../Common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
 
 # 本程序专属处理：指定 XnView MP 官方安装包中的桌面入口和图标路径，供图标修正及 linuxdeploy 图标部署使用。
 DESKTOP_FILE="$APPDIR/usr/share/applications/XnView.desktop"
@@ -132,4 +132,4 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --icon-file "$ICON_FILE" --plugi
 ############### 整理产物 ###############
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+"$SCRIPT_DIR/../Common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

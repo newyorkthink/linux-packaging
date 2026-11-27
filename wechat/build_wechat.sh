@@ -11,33 +11,33 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ############# 准备构建目录 #############
 
 # 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "wechat"
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "wechat"
 
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" dpkg-dev pkgconf libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev librsvg2-dev librsvg2-common libpango1.0-dev ibus-gtk3 libibus-1.0-5 libpulse0 libvlc5 libjack-jackd2-0 libnss3 libnspr4 libasound2t64 libxss1 libsecret-1-0 libnotify4 libgbm1 libegl1 libgl1 libvulkan1 libpipewire-0.3-0t64 libxcb-cursor0 libxkbcommon-x11-0 libxcb-render-util0 libxcb-keysyms1 libxcb-image0 libxcb-icccm4 hicolor-icon-theme adwaita-icon-theme fonts-noto-cjk
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" dpkg-dev pkgconf libglib2.0-bin libglib2.0-dev libgirepository1.0-dev libgtk-3-bin libgtk-3-dev libgdk-pixbuf2.0-bin libgdk-pixbuf-2.0-dev librsvg2-dev librsvg2-common libpango1.0-dev ibus-gtk3 libibus-1.0-5 libpulse0 libvlc5 libjack-jackd2-0 libnss3 libnspr4 libasound2t64 libxss1 libsecret-1-0 libnotify4 libgbm1 libegl1 libgl1 libvulkan1 libpipewire-0.3-0t64 libxcb-cursor0 libxkbcommon-x11-0 libxcb-render-util0 libxcb-keysyms1 libxcb-image0 libxcb-icccm4 hicolor-icon-theme adwaita-icon-theme fonts-noto-cjk
 
 ############# 下载打包工具 #############
 
 # 下载并校验打包工具及所需插件，随后加载构建环境配置。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" gtk "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" gtk "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 
 ############ 初始化 AppDir #############
 
 # 首次运行 linuxdeploy，创建 AppDir 的基础目录。
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
+"$SCRIPT_DIR/../Common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
 ############ 下载并准备应用 #############
 
 # 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
-VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" --url "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb" "" "$SOURCE_DIR/WeChatLinux_x86_64.deb" "$APPDIR" "wechat" "amd64")"
+VERSION="$("$SCRIPT_DIR/../Common/github/install_and_extract_latest_stable_release_deb.sh" --url "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb" "" "$SOURCE_DIR/WeChatLinux_x86_64.deb" "$APPDIR" "wechat" "amd64")"
 
 # 本程序专属处理：规范包内主桌面入口，根 desktop 和图标交给 linuxdeploy 部署。
 sed -i -e 's|^Exec=.*$|Exec=wechat %U|' -e 's|^Icon=.*$|Icon=wechat|' "$APPDIR/usr/share/applications/wechat.desktop"
 
 # 本程序专属处理：复用公共入口部署同一构建环境的 NSS/NSPR 及动态加载模块。
-"$SCRIPT_DIR/../common/linuxdeploy/copy_nss_runtime.sh" "$APPDIR/usr/lib" --with-nspr
+"$SCRIPT_DIR/../Common/linuxdeploy/copy_nss_runtime.sh" "$APPDIR/usr/lib" --with-nspr
 
 ############# 准备 AppRun ##############
 
@@ -82,4 +82,4 @@ MULTIARCH="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
 linuxdeploy --appdir "$APPDIR" --desktop-file "$APPDIR/usr/share/applications/wechat.desktop" --deploy-deps-only "$APPDIR/opt/wechat/wechat" --library "/usr/lib/$MULTIARCH/libpulse.so.0" --library "/usr/lib/$MULTIARCH/libpulse-simple.so.0"
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+"$SCRIPT_DIR/../Common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

@@ -14,7 +14,7 @@ Chromium / Blink，GTK3 原生界面组件。依赖由 `pacman`/`yay` 按 `chrom
 
 ## 打包方式
 
-- 使用仓库生成器的[完整程序目录模板](../Templates/quick-sharun/electron-installed.sh)，归入 [Arch 官方仓库程序](../docs/packaging-classification.md#从系统完整程序目录收集)。Arch 的 `/usr/bin/chromium` 是启动器，模板将 `/usr/lib/chromium/` 的主程序和相邻资源完整复制到 `AppDir/bin/`。
+- 使用仓库生成器的[完整程序目录模板](../Templates/quick-sharun/electron-installed.sh)，归入 [Arch 官方仓库程序](../Docs/packaging-classification.md#从系统完整程序目录收集)。Arch 的 `/usr/bin/chromium` 是启动器，模板将 `/usr/lib/chromium/` 的主程序和相邻资源完整复制到 `AppDir/bin/`。
 - 公共入口从本次安装的 `chromium` 包读取版本，在封装成功后写入 `dist/version.txt`。桌面入口和图标使用 Arch 官方包的文件。
 - Chromium 的生成参数显式安装 `qt6-base`，满足 `libqt6_shim.so` 的依赖，并收集 IBus 与 Fcitx5 的 GTK3 输入模块。中文 locale 由模板生成。
 - 使用生成参数保留 OpenGL 部署、AppImage 挂载保持和构建期依赖探测。`about:blank --no-sandbox` 只传给构建期间临时启动的 Chromium，发布的 AppImage 使用浏览器默认沙箱。

@@ -6,7 +6,7 @@
 
 ## 技术栈与打包方式
 
-Deskflow 是跨平台键鼠共享软件，Linux GUI 使用 Qt6。构建脚本已对齐标准模板 [qt-installed.sh](../Templates/quick-sharun/qt-installed.sh)，统一通过 `common/` 公共脚本安装 Deskflow、Qt6 主题/输入插件及 X11/Wayland 依赖，启用 `DEPLOY_QT=1` 与包内中文 locale，收集 `deskflow`、`deskflow-core` 和 `xdotool`，再把 `/usr/share/deskflow/translations` 整目录放进包并链接到主程序旁，详见 [模板差异说明](./docs/template-deviations.md)。该目录里的英文、西班牙语、意大利语、日语、韩语、俄语和简体中文一起进包。
+Deskflow 是跨平台键鼠共享软件，Linux GUI 使用 Qt6。构建脚本已对齐标准模板 [qt-installed.sh](../Templates/quick-sharun/qt-installed.sh)，统一通过 `Common/` 公共脚本安装 Deskflow、Qt6 主题/输入插件及 X11/Wayland 依赖，启用 `DEPLOY_QT=1` 与包内中文 locale，收集 `deskflow`、`deskflow-core` 和 `xdotool`，再把 `/usr/share/deskflow/translations` 整目录放进包并链接到主程序旁，详见 [模板差异说明](./docs/template-deviations.md)。该目录里的英文、西班牙语、意大利语、日语、韩语、俄语和简体中文一起进包。
 
 ## 运行
 

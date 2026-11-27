@@ -14,7 +14,7 @@
 
 ## 标准参考与专属差异
 
-本目录是 CLI / 无框架插件类型标准参考，统一规则见 [linuxdeploy 规范](../linuxdeploy_projects.md)。公共注释逐字复用 [固定注释标准](../docs/linuxdeploy-comments.md)；当前包的图标、desktop 和依赖说明见 [专属差异](./docs/template-deviations.md)，不作为所有 CLI 程序的默认步骤。
+本目录是 CLI / 无框架插件类型标准参考，统一规则见 [linuxdeploy 规范](../linuxdeploy_projects.md)。公共注释逐字复用 [固定注释标准](../Docs/linuxdeploy-comments.md)；当前包的图标、desktop 和依赖说明见 [专属差异](./docs/template-deviations.md)，不作为所有 CLI 程序的默认步骤。
 
 ## 技术栈
 
@@ -114,12 +114,12 @@ linuxdeploy 默认不捆绑 glibc / 动态加载器，因此宿主仍需满足 U
 - **检查对象与证据：** [Build MediaInfo Job 124500994832](https://github.com/newyorkthink/linux-packaging/actions/runs/41188749603/job/124500994832) 的现成日志、当前应用脚本、公共最终封装入口和图标准备入口。日志显示 linuxdeploy 已生成中间 AppImage，随后公共入口因没有 SVG 转 PNG 工具而退出；最终封装未完成。
 - **原因：** 当前应用下载官方 SVG。为适配新版 appimagetool 的根图标选择，公共入口会在没有同名 PNG / XPM 时补 PNG；原依赖没有安装转换工具。
 - **处理：** 仅在原依赖命令末尾追加 `librsvg2-bin`。保留官方 SVG、标准注释、AppRun、linuxdeploy 命令和最终封装命令。公共图标准备入口只补充用途、依赖说明和缺包提示，权限与图标处理逻辑保持不变。
-- **上游与公共机制：** 新版不再主动用 SVG 生成 `.DirIcon`，并加强其有效性检查，但仍接受已有有效 `.DirIcon` 的回退路径；不能表述为所有 AppImage 一律禁止 SVG。详细依据和公共入口的适用条件见 [appimagetool 图标检查与 SVG 兼容处理](../docs/appimagetool-icon-compatibility.md)。
+- **上游与公共机制：** 新版不再主动用 SVG 生成 `.DirIcon`，并加强其有效性检查，但仍接受已有有效 `.DirIcon` 的回退路径；不能表述为所有 AppImage 一律禁止 SVG。详细依据和公共入口的适用条件见 [appimagetool 图标检查与 SVG 兼容处理](../Docs/appimagetool-icon-compatibility.md)。
 - **验证边界：** 已依据现成失败日志、上游提交及源码完成静态核对；本次未执行安装、试打包或程序运行，补包后的正式构建结果尚未核实。
 
 ### 2026-11-01：补齐中间封装前的公共图标准备
 
 - **故障依据：** [运行 #1102 的 Build MediaInfo](https://github.com/newyorkthink/linux-packaging/actions/runs/41298501421/job/124824392797) 在 linuxdeploy 中间封装时报 `.DirIcon does not exist`，根目录没有 `mediainfo.png` / XPM，随后因 `.DirIcon` 无效退出。已有 `librsvg2-bin`，此次没有走到最终封装的转换入口。
 - **原因与处理：** linuxdeploy 更新后内置 appimagetool 从 build 295 变为 340，提前暴露了公共准备只覆盖最终封装的缺口。工具准备入口现安装外部输出包装，在桌面资源部署完成后、官方输出插件执行前复用现有权限和 PNG 准备。工具继续从官方 continuous 下载并校验。
-- **稳定基线：** 本项目 build、完整 AppRun、官方 SVG、依赖、两阶段 linuxdeploy 命令及最终封装命令均未修改；不切换 quick-sharun，不改变已确认的 lf 预览路线。公共实现和官方依据见 [更新兼容说明](../docs/linuxdeploy-update-compatibility.md)。
+- **稳定基线：** 本项目 build、完整 AppRun、官方 SVG、依赖、两阶段 linuxdeploy 命令及最终封装命令均未修改；不切换 quick-sharun，不改变已确认的 lf 预览路线。公共实现和官方依据见 [更新兼容说明](../Docs/linuxdeploy-update-compatibility.md)。
 - **验证范围：** 提交前检查结果与完整应用构建的边界见上述公共说明；本记录不把临时目录验证写成新的 MediaInfo 正式构建或实机验收。

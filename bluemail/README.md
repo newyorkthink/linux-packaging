@@ -6,12 +6,12 @@
 
 ## 打包方式
 
-- `common/arch/install_packages.sh --base` 安装统一基础包；公共工作区准备完成后，同一入口通过 `--aur-source` 与显式 `--snap-stable bluemail blix amd64` 安装 `bluemail` 及已确认的运行库和 GTK3 输入模块，并保留同次下载来源。
+- `Common/arch/install_packages.sh --base` 安装统一基础包；公共工作区准备完成后，同一入口通过 `--aur-source` 与显式 `--snap-stable bluemail blix amd64` 安装 `bluemail` 及已确认的运行库和 GTK3 输入模块，并保留同次下载来源。
 - Ubuntu 来源节点通过公共 APT 入口安装发行版提供的 Snap 客户端、PyYAML 和 SquashFS 工具，再由公共 Snap 入口显式使用 `snap` 模式取得官方 `latest/stable`。`snap download` 验证签名声明，公共入口再核对发布者、包内版本与架构、文件大小及 SHA3-384。Snap 和 JSON 一起存为本次 run 的 `bluemail-snap-source` Artifact，保留一天；Arch 节点取回后再次核对身份、通道和文件摘要。其他应用不依赖该来源节点。
 - 安装入口只获取 AUR 配方，不先下载或安装其旧版 Snap；配方同步助手核对新旧 Snap ID，仅更新临时 PKGBUILD 的版本、选中来源和对应 SHA-256 / SHA-512。公共入口准备配方声明的依赖后，在改好的配方目录中以其所属非 root 用户直接执行 makepkg，重新生成 `.SRCINFO` 并安装；其他来源及其摘要保持原样。
 - 安装后从同次 `.SRCINFO` 唯一匹配 `bluemail-{version}.snap`，重新校验同一份缓存，再导出 `work/bluemail.snap` 和 `work/source-version.txt`。当前配方使用 SHA-512；新摘要只从通过官方 SHA3-384 的文件计算，makepkg 校验照常执行，导出过程不再次下载 Snap。
-- 正式 CI 使用官方客户端模式，Arch 安装阶段只复用本次 run 的来源，不再请求 Snap Store 元数据；应用脚本与原 Arch 安装、解包及打包命令保持原样。公共入口原有 `curl` 模式仍保留 DNS 失败时的 DoH 备用解析，接口边界见[公共 Snap 下载说明](../common/README.md#snap-store-官方稳定通道)。
-- `common/archive/extract_archive.sh` 解包 Snap。构建脚本保留 BlueMail 自带的 Electron/Chromium 程序、相邻库和资源，去掉 Snap 专用宿主运行时目录。
+- 正式 CI 使用官方客户端模式，Arch 安装阶段只复用本次 run 的来源，不再请求 Snap Store 元数据；应用脚本与原 Arch 安装、解包及打包命令保持原样。公共入口原有 `curl` 模式仍保留 DNS 失败时的 DoH 备用解析，接口边界见[公共 Snap 下载说明](../Common/README.md#snap-store-官方稳定通道)。
+- `Common/archive/extract_archive.sh` 解包 Snap。构建脚本保留 BlueMail 自带的 Electron/Chromium 程序、相邻库和资源，去掉 Snap 专用宿主运行时目录。
 - Arch Linux 容器中的 quick-sharun 收集主程序依赖并生成默认入口。构建脚本把需要保持相邻关系的官方 Snap 程序、库和 Electron 资源解包到自己创建的 `AppDir/shared/bin/`，因此通过 `AppDir/.env` 把该目录设为额外库目录和工作目录；这不是所有 Snap 的固定路径。`90-bluemail-arguments.hook` 通过 quick-sharun 通用 hook 机制保留官方 Snap 使用的 `--ozone-platform=x11 --no-sandbox` 参数。桌面图标与 desktop 文件来自同一 Snap。
 - `20-bluemail-protocol.hook` 在每次启动时，把本次实际的 AppImage 路径写成 `~/.local/share/applications/bluemail.desktop`（`Exec` 使用 `%U`），并在 `~/.config/mimeapps.list` 的 `[Default Applications]` 中把 `x-scheme-handler/me.blueone.linux` 指到该文件。不修改 `mailto` 的现有默认程序。quick-sharun 使用的 DWARFS AppImage 不能靠 appimagelauncher 完成这项注册。
 - 将 ICU、PAK、`locales` 和 `resources` 以包内链接接到启动包装器旁，保持 Electron 按可执行文件目录查找资源的行为。
@@ -19,7 +19,7 @@
 
 - 第一次依赖收集后生成包内 `zh_CN.UTF-8` locale，并把 `LANG`、`LANGUAGE`、`LC_MESSAGES` 和 `LOCPATH` 追加到现有 `.env`；输入法模块与语言数据分别处理，不覆盖宿主输入法变量。
 
-本目录采用 Snap 专用流程，共用标准初始化、基础安装、打包元数据、locale、版本读取和最终保存步骤；Snap 解包布局、资源链接及 OAuth 处理留在应用脚本。入口、差异和依据见 [模板差异](./docs/template-deviations.md)、[固定配置](./docs/hardcoded.md)及[打包分类](../docs/packaging-classification.md#专用打包流程)。
+本目录采用 Snap 专用流程，共用标准初始化、基础安装、打包元数据、locale、版本读取和最终保存步骤；Snap 解包布局、资源链接及 OAuth 处理留在应用脚本。入口、差异和依据见 [模板差异](./docs/template-deviations.md)、[固定配置](./docs/hardcoded.md)及[打包分类](../Docs/packaging-classification.md#专用打包流程)。
 
 ## 运行
 
@@ -32,7 +32,7 @@
 
 ## 版本元数据
 
-公共安装入口使用 Snap Store 同次稳定通道响应中的版本更新临时配方，安装后要求实际版本与同次官方版本逐字一致，再与重新生成的 `.SRCINFO` 的 `pkgver` 核对后写入 `work/source-version.txt`；打包前由 `common/build/read_app_version.sh text` 读取，并通过 `VERSION` 传给 quick-sharun。最终 AppImage 成功生成后，`common/build/save_appimage_version.sh` 检查产物、统一执行权限并写入 `bluemail/dist/version.txt`，供正式工作流更新软件版本清单。
+公共安装入口使用 Snap Store 同次稳定通道响应中的版本更新临时配方，安装后要求实际版本与同次官方版本逐字一致，再与重新生成的 `.SRCINFO` 的 `pkgver` 核对后写入 `work/source-version.txt`；打包前由 `Common/build/read_app_version.sh text` 读取，并通过 `VERSION` 传给 quick-sharun。最终 AppImage 成功生成后，`Common/build/save_appimage_version.sh` 检查产物、统一执行权限并写入 `bluemail/dist/version.txt`，供正式工作流更新软件版本清单。
 
 ## 维护说明
 
@@ -79,7 +79,7 @@ Linux 实机添加 Gmail 账户时，BlueMail 正常调用外部浏览器完成 
 
 ## 2026-09-24：Gmail 登录已完成，协议注册改用公共入口
 
-Linux 实机使用当时的 `bluemail.AppImage` 添加 Gmail 账户。日志仍出现 `Decoded URL param: null`，账户随后出现并进入完成设置，该行不代表登录失败。打开登录页用的是系统默认网页浏览器。协议注册改由 `common/desktop/write_scheme_hook.sh` 生成 `20-bluemail-protocol.hook`，注册的仍是 `me.blueone.linux`，不改 `mailto` 的现有默认程序。单斜杠补齐仍留在 `90-bluemail-arguments.hook`。
+Linux 实机使用当时的 `bluemail.AppImage` 添加 Gmail 账户。日志仍出现 `Decoded URL param: null`，账户随后出现并进入完成设置，该行不代表登录失败。打开登录页用的是系统默认网页浏览器。协议注册改由 `Common/desktop/write_scheme_hook.sh` 生成 `20-bluemail-protocol.hook`，注册的仍是 `me.blueone.linux`，不改 `mailto` 的现有默认程序。单斜杠补齐仍留在 `90-bluemail-arguments.hook`。
 
 随后删掉全部邮箱并重新添加，登录回调仍能回到程序，账户可以再次加回。
 

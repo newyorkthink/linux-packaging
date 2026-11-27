@@ -160,7 +160,7 @@ def render_protocol_handler(value, template_values):
     args.extend((field.replace("_", "-"), desktop[field]) for field in fields)
     args.extend(("scheme", scheme) for scheme in schemes)
     args.extend(("mime-extra", mime) for mime in mime_extra)
-    command = ['bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh"']
+    command = ['bash "$SCRIPT_DIR/../Common/desktop/write_scheme_hook.sh"']
     command.extend(f"  --{flag} {shlex.quote(argument)}" for flag, argument in args)
 
     protocols = "、".join(f"{scheme}://" for scheme in schemes)
@@ -270,7 +270,7 @@ def gtk_deb_source_arguments(params):
             raise ValueError("DEB_SHA256 必须是完整的 64 位十六进制值；无官方摘要时省略。")
         source = (
             "# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。\n"
-            'VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" '
+            'VERSION="$("$SCRIPT_DIR/../Common/github/install_and_extract_latest_stable_release_deb.sh" '
             '--url "__DEB_URL__" '
             f'"{checksum.lower()}" "$SOURCE_DIR/__DEB_FILENAME__" "$APPDIR" '
             '"__DEB_PACKAGE__" "__DEB_ARCH__")"'
@@ -278,7 +278,7 @@ def gtk_deb_source_arguments(params):
     else:
         source = (
             "# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。\n"
-            'VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" '
+            'VERSION="$("$SCRIPT_DIR/../Common/github/install_and_extract_latest_stable_release_deb.sh" '
             '"__GITHUB_REPOSITORY__" \'__RELEASE_ASSET_PATTERN__\' "$SOURCE_DIR/__DEB_FILENAME__" "$APPDIR")"'
         )
     return params, source
@@ -344,11 +344,11 @@ def cli_archive_source_arguments(params):
 
     source_lines = [
         "# 下载并校验官方预编译归档，成功后返回版本号。",
-        'VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_named_asset.sh" '
+        'VERSION="$("$SCRIPT_DIR/../Common/github/download_latest_stable_named_asset.sh" '
         f'"{repo}" "{asset}" "$SOURCE_DIR/{filename}")"',
         "",
         "# 解包已校验的官方预编译归档。",
-        f'"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$SOURCE_DIR/{filename}" "$SOURCE_DIR/archive"',
+        f'"$SCRIPT_DIR/../Common/archive/extract_archive.sh" "$SOURCE_DIR/{filename}" "$SOURCE_DIR/archive"',
         "",
         "# 复制完整程序目录，并保留相邻资源的相对布局。",
         f'mkdir -p "$APPDIR/{install_dir}"',
@@ -406,7 +406,7 @@ def cli_apt_source_arguments(params):
         return cli_archive_source_arguments(params)
     source = (
         "# 下载已安装版本的软件包并解包到 AppDir，成功后返回版本号。\n"
-        'VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "__APT_MAIN_PACKAGE__" "$APPDIR" __APT_EXTRA_PACKAGES__)"'
+        'VERSION="$("$SCRIPT_DIR/../Common/apt/extract_installed_package.sh" "__APT_MAIN_PACKAGE__" "$APPDIR" __APT_EXTRA_PACKAGES__)"'
     )
     desktop_block = ""
     deploy_args = ""
@@ -424,7 +424,7 @@ def cli_apt_source_arguments(params):
             raise ValueError("归档标签、仓库或 DEB 文件名无效。")
         source = (
             "# 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。\n"
-            f'VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" '
+            f'VERSION="$("$SCRIPT_DIR/../Common/github/install_and_extract_latest_stable_release_deb.sh" '
             f'--release-tag "{tag}" "{repo}" "{filename}" "$SOURCE_DIR/{filename}" "$APPDIR")"'
         )
         if desktop_fields & params.keys():

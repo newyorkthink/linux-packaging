@@ -16,7 +16,7 @@ Remmina 为 GTK3 / C 桌面应用，RDP 使用 FreeRDP 3。当前构建直接使
 
 ## 包内中文 locale 与界面翻译
 
-Remmina 已有简体中文翻译，现有语言包与 `patches/prepare_runtime.sh` 会把 `remmina.mo` 放入 `usr/share/locale/zh_CN/LC_MESSAGES`；已有用户实测确认中文界面及输入正常。本次保留这些文件和处理，在应用解包后的资源阶段单行调用 `common/linuxdeploy/prepare_locale.sh`，另行生成 `usr/lib/locale/zh_CN.UTF-8`，构建依赖只追加 `locales`。
+Remmina 已有简体中文翻译，现有语言包与 `patches/prepare_runtime.sh` 会把 `remmina.mo` 放入 `usr/share/locale/zh_CN/LC_MESSAGES`；已有用户实测确认中文界面及输入正常。本次保留这些文件和处理，在应用解包后的资源阶段单行调用 `Common/linuxdeploy/prepare_locale.sh`，另行生成 `usr/lib/locale/zh_CN.UTF-8`，构建依赖只追加 `locales`。
 
 AppRun 在原 `LANGUAGE="zh_CN:zh"` 前增加包内 `LOCPATH` 和 `LANG=zh_CN.UTF-8`。区域数据、程序翻译和 GTK 输入模块分别负责不同功能；不因补 locale 改写原 Fcitx5 / IBus、主题跟随、本地终端、认证、WebKitGTK 或协议配置。没有中文翻译的 GUI 和命令行工具不套用本项目的中文环境，适用范围见 [linuxdeploy 中文配置](../linuxdeploy_projects.md#中文环境与输入法的适用范围)。
 
@@ -30,7 +30,7 @@ AppRun 在原 `LANGUAGE="zh_CN:zh"` 前增加包内 `LOCPATH` 和 `LANG=zh_CN.UT
 
 ## 版本元数据
 
-`common/apt/extract_installed_package.sh` 读取实际安装的 `remmina` 版本，去掉 Debian epoch 和 revision，仅以主软件包作为版本来源；附加插件包按各自已安装的同一版本下载并解包。
+`Common/apt/extract_installed_package.sh` 读取实际安装的 `remmina` 版本，去掉 Debian epoch 和 revision，仅以主软件包作为版本来源；附加插件包按各自已安装的同一版本下载并解包。
 
 构建日志保留 `Remmina 版本：<版本>`。最终封装成功后，公共封装入口写入 `dist/version.txt`；workflow 沿用现有日志读取及元数据上传步骤，上传 `software-version-remmina`，并以 `remmina.AppImage` 更新 `software_versions.json`。
 
@@ -56,7 +56,7 @@ remmina/patches/fix_runtime.sh
 
 ### 2026-11-02：补齐包内中文 locale
 
-- 在资源准备阶段接入既有 `common/linuxdeploy/prepare_locale.sh`，将 locale 数据写入 AppDir；原 APT 安装行只追加 `locales`。AppRun 先补 `LOCPATH`、`LANG`，原 `LANGUAGE="zh_CN:zh"` 保持原样。
+- 在资源准备阶段接入既有 `Common/linuxdeploy/prepare_locale.sh`，将 locale 数据写入 AppDir；原 APT 安装行只追加 `locales`。AppRun 先补 `LOCPATH`、`LANG`，原 `LANGUAGE="zh_CN:zh"` 保持原样。
 - 原中文翻译复制及路径修正、GTK 输入缓存、Local Terminal wrapper、RDP 认证、WebKitGTK、OpenSSL、插件部署、最终封装和 workflow 全部保留；本次不是对既有已通过实机功能的返修。
 - 已完成主脚本及内嵌入口语法、实际 locale 生成和读取、AppRun 环境与参数传递的隔离检查，以及完整 diff 和基线对比。主程序和会话探测使用替身，配置及缓存只写入临时目录；本次未执行完整应用构建、RDP 或 GUI 检查，已有用户验收范围保持不变。
 
@@ -92,14 +92,14 @@ remmina/patches/fix_runtime.sh
 
 ### 2026-10-30：把公共脚本挂进容器并安装 rsvg-convert
 
-- 故障依据：[Actions run 41022743379](https://github.com/newyorkthink/linux-packaging/actions/runs/41022743379) 的 Build Remmina。构建命令是 `env -u GITHUB_ACTIONS`，容器只挂载应用目录到 `/work`。日志：`/work/../common/appimage/prepare_appdir_for_appimagetool.sh: No such file or directory`，退出码 127。
+- 故障依据：[Actions run 41022743379](https://github.com/newyorkthink/linux-packaging/actions/runs/41022743379) 的 Build Remmina。构建命令是 `env -u GITHUB_ACTIONS`，容器只挂载应用目录到 `/work`。日志：`/work/../Common/appimage/prepare_appdir_for_appimagetool.sh: No such file or directory`，退出码 127。
 - 处理：把仓库 `common` 只读挂到容器 `/common`，封装前改调这个路径。容器安装列表增加 `librsvg2-bin`。原 appimagetool 命令未改。
 - 验证范围：通过 `bash -n` 检查。
 
 ### 2026-10-30：补齐 appimagetool 要求的 PNG 图标
 
 - 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build Remmina。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报根目录没有 `org.remmina.Remmina.png`，`.DirIcon` 无效，退出码 1。发行版图标是 SVG。
-- 处理：`build_remmina.sh` 和 `fix_remmina_webkit.sh` 都在原封装命令前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。原 appimagetool 参数和 AppRun 未改。
+- 处理：`build_remmina.sh` 和 `fix_remmina_webkit.sh` 都在原封装命令前调用 `Common/appimage/prepare_appdir_for_appimagetool.sh`。原 appimagetool 参数和 AppRun 未改。
 - 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 Remmina，没有重跑 Actions。构建环境需要 `rsvg-convert`、`magick` 或 `convert` 才能把 SVG 转成 PNG；本次没有在正式构建里确认该工具是否已安装。
 
 ### 2026-09-16：接入统一软件版本元数据
@@ -118,4 +118,4 @@ remmina/patches/fix_runtime.sh
 
 - 故障依据：[运行 #1102 的 Build Remmina](https://github.com/newyorkthink/linux-packaging/actions/runs/41298501421/job/124824392737)。linuxdeploy 的输出插件报根目录缺少 `org.remmina.Remmina.png` / XPM，`.DirIcon` 无效，退出码为 1；后面的运行目录修正和最终封装未执行。
 - 原因与处理：新版内置 appimagetool 在中间封装就检查根图标。公共工具准备现安装外部输出包装，在 linuxdeploy 完成 GTK / GStreamer 及根桌面资源部署后复用现有图标与权限准备，再交给官方输出插件；最终封装前的准备继续保留。
-- 本项目 build、AppRun、本地终端 wrapper、输入法、认证配置及两个 patches 均未修改，保留已确认的实机基线。公共实现、官方依据和提交前验证边界见 [更新兼容说明](../docs/linuxdeploy-update-compatibility.md)；本次不重复宣称新的完整应用构建或实机验收。
+- 本项目 build、AppRun、本地终端 wrapper、输入法、认证配置及两个 patches 均未修改，保留已确认的实机基线。公共实现、官方依据和提交前验证边界见 [更新兼容说明](../Docs/linuxdeploy-update-compatibility.md)；本次不重复宣称新的完整应用构建或实机验收。

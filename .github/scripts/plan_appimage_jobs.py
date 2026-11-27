@@ -122,14 +122,14 @@ def main() -> None:
         if any(path.startswith(".github/actions/build-anylinux/") for path in files):
             select_all()
         else:
-            markers = [path for path in files if path.startswith("common/")]
-            if "common/download/download_file.sh" in markers:
-                markers.append("common/linuxdeploy/prepare_linuxdeploy_tools.sh")
+            markers = [path for path in files if path.startswith("Common/")]
+            if "Common/download/download_file.sh" in markers:
+                markers.append("Common/linuxdeploy/prepare_linuxdeploy_tools.sh")
             # 图标准备脚本由 linuxdeploy 中间封装和最终封装入口共同调用。
-            if "common/appimage/prepare_appdir_for_appimagetool.sh" in markers:
+            if "Common/appimage/prepare_appdir_for_appimagetool.sh" in markers:
                 markers.extend((
-                    "common/linuxdeploy/prepare_linuxdeploy_tools.sh",
-                    "common/linuxdeploy/package_appimage.sh",
+                    "Common/linuxdeploy/prepare_linuxdeploy_tools.sh",
+                    "Common/linuxdeploy/package_appimage.sh",
                 ))
             if markers:
                 for app in catalog:
@@ -141,7 +141,7 @@ def main() -> None:
                         build[app["key"]] = True
 
             # 公共发布脚本由共享 Arch 构建步骤和 GitKraken 独立任务调用。
-            if "common/github/publish_release_asset.sh" in files:
+            if "Common/github/publish_release_asset.sh" in files:
                 standalone_publish_jobs = {"bluemail", "chatgpt", "gitkraken", "tencent_docs"}
                 for app in catalog:
                     if app.get("kind") == "standard" or app["key"] in standalone_publish_jobs:

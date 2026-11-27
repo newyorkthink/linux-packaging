@@ -46,8 +46,8 @@
 ## 版本读取参数
 
 - 为什么写死：当前构建按已确认的规则从已安装的 AUR `workbuddy` 读取版本。
-- 写死的内容：`pacman workbuddy`，作为 `common/build/read_app_version.sh` 的两个来源参数。
-- 作用：复用 `common/arch/get_package_version.sh`，去掉 epoch 和 pkgrel 后返回版本，最终写入 `dist/version.txt`。
+- 写死的内容：`pacman workbuddy`，作为 `Common/build/read_app_version.sh` 的两个来源参数。
+- 作用：复用 `Common/arch/get_package_version.sh`，去掉 epoch 和 pkgrel 后返回版本，最终写入 `dist/version.txt`。
 - 当初报错：没有。本次只把原有读取规则移入统一公共调用，不改为下载入口中的 DEB 校验版本。
 
 ## 启动 PATH 与 `99-workbuddy-host-path.hook`

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
-PREPARE_APPDIR="$(pwd)/../common/appimage/prepare_appdir_for_appimagetool.sh"
+PREPARE_APPDIR="$(pwd)/../Common/appimage/prepare_appdir_for_appimagetool.sh"
 
 APPIMAGE="${1:-dist/remmina.AppImage}"
 APPIMAGE="$(readlink -f "$APPIMAGE")"

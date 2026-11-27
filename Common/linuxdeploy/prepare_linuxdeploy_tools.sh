@@ -106,7 +106,7 @@ if [[ "$APPIMAGETOOL_ONLY" == 0 ]]; then
   RUNTIME_OUTPUT="$TOOLS_DIR/runtime-x86_64"
 fi
 
-# shellcheck source=common/github/github_api.sh
+# shellcheck source=Common/github/github_api.sh
 source "$GITHUB_API"
 
 # 从指定的官方 Release 解析资产及摘要，再交给公共下载脚本取得文件。

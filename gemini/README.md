@@ -61,10 +61,10 @@ Google Gemini Windows 桌面应用当前采用 Electron。Windows 正式安装�
 
 `build_gemini.sh` 的正式构建流程如下：
 
-1. 通过 `common/download/download_omaha_package.sh` 查询当前 `prod` 正式版，校验应用、版本、下载源、文件名、大小和 SHA-256，并记录来源版本。
-2. 通过 `common/archive/extract_archive.sh` 解开官方完整 NSIS 包。
+1. 通过 `Common/download/download_omaha_package.sh` 查询当前 `prod` 正式版，校验应用、版本、下载源、文件名、大小和 SHA-256，并记录来源版本。
+2. 通过 `Common/archive/extract_archive.sh` 解开官方完整 NSIS 包。
 3. 定位唯一的 `resources/app.asar` 和对应 `Gemini.exe`，从实际程序识别精确 Electron 版本。
-4. 通过 `common/download/download_latest_checksum_asset.sh` 从官方清单选择同版本 Linux x64 runtime，并校验 SHA-256；再通过公共归档入口解包 ZIP。
+4. 通过 `Common/download/download_latest_checksum_asset.sh` 从官方清单选择同版本 Linux x64 runtime，并校验 SHA-256；再通过公共归档入口解包 ZIP。
 5. 以完整 Linux runtime 为外壳，复制产品资源；沿用既有沙盒文件处理，资源中的 Windows `.exe` / `.dll` 不进入最终产品层。
 6. 完整提取 ASAR 后调用原有模块移除脚本，同时处理外置副本和提取副本，保留未知模块、路径和副本保护。
 7. 调用单参数的非 sticky 补丁，只修改显式 all-workspaces 调用，再重新封装 ASAR；不再核对回退日志或 Speak to Window 开关名称。

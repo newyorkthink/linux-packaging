@@ -2,7 +2,7 @@
 
 ## 分类与同类参考
 
-本项目登记在[专用打包流程](../../docs/packaging-classification.md#专用打包流程)：从官方最新正式 Release 对应提交取得源码，应用九个独立补丁，经 `configure` / `make` 编译后交给 quick-sharun 封装。现有 Arch 系统入口模板不包含这条源码适配和编译流程。本次按明确要求手动对应同类项目，不运行生成器，不新增标准模板。
+本项目登记在[专用打包流程](../../Docs/packaging-classification.md#专用打包流程)：从官方最新正式 Release 对应提交取得源码，应用九个独立补丁，经 `configure` / `make` 编译后交给 quick-sharun 封装。现有 Arch 系统入口模板不包含这条源码适配和编译流程。本次按明确要求手动对应同类项目，不运行生成器，不新增标准模板。
 
 参考基线为 [`37014f1`](https://github.com/newyorkthink/linux-packaging/tree/37014f1ca48de02fc8ea1c27d8bed97fa58aed2a)，具体对应关系如下：
 
@@ -19,11 +19,11 @@
 | 阶段 | 当前处理 | 依据与影响 |
 | --- | --- | --- |
 | 初始化 | 严格模式，定位并切到本应用目录。 | 相对路径均落在本应用工作区。 |
-| 依赖安装 | `common/arch/install_packages.sh --base` 加一行明确的原有额外依赖。 | 原先 25 项显式包名逐项核对：基础入口已覆盖 gcc、base-devel、pkgconf、wget、git、jq、binutils、patchelf、coreutils、appstream-glib、desktop-file-utils、util-linux、zsync、glib2；应用行保留三个 Xorg 包、原有 X11 图形库及 uthash，不减少依赖覆盖。 |
-| 工作区 | 调用 `common/build/prepare_x86_64_workspace.sh`，只清理本应用的 `AppDir`、`work`、`dist`，重建 `work` 与 `dist`。 | 源码为 `work/source`，桌面文件为 `work/alttab.desktop`；不再使用原独立临时目录和退出 trap。工作区保留至下一次构建清理。 |
-| 版本与源码 | 调用 `common/github/download_latest_stable_release_source.sh`，参数为 `sagb/alttab`、源码目标目录及 `--archive`。 | 保留最新正式 Release → 完整提交 SHA → 源码归档的来源方式；认证、下载、SHA-256 记录及格式解包在公共入口处理，stdout 返回原始标签。 |
+| 依赖安装 | `Common/arch/install_packages.sh --base` 加一行明确的原有额外依赖。 | 原先 25 项显式包名逐项核对：基础入口已覆盖 gcc、base-devel、pkgconf、wget、git、jq、binutils、patchelf、coreutils、appstream-glib、desktop-file-utils、util-linux、zsync、glib2；应用行保留三个 Xorg 包、原有 X11 图形库及 uthash，不减少依赖覆盖。 |
+| 工作区 | 调用 `Common/build/prepare_x86_64_workspace.sh`，只清理本应用的 `AppDir`、`work`、`dist`，重建 `work` 与 `dist`。 | 源码为 `work/source`，桌面文件为 `work/alttab.desktop`；不再使用原独立临时目录和退出 trap。工作区保留至下一次构建清理。 |
+| 版本与源码 | 调用 `Common/github/download_latest_stable_release_source.sh`，参数为 `sagb/alttab`、源码目标目录及 `--archive`。 | 保留最新正式 Release → 完整提交 SHA → 源码归档的来源方式；认证、下载、SHA-256 记录及格式解包在公共入口处理，stdout 返回原始标签。 |
 | 元数据与封装 | 固定 `MAIN_BIN=alttab`，输出 `dist/alttab.AppImage`；原 quick-sharun 收集与封装命令保留。 | 源码 SVG、生成的 desktop 和许可证按下节保留。 |
-| 版本保存 | 最终封装后调用 `common/build/save_appimage_version.sh`。 | 产物非空检查、执行权限及 `dist/version.txt` 写入由现有公共入口负责；应用脚本不重复通用存在性检查。 |
+| 版本保存 | 最终封装后调用 `Common/build/save_appimage_version.sh`。 | 产物非空检查、执行权限及 `dist/version.txt` 写入由现有公共入口负责；应用脚本不重复通用存在性检查。 |
 
 ## 保留的专属处理
 

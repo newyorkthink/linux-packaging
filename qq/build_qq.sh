@@ -9,10 +9,10 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 安装统一的 Arch AppImage 基础包
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 
 # 加载公共 AUR 下载入口。
-source "$SCRIPT_DIR/../common/aur/download_pkgbuild_asset.sh"
+source "$SCRIPT_DIR/../Common/aur/download_pkgbuild_asset.sh"
 
 ############# 准备构建目录 #############
 
@@ -23,7 +23,7 @@ OUTFILE="$DIST_DIR/qq.AppImage"
 SOURCE_VERSION_FILE="$SOURCE_DIR/version.txt"
 
 # 清理上次的下载目录和产物目录，并重建下载目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create dist source
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create dist source
 
 ############ 下载并准备应用 #############
 
@@ -43,7 +43,7 @@ download_pkgbuild_asset \
 ############### 整理产物 ###############
 
 # 读取本次下载记录的来源版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text "$SOURCE_VERSION_FILE")"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" text "$SOURCE_VERSION_FILE")"
 
 # 设置产物执行权限，并写入发布流程读取的版本文件。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "$OUTFILE" "$VERSION" "$DIST_DIR/version.txt"
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "$OUTFILE" "$VERSION" "$DIST_DIR/version.txt"

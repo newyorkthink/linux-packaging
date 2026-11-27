@@ -1,6 +1,6 @@
 # XnView MP 专属差异
 
-本目录是 Qt 类型标准参考。公共流程和 Qt 通用注释按 [linuxdeploy 规范](../../linuxdeploy_projects.md) 与 [固定注释标准](../../docs/linuxdeploy-comments.md) 执行；以下处理只适用于当前应用。
+本目录是 Qt 类型标准参考。公共流程和 Qt 通用注释按 [linuxdeploy 规范](../../linuxdeploy_projects.md) 与 [固定注释标准](../../Docs/linuxdeploy-comments.md) 执行；以下处理只适用于当前应用。
 
 | 位置 | 专属处理及原因 | 代码或依据 |
 | --- | --- | --- |

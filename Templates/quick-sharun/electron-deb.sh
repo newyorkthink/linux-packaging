@@ -8,20 +8,20 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" "__SYSTEM_PACKAGE__" dpkg __DEPENDENCY_ARGS__
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" "__SYSTEM_PACKAGE__" dpkg __DEPENDENCY_ARGS__
 
 # 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
 mkdir -p AppDir/bin
 
 
 # 下载官方当前 DEB。
-"$SCRIPT_DIR/../common/download/download_file.sh" "__DEB_URL__" work/app.deb
+"$SCRIPT_DIR/../Common/download/download_file.sh" "__DEB_URL__" work/app.deb
 
 # 解包官方 DEB。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" work/app.deb work/unpacked
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/app.deb work/unpacked
 
 # 整个程序目录原样放进 AppDir/bin。
 cp -a "work/unpacked/__DEB_PROGRAM_DIR__/." AppDir/bin/
@@ -46,7 +46,7 @@ export OUTNAME="__APP_BASENAME__.AppImage"
 export DEPLOY_GTK=1
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json "AppDir/bin/__PACKAGE_JSON__")"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" package-json "AppDir/bin/__PACKAGE_JSON__")"
 
 # 收集程序及其运行依赖。
 quick-sharun __SCAN_ARGS__
@@ -66,4 +66,4 @@ __PROTOCOL_HANDLER__
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/__APP_BASENAME__.AppImage" "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "dist/__APP_BASENAME__.AppImage" "$VERSION" dist/version.txt

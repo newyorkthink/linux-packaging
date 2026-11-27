@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 
 # 本程序专属处理：清理旧产物，保留仓库已有的图标与 PATH hook。
 rm -rf -- dist platform-tools bin.zip AppDir/etc
@@ -29,10 +29,10 @@ yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils 
   desktop-file-utils zsync ca-certificates
 
 # 本程序专属处理：下载 Google 官方最新 Linux Platform Tools。
-"$SCRIPT_DIR/../common/download/download_file.sh" "https://dl.google.com/android/repository/platform-tools-latest-linux.zip" bin.zip
+"$SCRIPT_DIR/../Common/download/download_file.sh" "https://dl.google.com/android/repository/platform-tools-latest-linux.zip" bin.zip
 
 # 本程序专属处理：解压官方 ZIP，保留完整的平台工具。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" bin.zip "$SCRIPT_DIR"
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" bin.zip "$SCRIPT_DIR"
 rm -f -- bin.zip
 mv -v ./platform-tools/* ./AppDir/bin/
 rmdir ./platform-tools
@@ -66,4 +66,4 @@ quick-sharun ./AppDir/bin/*
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/android-tools.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/android-tools.AppImage "$VERSION" dist/version.txt

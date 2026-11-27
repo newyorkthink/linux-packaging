@@ -8,21 +8,21 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" cc-switch-bin fcitx5-gtk dpkg xorg-server xorg-server-common xorg-server-xvfb gtk3 libayatana-appindicator libdbusmenu-glib libdbusmenu-gtk3 webkit2gtk-4.1 libsoup3 glib-networking gsettings-desktop-schemas libsecret libnotify glibc gcc-libs zlib libx11 libxext libxi libxtst libxss libxrandr libxinerama libxcomposite libxdamage libxfixes libxkbcommon-x11 libxkbfile cairo fribidi freetype2 harfbuzz librsvg adwaita-icon-theme
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" cc-switch-bin fcitx5-gtk dpkg xorg-server xorg-server-common xorg-server-xvfb gtk3 libayatana-appindicator libdbusmenu-glib libdbusmenu-gtk3 webkit2gtk-4.1 libsoup3 glib-networking gsettings-desktop-schemas libsecret libnotify glibc gcc-libs zlib libx11 libxext libxi libxtst libxss libxrandr libxinerama libxcomposite libxdamage libxfixes libxkbcommon-x11 libxkbfile cairo fribidi freetype2 harfbuzz librsvg adwaita-icon-theme
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist cc-switch.deb cc-switch-unpacked cc-switch.version
 mkdir -p AppDir/bin dist
 
 # 下载官方当前 DEB。
-"$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" \
+"$SCRIPT_DIR/../Common/github/download_latest_stable_release_asset.sh" \
   farion1231/cc-switch 'CC-Switch-v{version}-Linux-x86_64.deb' \
   cc-switch.deb cc-switch amd64 > cc-switch.version
 
 # 解包官方 DEB。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" cc-switch.deb cc-switch-unpacked
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" cc-switch.deb cc-switch-unpacked
 
 # 整个程序目录原样放进 AppDir/bin。
 cp -a cc-switch-unpacked/usr/bin/. AppDir/bin/
@@ -47,7 +47,7 @@ export OUTNAME=cc-switch.AppImage
 export DEPLOY_GTK=1
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text cc-switch.version)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" text cc-switch.version)"
 
 # 收集程序及其运行依赖。
 quick-sharun AppDir/bin/* /usr/lib/libayatana-appindicator3.so.1
@@ -66,4 +66,4 @@ ENV
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/cc-switch.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/cc-switch.AppImage "$VERSION" dist/version.txt

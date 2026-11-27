@@ -17,7 +17,7 @@
 
 CLI 预编译归档来源显式提供 `GITHUB_REPOSITORY`、`ARCHIVE_ASSET_NAME`、`ARCHIVE_FILENAME`、`ARCHIVE_PROGRAM_DIR`、`ARCHIVE_INSTALL_DIR`、`MAIN_EXECUTABLE` 及应用 `patches/` 内的 `DESKTOP_FILE`、`ICON_FILE`，运行库目录按需提供 `APP_LIB_DIR`。这些来源选择参数不能与 APT 或归档 DEB 来源参数混用，共用的 `APT_PACKAGES` 继续保留。下载和摘要校验复用固定资产公共入口，解包复用公共归档入口，完整程序目录保持相邻资源布局。linuxdeploy 通过 `--deploy-deps-only` 收集现有程序及目录的依赖，避免复制出另一份主程序。格式、路径约束和 AppRun 搜索路径见 [CLI 预编译归档参数](./Scripts/build/generate_build_script.md#cli-预编译归档来源)。原 APT、归档 DEB 生成结果保持不变。
 
-按标准重写时，先从本表选择一份完整模板，通过 [统一生成脚本](./Scripts/build/generate_build_script.md) 生成应用一级目录下的构建脚本。模板中的 `../common/` 相对于应用目录，不能在 `Templates/appimage/` 内直接运行。linuxdeploy 模板会重建该应用的 `source`、`AppDir` 和 `dist`，应用所需的持久输入应保存在这些目录之外。直接封装模板使用公共工作区入口的 `--prepared-appdir` 模式，只创建缺少的 `source/tools` 和 `dist` 目录，保留现有目录及内容。
+按标准重写时，先从本表选择一份完整模板，通过 [统一生成脚本](./Scripts/build/generate_build_script.md) 生成应用一级目录下的构建脚本。模板中的 `../Common/` 相对于应用目录，不能在 `Templates/appimage/` 内直接运行。linuxdeploy 模板会重建该应用的 `source`、`AppDir` 和 `dist`，应用所需的持久输入应保存在这些目录之外。直接封装模板使用公共工作区入口的 `--prepared-appdir` 模式，只创建缺少的 `source/tools` 和 `dist` 目录，保留现有目录及内容。
 
 除下表中的占位参数外，代码、注释、分区、命令及参数顺序、缩进、空格和空行逐字保留。禁止从其他模板或现有应用脚本拼接代码。模板选用还须符合实际包格式、构建系统、插件、入口和资源布局。
 
@@ -63,7 +63,7 @@ linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标�
 
 ## 公共注释与专属说明
 
-[linuxdeploy 固定注释标准](./docs/linuxdeploy-comments.md) **只收录必须跨项目统一复用的注释**。通用、GTK、Qt 注释按实际用途逐字使用；CLI 使用适用的通用注释，不增加无关框架配置。
+[linuxdeploy 固定注释标准](./Docs/linuxdeploy-comments.md) **只收录必须跨项目统一复用的注释**。通用、GTK、Qt 注释按实际用途逐字使用；CLI 使用适用的通用注释，不增加无关框架配置。
 
 脚本中说明程序专属操作的注释必须以 `# 本程序专属处理：` 开头，冒号后直接说明具体操作。固定注释和已有来源标注必须逐字保留。软件专属修复、路径调整和补库的依据记录在项目自己的 `docs/template-deviations.md`。每项只写处理位置、原因、必要代码或依据。完整代码留在脚本，不重复抄写整份 AppRun 或构建流程。
 
@@ -71,24 +71,24 @@ linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标�
 
 ## 固定流程
 
-各阶段的标题、注释和空行以选定的标准模板为准；分区标题逐字复用 [固定分区标题](./docs/linuxdeploy-comments.md#固定分区标题)，不自行增减两侧的 `#`。顺序如下：
+各阶段的标题、注释和空行以选定的标准模板为准；分区标题逐字复用 [固定分区标题](./Docs/linuxdeploy-comments.md#固定分区标题)，不自行增减两侧的 `#`。顺序如下：
 
 | 阶段 | 公共入口或处理 |
 | --- | --- |
 | 初始化脚本 | 在 shebang 下方使用固定分区标题，启用严格模式并定位脚本目录。两种封装路线均适用。 |
-| 准备构建目录 | `source common/linuxdeploy/prepare_build_workspace.sh`，只处理当前项目的工作区。 |
-| 准备构建环境 | 单行调用 `common/apt/install_packages.sh`，传入当前应用需要的精确包名。 |
-| 下载打包工具 | `source common/linuxdeploy/prepare_linuxdeploy_tools.sh`，传入工具目录、插件、中间 AppImage 和 runtime。 |
-| 初始化 AppDir | 单行调用 `common/linuxdeploy/initialize_appdir.sh`，传入 AppDir 和 linuxdeploy 路径；只在空目录创建基础结构。 |
+| 准备构建目录 | `source Common/linuxdeploy/prepare_build_workspace.sh`，只处理当前项目的工作区。 |
+| 准备构建环境 | 单行调用 `Common/apt/install_packages.sh`，传入当前应用需要的精确包名。 |
+| 下载打包工具 | `source Common/linuxdeploy/prepare_linuxdeploy_tools.sh`，传入工具目录、插件、中间 AppImage 和 runtime。 |
+| 初始化 AppDir | 单行调用 `Common/linuxdeploy/initialize_appdir.sh`，传入 AppDir 和 linuxdeploy 路径；只在空目录创建基础结构。 |
 | 下载并准备应用 | 复用下面的来源入口，保留上游原始目录布局。 |
 | 准备桌面资源和运行库 | 只处理当前程序确实需要的资源、动态加载库或 desktop 差异。 |
 | 准备 AppRun | 在 `build_*.sh` 内联完整启动脚本，写入 `AppDir/AppRun` 并赋予执行权限。经批准的长脚本按 AppRun 规则处理。 |
 | 核心打包 | 按技术栈第二次运行 linuxdeploy，保留 `--output appimage`。 |
-| 整理产物 | 单行调用 `common/linuxdeploy/package_appimage.sh`，最终封装成功后输出 SHA-256 并保存版本号。 |
+| 整理产物 | 单行调用 `Common/linuxdeploy/package_appimage.sh`，最终封装成功后输出 SHA-256 并保存版本号。 |
 
 第一次 linuxdeploy 创建目录后，因没有 desktop 而在输出阶段返回 1，由初始化公共入口兼容；不得提前塞入应用、desktop、图标或 AppRun。第二次生成的中间 AppImage 不得发布。
 
-`source common/linuxdeploy/prepare_build_workspace.sh` 已在当前 Shell 中切换到传入的构建根目录。后续独立 helper 或子 Shell 中的 `cd` 不改变调用方目录；只有后续代码确实改变了当前 Shell 的工作目录时，才需要再切回。不得为了增加一个阶段而重复添加 `cd "$SCRIPT_DIR"`。
+`source Common/linuxdeploy/prepare_build_workspace.sh` 已在当前 Shell 中切换到传入的构建根目录。后续独立 helper 或子 Shell 中的 `cd` 不改变调用方目录；只有后续代码确实改变了当前 Shell 的工作目录时，才需要再切回。不得为了增加一个阶段而重复添加 `cd "$SCRIPT_DIR"`。
 
 ### 生成器中的可选应用阶段
 
@@ -108,7 +108,7 @@ GTK DEB 标准保留原有来源、初始化、AppRun、GTK 部署和最终封�
 
 ### 程序专属补丁与修复脚本
 
-程序专属的补丁和修复脚本统一放在本项目的 `patches/`。源码或文本补丁使用 `.patch`；资源准备、文件整理和二进制路径修复按任务使用 `.sh` 或 `.py`。公共机制仍由 `common/` 提供，不要求每个项目创建相同的脚本。
+程序专属的补丁和修复脚本统一放在本项目的 `patches/`。源码或文本补丁使用 `.patch`；资源准备、文件整理和二进制路径修复按任务使用 `.sh` 或 `.py`。公共机制仍由 `Common/` 提供，不要求每个项目创建相同的脚本。
 
 主 build 按实际阶段单行调用：源码补丁在下载并准备应用时应用，资源准备放在准备桌面资源和运行库，依赖部署后的修复放在整理产物且先于最终封装。完整 AppRun 仍在主 build 中生成，不拆成额外启动入口。各脚本的用途、调用位置和原因简记于本项目的 `docs/template-deviations.md`。
 
@@ -118,17 +118,17 @@ GTK DEB 标准保留原有来源、初始化、AppRun、GTK 部署和最终封�
 
 | 来源 | 公共入口 |
 | --- | --- |
-| GitHub 正式 Release 的 DEB | `common/github/install_and_extract_latest_stable_release_deb.sh`，返回实际版本。 |
+| GitHub 正式 Release 的 DEB | `Common/github/install_and_extract_latest_stable_release_deb.sh`，返回实际版本。 |
 | 官网 HTTPS DEB 直链 | 同一入口的 `--url` 模式；调用方提供 URL、官方 SHA-256 或空字符串、下载路径、解包目录及可选包身份，安装并解包同一份 DEB，版本读取其完整元数据。 |
 | 官网校验清单中的 DEB | 同一入口的 `--checksum` 模式；使用同一份已校验 DEB 安装并解包。 |
-| 官网 HTML 校验表中的 DEB | 同一入口的 `--html-checksum` 模式，依次传入校验表 URL、完整资产名 Python 正则、资产目录 URL、下载 DEB 路径、AppDir，以及可选的包名与架构；解析、校验、安装、解包和版本返回均由公共入口完成，具体参数见 [公共入口说明](./common/README.md#html-校验表中的官方-deb)。 |
-| AUR 指向的官方 DEB | `common/aur/install_and_extract_deb_source.sh`；单行完成来源解析、摘要和包身份校验、安装、原布局解包及实际版本返回，保留同次 AUR 桌面资源。七项参数和版本适用范围见 [公共入口说明](./common/README.md#aur-来源中的官方-deb)。 |
-| Ubuntu 仓库 | 先通过公共 APT 入口安装，再调用 `common/apt/extract_installed_package.sh <主软件包名> <AppDir> [附加软件包名 ...]`，逐包下载已安装的同一版本并解包，仅返回主软件包去掉 epoch / revision 的版本号。 |
-| 预编译归档 | 通过公共下载入口取得，再调用 `common/archive/extract_archive.sh`；在构建环境安装明确需要的依赖。 |
+| 官网 HTML 校验表中的 DEB | 同一入口的 `--html-checksum` 模式，依次传入校验表 URL、完整资产名 Python 正则、资产目录 URL、下载 DEB 路径、AppDir，以及可选的包名与架构；解析、校验、安装、解包和版本返回均由公共入口完成，具体参数见 [公共入口说明](./Common/README.md#html-校验表中的官方-deb)。 |
+| AUR 指向的官方 DEB | `Common/aur/install_and_extract_deb_source.sh`；单行完成来源解析、摘要和包身份校验、安装、原布局解包及实际版本返回，保留同次 AUR 桌面资源。七项参数和版本适用范围见 [公共入口说明](./Common/README.md#aur-来源中的官方-deb)。 |
+| Ubuntu 仓库 | 先通过公共 APT 入口安装，再调用 `Common/apt/extract_installed_package.sh <主软件包名> <AppDir> [附加软件包名 ...]`，逐包下载已安装的同一版本并解包，仅返回主软件包去掉 epoch / revision 的版本号。 |
+| 预编译归档 | 通过公共下载入口取得，再调用 `Common/archive/extract_archive.sh`；在构建环境安装明确需要的依赖。 |
 
 下载、校验、安装、解包、版本读取和初始化由公共入口负责，应用脚本不重复实现。工具准备入口已加载 `configure_environment.sh`，不再单独调用它。软件和打包工具版本按现有官方动态入口取得，不固定旧版本。
 
-已确认需要在元数据中保留完整 Debian 版本的既有项目，不能用去掉 epoch / revision 的返回值替代原版本。保留该项目已验证的完整版本读取命令，并由 `common/apt/download_and_extract_packages.sh` 按明确的 `<包名>=<完整版本>` 下载同版本 DEB；在应用专属差异中说明原因，不复制下载、校验或解包实现。最终 `version.txt` 仍由公共封装入口写入。
+已确认需要在元数据中保留完整 Debian 版本的既有项目，不能用去掉 epoch / revision 的返回值替代原版本。保留该项目已验证的完整版本读取命令，并由 `Common/apt/download_and_extract_packages.sh` 按明确的 `<包名>=<完整版本>` 下载同版本 DEB；在应用专属差异中说明原因，不复制下载、校验或解包实现。最终 `version.txt` 仍由公共封装入口写入。
 
 工具准备入口的插件参数支持空字符串、`gtk`、`qt`、`gstreamer`、`gtk,gstreamer` 和 `qt,gstreamer`，只选择当前应用需要的组合；该参数负责下载插件，实际启用仍由 linuxdeploy 命令的 `--plugin` 参数指定。
 
@@ -162,7 +162,7 @@ Qt 工具选择按实际调用方式核对。已明确指定对应 Qt 主版本�
 
 包内 locale 数据提供字符分类、编码和区域格式；界面翻译来自软件自带资源、发行版语言包或已确认的翻译文件；中文输入依赖匹配框架版本的模块及宿主会话。三者分别核对，不能把 locale 文件存在写成中文界面或中文输入已验证。英文界面同样可能需要中文输入，输入支持不随界面语言一并删除。
 
-适用的 linuxdeploy 项目在应用解包后的“准备桌面资源和运行库”阶段，单行调用 `common/linuxdeploy/prepare_locale.sh <locale 源名称> <字符集> <完整输出目录>`，随后才执行正式依赖部署。该入口只生成调用方指定的数据，不选择界面语言，不改写 AppRun，也不创建 `.env`。输出父目录由公共入口创建；主脚本不为同一次 locale 生成重复创建该目录，其他字体、翻译和输入模块目录仍由实际资源准备步骤负责。
+适用的 linuxdeploy 项目在应用解包后的“准备桌面资源和运行库”阶段，单行调用 `Common/linuxdeploy/prepare_locale.sh <locale 源名称> <字符集> <完整输出目录>`，随后才执行正式依赖部署。该入口只生成调用方指定的数据，不选择界面语言，不改写 AppRun，也不创建 `.env`。输出父目录由公共入口创建；主脚本不为同一次 locale 生成重复创建该目录，其他字体、翻译和输入模块目录仍由实际资源准备步骤负责。
 
 采用简体中文界面且使用包内 locale 的 AppRun，在 `HERE` 定位后使用与 Joplin 等标准项目一致的中文环境块：
 
@@ -200,9 +200,9 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 
 `normalize_apprun_paths.sh` 只用于已说明并获准的路径整理，不是默认步骤。已有临时调用在成品确认前保留；确认实际目录和 export 后，原样固化到构建脚本的 AppRun，再移除临时调用。已确定的路径不在每次构建时重新整理。
 
-公共工具准备会安装外部 AppImage 输出入口，并按官方优先级接管中间封装：linuxdeploy 部署完依赖及根 desktop / 图标后，包装入口先复用公共权限和 PNG 准备，再将原始参数与 LDAI 环境交给动态下载并校验的官方输出插件。插件探测和第一次空 AppDir 初始化保持原接口；应用无需另加准备命令，不更改既有 `linuxdeploy ... --output appimage` 整行。详细机制与证据见 [linuxdeploy 更新与中间封装兼容](./docs/linuxdeploy-update-compatibility.md)。
+公共工具准备会安装外部 AppImage 输出入口，并按官方优先级接管中间封装：linuxdeploy 部署完依赖及根 desktop / 图标后，包装入口先复用公共权限和 PNG 准备，再将原始参数与 LDAI 环境交给动态下载并校验的官方输出插件。插件探测和第一次空 AppDir 初始化保持原接口；应用无需另加准备命令，不更改既有 `linuxdeploy ... --output appimage` 整行。详细机制与证据见 [linuxdeploy 更新与中间封装兼容](./Docs/linuxdeploy-update-compatibility.md)。
 
-最终封装由 `common/linuxdeploy/package_appimage.sh` 使用官方 `AppImage/appimagetool` 和 `AppImage/type2-runtime` 完成，生成 SquashFS Type 2 包。依赖部署工具与最终文件系统 / runtime 是两项选择；只把收集工具换成 linuxdeploy、却继续使用 DwarFS 封装，并不会更换运行时的 DwarFS 挂载链路。权限及 PNG 根图标的公共处理见 [appimagetool 图标检查与 SVG 兼容处理](./docs/appimagetool-icon-compatibility.md)。不使用 `--no-check-permissions`，不因下载或封装失败而发布中间包。
+最终封装由 `Common/linuxdeploy/package_appimage.sh` 使用官方 `AppImage/appimagetool` 和 `AppImage/type2-runtime` 完成，生成 SquashFS Type 2 包。依赖部署工具与最终文件系统 / runtime 是两项选择；只把收集工具换成 linuxdeploy、却继续使用 DwarFS 封装，并不会更换运行时的 DwarFS 挂载链路。权限及 PNG 根图标的公共处理见 [appimagetool 图标检查与 SVG 兼容处理](./Docs/appimagetool-icon-compatibility.md)。不使用 `--no-check-permissions`，不因下载或封装失败而发布中间包。
 
 ## 检查与记录
 
@@ -282,21 +282,21 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 
 ~~~bash
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" command "$MAIN_BIN" --field "$VERSION_FIELD" -- "$VERSION_OPTION")"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" command "$MAIN_BIN" --field "$VERSION_FIELD" -- "$VERSION_OPTION")"
 ~~~
 
 `MAIN_BIN` 是真实程序，`VERSION_FIELD` 是首行输出中从 1 开始的版本字段编号，`VERSION_OPTION` 是该程序已核实的查询参数。需要多个查询参数时在 `--` 后逐个传入；原 `package-json`、`pacman` 和 `text` 来源继续按实际来源使用。
 
 ~~~bash
 # 下载并校验最终封装工具及运行时，并设置执行权限。
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" --appimagetool "$APPIMAGETOOL" "$RUNTIME_FILE"
+"$SCRIPT_DIR/../Common/linuxdeploy/prepare_linuxdeploy_tools.sh" --appimagetool "$APPIMAGETOOL" "$RUNTIME_FILE"
 ~~~
 
 两个参数分别是 appimagetool 和 runtime 的输出文件路径，必须不同。该模式只独立执行，不使用 source；保留原官方 continuous 来源和摘要校验，不下载或执行 linuxdeploy，也不加载它的环境配置。
 
 ~~~bash
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+"$SCRIPT_DIR/../Common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
 ~~~
 
-最终产物目录的 `version.txt` 由公共封装入口写入。调用方不重复准备 PNG、保存版本或追加仅表示成功的 `echo`；程序实际需要的运行输出继续保留。直接模式的通用注释登记在 [固定注释标准](./docs/linuxdeploy-comments.md)，kitty 的既有目录和启动差异见其专属说明。
+最终产物目录的 `version.txt` 由公共封装入口写入。调用方不重复准备 PNG、保存版本或追加仅表示成功的 `echo`；程序实际需要的运行输出继续保留。直接模式的通用注释登记在 [固定注释标准](./Docs/linuxdeploy-comments.md)，kitty 的既有目录和启动差异见其专属说明。

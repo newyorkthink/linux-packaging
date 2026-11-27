@@ -8,20 +8,20 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" "folo-bin" dpkg xorg-server xorg-server-common xorg-server-xvfb gtk3 cups cairo expat freetype2 libx11 libxext libxi libxtst libxss libxrandr libxcomposite libxdamage libxfixes libxkbfile mesa libglvnd libva libvdpau alsa-lib libpulse pipewire pipewire-audio libnotify libsecret adwaita-icon-theme noto-fonts-cjk fcitx5-gtk
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" "folo-bin" dpkg xorg-server xorg-server-common xorg-server-xvfb gtk3 cups cairo expat freetype2 libx11 libxext libxi libxtst libxss libxrandr libxcomposite libxdamage libxfixes libxkbfile mesa libglvnd libva libvdpau alsa-lib libpulse pipewire pipewire-audio libnotify libsecret adwaita-icon-theme noto-fonts-cjk fcitx5-gtk
 
 # 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
 mkdir -p AppDir/bin
 
 
 # 下载官方当前 DEB。
-"$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" --tag-prefix "desktop/" "RSSNext/Folo" 'Folo-{version}-linux-x64.deb' work/app.deb "folo" "amd64" > work/source-version.txt
+"$SCRIPT_DIR/../Common/github/download_latest_stable_release_asset.sh" --tag-prefix "desktop/" "RSSNext/Folo" 'Folo-{version}-linux-x64.deb' work/app.deb "folo" "amd64" > work/source-version.txt
 
 # 解包官方 DEB。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" work/app.deb work/unpacked
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/app.deb work/unpacked
 
 # 整个程序目录原样放进 AppDir/bin。
 cp -a "work/unpacked/usr/lib/folo/." AppDir/bin/
@@ -46,7 +46,7 @@ export OUTNAME="folo.AppImage"
 export DEPLOY_GTK=1
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text work/source-version.txt)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" text work/source-version.txt)"
 
 # 收集程序及其运行依赖。
 quick-sharun AppDir/bin/* /usr/bin/hostname
@@ -65,4 +65,4 @@ ENV
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/folo.AppImage" "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "dist/folo.AppImage" "$VERSION" dist/version.txt

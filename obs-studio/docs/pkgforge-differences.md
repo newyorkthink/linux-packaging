@@ -72,16 +72,16 @@ Arch 官方 `obs-studio` 依赖 `cef` 和 `luajit`。当前 `cef` 包提供 `/us
 
 ```bash
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装官方软件包及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" obs-studio fcitx5-qt qt6ct kvantum lxqt-qtplugin
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" obs-studio fcitx5-qt qt6ct kvantum lxqt-qtplugin
 ```
 
 第一次 quick-sharun 之前读取版本：
 
 ```bash
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman obs-studio)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman obs-studio)"
 ```
 
 依赖收集和现有中文环境处理完成后封装：
@@ -95,7 +95,7 @@ quick-sharun --make-appimage
 
 ```bash
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/obs-studio.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/obs-studio.AppImage "$VERSION" dist/version.txt
 ```
 
 ## 未启用的官方原文

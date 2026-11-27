@@ -11,12 +11,12 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ############# 准备构建目录 #############
 
 # 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" goldendict
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" goldendict
 
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" goldendict qt5-qmake qtdeclarative5-dev-tools qttranslations5-l10n fcitx5-frontend-qt5 locales libao4 libpulse0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" goldendict qt5-qmake qtdeclarative5-dev-tools qttranslations5-l10n fcitx5-frontend-qt5 locales libao4 libpulse0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
 
 # 读取本次打包使用的版本。
 VERSION="$(dpkg-query -W -f='${Version}' goldendict)"
@@ -24,7 +24,7 @@ VERSION="$(dpkg-query -W -f='${Version}' goldendict)"
 ############# 下载打包工具 #############
 
 # 下载并校验打包工具及所需插件，随后加载构建环境配置。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" qt,gstreamer "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" qt,gstreamer "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 
 # 指定 Qt 查询工具。
 export QMAKE=/usr/lib/qt5/bin/qmake
@@ -32,12 +32,12 @@ export QMAKE=/usr/lib/qt5/bin/qmake
 ############ 初始化 AppDir #############
 
 # 首次运行 linuxdeploy，创建 AppDir 的基础目录。
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
+"$SCRIPT_DIR/../Common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
 ############ 下载并准备应用 #############
 
 # 本程序专属处理：下载并解包与当前安装版本一致的官方 DEB，保留完整发行版版本号。
-"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" "goldendict=$VERSION"
+"$SCRIPT_DIR/../Common/apt/download_and_extract_packages.sh" "$APPDIR" "goldendict=$VERSION"
 
 ########## 准备桌面资源和运行库 #########
 
@@ -54,7 +54,7 @@ mkdir -p "$APPDIR/usr/share/fonts/truetype" "$APPDIR/usr/etc/fonts" "$APPDIR/usr
 cp -a /usr/share/fonts/truetype/wqy "$APPDIR/usr/share/fonts/truetype/"
 
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.utf8"
+"$SCRIPT_DIR/../Common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.utf8"
 
 # 本程序专属处理：读取当前 Qt5 的插件目录。
 QT_PLUGINS="$("$QMAKE" -query QT_INSTALL_PLUGINS)"
@@ -130,4 +130,4 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --plugin gstreamer -
 "$SCRIPT_DIR/patches/prepare_libao_runtime.sh" "$APPDIR"
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+"$SCRIPT_DIR/../Common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

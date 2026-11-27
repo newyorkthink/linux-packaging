@@ -8,21 +8,21 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" claude-desktop fcitx5-gtk dpkg
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" claude-desktop fcitx5-gtk dpkg
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist claude-desktop.deb claude-desktop-unpacked
 mkdir -p AppDir/bin dist
 
 # 下载官方当前 DEB。
-"$SCRIPT_DIR/../common/aur/download_deb_source.sh" \
+"$SCRIPT_DIR/../Common/aur/download_deb_source.sh" \
   claude-desktop x86_64 \
   claude-desktop.deb
 
 # 解包官方 DEB。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" claude-desktop.deb claude-desktop-unpacked
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" claude-desktop.deb claude-desktop-unpacked
 
 # 整个程序目录原样放进 AppDir/bin。
 cp -a claude-desktop-unpacked/usr/lib/claude-desktop/. AppDir/bin/
@@ -47,7 +47,7 @@ export OUTNAME=claude-desktop.AppImage
 export DEPLOY_GTK=1
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman claude-desktop)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman claude-desktop)"
 
 # 收集程序及其运行依赖。
 quick-sharun AppDir/bin/*
@@ -63,7 +63,7 @@ LOCPATH=${SHARUN_DIR}/lib/locale
 ENV
 
 # 本仓库兼容处理：启动时注册 claude://。包内 desktop 不会进入宿主 applications 目录。
-bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
+bash "$SCRIPT_DIR/../Common/desktop/write_scheme_hook.sh" \
   --output AppDir/bin/20-claude-desktop-protocol.hook \
   --desktop-file com.anthropic.Claude.desktop \
   --name Claude \
@@ -77,4 +77,4 @@ bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/claude-desktop.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/claude-desktop.AppImage "$VERSION" dist/version.txt

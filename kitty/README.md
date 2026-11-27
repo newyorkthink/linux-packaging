@@ -12,11 +12,11 @@ kitty 为 GPU 加速终端，主体由 C/Python 组件组成。构建脚本从 G
 
 | 操作 | 公共入口与职责 |
 | --- | --- |
-| 下载官方预编译包 | 通过 `common/github/resolve_latest_stable_release_asset.sh` 解析最新正式版及对应资产版本；调用 `common/github/download_latest_stable_named_asset.sh` 下载并校验相应的 `x86_64.txz`，沿用直链优先、失败后认证回退及官方 SHA-256 校验。 |
-| 解压官方预编译包 | 调用 `common/archive/extract_archive.sh`，由公共入口创建目标目录并将 `.txz` 解压到原有 `kitty.app` 路径。 |
-| 读取当前程序版本 | 调用 `common/build/read_app_version.sh` 的 `command` 来源，传入真实程序、字段 2 和原 `--version` 参数；解析与格式校验放在公共入口。 |
-| 下载封装工具和 runtime | 一次调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh --appimagetool`，取得两个官方 continuous 文件、校验 SHA-256 并设置执行权限。 |
-| PNG 图标、正式封装和版本保存 | 调用 `common/linuxdeploy/package_appimage.sh`，统一处理权限、PNG、封装、有效产物检查、SHA-256 和 `dist/version.txt`。 |
+| 下载官方预编译包 | 通过 `Common/github/resolve_latest_stable_release_asset.sh` 解析最新正式版及对应资产版本；调用 `Common/github/download_latest_stable_named_asset.sh` 下载并校验相应的 `x86_64.txz`，沿用直链优先、失败后认证回退及官方 SHA-256 校验。 |
+| 解压官方预编译包 | 调用 `Common/archive/extract_archive.sh`，由公共入口创建目标目录并将 `.txz` 解压到原有 `kitty.app` 路径。 |
+| 读取当前程序版本 | 调用 `Common/build/read_app_version.sh` 的 `command` 来源，传入真实程序、字段 2 和原 `--version` 参数；解析与格式校验放在公共入口。 |
+| 下载封装工具和 runtime | 一次调用 `Common/linuxdeploy/prepare_linuxdeploy_tools.sh --appimagetool`，取得两个官方 continuous 文件、校验 SHA-256 并设置执行权限。 |
+| PNG 图标、正式封装和版本保存 | 调用 `Common/linuxdeploy/package_appimage.sh`，统一处理权限、PNG、封装、有效产物检查、SHA-256 和 `dist/version.txt`。 |
 
 两个公共工具入口都不会让 kitty 运行 linuxdeploy，kitty 仍使用官方预编译包与直接 appimagetool 路线。资源脚本只复制应用图标；最终封装时由 appimagetool 根据 PNG 根图标创建 `.DirIcon`。主脚本不再单独下载两个封装工具、添加它们的执行权限或重复打印“已生成”。
 
@@ -85,7 +85,7 @@ ln -s kitty.AppImage kitten
 
 ### 2026-11-02：对齐主脚本的通用分区与注释
 
-- 适用分区标题、依赖安装和 AppRun 执行权限注释逐字复用 [固定注释标准](../docs/linuxdeploy-comments.md)，原有版本读取、工具准备和最终封装注释继续保留；程序专属说明不改写。
+- 适用分区标题、依赖安装和 AppRun 执行权限注释逐字复用 [固定注释标准](../Docs/linuxdeploy-comments.md)，原有版本读取、工具准备和最终封装注释继续保留；程序专属说明不改写。
 - 只调整主脚本注释和对应空行。所有非注释、非空白代码行逐字一致，安装参数、路径、检查和执行顺序不变；独立 AppRun 及 kitten 分派未修改。Arch 基础包前置和封装工具的原下载位置保留，原因及适用边界见 [专属说明](./docs/template-deviations.md)。
 - 提交前核对 Shell 语法、固定原文、去除注释与空行后的代码、文档链接和完整 diff；未重新安装依赖、试打包或运行程序。此项为注释整理，不作为新的构建或运行故障修复记录。
 
@@ -98,6 +98,6 @@ ln -s kitty.AppImage kitten
 
 ### 2026-11-08：复用公共版本和归档入口
 
-- 将最新 Release 版本解析改为 `common/github/resolve_latest_stable_release_asset.sh`，继续通过现有 `download_latest_stable_named_asset.sh` 下载对应官方预编译包，认证回退和摘要校验由公共入口负责。
-- 将手工创建安装目录及 `tar -xJof` 解包改为单次调用 `common/archive/extract_archive.sh`，保持 `AppDir/usr/lib/kitty.app` 及其内部层级不变。
+- 将最新 Release 版本解析改为 `Common/github/resolve_latest_stable_release_asset.sh`，继续通过现有 `download_latest_stable_named_asset.sh` 下载对应官方预编译包，认证回退和摘要校验由公共入口负责。
+- 将手工创建安装目录及 `tar -xJof` 解包改为单次调用 `Common/archive/extract_archive.sh`，保持 `AppDir/usr/lib/kitty.app` 及其内部层级不变。
 - 删除 `test -x "$KITTY_DIR/bin/kitten"` 预检查及对应注释；不改变包内 `kitten` 程序、`AppRun` 分派或其他既有命令。旧构建记录保留为历史事实。

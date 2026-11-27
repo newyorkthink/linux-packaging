@@ -8,12 +8,12 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装官方软件包及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" "i3-wm" xorg-server xorg-server-common xorg-server-xvfb i3status dmenu xss-lock perl-anyevent-i3 perl-json-xs xorg-xrandr xorg-xset xorg-xprop xorg-xmodmap xorg-xsetroot xorg-xmessage
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" "i3-wm" xorg-server xorg-server-common xorg-server-xvfb i3status dmenu xss-lock perl-anyevent-i3 perl-json-xs xorg-xrandr xorg-xset xorg-xprop xorg-xmodmap xorg-xsetroot xorg-xmessage
 
 # 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
 
 
 # 把当前机器架构传给 quick-sharun。
@@ -35,7 +35,7 @@ export PATH_MAPPING='
 '
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman "i3-wm")"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman "i3-wm")"
 
 # 收集程序及其运行依赖。
 quick-sharun /usr/bin/i3 /usr/bin/i3bar /usr/bin/i3-config-wizard /usr/bin/i3-dmenu-desktop /usr/bin/i3-dump-log /usr/bin/i3-input /usr/bin/i3-migrate-config-to-v4 /usr/bin/i3-msg /usr/bin/i3-nagbar /usr/bin/i3-save-tree /usr/bin/i3-sensible-editor /usr/bin/i3-sensible-pager /usr/bin/i3-sensible-terminal /usr/bin/i3-with-shmlog /usr/bin/i3status /usr/bin/dmenu /usr/bin/dmenu_path /usr/bin/dmenu_run /usr/bin/stest /usr/bin/xss-lock
@@ -49,4 +49,4 @@ cp -a /etc/i3status.conf AppDir/etc/i3status.conf
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/i3.AppImage" "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "dist/i3.AppImage" "$VERSION" dist/version.txt

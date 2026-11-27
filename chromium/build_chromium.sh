@@ -8,12 +8,12 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 应用本身。包管理器会拉入它声明的依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" "chromium" qt6-base ibus fcitx5-gtk
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" "chromium" qt6-base ibus fcitx5-gtk
 
 # 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
 mkdir -p AppDir/bin
 
 
@@ -48,7 +48,7 @@ export STRACE_BINARY=chromium
 export STRACE_FLAGS='about:blank --no-sandbox'
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman "chromium")"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman "chromium")"
 
 # 收集程序及其运行依赖。
 quick-sharun AppDir/bin/* /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
@@ -67,4 +67,4 @@ ENV
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/chromium.AppImage" "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "dist/chromium.AppImage" "$VERSION" dist/version.txt

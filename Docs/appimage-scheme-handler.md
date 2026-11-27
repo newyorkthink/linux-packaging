@@ -2,7 +2,7 @@
 
 直接运行 AppImage 时，包内 `.desktop` 不会进入宿主的 `applications` 目录。登录、OAuth 或其它深度链接如果要用自定义协议把浏览器交回程序，系统就找不到处理程序，回调回不到程序。这是直接运行 AppImage 的限制，不是「程序写死了某个浏览器」。
 
-后续应用碰到同类回调前先读本文，再读 [common/desktop/write_scheme_hook.sh](../common/desktop/write_scheme_hook.sh)。某个应用已经发生过什么，以该应用目录的 `README.md` 为准，不要抄进本文。
+后续应用碰到同类回调前先读本文，再读 [Common/desktop/write_scheme_hook.sh](../Common/desktop/write_scheme_hook.sh)。某个应用已经发生过什么，以该应用目录的 `README.md` 为准，不要抄进本文。
 
 ## 现象
 
@@ -22,7 +22,7 @@
 
 ## 现用做法
 
-公共入口是 `common/desktop/write_scheme_hook.sh`。构建脚本调用它，写出 `AppDir/bin/20-<应用>-protocol.hook`。quick-sharun 生成的 AppRun 会在 `set -e` 下 source 这个 hook，因此 hook 必须遵守：
+公共入口是 `Common/desktop/write_scheme_hook.sh`。构建脚本调用它，写出 `AppDir/bin/20-<应用>-protocol.hook`。quick-sharun 生成的 AppRun 会在 `set -e` 下 source 这个 hook，因此 hook 必须遵守：
 
 - 不修改 `"$@"`。
 - 失败不阻止启动。登记放在子 shell 里，并 `set +e`。

@@ -1,6 +1,6 @@
 # CC Switch 模板差异
 
-本项目为 Tauri 2 / Rust、GTK 3、WebKitGTK 4.1 程序，单独归入 [Tauri / GTK 分类](../../docs/packaging-classification.md#用-quick-sharun-打包的-tauri--gtk-程序)。共用 [直接下载标准](../../anylinux_projects.md#直接下载安装包的标准模板) 的执行阶段、九项元数据顺序、通用注释和空行，不加入 Electron 专属处理。
+本项目为 Tauri 2 / Rust、GTK 3、WebKitGTK 4.1 程序，单独归入 [Tauri / GTK 分类](../../Docs/packaging-classification.md#用-quick-sharun-打包的-tauri--gtk-程序)。共用 [直接下载标准](../../anylinux_projects.md#直接下载安装包的标准模板) 的执行阶段、九项元数据顺序、通用注释和空行，不加入 Electron 专属处理。
 
 ## 来源核实
 

@@ -36,7 +36,7 @@ env -u I3SOCK DISPLAY=:99 i3-msg -t get_version
 - 技术栈为 X.Org 的 C 语言 X11 server；工作流使用 x86_64 Arch 容器，键盘映射由 `xorg-xkbcomp` 和 `xkeyboard-config` 提供。
 - 构建脚本 [`build_xephyr.sh`](./build_xephyr.sh) 用 quick-sharun 打包 `/usr/bin/Xephyr`、`/usr/bin/xkbcomp` 和 XKB 键盘规则；将 X server 编译时的系统路径映射至包内，使用 quick-sharun 生成的 `AppRun` 原样透传命令行参数。无需另写启动 hook 或 i3 配置。
 - 上游包没有 desktop 和图标；构建时生成临时 desktop，并使用 Arch Adwaita 主题中的通用显示器图标。Xephyr 是 X server，不需要为自身添加中文 locale 或 GTK / Qt 输入模块。
-- 统一工作流 [`.github/workflows/build.yml`](../.github/workflows/build.yml) 使用清单 [`.github/appimage-apps.json`](../.github/appimage-apps.json) 的 `xephyr` 项构建和发布 `Xephyr.AppImage`。产物目录 `dist/`；收集依赖前调用公共入口 [`read_app_version.sh pacman`](../common/build/read_app_version.sh)，从本次安装的 Arch 包读取上游版本。成功封装后由 [`save_appimage_version.sh`](../common/build/save_appimage_version.sh) 检查产物并写入 `version.txt`。
+- 统一工作流 [`.github/workflows/build.yml`](../.github/workflows/build.yml) 使用清单 [`.github/appimage-apps.json`](../.github/appimage-apps.json) 的 `xephyr` 项构建和发布 `Xephyr.AppImage`。产物目录 `dist/`；收集依赖前调用公共入口 [`read_app_version.sh pacman`](../Common/build/read_app_version.sh)，从本次安装的 Arch 包读取上游版本。成功封装后由 [`save_appimage_version.sh`](../Common/build/save_appimage_version.sh) 检查产物并写入 `version.txt`。
 
 ## 维护文档
 
@@ -57,8 +57,8 @@ env -u I3SOCK DISPLAY=:99 i3-msg -t get_version
 
 2026-09-27：初次提交 `c311e1f` 为 Xephyr 加入了无关的中文 locale 和启动 hook，且 `-no-host-grab` 会禁止手动抓取键鼠，不适合内外都用 i3 的快捷键。修正 `build_xephyr.sh` 和本 README：删除上述内容，将 XKB 的编译时路径映射到包内，运行时由用户指定显示编号。静态检查完成。
 
-2026-09-27：提交 `56334e5` 仍在 Xephyr 脚本中重复检查产物并直接写入 `version.txt`，没有复用现有公共入口。修正 `build_xephyr.sh` 和本 README：保留 Arch 包版本解析，改用 `common/build/save_appimage_version.sh` 检查最终 AppImage 并保存版本；静态检查完成。
+2026-09-27：提交 `56334e5` 仍在 Xephyr 脚本中重复检查产物并直接写入 `version.txt`，没有复用现有公共入口。修正 `build_xephyr.sh` 和本 README：保留 Arch 包版本解析，改用 `Common/build/save_appimage_version.sh` 检查最终 AppImage 并保存版本；静态检查完成。
 
 2026-09-27：初次产物命名为小写 `xephyr.AppImage`，不符合上游程序 `Xephyr` 的大小写。修正 `build_xephyr.sh`、`README.md` 和 `.github/appimage-apps.json`：统一使用 `Xephyr.AppImage`；静态检查完成。
 
-2026-09-27：前次修正只复用了版本保存入口，`build_xephyr.sh` 仍自行解析 `pacman -Q` 返回的 epoch 与 `pkgrel`。新增 `common/arch/get_package_version.sh` 统一读取已安装 Arch 包的上游版本，Xephyr 构建改为调用该入口；原有产物检查和版本保存入口不变。静态检查完成。
+2026-09-27：前次修正只复用了版本保存入口，`build_xephyr.sh` 仍自行解析 `pacman -Q` 返回的 epoch 与 `pkgrel`。新增 `Common/arch/get_package_version.sh` 统一读取已安装 Arch 包的上游版本，Xephyr 构建改为调用该入口；原有产物检查和版本保存入口不变。静态检查完成。

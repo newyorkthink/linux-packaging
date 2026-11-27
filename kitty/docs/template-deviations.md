@@ -13,8 +13,8 @@
 | ../build_kitty.sh | 保留环境准备、官方下载、版本解析、`AppRun` 安装和最终封装；实际版本通过公共入口保存。 | 主脚本只负责构建顺序；原 installer、依赖安装和 `appimagetool` 封装命令保持原样。 |
 | ../AppRun | 原 heredoc 的完整正文逐字保存，构建时复制到 `AppDir/AppRun`。 | 保留 `kitten` 分派、参数、输入法地址、terminfo、tmux 与既有日志过滤行为。 |
 | ../patches/prepare_appdir.sh | 下载应用后准备 libxcb-xkb、terminfo、desktop 和根图标。 | 程序专属的资源处理集中维护，不混入工具下载阶段。 |
-| ../../common/appimage/prepare_appdir_for_appimagetool.sh | 在资源准备末尾取得合格的 PNG 根图标，再将 `.DirIcon` 指向 `kitty.png`。 | 复用已有公共实现，修复本次 SVG `.DirIcon` 封装失败；不修改公共脚本。 |
-| ../../common/build/save_appimage_version.sh | 最终封装完成后确认 AppImage 非空，再写 `dist/version.txt`。 | 保留有效产物检查，避免构建未产生有效资产时写出成功版本。 |
+| ../../Common/appimage/prepare_appdir_for_appimagetool.sh | 在资源准备末尾取得合格的 PNG 根图标，再将 `.DirIcon` 指向 `kitty.png`。 | 复用已有公共实现，修复本次 SVG `.DirIcon` 封装失败；不修改公共脚本。 |
+| ../../Common/build/save_appimage_version.sh | 最终封装完成后确认 AppImage 非空，再写 `dist/version.txt`。 | 保留有效产物检查，避免构建未产生有效资产时写出成功版本。 |
 
 ## 精简检查的边界
 
@@ -36,15 +36,15 @@
 
 | 当前阶段 | 实际调用与职责 |
 | --- | --- |
-| 官方文件下载 | 三次单行调用 `common/download/download_file.sh`，分别下载原 installer、appimagetool 和 Type 2 runtime。 |
+| 官方文件下载 | 三次单行调用 `Common/download/download_file.sh`，分别下载原 installer、appimagetool 和 Type 2 runtime。 |
 | 应用安装与版本读取 | 沿用原 installer 命令和版本解析，不更换官方程序来源或目录布局。 |
 | 程序资源准备 | `patches/prepare_appdir.sh` 保留运行库、terminfo、desktop 和原图标复制；移除手工 `.DirIcon` 链接、PNG 公共调用和因此不再使用的路径变量。 |
 | 运行入口 | 原样复制 `AppRun`，保留 kitten、输入法及 tmux 的全部行为。 |
-| 最终封装 | 单行调用 `common/linuxdeploy/package_appimage.sh`，传入 appimagetool、AppDir、输出文件、runtime 和实际软件版本。 |
+| 最终封装 | 单行调用 `Common/linuxdeploy/package_appimage.sh`，传入 appimagetool、AppDir、输出文件、runtime 和实际软件版本。 |
 
 `package_appimage.sh` 内部只执行 PNG / 权限准备和 appimagetool 封装，不运行 linuxdeploy。PNG 准备在封装前执行一次；资源脚本不再创建旧的 SVG `.DirIcon`，由 appimagetool 根据合格根图标创建最终链接。最终资产非空检查、SHA-256 输出和版本写入也由该入口负责，调用方不再重复保存版本。
 
-本次未修改 `common/`、workflow、应用清单或其他应用；仍由既有 push 规则选中 kitty 构建。上文精简检查的边界继续有效。
+本次未修改 `Common/`、workflow、应用清单或其他应用；仍由既有 push 规则选中 kitty 构建。上文精简检查的边界继续有效。
 
 ## 当前公共版本与工具准备接口
 
@@ -63,7 +63,7 @@ Kitty 的 AppRun 正文有 169 行，包含 kitten 分派、输入法、terminfo
 
 ## 2026-11-02：主脚本注释与分区对齐
 
-直接 appimagetool 模式逐字使用 [固定注释标准](../../docs/linuxdeploy-comments.md) 中适用的分区标题、依赖安装和 AppRun 执行权限注释；已一致的通用注释和现有程序专属说明保留。
+直接 appimagetool 模式逐字使用 [固定注释标准](../../Docs/linuxdeploy-comments.md) 中适用的分区标题、依赖安装和 AppRun 执行权限注释；已一致的通用注释和现有程序专属说明保留。
 
 本次只整理注释与空行，不移动或改写命令。Arch 基础包仍按原位置提前安装；最终封装工具仍在 AppRun 准备之后取得，保留原有已确认顺序。分区仅标明实际执行阶段，不为了套用 linuxdeploy 的默认顺序移动代码，也不增加初始化、插件、部署或中间包阶段。独立 AppRun 及 kitten 分派保持原样。
 
@@ -71,14 +71,14 @@ Kitty 的 AppRun 正文有 169 行，包含 kitten 分派、输入法、terminfo
 
 [Build kitty](https://github.com/newyorkthink/linux-packaging/actions/runs/42475221749/job/128714966257) 在执行官方 `installer.sh` 时，内部下载 `kitty-0.50.0-x86_64.txz` 返回 HTTP 504。原构建脚本只通过公共入口下载安装器本身，因此该公共入口无法处理安装器内部的下载失败。
 
-当前在 `build_kitty.sh` 的“下载并准备应用”阶段，用 `gh release view` 获取 Kitty 最新正式版标签，调用现有 `common/github/download_latest_stable_named_asset.sh` 下载对应官方 `x86_64.txz`，随后创建原 `kitty.app` 目录并使用 `tar -xJof` 直接解包。公共脚本先使用官方 Release 直链；下载失败才凭 GitHub Token 通过同一资产 ID 认证回退，并校验官方 SHA-256。主脚本不新增条件分支、校验逻辑或输出逻辑。
+当前在 `build_kitty.sh` 的“下载并准备应用”阶段，用 `gh release view` 获取 Kitty 最新正式版标签，调用现有 `Common/github/download_latest_stable_named_asset.sh` 下载对应官方 `x86_64.txz`，随后创建原 `kitty.app` 目录并使用 `tar -xJof` 直接解包。公共脚本先使用官方 Release 直链；下载失败才凭 GitHub Token 通过同一资产 ID 认证回退，并校验官方 SHA-256。主脚本不新增条件分支、校验逻辑或输出逻辑。
 
 这一改动只替换原 `installer.sh` 的获取和执行步骤；不改变 `AppDir/usr/lib/kitty.app` 下的 `bin`、`lib`、`share` 相对层级，不改版本读取、`kitten` 检查、`AppRun`、`prepare_appdir.sh`、Arch 依赖或现有 appimagetool 封装。前述 2026-11-01 至 2026-11-02 的 installer 与工具准备记录保留为当时的基线和历史实施说明，当前下载方式以本节为准。
 
 ## 2026-11-08：公共版本、解压入口与构建预检查精简
 
-在前述直接下载官方预编译包的基础上，将 `gh release view` 查询改为调用现有 `common/github/resolve_latest_stable_release_asset.sh`，以官方资产名模板取得最新正式版版本，再沿用 `common/github/download_latest_stable_named_asset.sh` 下载对应资产；不在应用脚本中实现 Release API 查询、认证回退或摘要校验。
+在前述直接下载官方预编译包的基础上，将 `gh release view` 查询改为调用现有 `Common/github/resolve_latest_stable_release_asset.sh`，以官方资产名模板取得最新正式版版本，再沿用 `Common/github/download_latest_stable_named_asset.sh` 下载对应资产；不在应用脚本中实现 Release API 查询、认证回退或摘要校验。
 
-将单独的 `mkdir -p "$KITTY_DIR"` 和 `tar -xJof` 改为一次调用 `common/archive/extract_archive.sh`，由公共入口创建目标目录并解包 `.txz`。删除 `test -x "$KITTY_DIR/bin/kitten"` 及其注释，不再在应用构建脚本中重复进行包内程序的预检查。此前“精简检查的边界”所列 `bin/kitten` 检查为当时的保留方案，本节记录其后续移除。
+将单独的 `mkdir -p "$KITTY_DIR"` 和 `tar -xJof` 改为一次调用 `Common/archive/extract_archive.sh`，由公共入口创建目标目录并解包 `.txz`。删除 `test -x "$KITTY_DIR/bin/kitten"` 及其注释，不再在应用构建脚本中重复进行包内程序的预检查。此前“精简检查的边界”所列 `bin/kitten` 检查为当时的保留方案，本节记录其后续移除。
 
 本次不改 `AppRun`、包内 `kitten` 分派、实际版本读取、`prepare_appdir.sh`、构建依赖、封装工具及最终产物接口；前述旧调用与历史说明保留。

@@ -14,7 +14,7 @@ workflow 将其上传为 `software-version-rofi`，成功构建后增量写入 `
 
 ## 维护说明
 
-- 构建脚本已对齐标准模板 [arch-native.sh](../Templates/quick-sharun/arch-native.sh)，统一通过 `common/` 公共脚本完成安装、工作区准备与版本读写。
+- 构建脚本已对齐标准模板 [arch-native.sh](../Templates/quick-sharun/arch-native.sh)，统一通过 `Common/` 公共脚本完成安装、工作区准备与版本读写。
 - 保留 `STARTUPWMCLASS="rofi"`、`DEPLOY_OPENGL=1`、原有 `rofi-emoji` 依赖及 3 个 Rofi 辅助程序入口；并从 [pkgforge-dev/rofi-AppImage](https://github.com/pkgforge-dev/rofi-AppImage)（固定提交 `84953049a6ef24a02b722e4072c6dbc3e8d4fca9`）原样复用独立运行 hook [rofi-datadir.src.hook](./rofi-datadir.src.hook)（官方未说明原因，按源码用于补充 `XDG_DATA_DIRS` 并在首次运行时复制包内内置主题）。
 - 上游 `URUNTIME_PRELOAD=1`、源码编译、`get-debloated-pkgs` 及 `self-updater.hook`/`UPINFO` 当前未启用；完整采用与未采用记录见 [上游打包差异](./docs/pkgforge-differences.md) 与 [模板差异说明](./docs/template-deviations.md)。
 - 版本值来自本次实际安装的软件包，不手工写死，版本元数据接入不改变最终资产名 `rofi.AppImage`。

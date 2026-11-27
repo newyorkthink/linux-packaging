@@ -22,7 +22,7 @@
 | [qt-deb.sh](./Templates/quick-sharun/qt-deb.sh) | Qt，AUR 指向的预编译官方 DEB |
 | [qt-installed.sh](./Templates/quick-sharun/qt-installed.sh) | Qt 6，Arch 官方仓库程序，从系统入口收集 |
 
-在 Arch Linux 构建环境使用。先按软件来源、框架、实际入口和所需运行配置选定一份完整模板，再用生成器生成应用一级目录下的构建脚本。`../common/` 相对于应用目录。模板应替换完全部占位参数后再运行。原生及系统安装模板重建当前应用的 `AppDir` 与 `dist`，DEB 模板还会重建 `work`。这些目录中的旧内容会被删除。
+在 Arch Linux 构建环境使用。先按软件来源、框架、实际入口和所需运行配置选定一份完整模板，再用生成器生成应用一级目录下的构建脚本。`../Common/` 相对于应用目录。模板应替换完全部占位参数后再运行。原生及系统安装模板重建当前应用的 `AppDir` 与 `dist`，DEB 模板还会重建 `work`。这些目录中的旧内容会被删除。
 
 只替换下表允许变化的参数值，注释、顺序、缩进和空行逐字保留。只允许使用 [固定模板清单](./Templates/README.md) 中的现有模板。没有适用模板时，先说明具体冲突，授权前保留已有构建脚本。专用流程按 [AGENTS.md](./AGENTS.md) 逐次取得用户授权。禁止提出、新增或登记清单外模板，也不得拼接旧脚本或其他模板。软件来源和上游打包核实要求仍按本文执行。
 
@@ -75,7 +75,7 @@ quick-sharun __SCAN_ARGS__
 
 ## 公共注释
 
-通用注释逐字复用 [quick-sharun 固定注释标准](./docs/quick-sharun-comments.md)，位置、顺序和空行遵循对应分类模板。公共表只收录跨项目需要统一的表述，不收录应用专属注释，也不授权批量改写既有稳定脚本。下文的来源注释表保持原文，继续说明来源标注及已确认的专项用途。
+通用注释逐字复用 [quick-sharun 固定注释标准](./Docs/quick-sharun-comments.md)，位置、顺序和空行遵循对应分类模板。公共表只收录跨项目需要统一的表述，不收录应用专属注释，也不授权批量改写既有稳定脚本。下文的来源注释表保持原文，继续说明来源标注及已确认的专项用途。
 
 **quick-sharun 固定注释及来源标注必须执行以下规则。**
 
@@ -102,7 +102,7 @@ quick-sharun __SCAN_ARGS__
 
 通用注释、排列顺序和空行遵守对应模板；专属差异及依据记录在对应应用的 docs，并同步维护受影响的应用说明。新增或修改 export 时必须核对登记表；涉及新增变量、用途或使用位置变化时，同步更新登记表。不得借此批量改动已经确认稳定的应用脚本。
 
-已登记变量的用途和使用位置见 [打包 export 登记表](./docs/packaging-export-registry.md)。
+已登记变量的用途和使用位置见 [打包 export 登记表](./Docs/packaging-export-registry.md)。
 
 ## 强制前置：核实 pkgforge-dev 官方打包并原样复用专属代码
 
@@ -112,7 +112,7 @@ quick-sharun __SCAN_ARGS__
 2. 官方存在专属处理时，必须先按下文判断当前场景是否必要；本次决定采用并直接复用的对应命令和源码，必须逐字原样保留在本仓库的 `build_*.sh` 中。命令、参数、路径、引号、大小写、通配符、管道、重定向、代码续行及执行顺序均不得改动；必要的变量赋值、函数定义和调用上下文不得漏掉。**逐字保留只针对可执行代码和命令本身，代码中的字符串及运行提示同样不得改写；上游注释不属于必须逐字保留的代码。**
 3. **禁止修改本次决定直接复用的上游官方打包命令。** 不得作等价改写，不得增删参数、替换程序、改路径、调整顺序、拆分或合并命令，不得把官方的下载命令替换为复制命令或公共入口调用，禁止以“功能相同”代替原样复用。
 4. 本次决定采用的官方独立 hook、wrapper 等配套文件，必须在本仓库中按独立文件保存，其可执行代码逐字保留，禁止自行重写、简化或内联改造成另一套实现。注释按第 5 项处理，原有版权和许可证声明必须保留。其构建引用仍放在本应用的 `build_*.sh` 中；本仓库自写的引用或复制命令不得冒称官方原命令。
-5. 直接复用的官方代码块正上方，必须用一行中文注释，采用“复用官方代码：……”清楚说明其通用用途。说明必须泛化，不夹带具体应用名、专属路径或版本号。**本次涉及的上游注释过于简略或不清楚时，可以补充或替换为通顺、完整的中文说明，不要求逐字保留原注释；不得因此改动任何可执行代码。** 只处理本次复用涉及的注释，不得改写范围外或已经确认的其他原注释。引用独立配套文件时，应明确写“文件内容复用官方代码”，不得把自写的文件复制命令标成官方原命令；补充解释仍须遵守第 7 项的官方原因与证据要求。 **同一用途的来源标注和标准注释必须逐字一致。直接采用官方命令统一使用“复用官方代码：”；引用官方独立文件统一使用“文件内容复用官方代码：”，不得用“保留原有处理”或“参考官方”替代。与官方原文不同的既有兼容代码必须明确标为“本仓库兼容处理：”，并列出差异，禁止冒称原样复用。quick-sharun 的通用注释以 `docs/quick-sharun-comments.md` 为准，来源标注及既定专项用途继续遵循 `anylinux_projects.md` 中的注释表；不得在草稿或实际文件中自行换词。**
+5. 直接复用的官方代码块正上方，必须用一行中文注释，采用“复用官方代码：……”清楚说明其通用用途。说明必须泛化，不夹带具体应用名、专属路径或版本号。**本次涉及的上游注释过于简略或不清楚时，可以补充或替换为通顺、完整的中文说明，不要求逐字保留原注释；不得因此改动任何可执行代码。** 只处理本次复用涉及的注释，不得改写范围外或已经确认的其他原注释。引用独立配套文件时，应明确写“文件内容复用官方代码”，不得把自写的文件复制命令标成官方原命令；补充解释仍须遵守第 7 项的官方原因与证据要求。 **同一用途的来源标注和标准注释必须逐字一致。直接采用官方命令统一使用“复用官方代码：”；引用官方独立文件统一使用“文件内容复用官方代码：”，不得用“保留原有处理”或“参考官方”替代。与官方原文不同的既有兼容代码必须明确标为“本仓库兼容处理：”，并列出差异，禁止冒称原样复用。quick-sharun 的通用注释以 `Docs/quick-sharun-comments.md` 为准，来源标注及既定专项用途继续遵循 `anylinux_projects.md` 中的注释表；不得在草稿或实际文件中自行换词。**
 6. 对应应用的 `docs/template-deviations.md` 必须记录官方仓库、原文件路径、固定 commit 的源码链接、复用的具体代码及其所在构建阶段、用途、影响和官方原始原因；涉及固定配置时同步记入该应用的 `docs/hardcoded.md`。该应用的 `README.md` 必须说明复用了哪些官方处理、来自何处、官方为何这样做，并链接对应详细记录。代码和说明必须在同一次获批修改中完成，不得只写“参考官方”。
 7. 官方原因必须以其源码注释、README、文档或 Issue 中的实际说明为依据，并给出原始出处。官方没有解释原因时，必须明确写“官方未说明原因”，禁止用 AI 推测、习惯判断或“应该需要”冒充官方理由。官方没有专属处理时，按本仓库标准模板执行，不添加或罗列不存在的特殊步骤。
 
@@ -216,9 +216,9 @@ quick-sharun __SCAN_ARGS__
 
 ## Arch 官方仓库原生程序系统入口标准
 
-适用于选择 Arch 官方仓库原生二进制包、且 `/usr/bin/<主程序>` 为真实可执行程序的路线。先安装基础包、应用及已确认依赖，再从系统入口收集；不另行下载同一主程序，不预复制程序到 `AppDir/bin`，不把 Electron 的 shell launcher 当成原生入口。本类已标准化项目见 [打包分类](./docs/packaging-classification.md)。
+适用于选择 Arch 官方仓库原生二进制包、且 `/usr/bin/<主程序>` 为真实可执行程序的路线。先安装基础包、应用及已确认依赖，再从系统入口收集；不另行下载同一主程序，不预复制程序到 `AppDir/bin`，不把 Electron 的 shell launcher 当成原生入口。本类已标准化项目见 [打包分类](./Docs/packaging-classification.md)。
 
-Chromium 的 Arch 包由 `/usr/bin/chromium` 启动器调用 `/usr/lib/chromium` 下的实际浏览器。它使用现有模板从[系统完整程序目录收集](./docs/packaging-classification.md#从系统完整程序目录收集)，保留相邻资源。Qt6 shim 和 GTK3 输入模块列在 [Chromium 模板差异](./chromium/docs/template-deviations.md)中。
+Chromium 的 Arch 包由 `/usr/bin/chromium` 启动器调用 `/usr/lib/chromium` 下的实际浏览器。它使用现有模板从[系统完整程序目录收集](./Docs/packaging-classification.md#从系统完整程序目录收集)，保留相邻资源。Qt6 shim 和 GTK3 输入模块列在 [Chromium 模板差异](./chromium/docs/template-deviations.md)中。
 
 以下是系统入口流程的既有示例。按标准重写时使用 [arch-native.sh](./Templates/quick-sharun/arch-native.sh)，参数替换和适用条件以上面的模板表为准。
 
@@ -233,9 +233,9 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装官方软件包及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" <应用包> <已确认的运行依赖>
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" <应用包> <已确认的运行依赖>
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist
@@ -253,7 +253,7 @@ export OUTPATH="$SCRIPT_DIR/dist"
 export OUTNAME=<应用名>.AppImage
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman <应用包>)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman <应用包>)"
 
 # 收集程序及其运行依赖。
 quick-sharun /usr/bin/<主程序>
@@ -262,7 +262,7 @@ quick-sharun /usr/bin/<主程序>
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/<应用名>.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/<应用名>.AppImage "$VERSION" dist/version.txt
 ```
 
 版本在第一次 quick-sharun 之前通过公共入口读取；最终 AppImage 成功生成后单行调用公共保存入口。ICON、DESKTOP 优先使用当前软件包实际提供的资源。软件包缺少桌面入口时，使用项目维护的 desktop，并注明来源。APPNAME、MAIN_BIN、STARTUPWMCLASS、DEPLOY_GTK 等仅在当前程序确有需要时设置，不为凑齐 Electron 模板加入。
@@ -365,7 +365,7 @@ SMPlayer 使用公共安装、工作区和版本入口，中文 locale 按包内
 
 ### 已有源码专用流程
 
-[Webcamoid](./webcamoid/README.md) 当前保留官方正式 Release 源码、四个补丁、CMake + Ninja 暂存安装以及 quick-sharun 封装的既有流程，已登记在 [专用打包流程](./docs/packaging-classification.md#专用打包流程)。这与本节从系统已安装 Qt 程序收集的来源不同，不能标成已逐字套用 qt-installed.sh，也不新增源码编译模板。
+[Webcamoid](./webcamoid/README.md) 当前保留官方正式 Release 源码、四个补丁、CMake + Ninja 暂存安装以及 quick-sharun 封装的既有流程，已登记在 [专用打包流程](./Docs/packaging-classification.md#专用打包流程)。这与本节从系统已安装 Qt 程序收集的来源不同，不能标成已逐字套用 qt-installed.sh，也不新增源码编译模板。
 
 源码适配、暂存目录、动态插件、运行配置及注释核对结果见其 [模板差异](./webcamoid/docs/template-deviations.md)，实际通过结果见 [README 实机验证](./webcamoid/README.md#实机验证)。这只是当前实现的登记；后续构建脚本修改继续遵守 AGENTS.md 的生成器、现成二进制优先及稳定基线规则，不据此扩大其他应用的源码构建或专属处理。
 
@@ -442,7 +442,7 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 
 ### 直接下载安装包的标准模板
 
-**直接下载官方 DEB、从包内 `package.json` 读取版本的 Electron 应用，按标准重写时采用 [electron-deb.sh](./Templates/quick-sharun/electron-deb.sh)。** [Cursor](./cursor/build_cursor.sh) 和 [WorkBuddy](./workbuddy/build_workbuddy.sh) 用于查阅既有实现。其他归档格式或版本来源按固定模板清单核对，现有模板不适用时说明具体冲突。分类入口见 [打包分类](./docs/packaging-classification.md)。
+**直接下载官方 DEB、从包内 `package.json` 读取版本的 Electron 应用，按标准重写时采用 [electron-deb.sh](./Templates/quick-sharun/electron-deb.sh)。** [Cursor](./cursor/build_cursor.sh) 和 [WorkBuddy](./workbuddy/build_workbuddy.sh) 用于查阅既有实现。其他归档格式或版本来源按固定模板清单核对，现有模板不适用时说明具体冲突。分类入口见 [打包分类](./Docs/packaging-classification.md)。
 
 带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](./Templates/quick-sharun/electron-github-deb.sh)。公共入口按调用方指定的前缀筛选正式版本、校验 GitHub SHA-256 及 DEB 包名和架构，版本读取同次下载保存的文本；完整程序目录仍原样复制，不为读取版本解开或修改 ASAR。该模板用 `__SCAN_ARGS__` 接收完整扫描列表，由应用按实际程序目录、辅助命令及所需资源填写，不固定 `AppDir/bin/*` 再拼接额外扫描参数。
 
@@ -474,20 +474,20 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 
 ### 官方 Snap 的专用流程
 
-[BlueMail](./bluemail/build_bluemail.sh) 使用官方稳定通道 Snap，按[专用打包流程](./docs/packaging-classification.md#专用打包流程)维护。经用户确认，该应用由公共 Arch 安装入口显式启用 `--aur-source` 与 `--snap-stable bluemail blix amd64`，先从 Snap Store 动态取得并校验当前稳定版，同步临时 AUR 配方的版本、来源和摘要后安装，后续打包复用同一份完整 Snap；不跟随 AUR 中滞后的应用版本，也不进行第二次 Snap 下载。现有模板没有对应的 Snap 来源保留与资源准备阶段，因此不按 DEB 模板逐行套用，也不新增模板。其他应用继续遵循各自已确认的来源准备流程。
+[BlueMail](./bluemail/build_bluemail.sh) 使用官方稳定通道 Snap，按[专用打包流程](./Docs/packaging-classification.md#专用打包流程)维护。经用户确认，该应用由公共 Arch 安装入口显式启用 `--aur-source` 与 `--snap-stable bluemail blix amd64`，先从 Snap Store 动态取得并校验当前稳定版，同步临时 AUR 配方的版本、来源和摘要后安装，后续打包复用同一份完整 Snap；不跟随 AUR 中滞后的应用版本，也不进行第二次 Snap 下载。现有模板没有对应的 Snap 来源保留与资源准备阶段，因此不按 DEB 模板逐行套用，也不新增模板。其他应用继续遵循各自已确认的来源准备流程。
 
 该应用保留已确认的 `AppDir/shared/bin` 布局、相邻资源链接、运行时库目录、固定工作目录和 OAuth hook。共用步骤及通用注释继续使用现有标准原文，来源与布局差异采用 `# 本程序专属处理：` 说明。具体配置、依据及代码位置见[模板差异](./bluemail/docs/template-deviations.md)，不把这些专属步骤复制到其他应用。
 
-稳定通道模式先核对发布者、架构、官方 SHA3-384 和新旧 Snap ID，再仅更新临时配方中的选中来源及有效 SHA-256 / SHA-512，保留其他来源和依赖；公共入口准备配方依赖后，在更新后的临时目录以其所属非 root 用户直接执行 makepkg，生成 `.SRCINFO` 并安装。实际安装版本须与本次官方稳定版一致，再按同组同索引校验缓存和核对 `pkgver` 后导出归档及来源版本；当前 BlueMail 配方使用 SHA-512。未传 `--snap-stable` 的来源导出流程保持原行为。格式解包仍由 `common/archive/extract_archive.sh` 负责，打包前用公共 `text` 来源读取版本，最终版本保存继续在封装成功后执行。完整接口见[安装来源导出说明](./common/README.md#arch-安装时导出同次-aur-原始来源)。需要独立获取官方稳定通道的其他调用继续使用现有 [Snap Store 公共入口](./common/README.md#snap-store-官方稳定通道)。
+稳定通道模式先核对发布者、架构、官方 SHA3-384 和新旧 Snap ID，再仅更新临时配方中的选中来源及有效 SHA-256 / SHA-512，保留其他来源和依赖；公共入口准备配方依赖后，在更新后的临时目录以其所属非 root 用户直接执行 makepkg，生成 `.SRCINFO` 并安装。实际安装版本须与本次官方稳定版一致，再按同组同索引校验缓存和核对 `pkgver` 后导出归档及来源版本；当前 BlueMail 配方使用 SHA-512。未传 `--snap-stable` 的来源导出流程保持原行为。格式解包仍由 `Common/archive/extract_archive.sh` 负责，打包前用公共 `text` 来源读取版本，最终版本保存继续在封装成功后执行。完整接口见[安装来源导出说明](./Common/README.md#arch-安装时导出同次-aur-原始来源)。需要独立获取官方稳定通道的其他调用继续使用现有 [Snap Store 公共入口](./Common/README.md#snap-store-官方稳定通道)。
 
 ### 公共版本读取与保存
 
-`common/build/read_app_version.sh` 支持以下来源：
+`Common/build/read_app_version.sh` 支持以下来源：
 
 | 来源 | 参数 | 读取规则 |
 | --- | --- | --- |
 | package-json | package.json 的实际路径 | 用 jq 读取根对象中非空的字符串 version。 |
-| pacman | 已安装的 Arch / AUR 包名 | 复用 common/arch/get_package_version.sh，去掉 epoch 和 pkgrel。 |
+| pacman | 已安装的 Arch / AUR 包名 | 复用 Common/arch/get_package_version.sh，去掉 epoch 和 pkgrel。 |
 | text | 已下载文件对应的版本文本路径 | 读取公共下载入口记录的版本；用于链接提供版本而程序内无对应版本文件的情况，不用系统安装版本代替。 |
 
 公共入口默认只向 stdout 返回版本，供调用方赋给 `VERSION`。`--version-file <路径>` 可保留既有构建版本文件写入，`--desktop <路径>` 可保留缺少 `X-AppImage-Version` 时追加版本的处理；这两项仅在当前程序确有需要时传入。所有输出路径都由应用脚本提供，公共代码不得写死应用名或布局。
@@ -496,21 +496,21 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 
 ```bash
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json "<package.json路径>")"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" package-json "<package.json路径>")"
 ```
 
 ```bash
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman "<已安装的包名>")"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman "<已安装的包名>")"
 ```
 
 读取必须在依赖安装、官方程序解包和复制完成之后，保留在第一次 quick-sharun 之前。Cursor 原有的构建版本文件和 desktop 版本字段通过可选参数在这个阶段处理；WorkBuddy 继续使用 AUR 安装版本。新增来源时扩展公共入口的来源分支，并补充对应说明和验证，不在应用脚本中重新实现解析。
 
-保存仍调用现有 `common/build/save_appimage_version.sh`，只在最终 AppImage 成功生成后执行；其产物非空检查和版本写入行为保持不变：
+保存仍调用现有 `Common/build/save_appimage_version.sh`，只在最终 AppImage 成功生成后执行；其产物非空检查和版本写入行为保持不变：
 
 ```bash
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/<应用名>.AppImage" "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "dist/<应用名>.AppImage" "$VERSION" dist/version.txt
 ```
 
 两次公共调用分别服务于打包前和打包后的阶段，不挪动既定顺序。

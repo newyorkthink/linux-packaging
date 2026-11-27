@@ -38,7 +38,7 @@ Actions Run `35974681502` 在 `quick-sharun` 退出：放进成品的 `libfcitx5
 
 ## 2026-09-24：构建时检查会不会马上退出
 
-用户要求下次构建就能知道会不会启动。仓库里已有公共入口 `common/gui/check_appimage_gui.sh`，WPS 在生成 `wps.AppImage` 后调用它：虚拟显示里运行 20 秒，进程提前退出即构建失败，并保留 `source/gui-smoke/smoke.log`。不新写第二套冒烟测试。空窗口标题只表示进程还活着，不表示实机窗口、中文输入或文档功能正常。
+用户要求下次构建就能知道会不会启动。仓库里已有公共入口 `Common/gui/check_appimage_gui.sh`，WPS 在生成 `wps.AppImage` 后调用它：虚拟显示里运行 20 秒，进程提前退出即构建失败，并保留 `source/gui-smoke/smoke.log`。不新写第二套冒烟测试。空窗口标题只表示进程还活着，不表示实机窗口、中文输入或文档功能正常。
 
 ## 2026-09-24：office6 不能被 quick-sharun 挪走
 
@@ -114,7 +114,7 @@ Rofi 用的是桌面文件。原文件若有 `TryExec=wps` 或 `DBusActivatable=
 
 终端直接运行可以。`44ea0d4` 这版 Rofi 也可以，用户确认下的就是这个提交。Release 里的 `wps.AppImage` 已下载核对，`office6/libxkbcommon-x11.so.0` 和 `lib/libxkbcommon-x11.so.0` 都在。
 
-从 i3wm 这个 AppImage 里有时直接调不起来。日志、原因，以及别的程序碰到同类情况时怎么看，写在 [docs/known-risks/i3wm-appimage-child-launch.md](../docs/known-risks/i3wm-appimage-child-launch.md)。这条不再改 WPS 的构建脚本。
+从 i3wm 这个 AppImage 里有时直接调不起来。日志、原因，以及别的程序碰到同类情况时怎么看，写在 [Docs/known-risks/i3wm-appimage-child-launch.md](../Docs/known-risks/i3wm-appimage-child-launch.md)。这条不再改 WPS 的构建脚本。
 
 ## 2026-09-25：版本清单条目名是 wps
 

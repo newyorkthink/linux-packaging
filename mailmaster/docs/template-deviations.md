@@ -1,6 +1,6 @@
 # MailMaster 模板差异
 
-MailMaster 是自带 Qt 5 和 CEF 的程序，使用 [quick-sharun 流程](../../anylinux_projects.md)及[固定注释标准](../../docs/quick-sharun-comments.md)。程序文件来自独立下载的 DEB，系统安装提供依赖和配方生成的兼容文件。
+MailMaster 是自带 Qt 5 和 CEF 的程序，使用 [quick-sharun 流程](../../anylinux_projects.md)及[固定注释标准](../../Docs/quick-sharun-comments.md)。程序文件来自独立下载的 DEB，系统安装提供依赖和配方生成的兼容文件。
 
 ## 来源与版本
 

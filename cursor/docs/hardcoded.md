@@ -34,7 +34,7 @@
 
 - 为什么写死：当前官方程序在 `resources/app/package.json` 的根对象中保存版本；原有构建还需要 `~/version` 和 desktop 版本字段。
 - 写死的内容：`package-json AppDir/bin/resources/app/package.json --version-file "$HOME/version" --desktop "$DESKTOP"`
-- 作用：通过 `common/build/read_app_version.sh` 返回实际版本，并在原有位置保留两项构建元数据处理。`~/version` 位于 CI 的构建 HOME 中。
+- 作用：通过 `Common/build/read_app_version.sh` 返回实际版本，并在原有位置保留两项构建元数据处理。`~/version` 位于 CI 的构建 HOME 中。
 - 当初报错：没有。本次是公共入口替换，版本来源和元数据用途保持不变。
 
 ## `/usr/bin/hostname`

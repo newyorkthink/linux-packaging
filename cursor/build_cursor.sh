@@ -8,21 +8,21 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" cursor-bin dpkg gtk3 fcitx5-gtk libx11 libxrandr libxss libxext libxi libxtst libxkbfile libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau libva-intel-driver alsa-lib pulseaudio pulseaudio-alsa pipewire-audio libsecret libnotify lsof
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" cursor-bin dpkg gtk3 fcitx5-gtk libx11 libxrandr libxss libxext libxi libxtst libxkbfile libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau libva-intel-driver alsa-lib pulseaudio pulseaudio-alsa pipewire-audio libsecret libnotify lsof
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist cursor.deb cursor-unpacked
 mkdir -p AppDir/bin dist
 
 # 下载官方当前 DEB。
-"$SCRIPT_DIR/../common/download/download_file.sh" \
+"$SCRIPT_DIR/../Common/download/download_file.sh" \
   https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/latest \
   cursor.deb
 
 # 解包官方 DEB。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" cursor.deb cursor-unpacked
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" cursor.deb cursor-unpacked
 
 # 整个程序目录原样放进 AppDir/bin。
 cp -a cursor-unpacked/usr/share/cursor/. AppDir/bin/
@@ -47,7 +47,7 @@ export OUTNAME=cursor.AppImage
 export DEPLOY_GTK=1
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json AppDir/bin/resources/app/package.json --version-file "$HOME/version" --desktop "$DESKTOP")"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" package-json AppDir/bin/resources/app/package.json --version-file "$HOME/version" --desktop "$DESKTOP")"
 
 # 收集程序及其运行依赖。
 quick-sharun AppDir/bin/* /usr/bin/hostname
@@ -66,4 +66,4 @@ ENV
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/cursor.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/cursor.AppImage "$VERSION" dist/version.txt

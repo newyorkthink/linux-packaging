@@ -7,7 +7,7 @@
 | 应用来源 | 安装 Ubuntu 仓库的 `mediainfo`，再下载已安装的同一版本 DEB 解包到 AppDir。版本号由公共入口返回。 | [APT 解包入口](../build_mediainfo_linuxdeploy.sh#L32) |
 | 官方 SVG | CLI 包没有自带图标，下载官方 SVG 供桌面入口和封装使用。 | [图标准备](../build_mediainfo_linuxdeploy.sh#L36) |
 | desktop | 检查包内入口；缺失时生成 `Terminal=true` 的入口，唯一时复用，多个时明确失败，再将选定入口放入 AppDir。 | [桌面入口处理](../build_mediainfo_linuxdeploy.sh#L39) |
-| SVG 转换依赖 | `librsvg2-bin` 提供公共最终封装所需的转换工具；保留原 SVG，不把转换程序额外复制进 AppDir。 | [appimagetool 图标说明](../../docs/appimagetool-icon-compatibility.md) |
+| SVG 转换依赖 | `librsvg2-bin` 提供公共最终封装所需的转换工具；保留原 SVG，不把转换程序额外复制进 AppDir。 | [appimagetool 图标说明](../../Docs/appimagetool-icon-compatibility.md) |
 | AppRun | 保留三个基础搜索目录，直接启动 `usr/bin/mediainfo`，不启用 GTK / Qt 插件。 | [完整 AppRun](../build_mediainfo_linuxdeploy.sh#L65) |
 
 ## 专属注释原文

@@ -6,7 +6,7 @@
 
 打包成品统一发布在 [latest Release](https://github.com/newyorkthink/linux-packaging/releases/tag/latest)。软件版本保存在该 Release 的 `software_versions.json` 中；这份清单不提交到 Git 仓库，也不放入 AppImage。
 
-各应用的用途、运行方法、当前状态和修复历史，查看对应应用目录的 `README.md`。[打包分类](./docs/packaging-classification.md) 汇总已完成标准化整理的项目和经核实的专用打包流程。
+各应用的用途、运行方法、当前状态和修复历史，查看对应应用目录的 `README.md`。[打包分类](./Docs/packaging-classification.md) 汇总已完成标准化整理的项目和经核实的专用打包流程。
 
 ## 手动构建
 
@@ -34,16 +34,16 @@
 
 | 需要了解的内容 | 入口 |
 | --- | --- |
-| 全部文档与专项问题 | [文档索引](./docs/README.md) |
-| 人工维护流程 | [维护者指南](./docs/maintainer-guide.md) |
+| 全部文档与专项问题 | [文档索引](./Docs/README.md) |
+| 人工维护流程 | [维护者指南](./Docs/maintainer-guide.md) |
 | 仓库维护脚本与参数 | [Scripts 说明](./Scripts/README.md) |
 | AI 操作、修改授权与提交规则 | [AGENTS.md](./AGENTS.md) |
-| 标准化项目与专用打包流程 | [打包分类](./docs/packaging-classification.md) |
-| AppImage 对应上游仓库与构建代码 | [上游打包参考索引](./docs/upstream-packaging-index.md) |
+| 标准化项目与专用打包流程 | [打包分类](./Docs/packaging-classification.md) |
+| AppImage 对应上游仓库与构建代码 | [上游打包参考索引](./Docs/upstream-packaging-index.md) |
 | Anylinux / quick-sharun 规范 | [anylinux_projects.md](./anylinux_projects.md) |
 | linuxdeploy 规范 | [linuxdeploy_projects.md](./linuxdeploy_projects.md) |
-| AppImage 自定义协议登记 | [协议入口说明](./docs/appimage-scheme-handler.md) |
-| 发布机制的历史说明 | [Release 发布历史](./docs/release-history.md) |
+| AppImage 自定义协议登记 | [协议入口说明](./Docs/appimage-scheme-handler.md) |
+| 发布机制的历史说明 | [Release 发布历史](./Docs/release-history.md) |
 
 ## 维护约定
 

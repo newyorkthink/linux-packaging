@@ -10,7 +10,7 @@
 
 - 为什么固定：第一阶段必须安装应用及真实依赖；第二阶段必须另行下载 DEB。当前 AUR 包名为 `claude-desktop`，项目目标架构为 x86_64。
 - 具体内容：安装参数 `claude-desktop fcitx5-gtk dpkg`；下载参数 `claude-desktop x86_64 claude-desktop.deb`。
-- 作用：安装应用、Fcitx5 GTK3 模块及 DEB 工具；由公共 AUR 下载入口根据当前来源取得并校验 DEB。原脚本的 23 个基础包由 `common/arch/install_packages.sh --base` 覆盖，未省略其依赖。
+- 作用：安装应用、Fcitx5 GTK3 模块及 DEB 工具；由公共 AUR 下载入口根据当前来源取得并校验 DEB。原脚本的 23 个基础包由 `Common/arch/install_packages.sh --base` 覆盖，未省略其依赖。
 - 原始故障依据：原 README 已记录中文输入失效时缺少 `fcitx5-gtk` 的现象、首次构建来源和修复。完整历史保留在 [README](../README.md#变更记录)，本次没有新的安装或下载报错。
 
 ## 工作目录、程序目录与产物

@@ -5,7 +5,7 @@
 ## 下载入口与程序布局
 
 - 位置：清理构建目录之后、设置打包元数据之前。
-- 参数：使用 `common/download/download_file.sh` 获取官方当前 x64 DEB；通过公共解包入口提取 `cursor-unpacked/usr/share/cursor/` 并完整复制到 `AppDir/bin`。
+- 参数：使用 `Common/download/download_file.sh` 获取官方当前 x64 DEB；通过公共解包入口提取 `cursor-unpacked/usr/share/cursor/` 并完整复制到 `AppDir/bin`。
 - 依据与影响：官方当前版本入口直接返回 DEB，使用现有普通下载入口；AUR 安装结果提供依赖、图标和 desktop，不替换最终官方程序。
 
 ## 版本与构建元数据

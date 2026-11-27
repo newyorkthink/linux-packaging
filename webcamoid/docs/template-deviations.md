@@ -36,7 +36,7 @@
 
 ## 注释核对
 
-严格模式、工作目录、基础包、版本读取、ARCH、OUTPATH、OUTNAME、STARTUPWMCLASS、依赖收集、最终封装和版本保存等通用注释，与 [固定注释标准](../../docs/quick-sharun-comments.md) 中对应原文一致。专属兼容步骤使用现有 `# 本仓库兼容处理：` 来源标注。
+严格模式、工作目录、基础包、版本读取、ARCH、OUTPATH、OUTNAME、STARTUPWMCLASS、依赖收集、最终封装和版本保存等通用注释，与 [固定注释标准](../../Docs/quick-sharun-comments.md) 中对应原文一致。专属兼容步骤使用现有 `# 本仓库兼容处理：` 来源标注。
 
 主构建脚本仍有以下说明与实际操作需要分开理解：
 

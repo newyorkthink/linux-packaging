@@ -18,4 +18,4 @@
 - `# 本程序专属处理：为包含 13 个命令的 CLI 套件创建终端桌面入口。`
 - `# 本程序专属处理：沿用已验证的 13 个 Poppler 命令及 ARGV0 软链接分派入口。`
 
-这些内容只适用于当前套件，不属于其他 CLI 应用的通用步骤；标准固定注释与阶段以 [LinuxDeploy 注释规范](../../docs/linuxdeploy-comments.md) 为准。历史故障和 lf 实机验证见 [README](../README.md#修复记录)。
+这些内容只适用于当前套件，不属于其他 CLI 应用的通用步骤；标准固定注释与阶段以 [LinuxDeploy 注释规范](../../Docs/linuxdeploy-comments.md) 为准。历史故障和 lf 实机验证见 [README](../README.md#修复记录)。

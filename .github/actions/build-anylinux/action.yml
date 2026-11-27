@@ -224,4 +224,4 @@ runs:
 
         RELEASE_FILE="$RUNNER_TEMP/$RELEASE_NAME"
         cp -f "${ARTIFACTS[0]}" "$RELEASE_FILE"
-        "$GITHUB_WORKSPACE/common/github/publish_release_asset.sh" "$GITHUB_REPOSITORY" "$RELEASE_FILE"
+        "$GITHUB_WORKSPACE/Common/github/publish_release_asset.sh" "$GITHUB_REPOSITORY" "$RELEASE_FILE"

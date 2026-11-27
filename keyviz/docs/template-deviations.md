@@ -2,7 +2,7 @@
 
 ## 分类与两项来源核实
 
-本项目登记在[专用打包流程](../../docs/packaging-classification.md#专用打包流程)，不新增第 14 份标准模板。本次手动对齐 `alttab`、`st`、`webcamoid` 等源码编译类专用流程及 [quick-sharun 固定注释标准](../../docs/quick-sharun-comments.md)。
+本项目登记在[专用打包流程](../../Docs/packaging-classification.md#专用打包流程)，不新增第 14 份标准模板。本次手动对齐 `alttab`、`st`、`webcamoid` 等源码编译类专用流程及 [quick-sharun 固定注释标准](../../Docs/quick-sharun-comments.md)。
 
 两项前置核实结果：
 
@@ -19,11 +19,11 @@
 | 阶段 | 当前处理 | 依据与影响 |
 | --- | --- | --- |
 | 初始化 | 严格模式，定位并切换至 `keyviz/` 目录。 | 相对路径和产物均落在应用目录内。 |
-| 依赖安装 | `common/arch/install_packages.sh --base` 加一行应用编译与运行依赖。 | 逐项核对原脚本显式包名：`base-devel`、`wget`、`binutils`、`patchelf`、`coreutils`、`appstream-glib`、`desktop-file-utils`、`util-linux`、`zsync`、`git`、`python`、`pkgconf`、`openssl`、`xdg-utils`、`ibus`、`jq`、`file` 已由 `--base` 覆盖；第二行保留其余全部原有包（`dwarfs-bin`、`nodejs-lts-jod`、`npm`、`rust`、`gtk3`、`webkit2gtk-4.1`、`libayatana-appindicator`、`libx11`、`libxi`、`libxtst`），并按仓库 GTK 3 GUI 规范补充 `fcitx5-gtk`。 |
-| 工作区 | `common/build/prepare_x86_64_workspace.sh "$SCRIPT_DIR" --skip-create AppDir work dist`。 | 替代原脚本根目录下 `.keyviz-build` 与 `dist` 的手工清理，输出统一到 `keyviz/dist/`。 |
-| 源码与版本 | `common/github/download_latest_stable_release_source.sh mulaRahul/keyviz "$SOURCE_DIR" --archive`，版本取 `${KEYVIZ_TAG#v}`。 | 通过认证 API 按正式 Release 标签解析完整提交并下载解包源码归档；以 Release 标签作为实际版本（核实 `v2.1.2` 源码内的 `src-tauri/tauri.conf.json` 仍写着旧值 `2.1.1`，故不以该字段为准）。 |
+| 依赖安装 | `Common/arch/install_packages.sh --base` 加一行应用编译与运行依赖。 | 逐项核对原脚本显式包名：`base-devel`、`wget`、`binutils`、`patchelf`、`coreutils`、`appstream-glib`、`desktop-file-utils`、`util-linux`、`zsync`、`git`、`python`、`pkgconf`、`openssl`、`xdg-utils`、`ibus`、`jq`、`file` 已由 `--base` 覆盖；第二行保留其余全部原有包（`dwarfs-bin`、`nodejs-lts-jod`、`npm`、`rust`、`gtk3`、`webkit2gtk-4.1`、`libayatana-appindicator`、`libx11`、`libxi`、`libxtst`），并按仓库 GTK 3 GUI 规范补充 `fcitx5-gtk`。 |
+| 工作区 | `Common/build/prepare_x86_64_workspace.sh "$SCRIPT_DIR" --skip-create AppDir work dist`。 | 替代原脚本根目录下 `.keyviz-build` 与 `dist` 的手工清理，输出统一到 `keyviz/dist/`。 |
+| 源码与版本 | `Common/github/download_latest_stable_release_source.sh mulaRahul/keyviz "$SOURCE_DIR" --archive`，版本取 `${KEYVIZ_TAG#v}`。 | 通过认证 API 按正式 Release 标签解析完整提交并下载解包源码归档；以 Release 标签作为实际版本（核实 `v2.1.2` 源码内的 `src-tauri/tauri.conf.json` 仍写着旧值 `2.1.1`，故不以该字段为准）。 |
 | 中文环境 | 收集依赖后生成 `AppDir/lib/locale/zh_CN.utf8` 并写入 `AppDir/.env`。 | 按 `anylinux_projects.md` 补齐 GTK 3 GUI 包内中文 locale，使官方内置 `zh-CN` 翻译在未预装宿主中文 locale 的系统上也能自动生效。 |
-| 封装与版本保存 | `quick-sharun --make-appimage` 后调用 `common/build/save_appimage_version.sh`。 | 统一产物非空检查、执行权限和 `dist/version.txt` 写入。 |
+| 封装与版本保存 | `quick-sharun --make-appimage` 后调用 `Common/build/save_appimage_version.sh`。 | 统一产物非空检查、执行权限和 `dist/version.txt` 写入。 |
 
 ## 保留的专属处理
 

@@ -1,10 +1,10 @@
-# common
+# Common
 
 应用构建脚本只单行调用这里的公共入口。某个软件的修复记录不要写到这里，写回该软件目录。
 
 ## 公共代码与公共函数
 
-- `common/` 当前包含 `apt/`、`archive/`、`aur/`、`build/`、`config/`、`desktop/`、`download/`、`github/`、`gui/`、`linuxdeploy/`、`snap/` 等目录。本项只是标记为**需要后续重新完整审计**，不是认定这些公共实现当前一定有错误。
+- `Common/` 当前包含 `apt/`、`archive/`、`aur/`、`build/`、`config/`、`desktop/`、`download/`、`github/`、`gui/`、`linuxdeploy/`、`snap/` 等目录。本项只是标记为**需要后续重新完整审计**，不是认定这些公共实现当前一定有错误。
 - 后续 AI 需要从调用方和公共实现两端一起检查，不能只看某一个 helper：确认职责边界是否正确、是否存在重复通用逻辑、参数语义是否一致、错误处理与返回码是否可靠、下载 / 校验 / DEB 元数据 / 解包 / linuxdeploy 初始化与最终封装是否由正确层负责。
 - 重点检查近期从 PeaZip 等项目下沉到公共函数的逻辑，确认没有把应用专用规则错误公共化，也没有让应用脚本重复做公共入口已经负责的检查。
 - 已经由用户明确确认有效的命令、调用顺序、AppRun 行为和打包基线必须逐字保留；公共化不能成为顺手重写这些稳定内容的理由。
@@ -15,10 +15,10 @@
 - `source linuxdeploy/prepare_build_workspace.sh <构建根目录> <产物名>` 在当前 Shell 中进入构建根目录，设置公共路径，并重建当前项目的 `source`、`AppDir` 和 `dist`。后续独立 helper 或子 Shell 的目录变化不影响调用方，不再重复切换到同一目录。显式追加 `--temporary-source` 时使用独立临时源目录，退出时清理；构建根目录下只重建 `AppDir` 和 `dist`，保留已有 `source`，该模式由公共入口设置 EXIT trap。原两参数模式继续使用构建根目录下的 `source`。
 - `linuxdeploy/prepare_linuxdeploy_tools.sh` 独立执行时接收工具目录和可选的插件参数；通过 `source` 调用时依次接收工具目录、插件参数、中间 AppImage 路径和 runtime 路径，下载成功后加载通用环境。插件参数支持空字符串、`gtk`、`qt`、`gstreamer`、`gtk,gstreamer` 和 `qt,gstreamer`。GTK / GStreamer 脚本从官方默认分支动态取得并核对 Git blob SHA，Qt 插件继续使用官方 continuous Release。该入口只准备工具，linuxdeploy 的 `--plugin` 参数决定实际启用哪些插件。 直接 appimagetool 封装使用独立执行的 `--appimagetool <appimagetool 输出路径> <runtime 输出路径>`，一次完成两项官方下载、SHA-256 校验和执行权限设置，不下载 linuxdeploy 或插件；原有独立执行和四参数 source 调用保持不变。 直接封装可额外传入 `--release-ref latest`，从两个工具仓库各自的 `/releases/latest` 获取资产，校验摘要后只给 appimagetool 设置执行权限。未传此选项时直接封装继续读取 `continuous`。
 - Qt 工具由应用按实际版本选择。指定原生 `QMAKE` 且插件能据此找到扫描器时，不为“避免混用版本”额外导出 `QT_SELECT`；实际通过 qtchooser 且需要选择安装时才配置它。工具准备入口不替应用选择 Qt 主版本，具体要求见 [Qt 配置](../linuxdeploy_projects.md#apprun-与框架配置)。
-- `linuxdeploy/normalize_apprun_paths.sh <AppDir>` 仅供已获准且路径仍不确定的项目临时校准已有搜索变量，优先处理 AppRun.wrapped，没有时处理 AppRun；不生成额外启动逻辑。成品路径确认后，完整固化目录顺序、引号和继承变量的拼接方式，再移除该项目调用，不作为每个项目的默认步骤。证据与处理边界见 [AppRun 路径说明](../docs/apprun-path-environment.md)。
+- `linuxdeploy/normalize_apprun_paths.sh <AppDir>` 仅供已获准且路径仍不确定的项目临时校准已有搜索变量，优先处理 AppRun.wrapped，没有时处理 AppRun；不生成额外启动逻辑。成品路径确认后，完整固化目录顺序、引号和继承变量的拼接方式，再移除该项目调用，不作为每个项目的默认步骤。证据与处理边界见 [AppRun 路径说明](../Docs/apprun-path-environment.md)。
 - `linuxdeploy/copy_nss_runtime.sh <目标 lib 目录> [--with-nspr]` 默认继续复制同一 Debian / Ubuntu 环境的 13 个 NSS 核心库、动态加载模块及校验文件，原单参数调用和复制清单保持不变。只有显式传入 `--with-nspr` 时才额外复制 `libnspr4.so`、`libplc4.so`、`libplds4.so`，形成完整 16 文件集合；不安装依赖、不改启动环境、不替调用方执行符号版本检查。`libnssckbi.so`、`libnssdbm3.so`、`libsoftokn3.so` 及后两者的 `.chk` 优先从完整的 `/usr/lib/<multiarch>/nss/` 取得；该组不完整时，整组改用 `/usr/lib/<multiarch>/`，不跨目录拼接。调用方须提前安装对应运行库及提供 `dpkg-architecture` 的工具，源文件缺失时直接失败。
 - `linuxdeploy/prepare_locale.sh <locale 源名称> <字符集> <完整输出目录>` 只创建输出父目录并执行 `localedef --no-archive`，把 locale 数据写入调用方指定的位置，调用方无须为同一次生成重复创建该父目录；不安装软件、不修改宿主 locale、不创建 `.env`，也不改写 AppRun。调用方先安装提供 `localedef`、locale 源与字符集数据的 `locales` 包，在应用解包后、正式 linuxdeploy 部署前单行调用；运行时由 AppRun 设置语言变量及 `LOCPATH`。生成失败直接退出，不回退到宿主 locale。 仅为已判定需要的区域环境生成数据；有中文翻译且明确采用中文界面的 GUI 可使用中文参数，CLI 或没有中文翻译的 GUI 不因此强制中文。locale 不包含软件翻译或输入法模块，语言选择与输入支持分别由应用处理，具体边界见 [linuxdeploy 中文配置](../linuxdeploy_projects.md#中文环境与输入法的适用范围)。
-- `linuxdeploy/linuxdeploy-plugin-appimage.sh` 是构建时的输出包装入口。工具准备脚本动态下载并校验官方 `linuxdeploy-plugin-appimage`，从资产中只提取原始插件程序为 `appimage-output`，使其从同一目录找到本次下载的 appimagetool；将包装入口安装为工具目录中的 `linuxdeploy-plugin-appimage`，并链接现有图标与权限准备脚本。linuxdeploy 按官方优先级选中外部入口；根 desktop 和图标部署完成后先准备 AppDir，再原样转交参数和 LDAI 环境给官方输出插件。插件类型、API 与帮助查询直接转交官方，不提前处理空 AppDir；直接 `--appimagetool` 模式不下载或安装这些输出文件。说明见 [linuxdeploy 更新兼容](../docs/linuxdeploy-update-compatibility.md)。
+- `linuxdeploy/linuxdeploy-plugin-appimage.sh` 是构建时的输出包装入口。工具准备脚本动态下载并校验官方 `linuxdeploy-plugin-appimage`，从资产中只提取原始插件程序为 `appimage-output`，使其从同一目录找到本次下载的 appimagetool；将包装入口安装为工具目录中的 `linuxdeploy-plugin-appimage`，并链接现有图标与权限准备脚本。linuxdeploy 按官方优先级选中外部入口；根 desktop 和图标部署完成后先准备 AppDir，再原样转交参数和 LDAI 环境给官方输出插件。插件类型、API 与帮助查询直接转交官方，不提前处理空 AppDir；直接 `--appimagetool` 模式不下载或安装这些输出文件。说明见 [linuxdeploy 更新兼容](../Docs/linuxdeploy-update-compatibility.md)。
 - `aur/resolve_deb_source.sh` 接收 AUR 包名、架构、工作目录、元数据输出文件和依赖输出文件；默认仅接受同名单包 `.SRCINFO` 中唯一的架构专用 HTTPS DEB 及对应的完整摘要。优先沿用 SHA-256，仅在当前架构没有 SHA-256 时读取 SHA-512；无效或 `SKIP` 的 SHA-256 不会因存在 SHA-512 而被跳过。输出可供 Bash 加载的版本、pkgrel、来源、带算法前缀的 `SOURCE_CHECKSUM`，以及去版本约束后的运行依赖。SHA-256 来源继续输出原有 `EXPECTED_SHA256` 字段；SHA-512 来源不输出空的同名字段，新调用统一读取 `SOURCE_CHECKSUM`。不执行 PKGBUILD，不把其他架构或通用 source 的摘要配给当前 DEB。浅克隆和解析只在公共入口完成。 显式传入 `--with-source-filename` 时才输出 `SOURCE_FILENAME`；按同次 source 的 `名称::URL` 别名或 URL 末段取名，并拒绝空名、路径和换行。原五参数调用不新增字段。可显式传入 `--source-filename <DEB 文件名>`，在通用与当前架构来源中按缓存文件名唯一匹配，并按该组的原索引读取摘要。文件名可用 `{version}` 代表同次快照的 `pkgver`。
 - `aur/download_deb_source.sh` 接收 AUR 包名、架构和 DEB 输出文件三个参数。复用上述解析入口，在独立临时目录中读取当前来源和 `SOURCE_CHECKSUM`，再调用 `download/download_file.sh` 按指定算法校验并下载；成功或失败后均清理本次临时元数据。原有三个参数保持不变，不安装应用、不解包、不替调用方选择版本元数据，也不写死应用名或下载地址。 可在三个位置参数后显式启用 `--user-agent`、`--downloader`、`--wayback`、`--deb`、`--version-file`、`--package-version-file`、`--makepkg-source-dir` 和 `--source-filename`；不传选项的调用保持原行为，详见下文。
 - `aur/install_and_extract_deb_source.sh` 接收 AUR 包名、AUR 架构、来源工作目录、DEB 路径、解包目录、预期 DEB 包名和 DEB 架构。组合现有来源解析、摘要下载、版本读取、元数据校验、APT 安装和归档解包入口；全部成功后仅向 stdout 返回一行实际版本。保留同次 AUR 快照、来源元数据和依赖清单，不执行 PKGBUILD，也不改旧入口。参数与使用边界见下文。
@@ -41,7 +41,7 @@
 - `arch/get_package_version.sh` 接收一个已安装的 Arch 软件包名，从 `pacman -Q` 读取版本并去掉 epoch 和发行版 `pkgrel`，只向 stdout 输出非空的上游版本。需要保留发行版修订号的应用不要调用该入口。
 - `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。`text <来源版本文件>` 读取同次下载保存的版本。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
-- `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../docs/appimage-scheme-handler.md)。
+- `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../Docs/appimage-scheme-handler.md)。
 
 ### curl 的可选 HTTP 协议与重试间隔
 
@@ -61,7 +61,7 @@
 
 ```bash
 # 显式使用 HTTP/1.1 和指数退避重试下载文件。
-"$SCRIPT_DIR/../common/download/download_file.sh" "<HTTPS URL>" "<输出文件>" "" "" curl http1.1 0
+"$SCRIPT_DIR/../Common/download/download_file.sh" "<HTTPS URL>" "<输出文件>" "" "" curl http1.1 0
 ```
 
 ### 从 JSON 请求取得下载地址
@@ -70,7 +70,7 @@
 
 ```bash
 # 获取可下载地址，再使用原有下载器下载并校验文件。
-"$SCRIPT_DIR/../common/download/download_file.sh" \
+"$SCRIPT_DIR/../Common/download/download_file.sh" \
   --resolve-json-url "<Cookie URL>" "<POST URL>" "<请求字段>" "<返回字段路径>" \
   --resolve-header "<请求头>" -- "<原始下载 URL>" "<输出文件>" "<SHA-256>" "" aria2c
 ```
@@ -91,7 +91,7 @@
 
 ```bash
 # 下载并校验官方稳定通道 Snap，同时保存本次来源版本。
-"$SCRIPT_DIR/../common/snap/download_stable_snap.sh" "<Snap 名称>" "<发布者账号>" "<amd64或arm64>" "<输出.snap>" > "<来源版本文件>"
+"$SCRIPT_DIR/../Common/snap/download_stable_snap.sh" "<Snap 名称>" "<发布者账号>" "<amd64或arm64>" "<输出.snap>" > "<来源版本文件>"
 ```
 
 只有显式提供第五个参数时，才在 Snap 通过官方摘要后原子写出来源 JSON，字段为 `name`、`publisher`、`architecture`、`channel`、`version`、`url` 和 `sha3_384`；`channel` 为本次请求的 `latest/stable`；这些值对应同次已校验的稳定通道来源，不重新查询或下载。元数据路径不能与 Snap 输出重合，写入失败会返回失败。原四参数调用的参数与输出保持不变，同样适用上述 DNS 备用解析。
@@ -114,7 +114,7 @@ URL 必须使用 HTTPS，不含登录凭据、空白或片段。GitHub 托管资
 
 ```bash
 # 下载官网 DEB，校验元数据并安装解包，成功后返回实际版本。
-VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" --url "<官方 HTTPS DEB URL>" "<官方 SHA-256>" "$SOURCE_DIR/<文件名>.deb" "$APPDIR" "<DEB 包名>" "<DEB 架构>")"
+VERSION="$("$SCRIPT_DIR/../Common/github/install_and_extract_latest_stable_release_deb.sh" --url "<官方 HTTPS DEB URL>" "<官方 SHA-256>" "$SOURCE_DIR/<文件名>.deb" "$APPDIR" "<DEB 包名>" "<DEB 架构>")"
 ```
 
 ### GitHub 最新正式 Release 源码
@@ -125,7 +125,7 @@ VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_relea
 
 ```bash
 # 下载最新正式 Release 标签的源码，成功后取得原始标签名。
-SOURCE_REF="$(bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" "<owner/repo>" "<源码目标目录>")"
+SOURCE_REF="$(bash "$SCRIPT_DIR/../Common/github/download_latest_stable_release_source.sh" "<owner/repo>" "<源码目标目录>")"
 ```
 
 通过 `/releases/latest` 读取最新正式 Release，要求 `draft` 和 `prerelease` 均为 false。标签须为三段点分数字，可带 `v` / `V` 前缀，以及由 `.`、`_`、`+`、`-` 分隔的字母数字后缀；不支持任意分支名或 nightly 标签。随后执行对应标签的浅克隆，不枚举其他标签、不自动初始化子模块，也不安装依赖或编译源码。
@@ -149,7 +149,7 @@ SOURCE_REF="$(bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_
 ```bash
 # 按最新正式 Release 的具体提交下载并解包源码，成功后取得原始标签名。
 SOURCE_REF="$(
-  bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" "<owner/repo>" "<源码目标目录>" --archive
+  bash "$SCRIPT_DIR/../Common/github/download_latest_stable_release_source.sh" "<owner/repo>" "<源码目标目录>" --archive
 )"
 ```
 
@@ -193,7 +193,7 @@ SOURCE_REF="$(
 
 ```bash
 # 从同次 AUR 来源下载并校验 DEB，按需启用客户端标识、归档和版本输出。
-"$SCRIPT_DIR/../common/aur/download_deb_source.sh" "<AUR 包名>" "<AUR 架构>" "<DEB 输出文件>" --user-agent "<客户端标识>" --wayback --deb --version-file "<来源版本文件>" --package-version-file "<完整包版本文件>"
+"$SCRIPT_DIR/../Common/aur/download_deb_source.sh" "<AUR 包名>" "<AUR 架构>" "<DEB 输出文件>" --user-agent "<客户端标识>" --wayback --deb --version-file "<来源版本文件>" --package-version-file "<完整包版本文件>"
 ```
 
 请求任意版本输出时都会校验实际 DEB Version 与 AUR pkgver 完全一致；epoch、预发布或版本改写不做自动裁剪，不能满足该规则的来源不能直接启用这些选项。pkgrel 只写入完整包版本文件，不拼到 DEB Version 上比较。摘要或元数据校验失败时保留已有版本文件；两个版本目标分别通过同目录临时文件替换，不能与 DEB 输出或彼此重合。stdout 仍沿用下载入口的日志，不改成只返回版本。
@@ -208,7 +208,7 @@ SOURCE_REF="$(
 
 ```bash
 # 加载读取配方并下载文件的公共入口。
-source "$SCRIPT_DIR/../common/aur/download_pkgbuild_asset.sh"
+source "$SCRIPT_DIR/../Common/aur/download_pkgbuild_asset.sh"
 
 # 从配方读取来源，下载并校验文件，同时保存来源版本。
 download_pkgbuild_asset "<PKGBUILD URL>" "<地址字段>" "<SHA-256 字段>" "<版本字段>" "<输出文件>" "<版本文件>"
@@ -235,7 +235,7 @@ download_pkgbuild_asset "<PKGBUILD URL>" "<地址字段>" "<SHA-256 字段>" "<�
 
 ```bash
 # 安装阶段先校验官方来源，再按原 AUR PKGBUILD 安装应用及依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-deb "<AUR 包名>" "<架构>" --user-agent "<客户端标识>" --wayback -- "<额外软件包>"
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --aur-deb "<AUR 包名>" "<架构>" --user-agent "<客户端标识>" --wayback -- "<额外软件包>"
 ```
 
 `--` 必须提供，用于分隔下载选项和额外包名；额外包名可以为空。先用原 yay 参数安装额外软件包，再调用 `aur/download_deb_source.sh --makepkg-source-dir`，不复制来源解析、摘要或归档实现。下载选项只在显式传入时启用。应用仍通过 `yay -S --noconfirm --needed` 安装，原 PKGBUILD、所有来源摘要及依赖处理保持生效；没有跳过 makepkg 校验，也不改 AUR 文件。
@@ -256,7 +256,7 @@ download_pkgbuild_asset "<PKGBUILD URL>" "<地址字段>" "<SHA-256 字段>" "<�
 
 ```bash
 # 安装 AUR 应用及依赖，导出同次校验通过的原始来源和版本。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-source "<AUR 包名>" "<AUR 架构>" "<软件名>-{version}.<扩展名>" "<来源输出路径>" "<来源版本文件>" -- "<额外软件包>"
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --aur-source "<AUR 包名>" "<AUR 架构>" "<软件名>-{version}.<扩展名>" "<来源输出路径>" "<来源版本文件>" -- "<额外软件包>"
 ```
 
 未提供 `--snap-stable` 时，入口先通过普通安装模式准备额外软件包，再为应用安装创建独立 `SRCDEST` 和 `--builddir`，由 `yay -S --noconfirm --needed` 按原 PKGBUILD 下载、校验和安装。临时根目录为 0711，来源与构建子目录为带粘滞位的 01777，仅供本次非 root 构建使用；共享 Action 的 yay 包装器通过 `sudo -HE` 保留 `SRCDEST`，不改全局配置。
@@ -277,7 +277,7 @@ download_pkgbuild_asset "<PKGBUILD URL>" "<地址字段>" "<SHA-256 字段>" "<�
 
 ```bash
 # 用官方稳定通道同步本次 AUR 配方，安装并导出同一份已校验 Snap。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --aur-source "<AUR 包名>" "<AUR 架构>" \
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --aur-source "<AUR 包名>" "<AUR 架构>" \
   "<软件名>-{version}.snap" "<Snap 输出>" "<来源版本文件>" \
   --snap-stable "<Snap 名称>" "<发布者>" "<Snap 架构>" -- "<额外软件包>"
 ```
@@ -298,7 +298,7 @@ download_pkgbuild_asset "<PKGBUILD URL>" "<地址字段>" "<SHA-256 字段>" "<�
 
 ```bash
 # 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
-VERSION="$("$SCRIPT_DIR/../common/aur/install_and_extract_deb_source.sh" "<AUR 包名>" "<AUR 架构>" "$SOURCE_DIR" "$SOURCE_DIR/<软件名>.deb" "$APPDIR" "<DEB 包名>" "<DEB 架构>")"
+VERSION="$("$SCRIPT_DIR/../Common/aur/install_and_extract_deb_source.sh" "<AUR 包名>" "<AUR 架构>" "$SOURCE_DIR" "$SOURCE_DIR/<软件名>.deb" "$APPDIR" "<DEB 包名>" "<DEB 架构>")"
 ```
 
 示例中的 `<…>` 须按本次实际来源替换。调用方先通过现有工作区入口准备来源目录，再通过公共 APT 入口安装构建依赖并更新索引；本入口安装本地 DEB 时使用 `--no-update`。依赖沿用现有子入口所需的 Bash、git、curl、dpkg-deb、APT 及基础工具，不另外安装 Arch 环境。
@@ -319,7 +319,7 @@ VERSION="$("$SCRIPT_DIR/../common/aur/install_and_extract_deb_source.sh" "<AUR �
 
 ```bash
 # 安装前核对本次来源对应的 DEB 完整版本、包名和架构。
-"$SCRIPT_DIR/../common/archive/check_deb_metadata.sh" "<DEB 文件>" "<预期完整版本>" "<预期包名>" "<预期架构>"
+"$SCRIPT_DIR/../Common/archive/check_deb_metadata.sh" "<DEB 文件>" "<预期完整版本>" "<预期包名>" "<预期架构>"
 ```
 
 成功时返回 0 且不输出内容；参数数量错误或三个预期值全空时返回 2，文件无法读取、字段不符或工具失败时返回非零状态，诊断写入 stderr。本入口不下载、安装、解包、修改文件或执行包内维护脚本；元数据相符也不能代替官方来源和摘要校验。
@@ -334,7 +334,7 @@ VERSION="$("$SCRIPT_DIR/../common/aur/install_and_extract_deb_source.sh" "<AUR �
 
 ```bash
 # 下载并校验官方 APT 仓库中的当前 DEB，同时记录来源版本。
-"$SCRIPT_DIR/../common/download/download_apt_repository_deb.sh" "<HTTPS 仓库根地址>" "<suite>" "<component>" "<DEB 包名>" "<架构>" "<HTTPS 官方公钥地址>" "<DEB 输出文件>" "<来源版本文件>" [索引架构]
+"$SCRIPT_DIR/../Common/download/download_apt_repository_deb.sh" "<HTTPS 仓库根地址>" "<suite>" "<component>" "<DEB 包名>" "<架构>" "<HTTPS 官方公钥地址>" "<DEB 输出文件>" "<来源版本文件>" [索引架构]
 ```
 
 支持常规 `dists/<suite>/` 布局中的 `InRelease`，以及所选 component、架构对应的 Packages.xz、Packages.gz、Packages；优先使用 XZ，其次 gzip，只有签名索引缺少两种压缩格式的记录时才选择明文。索引中的 DEB 路径须位于仓库根目录下的 `pool/`。不支持 flat 仓库、未签名仓库或仅提供 `Release` 与独立签名的来源，不自动切换其他仓库。
@@ -359,7 +359,7 @@ Release 可能登记明文索引的摘要，而服务器实际只发布压缩索
 
 ```bash
 # 查询当前版本，校验并下载完整安装包，同时记录来源版本。
-VERSION="$("$SCRIPT_DIR/../common/download/download_omaha_package.sh" "<服务 URL>" "<应用 ID>" "<渠道>" "<平台>" "<系统版本>" "<架构>" "<允许的 HTTPS 源>" "<解码后的目录前缀>" '<文件名正则，包含 {version}>' "<安装包输出文件>" "<版本输出文件>")"
+VERSION="$("$SCRIPT_DIR/../Common/download/download_omaha_package.sh" "<服务 URL>" "<应用 ID>" "<渠道>" "<平台>" "<系统版本>" "<架构>" "<允许的 HTTPS 源>" "<解码后的目录前缀>" '<文件名正则，包含 {version}>' "<安装包输出文件>" "<版本输出文件>")"
 ```
 
 允许的 HTTPS 源只包含协议、主机和可选端口；目录前缀必须是解码后以 `/` 开始并结束的规范目录。响应须包含唯一匹配所请求应用 ID 的条目和唯一完整安装动作，并且只能有一个地址同时符合下载源和目录限制；不选择不确定的包或自动切换其他来源。
@@ -374,7 +374,7 @@ SHA-256 接受 64 位十六进制或解码后恰为 32 字节的标准 / URL 安
 
 ```bash
 # 下载并校验官方安装包，将其安装到构建环境并解包到 AppDir，成功后返回版本号。
-VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_release_deb.sh" --html-checksum "<官方 HTML 校验表 URL>" '<完整资产名的 Python 正则>' "<官方资产目录 URL>" "$SOURCE_DIR/<软件名>.deb" "$APPDIR" "<DEB 包名>" "<DEB 架构>")"
+VERSION="$("$SCRIPT_DIR/../Common/github/install_and_extract_latest_stable_release_deb.sh" --html-checksum "<官方 HTML 校验表 URL>" '<完整资产名的 Python 正则>' "<官方资产目录 URL>" "$SOURCE_DIR/<软件名>.deb" "$APPDIR" "<DEB 包名>" "<DEB 架构>")"
 ```
 
 版本来自匹配文件名中的首个点分数字版本，并在安装前与 DEB 的 `Version` 严格核对。匹配的每一行均须有唯一摘要，同一文件重复列出时摘要必须一致；最高数字版本必须只对应一个文件。下载或校验失败不会回退到较旧版本，不会转用页面中的其他链接。包名和架构可以同时省略；传入时必须成对提供。
@@ -388,8 +388,8 @@ VERSION="$("$SCRIPT_DIR/../common/github/install_and_extract_latest_stable_relea
 - `build/check_appimage_artifact.sh` 接收最终 AppImage 路径和 SHA-256 文件路径，确认产物非空且可执行，再以原 `sha256sum | tee` 方式生成校验文件。应用在生成正式产物后自行决定何时调用；图形检查仍独立按需调用。
 - `gui/check_appimage_gui.sh` 仅由确有需要的应用显式调用，不是所有 AppImage 的默认步骤。参数依次是最终 AppImage 路径、1～20 秒上限、隔离工作目录、会话顺序（`timeout-dbus-xvfb`、`xvfb-dbus-timeout` 或 `timeout-xvfb`）、成功规则（`timeout-only` 或 `timeout-or-zero`）、调用方的致命日志正则、可选窗口标题正则，以及 `--` 后的应用参数。空窗口标题只检查进程存活和日志，不声称确认了可见窗口；非空标题还要求 Xvfb 中找到存活的可见窗口。调用方可在命令前设置应用专属环境变量，公共入口不添加 `--disable-gpu` 等应用参数。该检查不验证登录、代理、中文输入或实机功能。
 - `linuxdeploy/package_appimage.sh` 可在显式传入版本号与版本文件路径后，将 `--no-appstream` 作为第七个参数传入。该模式保持 `--no-appstream --runtime-file <runtime> <AppDir> <输出文件>` 的参数顺序，供需要保留该封装方式的应用调用。 正式产物生成且非空后，公共入口将该 AppImage 文件的权限统一为 `0755`，然后继续原有验证、SHA-256 输出和版本保存流程。
-- `build/finish_appimage_build.sh` 在调用方完成所有检查后接收版本号、`version.txt` 路径和原成功提示，按顺序写入版本文件并输出提示；不负责打包、图形检查或发布。已有 `common/linuxdeploy/package_appimage.sh` 同时承担封装和版本写入，使用该入口的应用不需要重复调用收尾函数。
-- `appimage/prepare_appdir_for_appimagetool.sh` 接收一个 AppDir。拒绝空路径、根目录和无效目录。只对该目录执行 `chmod -R a-s,a+rX`，不沿软链接改包外文件。根目录已有与主 desktop 的 `Icon` 同名的 PNG / XPM 时不覆盖；否则先复制包内同名 PNG，没有 PNG 时再把对应 SVG 转成 256 × 256 的 PNG，并保留原 SVG。转换工具按 `rsvg-convert`、`magick`、`convert` 的顺序选择，Ubuntu 项目可在应用依赖中安装 `librsvg2-bin`；只有实际转换时才需要，不修改统一基础包，也不在本入口安装软件。工具不可用或转换失败则立即退出。`linuxdeploy/package_appimage.sh` 在原封装命令前调用它。不添加 `--no-check-permissions`。上游变更、已有 `.DirIcon` 的回退边界及用途见 [appimagetool 图标检查与 SVG 兼容处理](../docs/appimagetool-icon-compatibility.md)。
+- `build/finish_appimage_build.sh` 在调用方完成所有检查后接收版本号、`version.txt` 路径和原成功提示，按顺序写入版本文件并输出提示；不负责打包、图形检查或发布。已有 `Common/linuxdeploy/package_appimage.sh` 同时承担封装和版本写入，使用该入口的应用不需要重复调用收尾函数。
+- `appimage/prepare_appdir_for_appimagetool.sh` 接收一个 AppDir。拒绝空路径、根目录和无效目录。只对该目录执行 `chmod -R a-s,a+rX`，不沿软链接改包外文件。根目录已有与主 desktop 的 `Icon` 同名的 PNG / XPM 时不覆盖；否则先复制包内同名 PNG，没有 PNG 时再把对应 SVG 转成 256 × 256 的 PNG，并保留原 SVG。转换工具按 `rsvg-convert`、`magick`、`convert` 的顺序选择，Ubuntu 项目可在应用依赖中安装 `librsvg2-bin`；只有实际转换时才需要，不修改统一基础包，也不在本入口安装软件。工具不可用或转换失败则立即退出。`linuxdeploy/package_appimage.sh` 在原封装命令前调用它。不添加 `--no-check-permissions`。上游变更、已有 `.DirIcon` 的回退边界及用途见 [appimagetool 图标检查与 SVG 兼容处理](../Docs/appimagetool-icon-compatibility.md)。
 - `build/save_appimage_version.sh` 接收最终 AppImage 路径、版本号和 `version.txt` 路径。先确认产物存在且非空，将该 AppImage 文件的权限统一为 `0755` 后再写入版本；权限设置失败时直接退出，不写入版本。不写 SHA-256，也不打印成功提示。已经分开做产物校验和成功提示的应用不要改成这个入口。
 
 这两个入口只统一调用方指定的最终 AppImage 文件权限，包内文件继续由原有打包流程处理。现有 13 份构建模板均已调用对应入口，使用这些模板新生成的脚本和既有调用方都会在下次构建时自动继承该权限规则。

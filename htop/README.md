@@ -21,7 +21,7 @@ lsof 对应 htop 的 Open Files 功能，strace 对应 Trace 功能；libsensors
 
 ## 版本元数据
 
-第一次 quick-sharun 之前，通过 `common/build/read_app_version.sh pacman htop` 读取当前实际安装的 Arch htop 版本，去掉仅用于 Arch 打包排序的 epoch 与 pkgrel。最终 AppImage 成功生成后，单行调用 `common/build/save_appimage_version.sh`，由公共入口确认产物非空后写入：
+第一次 quick-sharun 之前，通过 `Common/build/read_app_version.sh pacman htop` 读取当前实际安装的 Arch htop 版本，去掉仅用于 Arch 打包排序的 epoch 与 pkgrel。最终 AppImage 成功生成后，单行调用 `Common/build/save_appimage_version.sh`，由公共入口确认产物非空后写入：
 
 ```text
 htop/dist/version.txt

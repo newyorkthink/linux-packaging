@@ -32,7 +32,7 @@
 以下命令属于本仓库集成，不冒称直接复用了上游 curl、URL 拼接或解包命令。
 
 ```bash
-"$SCRIPT_DIR/../common/download/download_omaha_package.sh" \
+"$SCRIPT_DIR/../Common/download/download_omaha_package.sh" \
   'https://update.googleapis.com/service/update2' \
   '{533dd80c-942a-4464-b6a9-2e59428d784e}' \
   prod win 10.0.22000 x64 \
@@ -40,14 +40,14 @@
   'GeminiSetup-{version}(_uncompressed)?[.]exe' \
   work/GeminiSetup.exe work/source-version.txt >/dev/null
 
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" work/GeminiSetup.exe work/windows
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/GeminiSetup.exe work/windows
 
-"$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" \
+"$SCRIPT_DIR/../Common/download/download_latest_checksum_asset.sh" \
   "https://github.com/electron/electron/releases/download/v$ELECTRON_VERSION/SHASUMS256.txt" \
   "^electron-v${ELECTRON_VERSION//./[.]}-linux-x64[.]zip$" \
   work/electron.zip >/dev/null
 
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" work/electron.zip work/electron
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/electron.zip work/electron
 ```
 
 ## 本仓库精确运行时识别

@@ -16,15 +16,15 @@ OFFICE="$APPDIR/opt/kingsoft/wps-office/office6"
 ###### 准备个人构建环境 ######
 
 # 只清理本项目的构建目录。AppDir 留给后面的复制和 quick-sharun 创建。
-"$ROOT/common/build/prepare_x86_64_workspace.sh" \
+"$ROOT/Common/build/prepare_x86_64_workspace.sh" \
   "$SCRIPT_DIR" --skip-create AppDir dist source
 
 # 安装 quick-sharun 基础工具和 WPS 的常规图形、声音、打印依赖。
-"$ROOT/common/arch/install_packages.sh" --base
-"$ROOT/common/arch/install_packages.sh" fontconfig freetype2 libxrender libxext libx11 libxcb libxkbcommon libxkbcommon-x11 glu sdl2 libpulse libxss libxslt libjpeg-turbo desktop-file-utils shared-mime-info xdg-utils cups gtk3 nss xorg-server-xvfb xorg-xauth
+"$ROOT/Common/arch/install_packages.sh" --base
+"$ROOT/Common/arch/install_packages.sh" fontconfig freetype2 libxrender libxext libx11 libxcb libxkbcommon libxkbcommon-x11 glu sdl2 libpulse libxss libxslt libjpeg-turbo desktop-file-utils shared-mime-info xdg-utils cups gtk3 nss xorg-server-xvfb xorg-xauth
 
 # AUR 配方动态解析金山国内官网当前正式包并安装原版简体中文界面。
-"$ROOT/common/arch/install_packages.sh" wps-office-cn wps-office-mui-zh-cn
+"$ROOT/Common/arch/install_packages.sh" wps-office-cn wps-office-mui-zh-cn
 
 ###### 保留国产 WPS 和官方入口 ######
 
@@ -139,9 +139,9 @@ done
 ###### 补上 WPS 一直提示缺失的符号字体 ######
 
 # 放在 quick-sharun 之后，避免部署阶段清掉 AppDir。只取符号字体，不下载整套 Windows 字体，也不提交进 Git。
-"$ROOT/common/github/download_default_branch_source.sh" \
+"$ROOT/Common/github/download_default_branch_source.sh" \
   iykrichie/wps-office-19-missing-fonts-on-Linux "$SOURCE/wps-fonts.tar.gz" >/dev/null
-"$ROOT/common/archive/extract_archive.sh" "$SOURCE/wps-fonts.tar.gz" "$SOURCE/wps-fonts"
+"$ROOT/Common/archive/extract_archive.sh" "$SOURCE/wps-fonts.tar.gz" "$SOURCE/wps-fonts"
 mkdir -p "$APPDIR/share/fonts/wps"
 for font in symbol.ttf wingding.ttf WINGDNG2.ttf WINGDNG3.ttf WEBDINGS.TTF mtextra.ttf; do
   found="$(find "$SOURCE/wps-fonts" -type f -name "$font" -print -quit)"
@@ -208,10 +208,10 @@ quick-sharun --make-appimage
 
 # 公共图形检查：进程要撑过 20 秒。提前退出就是这次这种打一行就回到提示符。
 chmod 0755 "$DIST/wps.AppImage"
-"$ROOT/common/gui/check_appimage_gui.sh" \
+"$ROOT/Common/gui/check_appimage_gui.sh" \
   "$DIST/wps.AppImage" 20 "$SOURCE/gui-smoke" timeout-dbus-xvfb timeout-only \
   'error while loading shared libraries|cannot open shared object file|symbol lookup error|Could not load the Qt platform plugin|Segmentation fault|core dumped|does not exist' \
   ''
 
-"$ROOT/common/build/save_appimage_version.sh" \
+"$ROOT/Common/build/save_appimage_version.sh" \
   "$DIST/wps.AppImage" "$VERSION" "$DIST/version.txt"

@@ -16,19 +16,19 @@ XnView MP 当前稳定版是 Qt6 应用，并自带 Qt、MDK 和 FFmpeg 组件�
 
 ## linuxdeploy 规范流程
 
-1. 单行加载 `common/linuxdeploy/prepare_build_workspace.sh`，统一建立并清理标准 `source`、`AppDir`、`dist` 与 `source/tools` 工作区；APT 依赖和 linuxdeploy 工具也分别交给对应公共入口准备。
-2. 单行调用 `common/linuxdeploy/initialize_appdir.sh`；公共入口在空目录执行原始普通 linuxdeploy 命令，只创建基础目录。随后由 `common/github/install_and_extract_latest_stable_release_deb.sh --checksum` 从官方校验清单选择最新版、验证 SHA-256，并统一完成安装与解包，成功后返回实际版本。
+1. 单行加载 `Common/linuxdeploy/prepare_build_workspace.sh`，统一建立并清理标准 `source`、`AppDir`、`dist` 与 `source/tools` 工作区；APT 依赖和 linuxdeploy 工具也分别交给对应公共入口准备。
+2. 单行调用 `Common/linuxdeploy/initialize_appdir.sh`；公共入口在空目录执行原始普通 linuxdeploy 命令，只创建基础目录。随后由 `Common/github/install_and_extract_latest_stable_release_deb.sh --checksum` 从官方校验清单选择最新版、验证 SHA-256，并统一完成安装与解包，成功后返回实际版本。
 3. 第一次初始化完成后，由上述公共 DEB 入口下载同一份 XnView 官方安装包，将它安装到 Ubuntu 24.04 runner 供依赖扫描，并按官方布局解包到 AppDir；上游 `opt/XnView` 与 `usr/bin/xnview` 原样保留，desktop 只把绝对图标路径改为 AppImage 可发现的图标名称。
 4. 写入已经按最终 AppImage 核对过的完整根 `AppDir/AppRun`。无论主程序位于 `/opt`，仍固定保留 `usr/bin`、`usr/lib`、`usr/share`，分别加入 `PATH`、`LD_LIBRARY_PATH`、`XDG_DATA_DIRS`；Qt plugin 只使用 `opt/XnView/lib` 与 `usr/plugins`，QML 只使用 `opt/XnView/qml`，翻译使用 `usr/translations`。
-5. 通用环境由 `common/linuxdeploy/prepare_linuxdeploy_tools.sh` 加载，不再单独调用 configure_environment.sh；项目保留清除 LD_LIBRARY_PATH 的 qmake6 入口并设置 QMAKE，再执行第二次 linuxdeploy，指定包内 PNG 的 `--icon-file`。不额外设置构建阶段的 LD_LIBRARY_PATH，不设置 QT_SELECT，不追加 --desktop-file。
+5. 通用环境由 `Common/linuxdeploy/prepare_linuxdeploy_tools.sh` 加载，不再单独调用 configure_environment.sh；项目保留清除 LD_LIBRARY_PATH 的 qmake6 入口并设置 QMAKE，再执行第二次 linuxdeploy，指定包内 PNG 的 `--icon-file`。不额外设置构建阶段的 LD_LIBRARY_PATH，不设置 QT_SELECT，不追加 --desktop-file。
 6. Qt6 插件是否生成 hook 以当前官方工具实际产物为准；没有 hook 时完整根 AppRun 继续作为顶层入口，不人工补 `AppRun.wrapped`。
-7. AppRun 路径沿用本次已确认的完整脚本，不调用 `common/linuxdeploy/normalize_apprun_paths.sh`，不在每次构建时重新整理这些路径。
+7. AppRun 路径沿用本次已确认的完整脚本，不调用 `Common/linuxdeploy/normalize_apprun_paths.sh`，不在每次构建时重新整理这些路径。
 8. XnView 打包永久禁止 `--executable`，不生成、不依赖 `AppDir/usr/bin/XnView` 副本。
-9. linuxdeploy 输出只作为中间结果，最终由 `common/linuxdeploy/package_appimage.sh` 使用官方 appimagetool 和官方 Type 2 runtime 封装 `dist/xnviewmp.AppImage`；正式 AppImage 成功生成后再原子写入 `dist/version.txt`。
+9. linuxdeploy 输出只作为中间结果，最终由 `Common/linuxdeploy/package_appimage.sh` 使用官方 appimagetool 和官方 Type 2 runtime 封装 `dist/xnviewmp.AppImage`；正式 AppImage 成功生成后再原子写入 `dist/version.txt`。
 
 应用脚本只保留按指定库名收集必需媒体运行库等 XnView 特有逻辑；通用命令、下载、安装、解包、初始化和最终封装由公共入口负责。linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime 每次构建都由公共脚本取得官方最新版本，不需要人工或 AI 更新工具版本。正式脚本与工作流不提交 GUI smoke test、媒体样例生成或解包测试代码。
 
-本目录是 Qt 类型标准参考，统一规则见 [linuxdeploy 规范](../linuxdeploy_projects.md)。通用与 Qt 注释逐字复用 [固定注释标准](../docs/linuxdeploy-comments.md)；本项目的图标修正、补库、qmake 及输入法说明放在 [专属差异](./docs/template-deviations.md)，不加入公共注释表。既有 [固定配置](./docs/hardcoded.md) 保留，不重复扩写。
+本目录是 Qt 类型标准参考，统一规则见 [linuxdeploy 规范](../linuxdeploy_projects.md)。通用与 Qt 注释逐字复用 [固定注释标准](../Docs/linuxdeploy-comments.md)；本项目的图标修正、补库、qmake 及输入法说明放在 [专属差异](./docs/template-deviations.md)，不加入公共注释表。既有 [固定配置](./docs/hardcoded.md) 保留，不重复扩写。
 
 ## 官方 DEB 启动入口
 
@@ -38,7 +38,7 @@ AppImage 实际启动仍由构建脚本写入的根 `AppRun` 直接执行 `opt/X
 
 ## 包内中文 locale 与界面翻译
 
-本程序已有中文界面，官方 `opt/XnView/language` 与既有 `usr/translations` 提供翻译；中文界面和 IBus Portal 输入已有用户实测记录。因此本次在资源准备阶段接入 `common/linuxdeploy/prepare_locale.sh`，生成 `usr/lib/locale/zh_CN.UTF-8`，并在 AppRun 原有 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh` 前增加包内 `LOCPATH`。构建依赖只追加 `locales`。
+本程序已有中文界面，官方 `opt/XnView/language` 与既有 `usr/translations` 提供翻译；中文界面和 IBus Portal 输入已有用户实测记录。因此本次在资源准备阶段接入 `Common/linuxdeploy/prepare_locale.sh`，生成 `usr/lib/locale/zh_CN.UTF-8`，并在 AppRun 原有 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh` 前增加包内 `LOCPATH`。构建依赖只追加 `locales`。
 
 locale 数据用于提供字符、编码和区域格式，不替代应用翻译，也不决定输入法模块是否可用。本次不改 Qt 翻译路径、IBus Portal、显示和视频设置；已有部分视频黑屏记录继续保留。命令行程序或没有中文翻译的 GUI 不照抄本项目的中文环境，适用范围见 [linuxdeploy 中文配置](../linuxdeploy_projects.md#中文环境与输入法的适用范围)。
 
@@ -94,7 +94,7 @@ locale 数据用于提供字符、编码和区域格式，不替代应用翻译�
 ### 2026-10-30：补齐 appimagetool 要求的权限
 
 - 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build XnView MP。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报 100 处权限错误，`AddOn/clut` 中的图片为 `0764`，没有生成 AppImage。
-- 处理：`common/linuxdeploy/package_appimage.sh` 在原封装命令前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。`build_xnviewmp.sh` 的封装参数和 AppRun 未改。
+- 处理：`Common/linuxdeploy/package_appimage.sh` 在原封装命令前调用 `Common/appimage/prepare_appdir_for_appimagetool.sh`。`build_xnviewmp.sh` 的封装参数和 AppRun 未改。
 - 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 XnView MP，没有重跑 Actions。
 
 ### 2026-09-29：用 IBus Portal 接上 Fcitx5，替代只设置 QT_IM_MODULE=ibus
@@ -103,7 +103,7 @@ locale 数据用于提供字符、编码和区域格式，不替代应用翻译�
 
 官方 1.12.1 DEB 的 `opt/XnView/lib/platforminputcontexts/` 只有 `libcomposeplatforminputcontextplugin.so` 和 `libibusplatforminputcontextplugin.so`，主程序使用 Qt 6.10.3，`qt.conf` 把插件目录指到 `lib`。该 IBus 插件不链接 `libibus`，只通过 Qt DBus 连接；字符串中同时包含 `ibus-daemon` 和 `IBUS_USE_PORTAL`。对照同一版本 Qt 源码，插件在未启用 Portal、且 `PATH` 里找不到 `ibus-daemon` 时会把自身标为无效并直接返回，不会向会话总线发出请求。Fcitx5 桌面通常没有 `ibus-daemon`，因此只设置 `QT_IM_MODULE=ibus` 时输入上下文不会建立。Qt 6.10.3 还会先读取 `QT_IM_MODULES`，它优先于 `QT_IM_MODULE`；宿主若已设置 `wayland;fcitx` 之类的列表，上次的 `QT_IM_MODULE=ibus` 根本不会生效。Ubuntu 24.04 的 `fcitx5-frontend-qt6` 按 Qt 6.4 构建，不能装回这个 Qt 6.10 程序。Fcitx5 的 IBus 前端会申请 `org.freedesktop.portal.IBus`，这是自带插件在 `IBUS_USE_PORTAL=1` 时实际连接的服务。
 
-`xnviewmp/build_xnviewmp.sh` 的根 AppRun 现保留 `QT_QPA_PLATFORM=xcb` 和 `QT_IM_MODULE=ibus`，并新增 `QT_IM_MODULES=ibus` 与 `IBUS_USE_PORTAL=1`。不改 Qt 部署、媒体库、linuxdeploy 参数或视频相关变量。`docs/packaging-export-registry.md` 同步登记这两个新变量。新成品已在真实 Linux 环境中确认可以正常切换并输入中文；`QT_IM_MODULE=ibus`、`QT_IM_MODULES=ibus` 与 `IBUS_USE_PORTAL=1` 的组合现作为已验证稳定基线保留，后续不得删除、改回单独设置 `QT_IM_MODULE=ibus`，也不得重新打入 Ubuntu Qt 6.4 的 Fcitx5 插件。Fcitx5 需启用自带的 IBus Frontend，这是发行版默认状态。视频黑屏仍未修复。
+`xnviewmp/build_xnviewmp.sh` 的根 AppRun 现保留 `QT_QPA_PLATFORM=xcb` 和 `QT_IM_MODULE=ibus`，并新增 `QT_IM_MODULES=ibus` 与 `IBUS_USE_PORTAL=1`。不改 Qt 部署、媒体库、linuxdeploy 参数或视频相关变量。`Docs/packaging-export-registry.md` 同步登记这两个新变量。新成品已在真实 Linux 环境中确认可以正常切换并输入中文；`QT_IM_MODULE=ibus`、`QT_IM_MODULES=ibus` 与 `IBUS_USE_PORTAL=1` 的组合现作为已验证稳定基线保留，后续不得删除、改回单独设置 `QT_IM_MODULE=ibus`，也不得重新打入 Ubuntu Qt 6.4 的 Fcitx5 插件。Fcitx5 需启用自带的 IBus Frontend，这是发行版默认状态。视频黑屏仍未修复。
 
 ### 2026-09-29：处理 Qt6 部分视频黑屏与 Fcitx5 中文输入失效
 
@@ -137,11 +137,11 @@ XnView MP 改为从官方校验清单选择当前最新 `linux-x64.deb`，同一
 
 ### 2026-09-20：统一复用公共构建入口
 
-标准工作区、APT 安装、官方校验清单最新版下载、linuxdeploy 通用环境、第一次空 AppDir 初始化和最终 appimagetool 封装均改为调用 `common/` 公共入口。应用脚本删除了重复的 root / sudo、命令存在性、解包后文件清单和最终产物检查；XnView 专用的 Jammy 容器、Qt5 配置、媒体运行库、第二次 linuxdeploy 参数及已验证 AppRun 内容保持不变。
+标准工作区、APT 安装、官方校验清单最新版下载、linuxdeploy 通用环境、第一次空 AppDir 初始化和最终 appimagetool 封装均改为调用 `Common/` 公共入口。应用脚本删除了重复的 root / sudo、命令存在性、解包后文件清单和最终产物检查；XnView 专用的 Jammy 容器、Qt5 配置、媒体运行库、第二次 linuxdeploy 参数及已验证 AppRun 内容保持不变。
 
 ### 2026-09-20：复用公共空 AppDir 初始化入口
 
-第一次普通 linuxdeploy 已集中到 `common/linuxdeploy/initialize_appdir.sh`；本项目构建脚本只保留一行调用。XnView MP 专用 Qt5 环境、已确认 AppRun 和第二次 linuxdeploy 命令均未改变。
+第一次普通 linuxdeploy 已集中到 `Common/linuxdeploy/initialize_appdir.sh`；本项目构建脚本只保留一行调用。XnView MP 专用 Qt5 环境、已确认 AppRun 和第二次 linuxdeploy 命令均未改变。
 
 ### 2026-09-20：核对正式 Release 成品并完成规范沉淀
 
@@ -155,7 +155,7 @@ XnView MP 改为从官方校验清单选择当前最新 `linux-x64.deb`，同一
 
 实际 Release AppImage 已确认视频播放、中文界面和中文输入正常。解包核对显示 `usr/qml` 不存在；`usr/translations` 已通过符号链接完整接入 `opt/XnView/language`；`opt/XnView/lib` 是 Qt plugin 根目录，而 `opt/XnView/Plugins` 是由主程序 `$ORIGIN/Plugins` RPATH 加载的图片格式组件，不属于 `QT_PLUGIN_PATH`。
 
-构建脚本现直接写入上述最终路径，不再调用 `normalize_apprun_paths.sh`。XnView 官方文件统一通过 `common/download/download_file.sh` 下载，linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime 统一通过 `common/linuxdeploy/prepare_linuxdeploy_tools.sh` 动态取得并校验；项目保持独立，不依赖外部仓库。
+构建脚本现直接写入上述最终路径，不再调用 `normalize_apprun_paths.sh`。XnView 官方文件统一通过 `Common/download/download_file.sh` 下载，linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime 统一通过 `Common/linuxdeploy/prepare_linuxdeploy_tools.sh` 动态取得并校验；项目保持独立，不依赖外部仓库。
 
 ### 2026-09-20：整理最终 AppRun 路径并处理视频 OpenGL 上下文
 
@@ -187,4 +187,4 @@ Actions Job `106069546113` 在 Qt 插件的 QML 阶段调用 `/usr/bin/qmlimport
 
 - 故障依据：[运行 #1102 的 Build XnView MP](https://github.com/newyorkthink/linux-packaging/actions/runs/41298501421/job/124824392650)。中间封装将 `usr/share/icons/hicolor/64x64/apps/xnview.png` 的 `0745` 模式列为致命错误，随后输出 `found 1 ERROR(S) in the AppDir` 并退出；其余权限 warning 不作为本次失败原因。
 - 原因与处理：linuxdeploy 新构建内置 appimagetool build 340，原来仅在最终封装执行的权限准备来不及运行。公共工具准备现安装外部输出包装，在 Qt 和根桌面资源部署完成后，先复用现有权限与 PNG 准备，再调用官方输出插件。
-- 本项目 build、AppRun、qmake6 入口、Qt6 / IBus Portal 设置、运行库收集和原 linuxdeploy 命令均未修改；不处理已有视频黑屏问题或改动其记录。公共实现、官方依据和提交前验证边界见 [更新兼容说明](../docs/linuxdeploy-update-compatibility.md)。
+- 本项目 build、AppRun、qmake6 入口、Qt6 / IBus Portal 设置、运行库收集和原 linuxdeploy 命令均未修改；不处理已有视频黑屏问题或改动其记录。公共实现、官方依据和提交前验证边界见 [更新兼容说明](../Docs/linuxdeploy-update-compatibility.md)。

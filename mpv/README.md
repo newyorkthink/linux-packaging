@@ -21,7 +21,7 @@ locale 和窗口 hook 来源为 [pkgforge-dev/mpv-AppImage 的固定源码](http
 
 ## 版本元数据
 
-第一次 quick-sharun 之前，用 `common/build/read_app_version.sh pacman mpv` 读取本次实际安装的 mpv 版本，去掉 Arch epoch 与 pkgrel。最终 AppImage 成功生成后，单行调用 `common/build/save_appimage_version.sh` 写入 `dist/version.txt`；yt-dlp 的版本不替代 mpv 版本。
+第一次 quick-sharun 之前，用 `Common/build/read_app_version.sh pacman mpv` 读取本次实际安装的 mpv 版本，去掉 Arch epoch 与 pkgrel。最终 AppImage 成功生成后，单行调用 `Common/build/save_appimage_version.sh` 写入 `dist/version.txt`；yt-dlp 的版本不替代 mpv 版本。
 
 现有 [Build AppImages](../.github/workflows/build.yml) 通过 [应用清单](../.github/appimage-apps.json) 的标准 Arch matrix 执行本目录脚本，产物名保持 `mpv.AppImage`，`SOFTWARE_KEY=mpv` 保持不变。构建发布成功后由该 Job 立即更新自己的版本清单条目。
 

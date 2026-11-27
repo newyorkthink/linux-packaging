@@ -8,21 +8,21 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装 AUR 软件包及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" antigravity-ide fcitx5-gtk libnss_nis bubblewrap gvfs librsvg libvdpau xcb-util-wm libxkbcommon-x11 gcc-libs
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" antigravity-ide fcitx5-gtk libnss_nis bubblewrap gvfs librsvg libvdpau xcb-util-wm libxkbcommon-x11 gcc-libs
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist antigravity-ide.tar.gz antigravity-ide-unpacked antigravity-ide.version
 mkdir -p AppDir/bin dist
 
 # 下载官方当前 tar 包。
-"$SCRIPT_DIR/../common/download/download_html_linked_file.sh" https://antigravity.google/download \
+"$SCRIPT_DIR/../Common/download/download_html_linked_file.sh" https://antigravity.google/download \
   '^https://edgedl[.]me[.]gvt1[.]com/edgedl/release2/[^[:space:]]+/stable/[0-9]+([.][0-9]+)+-[0-9]+/linux-x64/Antigravity%20IDE[.]tar[.]gz$' antigravity-ide.tar.gz \
   --version-regex '/stable/([0-9]+([.][0-9]+)+)-[0-9]+/linux-x64/' --version-file antigravity-ide.version
 
 # 解包官方 tar 包。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" antigravity-ide.tar.gz antigravity-ide-unpacked
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" antigravity-ide.tar.gz antigravity-ide-unpacked
 
 # 整个程序目录原样放进 AppDir/bin。
 cp -a "antigravity-ide-unpacked/Antigravity IDE/." AppDir/bin/
@@ -51,7 +51,7 @@ export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text antigravity-ide.version)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" text antigravity-ide.version)"
 
 # 复用官方代码：收集程序及其运行依赖。
 quick-sharun ./AppDir/bin/* /usr/lib/libnss_nis.so* /usr/lib/libnsl.so* /usr/lib/libnss_mdns*_minimal.so*
@@ -70,4 +70,4 @@ ENV
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/antigravity-ide.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/antigravity-ide.AppImage "$VERSION" dist/version.txt

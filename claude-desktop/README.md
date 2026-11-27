@@ -17,7 +17,7 @@
 脚本为 `build_claude-desktop.sh`，在最终封装前接入公共协议登记。[Electron 直接下载基础模板](../anylinux_projects.md#直接下载安装包的标准模板)
 
 1. 先通过公共入口安装统一基础包，再安装 `claude-desktop fcitx5-gtk dpkg`。原脚本列出的 23 个基础包均已由 `--base` 覆盖，应用依赖仍由 AUR 包及明确追加项准备。
-2. 清理本应用的 AppDir、dist、旧 DEB 和解包目录。公共 `common/aur/download_deb_source.sh` 独立解析当前 AUR 来源并下载，通过 SHA-256 校验后写入 `claude-desktop.deb`；不从系统程序目录复制最终程序。
+2. 清理本应用的 AppDir、dist、旧 DEB 和解包目录。公共 `Common/aur/download_deb_source.sh` 独立解析当前 AUR 来源并下载，通过 SHA-256 校验后写入 `claude-desktop.deb`；不从系统程序目录复制最终程序。
 3. 通过公共解包入口提取 DEB，把 `claude-desktop-unpacked/usr/lib/claude-desktop/` 整个程序目录原样放入 `AppDir/bin`。系统安装结果仅用于依赖、图标、desktop 及既定版本来源。
 4. 设置模板规定的打包元数据，对完整程序目录执行 `quick-sharun AppDir/bin/*`。不再单独部署 ELF 后补资源或手工建立资源链接。
 5. 按模板在第一次 quick-sharun 后生成包内 `zh_CN.UTF-8`，通过 `.env` 使用包内 locale。GTK3 输入模块由 quick-sharun 从已安装依赖收集。
@@ -43,14 +43,14 @@
 
 ```bash
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman claude-desktop)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman claude-desktop)"
 ```
 
 最终 AppImage 生成成功后，按单行公共调用保存同一个版本：
 
 ```bash
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/claude-desktop.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/claude-desktop.AppImage "$VERSION" dist/version.txt
 ```
 
 下载 helper 只负责取得并校验 DEB，不写版本文件；版本来源继续由应用脚本的公共版本调用决定。

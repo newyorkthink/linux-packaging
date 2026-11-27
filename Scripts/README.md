@@ -31,10 +31,10 @@
 | 目录 | 用途 |
 | --- | --- |
 | `Scripts/` | 人工或 AI 经授权后调用的仓库维护工具 |
-| `common/` | 应用构建复用的下载、校验、安装、解包和打包入口 |
+| `Common/` | 应用构建复用的下载、校验、安装、解包和打包入口 |
 | `.github/scripts/` | GitHub Actions 调度、构建和发布使用的脚本 |
 
-维护脚本不自动接入构建或定时任务。应用构建继续调用 `common/`；Actions 的既有入口继续放在 `.github/scripts/`。项目归档与恢复的完整步骤见 [归档说明](../Archive/README.md)，其他维护入口见 [维护者指南](../docs/maintainer-guide.md)。
+维护脚本不自动接入构建或定时任务。应用构建继续调用 `Common/`；Actions 的既有入口继续放在 `.github/scripts/`。项目归档与恢复的完整步骤见 [归档说明](../Archive/README.md)，其他维护入口见 [维护者指南](../Docs/maintainer-guide.md)。
 
 ## 公开内容约定
 

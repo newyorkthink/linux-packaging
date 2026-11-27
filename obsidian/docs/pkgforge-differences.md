@@ -31,11 +31,11 @@
 
 ```bash
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" "obsidian-bin" dpkg gtk3 ibus libnotify libsecret libxss libxtst nss util-linux-libs xdg-utils alsa-lib libx11 libxrandr mesa libglvnd xorg-server xorg-server-common xorg-server-xvfb gcc-libs glibc lsof libxext libxi libxkbfile libxcomposite libxdamage libxfixes libva libvdpau pulseaudio pulseaudio-alsa pipewire-audio
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" "obsidian-bin" dpkg gtk3 ibus libnotify libsecret libxss libxtst nss util-linux-libs xdg-utils alsa-lib libx11 libxrandr mesa libglvnd xorg-server xorg-server-common xorg-server-xvfb gcc-libs glibc lsof libxext libxi libxkbfile libxcomposite libxdamage libxfixes libva libvdpau pulseaudio pulseaudio-alsa pipewire-audio
 # 下载官方当前 DEB。
-"$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" --tag-prefix "v" "obsidianmd/obsidian-releases" 'obsidian_{version}_amd64.deb' work/app.deb "obsidian" "amd64" > work/source-version.txt
+"$SCRIPT_DIR/../Common/github/download_latest_stable_release_asset.sh" --tag-prefix "v" "obsidianmd/obsidian-releases" 'obsidian_{version}_amd64.deb' work/app.deb "obsidian" "amd64" > work/source-version.txt
 # 整个程序目录原样放进 AppDir/bin。
 cp -a "work/unpacked/opt/Obsidian/." AppDir/bin/
 ```

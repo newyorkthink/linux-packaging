@@ -8,20 +8,20 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 
 # 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
 
 # 本程序专属处理：固定目标架构和官方资产名称，版本由公共入口动态选择。
 ASSET="xberg-cli-x86_64-unknown-linux-gnu.tar.gz"
 BUNDLE="xberg-cli-x86_64-unknown-linux-gnu"
 
 # 本程序专属处理：先下载并校验用于构建系统安装的官方 GNU 归档。
-"$SCRIPT_DIR/../common/github/download_latest_stable_named_asset.sh" xberg-io/xberg "$ASSET" work/install.tar.gz >&2
+"$SCRIPT_DIR/../Common/github/download_latest_stable_named_asset.sh" xberg-io/xberg "$ASSET" work/install.tar.gz >&2
 
 # 本程序专属处理：通过公共入口解包安装来源。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" work/install.tar.gz work/install
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/install.tar.gz work/install
 
 # 本程序专属处理：在隔离的 Arch 构建系统中安装完整目录，避免散放共享库。
 install -d /opt/xberg /usr/local/bin
@@ -32,11 +32,11 @@ ln -sfn /opt/xberg/xberg /usr/local/bin/xberg
 
 # 读取本次打包使用的版本。
 VERSION="$(
-  "$SCRIPT_DIR/../common/github/download_latest_stable_named_asset.sh" xberg-io/xberg "$ASSET" work/xberg.tar.gz
+  "$SCRIPT_DIR/../Common/github/download_latest_stable_named_asset.sh" xberg-io/xberg "$ASSET" work/xberg.tar.gz
 )"
 
 # 本程序专属处理：独立解包最终入包的官方归档，不复制系统安装目录。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" work/xberg.tar.gz work/package
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/xberg.tar.gz work/package
 
 # 本程序专属处理：准备完整程序目录的目标位置。
 mkdir -p AppDir/bin
@@ -90,4 +90,4 @@ cp -a work/branding-LICENSE AppDir/share/licenses/xberg-branding/LICENSE
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/xberg.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/xberg.AppImage "$VERSION" dist/version.txt

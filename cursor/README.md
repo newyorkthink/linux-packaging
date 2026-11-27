@@ -6,7 +6,7 @@
 
 ## 技术栈与打包方式
 
-本项目采用 [Electron 直接下载安装包标准模板](../anylinux_projects.md#直接下载安装包的标准模板)，打包分类见 [打包分类](../docs/packaging-classification.md)。模板允许软件名称、路径、依赖、下载接口和版本来源参数不同；通用代码、注释、执行阶段及空行逐行对齐。
+本项目采用 [Electron 直接下载安装包标准模板](../anylinux_projects.md#直接下载安装包的标准模板)，打包分类见 [打包分类](../Docs/packaging-classification.md)。模板允许软件名称、路径、依赖、下载接口和版本来源参数不同；通用代码、注释、执行阶段及空行逐行对齐。
 
 | 配置 | 当前值 |
 | --- | --- |
@@ -20,7 +20,7 @@
 
 quick-sharun 使用显式指定的主程序生成 AppRun，并收集 GTK 3 输入模块。程序目录中的 `chrome-sandbox` 和相邻资源继续保留。中文 locale 在第一次 quick-sharun 之后、最终封装之前生成，运行时通过 `.env` 使用包内的 `zh_CN.UTF-8`。
 
-下载入口使用官方当前版本跳转地址，由 `common/download/download_file.sh` 下载。原有 `/usr/bin/hostname` 继续作为 quick-sharun 输入显式部署。
+下载入口使用官方当前版本跳转地址，由 `Common/download/download_file.sh` 下载。原有 `/usr/bin/hostname` 继续作为 quick-sharun 输入显式部署。
 
 ## 版本元数据
 
@@ -28,7 +28,7 @@ quick-sharun 使用显式指定的主程序生成 AppRun，并收集 GTK 3 输�
 
 ```bash
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json AppDir/bin/resources/app/package.json --version-file "$HOME/version" --desktop "$DESKTOP")"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" package-json AppDir/bin/resources/app/package.json --version-file "$HOME/version" --desktop "$DESKTOP")"
 ```
 
 `--version-file` 保留原有 `~/version` 写入；`--desktop` 保留缺少 `X-AppImage-Version` 时追加版本的行为，不覆盖已有字段。这些操作均发生在 CI 构建环境中，执行位置仍在第一次 quick-sharun 之前。
@@ -37,7 +37,7 @@ VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json AppDir
 
 ```bash
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/cursor.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/cursor.AppImage "$VERSION" dist/version.txt
 ```
 
 公共保存入口先确认最终产物存在且非空，再写入 `dist/version.txt`。当前 workflow 使用 `SOFTWARE_KEY=cursor` 发布版本元数据。
@@ -57,7 +57,7 @@ VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json AppDir
 
 ## 配置说明文档
 
-以下文件只记录本应用的实际配置，通用用途和维护方法见 [应用配置说明文件](../docs/README.md#应用配置说明文件)。
+以下文件只记录本应用的实际配置，通用用途和维护方法见 [应用配置说明文件](../Docs/README.md#应用配置说明文件)。
 
 - [固定配置依据：docs/hardcoded.md](docs/hardcoded.md)：说明固定路径、文件名和参数为什么这样取值、有什么作用，以及相关的原始报错。
 - [模板差异说明：docs/template-deviations.md](docs/template-deviations.md)：说明本应用与标准模板不同的地方、原因和影响，避免套用模板时误删必需的专属处理。

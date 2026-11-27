@@ -6,7 +6,7 @@
 
 当前程序来自 Google 官方预编译 `platform-tools-latest-linux.zip`。现有 `arch-native.sh` 适用于安装 Arch 官方软件包后直接收集 `/usr/bin/<主程序>`；该路线无法原样表示本项目保留独立 ZIP、图标和 PATH hook 的流程。其他登记模板面向 DEB、Electron、Qt 等不同来源，同样不覆盖此完整流程。
 
-本项目已在 [官方预编译归档命令行工具](../../docs/packaging-classification.md#用-quick-sharun-打包的官方预编译归档命令行工具) 分类登记。继续维护已有入口，不新增模板、不批量改动其他程序；今后修改构建脚本仍须遵守仓库生成器规则。
+本项目已在 [官方预编译归档命令行工具](../../Docs/packaging-classification.md#用-quick-sharun-打包的官方预编译归档命令行工具) 分类登记。继续维护已有入口，不新增模板、不批量改动其他程序；今后修改构建脚本仍须遵守仓库生成器规则。
 
 ## 实际保留的专属处理
 
@@ -21,7 +21,7 @@
 | 更新信息 | 保留当前 `UPINFO`，指向本仓库 `latest` 的固定 zsync 文件名 | 仅保留既有更新元数据；没有启用自动更新 hook。 |
 | 版本 | 由现有 `awk` 从 `AppDir/bin/source.properties` 解析 `Pkg.Revision` | 当前公共版本读取入口不支持 `properties` 模式，不能替换为未实现的接口；版本为空时退出。 |
 | 依赖收集 | `quick-sharun ./AppDir/bin/*`，随后 `quick-sharun --make-appimage` | 一次收集 `adb`、`fastboot` 等已解压的工具及其运行库，保留已有 PATH hook。 |
-| 版本产物 | `common/build/save_appimage_version.sh` 检查 AppImage 非空并写 `dist/version.txt` | 复用已有公共保存入口，不新增独立测试或产物检查段。 |
+| 版本产物 | `Common/build/save_appimage_version.sh` 检查 AppImage 非空并写 `dist/version.txt` | 复用已有公共保存入口，不新增独立测试或产物检查段。 |
 
 ## 文件保留范围
 

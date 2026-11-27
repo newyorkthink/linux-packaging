@@ -8,16 +8,16 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装运行依赖及产品层处理工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" asar alsa-lib gtk3 cups libxss libxtst libnotify libsecret libpulse mesa fcitx5-gtk
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" asar alsa-lib gtk3 cups libxss libxtst libnotify libsecret libpulse mesa fcitx5-gtk
 
 # 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create cache work AppDir dist
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create cache work AppDir dist
 mkdir -p AppDir/bin work/windows work/electron work/app-asar-linux
 
 # 查询官方当前正式版，校验并下载完整安装包，同时记录来源版本。
-"$SCRIPT_DIR/../common/download/download_omaha_package.sh" \
+"$SCRIPT_DIR/../Common/download/download_omaha_package.sh" \
   'https://update.googleapis.com/service/update2' \
   '{533dd80c-942a-4464-b6a9-2e59428d784e}' \
   prod win 10.0.22000 x64 \
@@ -26,7 +26,7 @@ mkdir -p AppDir/bin work/windows work/electron work/app-asar-linux
   work/GeminiSetup.exe work/source-version.txt >/dev/null
 
 # 解包官方完整安装包，保留产品归档提取时需要的外置模块。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" work/GeminiSetup.exe work/windows
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/GeminiSetup.exe work/windows
 
 # 定位唯一产品归档，保持主程序与资源来自同一安装目录。
 mapfile -t WINDOWS_ASARS < <(find work/windows -type f -path '*/resources/app.asar' -print | sort)
@@ -55,13 +55,13 @@ ELECTRON_VERSION="$(
 }
 
 # 下载对应版本的官方 Linux 运行时，并按官方校验清单核对 SHA-256。
-"$SCRIPT_DIR/../common/download/download_latest_checksum_asset.sh" \
+"$SCRIPT_DIR/../Common/download/download_latest_checksum_asset.sh" \
   "https://github.com/electron/electron/releases/download/v$ELECTRON_VERSION/SHASUMS256.txt" \
   "^electron-v${ELECTRON_VERSION//./[.]}-linux-x64[.]zip$" \
   work/electron.zip >/dev/null
 
 # 解包已校验的 Linux 运行时。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" work/electron.zip work/electron
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/electron.zip work/electron
 
 # 整个程序目录原样放进 AppDir/bin。
 cp -a work/electron/. AppDir/bin/
@@ -131,7 +131,7 @@ export DEPLOY_GTK=1
 export NO_STRIP=1
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text work/source-version.txt --desktop "$DESKTOP")"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" text work/source-version.txt --desktop "$DESKTOP")"
 
 # 收集程序及其运行依赖。
 quick-sharun AppDir/bin/* /usr/bin/hostname /usr/lib/libnss* /usr/lib/libsoftokn3.so /usr/lib/libfreeblpriv3.so /usr/lib/pkcs11/*
@@ -150,4 +150,4 @@ ENV
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/Gemini.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/Gemini.AppImage "$VERSION" dist/version.txt

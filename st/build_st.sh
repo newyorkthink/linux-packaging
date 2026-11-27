@@ -8,16 +8,16 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装源码编译及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" libx11 libxft libxext freetype2 harfbuzz gd ncurses
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" libx11 libxft libxext freetype2 harfbuzz gd ncurses
 
 # 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
 
 # 下载上游默认分支的当前源码。
-COMMIT="$("$SCRIPT_DIR/../common/github/download_default_branch_source.sh" siduck/st "$SCRIPT_DIR/work/st.tar.gz")"
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$SCRIPT_DIR/work/st.tar.gz" "$SCRIPT_DIR/work"
+COMMIT="$("$SCRIPT_DIR/../Common/github/download_default_branch_source.sh" siduck/st "$SCRIPT_DIR/work/st.tar.gz")"
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" "$SCRIPT_DIR/work/st.tar.gz" "$SCRIPT_DIR/work"
 SOURCE_DIR="$SCRIPT_DIR/work/st-$COMMIT"
 
 # 本程序专属处理：读取字体配置并生成本次构建的 config.h，不修改上游 config.def.h。
@@ -68,4 +68,4 @@ quick-sharun --make-appimage
 ST_VERSION="$(awk '$1 == "VERSION" && $2 == "=" && $3 != "" { print $3; found=1; exit } END { if (!found) exit 1 }' "$SOURCE_DIR/config.mk")"
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/st.AppImage "${ST_VERSION}+g${COMMIT:0:12}" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/st.AppImage "${ST_VERSION}+g${COMMIT:0:12}" dist/version.txt

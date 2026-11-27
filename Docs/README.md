@@ -13,11 +13,11 @@
 | 仓库强制规则与人工操作导航 | `AGENTS.md`、维护者指南和打包路线规范 |
 | 应用实现、当前状态、修复和失败历史 | 对应应用目录的 `README.md` 或目录内历史文件 |
 | 应用专属问题、实测证据与详细记录 | `<应用目录>/docs/`，由对应应用 README 提供链接 |
-| 跨应用通用机制与排查方法 | `docs/` 中的主题文档、`docs/packaging-cases/` |
-| 已核对、决定暂时不改的问题 | `docs/known-risks/`，有记录不表示要求修复 |
+| 跨应用通用机制与排查方法 | `Docs/` 中的主题文档、`Docs/packaging-cases/` |
+| 已核对、决定暂时不改的问题 | `Docs/known-risks/`，有记录不表示要求修复 |
 | 已确定需要后续处理的未完成任务 | [待解决问题与任务](./pending/README.md)，完成验收后清理对应待办 |
 
-`docs/packaging-cases/` 只放通用问题笔记，禁止在文件名、正文、示例和链接中夹带具体被打包应用的名称或个案。Qt、sharun 等框架和打包工具名称可以按主题使用；通用示例采用 `<应用>`、`<程序>` 等占位符，需按实际环境替换。具体应用的产物、修复和验收记录放在其自身目录。
+`Docs/packaging-cases/` 只放通用问题笔记，禁止在文件名、正文、示例和链接中夹带具体被打包应用的名称或个案。Qt、sharun 等框架和打包工具名称可以按主题使用；通用示例采用 `<应用>`、`<程序>` 等占位符，需按实际环境替换。具体应用的产物、修复和验收记录放在其自身目录。
 
 新增或更新通用笔记时同步维护本索引的主题、关键词、范围和链接；应用专属记录由对应应用 README 链接。已有历史完整保留，不用索引摘要替代详细记录。
 
@@ -48,7 +48,7 @@
 | [AI 仓库规范](../AGENTS.md) | 授权、稳定基线、完整阅读、提交、验证边界 |
 | [维护者指南](./maintainer-guide.md) | 人工维护、入口、打包路线、提交前核对 |
 | [文档模板使用说明](./templates/documentation/README.md) | 文档规范、模板索引、实机验证通过记录、填写顺序与记录位置 |
-| [仓库维护脚本](../Scripts/README.md) | 分类总索引、归档与 Release 分类、同名脚本说明、统一组织方式、Scripts / common / Actions 分工、公开示例 |
+| [仓库维护脚本](../Scripts/README.md) | 分类总索引、归档与 Release 分类、同名脚本说明、统一组织方式、Scripts / Common / Actions 分工、公开示例 |
 | [项目归档与恢复](../Archive/README.md) | 统一归档脚本、批量参数、默认预览、显式执行、停用登记、完整目录保留、活动构建移除、Release 产物与版本条目清理、失败续跑、未解决错误、恢复待办 |
 | [Anylinux / quick-sharun 规范](../anylinux_projects.md) | Arch、sharun、AppDir、中文环境、输入模块、platforminputcontexts、自动收集、`.env`、Qt 主题插件、qt6ct、kvantum、lxqt-qtplugin、有窗口的 Qt 程序、Electron、程序目录、直接下载标准模板、公共版本读取、Snap 专用流程、单行保存、行数与空行、暂不采用官方处理、加入前重新核实 |
 | [quick-sharun 固定注释标准](./quick-sharun-comments.md) | 标准原文、通用流程、按来源选用、元数据、GUI 中文环境、按需部署、来源标注；不收录应用专属注释 |
@@ -57,7 +57,7 @@
 | [AppDir / appimagetool 规范（含 linuxdeploy）](../linuxdeploy_projects.md) | 同一体系的两种模式、直接 appimagetool、尽量对齐与必要差异、工具准备与版本读取、四个通用标准参考（Kitty、Joplin、XnView MP、MediaInfo）、CLI 固定名称预编译归档、Ubuntu runner、禁止 Docker、公共工作目录、完整 DEB 版本、Qt 查询工具与条件设置、公共流程、项目专属差异 |
 | [AppDir / appimagetool 固定注释标准](./linuxdeploy-comments.md) | 两种模式的适用注释、同用途逐字一致、直接模式对齐边界、版本读取、工具准备、APT 同版本解包、GTK、Qt、固定分区、逐字复用；不收录软件专属注释 |
 | [AppImage 构建依赖清单](./appimage-build-dependency-list.md) | 基础包、Qt5 / Qt6、GTK、功能依赖 |
-| [公共脚本入口](../common/README.md) | 下载、GitHub 最新正式 Release 源码 / 标签 / 认证、AUR DEB 来源 / 摘要 / 安装解包与版本返回、签名 APT 仓库、DEB 版本 / 包名 / 架构校验、SHA-256 / SHA-512、Snap 稳定通道 / SHA3-384 / stdout 版本 / 官方 snap download / 签名声明 / 当前 run 来源复用、curl 可选 HTTP/1.1 / 指数退避 / DNS 失败时的 DoH 备用解析、User-Agent、同 URL 归档回退、可选 pkgver / pkgrel 输出、Arch 安装显式 --aur-deb / --aur-source、同次 AUR 原始来源导出与版本核对、显式 --snap-stable / 临时配方同步 / Snap 单次下载、makepkg 来源缓存与独立构建目录、解包、依赖、来源版本、可选构建元数据、版本保存、linuxdeploy 工作目录、组合插件、Qt 工具选择、locale 父目录、临时路径整理 |
+| [公共脚本入口](../Common/README.md) | 下载、GitHub 最新正式 Release 源码 / 标签 / 认证、AUR DEB 来源 / 摘要 / 安装解包与版本返回、签名 APT 仓库、DEB 版本 / 包名 / 架构校验、SHA-256 / SHA-512、Snap 稳定通道 / SHA3-384 / stdout 版本 / 官方 snap download / 签名声明 / 当前 run 来源复用、curl 可选 HTTP/1.1 / 指数退避 / DNS 失败时的 DoH 备用解析、User-Agent、同 URL 归档回退、可选 pkgver / pkgrel 输出、Arch 安装显式 --aur-deb / --aur-source、同次 AUR 原始来源导出与版本核对、显式 --snap-stable / 临时配方同步 / Snap 单次下载、makepkg 来源缓存与独立构建目录、解包、依赖、来源版本、可选构建元数据、版本保存、linuxdeploy 工作目录、组合插件、Qt 工具选择、locale 父目录、临时路径整理 |
 | [appimagetool 图标检查与 SVG 兼容处理](./appimagetool-icon-compatibility.md) | 上游图标变更、.DirIcon、PNG / SVG / XPM、librsvg2-bin、公共准备入口、最终封装 |
 | [linuxdeploy 更新与中间封装兼容](./linuxdeploy-update-compatibility.md) | continuous 工具变化、内置 appimagetool、中间与最终封装、根图标与权限错误、外部输出入口、公共准备、修复与验证边界 |
 | [打包 export 登记表](./packaging-export-registry.md) | 环境变量、用途、登记后使用 |

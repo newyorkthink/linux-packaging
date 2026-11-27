@@ -16,19 +16,19 @@ DIST_DIR="$SCRIPT_DIR/dist"
 APPIMAGE="$DIST_DIR/hermes-desktop.AppImage"
 
 # 清理上次构建的源码和产物，并重建产物目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create upstream dist
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create upstream dist
 
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" \
   libgtk-3-0 libnotify4 libxss1 libxtst6 libatspi2.0-0 libgbm1 libasound2t64
 
 ############ 下载并准备应用 #############
 
 # 下载最新正式 Release 标签的源码，成功后取得原始标签名。
 SOURCE_REF="$(
-  "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" NousResearch/hermes-agent "$SOURCE_DIR"
+  "$SCRIPT_DIR/../Common/github/download_latest_stable_release_source.sh" NousResearch/hermes-agent "$SOURCE_DIR"
 )"
 
 ############### 核心打包 ###############
@@ -105,4 +105,4 @@ fi
 cp -- "${APPIMAGES[0]}" "$APPIMAGE"
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "$APPIMAGE" "${SOURCE_REF#v}" "$DIST_DIR/version.txt"
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "$APPIMAGE" "${SOURCE_REF#v}" "$DIST_DIR/version.txt"

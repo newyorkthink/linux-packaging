@@ -278,7 +278,7 @@ def main():
                 continue
             text = read(path)
             destination = "Archive/" + path if path.split("/", 1)[0] in fresh_dirs else path
-            if path in ("docs/packaging-classification.md", "docs/upstream-packaging-index.md"):
+            if path in ("Docs/packaging-classification.md", "Docs/upstream-packaging-index.md"):
                 names = {str(a.get("name", a["dir"])).casefold() for a in fresh} | {a["dir"].casefold() for a in fresh}
                 def keep(line):
                     if not line.startswith("| "):
@@ -307,7 +307,7 @@ def main():
                 header += "以下为归档前原有记录；其中的活动路径和发布状态仅作为历史保留。\n\n"
             changes[path] = header + original if original else header.rstrip() + "\n"
 
-        registry = "docs/packaging-export-registry.md"
+        registry = "Docs/packaging-export-registry.md"
         if (root / registry).is_file():
             text = changes.get(registry, read(registry))
             note = "已归档项目的 export 记录仅保留为历史依据，启用状态以[归档索引](../Archive/README.md)和活动应用清单为准。"

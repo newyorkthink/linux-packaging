@@ -14,7 +14,7 @@ workflow 将其上传为 `software-version-picom`，成功构建后增量写入 
 
 ## 维护说明
 
-- 构建脚本已对齐标准模板 [arch-native.sh](../Templates/quick-sharun/arch-native.sh)，统一通过 `common/` 公共脚本完成安装、工作区准备与版本读写。
+- 构建脚本已对齐标准模板 [arch-native.sh](../Templates/quick-sharun/arch-native.sh)，统一通过 `Common/` 公共脚本完成安装、工作区准备与版本读写。
 - 保留 `DEPLOY_OPENGL=1`（支持 `xrender`/`glx` 后端）及原有 picom / compton / X11 辅助工具扫描范围；差异与依赖覆盖核对见 [模板差异说明](./docs/template-deviations.md)。
 - 版本值来自本次实际安装的软件包，不手工写死。
 

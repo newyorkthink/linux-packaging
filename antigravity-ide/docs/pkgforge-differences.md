@@ -22,7 +22,7 @@
 | `DWARFS_COMP="zstd:level=5"` | 不采用 | 未启用；正式构建不设置自定义压缩参数。 | 旧脚本自定义压缩，标准模板和当前官方脚本均无此项；没有额外压缩需求，因此使用工具默认设置。 |
 | AUR watcher 替换 | 不复制到最终程序 | 未启用最终程序替换；程序来自[独立下载的官方 tar，第25～28行](https://github.com/newyorkthink/linux-packaging/blob/64acc601db45485bf8ad7ee95d7c074a1c2b308b/antigravity-ide/build_antigravity-ide.sh#L25-L28)。 | 当前 AUR PKGBUILD 注明用于修复 watcher 退出故障；系统安装可能包含该处理，但最终程序独立取自官方 tar。本次没有授权修复上游程序，保持原版，不复制系统里的替换文件。 |
 
-协议结论依据本仓库 [AppImage 自定义协议登记说明](../../docs/appimage-scheme-handler.md) 和 [AUR URL handler](https://github.com/archlinux/aur/blob/antigravity-ide/antigravity-ide-url-handler.desktop)：包内文件存在与宿主登记是两件事。此次未采用该收集步骤，不等于断言所有环境都不需要协议功能。
+协议结论依据本仓库 [AppImage 自定义协议登记说明](../../Docs/appimage-scheme-handler.md) 和 [AUR URL handler](https://github.com/archlinux/aur/blob/antigravity-ide/antigravity-ide-url-handler.desktop)：包内文件存在与宿主登记是两件事。此次未采用该收集步骤，不等于断言所有环境都不需要协议功能。
 
 ## 当前采用的构建代码
 

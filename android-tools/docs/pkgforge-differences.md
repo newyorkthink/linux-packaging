@@ -14,11 +14,11 @@
 | 处理 | 决定 | 对应代码 | 当前依据、用途与影响 |
 | --- | --- | --- | --- |
 | 构建容器与精简 | 采用精简命令，保留本仓库的依赖恢复 | `get-debloated-pkgs --add-common --prefer-nano ! mesa ! vulkan`；其后原样执行本仓库既有 `yay -S --noconfirm ...` 命令 | 上游仅将该阶段标为精简包安装，未说明排除 Mesa、Vulkan 的逐项原因。本仓库旧版采用该命令；历史记录证明精简后必须恢复 `unzip`、`patchelf` 等工具。此处仅影响 Actions 构建容器。 |
-| 软件来源与解压 | 采用官方 ZIP，改用本仓库公共下载和解压入口 | `common/download/download_file.sh`、`common/archive/extract_archive.sh`；原 ZIP 地址见下 | 保留 Google 最新 Linux Platform Tools 来源及完整文件，不再在应用脚本中重复实现 `wget`、`unzip`。没有固定版本号。 |
+| 软件来源与解压 | 采用官方 ZIP，改用本仓库公共下载和解压入口 | `Common/download/download_file.sh`、`Common/archive/extract_archive.sh`；原 ZIP 地址见下 | 保留 Google 最新 Linux Platform Tools 来源及完整文件，不再在应用脚本中重复实现 `wget`、`unzip`。没有固定版本号。 |
 | 目录与图标 | 保留上游独立文件，调整清理范围以免删除它们 | `AppDir/.DirIcon`、`AppDir/android-tools.png`、`AppDir/bin/make-symlinks-in-path.hook` | `.DirIcon` 用于 AppImage 图标；PNG 是同一图标资源；PATH hook 支持将 `adb`、`fastboot` 等命令链接到一个 AppImage。清理时只保留已确认的 hook。 |
 | 主入口与收集 | 沿用上游入口及收集方式 | `export MAIN_BIN=adb`、`export DESKTOP=DUMMY`、`quick-sharun ./AppDir/bin/*`、`quick-sharun --make-appimage` | 主程序是 `adb`；上游以 dummy desktop 处理无图形界面的命令行程序，并收集整个已准备的工具集合。 |
 | 输出名称和更新信息 | 使用本仓库现有固定资产名与 Release 信息 | `export APPNAME=android-tools`、`export OUTNAME=android-tools.AppImage`、`export UPINFO="gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}|latest|android-tools.AppImage.zsync"` | 上游使用 `Android_Tools` 和通配 zsync 文件名；本仓库统一为现有产物名。设置 `UPINFO` 只写入更新元数据，不表示启用了运行时自动更新 hook。 |
-| 版本读取 | 保留动态版本来源，采用本仓库原有解析方式 | 从 `AppDir/bin/source.properties` 读取 `Pkg.Revision`；最终使用 `common/build/save_appimage_version.sh` | 上游直接将 `awk` 输出写到构建环境的 `~/version`；本仓库从同一官方属性文件读取实际版本，检查非空后保存到 `dist/version.txt`。 |
+| 版本读取 | 保留动态版本来源，采用本仓库原有解析方式 | 从 `AppDir/bin/source.properties` 读取 `Pkg.Revision`；最终使用 `Common/build/save_appimage_version.sh` | 上游直接将 `awk` 输出写到构建环境的 `~/version`；本仓库从同一官方属性文件读取实际版本，检查非空后保存到 `dist/version.txt`。 |
 | udev 自动安装与权限变更 | 未启用 | 上游 `ADD_HOOKS`、udev 规则下载和修改用户组的命令；见下 | 上游以“add udev rules”标注操作，未解释每个权限修改的必要性。本仓库已有启动弹窗的实际记录；去除后实机 `adb` 正常。 |
 | 上游测试及发布流程 | 未启用 | `quick-sharun --simple-test ./dist/*.AppImage` 和独立上游 workflow | 本仓库不把测试代码放进正式构建脚本，继续使用现有 GitHub Actions 构建与发布流程，不额外引入上游发布任务。 |
 

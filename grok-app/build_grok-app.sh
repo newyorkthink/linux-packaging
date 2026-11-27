@@ -8,21 +8,21 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" dpkg gtk3 webkit2gtk-4.1 fcitx5-gtk libayatana-appindicator
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" dpkg gtk3 webkit2gtk-4.1 fcitx5-gtk libayatana-appindicator
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist source grok-app.deb grok-app-unpacked grok-app.version
 mkdir -p AppDir/bin dist source
 
 # 下载官方当前 DEB。
-"$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" \
+"$SCRIPT_DIR/../Common/github/download_latest_stable_release_asset.sh" \
   RongleCat/grok-app 'Grok_{version}_amd64.deb' \
   grok-app.deb grok amd64 > grok-app.version
 
 # 解包官方 DEB。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" grok-app.deb grok-app-unpacked
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" grok-app.deb grok-app-unpacked
 
 # 整个程序目录原样放进 AppDir/bin。
 cp -a grok-app-unpacked/usr/bin/. AppDir/bin/
@@ -53,7 +53,7 @@ export DEPLOY_WEBKIT2GTK=1
 export WEBKIT2GTK_DIR=/usr/lib/webkit2gtk-4.1
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" text grok-app.version)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" text grok-app.version)"
 
 # 收集程序及其运行依赖。
 quick-sharun AppDir/bin/* /usr/lib/libayatana-appindicator3.so.1
@@ -75,7 +75,7 @@ ENV
 # 不交给 quick-sharun，避免打包时改掉它的解释器。bin/zenity 是相对符号链接，留给宿主没有 bwrap、包内 bin 仍在 PATH 最前的情况。
 readonly ZENITY_RS_VERSION="0.3.0"
 readonly ZENITY_RS_SHA256="f7a351180f364501855181420ceecd40b42ff84742ab79eca7aec43fe8ec074a"
-"$SCRIPT_DIR/../common/download/download_file.sh" \
+"$SCRIPT_DIR/../Common/download/download_file.sh" \
   "https://github.com/QaidVoid/zenity-rs/releases/download/v${ZENITY_RS_VERSION}/zenity-rs-x86_64-linux" \
   "source/zenity-rs-${ZENITY_RS_VERSION}-x86_64" \
   "$ZENITY_RS_SHA256"
@@ -94,7 +94,7 @@ fi
 HOOK
 
 # 本仓库兼容处理：启动时把 grok:// 和官方皮肤 MIME 指到当前 AppImage。
-bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
+bash "$SCRIPT_DIR/../Common/desktop/write_scheme_hook.sh" \
   --output AppDir/bin/20-grok-app-protocol.hook \
   --desktop-file grok-app.desktop \
   --name "Grok" \
@@ -109,4 +109,4 @@ bash "$SCRIPT_DIR/../common/desktop/write_scheme_hook.sh" \
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/grok-app.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/grok-app.AppImage "$VERSION" dist/version.txt

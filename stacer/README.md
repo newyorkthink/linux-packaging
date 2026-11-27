@@ -33,11 +33,11 @@ Stacer 是 C++17 / Qt6 原生 Linux 桌面程序，核心依赖：
 
 当前路线是仓库标准 Arch Linux + `quick-sharun`，构建脚本已对齐 [qt-installed.sh](../Templates/quick-sharun/qt-installed.sh)，专属差异与依赖覆盖见 [模板差异说明](./docs/template-deviations.md)：
 
-1. 通过 `common/arch/install_packages.sh --base` 安装统一打包基础包，再经公共入口安装 AUR `stacer` 以及 Qt6 输入与主题插件（`fcitx5-qt`、`qt6ct`、`kvantum`、`lxqt-qtplugin`），并由 `common/build/prepare_x86_64_workspace.sh` 清理工作区。
-2. 设置 `DEPLOY_QT=1` 与 `STARTUPWMCLASS="stacer"`，通过 `common/build/read_app_version.sh` 读取本次实际安装的 `stacer` 版本。
+1. 通过 `Common/arch/install_packages.sh --base` 安装统一打包基础包，再经公共入口安装 AUR `stacer` 以及 Qt6 输入与主题插件（`fcitx5-qt`、`qt6ct`、`kvantum`、`lxqt-qtplugin`），并由 `Common/build/prepare_x86_64_workspace.sh` 清理工作区。
+2. 设置 `DEPLOY_QT=1` 与 `STARTUPWMCLASS="stacer"`，通过 `Common/build/read_app_version.sh` 读取本次实际安装的 `stacer` 版本。
 3. 将 `/usr/bin/stacer` 与 `/usr/share/stacer` 交给 `quick-sharun` 收集依赖和翻译，按模板生成包内中文 locale。
 4. 按上游查找顺序，校验 `AppDir/share/stacer/translations` 并将翻译目录链接到主程序同级的 `translations/`，对应 `applicationDirPath()/translations` 回退路径。
-5. `quick-sharun --make-appimage` 生成稳定文件名 `dist/stacer.AppImage`，成功后经 `common/build/save_appimage_version.sh` 校验产物并写入 `dist/version.txt`。workflow 使用 `SOFTWARE_KEY=stacer` 接入统一 `software_versions.json`。
+5. `quick-sharun --make-appimage` 生成稳定文件名 `dist/stacer.AppImage`，成功后经 `Common/build/save_appimage_version.sh` 校验产物并写入 `dist/version.txt`。workflow 使用 `SOFTWARE_KEY=stacer` 接入统一 `software_versions.json`。
 
 ## 运行与兼容说明
 

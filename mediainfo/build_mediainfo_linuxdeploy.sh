@@ -11,32 +11,32 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ############# 准备构建目录 #############
 
 # 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" mediainfo
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" mediainfo
 
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" aptitude mediainfo librsvg2-bin
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" aptitude mediainfo librsvg2-bin
 
 ############# 下载打包工具 #############
 
 # 下载并校验打包工具及所需插件，随后加载构建环境配置。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" "" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" "" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 
 ############ 初始化 AppDir #############
 
 # 首次运行 linuxdeploy，创建 AppDir 的基础目录。
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
+"$SCRIPT_DIR/../Common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
 ############ 下载并准备应用 #############
 
 # 下载已安装版本的软件包并解包到 AppDir，成功后返回版本号。
-VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" mediainfo "$APPDIR")"
+VERSION="$("$SCRIPT_DIR/../Common/apt/extract_installed_package.sh" mediainfo "$APPDIR")"
 
 ########## 准备桌面资源和运行库 #########
 
 # 本程序专属处理：MediaInfo CLI 包没有自带图标，下载官方 SVG 到 AppDir，供桌面入口和最终封装使用。
-"$SCRIPT_DIR/../common/download/download_file.sh" "https://raw.githubusercontent.com/MediaArea/MediaInfo/master/Source/Resource/Image/MediaInfo.svg" "$APPDIR/usr/share/icons/hicolor/scalable/apps/mediainfo.svg"
+"$SCRIPT_DIR/../Common/download/download_file.sh" "https://raw.githubusercontent.com/MediaArea/MediaInfo/master/Source/Resource/Image/MediaInfo.svg" "$APPDIR/usr/share/icons/hicolor/scalable/apps/mediainfo.svg"
 
 # 本程序专属处理：检查 MediaInfo CLI 包中的桌面入口，仅在缺失时生成支持终端运行的入口。
 mapfile -t MEDIAINFO_DESKTOP_FILES < <(dpkg -L mediainfo | awk '/\/usr\/share\/applications\/.*\.desktop$/ {print}')
@@ -93,4 +93,4 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --output appimage
 ############### 整理产物 ###############
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+"$SCRIPT_DIR/../Common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

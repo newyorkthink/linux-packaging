@@ -6,7 +6,7 @@ shopt -s nullglob
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" \
   ca-certificates curl libegl1 libgl1 libxcb-shape0 libxkbcommon0
 
 log() {
@@ -309,7 +309,7 @@ EOF_VERSION
 
 log "生成最终 winpodx.AppImage"
 # 补齐封装所需权限和 PNG 图标。
-"$SCRIPT_DIR/../common/appimage/prepare_appdir_for_appimagetool.sh" "$APPDIR"
+"$SCRIPT_DIR/../Common/appimage/prepare_appdir_for_appimagetool.sh" "$APPDIR"
 ARCH=x86_64 appimagetool "$APPDIR" "$OUTFILE" >/dev/null
 chmod +x "$OUTFILE"
 "$OUTFILE" --appimage-version >/dev/null

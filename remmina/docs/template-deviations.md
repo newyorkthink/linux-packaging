@@ -15,11 +15,11 @@
 
 ## 公共入口
 
-主 build 的工具准备复用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh` 的 `gtk,gstreamer` 组合；APT 原布局解包复用 `common/apt/extract_installed_package.sh` 的附加软件包参数。参数说明见 [公共入口](../../common/README.md)，Remmina 的包名和资源清单由主 build 指定。
+主 build 的工具准备复用 `Common/linuxdeploy/prepare_linuxdeploy_tools.sh` 的 `gtk,gstreamer` 组合；APT 原布局解包复用 `Common/apt/extract_installed_package.sh` 的附加软件包参数。参数说明见 [公共入口](../../Common/README.md)，Remmina 的包名和资源清单由主 build 指定。
 
 ## 中文 locale 与翻译的边界
 
-本程序已有可用的中文翻译和中文界面需求。资源准备阶段调用 `common/linuxdeploy/prepare_locale.sh zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"`，AppRun 先指定包内 `LOCPATH`，再设置 `LANG=zh_CN.UTF-8`，原 `LANGUAGE="zh_CN:zh"` 不变。
+本程序已有可用的中文翻译和中文界面需求。资源准备阶段调用 `Common/linuxdeploy/prepare_locale.sh zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"`，AppRun 先指定包内 `LOCPATH`，再设置 `LANG=zh_CN.UTF-8`，原 `LANGUAGE="zh_CN:zh"` 不变。
 
 `usr/lib/locale` 是区域数据，`usr/share/locale/zh_CN/LC_MESSAGES/remmina.mo` 是应用翻译，GTK immodules 则用于输入；不能互相替代。现有两个 patches 的翻译和输入处理不改，不把中文环境块套到 CLI 或没有中文翻译的 GUI；通用判断见 [linuxdeploy 中文配置](../../linuxdeploy_projects.md#中文环境与输入法的适用范围)。
 

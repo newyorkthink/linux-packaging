@@ -40,7 +40,7 @@
 
 GNU 包内的主程序和相邻 `.so` 是一个整体，不只提取主程序，也不按旧截图写死共享库名单。应用、REST API、MCP、格式支持等保留官方这份二进制已有的编译特性；不将官方不同发行资产的功能混作本包新增能力。
 
-图标和品牌资源 MIT 许可证分别原样保存在 [`patched/xberg.svg`](./patched/xberg.svg) 与 [`patched/branding-LICENSE`](./patched/branding-LICENSE)，构建时复制到工作区后随包保留；不重画或修改标志。详细定位与专属处理见[差异说明](./docs/template-deviations.md)。本项目归入 [quick-sharun 官方预编译归档命令行工具](../docs/packaging-classification.md#用-quick-sharun-打包的官方预编译归档命令行工具) 分类，不新增模板。
+图标和品牌资源 MIT 许可证分别原样保存在 [`patched/xberg.svg`](./patched/xberg.svg) 与 [`patched/branding-LICENSE`](./patched/branding-LICENSE)，构建时复制到工作区后随包保留；不重画或修改标志。详细定位与专属处理见[差异说明](./docs/template-deviations.md)。本项目归入 [quick-sharun 官方预编译归档命令行工具](../Docs/packaging-classification.md#用-quick-sharun-打包的官方预编译归档命令行工具) 分类，不新增模板。
 
 ## 实机验证
 

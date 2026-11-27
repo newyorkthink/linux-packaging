@@ -8,21 +8,21 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装 AUR 软件包及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" visual-studio-code-bin fcitx5-gtk libdbusmenu-glib libx11 libxext libxi libxrandr libxtst libxkbcommon libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau xorg-server xorg-server-common xorg-server-xvfb
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" visual-studio-code-bin fcitx5-gtk libdbusmenu-glib libx11 libxext libxi libxrandr libxtst libxkbcommon libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau xorg-server xorg-server-common xorg-server-xvfb
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist vscode.tar.gz vscode-unpacked
 mkdir -p AppDir/bin dist
 
 # 下载官方当前 tar 包。
-"$SCRIPT_DIR/../common/download/download_file.sh" \
+"$SCRIPT_DIR/../Common/download/download_file.sh" \
   'https://code.visualstudio.com/sha/download?build=stable&os=linux-x64' \
   vscode.tar.gz
 
 # 解包官方 tar 包。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" vscode.tar.gz vscode-unpacked
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" vscode.tar.gz vscode-unpacked
 
 # 整个程序目录原样放进 AppDir/bin。
 cp -a vscode-unpacked/VSCode-linux-x64/. AppDir/bin/
@@ -57,7 +57,7 @@ export DEPLOY_OPENGL=1
 export DEPLOY_VULKAN=1
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" package-json AppDir/bin/resources/app/package.json --version-file "$HOME/version" --desktop "$DESKTOP" --desktop AppDir/share/applications/code-url-handler.desktop)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" package-json AppDir/bin/resources/app/package.json --version-file "$HOME/version" --desktop "$DESKTOP" --desktop AppDir/share/applications/code-url-handler.desktop)"
 
 # 复用官方代码：删除上游明确标为不需要保留的运行组件。
 rm -rf ./AppDir/bin/resources/app/node_modules/@github/copilot-linuxmusl-x64
@@ -82,4 +82,4 @@ cp -a "$SCRIPT_DIR/cli-router.hook" AppDir/bin/cli-router.hook
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/vscode.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/vscode.AppImage "$VERSION" dist/version.txt

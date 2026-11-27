@@ -17,15 +17,15 @@ if pacman -Q ffmpeg-mini >/dev/null 2>&1; then
 fi
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装官方软件包及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" xorg-server-xvfb ffmpeg libuvc v4l-utils libusb alsa-lib libpulse libproxy pipewire qt6-base qt6-declarative qt6-multimedia qt6-svg qt6-tools qt6-wayland qt6-imageformats qt6-shadertools qt6ct kvantum lxqt-qtplugin adwaita-qt6 fcitx5-qt libglvnd mesa libx11 libxext libxfixes libxrender libxcb libxkbcommon-x11 xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xcb-util-cursor
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" xorg-server-xvfb ffmpeg libuvc v4l-utils libusb alsa-lib libpulse libproxy pipewire qt6-base qt6-declarative qt6-multimedia qt6-svg qt6-tools qt6-wayland qt6-imageformats qt6-shadertools qt6ct kvantum lxqt-qtplugin adwaita-qt6 fcitx5-qt libglvnd mesa libx11 libxext libxfixes libxrender libxcb libxkbcommon-x11 xcb-util xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xcb-util-cursor
 
 # 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir work dist
 
 # 读取本次打包使用的版本。
-VERSION="$(bash "$SCRIPT_DIR/../common/github/download_latest_stable_release_source.sh" webcamoid/webcamoid work/source)"
+VERSION="$(bash "$SCRIPT_DIR/../Common/github/download_latest_stable_release_source.sh" webcamoid/webcamoid work/source)"
 
 # 本仓库兼容处理：补上默认深色主题、真实摄像头优先，并跳过用不上的硬件编码器探测。
 python3 patches/default_dark_theme.py work/source
@@ -163,4 +163,4 @@ AppDir/sharun -g
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/webcamoid.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/webcamoid.AppImage "$VERSION" dist/version.txt

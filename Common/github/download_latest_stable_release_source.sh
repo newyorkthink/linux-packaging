@@ -40,8 +40,8 @@ for command_name in jq git; do
 done
 
 ROOT="$(cd -- "$(dirname -- "$0")/../.." && pwd)"
-# shellcheck source=common/github/github_api.sh
-source "$ROOT/common/github/github_api.sh"
+# shellcheck source=Common/github/github_api.sh
+source "$ROOT/Common/github/github_api.sh"
 
 # 归档模式要求现有认证凭据和解包工具，原两参数克隆模式不增加这些检查。
 if [[ "$SOURCE_MODE" == --archive ]]; then
@@ -143,7 +143,7 @@ if [[ "$SOURCE_MODE" == --archive ]]; then
   sha256sum -- "$SOURCE_ARCHIVE" >&2
 
   # 通用归档解包仍由现有公共入口负责，解包日志写入 stderr。
-  "$ROOT/common/archive/extract_archive.sh" "$SOURCE_ARCHIVE" "$UNPACK_DIR" >&2
+  "$ROOT/Common/archive/extract_archive.sh" "$SOURCE_ARCHIVE" "$UNPACK_DIR" >&2
 
   # 官方源码归档应只有一个顶层目录；交付其完整内容，不依赖顶层目录名称。
   shopt -s nullglob dotglob

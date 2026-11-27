@@ -53,7 +53,7 @@ dconf Editor 为 GTK3 / GLib 应用。构建脚本以 [GTK Ubuntu 仓库模板](
 ### 2026-10-30：补齐 appimagetool 要求的 PNG 图标
 
 - 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build dconf Editor。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报根目录没有 `ca.desrt.dconf-editor.png`，`.DirIcon` 无效，退出码 1。发行版图标是 SVG。
-- 处理：封装前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。原命令仍是 `"$APPIMAGETOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$OUTPUT_FILE"`。AppRun 未改。
+- 处理：封装前调用 `Common/appimage/prepare_appdir_for_appimagetool.sh`。原命令仍是 `"$APPIMAGETOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$OUTPUT_FILE"`。AppRun 未改。
 - 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 dconf Editor，没有重跑 Actions。构建环境需要 `rsvg-convert`、`magick` 或 `convert` 才能把 SVG 转成 PNG。
 
 ### 2026-09-16：接入统一软件版本元数据
@@ -64,5 +64,5 @@ dconf Editor 为 GTK3 / GLib 应用。构建脚本以 [GTK Ubuntu 仓库模板](
 
 - 现象：Build dconf Editor Job `109289404260` 下载 `runtime-x86_64` 后在 SHA-256 校验阶段失败；下载本身已经完成，因此普通 curl 网络重试不会处理这类错误。
 - 根因：dconf Editor 项目脚本直接使用 `continuous/runtime-x86_64` 可变资产，同时把旧 SHA-256 写死在项目内；上游 continuous 资产更新后，下载内容已经变化，但项目仍按旧摘要校验。项目内还重复维护了 linuxdeploy、appimagetool 和 runtime 的下载逻辑，没有复用仓库现有公共入口。
-- 修复：删除项目内三项工具的固定 URL / SHA 与重复 curl 逻辑，统一调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh` 动态解析官方 continuous Release 的资产 URL 和当前 digest。公共入口同时把“重新获取 Release 元数据 → 下载资产 → 按当前 digest 校验”作为一个整体最多重试 3 次，用于处理 continuous 资产替换期间的短暂元数据 / CDN 错配；SHA-256 校验继续保留，不固定旧版本。
+- 修复：删除项目内三项工具的固定 URL / SHA 与重复 curl 逻辑，统一调用 `Common/linuxdeploy/prepare_linuxdeploy_tools.sh` 动态解析官方 continuous Release 的资产 URL 和当前 digest。公共入口同时把“重新获取 Release 元数据 → 下载资产 → 按当前 digest 校验”作为一个整体最多重试 3 次，用于处理 continuous 资产替换期间的短暂元数据 / CDN 错配；SHA-256 校验继续保留，不固定旧版本。
 - 验证边界：本次只修改 dconf Editor 项目脚本、公共 linuxdeploy 工具准备脚本和本 README；不修改 workflow，不手动触发或重跑 Actions。正式构建结果以后续正常 workflow 为准。

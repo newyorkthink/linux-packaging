@@ -11,7 +11,7 @@ linuxdeploy 的依赖部署与最后独立执行的 appimagetool 封装是两个
 | 阶段 | 实际使用的工具 | 修复前公共准备的位置 |
 | --- | --- | --- |
 | linuxdeploy 生成中间 AppImage | linuxdeploy 的 AppImage 输出插件调用其选中的 appimagetool；本次日志显示使用内置版本。 | 原流程没有在这个输出阶段执行公共权限和 PNG 准备。 |
-| 对同一个 AppDir 生成最终 AppImage | 独立下载的官方 appimagetool，显式使用官方 Type 2 runtime。 | `common/linuxdeploy/package_appimage.sh` 在封装前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。 |
+| 对同一个 AppDir 生成最终 AppImage | 独立下载的官方 appimagetool，显式使用官方 Type 2 runtime。 | `Common/linuxdeploy/package_appimage.sh` 在封装前调用 `Common/appimage/prepare_appdir_for_appimagetool.sh`。 |
 
 最终阶段已经使用新版 appimagetool 并成功，不代表中间阶段也使用同一版本。中间包不是发布产物，但它仍是当前构建中必须成功的步骤。
 
@@ -56,8 +56,8 @@ linuxdeploy 的 git commit 相同，仍可能对应包含不同内置工具的�
 
 | 公共文件 | 当前职责 |
 | --- | --- |
-| [工具准备入口](../common/linuxdeploy/prepare_linuxdeploy_tools.sh) | 普通 linuxdeploy 模式额外下载并校验当前官方 AppImage 输出插件，只从资产中提取原始插件程序为 `appimage-output`，与当前下载的 appimagetool 放在同一目录；安装外部包装入口和公共准备脚本的链接。原独立执行、source 参数及直接 appimagetool 模式保留。 |
-| [输出包装入口](../common/linuxdeploy/linuxdeploy-plugin-appimage.sh) | 对插件探测和帮助查询直接调用官方入口；实际收到 `--appdir` 后先准备权限和 PNG，再原样传递全部参数并执行官方输出插件，保留原 LDAI 配置和退出状态。 |
+| [工具准备入口](../Common/linuxdeploy/prepare_linuxdeploy_tools.sh) | 普通 linuxdeploy 模式额外下载并校验当前官方 AppImage 输出插件，只从资产中提取原始插件程序为 `appimage-output`，与当前下载的 appimagetool 放在同一目录；安装外部包装入口和公共准备脚本的链接。原独立执行、source 参数及直接 appimagetool 模式保留。 |
+| [输出包装入口](../Common/linuxdeploy/linuxdeploy-plugin-appimage.sh) | 对插件探测和帮助查询直接调用官方入口；实际收到 `--appdir` 后先准备权限和 PNG，再原样传递全部参数并执行官方输出插件，保留原 LDAI 配置和退出状态。 |
 
 本次检查发现，当前官方独立输出插件资产仍捆绑 appimagetool build 295。本仓库只提取其中未经修改的插件程序；按其官方源码的同目录搜索规则，实际调用本次独立下载并校验的 appimagetool，而不依赖资产内的旧工具。
 

@@ -11,32 +11,32 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ############# 准备构建目录 #############
 
 # 设置构建路径，并清理、重建当前应用的 source、AppDir 和 dist 目录。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "file-roller"
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" "file-roller"
 
 ############# 准备构建环境 #############
 
 # 安装构建工具和应用所需的依赖包。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" bzip2 fcitx5-frontend-gtk4 file-roller gcc language-pack-gnome-zh-hans-base libfcitx5gclient2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-4-bin libgtk-4-dev librsvg2-bin locales unzip zip
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" bzip2 fcitx5-frontend-gtk4 file-roller gcc language-pack-gnome-zh-hans-base libfcitx5gclient2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-4-bin libgtk-4-dev librsvg2-bin locales unzip zip
 
 ############# 下载打包工具 #############
 
 # 下载并校验打包工具及所需插件，随后加载构建环境配置。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" gtk "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" gtk "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 
 ############ 初始化 AppDir #############
 
 # 首次运行 linuxdeploy，创建 AppDir 的基础目录。
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
+"$SCRIPT_DIR/../Common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
 ############ 下载并准备应用 #############
 
 # 下载已安装版本的软件包并解包到 AppDir，成功后返回版本号。
-VERSION="$("$SCRIPT_DIR/../common/apt/extract_installed_package.sh" "file-roller" "$APPDIR" bzip2 unzip zip)"
+VERSION="$("$SCRIPT_DIR/../Common/apt/extract_installed_package.sh" "file-roller" "$APPDIR" bzip2 unzip zip)"
 
 ########## 准备桌面资源和运行库 #########
 
 # 下载并解包应用所需的图标与主题资源。
-"$SCRIPT_DIR/../common/apt/download_and_extract_packages.sh" "$APPDIR" gnome-themes-extra-data
+"$SCRIPT_DIR/../Common/apt/download_and_extract_packages.sh" "$APPDIR" gnome-themes-extra-data
 
 # 本程序专属处理：将 Ubuntu 简体中文译文放入包内翻译目录。
 mkdir -p "$APPDIR/usr/share/locale"
@@ -44,7 +44,7 @@ cp -a "/usr/share/locale-langpack/zh_CN" "$APPDIR/usr/share/locale/zh_CN"
 test -f "$APPDIR/usr/share/locale/zh_CN/LC_MESSAGES/file-roller.mo"
 
 # 本程序专属处理：生成包内 zh_CN.UTF-8。glibc 在 LOCPATH 下查找 zh_CN.utf8，同时保留 zh_CN.UTF-8 名称。
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.utf8"
+"$SCRIPT_DIR/../Common/linuxdeploy/prepare_locale.sh" zh_CN UTF-8 "$APPDIR/usr/lib/locale/zh_CN.utf8"
 ln -sfn zh_CN.utf8 "$APPDIR/usr/lib/locale/zh_CN.UTF-8"
 test -s "$APPDIR/usr/lib/locale/zh_CN.utf8/LC_MESSAGES/SYS_LC_MESSAGES"
 
@@ -113,4 +113,4 @@ gcc -shared -fPIC -O2 "$SCRIPT_DIR/patches/locale_redirect.c" -o "$APPDIR/usr/li
 test -s "$APPDIR/usr/lib/liblocale_redirect.so"
 
 # 封装最终 AppImage，成功后输出 SHA-256 校验值并保存版本号。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"
+"$SCRIPT_DIR/../Common/linuxdeploy/package_appimage.sh" "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

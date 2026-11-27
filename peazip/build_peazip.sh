@@ -6,14 +6,14 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ###### 准备构建环境 ######
 
 # 公共入口统一设置标准路径，并清理、重建 source、AppDir、dist 和 tools。
-source "$SCRIPT_DIR/../common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" peazip
+source "$SCRIPT_DIR/../Common/linuxdeploy/prepare_build_workspace.sh" "$SCRIPT_DIR" peazip
 
 DEB_FILE="$SOURCE_DIR/peazip.deb"
 PEAZIP_ROOT="$APPDIR/usr/lib/peazip"
 ZH_CN_FILE="$APPDIR/usr/share/peazip/lang/zh-cn.txt"
 
 # 通过公共 APT 入口安装 linuxdeploy 基础工具和 PeaZip 明确需要的 Qt6 构建、运行依赖。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" \
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" \
   build-essential git wget binutils patchelf appstream-util desktop-file-utils zsync dpkg zstd \
   qmake6 qt6-base-dev qt6-base-dev-tools qt6-qpa-plugins qt6-gtk-platformtheme \
   qt6-translations-l10n adwaita-qt6 fcitx5-frontend-qt6 \
@@ -21,24 +21,24 @@ ZH_CN_FILE="$APPDIR/usr/share/peazip/lang/zh-cn.txt"
   libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1
 
 # 使用公共脚本动态下载并校验 linuxdeploy、Qt 插件、appimagetool 和 Type 2 runtime。
-"$SCRIPT_DIR/../common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" qt
+"$SCRIPT_DIR/../Common/linuxdeploy/prepare_linuxdeploy_tools.sh" "$TOOLS_DIR" qt
 
 ###### 初始化 AppDir ######
 
 # 通过公共入口运行第一次普通 linuxdeploy，并核对空 AppDir 初始化结果。
-"$SCRIPT_DIR/../common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
+"$SCRIPT_DIR/../Common/linuxdeploy/initialize_appdir.sh" "$APPDIR" "$TOOLS_DIR/linuxdeploy"
 
 ###### 下载并安装 PeaZip ######
 
 # 公共入口选择正式 semver Release、核对唯一 Qt6 amd64 DEB 与 GitHub SHA-256，并下载同一资产。
-VERSION="$("$SCRIPT_DIR/../common/github/download_latest_stable_release_asset.sh" \
+VERSION="$("$SCRIPT_DIR/../Common/github/download_latest_stable_release_asset.sh" \
   peazip/PeaZip 'peazip_{version}.LINUX.Qt6-1_amd64.deb' "$DEB_FILE" peazip amd64)"
 
 # 把同一个官方 DEB 安装到隔离构建环境，让 linuxdeploy 能解析应用及其依赖。
-"$SCRIPT_DIR/../common/apt/install_packages.sh" --no-update "$DEB_FILE"
+"$SCRIPT_DIR/../Common/apt/install_packages.sh" --no-update "$DEB_FILE"
 
 # 由公共归档入口把同一个官方 DEB 按上游布局解包到 AppDir。
-"$SCRIPT_DIR/../common/archive/extract_archive.sh" "$DEB_FILE" "$APPDIR"
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" "$DEB_FILE" "$APPDIR"
 
 # PeaZip 官方要求语言文件使用 UTF-8 BOM；仅在官方 DEB 缺失 BOM 时补入，中文正文保持原样。
 ZH_CN_PREFIX="$(od -An -tx1 -N3 "$ZH_CN_FILE" | tr -d '[:space:]')"
@@ -107,7 +107,7 @@ chmod +x "$APPDIR/AppRun"
 ###### 核心打包 ######
 
 # 公共入口设置技术栈无关的 linuxdeploy 环境；Qt6 qmake 与 NO_STRIP 仍由当前项目追加。
-source "$SCRIPT_DIR/../common/linuxdeploy/configure_environment.sh" \
+source "$SCRIPT_DIR/../Common/linuxdeploy/configure_environment.sh" \
   "$TOOLS_DIR" "$INTERMEDIATE_APPIMAGE" "$RUNTIME_FILE"
 export QMAKE=qmake6
 export NO_STRIP=1
@@ -138,5 +138,5 @@ cp -a "$APPDIR/usr/share/peazip/." "$PEAZIP_ROOT/res/share/"
 ###### 整理产物 ######
 
 # 公共入口使用官方 appimagetool 和 Type 2 runtime 封装正式资产，并在成功后写入版本元数据。
-"$SCRIPT_DIR/../common/linuxdeploy/package_appimage.sh" \
+"$SCRIPT_DIR/../Common/linuxdeploy/package_appimage.sh" \
   "$APPIMAGETOOL" "$APPDIR" "$OUTFILE" "$RUNTIME_FILE" "$VERSION"

@@ -18,4 +18,4 @@
 - 官方下载说明给出稳定 AMD64 DEB 的下载入口。静态检查样本 DEB 中的 `usr/share/gitkraken/gitkraken` 确认其通过 `$ORIGIN` 定位相邻的 `libffmpeg.so`。NodeGit 链接 OpenSSL 3 和 Kerberos，`native-keymap` 链接 `libxkbfile.so.1`。 [GitKraken 官方下载说明](https://help.gitkraken.com/gitkraken-desktop/windows-subsystem-for-linux/)
 - linuxdeploy 的默认扫描范围以 `usr/bin` 和 `usr/lib` 为主，并跳过入口软链接。显式扫描可在原位置部署依赖，保持 Electron 资源相邻。旧 quick-sharun 将部分 `*.node` 包装后无法启动的记录见 [README](../README.md#2026-09-02修复-gitkraken-node-原生模块被-quick-sharun-wrapper-替换)。 [linuxdeploy 扫描实现](https://github.com/linuxdeploy/linuxdeploy/blob/07333c6e942c7d71782b66be924c5d867f9dfdfc/src/core/appdir.cpp#L793)
 - GTK 插件的运行时钩子由官方工具生成。钩子读取桌面配色偏好，并使用 `APPIMAGE_GTK_THEME` 识别显式设置。 [GTK 插件源码](https://github.com/linuxdeploy/linuxdeploy-plugin-gtk/blob/7a3fbc31a9e5075073ff8790f26effbac5f84453/linuxdeploy-plugin-gtk.sh#L222-L244)
-- 公共封装准备步骤统一清除 setuid 位。GitKraken 的普通启动参数保持上游行为，启动和中文输入的实测结果见 [README](../README.md#实机验证)。 [公共封装准备](../../common/appimage/prepare_appdir_for_appimagetool.sh#L30)
+- 公共封装准备步骤统一清除 setuid 位。GitKraken 的普通启动参数保持上游行为，启动和中文输入的实测结果见 [README](../README.md#实机验证)。 [公共封装准备](../../Common/appimage/prepare_appdir_for_appimagetool.sh#L30)

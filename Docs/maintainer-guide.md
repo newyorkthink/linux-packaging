@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 根目录 `README.md` | 仓库入口和手动构建入口 | 不再写待办、故障和修复记录 |
 | `AGENTS.md` | 所有 AI 必须全文阅读的完整强制规范 | 保存跨应用规则、例外和禁止方向 |
-| `docs/maintainer-guide.md` | 人工维护时的路线导航、顺序和检查清单 | 不保存容易过期的单个应用实现 |
+| `Docs/maintainer-guide.md` | 人工维护时的路线导航、顺序和检查清单 | 不保存容易过期的单个应用实现 |
 | `<应用目录>/README.md` | 当前应用的技术栈、上游、打包方式、运行要求、检查和修复历史 | 保存该应用的完整稳定基线 |
 
 不要建立内容随意堆放的 `note/` 目录，也不要把旧命令合集、万能 AppRun、临时排障命令或个人电脑环境直接提交到仓库。能够长期复用的跨应用结论写入 `AGENTS.md`；只属于一个应用的结论写入该应用 README；仍未确认的个人草稿留在仓库外。
@@ -20,7 +20,7 @@
 | 目录 | 用途 |
 | --- | --- |
 | `Scripts/` | 经授权后明确调用的仓库维护工具。分类、入口和运行方式见 [总索引](../Scripts/README.md) |
-| `common/` | 应用构建复用的下载、校验、安装、解包与打包公共入口 |
+| `Common/` | 应用构建复用的下载、校验、安装、解包与打包公共入口 |
 | `.github/scripts/` | GitHub Actions 调度、构建和发布使用的脚本 |
 
 维护工具统一按总索引、分类索引、同名脚本说明组织；新增脚本同步登记，具体命令、参数和执行结果写在对应说明中。归档项目先阅读 [归档与恢复说明](../Archive/README.md)，再使用 [统一归档脚本](../Scripts/archive/archive_apps.md)预览和执行；该入口已复用附件删除与版本清理机制。只删除单个 Release 附件时，使用 [delete_asset.md](../Scripts/release/delete_asset.md)中的独立入口。
@@ -76,7 +76,7 @@
 ### linuxdeploy 插件
 
 - Qt 应用按实际 Qt 主版本选择 `linuxdeploy-plugin-qt`，通过 `--plugin qt` 部署 Qt plugins、QML 和翻译；非 Qt 应用不添加。
-- GTK、GStreamer 等输入插件也只在技术栈和证据需要时启用，不能为了“打得更全”一次加入全部插件。新增、迁移或重做 GTK 项目时必须用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh` 的 `gtk` 模式取得插件，因为它会校验官方文件并在上游仍遗漏时补入 GIO dynamic modules；不要直接下载未修补的官方 GTK 脚本。
+- GTK、GStreamer 等输入插件也只在技术栈和证据需要时启用，不能为了“打得更全”一次加入全部插件。新增、迁移或重做 GTK 项目时必须用 `Common/linuxdeploy/prepare_linuxdeploy_tools.sh` 的 `gtk` 模式取得插件，因为它会校验官方文件并在上游仍遗漏时补入 GIO dynamic modules；不要直接下载未修补的官方 GTK 脚本。
 - `linuxdeploy-plugin-native_packages` 用于输出 DEB / RPM，不是 AppImage 依赖收集插件。
 - `linuxdeploy-plugin-appimage` 对应 `--output appimage`。本仓库的 linuxdeploy 路线不使用它作为最终封装，继续单独调用官方 appimagetool。
 
@@ -103,7 +103,7 @@
 9. 同步维护应用 README，说明上游、技术栈、打包方式、运行要求、证据状态和已完成修复。
 10. 提交前检查完整 diff、文件路径、引用、权限、YAML / JSON / Shell 语法关系和 workflow 入口，不用 GitHub Actions 失败结果反复试错。
 
-AUR 同名单包且唯一架构专用 DEB 的来源解析调用 `common/aur/resolve_deb_source.sh`；官方 HTTPS 文件需要原 SHA-256 严格校验及同 URL 归档回退时调用 `common/download/download_verified_with_wayback.sh`；普通 HTTPS 文件下载调用 `common/download/download_file.sh`；官方 SHA-256 清单中的最新匹配资产调用 `common/download/download_latest_checksum_asset.sh`；官方 JSON 元数据直接给出版本和 DEB URL 的来源可调用 `common/download/download_json_deb_asset.sh`，应用专用 API、字段、域名和包元数据必须作为参数传入；GitHub API 请求调用 `common/github/github_api.sh`，符合正式 semver Release、`{version}` 资产名模板和 GitHub SHA-256 digest 的资产若需要直接下载，调用 `common/github/download_latest_stable_release_asset.sh`；Debian / Ubuntu 软件包安装调用 `common/apt/install_packages.sh`，只下载并解包指定 APT 包调用 `common/apt/download_and_extract_packages.sh`；linuxdeploy、appimagetool、Type 2 runtime 和已支持的 GTK / Qt 插件调用 `common/linuxdeploy/prepare_linuxdeploy_tools.sh`，同一 Debian / Ubuntu 环境的 NSS 运行库集合调用 `common/linuxdeploy/copy_nss_runtime.sh`；第一次空 AppDir 初始化调用 `common/linuxdeploy/initialize_appdir.sh`。项目脚本的每次下载、安装、解包或初始化只允许保留一条公共入口调用，通用实现全部留在 `common/`。
+AUR 同名单包且唯一架构专用 DEB 的来源解析调用 `Common/aur/resolve_deb_source.sh`；官方 HTTPS 文件需要原 SHA-256 严格校验及同 URL 归档回退时调用 `Common/download/download_verified_with_wayback.sh`；普通 HTTPS 文件下载调用 `Common/download/download_file.sh`；官方 SHA-256 清单中的最新匹配资产调用 `Common/download/download_latest_checksum_asset.sh`；官方 JSON 元数据直接给出版本和 DEB URL 的来源可调用 `Common/download/download_json_deb_asset.sh`，应用专用 API、字段、域名和包元数据必须作为参数传入；GitHub API 请求调用 `Common/github/github_api.sh`，符合正式 semver Release、`{version}` 资产名模板和 GitHub SHA-256 digest 的资产若需要直接下载，调用 `Common/github/download_latest_stable_release_asset.sh`；Debian / Ubuntu 软件包安装调用 `Common/apt/install_packages.sh`，只下载并解包指定 APT 包调用 `Common/apt/download_and_extract_packages.sh`；linuxdeploy、appimagetool、Type 2 runtime 和已支持的 GTK / Qt 插件调用 `Common/linuxdeploy/prepare_linuxdeploy_tools.sh`，同一 Debian / Ubuntu 环境的 NSS 运行库集合调用 `Common/linuxdeploy/copy_nss_runtime.sh`；第一次空 AppDir 初始化调用 `Common/linuxdeploy/initialize_appdir.sh`。项目脚本的每次下载、安装、解包或初始化只允许保留一条公共入口调用，通用实现全部留在 `Common/`。
 
 ## GitHub Actions 中怎么运行
 
@@ -142,7 +142,7 @@ AUR 同名单包且唯一架构专用 DEB 的来源解析调用 `common/aur/reso
 - [ ] Qt 主版本、Qt plugins 和输入法 plugin 一致，没有混用 Qt 5 / Qt 6。
 - [ ] AppRun 只有当前应用需要的环境和唯一入口，没有万能模板或无证据 preload。
 - [ ] 自定义 AppRun 已完整内联。若独立保存，已核对正文过长的依据、用户授权和应用差异记录。
-- [ ] 第一次空 AppDir 初始化只单行调用 `common/linuxdeploy/initialize_appdir.sh`，没有在应用脚本重复命令。
+- [ ] 第一次空 AppDir 初始化只单行调用 `Common/linuxdeploy/initialize_appdir.sh`，没有在应用脚本重复命令。
 - [ ] 首次或未确认项目仍保留 `normalize_apprun_paths.sh`；已确认项目已有 Release 解包结果或用户截图作为证据，路径型 export 已原样固化，整理调用已删除，应用 README 已同步。
 - [ ] 没有宽泛通配安装、`dist-upgrade`、`chmod 777`、整个 `/usr/lib` 复制或无关系统修改。
 - [ ] 最终封装、`version.txt`、稳定资产名和 workflow 发布路径互相一致。

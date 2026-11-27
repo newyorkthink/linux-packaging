@@ -23,7 +23,7 @@
 | --- | --- |
 | 下载并准备应用：desktop | 在解包后的 AppDir 内，将 `usr/share/applications/wechat.desktop` 设置为 `Exec=wechat %U`、`Icon=wechat`。两次 linuxdeploy 均通过 `--desktop-file` 选中这份主入口。只规范主 desktop，官方原始 DEB 不变。 |
 | 根 desktop 与图标 | linuxdeploy 根据指定的主 desktop 部署根入口和官方 `wechat.png`。辅助 `com.tencent.wechatappex.desktop` 随包保留。最终 PNG 和权限整理继续交给公共入口。 |
-| 下载并准备应用：NSS/NSPR | 直接调用 `common/linuxdeploy/copy_nss_runtime.sh` 并传入目标目录及 `--with-nspr`，在 linuxdeploy 扫描前准备同一构建环境的完整集合。 |
+| 下载并准备应用：NSS/NSPR | 直接调用 `Common/linuxdeploy/copy_nss_runtime.sh` 并传入目标目录及 `--with-nspr`，在 linuxdeploy 扫描前准备同一构建环境的完整集合。 |
 | 整理产物：依赖 | 真实 AppRun 和 GTK 部署完成后，直接用 `--deploy-deps-only` 处理 `opt/wechat/wechat`，并传入 `libpulse.so.0`、`libpulse-simple.so.0` 两项已有缺库依据的输入；传递依赖交给 linuxdeploy。 |
 
 官方 linuxdeploy 默认扫描 `usr/bin`，并跳过软链接，不能靠 desktop 的绝对 `Exec` 或一个软链接替代 `opt/wechat` 主 ELF 的依赖部署。采用 `--deploy-deps-only` 可保留真实入口位置，避免复制另一份主程序；其设置的 RPATH 保留 `$ORIGIN` 并指向包内 `usr/lib`。[官方扫描逻辑](https://github.com/linuxdeploy/linuxdeploy/blob/07333c6e942c7d71782b66be924c5d867f9dfdfc/src/core/appdir.cpp#L793)、[官方参数实现](https://github.com/linuxdeploy/linuxdeploy/blob/07333c6e942c7d71782b66be924c5d867f9dfdfc/src/main.cpp#L168)。

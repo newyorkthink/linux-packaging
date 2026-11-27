@@ -34,11 +34,11 @@ chmod +x deepseek-harness-desktop.AppImage
 
 - 正式构建复用现有标准 Arch Linux matrix 和 `build-anylinux` Action，不在用户真实主机安装 AUR 包。
 - 当前 [AUR 配方及来源](https://github.com/archlinux/aur/blob/deepseek-harness-desktop/PKGBUILD) 从官方 Git tag 构建 Linux 桌面程序；[官方桌面打包说明](https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/desktop/packaging/README.md) 未将 Linux 列为支持的发布目标。本次未找到适用的 Linux 预编译桌面安装包，采用“从系统里已安装的程序取得”分类，不添加 DEB 下载和解包步骤。
-- 先通过 `common/arch/install_packages.sh --base` 安装统一基础工具，保留原有 simdjson 下载和本地安装处理，再安装 `deepseek-harness-desktop fcitx5-gtk` 及 `libxcrypt-compat`。原有安装命令和执行顺序保持不变，应用运行依赖由当前 AUR 配方声明。
+- 先通过 `Common/arch/install_packages.sh --base` 安装统一基础工具，保留原有 simdjson 下载和本地安装处理，再安装 `deepseek-harness-desktop fcitx5-gtk` 及 `libxcrypt-compat`。原有安装命令和执行顺序保持不变，应用运行依赖由当前 AUR 配方声明。
 - `/usr/bin/deepseek-harness-desktop` 是 shell 包装，实际程序为 `/usr/lib/deepseek-harness-desktop/deepseek-harness`。构建脚本将 `/usr/lib/deepseek-harness-desktop/.` 完整复制到 `AppDir/bin/`，保留程序、Electron、dsh 和相邻运行时资源，再调用 `quick-sharun AppDir/bin/*` 收集依赖。
 - 内置 Python 私有库目录只在第一次 quick-sharun 调用中加入临时 `LD_LIBRARY_PATH`；后续封装不继承这次赋值。`libxcrypt-compat`、Python 私有库路径和 simdjson 的既有故障依据继续保留，不把这些修复复制到通用模板。
 - 图标和 desktop 直接读取已安装包的原路径。上游 MIT 版权和许可声明从 `/usr/share/licenses/deepseek-harness-desktop/LICENSE` 复制到 `AppDir/share/licenses/deepseek-harness-desktop/LICENSE`；当前未证实程序资源内已完整包含同一声明，因此保留这份独立副本。
-- 使用 `common/build/read_app_version.sh pacman deepseek-harness-desktop` 读取本次安装版本，去掉 epoch 和 pkgrel，保留 alpha 等渠道标识。版本读取保留在第一次 quick-sharun 之前；最终 AppImage 成功生成后，用单行公共保存调用写入 `dist/version.txt`。
+- 使用 `Common/build/read_app_version.sh pacman deepseek-harness-desktop` 读取本次安装版本，去掉 epoch 和 pkgrel，保留 alpha 等渠道标识。版本读取保留在第一次 quick-sharun 之前；最终 AppImage 成功生成后，用单行公共保存调用写入 `dist/version.txt`。
 - 当前脚本共 75 行。通用流程、元数据顺序、中文 locale 和版本保存沿用 Electron 标准；无现成安装包的来源差异及已保留的专属处理见下方文档。标准化不表示所有专属步骤与 DEB 模板具有相同行数。
 - AUR 源码构建会下载工具链、Electron 和内置运行时，耗时与空间需求高于直接重打包现成二进制；构建任务设置 90 分钟超时。
 - 唯一发布产物为 `dist/deepseek-harness-desktop.AppImage`。成功生成后写入 `dist/version.txt`，由现有流程立即发布版本信息。
@@ -48,7 +48,7 @@ chmod +x deepseek-harness-desktop.AppImage
 
 - [固定配置与原始故障记录](docs/hardcoded.md)：说明目录、程序名、桌面资源、版本参数及已有修复的取值依据。
 - [模板差异说明](docs/template-deviations.md)：说明无现成安装包的来源分类，以及 simdjson、Python 私有库、兼容库和许可证复制为何保留。
-- [打包分类](../docs/packaging-classification.md)：只登记近期已按当前标准完成重写或整理的项目；未重写的应用不自动加入。
+- [打包分类](../Docs/packaging-classification.md)：只登记近期已按当前标准完成重写或整理的项目；未重写的应用不自动加入。
 
 ## 检查记录
 
@@ -97,7 +97,7 @@ chmod +x deepseek-harness-desktop.AppImage
 
 ### 2026-10-30：按标准整理脚本并复用公共版本入口
 
-- 按已确认的 75 行草稿统一通用注释、空行和版本调用。用 `common/build/read_app_version.sh` 替换脚本内的三行版本解析，最终版本保存改为单行调用；本次不改变程序来源、安装顺序、复制布局、元数据、依赖收集或中文环境。
+- 按已确认的 75 行草稿统一通用注释、空行和版本调用。用 `Common/build/read_app_version.sh` 替换脚本内的三行版本解析，最终版本保存改为单行调用；本次不改变程序来源、安装顺序、复制布局、元数据、依赖收集或中文环境。
 - 保留 simdjson 下载和安装、`libxcrypt-compat`、仅作用于一次扫描的 Python 私有库路径，以及独立许可证副本。前三项依据既有构建故障；许可证依据上游 MIT 分发要求，不能仅因基础模板没有该步骤而删除。
 - 更新本文件的当前构建说明和已被后续实测取代的待验证表述，其他故障现象、检查边界及修复历史保留。同步补充固定配置、模板差异和打包分类；未修改工作流、公共脚本或其他应用。
 - 提交前核对脚本与批准草稿逐字一致、Bash 语法、原有修复命令、文档路径及完整 diff。此前用户已实测确认的桌面启动和基础中文对话继续按通过处理；本次未重新构建 AppImage，不能据此声明新产物或 Office 等其他功能通过。

@@ -8,7 +8,7 @@
 
 ## 依赖覆盖核对
 
-对照 [install_packages.sh](../../common/arch/install_packages.sh#L357-L370) 的 `--base` 清单与 [qt-installed.sh](../../Templates/quick-sharun/qt-installed.sh#L13) 内置 Qt6 依赖，原脚本依赖完整覆盖如下：
+对照 [install_packages.sh](../../Common/arch/install_packages.sh#L357-L370) 的 `--base` 清单与 [qt-installed.sh](../../Templates/quick-sharun/qt-installed.sh#L13) 内置 Qt6 依赖，原脚本依赖完整覆盖如下：
 
 - **`--base` 已覆盖（15 项）**：`gcc`、`base-devel`、`wget`、`binutils`、`patchelf`、`coreutils`、`appstream-glib`、`desktop-file-utils`、`util-linux`、`zsync`、`glib2`、`hicolor-icon-theme`、`libxkbcommon`、`openssl`、`xdotool`。
 - **模板固定安装（4 项）**：`fcitx5-qt`、`qt6ct`、`kvantum`、`lxqt-qtplugin`（覆盖原脚本的 3 个 Qt6 主题插件并补齐 `fcitx5-qt` 输入模块）。

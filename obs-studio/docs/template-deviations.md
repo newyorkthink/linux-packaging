@@ -4,7 +4,7 @@
 
 ## 应用及依赖来源
 
-使用 Arch 官方仓库的 `obs-studio` 二进制包，由 `common/arch/install_packages.sh` 安装；从系统真实入口收集，不重复下载或预复制主程序。Qt 6 输入模块使用现有的 `fcitx5-qt`，IBus 由基础包入口提供。
+使用 Arch 官方仓库的 `obs-studio` 二进制包，由 `Common/arch/install_packages.sh` 安装；从系统真实入口收集，不重复下载或预复制主程序。Qt 6 输入模块使用现有的 `fcitx5-qt`，IBus 由基础包入口提供。
 
 `qt6ct`、`kvantum` 和 `lxqt-qtplugin` 是 Qt 6 主题插件包，必须保留在应用依赖安装行中。quick-sharun 收集插件，不另行传入插件路径。完整警告及包名含义见 [Qt 主题插件](../../anylinux_projects.md#qt-主题插件)。
 

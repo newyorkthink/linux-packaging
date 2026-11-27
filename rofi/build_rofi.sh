@@ -8,12 +8,12 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装官方软件包及运行依赖。
-"$SCRIPT_DIR/../common/arch/install_packages.sh" "rofi" xorg-server xorg-server-common rofi-emoji bash cairo glibc libxcb libxkbcommon-x11 startup-notification wayland xcb-imdkit xcb-util xcb-util-cursor xcb-util-keysyms xcb-util-wm libva libvdpau
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" "rofi" xorg-server xorg-server-common rofi-emoji bash cairo glibc libxcb libxkbcommon-x11 startup-notification wayland xcb-imdkit xcb-util xcb-util-cursor xcb-util-keysyms xcb-util-wm libva libvdpau
 
 # 清掉上次的打包目录。
-"$SCRIPT_DIR/../common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
 
 
 # 把当前机器架构传给 quick-sharun。
@@ -32,7 +32,7 @@ export OUTNAME="rofi.AppImage"
 export DEPLOY_OPENGL=1
 
 # 读取本次打包使用的版本。
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman "rofi")"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman "rofi")"
 
 # 收集程序及其运行依赖。
 quick-sharun /usr/bin/rofi /usr/bin/rofi-sensible-terminal /usr/bin/rofi-theme-selector
@@ -45,4 +45,4 @@ cp "$SCRIPT_DIR/rofi-datadir.src.hook" AppDir/bin/rofi-datadir.src.hook
 quick-sharun --make-appimage
 
 # 打包成功后用公共脚本记下版本。
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" "dist/rofi.AppImage" "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "dist/rofi.AppImage" "$VERSION" dist/version.txt

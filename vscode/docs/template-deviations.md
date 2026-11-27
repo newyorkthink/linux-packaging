@@ -60,7 +60,7 @@ export DEPLOY_VULKAN=1
 
 按原脚本的两条安装命令逐项对照，原有基础工具和运行依赖均有明确来源，不以调用 `--base` 代替依赖核对：
 
-- 由 [公共基础包清单](../../common/arch/install_packages.sh) 保留：`gcc`、`base-devel`、`curl`、`wget`、`tar`、`gzip`、`binutils`、`patchelf`、`coreutils`、`appstream-glib`、`desktop-file-utils`、`util-linux`、`zsync`、`gnupg`、`nss`、`shared-mime-info`、`xdg-utils`、`libxkbcommon`、`ibus`。
+- 由 [公共基础包清单](../../Common/arch/install_packages.sh) 保留：`gcc`、`base-devel`、`curl`、`wget`、`tar`、`gzip`、`binutils`、`patchelf`、`coreutils`、`appstream-glib`、`desktop-file-utils`、`util-linux`、`zsync`、`gnupg`、`nss`、`shared-mime-info`、`xdg-utils`、`libxkbcommon`、`ibus`。
 - 由已安装 `visual-studio-code-bin` 的 [AUR 依赖声明](https://github.com/archlinux/aur/blob/visual-studio-code-bin/PKGBUILD) 保留：`libxkbfile`、`gtk3`、`libsecret`、`gcc-libs`、`libnotify`、`libxss`、`glibc`、`lsof`、`alsa-lib`。
 - 在现有应用安装行明确追加保留：`xorg-server`、`xorg-server-common`、`xorg-server-xvfb`、`libdbusmenu-glib`、`libx11`、`libxext`、`libxi`、`libxrandr`、`libxtst`、`libxcomposite`、`libxdamage`、`libxfixes`、`mesa`、`libglvnd`、`libva`、`libvdpau`。
 

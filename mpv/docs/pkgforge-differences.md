@@ -31,8 +31,8 @@
 以下分别位于依赖安装、元数据、依赖收集、专属处理和最终封装阶段，命令与当前脚本一致。注释和相邻空行以 [完整 52 行脚本](../build_mpv.sh) 为准。
 
 ```bash
-"$SCRIPT_DIR/../common/arch/install_packages.sh" --base
-"$SCRIPT_DIR/../common/arch/install_packages.sh" mpv mpv-mpris glycin libheif xorg-server xorg-server-common xorg-server-xvfb
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" mpv mpv-mpris glycin libheif xorg-server xorg-server-common xorg-server-xvfb
 
 export ARCH="$(uname -m)"
 export ICON=/usr/share/icons/hicolor/scalable/apps/mpv.svg
@@ -40,14 +40,14 @@ export DESKTOP=/usr/share/applications/mpv.desktop
 export OUTPATH="$SCRIPT_DIR/dist"
 export OUTNAME=mpv.AppImage
 
-VERSION="$("$SCRIPT_DIR/../common/build/read_app_version.sh" pacman mpv)"
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman mpv)"
 
 quick-sharun /usr/bin/mpv
 
 echo 'LC_ALL=C.UTF-8' >> ./AppDir/.env
 
 mkdir -p AppDir/usr/bin
-"$SCRIPT_DIR/../common/github/download_latest_stable_named_asset.sh" yt-dlp/yt-dlp yt-dlp_linux AppDir/usr/bin/yt-dlp
+"$SCRIPT_DIR/../Common/github/download_latest_stable_named_asset.sh" yt-dlp/yt-dlp yt-dlp_linux AppDir/usr/bin/yt-dlp
 chmod +x AppDir/usr/bin/yt-dlp
 
 mkdir -p AppDir/bin
@@ -55,7 +55,7 @@ cp "$SCRIPT_DIR/mpv-launch-gui.src.hook" AppDir/bin/mpv-launch-gui.src.hook
 
 quick-sharun --make-appimage
 
-"$SCRIPT_DIR/../common/build/save_appimage_version.sh" dist/mpv.AppImage "$VERSION" dist/version.txt
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/mpv.AppImage "$VERSION" dist/version.txt
 ```
 
 ### 独立窗口 hook

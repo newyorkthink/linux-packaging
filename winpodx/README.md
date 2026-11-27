@@ -47,7 +47,7 @@ winpodx/fix_winpodx_qt_runtime.sh
 ### 2026-10-30：补齐 appimagetool 要求的权限
 
 - 故障依据：[Actions run 41010671616](https://github.com/newyorkthink/linux-packaging/actions/runs/41010671616) 的 Build WinPodX。appimagetool continuous build 333（git `b082d2e`，2026-10-29）报 639 处权限错误，上游 terminfo 目录为 `0700`，没有生成 AppImage。
-- 处理：封装前调用 `common/appimage/prepare_appdir_for_appimagetool.sh`。原命令 `ARCH=x86_64 appimagetool "$APPDIR" "$OUTFILE"` 和 AppRun 未改。
+- 处理：封装前调用 `Common/appimage/prepare_appdir_for_appimagetool.sh`。原命令 `ARCH=x86_64 appimagetool "$APPDIR" "$OUTFILE"` 和 AppRun 未改。
 - 验证范围：公共脚本做过语法检查和临时目录检查。没有重打 WinPodX，没有重跑 Actions。
 
 ### 2026-10-11：跟上官方 v0.12.0 的 FreeRDP 文件名

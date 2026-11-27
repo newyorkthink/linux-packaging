@@ -6,10 +6,10 @@ st 从 `siduck/st` 默认分支下载当前提交的源码，生成构建所需�
 
 ## 通用阶段
 
-- 使用 `common/arch/install_packages.sh` 安装基础工具、编译依赖及运行依赖。
-- 使用 `common/build/prepare_x86_64_workspace.sh` 清理并准备 `AppDir`、`work` 和 `dist`。
-- 通过 `common/github/download_default_branch_source.sh` 下载当前源码，再用 `common/archive/extract_archive.sh` 解包。
-- 使用 `quick-sharun` 收集程序并封装 AppImage；通过 `common/build/save_appimage_version.sh` 保存最终版本，继续附加当前源码提交的 12 位短 SHA。
+- 使用 `Common/arch/install_packages.sh` 安装基础工具、编译依赖及运行依赖。
+- 使用 `Common/build/prepare_x86_64_workspace.sh` 清理并准备 `AppDir`、`work` 和 `dist`。
+- 通过 `Common/github/download_default_branch_source.sh` 下载当前源码，再用 `Common/archive/extract_archive.sh` 解包。
+- 使用 `quick-sharun` 收集程序并封装 AppImage；通过 `Common/build/save_appimage_version.sh` 保存最终版本，继续附加当前源码提交的 12 位短 SHA。
 
 ## 程序专属处理
 

@@ -2,7 +2,7 @@
 
 ## 来源与分类
 
-采用 [xberg-io/xberg](https://github.com/xberg-io/xberg) 官方 GNU x86_64 预编译归档，保持主程序及相邻共享库的完整目录，归入 [quick-sharun 官方预编译归档命令行工具](../../docs/packaging-classification.md#用-quick-sharun-打包的官方预编译归档命令行工具) 分类。构建脚本复用现有 quick-sharun 公共入口，应用专属目录和资源准备按本文维护，不新增标准模板。
+采用 [xberg-io/xberg](https://github.com/xberg-io/xberg) 官方 GNU x86_64 预编译归档，保持主程序及相邻共享库的完整目录，归入 [quick-sharun 官方预编译归档命令行工具](../../Docs/packaging-classification.md#用-quick-sharun-打包的官方预编译归档命令行工具) 分类。构建脚本复用现有 quick-sharun 公共入口，应用专属目录和资源准备按本文维护，不新增标准模板。
 
 在 pkgforge-dev 中按 Xberg 和 Kreuzberg 名称分别查找，未找到对应打包仓库；上游索引仅记录这个查找结果，不复制其他应用的 hooks、源码构建或专属设置。
 
@@ -20,7 +20,7 @@ AUR 公开来源检索未查到 Xberg / Kreuzberg 对应包，本流程不以 AU
 
 | 阶段 | 处理与依据 |
 | --- | --- |
-| 工具和依赖 | 调用 `common/arch/install_packages.sh --base`，不加入无依据的 Qt、GTK、Python 或 OCR 配置。 |
+| 工具和依赖 | 调用 `Common/arch/install_packages.sh --base`，不加入无依据的 Qt、GTK、Python 或 OCR 配置。 |
 | 工作区 | 公共入口只重建本应用的 `AppDir/work/dist`。 |
 | 系统安装 | 公共下载和解包入口准备完整官方归档；应用专属目录复制到隔离构建系统的 `/opt/xberg`，提供系统命令入口。 |
 | 最终来源 | 第二次独立下载、校验和解包得到最终程序，整体复制到 `AppDir/bin`，不从系统安装目录复制。 |

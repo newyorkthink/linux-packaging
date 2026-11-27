@@ -102,7 +102,7 @@ python3 Scripts/build/generate_build_script.py --template "<模板相对路径>"
 
 支持公共解包入口已有的 `.zip`、`.tar`、`.tar.gz`、`.tgz`、`.tar.xz`、`.txz`、`.tar.bz2`、`.tbz2`。资产与本地文件名必须属于同一种 ZIP 或 tar 格式。目录和资源路径必须是无空段、不含 `.` 或 `..` 路径段的相对路径，仅允许字母、数字、下划线、点、加号、连字符和目录分隔符；只有 `ARCHIVE_PROGRAM_DIR` 可以单独填写 `.`。
 
-下载复用 `common/github/download_latest_stable_named_asset.sh`：同次正式 Release 的版本、完整资产名、官方 SHA-256 和资产 ID 保持绑定，直链失败后仍用同一资产 ID 认证回退。解包复用 `common/archive/extract_archive.sh`，在 `source/archive` 下准备输入；模板不重复实现版本解析、认证、下载或解包。
+下载复用 `Common/github/download_latest_stable_named_asset.sh`：同次正式 Release 的版本、完整资产名、官方 SHA-256 和资产 ID 保持绑定，直链失败后仍用同一资产 ID 认证回退。解包复用 `Common/archive/extract_archive.sh`，在 `source/archive` 下准备输入；模板不重复实现版本解析、认证、下载或解包。
 
 生成结果检查复制后的主程序和显式声明的运行库目录，并只为真实主程序补执行权限。桌面入口和图标必须在应用的 `patches/` 中预先准备，不从宿主目录猜测，也不改写调用方的 desktop 内容。linuxdeploy 使用 `--deploy-deps-only` 收集包内主程序及完整程序目录的依赖，再部署显式提供的桌面资源；不通过 `--executable` 另造程序副本。
 
@@ -143,7 +143,7 @@ AppRun 保留基础搜索路径，并按实际入口追加主程序所在目录�
 
 `schemes` 填已核实的应用自定义协议名，使用小写且省略 `://`。支持一个或多个互不重复的协议。`mime_extra` 可省略，仅声明附加 MIME 类型。桌面字段使用单行文本，`desktop_file` 与 `icon` 分别填写单独的文件名与图标名，`categories` 沿用 desktop 的分号格式。公共 hook 无法原样写入的字段值会在生成时被拒绝。
 
-生成器在最终封装前输出一次 [公共协议登记调用](../../common/desktop/write_scheme_hook.sh)，按 `APP_BASENAME` 生成 `AppDir/bin/20-<产物名主体>-protocol.hook`。省略 `PROTOCOL_HANDLER` 时，该步骤及其注释和空行一起省略。未声明该占位项的模板会拒绝该参数。
+生成器在最终封装前输出一次 [公共协议登记调用](../../Common/desktop/write_scheme_hook.sh)，按 `APP_BASENAME` 生成 `AppDir/bin/20-<产物名主体>-protocol.hook`。省略 `PROTOCOL_HANDLER` 时，该步骤及其注释和空行一起省略。未声明该占位项的模板会拒绝该参数。
 
 以后增加其他可选步骤时，由适用模板在对应构建阶段声明独占一行的占位项，由生成器登记其参数校验和固定输出。生成请求沿用现有 `params` 结构，只提供已登记的配置数据。
 

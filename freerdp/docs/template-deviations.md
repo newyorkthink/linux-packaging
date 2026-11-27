@@ -8,7 +8,7 @@
 
 ## 依赖覆盖核对
 
-对照 [install_packages.sh](../../common/arch/install_packages.sh#L357-L370) 的 `--base` 清单，原脚本依赖完整覆盖如下：
+对照 [install_packages.sh](../../Common/arch/install_packages.sh#L357-L370) 的 `--base` 清单，原脚本依赖完整覆盖如下：
 
 - **`--base` 已覆盖（14 项）**：`gcc`、`base-devel`、`wget`、`binutils`、`patchelf`、`coreutils`、`appstream-glib`、`desktop-file-utils`、`util-linux`、`zsync`、`xclip`、`libxkbcommon`、`make`、`pkgconf`。
 - **在 [build_freerdp.sh](../build_freerdp.sh#L13) 显式保留（34 项）**：`glycin`、`libheif`、`xorg-server`、`xorg-server-common`、`xorg-server-xvfb`、`wl-clipboard`、`fcitx5-qt`、`egl-wayland`、`libxcb`、`xcb-util`、`xcb-util-keysyms`、`libxss`、`extra-cmake-modules`、`xcb-util-renderutil`、`xcb-util-wm`、`xcb-util-image`、`xcb-util-cursor`、`libxkbcommon-x11`、`mesa`、`libglvnd`、`giflib`、`libpng`、`libx11`、`libxft`、`libxrender`、`libxcomposite`、`libxdamage`、`libxfixes`、`libxext`、`libxinerama`、`freetype2`、`libjpeg-turbo`、`libdecor`、`alsa-plugins`。

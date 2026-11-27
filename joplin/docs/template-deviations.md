@@ -1,6 +1,6 @@
 # Joplin 专属差异
 
-本目录是 GTK 类型标准参考。这里只记 Joplin 的实际取值和处理原因，不作为所有 GTK 程序的固定配置；流程与公共注释见 [linuxdeploy 规范](../../linuxdeploy_projects.md) 和 [固定注释标准](../../docs/linuxdeploy-comments.md)。
+本目录是 GTK 类型标准参考。这里只记 Joplin 的实际取值和处理原因，不作为所有 GTK 程序的固定配置；流程与公共注释见 [linuxdeploy 规范](../../linuxdeploy_projects.md) 和 [固定注释标准](../../Docs/linuxdeploy-comments.md)。
 
 | 位置 | 处理及原因 | 代码或依据 |
 | --- | --- | --- |

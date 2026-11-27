@@ -20,7 +20,7 @@
 | 位置 | 处理与依据 |
 | --- | --- |
 | 下载并准备应用：desktop | 将解包后的 `usr/share/applications/binance.desktop` 规范为 `Exec=binance %U`、`Icon=binance`。官方包默认 `Exec=/opt/Binance/binance %U` 指向宿主机绝对路径（2026-09-23 `dpkg-deb -c` 核验）。 |
-| 下载并准备应用：NSS | 调用公共入口 `common/linuxdeploy/copy_nss_runtime.sh "$APPDIR/usr/lib"`，部署与构建环境同版本的 NSS 核心库及 `dlopen` 模块，避免 Electron/Chromium 运行时与宿主 NSS 混用。 |
+| 下载并准备应用：NSS | 调用公共入口 `Common/linuxdeploy/copy_nss_runtime.sh "$APPDIR/usr/lib"`，部署与构建环境同版本的 NSS 核心库及 `dlopen` 模块，避免 Electron/Chromium 运行时与宿主 NSS 混用。 |
 | 核心打包：隐式动态库 | 第二次 `linuxdeploy` 按 `dpkg-architecture -qDEB_HOST_MULTIARCH` 追加 `-l libsecret-1.so.0` 与 `-l libnotify.so`。依据：`keytar.node` 链接 `libsecret-1.so.0`、主程序按文件名 `dlopen` `libnotify.so`，二者均不在主程序 `NEEDED` 中。 |
 
 ## 未带入的历史处理

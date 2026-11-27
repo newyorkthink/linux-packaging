@@ -8,7 +8,7 @@
 
 ### 统一基础包
 
-GitHub Actions 的 Arch Linux 构建容器使用同一套基础包。应用脚本以 `common/arch/install_packages.sh --base` 安装以下全部 95 个包；需要安装当前应用的额外依赖时，另以包名为参数调用同一个入口。`base-devel` 覆盖的工具仍显式列出，`jq` 和 `github-cli` 都包含在基础包内。以下命令中的反斜杠必须紧贴行尾：
+GitHub Actions 的 Arch Linux 构建容器使用同一套基础包。应用脚本以 `Common/arch/install_packages.sh --base` 安装以下全部 95 个包；需要安装当前应用的额外依赖时，另以包名为参数调用同一个入口。`base-devel` 覆盖的工具仍显式列出，`jq` 和 `github-cli` 都包含在基础包内。以下命令中的反斜杠必须紧贴行尾：
 
 v2rayN 因提前安装整套基础包曾在图形检查中出现 `free(): invalid pointer`，按 `AGENTS.md` 的应用特例使用精确依赖列表，并在打包前包含发布步骤需要的 `github-cli`；不在 AppImage 生成后再安装整套基础包。此例外不改变其他应用的基础包要求。
 
@@ -49,7 +49,7 @@ v2rayN 的精确依赖列表也分别安装了 `github-cli` 与 `jq`，供同一
 
 ### 统一基础包
 
-Ubuntu 22.04／24.04 的基础包由 `common/apt/install_packages.sh` 在应用首次安装依赖时自动附加。Arch 包名不直接用于 Ubuntu：例如 `github-cli` 对应 `gh`，`appstream-glib` 对应 `appstream-util`，`ninja` 对应 `ninja-build`，`7zip` 对应 `p7zip-full`。以下为公共入口安装的全部 Ubuntu 包名；`libglib2.0-0` 只用于 22.04，`libglib2.0-0t64` 只用于 24.04：
+Ubuntu 22.04／24.04 的基础包由 `Common/apt/install_packages.sh` 在应用首次安装依赖时自动附加。Arch 包名不直接用于 Ubuntu：例如 `github-cli` 对应 `gh`，`appstream-glib` 对应 `appstream-util`，`ninja` 对应 `ninja-build`，`7zip` 对应 `p7zip-full`。以下为公共入口安装的全部 Ubuntu 包名；`libglib2.0-0` 只用于 22.04，`libglib2.0-0t64` 只用于 24.04：
 
 ```text
 build-essential ubuntu-keyring gcc g++ make pkgconf patch autoconf automake
@@ -82,7 +82,7 @@ Ubuntu 22.04 与 24.04 的包名、ABI 和上游自带 Qt / GTK 库不能混用�
 
 ## 基础包逐项说明
 
-Arch 列逐项对应上面的 95 包；Ubuntu 列为功能对应包名，不表示两个发行版的 ABI 相同。Ubuntu 使用 `common/apt/install_packages.sh` 的完整清单，额外显式列出 `g++`。
+Arch 列逐项对应上面的 95 包；Ubuntu 列为功能对应包名，不表示两个发行版的 ABI 相同。Ubuntu 使用 `Common/apt/install_packages.sh` 的完整清单，额外显式列出 `g++`。
 
 | Arch 包 | Ubuntu 对应包 | 用途 |
 | --- | --- | --- |
@@ -197,6 +197,6 @@ Arch 列逐项对应上面的 95 包；Ubuntu 列为功能对应包名，不表�
 
 ## 应用专用缺包处理与当前构建入口
 
-以后基础包统一以本文件和 `common/arch/install_packages.sh`、`common/apt/install_packages.sh` 为准。个别应用缺包、与某包不兼容或仅该应用需要特殊功能时，只在该应用的 `build_*.sh` 增补或处理，并在同目录 README 写明原因；不得因此修改统一基础包。既有脚本若未调用公共安装入口，不能仅凭本文件声称它已安装这套基础包。
+以后基础包统一以本文件和 `Common/arch/install_packages.sh`、`Common/apt/install_packages.sh` 为准。个别应用缺包、与某包不兼容或仅该应用需要特殊功能时，只在该应用的 `build_*.sh` 增补或处理，并在同目录 README 写明原因；不得因此修改统一基础包。既有脚本若未调用公共安装入口，不能仅凭本文件声称它已安装这套基础包。
 
 当前 `.github/actions/build-anylinux/action.yml` 仍准备 `yay` 并安装 `github-cli jq` 供旧矩阵脚本使用；这一旧步骤不替代应用调用上述统一基础包入口。变更共享发布链前须先核对全部受影响的 Job。
