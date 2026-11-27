@@ -5,6 +5,7 @@
 入口：[git_commit.py](./git_commit.py)。面向个人电脑本地仓库工作区，按固定格式完成差异核对、提交预览、本地 Git 提交，以及尚未推送的本地提交撤回。
 
 - `inspect` 与 `preview` 只读，不修改仓库文件、索引或历史，分别返回绑定当前分支、HEAD、差异和暂存状态的 `diff_id` 与 `preview_id`。
+- `inspect` 开启摘要时，集中列出本次文件状态、清单外暂存、全仓文件模式检查结果和本次新增的失效仓库内 Markdown 链接。
 - `commit` 核对 `preview_id` 后，将清单内文件在工作区中的全部改动暂存并在当前分支创建一次本地提交，随后自动核对提交后的分支、父提交、文件内容和提交说明。
 - `undo-preview` 只读预览最近一次普通本地提交的撤回目标与影响，返回 `undo_id`；`undo` 原子更新当前分支引用至父提交，保留工作区、暂存区、未跟踪文件和分支 reflog，不新增反向提交。两者均会检查本地记录的远端跟踪分支（`refs/remotes`），拒绝已推送至远端的提交；该检查不联网执行 `fetch`，以本地已知远端快照为准。
 - 脚本不执行推送，也不修改远端引用。推送仍使用本地 `git push` 或经授权的 [sync_repo.sh](../sync/sync_repo.md)；已推送至远端的提交撤回仍按 [rollback_commit.md](./rollback_commit.md) 和 [AGENTS.md](../../AGENTS.md#git-提交撤销统一执行历史删除) 处理。
@@ -45,11 +46,19 @@ python3 Scripts/commit/git_commit.py undo
 - `Scripts/commit/git_commit.py` 的 Git 模式为 `100755`，也可直接执行 `./Scripts/commit/git_commit.py <模式>`。
 - 提交完成后，按本次授权执行 `git push origin HEAD:main` 或 `./Scripts/sync/sync_repo.sh push` 上传到远端。
 
+### 提交检查摘要
+
+运行同一个 `inspect` 命令时，标准输入可填写 `{"files":["<仓库相对路径>"],"summary":true}`。摘要复用本目录的 `check_file_modes.sh` 做只读权限核查，并显示该检查的退出码和结果。新增失效链接会列出文件、行号、链接原文和解析后的仓库路径。
+
+链接检查以 `HEAD` 加本次文件清单作为提交后的文件树。检查普通单行 Markdown 相对链接和引用定义的文件或目录路径，跳过代码示例、外链和纯锚点。文件删除或改名时也会检查其余已跟踪的 Markdown。已有断链单独与 `HEAD` 对比，摘要只报告本次新增的问题。
+
+摘要与默认完整差异使用同一个 `diff_id`，可以按原流程把它传入 `preview`。需要核对完整差异时，省略 `summary` 或传入 `false`。
+
 ## 参数说明
 
 | 字段 / 模式 | 说明 |
 | --- | --- |
-| `inspect`（默认） | 必填 `files`；读取指定文件相对 `HEAD` 的完整差异（同时含暂存与未暂存改动时分别展示），输出 `diff_id`。 |
+| `inspect`（默认） | 必填 `files`，选填布尔值 `summary`。默认输出指定文件相对 `HEAD` 的完整差异（同时含暂存与未暂存改动时分别展示）。`summary` 为 `true` 时显示只读检查摘要。两种输出都返回 `diff_id`。 |
 | `preview` | 必填 `files`、`title`、`changes`，本仓库调用时必填 `verification`，选填 `diff_id`；校验并预览提交说明，输出 `preview_id`。 |
 | `commit` | 使用与 `preview` 相同的输入并追加 `preview_id`；加锁复核后完整暂存指定文件并创建一次本地提交。 |
 | `undo-preview` | 无须输入 JSON；只读预览最近一次普通提交、父提交及受核对文件列表，输出 `undo_id`。 |

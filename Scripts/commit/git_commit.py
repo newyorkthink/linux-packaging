@@ -8,6 +8,7 @@
 # 除 undo-preview 外，各模式从标准输入读取一个 JSON 对象。手动运行时，粘贴 JSON 后按 Ctrl+D。
 # files 填相对于仓库根目录的文件路径数组。明确要提交全部改动时，填字符串 "all"。
 # inspect 读取指定文件的完整差异并返回 diff_id。省略模式时默认执行 inspect。
+# inspect 可选 summary: true，集中显示只读检查结果并返回同一 diff_id。
 # 查看完整差异时，同一文件若同时有暂存和未暂存改动，脚本会分别显示两部分。
 # preview 接收 files、title、changes 和可选的 verification、diff_id。
 # title 填中文标题。changes 填改动说明数组，每项一行。verification 只填实际检查结果。
@@ -50,16 +51,20 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from dataclasses import dataclass
 import fcntl
 from hashlib import sha256
+from io import BytesIO
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import posixpath
 import re
 import stat
 import subprocess
 import sys
+from urllib.parse import unquote
 
 
 class CommitError(Exception):
@@ -81,6 +86,19 @@ OPERATIONS = (
     "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply", "sequencer",
 )
 UNMERGED = {"DD", "AU", "UD", "UA", "DU", "AA", "UU"}
+MARKDOWN_SUFFIXES = {".md", ".markdown"}
+LINK_DESTINATION = r"(?:<([^<>\r\n]+)>|((?:\\[^\r\n]|[^\s\\()<>]|\([^()\r\n]*\))+))"
+LINK_TITLE = r"(?:[ \t]+(?:\"[^\"\r\n]*\"|'[^'\r\n]*'|\([^()\r\n]*\)))?"
+INLINE_LINK = re.compile(
+    r"(?<!\\)\[(?:\\[^\r\n]|[^\\\]\r\n])*\]\([ \t]*"
+    + LINK_DESTINATION + LINK_TITLE + r"[ \t]*\)"
+)
+REFERENCE_LINK = re.compile(
+    r"^ {0,3}\[(?!\^)(?:\\[^\r\n]|[^\\\]\r\n])+\]:[ \t]*"
+    + LINK_DESTINATION + LINK_TITLE + r"[ \t]*$"
+)
+CODE_FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+INLINE_CODE = re.compile(r"(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)")
 
 
 # Git 参数固定传入子进程。只读命令关闭可选锁，避免状态查询刷新索引。
@@ -151,7 +169,7 @@ def read_request(mode: str) -> dict[str, object]:
     required = {"files"} if mode == "inspect" else {"files", "title", "changes"}
     if mode == "commit":
         required.add("preview_id")
-    optional = set() if mode == "inspect" else {"verification", "diff_id"}
+    optional = {"summary"} if mode == "inspect" else {"verification", "diff_id"}
     if not isinstance(request, dict) or not required <= request.keys() <= required | optional:
         raise CommitError(f"输入字段有遗漏或超出范围。必填 {sorted(required)}，选填 {sorted(optional)}。")
     files = request["files"]
@@ -161,6 +179,8 @@ def read_request(mode: str) -> dict[str, object]:
         or len(files) != len(set(files))
     ):
         raise CommitError('files 必须是具体文件的路径数组，或字符串 "all"。')
+    if "summary" in request and not isinstance(request["summary"], bool):
+        raise CommitError("summary 必须是 JSON 布尔值 true 或 false。")
     for name in ("diff_id", "preview_id"):
         if name in request and (
             not isinstance(request[name], str) or not re.fullmatch(r"[0-9a-f]{64}", request[name])
@@ -317,6 +337,149 @@ def object_versions(data: bytes, *, from_tree: bool = False) -> dict[bytes, tupl
     return entries
 
 
+def read_git_blobs(root: Path, object_ids: set[bytes]) -> dict[bytes, bytes]:
+    if not object_ids:
+        return {}
+    ordered = sorted(object_ids)
+    stream = BytesIO(git(root, "cat-file", "--batch", data=b"\n".join(ordered) + b"\n"))
+    blobs = {}
+    for oid in ordered:
+        header = stream.readline().split()
+        if len(header) != 3 or header[:2] != [oid, b"blob"]:
+            raise CommitError("无法读取提交中的 Markdown 文件对象。")
+        size = int(header[2])
+        body = stream.read(size)
+        if len(body) != size or stream.read(1) != b"\n":
+            raise CommitError("提交中的 Markdown 文件对象读取不完整。")
+        blobs[oid] = body
+    return blobs
+
+
+def repository_paths(files: set[str]) -> set[str]:
+    return {"."} | files | {str(parent) for name in files for parent in PurePosixPath(name).parents}
+
+
+# 检查常见单行 Markdown 链接的相对路径，并跳过代码示例和外部链接。
+def markdown_links(name: str, body: bytes) -> list[tuple[int, str, str]]:
+    links = []
+    fence = ""
+    text = re.sub(r"<!--[\s\S]*?-->", lambda m: "\n" * m[0].count("\n"),
+                  body.decode("utf-8", errors="replace"))
+    for number, line in enumerate(text.splitlines(), 1):
+        marker = CODE_FENCE.match(line)
+        if fence:
+            if marker and marker[1].startswith(fence) and not marker[2].strip():
+                fence = ""
+            continue
+        if marker and (marker[1][0] == "~" or "`" not in marker[2]):
+            fence = marker[1]
+            continue
+        if line.startswith(("    ", "\t")):
+            continue
+        line = INLINE_CODE.sub(" ", line)
+        definition = REFERENCE_LINK.match(line)
+        for link in [definition] if definition else INLINE_LINK.finditer(line):
+            href = link[1] or link[2]
+            unescaped = re.sub(r"\\([^\w\s]| )", r"\1", href)
+            location = unquote(re.split(r"[?#]", unescaped, maxsplit=1)[0])
+            if (not location or location.startswith("/") or "\0" in location
+                    or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", location)):
+                continue
+            target = posixpath.normpath(posixpath.join(posixpath.dirname(name), location))
+            if target != ".." and not target.startswith("../"):
+                links.append((number, href, target))
+    return links
+
+
+def read_checked_markdown(root: Path, name: str, digest: str) -> bytes:
+    path = root / name
+    parent = path.parent.resolve()
+    if not parent.is_relative_to(root):
+        raise CommitError(f"路径 {name!r} 超出当前仓库范围。")
+    descriptor = os.open(parent / path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(descriptor, "rb") as source:
+        if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+            raise CommitError(f"文件 {name!r} 已不是普通 Markdown 文件，请重新检查。")
+        body = source.read()
+    if sha256(body).hexdigest() != digest:
+        raise CommitError(f"文件 {name!r} 在检查期间发生变化，请重新检查。")
+    return body
+
+
+# 以 HEAD 加本次清单投影提交后的文件树，避免把清单外工作区内容当作链接目标。
+def new_broken_links(root: Path, state: Snapshot) -> list[tuple[str, int, str, str]]:
+    selected = dict(zip(state.paths, state.versions))
+    changed_markdown = {
+        name: version[1] for name, version in selected.items()
+        if version is not None and stat.S_ISREG(version[0])
+        and PurePosixPath(name).suffix.lower() in MARKDOWN_SUFFIXES
+    }
+    removed = {name for name, version in selected.items() if version is None}
+    if not changed_markdown and not removed:
+        return []
+    tree = git(root, "ls-tree", "-r", "-z", state.head) if state.head else b""
+    baseline = {os.fsdecode(name): entry for name, entry in object_versions(tree, from_tree=True).items()}
+    before = repository_paths(set(baseline))
+    after = repository_paths((set(baseline) | set(selected)) - removed)
+    baseline_markdown = {
+        name: oid for name, (mode, oid) in baseline.items()
+        if mode in (b"100644", b"100755") and PurePosixPath(name).suffix.lower() in MARKDOWN_SUFFIXES
+    }
+    sources = set(changed_markdown)
+    if removed:
+        sources.update(set(baseline_markdown) - selected.keys())
+    removed_markdown = removed & baseline_markdown.keys()
+    blobs = read_git_blobs(root, {
+        baseline_markdown[name] for name in sources | removed_markdown if name in baseline_markdown
+    })
+    # 内容相同的 Markdown 改名继续使用原文比较，避免把随文件搬迁的旧断链算作新增。
+    previous_names: dict[str, list[str]] = {}
+    for name in removed_markdown:
+        digest = sha256(blobs[baseline_markdown[name]]).hexdigest()
+        previous_names.setdefault(digest, []).append(name)
+    added_digests = Counter(digest for name, digest in changed_markdown.items() if name not in baseline)
+    issues = []
+    for name in sorted(sources):
+        old_name = name
+        if name in changed_markdown and name not in baseline:
+            digest = changed_markdown[name]
+            matches = previous_names.get(digest, [])
+            if len(matches) == 1 and added_digests[digest] == 1:
+                old_name = matches[0]
+        oid = baseline_markdown.get(old_name)
+        old = blobs[oid] if oid is not None else b""
+        current = read_checked_markdown(root, name, changed_markdown[name]) if name in changed_markdown else old
+        old_broken = Counter(target for _, _, target in markdown_links(old_name, old) if target not in before)
+        for line, href, target in markdown_links(name, current):
+            if target in after:
+                continue
+            if old_broken[target]:
+                old_broken[target] -= 1
+            else:
+                issues.append((name, line, href, target))
+    return issues
+
+
+def show_inspection_summary(root: Path, state: Snapshot, permission_checker: Path) -> None:
+    staged = git(root, "diff", "--cached", "--name-only", "--no-renames", "-z", "--")
+    outside = set(map(os.fsdecode, records(staged))) - set(state.paths)
+    issues = new_broken_links(root, state)
+    modes = subprocess.run(
+        [str(permission_checker)], cwd=root, env=GIT_ENV, stdin=subprocess.DEVNULL,
+        capture_output=True, encoding="utf-8", errors="replace",
+    )
+    print(f"清单外已暂存文件 {len(outside)} 项")
+    for name in sorted(outside):
+        print(f"  {name!r}")
+    print(f"全仓文件模式检查（退出码 {modes.returncode}）")
+    for output in (modes.stdout, modes.stderr):
+        if output:
+            print(output.rstrip())
+    print(f"本次新增的失效仓库内链接 {len(issues)} 处")
+    for name, number, href, target in issues:
+        print(f"  {name!r}:{number} {href!r} → {target!r}")
+
+
 # 只暂存指定路径。Git 的路径提交保留清单外已经暂存的改动。
 def create_commit(root: Path, state: Snapshot, message: str) -> None:
     to_stage = [path for path in state.paths if state.statuses[path][1] != " "]
@@ -466,7 +629,10 @@ def main() -> int:
         if mode == "inspect":
             state = snapshot(root, request["files"])
             show_scope(root, state)
-            print(state.patch.decode("utf-8", errors="replace"), end="")
+            if request.get("summary", False):
+                show_inspection_summary(root, state, here / "check_file_modes.sh")
+            else:
+                print(state.patch.decode("utf-8", errors="replace"), end="")
             print(f"diff_id {state.diff_id}")
             return 0
 
