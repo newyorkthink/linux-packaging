@@ -370,10 +370,45 @@ if [[ "${1:-}" == --base ]]; then
   )
 else
   (( $# > 0 )) || {
-    echo "用法：$0 --base 或 $0 <Arch 软件包名> [...]" >&2
+    echo "用法：$0 --base | $0 (--qt6|--qt5|--gtk3|--gtk4) [额外软件包...] | $0 <Arch 软件包名> [...]" >&2
     exit 1
   }
-  PACKAGES=("$@")
+
+  # 按明确选择的图形环境准备基础包组，应用专用依赖随后追加。
+  ENVIRONMENT_OPTION="$1"
+  case "$ENVIRONMENT_OPTION" in
+    --qt6)
+      PACKAGES=(
+        qt6-base qt6-svg ibus fcitx5-qt libxcb libxkbcommon libxkbcommon-x11
+        qt6ct kvantum lxqt-qtplugin
+      )
+      ;;
+    --qt5)
+      PACKAGES=(qt5-base qt5-svg ibus fcitx5-qt libxcb libxkbcommon libxkbcommon-x11)
+      ;;
+    --gtk3)
+      PACKAGES=(gtk3 glib2 gdk-pixbuf2 cairo pango at-spi2-core ibus fcitx5-gtk)
+      ;;
+    --gtk4)
+      PACKAGES=(gtk4 glib2 gdk-pixbuf2 cairo pango at-spi2-core ibus fcitx5-gtk)
+      ;;
+    *)
+      ENVIRONMENT_OPTION=
+      PACKAGES=("$@")
+      ;;
+  esac
+
+  if [[ -n "$ENVIRONMENT_OPTION" ]]; then
+    shift
+    # 图形环境选项后只接收包名，避免将其他选项转交 yay。
+    for package in "$@"; do
+      [[ -n "$package" && "$package" != -* ]] || {
+        printf '错误：%s 后只能追加软件包名：%s\n' "$ENVIRONMENT_OPTION" "$package" >&2
+        exit 1
+      }
+    done
+    PACKAGES+=("$@")
+  fi
 fi
 
 # 标准 Arch 构建容器已由共享 Action 提供 yay，包安装逻辑统一放在公共入口。

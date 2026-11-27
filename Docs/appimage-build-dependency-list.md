@@ -30,15 +30,21 @@ yay -S --noconfirm base-devel archlinux-keyring gcc make pkgconf patch autoconf 
 
 `yay` 和 `quick-sharun` 由当前 Arch 构建链提供；上述命令只安装软件包。基础环境中有 `ibus`、桌面运行库和字体，不表示 quick-sharun 会自动把它们全收入 AppImage。CLI 成品不加入中文环境或输入模块；GUI 必须按主程序真实技术栈收集对应输入模块。GTK、Qt、Fcitx 仍属于应用专用依赖。
 
+### Arch 图形环境
+
+调用 [公共安装入口](../Common/arch/install_packages.sh) 时，在第一个参数选择一套图形环境，随后传入应用实际需要的附加软件包名。公共入口负责安装构建环境中的包，成品中的插件和输入法模块由打包步骤按实际框架版本收集。
+
 | 应用类别 | 该类别的起始包组 | 仅在实际使用时追加 |
 | --- | --- | --- |
-| Qt 5 GUI | `qt5-base qt5-svg ibus fcitx5-qt libxcb libxkbcommon libxkbcommon-x11` | `qt5-x11extras`、主题插件、应用实际用到的 Qt 模块 |
-| Qt 6 GUI | `qt6-base qt6-svg ibus fcitx5-qt libxcb libxkbcommon libxkbcommon-x11` | `qt6-declarative`（QML）、`qt6-multimedia`、`qt6-imageformats`、`qt6-wayland`、`qt6-tools`、主题插件 |
-| GTK 3 GUI | `gtk3 glib2 gdk-pixbuf2 cairo pango at-spi2-core ibus fcitx5-gtk` | `webkit2gtk-4.1`、`libsoup3`、`glib-networking`、应用实际用到的 GIO / GStreamer 模块 |
-| GTK 4 GUI | `gtk4 glib2 gdk-pixbuf2 cairo pango at-spi2-core ibus fcitx5-gtk` | `libadwaita`、应用实际用到的 WebKit / GStreamer 模块 |
+| Qt 5 GUI（`--qt5`） | `qt5-base qt5-svg ibus fcitx5-qt libxcb libxkbcommon libxkbcommon-x11` | `qt5-x11extras`、主题插件、应用实际用到的 Qt 模块 |
+| Qt 6 GUI（`--qt6`） | `qt6-base qt6-svg ibus fcitx5-qt libxcb libxkbcommon libxkbcommon-x11 qt6ct kvantum lxqt-qtplugin` | `qt6-5compat`、`qt6-declarative`（QML）、`qt6-multimedia`、`qt6-imageformats`、`qt6-wayland`、`qt6-tools` |
+| GTK 3 GUI（`--gtk3`） | `gtk3 glib2 gdk-pixbuf2 cairo pango at-spi2-core ibus fcitx5-gtk` | `webkit2gtk-4.1`、`libsoup3`、`glib-networking`、应用实际用到的 GIO / GStreamer 模块 |
+| GTK 4 GUI（`--gtk4`） | `gtk4 glib2 gdk-pixbuf2 cairo pango at-spi2-core ibus fcitx5-gtk` | `libadwaita`、应用实际用到的 WebKit / GStreamer 模块 |
 | Electron / Chromium 上游二进制 | `gtk3 nss nspr alsa-lib at-spi2-core cups dbus glib2 pango cairo fontconfig freetype2 libx11 libxcb libxcomposite libxdamage libxfixes libxkbcommon libxrandr libxss ibus fcitx5-gtk` | `libsecret`、`libnotify`、音视频和图形后端按上游及实际缺失选择 |
 
 Qt 主版本由实际 ELF 依赖或上游自带运行库决定；GUI 按仓库 `AGENTS.md` 和 `anylinux_projects.md` 还需生成并打包 `zh_CN.UTF-8`，同时收入与实际 GUI 版本相符的 IBus 和 Fcitx5 输入模块；只在终端运行的程序不加中文环境或输入模块。`fcitx5-qt` 虽提供 Qt 集成，最终收入 AppImage 的 `platforminputcontexts` 仍必须与主程序的 Qt 主版本一致。GTK 3 / 4 的 `fcitx5-gtk` 模块也必须按实际 GTK 主版本收入产物。Electron 如果自带 Chromium / GTK 库，先保持上游运行时，不用表中包覆盖它。
+
+后续 AI 维护时，单个应用的特殊依赖通过附加包名传入。遇到 Qt 7 等新框架版本并有实际应用需要时，先核对 Arch 官方包名、同版本的输入法和主题插件，以及打包工具能否收集这些组件。核实后增加独立选项，并同步更新本表和 [公共入口说明](../Common/README.md#公共代码与公共函数)。
 
 ### 标准矩阵 Job 的发布工具
 
