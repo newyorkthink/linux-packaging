@@ -7,7 +7,7 @@
 | 事项 | 决定 | 说明 |
 | --- | --- | --- |
 | quick-sharun 的 Mesa / LLVM 红字 | 保留 | 原文未改，见 [quick-sharun-mesa-llvm-explanation.md](./quick-sharun-mesa-llvm-explanation.md) |
-| 从 i3wm AppImage 再启动别的程序 | 先不改别的包 | 有时起不来。WPS 上见过，见 [i3wm-appimage-child-launch.md](./i3wm-appimage-child-launch.md) |
+| 从 i3wm AppImage 再启动别的程序 | 暂不改别的包；已备 `Temporary/i3wm/` | 既出现过库路径/挂载点透传（WPS），也出现过上游 `Anylinux-sharun` 升级改变 `execl` 环境恢复导致部分外部程序异常；先查上游版本变化，见 [i3wm-appimage-child-launch.md](./i3wm-appimage-child-launch.md) |
 | Ubuntu 上 Electron AppImage 报 chrome-sandbox 权限 | 先不改包 | 宿主限制 user namespace。见 [electron-appimage-userns.md](./electron-appimage-userns.md) |
 | pkgforge Arch 容器第一条源有时候下载超时 | 不改 | 2026-10-28 有成功构建记录，同日 AionUi 和微信又出现超时。见 [pkgforge-arch-mirror-slow.md](./pkgforge-arch-mirror-slow.md) |
 

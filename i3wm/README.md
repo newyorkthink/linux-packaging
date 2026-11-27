@@ -18,6 +18,9 @@ i3 为 X11 窗口管理器，主体使用 C。构建脚本已对齐标准模板 
 
 Perl 辅助脚本继续依赖宿主 Perl；i3lock/slock 不进入本 AppImage。现有 PATH_MAPPING、默认配置和 X11 工具集合保持当前稳定基线。
 
+- 从 `i3.AppImage` 启动外部程序或嵌套 AppImage 时的已知环境影响（含上游 `Anylinux-sharun` 升级改变 `execl` 拦截行为的根因与排查顺序），见 [从 i3wm AppImage 启动别的程序](../docs/known-risks/i3wm-appimage-child-launch.md)。
+- 不含 `anylinux.so` 拦截层的 Ubuntu 24.04 + `linuxdeploy` + 原生 `appimagetool` 备选草稿暂存于 [Temporary/i3wm/](../Temporary/i3wm/README.md)，当前尚未启用。
+
 ## 版本元数据
 
 构建时从本次实际安装的 `i3-wm` 包读取版本，去掉 Arch epoch 与 pkgrel 后写入 `dist/version.txt`。统一版本清单键使用 `i3`，对应 Release 资产 `i3.AppImage`。
