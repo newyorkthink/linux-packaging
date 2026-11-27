@@ -174,7 +174,7 @@ def main():
         notes[directory] = public_text(note)
     require(shutil.which("git"), "缺少 Git。")
     require(Path(run(["git", "rev-parse", "--show-toplevel"]).decode().strip()).resolve() == root,
-            "脚本必须位于目标仓库的 scripts/archive/ 中。")
+            "脚本必须位于目标仓库的 Scripts/archive/ 中。")
     require(not run(["git", "status", "--porcelain", "--untracked-files=all"]).strip(),
             "工作区存在未提交文件，停止处理，不暂存其他改动。")
     try:
@@ -351,7 +351,7 @@ def main():
     run(["gh", "auth", "status", "--hostname", "github.com"], quiet=True)
     release = gh_json(f"repos/{args.repo}/releases/tags/latest")
     require(release.get("tag_name") == "latest" and type(release.get("id")) is int, "latest Release 无效。")
-    helpers = ("scripts/release/delete_asset.sh", ".github/scripts/prune_archived_versions.sh")
+    helpers = ("Scripts/release/delete_asset.sh", ".github/scripts/prune_archived_versions.sh")
     for helper in helpers:
         read(helper)
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")

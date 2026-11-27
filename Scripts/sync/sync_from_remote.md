@@ -30,16 +30,16 @@
 
 ```bash
 # 查看脚本帮助，不访问仓库或网络
-./scripts/sync/sync_from_remote.sh --help
+./Scripts/sync/sync_from_remote.sh --help
 
 # 只读拉取云端快照，预览将被覆盖的改动、提交和未跟踪内容
-./scripts/sync/sync_from_remote.sh --preview
+./Scripts/sync/sync_from_remote.sh --preview
 
 # 同步到云端最新提交（本地干净时直接快进；有待丢弃内容时先列清单并提示确认）
-./scripts/sync/sync_from_remote.sh
+./Scripts/sync/sync_from_remote.sh
 
 # 跳过交互确认，直接以云端最新提交覆盖本地分支并清理未跟踪文件
-./scripts/sync/sync_from_remote.sh -y
+./Scripts/sync/sync_from_remote.sh -y
 ```
 
 ## 参数说明
@@ -65,7 +65,7 @@
 
 ## 复制到其他仓库
 
-将本目录下的 `sync_from_remote.sh` 和 `sync_from_remote.md` 复制到目标仓库的 `scripts/sync/`，并在目标仓库的同步索引中登记即可。脚本保持 Git 模式 `100755`，说明文档保持 `100644`。脚本不硬编码仓库名、分支名或远端地址，复制后遵循目标仓库自身的认证和授权规则。
+将本目录下的 `sync_from_remote.sh` 和 `sync_from_remote.md` 复制到目标仓库的 `Scripts/sync/`，并在目标仓库的同步索引中登记即可。脚本保持 Git 模式 `100755`，说明文档保持 `100644`。脚本不硬编码仓库名、分支名或远端地址，复制后遵循目标仓库自身的认证和授权规则。
 
 实现依据：[Git fetch](https://git-scm.com/docs/git-fetch)、[Git reset](https://git-scm.com/docs/git-reset)、[Git clean](https://git-scm.com/docs/git-clean)。
 

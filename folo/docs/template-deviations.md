@@ -2,7 +2,7 @@
 
 ## 当前模板
 
-构建脚本由 [generate_build_script.py](../../scripts/build/generate_build_script.py) 使用 [electron-github-deb.sh](../../templates/quick-sharun/electron-github-deb.sh) 生成。除模板允许的参数替换外，无新增代码、注释、分区或空行差异；不在生成后手工修改脚本。
+构建脚本由 [generate_build_script.py](../../Scripts/build/generate_build_script.py) 使用 [electron-github-deb.sh](../../templates/quick-sharun/electron-github-deb.sh) 生成。除模板允许的参数替换外，无新增代码、注释、分区或空行差异；不在生成后手工修改脚本。
 
 该模板适用于官方 GitHub 正式 Release 使用非空标签前缀、提供完整 Electron DEB 且版本由同次下载记录的应用。保留先安装、再独立下载和解包两个阶段；完整程序目录原样复制到 `AppDir/bin`，由 quick-sharun 收集依赖并生成入口。
 

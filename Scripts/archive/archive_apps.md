@@ -22,7 +22,7 @@
 
 - 查看帮助需要 Bash 和 Python 3；预览还需要 Git 和 PyYAML。实际执行另需 `gh`、`jq`、`timeout`、`sha256sum` 及常用 Linux 命令。脚本只检查依赖，不自动安装。
 - `gh` 需支持 `gh api --paginate --slurp`，Git 需支持通过标准输入读取 NUL 分隔的路径清单。附件分页数据由标准输出读取，不作为大段命令参数传递。
-- 脚本必须位于目标仓库的 `scripts/archive/`。预览和执行都要求工作区没有未提交或未跟踪文件；待移动目录也不能含被 Git 忽略的文件。脚本不会替其他修改做暂存或提交。
+- 脚本必须位于目标仓库的 `Scripts/archive/`。预览和执行都要求工作区没有未提交或未跟踪文件；待移动目录也不能含被 Git 忽略的文件。脚本不会替其他修改做暂存或提交。
 - 实际执行必须位于 `main`，本地 HEAD 与远端 `main` 一致，且 `origin` 对应显式填写的 GitHub.com 仓库；不会自动拉取、重置或强制推送。
 - 实际执行需要已有的 `gh` 认证、Git 推送认证、向 `main` 推送的权限及 Release 写权限。浏览器登录不能代替命令行认证。认证信息只在运行时读取，不作为文档或示例提交。
 - `latest` Release、活动清单、归档索引、归档映射及两个现有清理入口必须完整。映射冲突、资产名不唯一、目录异常或工作流结构不符时停止，不扩大处理范围。
@@ -35,14 +35,14 @@
 
 ```bash
 # 查看参数说明；此操作不查询 GitHub，也不执行归档。
-bash scripts/archive/archive_apps.sh --help
+bash Scripts/archive/archive_apps.sh --help
 ```
 
 先预览同一批应用及其公开备注：
 
 ```bash
 # 预览两个应用的完整归档计划，不修改文件或发布内容。
-bash scripts/archive/archive_apps.sh --dry-run --reason "<公开归档原因>" --note "<应用目录>=<公开故障记录与恢复待办>" "<应用目录>" "<另一应用目录>"
+bash Scripts/archive/archive_apps.sh --dry-run --reason "<公开归档原因>" --note "<应用目录>=<公开故障记录与恢复待办>" "<应用目录>" "<另一应用目录>"
 ```
 
 `--dry-run` 可省略，默认行为相同。按实际数量填写目录；没有备注时省略 `--note`。多个项目需要不同备注时，分别重复该参数。预览只检查本地计划，不表示远端权限、附件状态或真实删除已经验证。
@@ -51,7 +51,7 @@ bash scripts/archive/archive_apps.sh --dry-run --reason "<公开归档原因>" -
 
 ```bash
 # 按已核实的仓库和预览内容执行完整归档及发布清理。
-bash scripts/archive/archive_apps.sh --repo "<所有者>/<仓库>" --reason "<公开归档原因>" --note "<应用目录>=<公开故障记录与恢复待办>" --yes "<应用目录>" "<另一应用目录>"
+bash Scripts/archive/archive_apps.sh --repo "<所有者>/<仓库>" --reason "<公开归档原因>" --note "<应用目录>=<公开故障记录与恢复待办>" --yes "<应用目录>" "<另一应用目录>"
 ```
 
 统一入口已经调用附件删除和版本清理，不需要再对同一批项目手工重复整套操作。只有独立删除某个附件时，才单独使用 [delete_asset.sh](../release/delete_asset.md)。

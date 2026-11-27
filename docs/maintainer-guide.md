@@ -19,11 +19,11 @@
 
 | 目录 | 用途 |
 | --- | --- |
-| `scripts/` | 经授权后明确调用的仓库维护工具。分类、入口和运行方式见 [总索引](../scripts/README.md) |
+| `Scripts/` | 经授权后明确调用的仓库维护工具。分类、入口和运行方式见 [总索引](../Scripts/README.md) |
 | `common/` | 应用构建复用的下载、校验、安装、解包与打包公共入口 |
 | `.github/scripts/` | GitHub Actions 调度、构建和发布使用的脚本 |
 
-维护工具统一按总索引、分类索引、同名脚本说明组织；新增脚本同步登记，具体命令、参数和执行结果写在对应说明中。归档项目先阅读 [归档与恢复说明](../archive/README.md)，再使用 [统一归档脚本](../scripts/archive/archive_apps.md)预览和执行；该入口已复用附件删除与版本清理机制。只删除单个 Release 附件时，使用 [delete_asset.md](../scripts/release/delete_asset.md)中的独立入口。
+维护工具统一按总索引、分类索引、同名脚本说明组织；新增脚本同步登记，具体命令、参数和执行结果写在对应说明中。归档项目先阅读 [归档与恢复说明](../archive/README.md)，再使用 [统一归档脚本](../Scripts/archive/archive_apps.md)预览和执行；该入口已复用附件删除与版本清理机制。只删除单个 Release 附件时，使用 [delete_asset.md](../Scripts/release/delete_asset.md)中的独立入口。
 
 公共代码和示例只使用通用参数或占位符；不要提交个人路径、账号配置、凭据或本机日志。维护工具保持显式调用，不自动加入应用构建或定时任务。
 

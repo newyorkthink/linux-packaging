@@ -18,10 +18,10 @@ AI 通过 GitHub 连接器提交归档后，由 [Clean Archived Versions](../../
 
 ```bash
 # 查看参数和退出码说明；此操作不查询、不删除。
-bash scripts/release/delete_asset.sh --help
+bash Scripts/release/delete_asset.sh --help
 
 # 使用已核实的仓库、标签和完整附件名，确认后删除指定附件。
-bash scripts/release/delete_asset.sh --repo "<所有者>/<仓库>" --tag "<Release 标签>" --asset "<完整附件名>" --yes
+bash Scripts/release/delete_asset.sh --repo "<所有者>/<仓库>" --tag "<Release 标签>" --asset "<完整附件名>" --yes
 ```
 
 ## 参数说明

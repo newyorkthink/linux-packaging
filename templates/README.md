@@ -1,6 +1,6 @@
 # 打包脚本标准模板
 
-按来源、技术栈和实际入口选择一份完整模板。使用 [统一生成脚本](../scripts/build/generate_build_script.md) 生成应用目录下的构建脚本，只填写规范列出的占位参数。注释、顺序、缩进和空行保持原样。下列 13 份模板为固定清单。任何特例或专属处理均不得作为提出、新增、派生或登记清单外模板的理由。
+按来源、技术栈和实际入口选择一份完整模板。使用 [统一生成脚本](../Scripts/build/generate_build_script.md) 生成应用目录下的构建脚本，只填写规范列出的占位参数。注释、顺序、缩进和空行保持原样。下列 13 份模板为固定清单。任何特例或专属处理均不得作为提出、新增、派生或登记清单外模板的理由。
 
 没有适用模板时，先说明具体冲突，授权前保留已有构建脚本。专用流程按 [AGENTS.md](../AGENTS.md) 逐次取得用户授权，并在[打包分类](../docs/packaging-classification.md#专用打包流程)登记。
 
@@ -27,7 +27,7 @@
 
 扫描目标必须由调用方按当前应用的真实布局和已核实需要明确提供；生成器只校验和替换参数，不扫描系统来生成或追加目标。完整要求见 [扫描目标必须按应用实际提供](../anylinux_projects.md#扫描目标必须按应用实际提供)。
 
-需要浏览器回跳时，所有 quick-sharun 模板可在封装前接入 [可选协议登记](../scripts/build/generate_build_script.md#可选协议登记)。调用方通过 `PROTOCOL_HANDLER` 提供桌面元数据与协议列表。
+需要浏览器回跳时，所有 quick-sharun 模板可在封装前接入 [可选协议登记](../Scripts/build/generate_build_script.md#可选协议登记)。调用方通过 `PROTOCOL_HANDLER` 提供桌面元数据与协议列表。
 
 | 模板 | 适用场景 |
 | --- | --- |
@@ -39,4 +39,4 @@
 | [qt-deb.sh](./quick-sharun/qt-deb.sh) | Qt，AUR 指向的预编译官方 DEB |
 | [qt-installed.sh](./quick-sharun/qt-installed.sh) | Qt 6，Arch 官方仓库程序，从系统入口收集 |
 
-GTK DEB 模板的可选应用准备、部署后整理和运行时数据准备阶段由生成器统一输出，参数只提供本应用脚本路径；未启用时保留原有结果。格式见[可选应用阶段](../scripts/build/generate_build_script.md#可选应用阶段)，不新增模板或应用默认配置。
+GTK DEB 模板的可选应用准备、部署后整理和运行时数据准备阶段由生成器统一输出，参数只提供本应用脚本路径；未启用时保留原有结果。格式见[可选应用阶段](../Scripts/build/generate_build_script.md#可选应用阶段)，不新增模板或应用默认配置。

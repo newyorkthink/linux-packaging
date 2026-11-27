@@ -176,7 +176,7 @@ cleanup_archived_assets() {
 
   while IFS= read -r asset_name; do
     require_current_main
-    bash scripts/release/delete_asset.sh --repo "$GITHUB_REPOSITORY" --tag latest --asset "$asset_name" --yes
+    bash Scripts/release/delete_asset.sh --repo "$GITHUB_REPOSITORY" --tag latest --asset "$asset_name" --yes
     if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
       printf -- '- 已确认归档附件不存在：`%s`。\n' "$asset_name" >> "$GITHUB_STEP_SUMMARY"
     fi

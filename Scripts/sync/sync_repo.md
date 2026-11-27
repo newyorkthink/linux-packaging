@@ -24,25 +24,25 @@
 
 ## 使用方法
 
-脚本首行为 `#!/usr/bin/env bash`，Git 执行模式为 `100755`，可以直接执行，不需要加 `bash`。下例在仓库根目录运行；从其他目录调用时，使用脚本的实际路径即可。进入 `scripts/sync/` 后可用 `./sync_repo.sh pull` 或 `./sync_repo.sh push`；省略 `./` 只在脚本目录已经加入 `PATH` 时有效，脚本不自动修改 `PATH`。
+脚本首行为 `#!/usr/bin/env bash`，Git 执行模式为 `100755`，可以直接执行，不需要加 `bash`。下例在仓库根目录运行；从其他目录调用时，使用脚本的实际路径即可。进入 `Scripts/sync/` 后可用 `./sync_repo.sh pull` 或 `./sync_repo.sh push`；省略 `./` 只在脚本目录已经加入 `PATH` 时有效，脚本不自动修改 `PATH`。
 
 ```bash
 # 只查看帮助；三种参数均不查询仓库或网络。
-./scripts/sync/sync_repo.sh --help
-./scripts/sync/sync_repo.sh -h
-./scripts/sync/sync_repo.sh /help
+./Scripts/sync/sync_repo.sh --help
+./Scripts/sync/sync_repo.sh -h
+./Scripts/sync/sync_repo.sh /help
 
 # 拉取上游更新。
-./scripts/sync/sync_repo.sh pull
+./Scripts/sync/sync_repo.sh pull
 
 # 不带参数也可默认拉取。
-./scripts/sync/sync_repo.sh
+./Scripts/sync/sync_repo.sh
 
 # 推送已经存在的本地提交。
-./scripts/sync/sync_repo.sh push
+./Scripts/sync/sync_repo.sh push
 
 # 提交两个明确文件，再推送当前分支。
-./scripts/sync/sync_repo.sh push -m "<提交说明>" -- "<文件1>" "<文件2>"
+./Scripts/sync/sync_repo.sh push -m "<提交说明>" -- "<文件1>" "<文件2>"
 ```
 
 `-m` 后的文本允许真实换行，提交说明的语言、格式及 CI 标记按目标仓库规则准备；脚本不自行生成事实、增加或删除标记。Git hooks 和正常提交清理规则仍然生效。推送可能触发现有 CI 或发布，不应把“同步脚本”理解为没有远端影响。
@@ -84,7 +84,7 @@
 
 ## 复制到其他仓库
 
-将本目录的 `sync_repo.sh`、`sync_repo.md` 和 `README.md` 原样复制到新仓库的 `scripts/sync/`，并在其维护脚本索引增加入口。脚本保留 `100755`，两份文档保留 `100644`。不要建立指向来源仓库的运行时下载、软链接或同步依赖。
+将本目录的 `sync_repo.sh`、`sync_repo.md` 和 `README.md` 原样复制到新仓库的 `Scripts/sync/`，并在其维护脚本索引增加入口。脚本保留 `100755`，两份文档保留 `100644`。不要建立指向来源仓库的运行时下载、软链接或同步依赖。
 
 目标仓库继续使用自己的远端、分支、认证、修改授权及保密规则。工具不会同步其他仓库，也不会因被复制就自动执行；AI 只能在当前本地同步任务已获授权时调用。
 

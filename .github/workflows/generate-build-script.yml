@@ -45,7 +45,7 @@ jobs:
           import subprocess
           import sys
 
-          sys.path.insert(0, str(Path("scripts/build").resolve()))
+          sys.path.insert(0, str(Path("Scripts/build").resolve()))
           from generate_build_script import unique_object
 
           if os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch":
@@ -71,7 +71,7 @@ jobs:
           script = directory / "generated-build-script.sh"
           with script.open("wb") as output:
               subprocess.run(
-                  [sys.executable, "scripts/build/generate_build_script.py",
+                  [sys.executable, "Scripts/build/generate_build_script.py",
                    "--template", request["template"], "--params", "-",
                    "--output", request["output"], "--stdout"],
                   input=json.dumps(request["params"], ensure_ascii=False).encode("utf-8"),

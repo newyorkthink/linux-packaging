@@ -43,17 +43,17 @@
 
 ```bash
 # 预览生成内容与目标脚本的差异。
-python3 scripts/build/generate_build_script.py --template "<模板相对路径>" --params "<参数文件>" --output "<应用目录>/build_<名称>.sh"
+python3 Scripts/build/generate_build_script.py --template "<模板相对路径>" --params "<参数文件>" --output "<应用目录>/build_<名称>.sh"
 
 # 输出完整生成稿，供核对或展示。
-python3 scripts/build/generate_build_script.py --template "<模板相对路径>" --params "<参数文件>" --output "<应用目录>/build_<名称>.sh" --stdout
+python3 Scripts/build/generate_build_script.py --template "<模板相对路径>" --params "<参数文件>" --output "<应用目录>/build_<名称>.sh" --stdout
 ```
 
 下面的命令会创建或覆盖指定的构建脚本。核对预览并确认写入范围后执行。
 
 ```bash
 # 将核对通过的生成结果写入指定构建脚本。
-python3 scripts/build/generate_build_script.py --template "<模板相对路径>" --params "<参数文件>" --output "<应用目录>/build_<名称>.sh" --write
+python3 Scripts/build/generate_build_script.py --template "<模板相对路径>" --params "<参数文件>" --output "<应用目录>/build_<名称>.sh" --write
 ```
 
 ## 参数说明

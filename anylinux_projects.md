@@ -33,7 +33,7 @@
 | `__ICON__`、`__DESKTOP__` | 安装后实际存在的图标和桌面入口路径。 |
 | `__APP_BASENAME__` | 最终文件名主体，保留模板固定的 `.AppImage` 后缀。 |
 | `__SCAN_ARGS__` | quick-sharun 的完整初始扫描列表，必须由调用方显式提供且至少包含一个目标。程序入口、目录及确有需要的附加目标按当前应用填写，不自动补目录或库。需要展开通配符时按生成器的 `glob` 参数提供。 |
-| `__PROTOCOL_HANDLER__` | [可选协议登记](./scripts/build/generate_build_script.md#可选协议登记)。根据已核实的桌面元数据和协议列表，在最终封装前生成一次公共调用。省略配置时整段省略。 |
+| `__PROTOCOL_HANDLER__` | [可选协议登记](./Scripts/build/generate_build_script.md#可选协议登记)。根据已核实的桌面元数据和协议列表，在最终封装前生成一次公共调用。省略配置时整段省略。 |
 | `__DEB_URL__`、`__DEB_PROGRAM_DIR__` | 当前官方 DEB 的稳定下载入口，以及解包目录内完整程序目录的相对路径。 |
 | `__PACKAGE_JSON__`、`__INSTALLED_PROGRAM_DIR__` | 相对 `AppDir/bin` 的版本元数据路径，或系统中已安装的完整程序目录。 |
 | `__GITHUB_REPOSITORY__`、`__RELEASE_ASSET_PATTERN__` | 官方 `owner/repo` 和固定资产名或含 `{version}` 的资产名模板；两种名称共用公共正式版本筛选和摘要校验。 |

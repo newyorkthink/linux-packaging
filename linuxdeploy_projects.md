@@ -15,9 +15,9 @@
 
 无框架插件模板默认保留 Ubuntu APT 来源。使用固定归档 DEB 时，提供 `RELEASE_TAG`、`GITHUB_REPOSITORY`、`DEB_FILENAME` 和真实程序入口，公共下载入口核对 GitHub SHA-256，版本取自 DEB 元数据；如需调整 desktop 副本，再提供 `DESKTOP_FILE`、`ICON_FILE`、`DESKTOP_EXEC` 和 `DESKTOP_ICON`。原 APT 模式保持不变。
 
-CLI 预编译归档来源显式提供 `GITHUB_REPOSITORY`、`ARCHIVE_ASSET_NAME`、`ARCHIVE_FILENAME`、`ARCHIVE_PROGRAM_DIR`、`ARCHIVE_INSTALL_DIR`、`MAIN_EXECUTABLE` 及应用 `patches/` 内的 `DESKTOP_FILE`、`ICON_FILE`，运行库目录按需提供 `APP_LIB_DIR`。这些来源选择参数不能与 APT 或归档 DEB 来源参数混用，共用的 `APT_PACKAGES` 继续保留。下载和摘要校验复用固定资产公共入口，解包复用公共归档入口，完整程序目录保持相邻资源布局。linuxdeploy 通过 `--deploy-deps-only` 收集现有程序及目录的依赖，避免复制出另一份主程序。格式、路径约束和 AppRun 搜索路径见 [CLI 预编译归档参数](./scripts/build/generate_build_script.md#cli-预编译归档来源)。原 APT、归档 DEB 生成结果保持不变。
+CLI 预编译归档来源显式提供 `GITHUB_REPOSITORY`、`ARCHIVE_ASSET_NAME`、`ARCHIVE_FILENAME`、`ARCHIVE_PROGRAM_DIR`、`ARCHIVE_INSTALL_DIR`、`MAIN_EXECUTABLE` 及应用 `patches/` 内的 `DESKTOP_FILE`、`ICON_FILE`，运行库目录按需提供 `APP_LIB_DIR`。这些来源选择参数不能与 APT 或归档 DEB 来源参数混用，共用的 `APT_PACKAGES` 继续保留。下载和摘要校验复用固定资产公共入口，解包复用公共归档入口，完整程序目录保持相邻资源布局。linuxdeploy 通过 `--deploy-deps-only` 收集现有程序及目录的依赖，避免复制出另一份主程序。格式、路径约束和 AppRun 搜索路径见 [CLI 预编译归档参数](./Scripts/build/generate_build_script.md#cli-预编译归档来源)。原 APT、归档 DEB 生成结果保持不变。
 
-按标准重写时，先从本表选择一份完整模板，通过 [统一生成脚本](./scripts/build/generate_build_script.md) 生成应用一级目录下的构建脚本。模板中的 `../common/` 相对于应用目录，不能在 `templates/appimage/` 内直接运行。linuxdeploy 模板会重建该应用的 `source`、`AppDir` 和 `dist`，应用所需的持久输入应保存在这些目录之外。直接封装模板使用公共工作区入口的 `--prepared-appdir` 模式，只创建缺少的 `source/tools` 和 `dist` 目录，保留现有目录及内容。
+按标准重写时，先从本表选择一份完整模板，通过 [统一生成脚本](./Scripts/build/generate_build_script.md) 生成应用一级目录下的构建脚本。模板中的 `../common/` 相对于应用目录，不能在 `templates/appimage/` 内直接运行。linuxdeploy 模板会重建该应用的 `source`、`AppDir` 和 `dist`，应用所需的持久输入应保存在这些目录之外。直接封装模板使用公共工作区入口的 `--prepared-appdir` 模式，只创建缺少的 `source/tools` 和 `dist` 目录，保留现有目录及内容。
 
 除下表中的占位参数外，代码、注释、分区、命令及参数顺序、缩进、空格和空行逐字保留。禁止从其他模板或现有应用脚本拼接代码。模板选用还须符合实际包格式、构建系统、插件、入口和资源布局。
 
@@ -94,7 +94,7 @@ linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标�
 
 GTK DEB 标准保留原有来源、初始化、AppRun、GTK 部署和最终封装步骤。已有来源只提供引导器，或实际问题需要应用处理时，可通过生成器的 `APPLICATION_PREPARE`、`APPLICATION_FINALIZE` 和 `APPRUN_PREPARE` 参数接入本应用 helper；未启用时不增加调用、注释或空行。
 
-构建期 helper 只放在本应用 `patches/`，分别在解包后和依赖部署后执行；运行时准备调用放在完整 AppRun 的真实程序入口之前，不创建 linuxdeploy hook 或另一套 AppRun。参数格式和固定调用见[生成器说明](./scripts/build/generate_build_script.md#可选应用阶段)。应用名称、实际来源、模块和兼容处理留在本应用，不写入公共默认。
+构建期 helper 只放在本应用 `patches/`，分别在解包后和依赖部署后执行；运行时准备调用放在完整 AppRun 的真实程序入口之前，不创建 linuxdeploy hook 或另一套 AppRun。参数格式和固定调用见[生成器说明](./Scripts/build/generate_build_script.md#可选应用阶段)。应用名称、实际来源、模块和兼容处理留在本应用，不写入公共默认。
 
 ### 程序专属代码的位置
 

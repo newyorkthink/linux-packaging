@@ -5,7 +5,7 @@ set -Eeuo pipefail
 usage() {
   cat <<'USAGE'
 用法：
-  bash scripts/release/delete_asset.sh --repo "<所有者>/<仓库>" --tag "<Release 标签>" --asset "<完整附件名>" --yes
+  bash Scripts/release/delete_asset.sh --repo "<所有者>/<仓库>" --tag "<Release 标签>" --asset "<完整附件名>" --yes
 
 参数：
   --repo    GitHub.com 仓库，格式为 OWNER/REPO。

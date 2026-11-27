@@ -22,28 +22,28 @@
 
 ```bash
 # 查看脚本帮助
-python3 scripts/commit/git_commit.py --help
+python3 Scripts/commit/git_commit.py --help
 
 # 只读核对指定文件的完整差异并获取 diff_id（标准输入：{"files":["<仓库相对路径>"]}）
-python3 scripts/commit/git_commit.py inspect
+python3 Scripts/commit/git_commit.py inspect
 
 # 结合 diff_id 生成文件清单、提交说明预览和 preview_id（标准输入：{"files":["<仓库相对路径>"],"title":"<中文标题>","changes":["<改动及用途>"],"verification":"<实际检查及结果>","diff_id":"<inspect 返回的值>"}）
-python3 scripts/commit/git_commit.py preview
+python3 Scripts/commit/git_commit.py preview
 
 # 取得本次明确同意后执行本地提交（标准输入在预览 JSON 基础上追加 "preview_id":"<preview 返回的值>"）
-python3 scripts/commit/git_commit.py commit
+python3 Scripts/commit/git_commit.py commit
 
 # 只读预览当前分支最近一次未推送本地提交的撤回目标并获取 undo_id（无需输入 JSON）
-python3 scripts/commit/git_commit.py undo-preview
+python3 Scripts/commit/git_commit.py undo-preview
 
 # 取得本次明确同意后撤回该次本地提交（标准输入：{"commit":"<完整提交号>","undo_id":"<undo-preview 返回的值>"}）
-python3 scripts/commit/git_commit.py undo
+python3 Scripts/commit/git_commit.py undo
 ```
 
 说明：
 
-- `scripts/commit/git_commit.py` 的 Git 模式为 `100755`，也可直接执行 `./scripts/commit/git_commit.py <模式>`。
-- 提交完成后，按本次授权执行 `git push origin HEAD:main` 或 `./scripts/sync/sync_repo.sh push` 上传到远端。
+- `Scripts/commit/git_commit.py` 的 Git 模式为 `100755`，也可直接执行 `./Scripts/commit/git_commit.py <模式>`。
+- 提交完成后，按本次授权执行 `git push origin HEAD:main` 或 `./Scripts/sync/sync_repo.sh push` 上传到远端。
 
 ## 参数说明
 

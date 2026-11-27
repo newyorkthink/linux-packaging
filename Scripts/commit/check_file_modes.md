@@ -22,13 +22,13 @@
 
 ```bash
 # 查看脚本帮助，不访问仓库
-./scripts/commit/check_file_modes.sh --help
+./Scripts/commit/check_file_modes.sh --help
 
 # 只读扫描全仓已跟踪文件及未跟踪新文件的权限模式
-./scripts/commit/check_file_modes.sh
+./Scripts/commit/check_file_modes.sh
 
 # 取得本次明确同意后，仅修正指定文件的工作区权限（路径需按实际文件替换）
-./scripts/commit/check_file_modes.sh --fix -- "<文件路径1>" "<文件路径2>"
+./Scripts/commit/check_file_modes.sh --fix -- "<文件路径1>" "<文件路径2>"
 ```
 
 ## 参数说明

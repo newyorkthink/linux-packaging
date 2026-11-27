@@ -9,7 +9,7 @@ on:
       - '.github/appimage-apps.json'
       - '.github/workflows/**'
       - '.github/scripts/prune_archived_versions.*'
-      - 'scripts/release/delete_asset.sh'
+      - 'Scripts/release/delete_asset.sh'
   workflow_run:
     workflows: [Build AppImages]
     types: [requested, completed]

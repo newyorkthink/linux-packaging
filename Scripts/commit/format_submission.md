@@ -12,7 +12,7 @@
 
 ## 使用方法
 
-1. 通过 GitHub 连接器读取 `scripts/commit/format_submission.js` 完整正文，记为 `formatterSource`。涉及实机验证时，读取 `docs/templates/documentation/real-machine-validation.md` 完整正文，记为 `templateSource`。
+1. 通过 GitHub 连接器读取 `Scripts/commit/format_submission.js` 完整正文，记为 `formatterSource`。涉及实机验证时，读取 `docs/templates/documentation/real-machine-validation.md` 完整正文，记为 `templateSource`。
 2. 将用户确认、截图或日志支持的事实填入 `realMachineValidation`，生成预览。已有 `## 实机验证` 章节时，在其中追加 `entry`。更新已获准的记录时，仅替换对应条目。新建章节时使用 `section`。
 3. 核对实际改动、差异和已执行的检查结果，再填 `commit`。通过 GitHub 连接器提交时原样传入 `commitMessage`。
 
