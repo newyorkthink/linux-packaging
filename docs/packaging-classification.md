@@ -88,7 +88,7 @@ Grok App 尚未核实同源 Arch/AUR 应用包，本次采用用户明确确认�
 | Newsboat | [build_newsboat.sh](../newsboat/build_newsboat.sh) | 安装 Arch 官方 newsboat 及原有依赖，一次收集同包的 newsboat 和 podboat，公共入口读取实际安装版本。 | export STARTUPWMCLASS=newsboat | [模板差异](../newsboat/docs/template-deviations.md) |
 | nvtop | [build_nvtop.sh](../nvtop/build_nvtop.sh) | 安装 Arch 官方 `nvtop` 及原有依赖，直接收集 `/usr/bin/nvtop`；公共入口读取实际安装版本。 | 无 | [应用说明](../nvtop/README.md) |
 | Picom | [build_picom.sh](../picom/build_picom.sh) | 安装 Arch 官方 `picom` 及原有依赖，直接收集 picom / compton、X11 辅助工具及默认配置；公共入口读取实际安装版本。 | export DEPLOY_OPENGL=1 | [模板差异](../picom/docs/template-deviations.md) |
-| Rofi | [build_rofi.sh](../rofi/build_rofi.sh) | 安装 Arch 官方 `rofi`、`rofi-emoji` 及原有依赖，直接收集 3 个 Rofi 入口并复用上游主题与数据目录 hook；公共入口读取实际安装版本。 | export STARTUPWMCLASS="rofi"<br>export DEPLOY_OPENGL=1 | [模板差异](../rofi/docs/template-deviations.md) · [上游差异](../rofi/docs/pkgforge-differences.md) |
+| Rofi | [build_rofi.sh](../rofi/build_rofi.sh) | 安装 Arch 官方 `rofi`、`rofi-emoji` 及原有依赖，直接收集 3 个 Rofi 入口并原样复用上游主题与数据目录 hook；公共入口读取实际安装版本。 | export STARTUPWMCLASS="rofi"<br>export DEPLOY_OPENGL=1 | [模板差异](../rofi/docs/template-deviations.md) · [上游差异](../rofi/docs/pkgforge-differences.md) |
 | Xephyr | [build_xephyr.sh](../xephyr/build_xephyr.sh) | 安装 Arch 官方 xorg-server-xephyr 及原有依赖，直接收集 Xephyr 和 xkbcomp；公共入口读取实际安装版本。 | export STRACE_MODE=0<br>export PATH_MAPPING（XKB 路径映射） | [模板差异](../xephyr/docs/template-deviations.md) |
 
 mpv 的 yt-dlp 继续在构建时下载、校验并内置，未启用官方运行时 yt-dlp 安装与自更新 hooks；locale 和独立无参数窗口 hook 的来源及取舍见其应用文档。这些专属段不属于本类通用模板。
