@@ -20,7 +20,7 @@
 | --- | --- | --- |
 | `export STARTUPWMCLASS="rofi"` | [build_rofi.sh](../build_rofi.sh#L21-L22) | 本程序专属处理：保留原脚本窗口类设置，使窗口与 desktop 中的 `StartupWMClass` 对应。 |
 | `export DEPLOY_OPENGL=1` | [build_rofi.sh](../build_rofi.sh#L31-L32) | 本程序专属处理：保留 [Rofi README](../README.md) 既定基线，打包时部署 OpenGL 运行依赖。 |
-| 复制 `rofi-datadir.src.hook` 至 `AppDir/bin/rofi-datadir.src.hook` | [build_rofi.sh](../build_rofi.sh#L40-L42) · [rofi-datadir.src.hook](../rofi-datadir.src.hook) | 文件内容原样复用 `pkgforge-dev/rofi-AppImage@84953049a6ef24a02b722e4072c6dbc3e8d4fca9` 的 `AppDir/bin/rofi-datadir.src.hook`（官方未说明原因）；补充 `XDG_DATA_DIRS` 并在首次运行时复制包内内置主题到用户数据目录，详见 [pkgforge-differences.md](./pkgforge-differences.md)。 |
+| 复制 `rofi-datadir.src.hook` 至 `AppDir/bin/rofi-datadir.src.hook` | [build_rofi.sh](../build_rofi.sh#L40-L42) · [rofi-datadir.src.hook](../rofi-datadir.src.hook) | 复用 `pkgforge-dev/rofi-AppImage@84953049a6ef24a02b722e4072c6dbc3e8d4fca9` 的 `AppDir/bin/rofi-datadir.src.hook`（官方未说明原因）；补充 `XDG_DATA_DIRS` 并在首次运行时复制包内内置主题到用户数据目录，详见 [pkgforge-differences.md](./pkgforge-differences.md)。 |
 
 ## 未启用的上游处理
 

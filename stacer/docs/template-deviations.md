@@ -4,7 +4,7 @@
 
 - **标准模板**：[qt-installed.sh](../../templates/quick-sharun/qt-installed.sh)
 - **构建脚本**：[build_stacer.sh](../build_stacer.sh)
-- **上游核实**：在 `pkgforge-dev` 组织检索 `stacer` 返回空，无官方打包仓库；Arch 官方仓库无 `stacer`，采用 AUR `stacer`（从 `QuentiumYT/Stacer` 官方稳定源码按当前 Arch Qt6 编译）。上游 GitHub Releases 的 Ubuntu 22.04（jammy）AppImage / DEB 绑定旧 glibc 2.35，已在 [Stacer README](../README.md#修复记录) 证实会导致 `GLIBC_2.38` 缺失故障，故不采用。
+- **上游核实**：在 `pkgforge-dev` 组织检索 `stacer` 返回空，无官方打包仓库；Arch 官方仓库无 `stacer`，采用 AUR `stacer`（从 `QuentiumYT/Stacer` 官方稳定源码按当前 Arch Qt6 编译）。上游 Ubuntu 22.04（jammy）AppImage 随包携带 glibc 2.35。实机记录中的 `GLIBC_2.38` 缺失出现在该 AppImage 继承其他 AppImage 的库搜索路径时，本仓库沿用 AUR 打包路线。 [Stacer 修复记录](../README.md#修复记录)
 
 ## 依赖覆盖核对
 
