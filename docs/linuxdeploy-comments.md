@@ -9,7 +9,7 @@
 
 直接 appimagetool 模式复用适用的分区及通用注释，省略 linuxdeploy 初始化、部署、插件和中间输出。既有 linuxdeploy 固定原文保持不变，不为直接模式增加无关步骤。
 
-直接封装使用 [appimagetool-direct.sh](../templates/appimage/appimagetool-direct.sh)。既有应用及历史依据见 [四个通用标准参考](../linuxdeploy_projects.md#四个通用标准参考)。
+直接封装使用 [appimagetool-direct.sh](../Templates/appimage/appimagetool-direct.sh)。既有应用及历史依据见 [四个通用标准参考](../linuxdeploy_projects.md#四个通用标准参考)。
 
 自定义 AppRun 必须内联在 `build_*.sh`，并使用生成完整根 AppRun 的固定注释。仅正文过长且经用户批准、已记录的情况可独立保存，届时按实际复制操作使用注释。见 [AppRun 内联规则](../linuxdeploy_projects.md#apprun-与框架配置)。
 

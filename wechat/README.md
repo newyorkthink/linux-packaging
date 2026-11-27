@@ -6,7 +6,7 @@
 
 ## 上游来源与打包方式
 
-以现有 [linuxdeploy GTK DEB 模板](../templates/appimage/linuxdeploy-gtk-deb.sh) 为底稿，少量桌面资源和依赖部署命令直接写在主构建脚本的对应分区。公共入口从[微信官方动态地址](https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb)下载同一份 DEB，核对包身份和架构、安装后按原布局解包，版本读取 control 的完整 `Version`，不固定软件版本。
+以现有 [linuxdeploy GTK DEB 模板](../Templates/appimage/linuxdeploy-gtk-deb.sh) 为底稿，少量桌面资源和依赖部署命令直接写在主构建脚本的对应分区。公共入口从[微信官方动态地址](https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb)下载同一份 DEB，核对包身份和架构、安装后按原布局解包，版本读取 control 的完整 `Version`，不固定软件版本。
 
 完整保留 `opt/wechat` 以及 WMPF、VLC、ffmpeg 等相邻私有资源。使用官方可显示的 `wechat.desktop` 和 PNG 图标，GTK3 插件部署运行资源；主 ELF 的依赖通过 `--deploy-deps-only` 明确收集，既有 PulseAudio 缺库处理继续保留。最终使用官方 `AppImage/appimagetool` 与 `AppImage/type2-runtime` 封装 SquashFS Type 2 AppImage，发布最终包。
 

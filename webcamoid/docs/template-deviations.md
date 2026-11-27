@@ -6,7 +6,7 @@
 
 当前是 Arch 构建环境中的源码专用流程：公共入口取得最新稳定 Release 标签与源码，应用四个补丁，CMake + Ninja 安装到 `work/stage`，再由 quick-sharun 收集依赖、生成启动入口并封装。应用清单中的 `kind: standard` 表示使用统一 Arch matrix 调度，不代表本脚本逐字符合某份构建模板。
 
-[qt-installed.sh](../../templates/quick-sharun/qt-installed.sh) 使用系统已安装程序，[qt-deb.sh](../../templates/quick-sharun/qt-deb.sh) 使用独立下载的官方 DEB；两者均不包含当前源码适配和暂存安装流程。本文登记现有实现，不新增模板，不改变二进制优先或构建脚本生成规则。
+[qt-installed.sh](../../Templates/quick-sharun/qt-installed.sh) 使用系统已安装程序，[qt-deb.sh](../../Templates/quick-sharun/qt-deb.sh) 使用独立下载的官方 DEB；两者均不包含当前源码适配和暂存安装流程。本文登记现有实现，不新增模板，不改变二进制优先或构建脚本生成规则。
 
 ## 相对模板保留的处理
 

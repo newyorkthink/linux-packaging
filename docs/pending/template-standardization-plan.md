@@ -1,6 +1,6 @@
 # 待办：推进剩余 AppImage 构建脚本按标准模板整理
 
-**状态：待分批处理。** 本页汇总全仓活跃 AppImage 项目中，尚未按[固定 13 份打包模板](../../templates/README.md)整理且未登记到[专用打包流程](../packaging-classification.md#专用打包流程)的 **24 个项目**，供维护者与后续 AI 按批推进。
+**状态：待分批处理。** 本页汇总全仓活跃 AppImage 项目中，尚未按[固定 13 份打包模板](../../Templates/README.md)整理且未登记到[专用打包流程](../packaging-classification.md#专用打包流程)的 **24 个项目**，供维护者与后续 AI 按批推进。
 
 ## 处理目标与执行规则
 

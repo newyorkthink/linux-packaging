@@ -2,7 +2,7 @@
 
 ## 标准底稿与来源核实
 
-- **标准模板**：[arch-native.sh](../../templates/quick-sharun/arch-native.sh)
+- **标准模板**：[arch-native.sh](../../Templates/quick-sharun/arch-native.sh)
 - **构建脚本**：[build_picom.sh](../build_picom.sh)
 - **上游核实**：在 `pkgforge-dev` 组织按 `picom` 与 `compton` 检索均无官方打包仓库；Arch Linux 官方 `extra` 仓库提供原生二进制包 `picom`（AUR 仅 `picom-git` 源码包，上游 `yshui/picom` 发布源码归档），适用 Arch 官方仓库原生程序系统入口路线。
 

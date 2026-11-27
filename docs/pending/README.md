@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | [处理 quick-sharun 的 Mesa / LLVM 依赖问题](./quick-sharun-mesa-llvm.md) | 已配置，待构建验证 | 保留现有 Mesa/LLVM 依赖，使用上游官方开关继续打包；依据后续正式构建结果完成验收 |
 | [推进剩余 AppImage 构建脚本按标准模板整理](./template-standardization-plan.md) | 待分批处理 | 跟踪尚未按固定 13 份模板标准整理且未登记专用流程的 24 个活跃 AppImage 项目，逐批核实、重写或登记专用流程 |
-| [统一仓库顶层非程序目录为大写开头](./top-level-directory-casing.md) | 待分批处理 | 按顶层目录大小写规范已完成 `Scripts/`、`Archive/` 迁移，剩余 `templates/`、`docs/`、`common/` 按批次迁为大写开头（`runimage/`、`termux/` 保持小写） |
+| [统一仓库顶层非程序目录为大写开头](./top-level-directory-casing.md) | 待分批处理 | 按顶层目录大小写规范已完成 `Scripts/`、`Archive/`、`Templates/` 迁移，剩余 `docs/`、`common/` 按批次迁为大写开头（`runimage/`、`termux/` 保持小写） |
 
 ## 任务维护
 

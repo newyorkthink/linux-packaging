@@ -15,7 +15,7 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[2]
-TEMPLATES = ROOT / "templates"
+TEMPLATES = ROOT / "Templates"
 TOKEN = re.compile(r"__([A-Z][A-Z0-9_]*)__")
 TEMPLATE_LINK = re.compile(r"\]\(\./([a-z0-9-]+/[a-z0-9-]+\.sh)\)")
 OUTPUT_PATH = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*/build_[A-Za-z0-9][A-Za-z0-9._+-]*\.sh")
@@ -246,7 +246,7 @@ OPTIONAL_SECTIONS = {
 def load_template(name):
     index = (TEMPLATES / "README.md").read_text(encoding="utf-8")
     if name not in TEMPLATE_LINK.findall(index):
-        raise ValueError(f"模板未在 templates/README.md 登记：{name}")
+        raise ValueError(f"模板未在 Templates/README.md 登记：{name}")
     path = TEMPLATES / name
     if path.resolve() != path or not path.is_file():
         raise ValueError(f"模板必须是目录内的普通文件：{name}")

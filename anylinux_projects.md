@@ -14,17 +14,17 @@
 
 | 模板 | 适用场景 |
 | --- | --- |
-| [arch-native.sh](./templates/quick-sharun/arch-native.sh) | Arch 官方仓库原生程序，从系统入口收集 |
-| [electron-deb.sh](./templates/quick-sharun/electron-deb.sh) | Electron，官方当前 DEB，版本取自包内 package.json |
-| [electron-github-deb.sh](./templates/quick-sharun/electron-github-deb.sh) | Electron，带标签前缀的 GitHub 正式 Release DEB，版本取自同次下载 |
-| [electron-installed.sh](./templates/quick-sharun/electron-installed.sh) | Electron，使用系统已安装的完整程序目录 |
-| [tauri-gtk-deb.sh](./templates/quick-sharun/tauri-gtk-deb.sh) | Tauri / GTK3，GitHub 正式 Release 的 DEB |
-| [qt-deb.sh](./templates/quick-sharun/qt-deb.sh) | Qt，AUR 指向的预编译官方 DEB |
-| [qt-installed.sh](./templates/quick-sharun/qt-installed.sh) | Qt 6，Arch 官方仓库程序，从系统入口收集 |
+| [arch-native.sh](./Templates/quick-sharun/arch-native.sh) | Arch 官方仓库原生程序，从系统入口收集 |
+| [electron-deb.sh](./Templates/quick-sharun/electron-deb.sh) | Electron，官方当前 DEB，版本取自包内 package.json |
+| [electron-github-deb.sh](./Templates/quick-sharun/electron-github-deb.sh) | Electron，带标签前缀的 GitHub 正式 Release DEB，版本取自同次下载 |
+| [electron-installed.sh](./Templates/quick-sharun/electron-installed.sh) | Electron，使用系统已安装的完整程序目录 |
+| [tauri-gtk-deb.sh](./Templates/quick-sharun/tauri-gtk-deb.sh) | Tauri / GTK3，GitHub 正式 Release 的 DEB |
+| [qt-deb.sh](./Templates/quick-sharun/qt-deb.sh) | Qt，AUR 指向的预编译官方 DEB |
+| [qt-installed.sh](./Templates/quick-sharun/qt-installed.sh) | Qt 6，Arch 官方仓库程序，从系统入口收集 |
 
 在 Arch Linux 构建环境使用。先按软件来源、框架、实际入口和所需运行配置选定一份完整模板，再用生成器生成应用一级目录下的构建脚本。`../common/` 相对于应用目录。模板应替换完全部占位参数后再运行。原生及系统安装模板重建当前应用的 `AppDir` 与 `dist`，DEB 模板还会重建 `work`。这些目录中的旧内容会被删除。
 
-只替换下表允许变化的参数值，注释、顺序、缩进和空行逐字保留。只允许使用 [固定模板清单](./templates/README.md) 中的现有模板。没有适用模板时，先说明具体冲突，授权前保留已有构建脚本。专用流程按 [AGENTS.md](./AGENTS.md) 逐次取得用户授权。禁止提出、新增或登记清单外模板，也不得拼接旧脚本或其他模板。软件来源和上游打包核实要求仍按本文执行。
+只替换下表允许变化的参数值，注释、顺序、缩进和空行逐字保留。只允许使用 [固定模板清单](./Templates/README.md) 中的现有模板。没有适用模板时，先说明具体冲突，授权前保留已有构建脚本。专用流程按 [AGENTS.md](./AGENTS.md) 逐次取得用户授权。禁止提出、新增或登记清单外模板，也不得拼接旧脚本或其他模板。软件来源和上游打包核实要求仍按本文执行。
 
 | 占位参数 | 替换内容 |
 | --- | --- |
@@ -45,7 +45,7 @@
 
 ### 公共部分必须全部同步修改
 
-**`templates/quick-sharun/` 下所有标准模板的公共相同部分，任何新增、修改或删除都必须一次性同步，纳入同一提交。禁止只修改其中一份模板，也禁止先提交一份、以后再补其他模板。**
+**`Templates/quick-sharun/` 下所有标准模板的公共相同部分，任何新增、修改或删除都必须一次性同步，纳入同一提交。禁止只修改其中一份模板，也禁止先提交一份、以后再补其他模板。**
 
 - 修改前逐一对照本节登记的全部 quick-sharun 模板，列出包含相同公共部分的全部文件；所有模板共有的步骤必须全部同步，不能只处理当前应用选用的模板或同一技术栈的模板。
 - 公共命令写法、参数占位符的名称与含义、通用注释、执行顺序、缩进、空格和相邻空行必须一致。只增加一条公共注释也属于公共修改，必须同步全部对应模板。
@@ -220,7 +220,7 @@ quick-sharun __SCAN_ARGS__
 
 Chromium 的 Arch 包由 `/usr/bin/chromium` 启动器调用 `/usr/lib/chromium` 下的实际浏览器。它使用现有模板从[系统完整程序目录收集](./docs/packaging-classification.md#从系统完整程序目录收集)，保留相邻资源。Qt6 shim 和 GTK3 输入模块列在 [Chromium 模板差异](./chromium/docs/template-deviations.md)中。
 
-以下是系统入口流程的既有示例。按标准重写时使用 [arch-native.sh](./templates/quick-sharun/arch-native.sh)，参数替换和适用条件以上面的模板表为准。
+以下是系统入口流程的既有示例。按标准重写时使用 [arch-native.sh](./Templates/quick-sharun/arch-native.sh)，参数替换和适用条件以上面的模板表为准。
 
 ```bash
 #!/usr/bin/env bash
@@ -355,7 +355,7 @@ Qt 6 程序打包前安装 qt6ct、kvantum、lxqt-qtplugin。装上后由 quick-
 
 ## 有窗口的 Qt 程序
 
-有窗口且使用 Qt 6 的程序，从系统入口收集时使用 [qt-installed.sh](./templates/quick-sharun/qt-installed.sh)。[OBS Studio](./obs-studio/build_obs-studio.sh) 保留为既有实现参考。相对 mpv 的默认形状，这个脚本增加了中文环境、Qt 主题插件，以及同一次交给 quick-sharun 的录制程序、模块目录、模块数据和脚本模块。图标、desktop、DEPLOY_* 和传给 quick-sharun 的路径来自该程序自己的官方包。
+有窗口且使用 Qt 6 的程序，从系统入口收集时使用 [qt-installed.sh](./Templates/quick-sharun/qt-installed.sh)。[OBS Studio](./obs-studio/build_obs-studio.sh) 保留为既有实现参考。相对 mpv 的默认形状，这个脚本增加了中文环境、Qt 主题插件，以及同一次交给 quick-sharun 的录制程序、模块目录、模块数据和脚本模块。图标、desktop、DEPLOY_* 和传给 quick-sharun 的路径来自该程序自己的官方包。
 
 ### Qt 5 系统入口
 
@@ -442,9 +442,9 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 
 ### 直接下载安装包的标准模板
 
-**直接下载官方 DEB、从包内 `package.json` 读取版本的 Electron 应用，按标准重写时采用 [electron-deb.sh](./templates/quick-sharun/electron-deb.sh)。** [Cursor](./cursor/build_cursor.sh) 和 [WorkBuddy](./workbuddy/build_workbuddy.sh) 用于查阅既有实现。其他归档格式或版本来源按固定模板清单核对，现有模板不适用时说明具体冲突。分类入口见 [打包分类](./docs/packaging-classification.md)。
+**直接下载官方 DEB、从包内 `package.json` 读取版本的 Electron 应用，按标准重写时采用 [electron-deb.sh](./Templates/quick-sharun/electron-deb.sh)。** [Cursor](./cursor/build_cursor.sh) 和 [WorkBuddy](./workbuddy/build_workbuddy.sh) 用于查阅既有实现。其他归档格式或版本来源按固定模板清单核对，现有模板不适用时说明具体冲突。分类入口见 [打包分类](./docs/packaging-classification.md)。
 
-带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](./templates/quick-sharun/electron-github-deb.sh)。公共入口按调用方指定的前缀筛选正式版本、校验 GitHub SHA-256 及 DEB 包名和架构，版本读取同次下载保存的文本；完整程序目录仍原样复制，不为读取版本解开或修改 ASAR。该模板用 `__SCAN_ARGS__` 接收完整扫描列表，由应用按实际程序目录、辅助命令及所需资源填写，不固定 `AppDir/bin/*` 再拼接额外扫描参数。
+带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](./Templates/quick-sharun/electron-github-deb.sh)。公共入口按调用方指定的前缀筛选正式版本、校验 GitHub SHA-256 及 DEB 包名和架构，版本读取同次下载保存的文本；完整程序目录仍原样复制，不为读取版本解开或修改 ASAR。该模板用 `__SCAN_ARGS__` 接收完整扫描列表，由应用按实际程序目录、辅助命令及所需资源填写，不固定 `AppDir/bin/*` 再拼接额外扫描参数。
 
 这项分类按最终程序文件的来源划分：先安装 Arch / AUR 软件包，准备依赖、图标、desktop 或既定版本元数据；再从已核实的 AUR 下载来源、软件官方网站等单独下载并解包安装包，取得最终程序文件。两个阶段都必须保留，不得从系统安装目录直接复制程序来替代第二阶段。
 
@@ -470,7 +470,7 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 
 **总行数、代码结构、执行阶段、通用注释全文以及空行的位置和数量都属于模板。** 对照时逐行核对，不得忽略空行后宣布一致。软件名称、软件包、下载接口、路径、版本来源、元数据选项和必要辅助命令可以不同；具体原因写入该应用的 `docs/template-deviations.md`，固定配置依据写入 `docs/hardcoded.md`。不得把某个应用的专属参数机械复制给其他程序。
 
-符合官方 DEB 和包内 `package.json` 来源的标准重写使用 [electron-deb.sh](./templates/quick-sharun/electron-deb.sh)。既有应用脚本用于查阅技术依据。通用注释和位置以选定模板为准。版本读取统一使用 `# 读取本次打包使用的版本。`，保存统一使用 `# 打包成功后用公共脚本记下版本。`，注释均紧贴对应的单行调用。
+符合官方 DEB 和包内 `package.json` 来源的标准重写使用 [electron-deb.sh](./Templates/quick-sharun/electron-deb.sh)。既有应用脚本用于查阅技术依据。通用注释和位置以选定模板为准。版本读取统一使用 `# 读取本次打包使用的版本。`，保存统一使用 `# 打包成功后用公共脚本记下版本。`，注释均紧贴对应的单行调用。
 
 ### 官方 Snap 的专用流程
 

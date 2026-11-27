@@ -1,6 +1,6 @@
 # File Roller 模板差异
 
-构建脚本由 [GTK Ubuntu 仓库模板](../../templates/appimage/linuxdeploy-gtk-apt.sh) 生成。`DEPLOY_GTK_VERSION` 改为 4。下面是模板之外的处理。
+构建脚本由 [GTK Ubuntu 仓库模板](../../Templates/appimage/linuxdeploy-gtk-apt.sh) 生成。`DEPLOY_GTK_VERSION` 改为 4。下面是模板之外的处理。
 
 | 位置 | 处理及原因 | 代码或依据 |
 | --- | --- | --- |

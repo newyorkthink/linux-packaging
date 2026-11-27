@@ -1,6 +1,6 @@
 # Chromium 模板差异
 
-[正式构建脚本](../build_chromium.sh)由[已有完整程序目录模板](../../templates/quick-sharun/electron-installed.sh)生成。应用专项配置通过模板参数传入。
+[正式构建脚本](../build_chromium.sh)由[已有完整程序目录模板](../../Templates/quick-sharun/electron-installed.sh)生成。应用专项配置通过模板参数传入。
 
 ## 生成参数
 

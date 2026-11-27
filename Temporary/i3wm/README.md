@@ -8,7 +8,7 @@
 
 本备选方案用于提供一条**不依赖 `Anylinux-sharun` / `anylinux.so` 运行时拦截层**的退路：
 
-- **构建底稿**：以固定模板 [linuxdeploy-cli-apt.sh](../../templates/appimage/linuxdeploy-cli-apt.sh) 为底稿，运行于 GitHub Actions `ubuntu-24.04` 原生 runner，不使用 Docker。
+- **构建底稿**：以固定模板 [linuxdeploy-cli-apt.sh](../../Templates/appimage/linuxdeploy-cli-apt.sh) 为底稿，运行于 GitHub Actions `ubuntu-24.04` 原生 runner，不使用 Docker。
 - **零库路径污染设计**：`linuxdeploy` 自动扫描 `AppDir/usr/bin/` 全部 ELF，部署共享库到 `AppDir/usr/lib/` 并写入 `$ORIGIN/../lib` 与 `$ORIGIN` RPATH；根 `AppRun` **不导出 `LD_LIBRARY_PATH`、不注入 `LD_PRELOAD`、不改写 `XDG_DATA_DIRS` 或 `XDG_CACHE_HOME`**，并在 `exec` 前显式 `unset APPDIR APPIMAGE ARGV0 OWD`，避免影响桌面子进程或嵌套 AppImage。
 - **工具集合与边界**：提取 Ubuntu 24.04 仓库的 `i3-wm`，从 `i3status`、`suckless-tools`、`xss-lock` 按白名单复制 6 个配套命令，严格保持 20 个内置入口并显式校验排除 `slock` 与 `i3lock`；Perl 辅助脚本继续使用宿主 Perl。
 - **默认配置与图标**：将默认 `/etc/i3/` 与 `/etc/i3status.conf` 同步复制到 `AppDir/etc/xdg/`，通过 `XDG_CONFIG_DIRS` 末尾追加提供回退（无需 `PATH_MAPPING`）；采用取自官方 `i3/i3` 仓库的 [patches/i3.svg](./patches/i3.svg) 避开原 `logo-30.png`（`30×29` 非正方形）被 `linuxdeploy` 拒绝的问题，并配合 `librsvg2-bin` 由公共封装脚本生成 256×256 根 PNG。

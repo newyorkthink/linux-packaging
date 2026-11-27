@@ -2,7 +2,7 @@
 
 ## 标准入口
 
-正式脚本以现有 [linuxdeploy-gtk-deb.sh](../../templates/appimage/linuxdeploy-gtk-deb.sh) 为底稿，由统一远端生成工作流生成初始标准脚本后，按本次明确要求将三项已有核验依据的专属处理直接内联至 [build_binance.sh](../build_binance.sh) 对应分区，`AppRun` 保持标准模板原样。
+正式脚本以现有 [linuxdeploy-gtk-deb.sh](../../Templates/appimage/linuxdeploy-gtk-deb.sh) 为底稿，由统一远端生成工作流生成初始标准脚本后，按本次明确要求将三项已有核验依据的专属处理直接内联至 [build_binance.sh](../build_binance.sh) 对应分区，`AppRun` 保持标准模板原样。
 
 初始底稿生成记录：提交 `4889902edd63595688222ba90e17c3b1d09a1a91`，[运行 45347274483 / 1](https://github.com/newyorkthink/linux-packaging/actions/runs/45347274483)。该次原始输出 SHA-256 为 `b023633047b8bba14f4977ecabce35d2786bfdaa1829fbafc1b16560a0a05f0e`，作为内联整理前的标准底稿依据。
 

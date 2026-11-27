@@ -2,7 +2,7 @@
 
 ## 标准入口
 
-正式脚本以现有 [linuxdeploy-gtk-deb.sh](../../templates/appimage/linuxdeploy-gtk-deb.sh) 为底稿。按本次明确要求，少量 desktop、NSS/NSPR 和主程序依赖命令直接写在 [build_wechat.sh](../build_wechat.sh) 的对应分区，已删除独立准备脚本和 `prepare/finalize` 调用。
+正式脚本以现有 [linuxdeploy-gtk-deb.sh](../../Templates/appimage/linuxdeploy-gtk-deb.sh) 为底稿。按本次明确要求，少量 desktop、NSS/NSPR 和主程序依赖命令直接写在 [build_wechat.sh](../build_wechat.sh) 的对应分区，已删除独立准备脚本和 `prepare/finalize` 调用。
 
 初始底稿生成记录：提交 `12d34a822bc9300a1c4d746202eab7b0a7c7e305`，[运行 44135140439 / 1](https://github.com/newyorkthink/linux-packaging/actions/runs/44135140439)。该次原始输出 SHA-256 为 `33a5474dcc03999ca8a2c5a78bcd8480fc96120d41724aaf0da58bf2f1b214b0`，仅作为内联整理前的历史依据。
 

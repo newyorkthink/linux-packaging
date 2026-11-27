@@ -2,7 +2,7 @@
 
 ## 标准底稿与来源核实
 
-- **标准模板**：[arch-native.sh](../../templates/quick-sharun/arch-native.sh)
+- **标准模板**：[arch-native.sh](../../Templates/quick-sharun/arch-native.sh)
 - **构建脚本**：[build_rofi.sh](../build_rofi.sh)
 - **上游参考**：[pkgforge-dev/rofi-AppImage](https://github.com/pkgforge-dev/rofi-AppImage)（固定提交 `84953049a6ef24a02b722e4072c6dbc3e8d4fca9`，完整取舍见 [pkgforge-differences.md](./pkgforge-differences.md)）。
 - **程序来源**：Arch Linux 官方 `extra` 仓库提供原生二进制包 `rofi`（主线已合并 Wayland 与 XCB 支持），AUR 仅 `rofi-git` 源码包，上游 `davatorium/rofi` 发布源码归档；适用 Arch 官方仓库原生程序系统入口路线。

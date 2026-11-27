@@ -51,22 +51,22 @@
 
 ### linuxdeploy / appimagetool
 
-- `templates/appimage/linuxdeploy-gtk-deb.sh`
-- `templates/appimage/linuxdeploy-gtk-apt.sh`
-- `templates/appimage/linuxdeploy-gtk-gstreamer-apt.sh`
-- `templates/appimage/linuxdeploy-qt-deb.sh`
-- `templates/appimage/linuxdeploy-cli-apt.sh`
-- `templates/appimage/appimagetool-direct.sh`
+- `Templates/appimage/linuxdeploy-gtk-deb.sh`
+- `Templates/appimage/linuxdeploy-gtk-apt.sh`
+- `Templates/appimage/linuxdeploy-gtk-gstreamer-apt.sh`
+- `Templates/appimage/linuxdeploy-qt-deb.sh`
+- `Templates/appimage/linuxdeploy-cli-apt.sh`
+- `Templates/appimage/appimagetool-direct.sh`
 
 ### quick-sharun
 
-- `templates/quick-sharun/arch-native.sh`
-- `templates/quick-sharun/electron-deb.sh`
-- `templates/quick-sharun/electron-github-deb.sh`
-- `templates/quick-sharun/electron-installed.sh`
-- `templates/quick-sharun/tauri-gtk-deb.sh`
-- `templates/quick-sharun/qt-deb.sh`
-- `templates/quick-sharun/qt-installed.sh`
+- `Templates/quick-sharun/arch-native.sh`
+- `Templates/quick-sharun/electron-deb.sh`
+- `Templates/quick-sharun/electron-github-deb.sh`
+- `Templates/quick-sharun/electron-installed.sh`
+- `Templates/quick-sharun/tauri-gtk-deb.sh`
+- `Templates/quick-sharun/qt-deb.sh`
+- `Templates/quick-sharun/qt-installed.sh`
 
 **禁止以任何名义或形式提出、创建、派生或登记清单外的打包模板。** 应用特例、专属处理、打包来源、技术栈、依赖或目录布局差异均无例外。禁止把新增或登记模板当作解决方案或后续前提。
 
@@ -139,7 +139,7 @@
 **仓库顶层目录必须按用途区分首字母大小写，后续新建同类顶层目录必须直接遵守本规则：**
 
 - **具体应用程序目录与打包体系目录**：统一使用小写字母开头（例如 `keyviz/`、`alttab/`、`runimage/`、`termux/`）。
-- **与单个程序无关的仓库维护、文档、脚本、模板、归档、暂存及公共基础目录**：统一使用大写字母开头（例如 `Temporary/`、`Scripts/`、`Archive/`，以及待分批迁移的 `Templates/`、`Docs/`、`Common/`）。
+- **与单个程序无关的仓库维护、文档、脚本、模板、归档、暂存及公共基础目录**：统一使用大写字母开头（例如 `Temporary/`、`Scripts/`、`Archive/`、`Templates/`，以及待分批迁移的 `Docs/`、`Common/`）。
 - **平台保留目录**：`.github/` 等平台约定的隐藏目录保持原样。
 
 存量尚未改名的非程序顶层目录按 [顶层目录大小写迁移待办](./docs/pending/top-level-directory-casing.md) 分批推进，每次仅处理明确获准的批次，禁止借无关任务顺手改名。
@@ -604,9 +604,9 @@ Plan 的选择规则：
 
 **凡构建脚本或正式流程使用 quick-sharun / sharun，无论是新增应用、迁移、修复还是重做打包，都必须先完整阅读并严格遵守根目录 [`anylinux_projects.md`](./anylinux_projects.md)。该文件是本仓库 Anylinux 打包的强制规范，不是可选示例。**
 
-按标准重写时，只能从 [quick-sharun 唯一标准模板](./anylinux_projects.md#唯一标准模板) 选择一份完整底稿。遇到未覆盖的来源或布局，按文首固定清单规则说明冲突。模板总入口见 [templates/README.md](./templates/README.md)。
+按标准重写时，只能从 [quick-sharun 唯一标准模板](./anylinux_projects.md#唯一标准模板) 选择一份完整底稿。遇到未覆盖的来源或布局，按文首固定清单规则说明冲突。模板总入口见 [Templates/README.md](./Templates/README.md)。
 
-**所有 quick-sharun 标准模板的公共相同部分必须统一维护。任何新增、修改或删除，都必须在同一次修改、同一提交中同步覆盖 `templates/quick-sharun/` 下全部涉及该公共部分的模板，禁止只改其中一份。** 公共命令写法、参数占位符的名称与含义、通用注释、执行顺序、缩进和空行均受此约束；所有模板共有的步骤必须全部同步，不得以技术栈或来源不同为由单独改写公共部分。
+**所有 quick-sharun 标准模板的公共相同部分必须统一维护。任何新增、修改或删除，都必须在同一次修改、同一提交中同步覆盖 `Templates/quick-sharun/` 下全部涉及该公共部分的模板，禁止只改其中一份。** 公共命令写法、参数占位符的名称与含义、通用注释、执行顺序、缩进和空行均受此约束；所有模板共有的步骤必须全部同步，不得以技术栈或来源不同为由单独改写公共部分。
 
 例如，`# 收集程序及其运行依赖。` 和 `quick-sharun __SCAN_ARGS__` 所在的收集阶段，不能只在一份模板中新增注释、改变调用形式或改名占位符。涉及占位符变更时，生成器登记和参数说明必须在同次修改中同步。各应用的真实扫描目标、路径和已批准专属参数仍按实际情况填写，不要求取值相同；技术栈专属步骤也不强加给其他模板。完整要求见 [公共部分必须全部同步修改](./anylinux_projects.md#公共部分必须全部同步修改)。同步模板不构成批量重写既有稳定应用脚本的授权。
 
@@ -767,7 +767,7 @@ linuxdeploy 项目的记录位置与简写格式按前述 linuxdeploy 专属文�
 
 **采用标准模板时，必须以仓库当前版本中对应的标准模板为底稿，逐字逐行保留通用内容。分区、命令、参数顺序、注释、标点、缩进、空格和空行必须逐处对应。严禁另起格式、拼接其他模板或做等价改写。仅可替换模板明确允许变化的参数，并在规定位置保留经用户逐项批准且已记录的专属技术处理。**
 
-AppDir / 官方 appimagetool 体系的标准底稿统一存放在 `templates/appimage/`。拟稿前必须从 [唯一标准模板](./linuxdeploy_projects.md#唯一标准模板) 按来源与技术栈选择一份完整模板。没有适用模板时，按文首固定清单规则说明冲突。现有应用脚本仅供核对实现和历史依据。
+AppDir / 官方 appimagetool 体系的标准底稿统一存放在 `Templates/appimage/`。拟稿前必须从 [唯一标准模板](./linuxdeploy_projects.md#唯一标准模板) 按来源与技术栈选择一份完整模板。没有适用模板时，按文首固定清单规则说明冲突。现有应用脚本仅供核对实现和历史依据。
 
 **linuxdeploy 和直接 appimagetool 的标准构建脚本必须在 shebang 下方保留固定分区 `############# 初始化脚本 #############`，并在该分区启用严格模式、定位脚本目录。程序专属注释必须以 `# 本程序专属处理：` 开头，冒号后直接说明具体操作。固定注释和已有来源标注必须逐字保留。**
 

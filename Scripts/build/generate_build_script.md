@@ -4,7 +4,7 @@
 
 入口：[generate_build_script.py](./generate_build_script.py)。
 
-使用 [固定模板清单](../../templates/README.md) 中的一份完整模板生成 `build_*.sh`。只替换当前模板的占位参数，其他内容原样输出。默认输出统一 diff。显式传入 `--write` 会创建或覆盖指定脚本。现有文件权限继续保留，新文件具有执行权限。
+使用 [固定模板清单](../../Templates/README.md) 中的一份完整模板生成 `build_*.sh`。只替换当前模板的占位参数，其他内容原样输出。默认输出统一 diff。显式传入 `--write` 会创建或覆盖指定脚本。现有文件权限继续保留，新文件具有执行权限。
 
 没有适用模板时，先说明具体冲突，授权前保留已有构建脚本。专用流程按 [AGENTS.md](../../AGENTS.md) 逐次取得用户授权。禁止提出、新增或登记清单外模板。
 
@@ -60,7 +60,7 @@ python3 Scripts/build/generate_build_script.py --template "<模板相对路径>"
 
 | 参数 | 内容 |
 | --- | --- |
-| `--template` | 相对 `templates/` 的登记路径。 |
+| `--template` | 相对 `Templates/` 的登记路径。 |
 | `--params` | UTF-8 JSON 对象文件，或用 `-` 从标准输入读取。缺少必填键、出现未登记键或重复键时会报错。 |
 | `--output` | 相对仓库根目录的目标脚本路径。 |
 | `--stdout` | 输出完整生成稿。 |

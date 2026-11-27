@@ -1,6 +1,6 @@
 # Poppler Utilities 专属差异
 
-本应用采用 Ubuntu 24.04 官方 `poppler-utils` 与 `poppler-data`，整体按 LinuxDeploy CLI 标准分区组织。公共处理与 [LinuxDeploy CLI 模板](../../templates/appimage/linuxdeploy-cli-apt.sh) 一致；仅保留一个 AppImage 对应 13 个命令所必需的桌面资源与 AppRun 分派逻辑。
+本应用采用 Ubuntu 24.04 官方 `poppler-utils` 与 `poppler-data`，整体按 LinuxDeploy CLI 标准分区组织。公共处理与 [LinuxDeploy CLI 模板](../../Templates/appimage/linuxdeploy-cli-apt.sh) 一致；仅保留一个 AppImage 对应 13 个命令所必需的桌面资源与 AppRun 分派逻辑。
 
 | 位置 | 处理及原因 | 代码或依据 |
 | --- | --- | --- |

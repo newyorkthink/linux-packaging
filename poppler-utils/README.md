@@ -93,7 +93,7 @@ ln -sf ./poppler-utils.AppImage ./pdfunite
 
 ## 标准化构建与专属差异
 
-当前构建脚本按 [LinuxDeploy CLI 标准模板](../templates/appimage/linuxdeploy-cli-apt.sh) 组织分区、公共入口和固定注释。构建环境仍为 Ubuntu 24.04；程序及 `poppler-data` 来自同一构建环境的官方 APT 软件包，不编译 Poppler 源码。
+当前构建脚本按 [LinuxDeploy CLI 标准模板](../Templates/appimage/linuxdeploy-cli-apt.sh) 组织分区、公共入口和固定注释。构建环境仍为 Ubuntu 24.04；程序及 `poppler-data` 来自同一构建环境的官方 APT 软件包，不编译 Poppler 源码。
 
 - 公共工作区、APT 安装、下载同版本 DEB、linuxdeploy 初始化、打包工具及 Type 2 runtime 准备、最终 AppImage 封装与版本元数据均复用现有公共入口。
 - 专属部分只负责官方 PNG 图标、终端 desktop 和 13 命令分派。原 `AppRun` 的 `ARGV0`、命令名作为首参数及默认 `pdftotext` 行为逐字保留。

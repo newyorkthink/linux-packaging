@@ -42,6 +42,6 @@ Obsidian 为 Electron 桌面应用。构建时先安装 AUR `obsidian-bin` 及�
 
 ## 上游参考与应用差异
 
-当前脚本使用现有 [Electron GitHub Release DEB 模板](../templates/quick-sharun/electron-github-deb.sh) 的标准阶段，包含本应用既有的 OpenGL、Vulkan、PipeWire 和 NSS、hostname、GTK3 IBus 扫描配置。没有引入 pkgforge-dev 的自更新、命名空间 hook 或构建后测试步骤。
+当前脚本使用现有 [Electron GitHub Release DEB 模板](../Templates/quick-sharun/electron-github-deb.sh) 的标准阶段，包含本应用既有的 OpenGL、Vulkan、PipeWire 和 NSS、hostname、GTK3 IBus 扫描配置。没有引入 pkgforge-dev 的自更新、命名空间 hook 或构建后测试步骤。
 
 固定路径和包来源见 [固定配置说明](./docs/hardcoded.md)；专属依赖、配置和扫描目标见 [模板差异](./docs/template-deviations.md)；[上游实现及取舍](./docs/pkgforge-differences.md) 记录对应源码和未启用处理。

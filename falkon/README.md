@@ -4,7 +4,7 @@ Falkon 是基于 Qt 6 和 Qt WebEngine 的 KDE 浏览器。此目录用于准备
 
 ## 打包方式
 
-- 按[从系统真实入口收集](../docs/packaging-classification.md#从系统真实入口收集)的路线，以 [Qt 6 系统入口模板](../templates/quick-sharun/qt-installed.sh) 为底稿维护 [build_falkon.sh](./build_falkon.sh)。脚本通过公共入口安装官方包和依赖，动态读取实际安装版本。
+- 按[从系统真实入口收集](../docs/packaging-classification.md#从系统真实入口收集)的路线，以 [Qt 6 系统入口模板](../Templates/quick-sharun/qt-installed.sh) 为底稿维护 [build_falkon.sh](./build_falkon.sh)。脚本通过公共入口安装官方包和依赖，动态读取实际安装版本。
 - [Build AppImages](../.github/workflows/build.yml) 的标准 Arch 矩阵构建 `falkon.AppImage`，构建成功后发布到 [latest Release](https://github.com/newyorkthink/linux-packaging/releases/tag/latest)。
 - quick-sharun 从 `/usr/bin/falkon` 收集程序、Qt 6 与 Qt WebEngine 运行资源，使用官方包自带的桌面入口和图标。
 - 相对标准模板的改动包括：移除固定中文 locale、补入 `breeze-dark` 图标、内置深色主题以及写入运行时启动 hook。详细差异与依据见 [模板差异](./docs/template-deviations.md) 和 [固定配置](./docs/hardcoded.md)。

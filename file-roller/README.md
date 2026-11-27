@@ -6,7 +6,7 @@
 
 ## 技术栈与打包方式
 
-File Roller 44 为 GTK 4 / libadwaita 应用。构建脚本以 [GTK Ubuntu 仓库模板](../templates/appimage/linuxdeploy-gtk-apt.sh) 生成。模板把 `DEPLOY_GTK_VERSION` 写成 3，生成后只把这一处改为 4。公共 APT 入口解包已安装版本的 `file-roller`，并把同为 Depends 的 `bzip2`、`unzip`、`zip` 解进 AppDir。linuxdeploy 通过 GTK 插件部署资源，公共封装入口生成最终 AppImage。差异见 [模板差异](./docs/template-deviations.md)。
+File Roller 44 为 GTK 4 / libadwaita 应用。构建脚本以 [GTK Ubuntu 仓库模板](../Templates/appimage/linuxdeploy-gtk-apt.sh) 生成。模板把 `DEPLOY_GTK_VERSION` 写成 3，生成后只把这一处改为 4。公共 APT 入口解包已安装版本的 `file-roller`，并把同为 Depends 的 `bzip2`、`unzip`、`zip` 解进 AppDir。linuxdeploy 通过 GTK 插件部署资源，公共封装入口生成最终 AppImage。差异见 [模板差异](./docs/template-deviations.md)。
 
 ## 运行
 

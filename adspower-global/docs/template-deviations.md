@@ -3,7 +3,7 @@
 ## 本次采用的模板
 
 - 程序技术栈仍为 Electron / Chromium。
-- 本次使用仓库现有的 [`templates/quick-sharun/qt-deb.sh`](../../templates/quick-sharun/qt-deb.sh) 提供的 AUR DEB 来源流程。该模板正文没有 Qt 专属安装或导出命令；依赖参数按本程序填写为 `fcitx5-gtk`。
+- 本次使用仓库现有的 [`Templates/quick-sharun/qt-deb.sh`](../../Templates/quick-sharun/qt-deb.sh) 提供的 AUR DEB 来源流程。该模板正文没有 Qt 专属安装或导出命令；依赖参数按本程序填写为 `fcitx5-gtk`。
 - [正式 build](../build_adspower-global.sh) 是生成器原始输出，只替换登记参数，未手工增删模板正文、注释、命令或空行。模板未包含的 `DEPLOY_GTK`、`URUNTIME_PRELOAD`、`STRACE_BINARY` 和 `STRACE_FLAGS` 均未追加到本稿。
 
 ## 生成来源

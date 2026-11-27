@@ -18,7 +18,7 @@
 
 ## 来源与构建
 
-[build_discord.sh](./build_discord.sh) 继续使用 [LinuxDeploy GTK DEB 标准模板](../../templates/appimage/linuxdeploy-gtk-deb.sh)，由统一生成器原样输出。先通过公共入口下载并安装 [Discord 官方稳定版 DEB](https://discord.com/api/download?platform=linux&format=deb)，取得依赖、desktop 和图标；这个 DEB 只提供引导安装器，不能作为完整客户端。
+[build_discord.sh](./build_discord.sh) 继续使用 [LinuxDeploy GTK DEB 标准模板](../../Templates/appimage/linuxdeploy-gtk-deb.sh)，由统一生成器原样输出。先通过公共入口下载并安装 [Discord 官方稳定版 DEB](https://discord.com/api/download?platform=linux&format=deb)，取得依赖、desktop 和图标；这个 DEB 只提供引导安装器，不能作为完整客户端。
 
 真实主程序与全部模块从 Discord [stable 更新清单](https://updates.discord.com/distributions/app/manifests/latest?channel=stable&platform=linux&arch=x64) 对应的多份 `full.distro` 取得，每份核对清单中的官方 SHA-256，并通过公共归档入口解包。最终版本读取完整主程序的 `resources/build_info.json`，与同次清单版本强制比对，不再使用引导 DEB 的版本作为成品版本。
 

@@ -6,7 +6,7 @@
 
 ## 技术栈与打包方式
 
-CopyQ 为 Qt6 剪贴板管理器。按 [Qt 系统入口标准](../templates/quick-sharun/qt-installed.sh) 整理，使用公共入口安装 Arch 官方二进制包及原有依赖，保留 Qt6 输入与主题插件。quick-sharun 同次收集主程序、功能插件和共享资源，由工具生成 AppRun 并封装。
+CopyQ 为 Qt6 剪贴板管理器。按 [Qt 系统入口标准](../Templates/quick-sharun/qt-installed.sh) 整理，使用公共入口安装 Arch 官方二进制包及原有依赖，保留 Qt6 输入与主题插件。quick-sharun 同次收集主程序、功能插件和共享资源，由工具生成 AppRun 并封装。
 
 ## 标准结构与专属处理
 

@@ -2,7 +2,7 @@
 
 ## 标准底稿与来源核实
 
-- **标准模板**：[arch-native.sh](../../templates/quick-sharun/arch-native.sh)
+- **标准模板**：[arch-native.sh](../../Templates/quick-sharun/arch-native.sh)
 - **构建脚本**：[build_freerdp.sh](../build_freerdp.sh)
 - **上游核实**：在 `pkgforge-dev` 组织检索 `freerdp` 返回空，无官方打包仓库；Arch Linux 官方 `extra` 仓库提供预编译原生包 `freerdp`（AUR 仅源码包 `freerdp-git` 与旧版 `freerdp2`，上游 `FreeRDP/FreeRDP` 发布源码归档），适用 Arch 官方仓库原生程序系统入口路线。
 

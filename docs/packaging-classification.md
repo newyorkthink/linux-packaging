@@ -6,7 +6,7 @@
 
 同类标准化项目共用标准阶段、通用注释、代码结构和空行。软件名、包名、路径及允许变化的参数在原位置替换；经核实并保留的专属差异必须有应用文档，不要求不同来源和专属段强行具有相同总行数。
 
-quick-sharun 按标准重写时，从 [唯一标准模板](../anylinux_projects.md#唯一标准模板) 按软件来源和技术栈选择完整底稿。所有模板见 [模板索引](../templates/README.md)。
+quick-sharun 按标准重写时，从 [唯一标准模板](../anylinux_projects.md#唯一标准模板) 按软件来源和技术栈选择完整底稿。所有模板见 [模板索引](../Templates/README.md)。
 
 ## 用 quick-sharun 打包的 Electron 程序
 
@@ -14,7 +14,7 @@ quick-sharun 按标准重写时，从 [唯一标准模板](../anylinux_projects.
 
 必须先在构建系统安装应用及运行依赖，再从 AUR 元数据、软件官方网站等核实的来源独立下载 DEB 或预编译 tar 等安装包，解包后把完整程序目录放入 `AppDir/bin`。系统安装结果用于依赖、图标、desktop 或既定版本元数据；不得用系统程序目录复制替代独立下载。
 
-**官方 DEB 且版本来自包内 `package.json` 的标准底稿为 [electron-deb.sh](../templates/quick-sharun/electron-deb.sh)。** 带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](../templates/quick-sharun/electron-github-deb.sh)，版本读取同次校验下载的记录。其他来源或版本布局先核对固定模板的适用条件。Cursor 和 WorkBuddy 保留为既有实现参考。
+**官方 DEB 且版本来自包内 `package.json` 的标准底稿为 [electron-deb.sh](../Templates/quick-sharun/electron-deb.sh)。** 带标签前缀的 GitHub 正式 Release DEB 使用 [electron-github-deb.sh](../Templates/quick-sharun/electron-github-deb.sh)，版本读取同次校验下载的记录。其他来源或版本布局先核对固定模板的适用条件。Cursor 和 WorkBuddy 保留为既有实现参考。
 
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
@@ -97,7 +97,7 @@ htop 保留原有 MAIN_BIN、Open Files / Trace 辅助命令和运行时动态�
 
 ### 从系统完整程序目录收集
 
-从 Arch 官方仓库安装 Chromium，再将 `/usr/lib/chromium/` 连同相邻资源交给 quick-sharun。生成器使用现有的[完整程序目录模板](../templates/quick-sharun/electron-installed.sh)。
+从 Arch 官方仓库安装 Chromium，再将 `/usr/lib/chromium/` 连同相邻资源交给 quick-sharun。生成器使用现有的[完整程序目录模板](../Templates/quick-sharun/electron-installed.sh)。
 
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属处理 |
 | --- | --- | --- | --- |
@@ -171,7 +171,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 
 遵循同一规范的 [直接封装补充](../linuxdeploy_projects.md#直接-appimagetool-模式同一体系的精简流程)，省略 linuxdeploy、插件、初始化和中间输出。构建环境与程序专属差异沿用各自已确认的基线，不因归类强制迁移环境或重写入口。
 
-[appimagetool-direct.sh](../templates/appimage/appimagetool-direct.sh) 是直接封装的标准底稿。下表登记已整理的应用。
+[appimagetool-direct.sh](../Templates/appimage/appimagetool-direct.sh) 是直接封装的标准底稿。下表登记已整理的应用。
 
 | 已整理项目 | 构建脚本 | 程序及版本来源 | 工具与封装入口 | 专属差异说明 |
 | --- | --- | --- | --- | --- |

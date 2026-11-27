@@ -1,6 +1,6 @@
 # CopyQ 模板差异
 
-本项目沿用 Arch 官方仓库二进制包和 quick-sharun 路线。公共结构、固定注释及执行顺序对照 [qt-installed.sh](../../templates/quick-sharun/qt-installed.sh) 和 [Qt 程序规范](../../anylinux_projects.md#有窗口的-qt-程序)，并参考 [OBS Studio](../../obs-studio/build_obs-studio.sh)。
+本项目沿用 Arch 官方仓库二进制包和 quick-sharun 路线。公共结构、固定注释及执行顺序对照 [qt-installed.sh](../../Templates/quick-sharun/qt-installed.sh) 和 [Qt 程序规范](../../anylinux_projects.md#有窗口的-qt-程序)，并参考 [OBS Studio](../../obs-studio/build_obs-studio.sh)。
 
 | 所在阶段 | 保留或补齐的内容 | 原因与代码 |
 | --- | --- | --- |

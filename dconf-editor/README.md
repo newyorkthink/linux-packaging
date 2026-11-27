@@ -6,7 +6,7 @@
 
 ## 技术栈与打包方式
 
-dconf Editor 为 GTK3 / GLib 应用。构建脚本以 [GTK Ubuntu 仓库模板](../templates/appimage/linuxdeploy-gtk-apt.sh) 为基础。AppRun 启动图形程序时清除 `GSETTINGS_SCHEMA_DIR`，绕开 45.0.1 的上游越界缺陷。公共 APT 入口解包构建环境已安装版本的 dconf Editor 和 dconf CLI，linuxdeploy 通过 GTK 插件部署资源，公共封装入口生成最终 AppImage。适用范围和旧版记录见 [模板差异](./docs/template-deviations.md)。
+dconf Editor 为 GTK3 / GLib 应用。构建脚本以 [GTK Ubuntu 仓库模板](../Templates/appimage/linuxdeploy-gtk-apt.sh) 为基础。AppRun 启动图形程序时清除 `GSETTINGS_SCHEMA_DIR`，绕开 45.0.1 的上游越界缺陷。公共 APT 入口解包构建环境已安装版本的 dconf Editor 和 dconf CLI，linuxdeploy 通过 GTK 插件部署资源，公共封装入口生成最终 AppImage。适用范围和旧版记录见 [模板差异](./docs/template-deviations.md)。
 
 ## 运行
 

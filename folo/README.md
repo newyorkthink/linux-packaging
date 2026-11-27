@@ -6,7 +6,7 @@
 
 ## 技术栈与打包方式
 
-Folo 为 Electron / GTK3 桌面应用。构建脚本由 [Electron GitHub DEB 标准模板](../templates/quick-sharun/electron-github-deb.sh) 通过仓库生成器生成，在正式 Arch 构建环境中先安装 `folo-bin` 及运行依赖，再由公共入口按 `desktop/` 标签前缀选择官方稳定 DEB，核对 GitHub SHA-256、包名 `folo` 和架构 `amd64`。
+Folo 为 Electron / GTK3 桌面应用。构建脚本由 [Electron GitHub DEB 标准模板](../Templates/quick-sharun/electron-github-deb.sh) 通过仓库生成器生成，在正式 Arch 构建环境中先安装 `folo-bin` 及运行依赖，再由公共入口按 `desktop/` 标签前缀选择官方稳定 DEB，核对 GitHub SHA-256、包名 `folo` 和架构 `amd64`。
 
 解包后的 `usr/lib/folo` 整个目录原样放入 `AppDir/bin`，保留官方 Electron、ASAR 和相邻资源。图标与 desktop 使用 AUR 安装提供的系统资源；`DEPLOY_GTK=1` 由 quick-sharun 部署 GTK 和已安装的输入模块，并按模板生成包内中文 locale。启动入口由 quick-sharun 生成，现有统一 [Build AppImages](../.github/workflows/build.yml) 继续构建和发布。完整扫描列表由本应用填写，当前为 `AppDir/bin/*` 和 `/usr/bin/hostname`。
 

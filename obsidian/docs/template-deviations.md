@@ -2,7 +2,7 @@
 
 ## 标准流程与使用范围
 
-[build_obsidian.sh](../build_obsidian.sh) 延续 [Electron GitHub Release DEB 标准模板](../../templates/quick-sharun/electron-github-deb.sh) 的初始化、构建目录、独立下载、DEB 校验与解包、程序目录复制、版本、中文环境和封装步骤。系统安装阶段使用 AUR `obsidian-bin`，第二阶段从 [Obsidian 官方 Releases](https://github.com/obsidianmd/obsidian-releases) 下载 AMD64 DEB，不以系统已安装程序替代下载的程序。
+[build_obsidian.sh](../build_obsidian.sh) 延续 [Electron GitHub Release DEB 标准模板](../../Templates/quick-sharun/electron-github-deb.sh) 的初始化、构建目录、独立下载、DEB 校验与解包、程序目录复制、版本、中文环境和封装步骤。系统安装阶段使用 AUR `obsidian-bin`，第二阶段从 [Obsidian 官方 Releases](https://github.com/obsidianmd/obsidian-releases) 下载 AMD64 DEB，不以系统已安装程序替代下载的程序。
 
 当前 [build_obsidian.sh](../build_obsidian.sh) 已采用标准化 DEB 流程，并沿用现有的正式构建入口。被替换的 [tar.gz 构建脚本](https://github.com/newyorkthink/linux-packaging/blob/10b63b344943519468de0c994ae0bb0e37c5c281/obsidian/build_obsidian.sh) 仍可从 Git 历史查阅；工作树中不另保留 `_new` 或旧版副本。
 

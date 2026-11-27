@@ -6,18 +6,18 @@
 
 | 模板 | 适用条件 |
 | --- | --- |
-| [linuxdeploy-gtk-deb.sh](./templates/appimage/linuxdeploy-gtk-deb.sh) | GTK3，GitHub 正式 Release DEB 或官网 HTTPS DEB 直链 |
-| [linuxdeploy-gtk-apt.sh](./templates/appimage/linuxdeploy-gtk-apt.sh) | GTK3，Ubuntu 仓库包 |
-| [linuxdeploy-gtk-gstreamer-apt.sh](./templates/appimage/linuxdeploy-gtk-gstreamer-apt.sh) | GTK3 + GStreamer，Ubuntu 仓库包 |
-| [linuxdeploy-qt-deb.sh](./templates/appimage/linuxdeploy-qt-deb.sh) | Qt，官网校验清单中的 DEB |
-| [linuxdeploy-cli-apt.sh](./templates/appimage/linuxdeploy-cli-apt.sh) | CLI / 无框架插件，Ubuntu 仓库包、指定标签的官方归档 DEB 或 GitHub 正式 Release 的固定名称预编译归档 |
-| [appimagetool-direct.sh](./templates/appimage/appimagetool-direct.sh) | 已有完整 AppDir，直接封装 |
+| [linuxdeploy-gtk-deb.sh](./Templates/appimage/linuxdeploy-gtk-deb.sh) | GTK3，GitHub 正式 Release DEB 或官网 HTTPS DEB 直链 |
+| [linuxdeploy-gtk-apt.sh](./Templates/appimage/linuxdeploy-gtk-apt.sh) | GTK3，Ubuntu 仓库包 |
+| [linuxdeploy-gtk-gstreamer-apt.sh](./Templates/appimage/linuxdeploy-gtk-gstreamer-apt.sh) | GTK3 + GStreamer，Ubuntu 仓库包 |
+| [linuxdeploy-qt-deb.sh](./Templates/appimage/linuxdeploy-qt-deb.sh) | Qt，官网校验清单中的 DEB |
+| [linuxdeploy-cli-apt.sh](./Templates/appimage/linuxdeploy-cli-apt.sh) | CLI / 无框架插件，Ubuntu 仓库包、指定标签的官方归档 DEB 或 GitHub 正式 Release 的固定名称预编译归档 |
+| [appimagetool-direct.sh](./Templates/appimage/appimagetool-direct.sh) | 已有完整 AppDir，直接封装 |
 
 无框架插件模板默认保留 Ubuntu APT 来源。使用固定归档 DEB 时，提供 `RELEASE_TAG`、`GITHUB_REPOSITORY`、`DEB_FILENAME` 和真实程序入口，公共下载入口核对 GitHub SHA-256，版本取自 DEB 元数据；如需调整 desktop 副本，再提供 `DESKTOP_FILE`、`ICON_FILE`、`DESKTOP_EXEC` 和 `DESKTOP_ICON`。原 APT 模式保持不变。
 
 CLI 预编译归档来源显式提供 `GITHUB_REPOSITORY`、`ARCHIVE_ASSET_NAME`、`ARCHIVE_FILENAME`、`ARCHIVE_PROGRAM_DIR`、`ARCHIVE_INSTALL_DIR`、`MAIN_EXECUTABLE` 及应用 `patches/` 内的 `DESKTOP_FILE`、`ICON_FILE`，运行库目录按需提供 `APP_LIB_DIR`。这些来源选择参数不能与 APT 或归档 DEB 来源参数混用，共用的 `APT_PACKAGES` 继续保留。下载和摘要校验复用固定资产公共入口，解包复用公共归档入口，完整程序目录保持相邻资源布局。linuxdeploy 通过 `--deploy-deps-only` 收集现有程序及目录的依赖，避免复制出另一份主程序。格式、路径约束和 AppRun 搜索路径见 [CLI 预编译归档参数](./Scripts/build/generate_build_script.md#cli-预编译归档来源)。原 APT、归档 DEB 生成结果保持不变。
 
-按标准重写时，先从本表选择一份完整模板，通过 [统一生成脚本](./Scripts/build/generate_build_script.md) 生成应用一级目录下的构建脚本。模板中的 `../common/` 相对于应用目录，不能在 `templates/appimage/` 内直接运行。linuxdeploy 模板会重建该应用的 `source`、`AppDir` 和 `dist`，应用所需的持久输入应保存在这些目录之外。直接封装模板使用公共工作区入口的 `--prepared-appdir` 模式，只创建缺少的 `source/tools` 和 `dist` 目录，保留现有目录及内容。
+按标准重写时，先从本表选择一份完整模板，通过 [统一生成脚本](./Scripts/build/generate_build_script.md) 生成应用一级目录下的构建脚本。模板中的 `../common/` 相对于应用目录，不能在 `Templates/appimage/` 内直接运行。linuxdeploy 模板会重建该应用的 `source`、`AppDir` 和 `dist`，应用所需的持久输入应保存在这些目录之外。直接封装模板使用公共工作区入口的 `--prepared-appdir` 模式，只创建缺少的 `source/tools` 和 `dist` 目录，保留现有目录及内容。
 
 除下表中的占位参数外，代码、注释、分区、命令及参数顺序、缩进、空格和空行逐字保留。禁止从其他模板或现有应用脚本拼接代码。模板选用还须符合实际包格式、构建系统、插件、入口和资源布局。
 
@@ -37,7 +37,7 @@ CLI 预编译归档来源显式提供 `GITHUB_REPOSITORY`、`ARCHIVE_ASSET_NAME`
 | `__PREPARED_APPDIR__` | 相对于应用目录的已准备 AppDir 路径，解析后必须位于该应用目录内。该目录须已有可用的 AppRun、桌面入口、图标及依赖。 |
 | `__VERSION_FIELD__`、`__VERSION_OPTION__` | 直接封装模板的版本输出字段编号与已核实的单个查询参数。 |
 
-linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标、且所选模板的运行目录设置适用的情况。只允许使用 [固定模板清单](./templates/README.md) 中的现有模板。来源、插件组合、资源布局或必要步骤存在冲突时，先说明具体冲突，授权前保留已有构建脚本。专用流程按 [AGENTS.md](./AGENTS.md) 逐次取得用户授权。禁止提出、新增或登记清单外模板。现有模板不作临时拼接，也不为单个应用擅自修改。
+linuxdeploy 模板适用于应用包已提供可部署的桌面入口和图标、且所选模板的运行目录设置适用的情况。只允许使用 [固定模板清单](./Templates/README.md) 中的现有模板。来源、插件组合、资源布局或必要步骤存在冲突时，先说明具体冲突，授权前保留已有构建脚本。专用流程按 [AGENTS.md](./AGENTS.md) 逐次取得用户授权。禁止提出、新增或登记清单外模板。现有模板不作临时拼接，也不为单个应用擅自修改。
 
 ## 四个通用标准参考
 
@@ -251,7 +251,7 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 
 直接 appimagetool 和 linuxdeploy 属于同一套 AppDir / 官方 appimagetool 打包体系，按相同的分区、通用注释、单行公共调用和空行风格维护；quick-sharun / sharun 继续使用另一套规范。直接模式不执行 linuxdeploy，也不下载它的插件，不增加空 AppDir 初始化、第二次部署或中间 AppImage。
 
-直接封装使用 [appimagetool-direct.sh](./templates/appimage/appimagetool-direct.sh) 作为唯一底稿。Kitty 保留为既有实现参考。
+直接封装使用 [appimagetool-direct.sh](./Templates/appimage/appimagetool-direct.sh) 作为唯一底稿。Kitty 保留为既有实现参考。
 
 | 阶段 | 直接模式的处理 |
 | --- | --- |

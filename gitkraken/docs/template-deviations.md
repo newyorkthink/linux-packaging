@@ -1,6 +1,6 @@
 # GitKraken 模板差异
 
-构建脚本沿用 [GTK DEB 模板](../../templates/appimage/linuxdeploy-gtk-deb.sh) 的公共阶段。官网 DEB 来源和私有程序目录参考 [WeChat](../../wechat/build_wechat.sh)，Electron 原生模块补库参考 [Binance](../../binance/build_binance.sh)。
+构建脚本沿用 [GTK DEB 模板](../../Templates/appimage/linuxdeploy-gtk-deb.sh) 的公共阶段。官网 DEB 来源和私有程序目录参考 [WeChat](../../wechat/build_wechat.sh)，Electron 原生模块补库参考 [Binance](../../binance/build_binance.sh)。
 
 | 阶段 | 专属处理与依据 |
 | --- | --- |

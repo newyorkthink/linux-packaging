@@ -1,6 +1,6 @@
 # Android Tools 模板差异
 
-本文记录 [当前构建脚本](../build_android-tools.sh) 相对 [quick-sharun 标准模板](../../templates/README.md#quick-sharun) 的真实差异。上游原文与取舍见 [pkgforge-differences.md](./pkgforge-differences.md)，固定参数的依据见 [hardcoded.md](./hardcoded.md)。本文件不参与构建，不将专用流程扩展为新的公共模板。
+本文记录 [当前构建脚本](../build_android-tools.sh) 相对 [quick-sharun 标准模板](../../Templates/README.md#quick-sharun) 的真实差异。上游原文与取舍见 [pkgforge-differences.md](./pkgforge-differences.md)，固定参数的依据见 [hardcoded.md](./hardcoded.md)。本文件不参与构建，不将专用流程扩展为新的公共模板。
 
 ## 来源与模板适用边界
 

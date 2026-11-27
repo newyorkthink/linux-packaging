@@ -2,7 +2,7 @@
 
 ## 当前模板
 
-构建脚本以 [GTK Ubuntu 仓库模板](../../templates/appimage/linuxdeploy-gtk-apt.sh) 为基础。使用 Ubuntu 24.04 官方 APT 仓库的 dconf Editor 和 dconf CLI，产物版本以实际解包的主包为准。
+构建脚本以 [GTK Ubuntu 仓库模板](../../Templates/appimage/linuxdeploy-gtk-apt.sh) 为基础。使用 Ubuntu 24.04 官方 APT 仓库的 dconf Editor 和 dconf CLI，产物版本以实际解包的主包为准。
 
 AppRun 保留模板的 GIO 模块和共享数据路径配置。最终启动图形程序时用 `exec env -u GSETTINGS_SCHEMA_DIR` 清除该变量，绕开 45.0.1 读取 schema 路径的越界逻辑。该处理仅用于此应用，依据见[故障记录](./errors.md)。最终封装和版本保存使用公共入口的默认方式。
 

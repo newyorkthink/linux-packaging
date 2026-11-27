@@ -1,6 +1,6 @@
 # Falkon 模板差异
 
-本项目沿用 Arch 官方仓库二进制包和 quick-sharun 路线。公共结构、固定注释与执行顺序以 [qt-installed.sh](../../templates/quick-sharun/qt-installed.sh) 和 [Qt 程序规范](../../anylinux_projects.md#有窗口的-qt-程序) 为底稿，只保留以下经批准的应用专属差异。具体固定取值与原始报错依据见 [hardcoded.md](./hardcoded.md)。
+本项目沿用 Arch 官方仓库二进制包和 quick-sharun 路线。公共结构、固定注释与执行顺序以 [qt-installed.sh](../../Templates/quick-sharun/qt-installed.sh) 和 [Qt 程序规范](../../anylinux_projects.md#有窗口的-qt-程序) 为底稿，只保留以下经批准的应用专属差异。具体固定取值与原始报错依据见 [hardcoded.md](./hardcoded.md)。
 
 ## 上游来源核实
 
@@ -17,6 +17,6 @@
 
 ## 未改动部分
 
-脚本初始化、公共基础包安装、工作区准备、`ARCH`/`ICON`/`DESKTOP`/`OUTPATH`/`OUTNAME`/`DEPLOY_QT` 元数据、公共版本读取、`quick-sharun /usr/bin/falkon`、最终封装与公共版本保存均保持 [qt-installed.sh](../../templates/quick-sharun/qt-installed.sh) 原样。
+脚本初始化、公共基础包安装、工作区准备、`ARCH`/`ICON`/`DESKTOP`/`OUTPATH`/`OUTNAME`/`DEPLOY_QT` 元数据、公共版本读取、`quick-sharun /usr/bin/falkon`、最终封装与公共版本保存均保持 [qt-installed.sh](../../Templates/quick-sharun/qt-installed.sh) 原样。
 
 实机通过记录见 [README 实机验证](../README.md#实机验证)。
