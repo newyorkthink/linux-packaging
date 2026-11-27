@@ -1,6 +1,6 @@
 # 待办：推进剩余 AppImage 构建脚本按标准模板整理
 
-**状态：待分批处理。** 本页汇总全仓活跃 AppImage 项目中，尚未按[固定 13 份打包模板](../../Templates/README.md)整理且未登记到[专用打包流程](../packaging-classification.md#专用打包流程)的 **23 个项目**，供维护者与后续 AI 按批推进。
+**状态：待分批处理。** 本页汇总全仓活跃 AppImage 项目中，尚未按[固定 13 份打包模板](../../Templates/README.md)整理且未登记到[专用打包流程](../packaging-classification.md#专用打包流程)的 **22 个项目**，供维护者与后续 AI 按批推进。
 
 ## 处理目标与执行规则
 
@@ -12,7 +12,7 @@
 4. **模板无法覆盖时走专用流程**：确因源码打补丁编译、原包同步或双架构封装等与固定模板冲突时，不新增模板，按规则取得逐次授权后接入公共下载/版本/封装入口，并登记到[专用打包流程](../packaging-classification.md#专用打包流程)。
 5. **单项验收后同步清理**：项目完成模板整理并补登到[打包分类](../packaging-classification.md)（若保留了 `build_*_old.sh` 备份，须在实机验证后同次删除备份及其引用）后，从本页对应分组移除该行。
 
-## 未按模板标准的项目清单（23 个）
+## 未按模板标准的项目清单（22 个）
 
 以下分组按改造复杂度与模板契合度由简到繁排列，便于分批推进；具体处理顺序仍以当次任务指定为准。
 
@@ -53,15 +53,14 @@
 | ripdrag | [build_ripdrag.sh](../../ripdrag/build_ripdrag.sh) | 旧式脚本，直接 `yay` 与 `cargo install`，未用公共工作区与版本入口 | 核实是否有官方预编译包或 Arch/AUR 包；若继续源码编译则统一公共入口并评估登记专用流程 |
 | KeePass | [build_keepass.sh](../../keepass/build_keepass.sh) | 旧式脚本，直接 `yay` 与 `gh release download`，含 Mono/GTK2 插件预编译与多套兼容修复 | 将插件下载切至公共入口并统一工作区与版本入口，评估登记专用流程 |
 
-### 四、linuxdeploy 与非 quick-sharun 路线（7 个）
+### 四、linuxdeploy 与非 quick-sharun 路线（6 个）
 
-#### 1. linuxdeploy 路线（3 个）
+#### 1. linuxdeploy 路线（2 个）
 
 | 应用 | 构建脚本 | 当前主要偏离 | 待确认处理方向 |
 | --- | --- | --- | --- |
 | PeaZip | [build_peazip.sh](../../peazip/build_peazip.sh) | 旧版 6 个 `#` 分区标题、未合并工具准备与环境加载、非标准注释/续行/AppRun | 核实 UTF-8 补丁与后端暂移专属处理后，对齐 `linuxdeploy-qt-deb.sh` 标准风格并补 `docs/template-deviations.md` |
 | 腾讯会议 | [build_wemeet.sh](../../wemeet/build_wemeet.sh) | 旧版 6 个 `#` 分区标题、独立调用 `configure_environment.sh`、非标准注释/续行 | 核实官方 JSON DEB 与 Qt5 专属处理后，对齐 linuxdeploy 标准风格并补 `docs/template-deviations.md` |
-| Rainlendar2 | [build_rainlendar2.sh](../../rainlendar2/build_rainlendar2.sh) | 仍在脚本内通过 `docker run ubuntu:24.04` 构建并直接 `apt-get`/`curl`（违反禁 Docker 与公共下载规则） | 迁移至原生 Ubuntu runner（独立 Job），全部下载改走公共入口，按 linuxdeploy 标准整理或评估登记专用流程 |
 
 #### 2. 官方 AppImage 同步 / 重封装 / appimage-builder 路线（4 个）
 

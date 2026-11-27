@@ -222,7 +222,7 @@ hook 只能由当前官方插件实际生成。存在 hook 时由 linuxdeploy �
 | Poppler Utils | `poppler-utils/build_poppler-utils.sh` | linuxdeploy |
 | Remmina | `remmina/build_remmina.sh` | linuxdeploy + GTK / GStreamer 插件 |
 | dconf Editor | `dconf-editor/build_dconf-editor.sh` | linuxdeploy |
-| Rainlendar2 | `rainlendar2/build_rainlendar2.sh` | linuxdeploy + GTK 插件 |
+| Rainlendar2 | `rainlendar2/build_rainlendar2.sh` | Ubuntu 24.04 原生 Runner，使用官方 Pro amd64 DEB、GTK3 插件和官方 Type 2 封装。见[专属差异](./rainlendar2/docs/template-deviations.md)。 |
 | rvncconnect | `rvncconnect/build_rvncconnect.sh` | linuxdeploy + GTK 插件 |
 | RealVNC Viewer 7.15.1 | `vncviewer/build_vncviewer.sh` | 从 `original-package-archive` 获取官方 x64 DEB，使用 linuxdeploy 无框架插件模式与独立 appimagetool；桌面入口处理见 [README](./vncviewer/README.md)。 |
 | GitKraken | `gitkraken/build_gitkraken.sh` | Ubuntu 24.04 原生 runner 从官方稳定 AMD64 DEB 保留完整 Electron 程序目录，使用 GTK3 插件和官方 Type 2 封装。 [专属差异](./gitkraken/docs/template-deviations.md) |

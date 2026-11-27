@@ -52,8 +52,8 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `LDAI_OUTPUT` | linuxdeploy 中间 AppImage 的输出路径。这个文件不进发布目录。 | 3 个脚本，例如 mediainfo、poppler-utils |
 | `LDAI_NO_APPSTREAM` | linuxdeploy 不生成 AppStream 元数据。 | 3 个脚本，例如 mediainfo、poppler-utils |
 | `LDAI_RUNTIME_FILE` | linuxdeploy 使用的 AppImage runtime 文件。 | common |
-| `DEBIAN_FRONTEND` | apt 安装时不弹问题。非交互构建用 noninteractive。 | 5 个脚本，例如 rainlendar2、rvncconnect、remmina |
-| `NO_STRIP` | 打包时不剥调试符号。 | 例如 aionui、bluemail、chatgpt、todesk、webcamoid；discord 的旧 quick 备份保留主程序和原生模块符号 |
+| `DEBIAN_FRONTEND` | apt 安装时不弹问题。非交互构建用 noninteractive。 | 公共 APT 安装入口集中设置，应用脚本中的示例有 rvncconnect、remmina |
+| `NO_STRIP` | 打包时不剥调试符号。 | 例如 aionui、bluemail、chatgpt、todesk、webcamoid；Rainlendar2 在 linuxdeploy 部署时保留 GetPath 修复所需的符号；discord 的旧 quick 备份保留主程序和原生模块符号 |
 | `VERSION` | 写进成品的实际软件版本，可包含官方软件包修订号。 | 例如 aionui、alttab、bluemail、tradingview；discord 从同次官方完整主程序配置读取版本并与 stable manifest 比对，引导 DEB 版本只作临时记录 |
 | `OUTNAME` | 最终 AppImage 的文件名。 | 67 个脚本，例如 keyviz、adspower-global、aionui |
 | `OUTPATH` | 最终 AppImage 的输出目录，一般是 ./dist。 | 67 个脚本，例如 keyviz、adspower-global、aionui |

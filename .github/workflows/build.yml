@@ -1210,6 +1210,56 @@ jobs:
           github_token: ${{ github.token }}
 
 
+  build_rainlendar2:
+    name: Build Rainlendar2
+    needs: plan
+    if: fromJSON(needs.plan.outputs.builds).rainlendar2 == 'true'
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: build-appimage-rainlendar2.AppImage
+      queue: max
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Rainlendar2 AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: rainlendar2
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./build_rainlendar2.sh
+
+      - name: Upload software version metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-version-rainlendar2
+          path: rainlendar2/dist/version.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Publish to Latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GITHUB_WORKSPACE/Common/github/publish_release_asset.sh" "$GITHUB_REPOSITORY" rainlendar2/dist/rainlendar2.AppImage
+
+      - name: Publish software version immediately
+        uses: ./.github/actions/publish-software-versions
+        with:
+          software_key: 'rainlendar2'
+          version_file: 'rainlendar2/dist/version.txt'
+          asset_name: 'rainlendar2.AppImage'
+          artifact_dir: 'rainlendar2/dist'
+          github_token: ${{ github.token }}
+
+
   build_rvncconnect:
     name: Build rvncconnect
     needs: plan

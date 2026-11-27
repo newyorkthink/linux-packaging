@@ -491,7 +491,7 @@
     },
     {
       "key": "rainlendar2",
-      "kind": "standard",
+      "kind": "special",
       "name": "Rainlendar2",
       "script": "rainlendar2/build_rainlendar2.sh",
       "dir": "rainlendar2",
