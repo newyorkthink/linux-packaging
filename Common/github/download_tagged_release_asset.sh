@@ -1,9 +1,27 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# 从指定 GitHub Release 归档标签按固定名或 {version} 模板选择最高版本资产并校验下载。
+# 从指定 GitHub Release 归档标签按固定名或 {version} 模板选择最高版本（或指定/限定前缀版本）资产并校验下载。
+PINNED_VERSION=""
+VERSION_PREFIX=""
+if [[ "${1:-}" == --version ]]; then
+  (( $# >= 2 )) && [[ -n "$2" ]] || {
+    echo "用法：$0 [--version <精确版本> | --version-prefix <版本前缀>] <owner/repo> <归档标签> '<固定资产名或含 {version} 的资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
+    exit 2
+  }
+  PINNED_VERSION="$2"
+  shift 2
+elif [[ "${1:-}" == --version-prefix ]]; then
+  (( $# >= 2 )) && [[ -n "$2" ]] || {
+    echo "用法：$0 [--version <精确版本> | --version-prefix <版本前缀>] <owner/repo> <归档标签> '<固定资产名或含 {version} 的资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
+    exit 2
+  }
+  VERSION_PREFIX="$2"
+  shift 2
+fi
+
 if (( $# != 4 && $# != 6 )); then
-  echo "用法：$0 <owner/repo> <归档标签> '<固定资产名或含 {version} 的资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
+  echo "用法：$0 [--version <精确版本> | --version-prefix <版本前缀>] <owner/repo> <归档标签> '<固定资产名或含 {version} 的资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
   exit 2
 fi
 
@@ -44,6 +62,26 @@ if [[ "$ASSET_TEMPLATE" == *'{'* || "$ASSET_TEMPLATE" == *'}'* ]]; then
   TEMPLATE_SUFFIX="${ASSET_TEMPLATE#*'{version}'}"
   [[ "$TEMPLATE_PREFIX" != "$ASSET_TEMPLATE" && "$TEMPLATE_PREFIX" != *'{'* && "$TEMPLATE_PREFIX" != *'}'* && "$TEMPLATE_SUFFIX" != *'{'* && "$TEMPLATE_SUFFIX" != *'}'* ]] || {
     echo "错误：资产名模板最多只允许包含一个 {version} 占位符：$ASSET_TEMPLATE" >&2
+    exit 2
+  }
+fi
+if [[ -n "$PINNED_VERSION" ]]; then
+  [[ "$ASSET_TEMPLATE" == *'{version}'* ]] || {
+    echo "错误：使用 --version 时资产名模板必须包含 {version}：$ASSET_TEMPLATE" >&2
+    exit 2
+  }
+  [[ "$PINNED_VERSION" =~ ^[0-9][0-9A-Za-z.+:~-]*$ && "$PINNED_VERSION" != *..* ]] || {
+    echo "错误：--version 指定的版本号无效：$PINNED_VERSION" >&2
+    exit 2
+  }
+fi
+if [[ -n "$VERSION_PREFIX" ]]; then
+  [[ "$ASSET_TEMPLATE" == *'{version}'* ]] || {
+    echo "错误：使用 --version-prefix 时资产名模板必须包含 {version}：$ASSET_TEMPLATE" >&2
+    exit 2
+  }
+  [[ "$VERSION_PREFIX" =~ ^[0-9][0-9A-Za-z.+:~-]*$ && "$VERSION_PREFIX" != *..* ]] || {
+    echo "错误：--version-prefix 指定的版本前缀无效：$VERSION_PREFIX" >&2
     exit 2
   }
 fi
@@ -109,9 +147,9 @@ trap cleanup EXIT
 # 通过统一认证入口读取指定归档标签的 Release 元数据。
 github_api_get "https://api.github.com/repos/$REPO/releases/tags/$RELEASE_TAG" "$RELEASE_JSON"
 
-# 从同一份 Release 响应中筛选已上传且带官方 SHA-256 的最高版本唯一资产。
+# 从同一份 Release 响应中筛选已上传且带官方 SHA-256 的最高版本（或指定版本）唯一资产。
 mapfile -t RESOLVED < <(
-  python3 - "$RELEASE_JSON" "$REPO" "$RELEASE_TAG" "$ASSET_TEMPLATE" "$EXPECTED_DEB_PACKAGE" <<'PY'
+  python3 - "$RELEASE_JSON" "$REPO" "$RELEASE_TAG" "$ASSET_TEMPLATE" "$EXPECTED_DEB_PACKAGE" "$PINNED_VERSION" "$VERSION_PREFIX" <<'PY'
 import functools
 import json
 import re
@@ -153,7 +191,7 @@ def compare_generic_versions(left, right):
     return 0
 
 
-json_path, repo, tag, template, deb_package = sys.argv[1:6]
+json_path, repo, tag, template, deb_package, pinned_version, version_prefix = sys.argv[1:8]
 with open(json_path, encoding="utf-8") as stream:
     release = json.load(stream)
 
@@ -168,9 +206,14 @@ if (
 has_version = "{version}" in template
 if has_version:
     prefix, suffix = template.split("{version}", 1)
-    pattern = re.compile(
-        r"^" + re.escape(prefix) + r"(?P<version>[0-9][0-9A-Za-z.+:~-]*)" + re.escape(suffix) + r"$"
-    )
+    if pinned_version:
+        pattern = re.compile(
+            r"^" + re.escape(prefix) + r"(?P<version>" + re.escape(pinned_version) + r")" + re.escape(suffix) + r"$"
+        )
+    else:
+        pattern = re.compile(
+            r"^" + re.escape(prefix) + r"(?P<version>[0-9][0-9A-Za-z.+:~-]*)" + re.escape(suffix) + r"$"
+        )
 else:
     pattern = re.compile(r"^" + re.escape(template) + r"$")
 
@@ -200,6 +243,8 @@ for asset in release.get("assets") or []:
     if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest):
         continue
     extracted_version = match.group("version") if has_version else ""
+    if version_prefix and not extracted_version.startswith(version_prefix):
+        continue
     if has_version and deb_package:
         if subprocess.run(["dpkg", "--validate-version", extracted_version], check=False).returncode != 0:
             fail(f"归档 DEB 文件名版本无效：{name}")
@@ -208,9 +253,9 @@ for asset in release.get("assets") or []:
 if not candidates:
     fail(f"归档 Release {repo}@{tag} 中没有符合模板且带有效 SHA-256 的已上传资产：{template}")
 
-if not has_version:
+if not has_version or pinned_version:
     if len(candidates) != 1:
-        fail(f"归档 Release {repo}@{tag} 中匹配固定资产名不唯一：{template}")
+        fail(f"归档 Release {repo}@{tag} 中匹配目标资产不唯一：{template}")
     selected = candidates[0]
 else:
     comparator = compare_deb_versions if deb_package else compare_generic_versions
