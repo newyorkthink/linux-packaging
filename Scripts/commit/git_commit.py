@@ -386,8 +386,7 @@ def markdown_links(name: str, body: bytes) -> list[tuple[int, str, str]]:
                     or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", location)):
                 continue
             target = posixpath.normpath(posixpath.join(posixpath.dirname(name), location))
-            if target != ".." and not target.startswith("../"):
-                links.append((number, href, target))
+            links.append((number, href, target))
     return links
 
 
