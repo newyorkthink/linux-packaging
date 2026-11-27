@@ -37,14 +37,7 @@
 
 ### KPScript 偶发下载失败
 
-AUR 的 `kpscript` PKGBUILD 会从 KeePass 上游下载源文件。上游偶尔会临时拒绝 GitHub Actions 的请求，但链接并非永久失效。
-
-出现下载失败时：
-
-1. 不要手动下载 ZIP 或 `KPScript.exe`。
-2. 不要修改下载源、增加镜像或绕过 AUR。
-3. 等待约 30 分钟。
-4. 重新运行一次 `keepass/build_keepass.sh`。
+现行 AUR 源文件校验和自动重试见 [README 的 KPScript 说明](README.md#kpscript-临时下载失败)。
 
 ### 非致命运行输出
 

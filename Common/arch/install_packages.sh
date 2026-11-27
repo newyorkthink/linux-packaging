@@ -397,7 +397,22 @@ if [[ "${1:-}" == --aur-deb ]]; then
   exit 0
 fi
 
-if [[ "${1:-}" == --base ]]; then
+REINSTALL=false
+if [[ "${1:-}" == --reinstall ]]; then
+  shift
+  if (( $# == 0 )); then
+    echo "用法：$0 --reinstall <Arch 软件包名> [...]" >&2
+    exit 2
+  fi
+  for package in "$@"; do
+    [[ -n "$package" && "$package" != -* ]] || {
+      printf '错误：--reinstall 后只能追加软件包名：%s\n' "$package" >&2
+      exit 2
+    }
+  done
+  REINSTALL=true
+  PACKAGES=("$@")
+elif [[ "${1:-}" == --base ]]; then
   shift
   (( $# == 0 )) || {
     echo "用法：$0 --base 或 $0 <Arch 软件包名> [...]" >&2
@@ -465,4 +480,9 @@ command -v yay >/dev/null 2>&1 || {
   echo "错误：Arch 构建环境缺少 yay。" >&2
   exit 1
 }
-yay -S --noconfirm --needed "${PACKAGES[@]}"
+# 显式请求时保留不带 --needed 的安装行为，其他调用沿用原参数。
+if [[ "$REINSTALL" == true ]]; then
+  yay -S --noconfirm "${PACKAGES[@]}"
+else
+  yay -S --noconfirm --needed "${PACKAGES[@]}"
+fi

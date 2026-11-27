@@ -16,10 +16,12 @@ keepass/build_keepass.sh
 
 ## 当前组件
 
-- `build_keepass.sh`：安装依赖、预编译插件、组装 AppDir 和生成 AppImage。
+- `build_keepass.sh`：通过公共入口安装依赖、下载插件、读取版本并封装 AppImage。
 - `Chinese_Simplified.lngx`：KeePass 简体中文语言文件，由构建脚本打包到 AppImage。
 - `KEEPASS_STABLE.md`：最终稳定基线、已验证功能、已知限制和维护规则。
-- `GtkStatusIcon.sh`：下载并校验 Keebuntu GTK2 XEmbed 托盘插件。
+- `GtkStatusIcon.sh`：安装已解包的 Keebuntu GTK2 XEmbed 托盘插件，并设置优先加载位置。
+- `patches/prepare_plugins.sh`：预编译 PLGX 和六份 Mono 兼容补丁。
+- `patches/prepare_appdir.sh`：部署中文语言、字体和 Fontconfig，检查 AppDir 内容并写入两个启动脚本。
 - `PrecompilePlgx.cs`：在构建阶段预编译 KeePassOTP 和 GlobalSearch 的 PLGX 插件。
 - `KeePassWindowLayoutFix.cs`：修复选项、插件管理器和通用 KeePass 对话框的平铺布局，并保留已验证的 Mono 模态处理。
 - `MonoMouseWheelFix.cs`：修复选项列表、密码生成器预览滚动及 Mono 密码质量比较器异常。
@@ -28,16 +30,13 @@ keepass/build_keepass.sh
 - `MonoListViewFormLayoutFix.cs`：修复“最近修改 / 历史 / 较大记录”等列表窗口布局。
 - `MonoI3TabFocusFix.cs`：保留旧文件名以避免改动构建入口；最终只修复“列设置”窗口平铺布局，不再尝试解除 i3 模态焦点。
 
+## 专用打包流程
+
+KeePass 使用 Arch 官方发行的 Mono 程序。GTK2 依赖按顺序分层安装，扫描前预编译插件，扫描后部署运行配置。公共安装、版本和封装步骤按现有标准衔接。六份 C# 补丁沿用原路径和编译方式，详细执行阶段见[模板差异](./docs/template-deviations.md)。
+
 ## KPScript 临时下载失败
 
-KPScript 始终通过 Arch Linux AUR 的 `kpscript` 软件包流程构建和安装。AUR 的 PKGBUILD 会从 KeePass 上游获取源文件；该下载偶尔会临时失败，不表示地址永久失效。
-
-出现 KPScript 下载报错时：
-
-1. 不要手动下载 ZIP 或 `KPScript.exe`。
-2. 不要修改下载源，也不要增加镜像、缓存或绕过 AUR。
-3. 等待约 30 分钟。
-4. 重新运行一次 `keepass/build_keepass.sh`。
+KPScript 由 Arch Linux AUR 的 `kpscript` 软件包安装，并沿用 PKGBUILD 的源文件校验。首次发生源文件摘要校验失败时，公共安装入口等待 30 分钟，在新的临时来源目录和构建目录中重新下载并安装一次。其他安装错误直接返回，第二次校验失败时构建结束。间隔和原始日志见[固定配置](./docs/hardcoded.md#kpscript-重试间隔)。
 
 ## 已知限制
 
