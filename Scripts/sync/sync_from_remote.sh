@@ -10,12 +10,17 @@ usage() {
   ./sync_from_remote.sh -y          跳过交互确认，直接以云端最新提交覆盖本地分支与工作区
   ./sync_from_remote.sh --force     与 -y 等价
   ./sync_from_remote.sh --preview   只读拉取并预览将被覆盖的改动、提交与未跟踪文件，不修改工作区
+  ./sync_from_remote.sh --preview --keep-local
+                                    预览保留本地改动的同步范围，并检查文件冲突
+  ./sync_from_remote.sh --keep-local <本地完整SHA> <云端完整SHA>
+                                    按预览提交对齐本地分支，保留未暂存改动、未跟踪文件和忽略文件
   ./sync_from_remote.sh --help | -h | /help
                                     显示帮助，不访问仓库或网络
 
 说明：
   - 先联网获取远端快照；网络或认证失败时直接退出，不清空本地工作区。
   - 覆盖本地时执行 git reset --hard 与 git clean -fd，只清理未跟踪文件与目录，保留 .gitignore 忽略文件。
+  - 保留改动模式遇到暂存改动、文件冲突或提交变化时停止。
   - 仅作用于脚本自身所在的 Git 工作区及当前分支唯一上游；不强推远端，不切分支，不修改远端历史。
   - 退出码：0 为完成或帮助；2 为参数错误；其他非零表示取消或未完成。
 HELP
@@ -37,6 +42,21 @@ usage_error() {
 parse_args() {
   mode=apply
   force=false
+  local full_sha='^([0-9a-f]{40}|[0-9a-f]{64})$'
+  if [[ "${1:-}" == --preview && "${2:-}" == --keep-local ]]; then
+    (( $# == 2 )) || usage_error '保留改动预览只接受 --preview --keep-local'
+    mode=keep-preview
+    return 0
+  fi
+  if [[ "${1:-}" == --keep-local ]]; then
+    (( $# == 3 )) || usage_error '--keep-local 需要预览中的本地和云端完整 SHA'
+    [[ "$2" =~ $full_sha && "$3" =~ $full_sha ]] ||
+      usage_error '--keep-local 需要预览中的本地和云端完整 SHA'
+    mode=keep-apply
+    expected_head="$2"
+    expected_remote="$3"
+    return 0
+  fi
   local seen_mode=false
   local arg
   for arg in "$@"; do
@@ -204,6 +224,101 @@ print_summary() {
   fi
 }
 
+# 检查云端需要更新的路径是否与本地改动、未跟踪文件或忽略文件重叠。
+check_keep_local() {
+  local record local_path remote_path ignore_case config_status
+  local -a local_entries=(failed) remote_paths=(failed) index_entries=(failed) protected_paths=()
+
+  # 用空记录标识 Git 正常结束，保留路径中的空格和换行。
+  readarray -d '' -t -O 1 local_entries < <(
+    repo_git --no-optional-locks status --porcelain=v1 -z --no-renames \
+      --untracked-files=all --ignored=matching --ignore-submodules=none && printf '\0'
+  )
+  readarray -d '' -t -O 1 remote_paths < <(
+    repo_git diff-tree --no-commit-id --name-only --no-renames -r -z "$head_sha" "$remote_sha" -- && printf '\0'
+  )
+  readarray -d '' -t -O 1 index_entries < <(repo_git ls-files -v -z && printf '\0')
+  [[ "${local_entries[-1]}" == '' ]] || fail '无法读取本地工作区状态'
+  [[ "${remote_paths[-1]}" == '' && "${index_entries[-1]}" == '' ]] ||
+    fail '无法读取云端更新路径或本地索引'
+
+  for record in "${local_entries[@]:1}"; do
+    case "$record" in
+      '') ;;
+      ' A '*) fail '存在已标记为待添加的文件。请处理后再预览' ;;
+      '?? '*|'!! '*|' '*) protected_paths+=("${record:3}") ;;
+      *) fail '存在暂存改动。请处理后再预览' ;;
+    esac
+  done
+  for record in "${index_entries[@]:1}"; do
+    case "$record" in
+      'S '*|[a-z]' '*) protected_paths+=("${record:2}") ;;
+    esac
+  done
+
+  if ignore_case="$(repo_git config --type=bool --get core.ignoreCase)"; then
+    :
+  else
+    config_status=$?
+    (( config_status == 1 )) || fail '无法读取 Git 路径大小写设置'
+  fi
+  local local_match remote_match
+  for local_path in "${protected_paths[@]}"; do
+    local_match="${local_path%/}"
+    [[ "$ignore_case" != true ]] || local_match="${local_match,,}"
+    for remote_path in "${remote_paths[@]:1}"; do
+      [[ -n "$remote_path" ]] || continue
+      remote_match="$remote_path"
+      [[ "$ignore_case" != true ]] || remote_match="${remote_match,,}"
+      case "$local_match" in
+        "$remote_match"|"$remote_match"/*) fail "云端更新与本地路径冲突：$(printf '%q' "$local_path")" ;;
+      esac
+      case "$remote_match" in
+        "$local_match"/*) fail "云端更新与本地路径冲突：$(printf '%q' "$local_path")" ;;
+      esac
+    done
+  done
+}
+
+# 按预览中的提交对齐本地分支，保留未暂存改动和未跟踪文件。
+sync_keep_local() {
+  local leaving_commits upstream_sha new_head
+  if [[ "$mode" == keep-apply ]]; then
+    [[ "$head_sha" == "$expected_head" && "$remote_sha" == "$expected_remote" ]] ||
+      fail '本地或云端提交已变化。请重新预览'
+  fi
+
+  leaving_commits="$(repo_git log --oneline "$remote_sha..$head_sha")" ||
+    fail '无法读取仅在本地分支上的提交'
+  printf '当前分支：%s\n本地提交：%s\n云端提交：%s\n' "${branch_ref#refs/heads/}" "$head_sha" "$remote_sha"
+  if [[ -n "$leaving_commits" ]]; then
+    printf '\n将移出当前本地分支的提交：\n%s\n' "$leaving_commits"
+  fi
+  check_keep_local
+  require_idle
+  require_head
+  upstream_sha="$(repo_git rev-parse --verify "$upstream_ref^{commit}")" ||
+    fail '无法核对远端跟踪分支'
+  [[ "$upstream_sha" == "$remote_sha" ]] || fail '远端跟踪分支已变化。请重新预览'
+
+  if [[ "$mode" == keep-preview ]]; then
+    printf '\n预览完成。未修改本地分支、暂存区或工作区。\n'
+    return 0
+  fi
+  if [[ "$head_sha" == "$remote_sha" ]]; then
+    printf '\n本地分支已对齐云端提交 %s。\n' "$remote_sha"
+    return 0
+  fi
+
+  # 使用 Git 自身的冲突保护更新本地分支，不递归修改子模块。
+  repo_git reset --keep --no-recurse-submodules "$remote_sha" ||
+    fail '保留改动的同步失败。请核对当前分支和工作区'
+  new_head="$(repo_git rev-parse --verify 'HEAD^{commit}')" || fail '无法验证同步后的提交'
+  [[ "$(repo_git symbolic-ref --quiet HEAD)" == "$branch_ref" && "$new_head" == "$remote_sha" ]] ||
+    fail '同步后的分支或提交与预览不一致。请核对当前状态'
+  printf '\n同步完成：本地分支已对齐云端提交 %s，保留了本地文件改动。\n' "$remote_sha"
+}
+
 # 执行同步：本地无待丢弃内容时直接快进，否则经确认后重置并清理未跟踪文件。
 apply_sync() {
   local short_remote reply new_head remaining
@@ -275,6 +390,10 @@ main() {
   require_idle
   resolve_target
   fetch_snapshot
+  if [[ "$mode" == keep-* ]]; then
+    sync_keep_local
+    return
+  fi
   collect_state
   apply_sync
 }
