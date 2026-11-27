@@ -44,7 +44,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `SNAP_SOURCE_ARTIFACT` | 当前 workflow run 中的官方 Snap 来源 Artifact 名称；为空时跳过共享步骤中的取回。 | `.github/workflows/build.yml` 的独立 BlueMail Job 显式设置，其他应用不启用。 |
 | `SNAP_SOURCE_DIRECTORY` | 当前 run 的 Snap 来源解压到的绝对目录；公共 Snap 入口读取 `source.snap` 和 `source.json` 并重新核对身份、稳定通道、版本和 SHA3-384。 | BlueMail Job 设置；公共 Snap 入口读取，不写入 AppImage 运行配置。 |
 | `SRCDEST` | makepkg 来源缓存。公共 Arch 安装入口仅在显式 --aur-deb 或 --aur-source 模式为本次安装设置；--snap-stable 仅在临时配方目录的子 Shell 中导出，供 makepkg 及其 sudo 子进程读取，其他模式继续为单次 yay 配合独立 --builddir 使用；不写入 AppDir/.env 或改变宿主运行环境。 | common/arch/install_packages.sh；bluemail 显式启用 --aur-source；归档前由 todesk 显式启用 --aur-deb |
-| `ARCH` | 向打包工具传入目标架构。 | 例如 Keyviz、adspower-global、aionui、gemini |
+| `ARCH` | 向打包工具传入目标架构。 | 例如 keyviz、adspower-global、aionui、gemini |
 | `QMAKE` | 告诉 linuxdeploy 的 Qt 插件用哪个 qmake。Qt5 和 Qt6 不能混。 | 4 个脚本，例如 goldendict、peazip、wemeet、xnviewmp |
 | `QT_SELECT` | 为 qtchooser 显式选择已配置的 Qt 安装；仅在实际调用该包装器且需要选择时使用。 | 例如 wemeet；goldendict 使用明确的 Qt5 QMAKE，不设置此变量。 |
 | `DEPLOY_GTK_VERSION` | 选择 linuxdeploy GTK 插件部署的主版本。 | 例如 baidunetdisk、binance、joplin、wechat；discord 归档前使用 3 |
@@ -55,13 +55,13 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `DEBIAN_FRONTEND` | apt 安装时不弹问题。非交互构建用 noninteractive。 | 5 个脚本，例如 rainlendar2、rvncconnect、remmina |
 | `NO_STRIP` | 打包时不剥调试符号。 | 例如 aionui、bluemail、chatgpt、todesk、webcamoid；discord 的旧 quick 备份保留主程序和原生模块符号 |
 | `VERSION` | 写进成品的实际软件版本，可包含官方软件包修订号。 | 例如 aionui、alttab、bluemail、tradingview；discord 从同次官方完整主程序配置读取版本并与 stable manifest 比对，引导 DEB 版本只作临时记录 |
-| `OUTNAME` | 最终 AppImage 的文件名。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
-| `OUTPATH` | 最终 AppImage 的输出目录，一般是 ./dist。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
+| `OUTNAME` | 最终 AppImage 的文件名。 | 67 个脚本，例如 keyviz、adspower-global、aionui |
+| `OUTPATH` | 最终 AppImage 的输出目录，一般是 ./dist。 | 67 个脚本，例如 keyviz、adspower-global、aionui |
 | `APPNAME` | quick-sharun 用的应用名，用来生成入口和文件名。 | 例如 aionui、android-tools、bluemail、todesk |
 | `MAIN_BIN` | quick-sharun 的主程序文件名。必须是实际存在的程序，不能写错名字。 | 例如 aionui、alttab、android-tools、gemini、todesk |
-| `DESKTOP` | desktop 文件路径。quick-sharun 用它做菜单入口。 | 67 个脚本，例如 Keyviz、adspower-global、aionui |
-| `ICON` | 图标文件路径。quick-sharun 用它做 AppImage 图标。 | 例如 Keyviz、adspower-global、aionui；gemini 使用包内官方 PNG |
-| `STARTUPWMCLASS` | desktop 里的 StartupWMClass，让窗口能对上图标。 | 例如 Keyviz、adspower-global、aionui、todesk |
+| `DESKTOP` | desktop 文件路径。quick-sharun 用它做菜单入口。 | 67 个脚本，例如 keyviz、adspower-global、aionui |
+| `ICON` | 图标文件路径。quick-sharun 用它做 AppImage 图标。 | 例如 keyviz、adspower-global、aionui；gemini 使用包内官方 PNG |
+| `STARTUPWMCLASS` | desktop 里的 StartupWMClass，让窗口能对上图标。 | 例如 keyviz、adspower-global、aionui、todesk |
 | `UPINFO` | AppImage 的 zsync 更新信息，指向本仓库 latest Release。 | 3 个脚本，例如 android-tools、jriver、virt-manager |
 | `OPTIMIZE_LAUNCH` | quick-sharun 打开启动优化。 | 2 个脚本，例如 jriver、virt-manager |
 | `URUNTIME_PRELOAD` | 使用 uruntime 的 preload。 | 2 个脚本，例如 adspower-global、chromium |
@@ -89,7 +89,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `ST_THEME_ALPHA` | 构建 st 时写入的默认透明度。 | st |
 | `WINE_VERSION` | 把 WineHQ 包版本里的 ~rc 转成上游 tag 用的 -rc。 | wine |
 | `WINPODX_BUNDLE_DIR` | WinPodX 在 CI 里的打包目录。 | .github |
-| `WEBKIT2GTK_DIR` | WebKitGTK 库目录，构建时用来找到要打进包的文件。 | Keyviz、grok-app |
+| `WEBKIT2GTK_DIR` | WebKitGTK 库目录，构建时用来找到要打进包的文件。 | keyviz、grok-app |
 | `PYTHONPATH` | Python 模块搜索路径。 | .github |
 | `XDG_DATA_HOME` | 用户数据目录。CI 里指到临时目录，避免写到构建机家目录。 | .github |
 
@@ -98,8 +98,8 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | 变量 | 干什么 | 哪里在用 |
 | --- | --- | --- |
 | `I_WANT_FAT_APPIMAGE` | 构建时设为 `1`，允许已收集的 Mesa `libgallium` 保留对 LLVM 的依赖，并继续打包；不执行删库或精简软件包替换。 | `.github/workflows/build.yml` 的工作流级 `env`，供其中调用 quick-sharun 的构建使用；不写入应用运行时配置。 |
-| `DEPLOY_GTK` | quick-sharun 是否打入 GTK。 | 例如 Keyviz、aionui、antigravity-ide、grok-app、gemini、todesk |
-| `DEPLOY_OPENGL` | quick-sharun 是否打入 OpenGL / Mesa。 | 35 个脚本，例如 Keyviz、aionui、antigravity-ide、grok-app；discord 的旧 quick 备份固定为 0，关闭主动部署 |
+| `DEPLOY_GTK` | quick-sharun 是否打入 GTK。 | 例如 keyviz、aionui、antigravity-ide、grok-app、gemini、todesk |
+| `DEPLOY_OPENGL` | quick-sharun 是否打入 OpenGL / Mesa。 | 35 个脚本，例如 keyviz、aionui、antigravity-ide、grok-app；discord 的旧 quick 备份固定为 0，关闭主动部署 |
 | `DEPLOY_VULKAN` | quick-sharun 是否打入 Vulkan。 | 22 个脚本，例如 aionui、antigravity-ide、antigravity；discord 的旧 quick 备份固定为 0，关闭主动部署 |
 | `DEPLOY_PIPEWIRE` | quick-sharun 是否打入 PipeWire。 | 21 个脚本，例如 aionui、chatgpt、cursor |
 | `DEPLOY_PULSE` | quick-sharun 是否打入 PulseAudio。 | webcamoid |
@@ -111,7 +111,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `DEPLOY_GDK` | quick-sharun 是否打入 GDK。 | ripdrag |
 | `DEPLOY_GLYCIN` | quick-sharun 是否打入 glycin 图片加载器。 | ripdrag |
 | `DEPLOY_GSTREAMER` | quick-sharun 是否打入 GStreamer。0 是不打。 | webcamoid |
-| `DEPLOY_WEBKIT2GTK` | quick-sharun 是否打入 WebKitGTK。 | Keyviz、grok-app |
+| `DEPLOY_WEBKIT2GTK` | quick-sharun 是否打入 WebKitGTK。 | keyviz、grok-app |
 | `DEPLOY_ELECTRON` | quick-sharun 是否自动扫描 Electron。0 是关掉，避免它改官方 asar。 | chatgpt |
 | `DEPLOY_CHROMIUM` | quick-sharun 是否自动按 Chromium 去扫依赖。0 是关掉。 | chatgpt |
 | `DEPLOY_COMMON_LIBS` | quick-sharun 是否打入一批常见系统库。 | chatgpt |

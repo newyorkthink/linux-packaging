@@ -66,7 +66,7 @@ on:
           - kde-suite/build_kde_suite.sh
           - keepass/build_keepass.sh
           - keepassxc/build_keepassxc.sh
-          - Keyviz/build_keyviz.sh
+          - keyviz/build_keyviz.sh
           - kitty/build_kitty.sh
           - mailmaster/build_mailmaster.sh
           - mediainfo/build_mediainfo_linuxdeploy.sh
@@ -928,18 +928,20 @@ jobs:
           chmod +x /usr/local/bin/yay
 
       - name: 静态检查并构建 Keyviz AppImage
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -Eeuo pipefail
-          bash -n Keyviz/build_keyviz.sh
-          bash Keyviz/build_keyviz.sh
-          test -s dist/keyviz.AppImage
+          bash -n keyviz/build_keyviz.sh
+          bash keyviz/build_keyviz.sh
+          test -s keyviz/dist/keyviz.AppImage
 
       - name: Upload software version metadata
         uses: actions/upload-artifact@v4
         with:
           name: software-version-keyviz
-          path: dist/version.txt
+          path: keyviz/dist/version.txt
           if-no-files-found: error
           retention-days: 1
 
@@ -949,7 +951,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          gh release upload latest dist/keyviz.AppImage \
+          gh release upload latest keyviz/dist/keyviz.AppImage \
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
@@ -957,9 +959,9 @@ jobs:
         uses: ./.github/actions/publish-software-versions
         with:
           software_key: 'keyviz'
-          version_file: 'dist/version.txt'
+          version_file: 'keyviz/dist/version.txt'
           asset_name: 'keyviz.AppImage'
-          artifact_dir: 'dist'
+          artifact_dir: 'keyviz/dist'
           github_token: ${{ github.token }}
 
 

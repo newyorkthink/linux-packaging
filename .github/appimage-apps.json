@@ -466,8 +466,8 @@
       "key": "keyviz",
       "kind": "special",
       "name": "Keyviz",
-      "script": "Keyviz/build_keyviz.sh",
-      "dir": "Keyviz",
+      "script": "keyviz/build_keyviz.sh",
+      "dir": "keyviz",
       "release_name": "keyviz.AppImage",
       "software_key": "keyviz"
     },

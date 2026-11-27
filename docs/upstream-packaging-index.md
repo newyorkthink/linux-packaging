@@ -25,6 +25,8 @@ Obsidian 条目于 2026-11-08 单独复核，更新依赖、封装及 workflow �
 
 Falkon 条目于 2026-11-26 按 `falkon`、`qupzilla` 单独复核，未查到对应 pkgforge-dev 仓库，两列继续留空；当前模板差异与固定配置见该行的应用说明。
 
+Keyviz 条目于 2026-11-27 按 `keyviz` 单独复核，未查到对应 pkgforge-dev 仓库，两列继续留空；当前专用流程与固定配置见该行的应用说明。
+
 | 本仓库项目 | 上游打包仓库 | 上游构建代码 | 本仓库说明 |
 | --- | --- | --- | --- |
 | [adspower-global](../adspower-global/build_adspower-global.sh) |  |  | [README](../adspower-global/README.md) |
@@ -66,7 +68,7 @@ Falkon 条目于 2026-11-26 按 `falkon`、`qupzilla` 单独复核，未查到�
 | [kde-suite](../kde-suite/build_kde_suite.sh) |  |  | [README](../kde-suite/README.md) |
 | [keepass](../keepass/build_keepass.sh) |  |  | [README](../keepass/README.md) |
 | [keepassxc](../keepassxc/build_keepassxc.sh) | [KeePassXC-AppImage-Enhanced](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced) | [依赖](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced/blob/2e6a99da59e75f2614bb1c8f0800c6b883fe148a/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced/blob/2e6a99da59e75f2614bb1c8f0800c6b883fe148a/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced/blob/2e6a99da59e75f2614bb1c8f0800c6b883fe148a/.github/workflows/appimage.yml) | [README](../keepassxc/README.md) |
-| [Keyviz](../Keyviz/build_keyviz.sh) |  |  | [README](../Keyviz/README.md) |
+| [keyviz](../keyviz/build_keyviz.sh) |  |  | [模板差异](../keyviz/docs/template-deviations.md) · [固定配置](../keyviz/docs/hardcoded.md) · [README](../keyviz/README.md) |
 | [kitty](../kitty/build_kitty.sh) |  |  | [README](../kitty/README.md) |
 | [mailmaster](../mailmaster/build_mailmaster.sh) |  |  | [模板差异](../mailmaster/docs/template-deviations.md) · [固定参数](../mailmaster/docs/hardcoded.md) · [README](../mailmaster/README.md) |
 | [mediainfo](../mediainfo/build_mediainfo_linuxdeploy.sh) |  |  | [README](../mediainfo/README.md) |
