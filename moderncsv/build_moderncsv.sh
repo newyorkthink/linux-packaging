@@ -1,135 +1,77 @@
 #!/usr/bin/env bash
-set -e
 
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
+
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
+# 安装 DEB 校验工具及官方 Qt 6.8.3 插件所需的非 Qt 运行依赖（不安装 Arch Qt 6）。
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" dpkg fontconfig gtk3 libcups libglvnd libx11 libxcb libxkbcommon-x11 mesa wayland xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm
 
-SOURCE_DIR="$PWD/moderncsv-source"
-COMPAT_DIR="/tmp/moderncsv-qt6-compat"
-MODERNCSV_VERSION="2.4.3"
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
 
-rm -rf AppDir dist "$SOURCE_DIR" "$COMPAT_DIR" || true
+# 本程序专属处理：从官方签名 APT 仓库下载并校验最新 amd64 稳定版 DEB。
+"$SCRIPT_DIR/../Common/download/download_apt_repository_deb.sh" https://www.moderncsv.com/release/apt stable main moderncsv amd64 https://www.moderncsv.com/release/apt/public.key work/app.deb work/source-version.txt
 
-ARCH="$(uname -m)"
-export ARCH
+# 解包官方 DEB。
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/app.deb work/unpacked
 
+# 本程序专属处理：保留官方完整的 Qt 6.8.3 目录树与全部原生 Qt 6 插件，不替换为 Arch Qt。
+SOURCE_DIR="$SCRIPT_DIR/work/unpacked/opt/moderncsv"
+
+# 本程序专属处理：从 Debian 13 (Trixie，Qt 6.8.2 同代 ABI) 签名 APT 仓库仅补入 Fcitx5 Qt6 输入插件与运行库，不替换任何官方 libQt6*.so。
+for pkg in fcitx5-frontend-qt6 libfcitx5-qt6-1 libfcitx5utils2; do
+  "$SCRIPT_DIR/../Common/download/download_apt_repository_deb.sh" https://deb.debian.org/debian trixie main "$pkg" amd64 https://ftp-master.debian.org/keys/archive-key-13.asc "work/${pkg}.deb" "work/${pkg}.version"
+  "$SCRIPT_DIR/../Common/archive/extract_archive.sh" "work/${pkg}.deb" "work/${pkg}"
+done
+cp -a work/fcitx5-frontend-qt6/usr/lib/x86_64-linux-gnu/qt6/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so "$SOURCE_DIR/plugins/platforminputcontexts/"
+cp -a work/libfcitx5-qt6-1/usr/lib/x86_64-linux-gnu/libFcitx5Qt6DBusAddons.so.* "$SOURCE_DIR/lib/"
+cp -a work/libfcitx5utils2/usr/lib/x86_64-linux-gnu/libFcitx5Utils.so.* "$SOURCE_DIR/lib/"
+
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 成品里的应用名。
+export APPNAME="Modern CSV"
+# 包里的真实程序名。
+export MAIN_BIN=moderncsv
+# 让窗口对上 desktop 里的 StartupWMClass。
 export STARTUPWMCLASS=moderncsv
-export ICON="$SOURCE_DIR/moderncsv.png"
-export DESKTOP="$SOURCE_DIR/moderncsv.desktop"
-export OUTPATH=./dist
-export OUTNAME="moderncsv.AppImage"
+# 使用 DEB 提供的图标。
+export ICON="$SCRIPT_DIR/work/unpacked/usr/share/pixmaps/moderncsv.png"
+# 使用 DEB 提供的桌面入口文件。
+export DESKTOP="$SCRIPT_DIR/work/unpacked/usr/share/applications/moderncsv.desktop"
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
+export OUTNAME=moderncsv.AppImage
+# 本程序专属处理：从官方自带的 Qt 6.8.3 目录部署 Qt 插件，并保留 OpenGL 支持。
+export DEPLOY_QT=1
 export DEPLOY_OPENGL=1
 export QT_LOCATION="$SOURCE_DIR"
 
-###### 准备构建环境 ######
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" text work/source-version.txt)"
 
-# 安装 quick-sharun / AppImage 打包所需的通用最小基础工具。
-yay -S --noconfirm base-devel git wget curl jq binutils patchelf file coreutils findutils \
-  grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
-  desktop-file-utils zsync ca-certificates
+# 收集程序及其运行依赖。
+LD_LIBRARY_PATH="$SOURCE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun "$SOURCE_DIR/moderncsv" "$SOURCE_DIR/lib/libFcitx5Qt6DBusAddons.so.1" "$SOURCE_DIR/lib/libFcitx5Utils.so.2" /usr/lib/libssl.so.3 /usr/lib/libcrypto.so.3
 
-# 安装 Modern CSV 官方 Qt6 运行时实际需要的非 Qt 系统依赖，不混入通用基础包。
-yay -S --noconfirm openssl mesa libglvnd libxkbcommon-x11 xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xdg-utils fontconfig
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'ENV'
+LANG=zh_CN.UTF-8
+LANGUAGE=zh_CN:zh
+LC_MESSAGES=zh_CN.UTF-8
+LOCPATH=${SHARUN_DIR}/lib/locale
+ENV
 
-mkdir -p "$SOURCE_DIR" "$COMPAT_DIR" ./dist
-
-###### 下载上游文件 ######
-
-# 下载并完整提取官方 Linux tar 包，保留官方 Qt 6.4.3 runtime。
-# Cloudflare 偶发对 CI 返回 HTML 挑战页（HTTP 200、text/html），需校验 gzip 后再解压。
-tarball=/tmp/ModernCSV-Linux.tar.gz
-downloaded=0
-for attempt in 1 2 3 4 5; do
-  rm -f "$tarball"
-  wget --user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36' \
-    --retry-connrefused --tries=10 \
-    "https://www.moderncsv.com/release/ModernCSV-Linux-v${MODERNCSV_VERSION}.tar.gz" \
-    -O "$tarball"
-  if gzip -t "$tarball" 2>/dev/null; then
-    downloaded=1
-    break
-  fi
-  echo "官方 tar.gz 不是 gzip（第 ${attempt}/5 次），可能是 Cloudflare HTML。" >&2
-  sleep $((attempt * 3))
-done
-[[ "$downloaded" -eq 1 ]] || {
-  echo "无法下载有效的 ModernCSV-Linux-v${MODERNCSV_VERSION}.tar.gz。" >&2
-  file "$tarball" >&2 || true
-  exit 1
-}
-
-tar -xzf "$tarball" -C "$SOURCE_DIR" --strip-components=1
-
-###### 准备兼容的 Qt6 插件 ######
-
-# 保存官方 Qt6 XCB platform plugin，删除官方 tar 中其余仍链接 Qt5 的 plugin。
-cp -a "$SOURCE_DIR/plugins/platforms/libqxcb.so" /tmp/moderncsv-libqxcb.so
-rm -rf "$SOURCE_DIR/plugins"
-mkdir -p "$SOURCE_DIR/plugins/platforms" "$SOURCE_DIR/plugins/platforminputcontexts" "$SOURCE_DIR/plugins/tls"
-cp -a /tmp/moderncsv-libqxcb.so "$SOURCE_DIR/plugins/platforms/libqxcb.so"
-
-# 下载与官方 Qt 6.4.3 runtime 同一 Qt 6.4 系列的 Debian Bookworm Qt6 / Fcitx5 兼容组件。
-wget --retry-connrefused --tries=30 \
-  https://deb.debian.org/debian/pool/main/q/qt6-base/libqt6gui6_6.4.2+dfsg-10_amd64.deb \
-  -O /tmp/libqt6gui6.deb
-
-wget --retry-connrefused --tries=30 \
-  https://deb.debian.org/debian/pool/main/q/qt6-base/libqt6network6_6.4.2+dfsg-10_amd64.deb \
-  -O /tmp/libqt6network6.deb
-
-wget --retry-connrefused --tries=30 \
-  https://deb.debian.org/debian/pool/main/f/fcitx5-qt/fcitx5-frontend-qt6_5.0.16-1+b3_amd64.deb \
-  -O /tmp/fcitx5-frontend-qt6.deb
-
-wget --retry-connrefused --tries=30 \
-  https://deb.debian.org/debian/pool/main/f/fcitx5-qt/libfcitx5-qt6-1_5.0.16-1+b3_amd64.deb \
-  -O /tmp/libfcitx5-qt6-1.deb
-
-wget --retry-connrefused --tries=30 \
-  https://deb.debian.org/debian/pool/main/f/fcitx5/libfcitx5utils2_5.0.21-3_amd64.deb \
-  -O /tmp/libfcitx5utils2.deb
-
-extract_deb() {
-  local deb_file="$1"
-  local dest_dir="$2"
-  local data_member
-
-  data_member="$(ar t "$deb_file" | awk '/^data[.]tar[.]/ {print; exit}')"
-  mkdir -p "$dest_dir"
-  ar p "$deb_file" "$data_member" | bsdtar -xf - -C "$dest_dir"
-}
-
-extract_deb /tmp/libqt6gui6.deb "$COMPAT_DIR/libqt6gui6"
-extract_deb /tmp/libqt6network6.deb "$COMPAT_DIR/libqt6network6"
-extract_deb /tmp/fcitx5-frontend-qt6.deb "$COMPAT_DIR/fcitx5-frontend-qt6"
-extract_deb /tmp/libfcitx5-qt6-1.deb "$COMPAT_DIR/libfcitx5-qt6-1"
-extract_deb /tmp/libfcitx5utils2.deb "$COMPAT_DIR/libfcitx5utils2"
-
-# 补入 Qt 6.4.2 Compose / IBus 输入上下文、Fcitx5 Qt6 输入上下文和 TLS backend。
-cp -a "$COMPAT_DIR/libqt6gui6/usr/lib/x86_64-linux-gnu/qt6/plugins/platforminputcontexts/." \
-  "$SOURCE_DIR/plugins/platforminputcontexts/"
-cp -a "$COMPAT_DIR/fcitx5-frontend-qt6/usr/lib/x86_64-linux-gnu/qt6/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so" \
-  "$SOURCE_DIR/plugins/platforminputcontexts/"
-cp -a "$COMPAT_DIR/libqt6network6/usr/lib/x86_64-linux-gnu/qt6/plugins/tls/." \
-  "$SOURCE_DIR/plugins/tls/"
-
-# 补入 Fcitx5 Qt6 输入插件所需运行库的完整 SONAME 链，避免只复制符号链接而丢失真实版本文件。
-cp -a "$COMPAT_DIR/libfcitx5-qt6-1/usr/lib/x86_64-linux-gnu/"libFcitx5Qt6DBusAddons.so.* \
-  "$SOURCE_DIR/lib/"
-cp -a "$COMPAT_DIR/libfcitx5utils2/usr/lib/x86_64-linux-gnu/"libFcitx5Utils.so.* \
-  "$SOURCE_DIR/lib/"
-
-###### 核心打包 ######
-
-# 构建期仅让动态链接器从官方 Qt 6.4.3 lib 目录解析显式 Fcitx5 输入依赖，避免误用构建机 Qt。
-LD_LIBRARY_PATH="$SOURCE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-quick-sharun \
-  "$SOURCE_DIR/moderncsv" \
-  "$SOURCE_DIR/lib/libFcitx5Qt6DBusAddons.so.1" \
-  "$SOURCE_DIR/lib/libFcitx5Utils.so.2"
-
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-printf '%s\n' "$MODERNCSV_VERSION" > ./dist/version.txt
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" dist/moderncsv.AppImage "$VERSION" dist/version.txt

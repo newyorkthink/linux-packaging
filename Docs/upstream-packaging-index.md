@@ -27,6 +27,8 @@ Falkon 条目于 2026-11-26 按 `falkon`、`qupzilla` 单独复核，未查到�
 
 Keyviz 条目于 2026-11-27 按 `keyviz` 单独复核，未查到对应 pkgforge-dev 仓库，两列继续留空；当前专用流程与固定配置见该行的应用说明。
 
+Modern CSV 条目于 2026-11-27 按 `moderncsv`、`modern-csv` 单独复核，未查到对应 pkgforge-dev 仓库，两列继续留空；当前官方 APT 源、Qt 6.8.3 保留方案与 Debian Trixie 兼容插件依据见该行的应用说明。
+
 | 本仓库项目 | 上游打包仓库 | 上游构建代码 | 本仓库说明 |
 | --- | --- | --- | --- |
 | [adspower-global](../adspower-global/build_adspower-global.sh) |  |  | [README](../adspower-global/README.md) |
@@ -73,7 +75,7 @@ Keyviz 条目于 2026-11-27 按 `keyviz` 单独复核，未查到对应 pkgforge
 | [mailmaster](../mailmaster/build_mailmaster.sh) |  |  | [模板差异](../mailmaster/docs/template-deviations.md) · [固定参数](../mailmaster/docs/hardcoded.md) · [README](../mailmaster/README.md) |
 | [mediainfo](../mediainfo/build_mediainfo_linuxdeploy.sh) |  |  | [README](../mediainfo/README.md) |
 | [mission-center](../mission-center/build_mission-center.sh) |  |  | [README](../mission-center/README.md) |
-| [moderncsv](../moderncsv/build_moderncsv.sh) |  |  | [README](../moderncsv/README.md) |
+| [moderncsv](../moderncsv/build_moderncsv.sh) |  |  | [模板差异](../moderncsv/docs/template-deviations.md) · [固定配置](../moderncsv/docs/hardcoded.md) · [README](../moderncsv/README.md) |
 | [mpv](../mpv/build_mpv.sh) | [mpv-AppImage](https://github.com/pkgforge-dev/mpv-AppImage) | [依赖](https://github.com/pkgforge-dev/mpv-AppImage/blob/953226d87422e9ef2307afacd2e049b1ee0a7f56/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/mpv-AppImage/blob/953226d87422e9ef2307afacd2e049b1ee0a7f56/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/mpv-AppImage/blob/953226d87422e9ef2307afacd2e049b1ee0a7f56/.github/workflows/appimage.yml) | [上游差异](../mpv/docs/pkgforge-differences.md) · [模板差异](../mpv/docs/template-deviations.md) · [README](../mpv/README.md) |
 | [newsboat](../newsboat/build_newsboat.sh) |  |  | [模板差异](../newsboat/docs/template-deviations.md) · [README](../newsboat/README.md) |
 | [nvtop](../nvtop/build_nvtop.sh) |  |  | [README](../nvtop/README.md) |

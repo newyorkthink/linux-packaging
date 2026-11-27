@@ -103,7 +103,7 @@ Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及
 | `DEPLOY_VULKAN` | quick-sharun 是否打入 Vulkan。 | 22 个脚本，例如 aionui、antigravity-ide、antigravity；discord 的旧 quick 备份固定为 0，关闭主动部署 |
 | `DEPLOY_PIPEWIRE` | quick-sharun 是否打入 PipeWire。 | 21 个脚本，例如 aionui、chatgpt、cursor |
 | `DEPLOY_PULSE` | quick-sharun 是否打入 PulseAudio。 | webcamoid |
-| `DEPLOY_QT` | quick-sharun 是否打入 Qt。 | 4 个脚本：copyq、freedownloadmanager、obs-studio、webcamoid |
+| `DEPLOY_QT` | quick-sharun 是否打入 Qt。 | 例如 copyq、deskflow、freedownloadmanager、moderncsv、obs-studio、stacer、webcamoid |
 | `DEPLOY_QML` | quick-sharun 是否打入 Qt QML。 | webcamoid |
 | `DEPLOY_LOCALE` | quick-sharun 是否打入 locale。 | 6 个脚本，例如 antigravity-ide、antigravity、freedownloadmanager |
 | `DEPLOY_PYTHON` | quick-sharun 是否打入 Python 运行时。 | 2 个脚本，例如 obs-studio、smplayer |
