@@ -1472,6 +1472,16 @@ AI 可以按文首规则和第 9 节执行必要验证；正式 workflow 不得�
 - `.github/workflows/build_runimage.yml` 是另一类构建入口；普通 AppImage 任务不要擅自迁移过去。
 - 只有当现有统一 workflow 明确无法满足正式构建需求，或者用户明确要求时，才考虑长期新增独立 workflow；新增的长期 workflow 也不得包含测试代码。
 
+### 官方原始包归档工作流固定约束
+
+`.github/workflows/archive_original_packages.yml` 用于维护 `original-package-archive` Release，以下布局与运行边界固定，未经用户明确要求不得擅自改动：
+
+- **仅限人工手动触发：** 只保留 `workflow_dispatch` 入口，由用户自行按需手动运行。禁止添加 `schedule` 定时巡检、`push`、`release` 或其他任何自动触发条件。
+- **固定保留两个输入框：** 手动界面只保留 `package`（选单个软件或 `all`）和 `version`（可选版本/版本线）。禁止新增“仅清理”勾选框、操作类型下拉框、独立策略配置文件或配套清理工作流。
+- **半自动双版本补缺与清理：** `rainlendar2-pro`、`moderncsv`、`xnviewmp` 留空自动保留上游最新 2 个版本并补齐缺失；填写版本线（如 `2`、`2.`、`2.x`、`2.4`、`3.x`）自动保留该线最高 2 个版本并补齐缺失（填精确版本则只留该版），已存在的有效归档跳过重复下载，确认全部目标资产上传就位后再自动删除高于目标及更旧的多余版本。`sunshine` 固定锁定 `2025.924.154138`（缺失自动补传，不跟随新版，填写 `version` 时拦截）；`all` 时不支持填写 `version`。
+- **单删或指定程序归档由用户手动处理：** 需要单独删除某一个具体版本，或上传/删除未接入自动归档的指定程序包时，由用户直接在 `original-package-archive` Release 页面手动操作；AI 不得为此改造工作流界面或增加专用清理模式。
+- **统一复用公共入口：** 工作流内所有下载与 GitHub API 查询统一调用 `Common/` 公共脚本，旧资产删除统一调用 `Scripts/release/delete_asset.sh`。
+
 ## 8. Release 规则
 
 仓库使用 `latest` Release 作为持续更新的发布入口时：

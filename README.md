@@ -26,9 +26,11 @@
 
 官方原始安装包单独保存在 [original-package-archive Release](https://github.com/newyorkthink/linux-packaging/releases/tag/original-package-archive)，与 `latest` 中的打包成品分开。
 
-进入 **Actions → [Archive Original Packages](https://github.com/newyorkthink/linux-packaging/actions/workflows/archive_original_packages.yml) → Run workflow**，在 `package` 中选择 `rainlendar2-pro`、`moderncsv`、`xnviewmp`、`sunshine` 或 `all`。该工作流仅手动运行。
+进入 **Actions → [Archive Original Packages](https://github.com/newyorkthink/linux-packaging/actions/workflows/archive_original_packages.yml) → Run workflow**，界面固定保留 `package` 和 `version` 两个输入框。该工作流仅由本人手动运行，不设置定时或任何自动触发：
 
-每次只更新所选软件的归档文件，删除该软件已被替换的旧版本；已存在的同名文件保留，不重复上传。Sunshine 沿用现有固定归档版本 `2025.924.154138`，保存 Debian Trixie `.deb` 和 `.pkg.tar.zst`，不跟随官方新版更新。
+- `package` 选择 `rainlendar2-pro`、`moderncsv`、`xnviewmp` 时：`version` 留空自动保留上游最新 2 个版本并补齐缺失；填写版本线（如 `2`、`2.`、`2.x`、`2.4`、`3.x`）则只保留该线最高 2 个版本并补齐缺失（填精确版本号则只保留该版）。归档里已有的有效文件跳过重复下载，确认目标文件全部就位后自动删掉高于目标及更旧的多余版本。
+- `sunshine` 固定锁定 `2025.924.154138`，保存 Debian Trixie `.deb` 和 `.pkg.tar.zst`，不跟随官方新版，缺失时自动补传，不支持填写 `version`；`all` 会一次同步全部 4 个软件，不支持填写 `version`。
+- 清理仅随上述手动运行半自动完成；需要单独删除某一个指定版本，或手动管理指定程序包时，直接在 `original-package-archive` Release 页面手动操作。
 
 ## 文档导航
 
