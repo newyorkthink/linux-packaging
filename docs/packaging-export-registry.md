@@ -1,6 +1,6 @@
 # 打包 export 登记表
 
-已归档项目的 export 记录仅保留为历史依据，启用状态以[归档索引](../archive/README.md)和活动应用清单为准。
+已归档项目的 export 记录仅保留为历史依据，启用状态以[归档索引](../Archive/README.md)和活动应用清单为准。
 
 本表登记仓库 `.sh` 里已经出现的 `export` 环境变量。2026-09-24 对照 `384b663` 扫描，共 155 个。每个只说明它干什么。
 
@@ -22,7 +22,7 @@
 
 WeChat 以 LinuxDeploy GTK DEB 模板为底稿，少量资源准备与依赖收集命令直接内联主脚本，设置 `DEPLOY_GTK_VERSION=3`。AppRun 的 `PATH`、`LD_LIBRARY_PATH` 保留真实 `opt/wechat` 与包内 `usr/bin`、`usr/lib`；`XDG_DATA_DIRS`、`GSETTINGS_SCHEMA_DIR`、`GIO_MODULE_DIR` 使用标准包内路径。 [模板差异](../wechat/docs/template-deviations.md)
 
-Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及可写模块准备阶段，并设置 `DEPLOY_GTK_VERSION=3`。AppRun 指向 `usr/lib/discord`。旧版 `build_discord_old.sh` 保留了 quick-sharun 的开关与显式扫描。[模板差异](../archive/discord/docs/template-deviations.md)
+Discord 归档前使用 LinuxDeploy GTK DEB 模板生成，启用完整应用及可写模块准备阶段，并设置 `DEPLOY_GTK_VERSION=3`。AppRun 指向 `usr/lib/discord`。旧版 `build_discord_old.sh` 保留了 quick-sharun 的开关与显式扫描。[模板差异](../Archive/discord/docs/template-deviations.md)
 
 **必需项不能漏，已确认必要的配置不能擅删，不需要的配置不能为了统一而添加。** 不同程序的变量取值和经批准的专属项可以不同，不能把这些差异直接判为漏项或模板不一致。
 

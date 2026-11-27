@@ -4,7 +4,7 @@
 
 入口：[delete_asset.sh](./delete_asset.sh)。
 
-脚本只删除指定附件，不删除整个 Release、Tag 或仓库文件，也不改写 `software_versions.json`。归档时的版本条目清理仍按 [现有写锁与独立清理机制](../../archive/README.md#独立归档清理)执行。
+脚本只删除指定附件，不删除整个 Release、Tag 或仓库文件，也不改写 `software_versions.json`。归档时的版本条目清理仍按 [现有写锁与独立清理机制](../../Archive/README.md#独立归档清理)执行。
 
 AI 通过 GitHub 连接器提交归档后，由 [Clean Archived Versions](../../.github/workflows/check-archived-versions.yml) 自动调用本脚本，再执行现有版本清理。已有命令行归档入口 [archive_apps.sh](../archive/archive_apps.md) 也复用本脚本，不需要手工重复删除。本页只说明独立删除单个附件的用法。
 

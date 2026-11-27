@@ -6,4 +6,4 @@
 | --- | --- | --- |
 | [archive_apps.sh](./archive_apps.sh) | 预览或执行应用目录、构建登记、发布附件和版本条目的归档处理 | [archive_apps.md](./archive_apps.md) |
 
-归档与恢复的要求见 [归档说明](../../archive/README.md)。目录组织、公开内容和新增脚本约定见 [维护脚本总索引](../README.md)。
+归档与恢复的要求见 [归档说明](../../Archive/README.md)。目录组织、公开内容和新增脚本约定见 [维护脚本总索引](../README.md)。

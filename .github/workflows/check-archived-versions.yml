@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'archive/**'
+      - 'Archive/**'
       - '.github/appimage-apps.json'
       - '.github/workflows/**'
       - '.github/scripts/prune_archived_versions.*'

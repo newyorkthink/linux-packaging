@@ -105,8 +105,8 @@ def archive_reasons(
 ) -> list[str]:
     """统一核对归档完整性及活动入口，附件和版本清理使用相同条件。"""
     directory, script, asset = row["dir"], row["script"], row["release_name"]
-    archived_dir = root / "archive" / directory
-    archived_script = root / "archive" / script
+    archived_dir = root / "Archive" / directory
+    archived_script = root / "Archive" / script
     reasons = []
     if (
         archived_dir.is_symlink()
@@ -129,7 +129,7 @@ def archive_reasons(
         ):
             reasons.append("活动构建清单仍有对应入口")
             break
-    if any(mentions(workflow_text, value) for value in (*keys, asset, script, f"archive/{script}")):
+    if any(mentions(workflow_text, value) for value in (*keys, asset, script, f"Archive/{script}")):
         reasons.append("工作流仍引用对应软件键、资产或脚本")
     return reasons
 
@@ -138,7 +138,7 @@ def plan(args: argparse.Namespace) -> None:
     root = Path.cwd()
     manifest = read_json(args.manifest)
     catalog = read_json(root / ".github/appimage-apps.json")
-    archived = read_json(root / "archive/appimage-apps.json")
+    archived = read_json(root / "Archive/appimage-apps.json")
     pages = read_json(args.assets)
     if not isinstance(manifest, dict):
         raise SystemExit("software_versions.json 必须是 JSON 对象。")
@@ -164,7 +164,7 @@ def plan(args: argparse.Namespace) -> None:
     if not workflows:
         raise SystemExit("缺少工作流，无法确认构建入口已移除。")
     workflow_text = "\n".join(path.read_text(encoding="utf-8") for path in workflows)
-    archive_index = (root / "archive/README.md").read_text(encoding="utf-8")
+    archive_index = (root / "Archive/README.md").read_text(encoding="utf-8")
     by_asset = {}
     for row in archived["apps"]:
         directory, script, asset = (row.get(field) for field in ("dir", "script", "release_name"))

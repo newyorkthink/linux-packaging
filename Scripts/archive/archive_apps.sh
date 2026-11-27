@@ -81,7 +81,7 @@ def moved_link(path, target, new_path):
     if path == new_path and absolute.split("/", 1)[0] not in fresh_dirs:
         return target
     if absolute.split("/", 1)[0] in fresh_dirs:
-        absolute = "archive/" + absolute
+        absolute = "Archive/" + absolute
     relative = posixpath.relpath(absolute, posixpath.dirname(new_path) or ".")
     if file.startswith("./") and not relative.startswith("."):
         relative = "./" + relative
@@ -189,9 +189,9 @@ def main():
             return unique_object(pairs)
 
     catalog_path = ".github/appimage-apps.json"
-    mapping_path = "archive/appimage-apps.json"
+    mapping_path = "Archive/appimage-apps.json"
     workflow_path = ".github/workflows/build.yml"
-    index_path = "archive/README.md"
+    index_path = "Archive/README.md"
     catalog, mapping = json_file(catalog_path), json_file(mapping_path)
     require(all(isinstance(x, dict) and isinstance(x.get("apps"), list) for x in (catalog, mapping)),
             "活动清单或归档映射格式无效。")
@@ -208,10 +208,10 @@ def main():
         require(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.+-]*\.AppImage", asset), "固定资产名无效。")
         require(sum(a.get("release_name") == asset for a in catalog["apps"] + mapping["apps"]) == 1,
                 "资产映射不唯一：" + asset)
-        require(not (root / directory).is_symlink() and not (root / "archive" / directory).is_symlink(),
+        require(not (root / directory).is_symlink() and not (root / "Archive" / directory).is_symlink(),
                 "应用目录不能是符号链接。")
         if active:
-            require((root / directory).is_dir() and not (root / "archive" / directory).exists(),
+            require((root / directory).is_dir() and not (root / "Archive" / directory).exists(),
                     "原目录缺失或归档目标已存在：" + directory)
             require(app.get("kind") in ("standard", "special") and isinstance(app.get("key"), str),
                     "应用构建类型或软件键无效。")
@@ -219,9 +219,9 @@ def main():
                     "应用目录含被忽略的文件，停止移动：" + directory)
             fresh.append(app)
         else:
-            require(not (root / directory).exists() and (root / "archive" / directory / "README.md").is_file(),
+            require(not (root / directory).exists() and (root / "Archive" / directory / "README.md").is_file(),
                     "现有归档不完整：" + directory)
-        require((root / ("" if active else "archive/") / script).is_file(), "构建脚本不存在。")
+        require((root / ("" if active else "Archive/") / script).is_file(), "构建脚本不存在。")
         selected.append(app)
     fresh_dirs = {a["dir"] for a in fresh}
     changes = {}
@@ -274,10 +274,10 @@ def main():
         # 移动后修正相对链接，既有正文、脚本、权限和专属配置保留。
         markdown = run(["git", "ls-files", "-z", "--", "*.md"]).decode().split("\0")
         for path in filter(None, markdown):
-            if path.startswith("archive/") or (root / path).is_symlink():
+            if path.startswith("Archive/") or (root / path).is_symlink():
                 continue
             text = read(path)
-            destination = "archive/" + path if path.split("/", 1)[0] in fresh_dirs else path
+            destination = "Archive/" + path if path.split("/", 1)[0] in fresh_dirs else path
             if path in ("docs/packaging-classification.md", "docs/upstream-packaging-index.md"):
                 names = {str(a.get("name", a["dir"])).casefold() for a in fresh} | {a["dir"].casefold() for a in fresh}
                 def keep(line):
@@ -292,10 +292,10 @@ def main():
                 changes[destination] = updated
         for app in fresh:
             directory = app["dir"]
-            path = f"archive/{directory}/README.md"
+            path = f"Archive/{directory}/README.md"
             original = changes.get(path, "")
             require(not (root / directory / "README.md").is_symlink(), "应用 README 不能是符号链接。")
-            header = (f"# 已归档\n\n{date} 起暂停维护，从 `{directory}/` 移到 `archive/{directory}/`。"
+            header = (f"# 已归档\n\n{date} 起暂停维护，从 `{directory}/` 移到 `Archive/{directory}/`。"
                       f"停用原因：{reason}；替代：无；后续按需恢复。\n\n"
                       f"归档前构建入口：`{app['script']}`；固定发布附件：`{app['release_name']}`。\n\n"
                       "脚本、配置和既有历史保留，不再参与构建与发布。恢复前先阅读下方记录，"
@@ -310,7 +310,7 @@ def main():
         registry = "docs/packaging-export-registry.md"
         if (root / registry).is_file():
             text = changes.get(registry, read(registry))
-            note = "已归档项目的 export 记录仅保留为历史依据，启用状态以[归档索引](../archive/README.md)和活动应用清单为准。"
+            note = "已归档项目的 export 记录仅保留为历史依据，启用状态以[归档索引](../Archive/README.md)和活动应用清单为准。"
             if note not in text:
                 heading, separator, rest = text.partition("\n")
                 text = heading + separator + "\n" + note + "\n" + rest
@@ -369,12 +369,12 @@ def main():
             git_env[f"GIT_{role}_NAME"] = login
             git_env[f"GIT_{role}_EMAIL"] = f"{account_id}+{login}@users.noreply.github.com"
         for app in fresh:
-            (root / app["dir"]).rename(root / "archive" / app["dir"])
+            (root / app["dir"]).rename(root / "Archive" / app["dir"])
         for path, content in changes.items():
             file = root / path
             file.parent.mkdir(parents=True, exist_ok=True)
             file.write_text(content, encoding="utf-8")
-        paths = sorted(set(changes) | fresh_dirs | {"archive/" + a for a in fresh_dirs})
+        paths = sorted(set(changes) | fresh_dirs | {"Archive/" + a for a in fresh_dirs})
         run(["git", "--literal-pathspecs", "add", "--pathspec-from-file=-", "--pathspec-file-nul"],
             data="".join(path + "\0" for path in paths).encode())
         run(["git", "diff", "--cached", "--check"])
