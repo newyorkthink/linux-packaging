@@ -60,6 +60,18 @@ CopyQ 中 `lib/copyq/plugins` 的符号链接修复属于 CopyQ 自身插件搜�
 
 保留 `QT_LOCATION`、Qt 运行库隔离方式和兼容插件清单的依据，见 [template-deviations.md](./docs/template-deviations.md) 与 [hardcoded.md](./docs/hardcoded.md)。
 
+## 实机验证
+
+### 2026-11-27：用户实机验证通过
+
+用户已确认 Modern CSV `2.4.5` 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 覆盖更新 | AppImage 覆盖更新完成，SHA-256 校验通过。 |
+| 启动与界面 | 覆盖更新后正常启动，深色界面正常显示，终端未再出现主题覆盖警告。 |
+| 中文输入 | 表格单元格和打开文件对话框的文件名栏均可输入中文并显示候选词。 |
+
 ## 修复记录
 
 ### 2026-09-02：改为直接复用官方 tar 包内 desktop / icon
@@ -88,7 +100,7 @@ CopyQ 中 `lib/copyq/plugins` 的符号链接修复属于 CopyQ 自身插件搜�
 - 实际运行旧产物时，Qt 从 `bin/plugins/` 加载 plugin，出现 `Plugin uses incompatible Qt library (5.12.0)`，并伴随 `No functional TLS backend was found`。
 - 根因是完整官方目录被直接放入 `AppDir/bin/`，与 quick-sharun 将 `AppDir/bin/` 用作 sharun 启动入口、将真实程序放入 `AppDir/shared/bin/` 的布局发生冲突。
 - `build_moderncsv.sh` 现将官方 tar 完整解压到 `AppDir/shared/bin/`，并改为执行 `quick-sharun ./AppDir/shared/bin/moderncsv`；官方 `lib/`、`plugins/`、`qt.conf` 与真实程序继续保持同级相对关系。
-- 当前已完成脚本与目录结构修正；新产物的实际运行结果以本次构建完成后的实机反馈为准。
+- 当前已完成脚本与目录结构修正。
 
 ### 2026-09-03：校准 quick-sharun 通用基础环境
 
@@ -113,7 +125,7 @@ CopyQ 中 `lib/copyq/plugins` 的符号链接修复属于 CopyQ 自身插件搜�
 - 根因核实：官方 `ModernCSV-Linux-v2.4.3.tar.gz` 的 `moderncsv` 主程序链接 Qt6，随包 `libQt6Core.so.6` 为 Qt 6.4.3；但官方 `plugins/` 中的 Compose / IBus input context、GTK3 platform theme、SVG / imageformat、XCB GL integration 等多项 plugin 实际仍链接 Qt5，且官方包没有 `plugins/tls/`，也没有 Fcitx5 Qt6 input context。
 - 修改文件：`moderncsv/build_moderncsv.sh`、`moderncsv/README.md`。
 - 修复内容：官方 tar 只提取应用本体、desktop 和 icon；不再带入官方 `lib/`、`plugins/`、`qt.conf`。原有非 Qt 依赖命令逐字保留，另起独立 `yay` 命令补回 `qt6-base`、`qt6-5compat`、`qt6-svg`、`qt6-imageformats`、`fcitx5-qt`，由 quick-sharun 从同一套 Arch Qt6 环境部署 Qt6 runtime、TLS backend、Compose / IBus / Fcitx5 input context 和其他 Qt6 plugin。
-- 已知结果：已完成上游 tar、ELF `NEEDED`、Qt plugin 依赖及 quick-sharun Qt plugin 收集逻辑的静态核对；本次不新增任何测试代码，最终运行结果以正常 GitHub Actions 构建和后续真实 Linux 运行反馈为准。
+- 已知结果：已完成上游 tar、ELF `NEEDED`、Qt plugin 依赖及 quick-sharun Qt plugin 收集逻辑的静态核对；本次不新增任何测试代码。
 
 ### 2026-09-03：恢复官方 Qt 6.4.3 runtime，修复 GNU_PROPERTY 启动崩溃
 
@@ -121,7 +133,7 @@ CopyQ 中 `lib/copyq/plugins` 的符号链接修复属于 CopyQ 自身插件搜�
 - 根因核实：故障 AppImage 内的 `libQt6Widgets.so.6` 已被替换为 Arch Qt 6.11.2，并带有 `1_needed: indirect external access` GNU property；Modern CSV 主程序对 `QStyledItemDelegate::initStyleOption` 存在直接符号引用。官方 tar 自带的 Qt 6.4.3 `libQt6Widgets.so.6` 不带该 property，因此将官方 Qt 6.4.3 runtime 整体替换为 Arch Qt 6.11.2 是本次启动崩溃的直接原因。
 - 修改文件：`moderncsv/build_moderncsv.sh`、`moderncsv/README.md`。
 - 修复内容：删除 Arch Qt6 runtime/plugin 安装命令，恢复完整官方 Qt 6.4.3 runtime，并重新启用 `QT_LOCATION="$SOURCE_DIR"`；官方 plugin 树只保留同包 Qt6 `libqxcb.so`，其余 Qt5 plugin 删除。TLS、Compose / IBus 和 Fcitx5 Qt6 input context 改为只补入 Debian Bookworm Qt 6.4.2 同代 plugin，同时补入对应 Fcitx5 运行库，且不复制 Debian 的任何 `libQt6*.so`。
-- 已知结果：已对故障 AppImage 与官方 `ModernCSV-Linux-v2.4.3.tar.gz` 的 ELF 属性、QtWidgets 符号和 plugin Qt 主版本完成静态核对；构建脚本已通过 `bash -n` 静态语法检查，未加入 smoke test 或其他测试代码。最终运行结果以本次 GitHub Actions 正常构建后的实机反馈为准。
+- 已知结果：已对故障 AppImage 与官方 `ModernCSV-Linux-v2.4.3.tar.gz` 的 ELF 属性、QtWidgets 符号和 plugin Qt 主版本完成静态核对；构建脚本已通过 `bash -n` 静态语法检查，未加入 smoke test 或其他测试代码。
 
 ### 2026-09-03：显式部署 Fcitx5 Qt6 运行库，修复中文输入
 
