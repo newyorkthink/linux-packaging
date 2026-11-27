@@ -10,7 +10,7 @@ cd "$SCRIPT_DIR"
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装运行依赖及 DEB 解包工具。
-"$SCRIPT_DIR/../Common/arch/install_packages.sh" dpkg fontconfig gtk3 libcups libglvnd libx11 libxcb libxkbcommon-x11 mesa wayland xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" dpkg fontconfig gtk3 libcups libglvnd libunwind libx11 libxcb libxkbcommon-x11 mesa wayland xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm
 
 # 清掉上次的打包目录。
 "$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work

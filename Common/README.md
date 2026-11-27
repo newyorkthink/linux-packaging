@@ -342,7 +342,7 @@ VERSION="$("$SCRIPT_DIR/../Common/aur/install_and_extract_deb_source.sh" "<AUR �
 
 Release 可能登记明文索引的摘要，而服务器实际只发布压缩索引。此前的明文优先顺序会在这种仓库中请求不存在的文件或 by-hash 地址并返回 404，故格式选择改为压缩优先；不能仅凭明文摘要存在就认定该文件可下载。选定格式后的下载、签名、摘要和大小校验仍保持原有失败即退出的行为。
 
-公钥地址须来自调用方核实的官方来源，可提供二进制或 ASCII armored 公钥。先验证签名，再核对 suite、component 和架构；存在 `Valid-Until` 时同时检查有效期。Packages 的摘要与大小取自已验证的 Release；仓库声明 `Acquire-By-Hash: yes` 时使用相应摘要地址，避免索引更新时混入其他快照。签名、索引摘要或下载失败时直接退出，不关闭校验，也不退回其他格式或旧版本。
+公钥地址须来自调用方核实的官方来源，可提供二进制或 ASCII armored 公钥。验签前先按 RFC 4880 严格拆分单一明文签名块的 `InRelease`（拒绝多块拼接或尾随杂项），再通过 `gpgv --status-fd 1` 对同一正文和独立签名块验签；对于同时附带多把官方轮换密钥签名的仓库（例如 Debian 正式发行版），要求调用方指定的官方公钥至少产出一条有效的 `GOODSIG`/`VALIDSIG`，且不得存在损坏、过期、吊销或非缺公钥错误，才允许其余未提供公钥的签名返回 `NO_PUBKEY`。随后核对 suite、component 和架构；存在 `Valid-Until` 时同时检查有效期。Packages 的摘要与大小取自已验证的 Release；仓库声明 `Acquire-By-Hash: yes` 时使用相应摘要地址，避免索引更新时混入其他快照。签名、索引摘要或下载失败时直接退出，不关闭校验，也不退回其他格式或旧版本。
 
 只匹配传入的包名和精确 DEB 架构，不自动改用其他架构或 `all` 包；签名 Release 的架构字段及 Packages 路径使用索引架构。版本通过 `dpkg` 校验并比较，保留 epoch、预发布标记和 Debian 修订号。同一版本的路径、摘要或大小冲突，以及最高版本存在多种等价写法时直接失败。最终 DEB 必须同时符合签名索引中的 SHA-256、大小、Package、Architecture 和 Version。
 

@@ -36,7 +36,7 @@ pkgforge-dev/anylinux-setup-action
 
 `build_moderncsv.sh` 已全部切换至仓库 `Common/` 公共入口，主流程如下：
 
-1. 调用 `Common/arch/install_packages.sh --base` 安装基础工具，另起一行只安装 DEB 校验与官方 Qt 6.8.3 插件所需的非 Qt 运行依赖（`dpkg`、`fontconfig`、`gtk3`、`libcups`、`libglvnd`、`libx11`、`libxcb`、`libxkbcommon-x11`、`mesa`、`wayland`、`xcb-util*`）；**不调用 `--qt6`，不安装 Arch `qt6-*` 或 `fcitx5-qt`**。
+1. 调用 `Common/arch/install_packages.sh --base` 安装基础工具，另起一行只安装 DEB 校验与官方 Qt 6.8.3 插件及 Fcitx5 兼容库所需的非 Qt 运行依赖（`dpkg`、`fontconfig`、`gtk3`、`libcups`、`libglvnd`、`libunwind`、`libx11`、`libxcb`、`libxkbcommon-x11`、`mesa`、`wayland`、`xcb-util*`）；**不调用 `--qt6`，不安装 Arch `qt6-*` 或 `fcitx5-qt`**。
 2. 调用 `Common/build/prepare_x86_64_workspace.sh` 准备 `AppDir`、`dist`、`work`。
 3. 通过 `Common/download/download_apt_repository_deb.sh` 从官方签名 APT 仓库下载并校验最新 `moderncsv` `amd64.deb` 及版本文件，调用 `Common/archive/extract_archive.sh` 解包，保留完整 `work/unpacked/opt/moderncsv/` 目录树作为 `SOURCE_DIR`。
 4. 通过 `Common/download/download_apt_repository_deb.sh` 从 Debian 13（`trixie`）签名 APT 仓库动态下载并验签 `fcitx5-frontend-qt6`、`libfcitx5-qt6-1`、`libfcitx5utils2`，仅将以下 Fcitx5 Qt 6 组件补入官方目录，不复制任何 Debian `libQt6*.so`：
@@ -178,3 +178,8 @@ Modern CSV 的核心约束是“第三方闭源预编译 Qt 6.8.3 二进制存�
 - 故障现象：下载旧版硬编码 `ModernCSV-Linux-v2.4.3.tar.gz` 时，连续五次收到 HTTP 200 和 `text/html` 响应，均未通过 `gzip -t` 校验并报 `无法下载有效的 ModernCSV-Linux-v2.4.3.tar.gz。` 退出。[GitHub Actions 失败日志](https://github.com/newyorkthink/linux-packaging/actions/runs/45948744673/job/140339442640)
 - 实包核对：官方签名 APT 仓库提供的 3.0 `amd64.deb` 已自带完整 **Qt 6.8.3** 与全部 13 个原生 Qt 6 插件目录（含 Compose、IBus、OpenSSL/证书 TLS、SQLite、CUPS、XCB、Wayland），不再混有 Qt 5 插件；但 `readelf -rW` 核实主程序仍对受保护 Qt 函数存在 `R_X86_64_64` 直接重定位，不能替换为启用了 `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` 的 Arch 系统 Qt 6。
 - 调整内容：`build_moderncsv.sh` 全面接入 `Common/` 公共入口，从官方签名 APT 仓库动态获取最新 3.x DEB，完整保留官方 Qt 6.8.3 运行时和全部原生插件，改由 Debian 13（`trixie`，同代 Qt 6.8.2 ABI）签名 APT 仓库仅补入 `fcitx5-frontend-qt6`、`libfcitx5-qt6-1`、`libfcitx5utils2`，并补齐包内中文 locale 与 `libssl.so.3`/`libcrypto.so.3` 显式收集；同步新增 [template-deviations.md](./docs/template-deviations.md) 与 [hardcoded.md](./docs/hardcoded.md) 并归类至[用 quick-sharun 打包的 Qt 程序 → 直接下载安装包](../Docs/packaging-classification.md#用-quick-sharun-打包的-qt-程序)。
+
+### 2026-11-27：扩展公共 APT 验签兼容多密钥 InRelease 并补入 `libunwind`
+
+- 故障现象：Modern CSV 3.0 官方签名 APT 源下载与验签已通过，但在下载 Debian 13（`trixie`）Fcitx5 兼容包时，`trixie/InRelease` 同时带有三把官方密钥签名；`archive-key-13.asc` 验签输出 `Good signature` 后，因另外两把未提供公钥的签名触发 `Can't check signature: No public key`，`gpgv` 返回退出码 `2` 中断构建。[GitHub Actions 失败日志](https://github.com/newyorkthink/linux-packaging/actions/runs/45968518173/job/140406790465)
+- 调整内容：在 `Common/download/download_apt_repository_deb.sh` 接入 RFC 4880 单一明文签名块严格拆分与 `gpgv --status-fd 1` 状态验签，要求调用方指定官方公钥至少产出一条有效 `GOODSIG`/`VALIDSIG` 且无损坏、过期、吊销或非缺公钥错误；同步在 `moderncsv/build_moderncsv.sh` 依赖行补入 `libunwind`（供 Debian Trixie `libfcitx5utils2` 依赖的 `libunwind.so.8`）。

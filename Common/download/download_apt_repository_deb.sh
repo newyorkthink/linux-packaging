@@ -68,6 +68,52 @@ def fields(paragraph):
     return result
 
 
+# 按 RFC 4880 第 7 节严格拆分单一明文签名块的 InRelease，拒绝多块拼接或尾随杂项。
+def split_clearsigned_inrelease(raw_text):
+    lines = [line[:-1] if line.endswith("\r") else line for line in raw_text.split("\n")]
+    if not lines or lines[0].rstrip(" \t") != "-----BEGIN PGP SIGNED MESSAGE-----":
+        fail("InRelease 缺少合法的 OpenPGP 明文签名头。")
+    index = 1
+    while index < len(lines) and lines[index].strip(" \t") != "":
+        if lines[index].startswith("-----"):
+            fail("InRelease 签名头格式无效。")
+        index += 1
+    if index >= len(lines):
+        fail("InRelease 缺少签名头与正文的分隔空行。")
+    index += 1
+    body_lines = []
+    while index < len(lines) and lines[index].rstrip(" \t") != "-----BEGIN PGP SIGNATURE-----":
+        line = lines[index]
+        marker = line.rstrip(" \t")
+        if marker in ("-----BEGIN PGP SIGNED MESSAGE-----", "-----END PGP SIGNATURE-----"):
+            fail("InRelease 正文包含非法 OpenPGP 边界。")
+        # 按 RFC 4880 第 7.1 节还原 dash-escaping，并移除行尾空格和制表符以与独立文本签名哈希一致。
+        if line.startswith("- "):
+            line = line[2:]
+        body_lines.append(line.rstrip(" \t"))
+        index += 1
+    if index >= len(lines) or not body_lines:
+        fail("InRelease 缺少正文或签名块。")
+    sig_lines = [lines[index]]
+    index += 1
+    found_end = False
+    while index < len(lines):
+        line = lines[index]
+        marker = line.rstrip(" \t")
+        if marker in ("-----BEGIN PGP SIGNED MESSAGE-----", "-----BEGIN PGP SIGNATURE-----"):
+            fail("InRelease 不允许包含多个签名消息或签名块。")
+        sig_lines.append(line)
+        index += 1
+        if marker == "-----END PGP SIGNATURE-----":
+            found_end = True
+            break
+    if not found_end:
+        fail("InRelease 缺少 OpenPGP 签名结束标记。")
+    if any(extra.strip(" \t") != "" for extra in lines[index:]):
+        fail("InRelease 签名块之后存在多余内容。")
+    return "\n".join(body_lines), "\n".join(sig_lines) + "\n"
+
+
 # 使用 Debian 自身的版本排序，保留 epoch、预发布标记和包修订号的语义。
 def compare_versions(left, right):
     for relation, result in (("lt", -1), ("gt", 1)):
@@ -124,14 +170,55 @@ def main():
              "--output", str(work / "keyring.gpg"), str(work / "key")],
             check=True, stdout=sys.stderr,
         )
-        # 只使用明确下载的密钥验证本次 InRelease，不读取系统信任库。
-        subprocess.run(
-            ["gpgv", "--homedir", str(gnupg), "--keyring", str(work / "keyring.gpg"),
-             "--output", str(work / "Release"), str(work / "InRelease")],
-            check=True, stdout=sys.stderr,
+        # 严格拆分 InRelease 为正文和独立签名块，确保解析内容与签名校验对象完全一致。
+        release_text, signature_text = split_clearsigned_inrelease(
+            (work / "InRelease").read_text(encoding="utf-8")
         )
+        (work / "Release").write_text(release_text, encoding="utf-8")
+        (work / "Release.gpg").write_text(signature_text, encoding="utf-8")
+        # 只使用明确下载的密钥验证本次签名，不读取系统信任库；多密钥签名仓库允许未提供公钥的其他签名返回 NO_PUBKEY。
+        verify = subprocess.run(
+            ["gpgv", "--status-fd", "1", "--homedir", str(gnupg),
+             "--keyring", str(work / "keyring.gpg"),
+             str(work / "Release.gpg"), str(work / "Release")],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
+        )
+        if verify.stderr:
+            sys.stderr.write(verify.stderr)
+        forbidden = {
+            "BADSIG", "EXPSIG", "EXPKEYSIG", "REVKEYSIG",
+            "NODATA", "UNEXPECTED", "FAILURE", "BADARMOR",
+        }
+        good_sigs = 0
+        valid_sigs = 0
+        no_pubkeys = 0
+        for status_line in verify.stdout.splitlines():
+            if not status_line:
+                continue
+            if not status_line.startswith("[GNUPG:] "):
+                fail("gpgv 状态输出格式无效。")
+            parts = status_line[len("[GNUPG:] "):].split()
+            if not parts:
+                continue
+            tag, args = parts[0], parts[1:]
+            if tag in forbidden:
+                fail(f"InRelease 签名校验失败：{tag}。")
+            if tag == "ERRSIG":
+                # OpenPGP ERRSIG 第 6 个参数为错误码，仅在多密钥签名中允许 9 (NO_PUBKEY)。
+                if len(args) < 6 or args[5] != "9":
+                    fail("InRelease 存在无法验证的签名错误。")
+            elif tag == "GOODSIG":
+                good_sigs += 1
+            elif tag == "VALIDSIG":
+                valid_sigs += 1
+            elif tag == "NO_PUBKEY":
+                no_pubkeys += 1
+        if good_sigs < 1 or valid_sigs != good_sigs:
+            fail("InRelease 未通过指定官方公钥的有效签名验证。")
+        if verify.returncode != 0 and not (verify.returncode == 2 and no_pubkeys >= 1):
+            fail(f"InRelease 签名校验失败（gpgv 退出码 {verify.returncode}）。")
         # 签名通过后才解析索引；仓库声明有效期时，过期索引不能继续使用。
-        release = fields((work / "Release").read_text(encoding="utf-8"))
+        release = fields(release_text)
         if "Valid-Until" in release:
             deadline = parsedate_to_datetime(release["Valid-Until"])
             if deadline is None or deadline.tzinfo is None:

@@ -22,7 +22,7 @@
 | 阶段 | 当前处理 | 依据与影响 |
 | --- | --- | --- |
 | 初始化 | 严格模式，定位并切换至 `moderncsv/` 目录。 | 相对路径和产物均落在应用目录内。 |
-| 依赖安装 | `Common/arch/install_packages.sh --base` 加一行非 Qt 运行依赖。 | 不调用 `--qt6`，避免 Arch Qt 6.12 混入或覆盖官方 Qt 6.8.3；显式安装 `dpkg`、`fontconfig`、`gtk3`（供 `libqgtk3.so`）、`libcups`（供 `libcupsprintersupport.so`）、`wayland`（供 `libqwayland-*.so`）、`mesa`、`libglvnd`、`libx11`、`libxcb`、`xcb-util*`、`libxkbcommon-x11`。 |
+| 依赖安装 | `Common/arch/install_packages.sh --base` 加一行非 Qt 运行依赖。 | 不调用 `--qt6`，避免 Arch Qt 6.12 混入或覆盖官方 Qt 6.8.3；显式安装 `dpkg`、`fontconfig`、`gtk3`（供 `libqgtk3.so`）、`libcups`（供 `libcupsprintersupport.so`）、`libunwind`（供 Debian Trixie `libfcitx5utils2` 依赖的 `libunwind.so.8`）、`wayland`（供 `libqwayland-*.so`）、`mesa`、`libglvnd`、`libx11`、`libxcb`、`xcb-util*`、`libxkbcommon-x11`。 |
 | 工作区 | `Common/build/prepare_x86_64_workspace.sh "$SCRIPT_DIR" --skip-create AppDir dist work`。 | 替代手工 `rm -rf` 和 `/tmp` 临时目录。 |
 | 版本读取与保存 | `Common/build/read_app_version.sh text work/source-version.txt` 与 `Common/build/save_appimage_version.sh`。 | 从官方签名 APT 仓库同次校验下载结果动态读取实际版本，不再硬编码 `2.4.3`。 |
 | 中文环境 | 收集依赖后生成 `AppDir/lib/locale/zh_CN.utf8` 并写入 `AppDir/.env`。 | 按 `anylinux_projects.md` 补齐 GUI 包内中文 locale；不强制覆盖 `QT_IM_MODULE`，由宿主输入法决定。 |
