@@ -9,28 +9,33 @@ cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
-# 安装 DEB 校验工具及官方 Qt 6.8.3 插件所需的非 Qt 运行依赖（不安装 Arch Qt 6）。
+# 安装运行依赖及 DEB 解包工具。
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" dpkg fontconfig gtk3 libcups libglvnd libx11 libxcb libxkbcommon-x11 mesa wayland xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm
 
 # 清掉上次的打包目录。
 "$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
 
-# 本程序专属处理：从官方签名 APT 仓库下载并校验最新 amd64 稳定版 DEB。
+# 下载官方当前 DEB。
 "$SCRIPT_DIR/../Common/download/download_apt_repository_deb.sh" https://www.moderncsv.com/release/apt stable main moderncsv amd64 https://www.moderncsv.com/release/apt/public.key work/app.deb work/source-version.txt
 
 # 解包官方 DEB。
 "$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/app.deb work/unpacked
 
-# 本程序专属处理：保留官方完整的 Qt 6.8.3 目录树与全部原生 Qt 6 插件，不替换为 Arch Qt。
+# 本程序专属处理：保留官方自带 Qt 运行时与原生插件目录。
 SOURCE_DIR="$SCRIPT_DIR/work/unpacked/opt/moderncsv"
 
-# 本程序专属处理：从 Debian 13 (Trixie，Qt 6.8.2 同代 ABI) 签名 APT 仓库仅补入 Fcitx5 Qt6 输入插件与运行库，不替换任何官方 libQt6*.so。
+# 本程序专属处理：从 Debian 签名 APT 仓库下载并解包同代 Fcitx5 Qt 6 组件。
 for pkg in fcitx5-frontend-qt6 libfcitx5-qt6-1 libfcitx5utils2; do
+  # 本程序专属处理：验签下载当前 Fcitx5 兼容 DEB。
   "$SCRIPT_DIR/../Common/download/download_apt_repository_deb.sh" https://deb.debian.org/debian trixie main "$pkg" amd64 https://ftp-master.debian.org/keys/archive-key-13.asc "work/${pkg}.deb" "work/${pkg}.version"
+  # 本程序专属处理：解包当前 Fcitx5 兼容 DEB。
   "$SCRIPT_DIR/../Common/archive/extract_archive.sh" "work/${pkg}.deb" "work/${pkg}"
 done
+# 本程序专属处理：补入 Fcitx5 Qt 6 输入法插件。
 cp -a work/fcitx5-frontend-qt6/usr/lib/x86_64-linux-gnu/qt6/plugins/platforminputcontexts/libfcitx5platforminputcontextplugin.so "$SOURCE_DIR/plugins/platforminputcontexts/"
+# 本程序专属处理：补入 Fcitx5 Qt 6 D-Bus 运行库及完整符号链接链。
 cp -a work/libfcitx5-qt6-1/usr/lib/x86_64-linux-gnu/libFcitx5Qt6DBusAddons.so.* "$SOURCE_DIR/lib/"
+# 本程序专属处理：补入 Fcitx5 基础工具运行库及完整符号链接链。
 cp -a work/libfcitx5utils2/usr/lib/x86_64-linux-gnu/libFcitx5Utils.so.* "$SOURCE_DIR/lib/"
 
 # 把当前机器架构传给 quick-sharun。
@@ -41,17 +46,19 @@ export APPNAME="Modern CSV"
 export MAIN_BIN=moderncsv
 # 让窗口对上 desktop 里的 StartupWMClass。
 export STARTUPWMCLASS=moderncsv
-# 使用 DEB 提供的图标。
+# 使用官方 DEB 提供的图标。
 export ICON="$SCRIPT_DIR/work/unpacked/usr/share/pixmaps/moderncsv.png"
-# 使用 DEB 提供的桌面入口文件。
+# 使用官方 DEB 提供的桌面入口文件。
 export DESKTOP="$SCRIPT_DIR/work/unpacked/usr/share/applications/moderncsv.desktop"
 # 把 AppImage 写到脚本目录下的 dist。
 export OUTPATH="$SCRIPT_DIR/dist"
 # 固定最终 AppImage 的文件名。
 export OUTNAME=moderncsv.AppImage
-# 本程序专属处理：从官方自带的 Qt 6.8.3 目录部署 Qt 插件，并保留 OpenGL 支持。
+# 本程序专属处理：部署官方自带目录中的 Qt 插件。
 export DEPLOY_QT=1
+# 本程序专属处理：保留原有的 OpenGL 部署设置。
 export DEPLOY_OPENGL=1
+# 本程序专属处理：指定官方自带 Qt 目录，避免混入系统 Qt。
 export QT_LOCATION="$SOURCE_DIR"
 
 # 读取本次打包使用的版本。

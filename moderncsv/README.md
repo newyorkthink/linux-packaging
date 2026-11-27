@@ -14,11 +14,11 @@ moderncsv.AppImage
 - 官方签名 APT 仓库：`https://www.moderncsv.com/release/apt`（`stable main moderncsv amd64`）
 - pkgforge-dev `quick-sharun`：`https://github.com/pkgforge-dev/Anylinux-AppImages`
 - 官方说明：`https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/HOW-TO-MAKE-THESE.md`
-- 专用流程与差异说明：[template-deviations.md](./docs/template-deviations.md) · [hardcoded.md](./docs/hardcoded.md)
+- 模板差异与固定配置：[template-deviations.md](./docs/template-deviations.md) · [hardcoded.md](./docs/hardcoded.md)
 
 ## 打包环境
 
-Modern CSV 使用仓库统一的 Arch Linux / AnyLinux quick-sharun 构建环境，登记于[专用打包流程](../Docs/packaging-classification.md#专用打包流程)。
+Modern CSV 使用仓库统一的 Arch Linux / AnyLinux quick-sharun 构建环境，归类于[用 quick-sharun 打包的 Qt 程序 → 直接下载安装包](../Docs/packaging-classification.md#用-quick-sharun-打包的-qt-程序)。
 
 `.github/workflows/build.yml` 中的 Modern CSV Job 通过统一矩阵调度复用：
 
@@ -173,8 +173,8 @@ Modern CSV 的核心约束是“第三方闭源预编译 Qt 6.8.3 二进制存�
 - 修改：补浏览器 User-Agent，下载后 `gzip -t` 校验，失败则重试；不解压 HTML。
 - 不改版本、Qt runtime 和打包步骤。
 
-## 2026-11-27：切至官方签名 APT 源（3.x）并按专用流程标准化
+## 2026-11-27：切至官方签名 APT 源（3.x）并按 Qt 直接下载标准整理
 
 - 故障现象：下载旧版硬编码 `ModernCSV-Linux-v2.4.3.tar.gz` 时，连续五次收到 HTTP 200 和 `text/html` 响应，均未通过 `gzip -t` 校验并报 `无法下载有效的 ModernCSV-Linux-v2.4.3.tar.gz。` 退出。[GitHub Actions 失败日志](https://github.com/newyorkthink/linux-packaging/actions/runs/45948744673/job/140339442640)
 - 实包核对：官方签名 APT 仓库提供的 3.0 `amd64.deb` 已自带完整 **Qt 6.8.3** 与全部 13 个原生 Qt 6 插件目录（含 Compose、IBus、OpenSSL/证书 TLS、SQLite、CUPS、XCB、Wayland），不再混有 Qt 5 插件；但 `readelf -rW` 核实主程序仍对受保护 Qt 函数存在 `R_X86_64_64` 直接重定位，不能替换为启用了 `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` 的 Arch 系统 Qt 6。
-- 调整内容：`build_moderncsv.sh` 全面接入 `Common/` 公共入口，从官方签名 APT 仓库动态获取最新 3.x DEB，完整保留官方 Qt 6.8.3 运行时和全部原生插件，改由 Debian 13（`trixie`，同代 Qt 6.8.2 ABI）签名 APT 仓库仅补入 `fcitx5-frontend-qt6`、`libfcitx5-qt6-1`、`libfcitx5utils2`，并补齐包内中文 locale 与 `libssl.so.3`/`libcrypto.so.3` 显式收集；同步新增 [template-deviations.md](./docs/template-deviations.md) 与 [hardcoded.md](./docs/hardcoded.md) 并登记至[专用打包流程](../Docs/packaging-classification.md#专用打包流程)。
+- 调整内容：`build_moderncsv.sh` 全面接入 `Common/` 公共入口，从官方签名 APT 仓库动态获取最新 3.x DEB，完整保留官方 Qt 6.8.3 运行时和全部原生插件，改由 Debian 13（`trixie`，同代 Qt 6.8.2 ABI）签名 APT 仓库仅补入 `fcitx5-frontend-qt6`、`libfcitx5-qt6-1`、`libfcitx5utils2`，并补齐包内中文 locale 与 `libssl.so.3`/`libcrypto.so.3` 显式收集；同步新增 [template-deviations.md](./docs/template-deviations.md) 与 [hardcoded.md](./docs/hardcoded.md) 并归类至[用 quick-sharun 打包的 Qt 程序 → 直接下载安装包](../Docs/packaging-classification.md#用-quick-sharun-打包的-qt-程序)。

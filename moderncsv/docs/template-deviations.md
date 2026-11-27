@@ -1,8 +1,8 @@
-# Modern CSV 专用打包流程与模板差异
+# Modern CSV 模板差异
 
 ## 分类与两项来源核实
 
-本项目登记在[专用打包流程](../../Docs/packaging-classification.md#专用打包流程)，不新增第 14 份标准模板。本次按仓库本地工作区直接交付最终版的授权，手动对齐 [quick-sharun 固定注释标准](../../Docs/quick-sharun-comments.md) 及仓库 `Common/` 公共入口。
+本项目归类于[用 quick-sharun 打包的 Qt 程序 → 直接下载安装包](../../Docs/packaging-classification.md#用-quick-sharun-打包的-qt-程序)，不新增第 14 份标准模板。本次按仓库本地工作区直接交付最终版的授权，对齐 [quick-sharun 固定注释标准](../../Docs/quick-sharun-comments.md) 及仓库 `Common/` 公共入口，并保留下列经核实的本应用专属处理。
 
 两项前置核实结果：
 
@@ -15,7 +15,7 @@
      - `readelf -rW` 核实 3.0 主程序仍对 `QGroupBox::initStyleOption`、`QTabWidget::initStyleOption`、`QFrame::initStyleOption` 等受保护 Qt 函数存在 `R_X86_64_64` 直接符号引用；而 Arch 官方 `qt6-base` 启用了 `-DFEATURE_no_direct_extern_access=ON`（`GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`），因此**不能使用 Arch `--qt6` 替换官方 Qt 6.8.3 运行时**（2026-09-03 已实机复现该启动崩溃）。
      - 官方 3.0 DEB 仅缺少 Fcitx5 Qt 6 输入法插件；由同代 Qt 6.8 系列（Qt 6.8.2）的 **Debian 13（Trixie）** 签名 APT 仓库按需补入 `fcitx5-frontend-qt6`、`libfcitx5-qt6-1`、`libfcitx5utils2` 三个包即可，不替换任何官方 `libQt6*.so`。
 
-现有 `Templates/quick-sharun/qt-deb.sh` 面向 AUR DEB 源且不包含官方签名 APT 仓库下载、保留上游 Qt 目录（`QT_LOCATION`）以及从 Debian Trixie 签名仓库补齐同代 Qt 6.8 Fcitx5 插件的步骤，因此归入专用打包流程。
+现有 `Templates/quick-sharun/qt-deb.sh` 面向 AUR DEB 源；本应用未安装同源 AUR 应用包，改由官方签名 APT 仓库独立下载 3.x DEB、保留上游 Qt 6.8.3 目录（`QT_LOCATION`）并从 Debian Trixie 签名仓库补齐同代 Qt 6.8 Fcitx5 插件，这些步骤作为本应用在该分类下的已核实专属处理保留。
 
 ## 公共阶段对齐
 
@@ -29,11 +29,11 @@
 
 ## 保留与调整的专属处理
 
-以下处理均在 [build_moderncsv.sh](../build_moderncsv.sh) 中以 `# 本程序专属处理：` 标注：
+以下处理均对应 [build_moderncsv.sh](../build_moderncsv.sh) 中的具体阶段（模板外新增步骤紧贴对应命令以 `# 本程序专属处理：` 标注，沿用公共语义的步骤保留固定标准注释）：
 
 | 处理 | 代码位置 | 保留/调整原因与影响 |
 | --- | --- | --- |
 | 官方签名 APT 仓库下载 DEB | [build_moderncsv.sh](../build_moderncsv.sh#L18-L22) | 通过 `Common/download/download_apt_repository_deb.sh` 验证官方 GPG 签名与 SHA-256 并下载最新 3.x `amd64.deb`，替代易触发 Cloudflare HTML 挑战页的旧 `2.4.3.tar.gz`。 |
 | 保留官方 Qt 6.8.3 与全部原生插件 | [build_moderncsv.sh](../build_moderncsv.sh#L24-L25) | 不再清空 `plugins/`，也不再下载 `libqt6gui6` / `libqt6network6`；完整保留 3.0 官方自带的 Qt 6.8.3 库与 13 个原生 Qt 6 插件目录。 |
-| 补入 Debian 13 (Trixie) Fcitx5 Qt6 插件 | [build_moderncsv.sh](../build_moderncsv.sh#L27-L34) | 通过 `Common/download/download_apt_repository_deb.sh` 从 Debian Trixie 签名 APT 仓库动态下载 `fcitx5-frontend-qt6`、`libfcitx5-qt6-1`、`libfcitx5utils2`，仅复制 Fcitx5 输入法插件与完整 SONAME 运行库链，不再使用硬编码 `wget` 与 Debian Bookworm Qt 6.4.2 包；依据见 [hardcoded.md](./hardcoded.md)。 |
-| 指定 `QT_LOCATION` 与 OpenSSL 3 显式收集 | [build_moderncsv.sh](../build_moderncsv.sh#L52-L61) | 设置 `DEPLOY_QT=1`、`DEPLOY_OPENGL=1`、`QT_LOCATION="$SOURCE_DIR"`，让 `quick-sharun` 从官方 6.8.3 目录部署全部插件；构建期临时设置 `LD_LIBRARY_PATH="$SOURCE_DIR/lib..."` 让 `ldd` 解析官方 Qt 6.8.3 依赖，并显式收入 `libFcitx5Qt6DBusAddons.so.1`、`libFcitx5Utils.so.2` 与 `/usr/lib/libssl.so.3`、`/usr/lib/libcrypto.so.3` 供 `libqopensslbackend.so` 使用。 |
+| 补入 Debian 13 (Trixie) Fcitx5 Qt6 插件 | [build_moderncsv.sh](../build_moderncsv.sh#L27-L39) | 通过 `Common/download/download_apt_repository_deb.sh` 从 Debian Trixie 签名 APT 仓库动态下载 `fcitx5-frontend-qt6`、`libfcitx5-qt6-1`、`libfcitx5utils2`，仅复制 Fcitx5 输入法插件与完整 SONAME 运行库链，不再使用硬编码 `wget` 与 Debian Bookworm Qt 6.4.2 包；依据见 [hardcoded.md](./hardcoded.md)。 |
+| 指定 `QT_LOCATION` 与 OpenSSL 3 显式收集 | [build_moderncsv.sh](../build_moderncsv.sh#L57-L68) | 设置 `DEPLOY_QT=1`、`DEPLOY_OPENGL=1`、`QT_LOCATION="$SOURCE_DIR"`，让 `quick-sharun` 从官方 6.8.3 目录部署全部插件；构建期临时设置 `LD_LIBRARY_PATH="$SOURCE_DIR/lib..."` 让 `ldd` 解析官方 Qt 6.8.3 依赖，并显式收入 `libFcitx5Qt6DBusAddons.so.1`、`libFcitx5Utils.so.2` 与 `/usr/lib/libssl.so.3`、`/usr/lib/libcrypto.so.3` 供 `libqopensslbackend.so` 使用。 |
