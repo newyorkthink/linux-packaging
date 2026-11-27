@@ -121,9 +121,9 @@ htop 保留原有 MAIN_BIN、Open Files / Trace 辅助命令和运行时动态�
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
 | MailMaster | [build_mailmaster.sh](../mailmaster/build_mailmaster.sh) | 按当前 AUR 配方安装，独立校验并解包主 DEB，公共入口读取同次下载的版本。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1<br>export DEPLOY_PIPEWIRE=1 | [模板差异](../mailmaster/docs/template-deviations.md) |
-| Modern CSV | [build_moderncsv.sh](../moderncsv/build_moderncsv.sh) | 从官方签名 APT 仓库独立下载最新 3.x DEB 并验签，公共入口读取同次下载的版本；完整保留官方 Qt 6.8.3 运行时与全部原生 Qt 6 插件，仅从 Debian 13 (Trixie) 签名 APT 仓库补入同代 Qt 6.8 ABI 的 Fcitx5 输入插件与运行库。 | export DEPLOY_QT=1<br>export DEPLOY_OPENGL=1<br>export QT_LOCATION="$SOURCE_DIR" | [模板差异](../moderncsv/docs/template-deviations.md) · [固定配置](../moderncsv/docs/hardcoded.md) |
+| Modern CSV | [build_moderncsv.sh](../moderncsv/build_moderncsv.sh) | 通过公共入口从本仓库 `original-package-archive` 归档标签自动选择最高版本 `moderncsv_{version}_amd64.deb`，核对 GitHub SHA-256 与 DEB 元数据并读取包内版本；完整保留官方 Qt 6.8.3 运行时与全部原生 Qt 6 插件，仅从 Debian 13 (Trixie) 签名 APT 仓库补入同代 Qt 6.8 ABI 的 Fcitx5 输入插件与运行库。 | export DEPLOY_QT=1<br>export DEPLOY_OPENGL=1<br>export QT_LOCATION="$SOURCE_DIR" | [模板差异](../moderncsv/docs/template-deviations.md) · [固定配置](../moderncsv/docs/hardcoded.md) |
 
-Modern CSV 未安装同源 Arch/AUR 应用包，只安装官方 Qt 6.8.3 插件所需的非 Qt 运行依赖，并直接使用 DEB 内的桌面入口与图标；其官方签名 APT 仓库下载、`QT_LOCATION` 保留自带 Qt 6.8.3（避免 Arch Qt 6 的 `GNU_PROPERTY` 启动崩溃）及从 Debian Trixie 签名仓库补入同代 Fcitx5 Qt 6 插件均作为本应用专属处理保留，不改变其他项目的默认模板要求。
+Modern CSV 未安装同源 Arch/AUR 应用包，只安装官方 Qt 6.8.3 插件及 Fcitx5 兼容库所需的非 Qt 运行依赖，并直接使用 DEB 内的桌面入口与图标；其 `original-package-archive` 归档标签按版本选包（避免上游站点对 CI 出口偶发返回挑战页）、`QT_LOCATION` 保留自带 Qt 6.8.3（避免 Arch Qt 6 的 `GNU_PROPERTY` 启动崩溃）及从 Debian Trixie 签名仓库补入同代 Fcitx5 Qt 6 插件均作为本应用专属处理保留，不改变其他项目的默认模板要求。
 
 ### 从系统真实入口收集
 

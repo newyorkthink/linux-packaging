@@ -16,7 +16,7 @@ cd "$SCRIPT_DIR"
 "$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
 
 # 下载官方当前 DEB。
-"$SCRIPT_DIR/../Common/download/download_apt_repository_deb.sh" https://www.moderncsv.com/release/apt stable main moderncsv amd64 https://www.moderncsv.com/release/apt/public.key work/app.deb work/source-version.txt
+"$SCRIPT_DIR/../Common/github/download_tagged_release_asset.sh" newyorkthink/linux-packaging original-package-archive 'moderncsv_{version}_amd64.deb' work/app.deb moderncsv amd64 > work/source-version.txt
 
 # 解包官方 DEB。
 "$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/app.deb work/unpacked

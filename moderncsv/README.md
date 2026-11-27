@@ -11,7 +11,7 @@ moderncsv.AppImage
 上游与打包参考：
 
 - Modern CSV：`https://www.moderncsv.com/`
-- 官方签名 APT 仓库：`https://www.moderncsv.com/release/apt`（`stable main moderncsv amd64`）
+- 官方原始包归档（构建默认来源）：[`newyorkthink/linux-packaging` 的 `original-package-archive`](https://github.com/newyorkthink/linux-packaging/releases/tag/original-package-archive)（通过 [Archive Original Packages](../.github/workflows/archive_original_packages.yml) 从官方签名 APT 仓库 `https://www.moderncsv.com/release/apt` 手动归档最新 3.x DEB 及同版本 `tar.gz`，自动保留最新 2 个版本）
 - pkgforge-dev `quick-sharun`：`https://github.com/pkgforge-dev/Anylinux-AppImages`
 - 官方说明：`https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/HOW-TO-MAKE-THESE.md`
 - 模板差异与固定配置：[template-deviations.md](./docs/template-deviations.md) · [hardcoded.md](./docs/hardcoded.md)
@@ -38,7 +38,7 @@ pkgforge-dev/anylinux-setup-action
 
 1. 调用 `Common/arch/install_packages.sh --base` 安装基础工具，另起一行只安装 DEB 校验与官方 Qt 6.8.3 插件及 Fcitx5 兼容库所需的非 Qt 运行依赖（`dpkg`、`fontconfig`、`gtk3`、`libcups`、`libglvnd`、`libunwind`、`libx11`、`libxcb`、`libxkbcommon-x11`、`mesa`、`wayland`、`xcb-util*`）；**不调用 `--qt6`，不安装 Arch `qt6-*` 或 `fcitx5-qt`**。
 2. 调用 `Common/build/prepare_x86_64_workspace.sh` 准备 `AppDir`、`dist`、`work`。
-3. 通过 `Common/download/download_apt_repository_deb.sh` 从官方签名 APT 仓库下载并校验最新 `moderncsv` `amd64.deb` 及版本文件，调用 `Common/archive/extract_archive.sh` 解包，保留完整 `work/unpacked/opt/moderncsv/` 目录树作为 `SOURCE_DIR`。
+3. 通过 `Common/github/download_tagged_release_asset.sh` 从本仓库 `original-package-archive` 归档标签自动选择最高版本的 `moderncsv_{version}_amd64.deb`（认证 GitHub API + 官方 Release 直链优先 + 资产 ID 认证回退 + 官方 SHA-256 校验 + DEB 包名/架构/版本核对），调用 `Common/archive/extract_archive.sh` 解包，保留完整 `work/unpacked/opt/moderncsv/` 目录树作为 `SOURCE_DIR`。需要升级 Modern CSV 时先手动运行 [Archive Original Packages](../.github/workflows/archive_original_packages.yml) 将官方新版归档至 `original-package-archive`（保留最新 2 个版本便于回退），日常/定时/按需构建不再直接请求 `moderncsv.com`。
 4. 通过 `Common/download/download_apt_repository_deb.sh` 从 Debian 13（`trixie`）签名 APT 仓库动态下载并验签 `fcitx5-frontend-qt6`、`libfcitx5-qt6-1`、`libfcitx5utils2`，仅将以下 Fcitx5 Qt 6 组件补入官方目录，不复制任何 Debian `libQt6*.so`：
 
 ```text
@@ -183,3 +183,8 @@ Modern CSV 的核心约束是“第三方闭源预编译 Qt 6.8.3 二进制存�
 
 - 故障现象：Modern CSV 3.0 官方签名 APT 源下载与验签已通过，但在下载 Debian 13（`trixie`）Fcitx5 兼容包时，`trixie/InRelease` 同时带有三把官方密钥签名；`archive-key-13.asc` 验签输出 `Good signature` 后，因另外两把未提供公钥的签名触发 `Can't check signature: No public key`，`gpgv` 返回退出码 `2` 中断构建。[GitHub Actions 失败日志](https://github.com/newyorkthink/linux-packaging/actions/runs/45968518173/job/140406790465)
 - 调整内容：在 `Common/download/download_apt_repository_deb.sh` 接入 RFC 4880 单一明文签名块严格拆分与 `gpgv --status-fd 1` 状态验签，要求调用方指定官方公钥至少产出一条有效 `GOODSIG`/`VALIDSIG` 且无损坏、过期、吊销或非缺公钥错误；同步在 `moderncsv/build_moderncsv.sh` 依赖行补入 `libunwind`（供 Debian Trixie `libfcitx5utils2` 依赖的 `libunwind.so.8`）。
+
+### 2026-11-27：构建来源切至本仓库 `original-package-archive`（保留最新 2 个版本）
+
+- 故障现象：GitHub Actions 出口访问 `www.moderncsv.com/release/apt/` 时仍会偶发收到约 12 KB 的 HTML 挑战页，导致 `gpg --dearmor` 报 `gpg: no valid OpenPGP data found.` 退出。[GitHub Actions 失败日志](https://github.com/newyorkthink/linux-packaging/actions/runs/45972050809/job/140414653877)
+- 调整内容：在 [archive_original_packages.yml](../.github/workflows/archive_original_packages.yml) 将 `moderncsv` 手动归档升级为同时归档官方签名 APT 最新 3.x DEB 与同版本 `tar.gz` 并自动保留最新 2 个版本（便于新版本注册异常时回退上一版本）；`build_moderncsv.sh` 改用公共入口 `Common/github/download_tagged_release_asset.sh` 从本仓库 `original-package-archive` 自动选择最高版本 `moderncsv_{version}_amd64.deb` 并校验官方 SHA-256 与 DEB 元数据，日常、定时与按需构建不再直接访问 `moderncsv.com`。
