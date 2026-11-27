@@ -2,7 +2,7 @@
 
 ## 分类与两项来源核实
 
-本项目按仓库的[专用打包流程](../../Docs/packaging-classification.md#专用打包流程)维护。构建沿用 [quick-sharun 固定注释标准](../../Docs/quick-sharun-comments.md)，下载、验签、解包及版本记录使用仓库 `Common/` 脚本。
+本项目归类于[用 quick-sharun 打包的 Qt 程序 → 直接下载安装包](../../Docs/packaging-classification.md#用-quick-sharun-打包的-qt-程序)。构建沿用 [quick-sharun 固定注释标准](../../Docs/quick-sharun-comments.md)，下载、验签、解包及版本记录使用仓库 `Common/` 脚本。
 
 1. **`pkgforge-dev` 官方打包**。经检索 `moderncsv` 和 `modern-csv`，未发现对应的应用打包仓库。采用 pkgforge-dev 通用流程，先用 `quick-sharun` 部署程序及依赖，再调用 `quick-sharun --make-appimage`。[官方流程](https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/HOW-TO-MAKE-THESE.md#L55-L66)
 2. **官方包与运行时**。官方旧版下载页提供 2.x Linux `tar.gz`，其发布目录列有 `ModernCSV-Linux-v2.4.5.tar.gz`。2.x 兼容方案来自此前 2.4.3 产物的 Qt、TLS 和输入法故障记录。替换成 Arch 系统 Qt 6 会触发受保护符号直接引用错误，保留官方 Qt 6.4.3 后，由 Debian Bookworm 的 Qt 6.4.2 同代组件补齐所需插件。[官方旧版下载](https://www.moderncsv.com/download-older-versions/) · [官方发布目录](https://www.moderncsv.com/release/) · [修复记录](../README.md#修复记录)

@@ -18,7 +18,7 @@ moderncsv.AppImage
 
 ## 打包环境
 
-Modern CSV 使用仓库统一的 Arch Linux / AnyLinux quick-sharun 构建环境，按[专用打包流程](../Docs/packaging-classification.md#专用打包流程)维护。
+Modern CSV 使用仓库统一的 Arch Linux / AnyLinux quick-sharun 构建环境，归类于[用 quick-sharun 打包的 Qt 程序 → 直接下载安装包](../Docs/packaging-classification.md#用-quick-sharun-打包的-qt-程序)。
 
 `.github/workflows/build.yml` 中的 Modern CSV Job 通过统一矩阵调度复用：
 
