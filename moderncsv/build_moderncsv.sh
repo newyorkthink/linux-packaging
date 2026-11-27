@@ -101,7 +101,6 @@ LANG=zh_CN.UTF-8
 LANGUAGE=zh_CN:zh
 LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
-QT_STYLE_OVERRIDE=Adwaita-Dark
 ENV
 
 # 把 AppDir 打成 AppImage。

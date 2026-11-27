@@ -8,10 +8,12 @@
 moderncsv.AppImage
 ```
 
+现有许可证仅覆盖 Modern CSV 2.x，因此本仓库继续打包 2.x，暂缓升级到 3.0.0。
+
 上游与打包参考：
 
 - Modern CSV：`https://www.moderncsv.com/`
-- [Modern CSV 官方旧版下载](https://www.moderncsv.com/download-older-versions/)提供 2.x 的 Linux `tar.gz`。通过 [Archive Original Packages](../.github/workflows/archive_original_packages.yml) 手动维护 [`original-package-archive`](https://github.com/newyorkthink/linux-packaging/releases/tag/original-package-archive) 中的原包。为继续使用 2.x 许可证，当前归档维持在 2.x，构建默认取匹配文件名模板的最高版本。
+- [Modern CSV 官方旧版下载](https://www.moderncsv.com/download-older-versions/)提供 2.x 的 Linux `tar.gz`。通过 [Archive Original Packages](../.github/workflows/archive_original_packages.yml) 手动维护 [`original-package-archive`](https://github.com/newyorkthink/linux-packaging/releases/tag/original-package-archive) 中的原包。当前归档维持在 2.x，构建默认取匹配文件名模板的最高版本。
 - pkgforge-dev `quick-sharun`：`https://github.com/pkgforge-dev/Anylinux-AppImages`
 - 官方说明：`https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/HOW-TO-MAKE-THESE.md`
 - 模板差异与固定配置：[template-deviations.md](./docs/template-deviations.md) · [hardcoded.md](./docs/hardcoded.md)
@@ -50,7 +52,7 @@ pkgforge-dev/anylinux-setup-action
 
 ## Qt 与中文输入
 
-包内生成 `AppDir/lib/locale/zh_CN.utf8`，在 `AppDir/.env` 中设置 `LANG`、`LANGUAGE`、`LC_MESSAGES` 和 `LOCPATH`。Fcitx5、IBus 或 Compose 由宿主输入法环境选择，脚本不强制设置 `QT_IM_MODULE`。中文 locale 和输入法支持不涉及界面翻译。Qt 样式通过 `QT_STYLE_OVERRIDE=Adwaita-Dark` 设置。
+包内生成 `AppDir/lib/locale/zh_CN.utf8`，在 `AppDir/.env` 中设置 `LANG`、`LANGUAGE`、`LC_MESSAGES` 和 `LOCPATH`。Fcitx5、IBus 或 Compose 由宿主输入法环境选择，脚本不强制设置 `QT_IM_MODULE`。中文 locale 和输入法支持不涉及界面翻译。
 
 ## 特殊处理原则
 

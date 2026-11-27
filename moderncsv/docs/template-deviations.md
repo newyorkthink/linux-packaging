@@ -18,7 +18,7 @@
 | 依赖安装 | `Common/arch/install_packages.sh --base` 加一行非 Qt 运行依赖。 | 安装配套系统库和 Debian DEB 解包工具，保留官方 Qt 运行时。 |
 | 工作区 | `Common/build/prepare_x86_64_workspace.sh`。 | 统一准备 `AppDir`、`dist` 和 `work`。 |
 | 版本读取与保存 | `Common/build/read_app_version.sh text work/source-version.txt` 与 `Common/build/save_appimage_version.sh`。 | 使用同次校验下载返回的 tarball 版本生成 `dist/version.txt`。 |
-| 中文环境 | 收集依赖后生成 `AppDir/lib/locale/zh_CN.utf8` 并写入 `AppDir/.env`。 | 应用自带中文 locale，宿主输入法环境决定使用 Fcitx5、IBus 或 Compose。[对应代码](../build_moderncsv.sh#L96-L105) |
+| 中文环境 | 收集依赖后生成 `AppDir/lib/locale/zh_CN.utf8` 并写入 `AppDir/.env`。 | 应用自带中文 locale，宿主输入法环境决定使用 Fcitx5、IBus 或 Compose。[对应代码](../build_moderncsv.sh#L96-L104) |
 
 ## 保留与调整的专属处理
 
@@ -29,6 +29,5 @@
 | 补齐 Bookworm 插件和运行库 | [下载兼容包并选取内容](../build_moderncsv.sh#L38-L62) | 从 Debian 12 签名 APT 仓库提取 Compose、IBus、Fcitx5、TLS 和 Adwaita 样式插件，以及 Fcitx5 和 Adwaita 运行库的完整 SONAME 链。Qt 基础库由官方原包提供。 |
 | 整理打包用 desktop | [图标修正](../build_moderncsv.sh#L64-L65) · [资源导出](../build_moderncsv.sh#L75-L78) | 在工作目录中解出的 desktop 副本里将绝对 `Icon=` 路径改为 `moderncsv`，并向 quick-sharun 提供包内官方 PNG。上游工具会生成 `.DirIcon`，desktop 内的图标键须在组装前整理。 |
 | 指定插件路径并部署显式依赖 | [Qt 环境](../build_moderncsv.sh#L83-L88) · [依赖收集](../build_moderncsv.sh#L90-L94) | 用 `QT_LOCATION` 指定已整理的程序目录，`DEPLOY_QT=1` 启用 Qt 插件收集，包括 QtGui 对应的 `styles/`。仅构建部署时以 `LD_LIBRARY_PATH` 优先查找官方库，显式传入 Fcitx5、Adwaita 和 TLS 所需的运行库。 |
-| 设置 Adwaita 暗色样式 | [应用环境](../build_moderncsv.sh#L99-L105) | 在 `AppDir/.env` 中设置 `QT_STYLE_OVERRIDE=Adwaita-Dark`，由包内 Adwaita Qt 6 样式插件提供。 |
 
 桌面图标及 Qt 样式处理依据见 [quick-sharun 图标代码](https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/useful-tools/quick-sharun.sh#L458-L487)、[Qt 插件代码](https://github.com/pkgforge-dev/Anylinux-AppImages/blob/main/useful-tools/quick-sharun.sh#L1096-L1136)及 [appimagetool 的 desktop 处理](https://github.com/pkgforge-dev/appimagetool/blob/0.7.1/src/desktop.rs#L40-L117)。具体包名、库名和路径见 [固定配置](./hardcoded.md)。
