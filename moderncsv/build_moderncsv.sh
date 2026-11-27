@@ -10,20 +10,13 @@ cd "$SCRIPT_DIR"
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装运行依赖及 DEB 解包工具。
-ARCH_PACKAGES=(
-  dpkg fontconfig libglvnd libunwind libx11 libxcb libxkbcommon-x11 mesa
-  xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm
-)
-"$SCRIPT_DIR/../Common/arch/install_packages.sh" "${ARCH_PACKAGES[@]}"
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" dpkg fontconfig libglvnd libunwind libx11 libxcb libxkbcommon-x11 mesa xcb-util xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm
 
 # 清掉上次的打包目录。
 "$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
 
 # 下载归档中与模板匹配的最高版本官方 TAR。
-ARCHIVE_ARGS=(
-  newyorkthink/linux-packaging original-package-archive 'ModernCSV-Linux-v{version}.tar.gz' work/app.tar.gz
-)
-"$SCRIPT_DIR/../Common/github/download_tagged_release_asset.sh" "${ARCHIVE_ARGS[@]}" > work/source-version.txt
+"$SCRIPT_DIR/../Common/github/download_tagged_release_asset.sh" newyorkthink/linux-packaging original-package-archive 'ModernCSV-Linux-v{version}.tar.gz' work/app.tar.gz > work/source-version.txt
 
 # 解包官方 TAR。
 "$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/app.tar.gz work/unpacked
@@ -43,17 +36,9 @@ mkdir -p "$SOURCE_DIR/plugins/"{platforms,platforminputcontexts,tls,styles}
 mv -- work/libqxcb.so "$SOURCE_DIR/plugins/platforms/"
 
 # 本程序专属处理：从 Debian Bookworm 签名仓库补齐同一 Qt 次版本的插件和配套库。
-BOOKWORM_PACKAGES=(
-  libqt6gui6 libqt6network6 fcitx5-frontend-qt6 libfcitx5-qt6-1 libfcitx5utils2
-  adwaita-qt6 libadwaitaqt6-1 libadwaitaqt6priv1
-)
-for pkg in "${BOOKWORM_PACKAGES[@]}"; do
+for pkg in libqt6gui6 libqt6network6 fcitx5-frontend-qt6 libfcitx5-qt6-1 libfcitx5utils2 adwaita-qt6 libadwaitaqt6-1 libadwaitaqt6priv1; do
   # 本程序专属处理：验签下载当前兼容 DEB。
-  apt_args=(
-    https://deb.debian.org/debian bookworm main "$pkg" amd64 https://ftp-master.debian.org/keys/archive-key-12.asc
-    "work/${pkg}.deb" "work/${pkg}.version"
-  )
-  "$SCRIPT_DIR/../Common/download/download_apt_repository_deb.sh" "${apt_args[@]}"
+  "$SCRIPT_DIR/../Common/download/download_apt_repository_deb.sh" https://deb.debian.org/debian bookworm main "$pkg" amd64 https://ftp-master.debian.org/keys/archive-key-12.asc "work/${pkg}.deb" "work/${pkg}.version"
   # 本程序专属处理：解包当前兼容 DEB。
   "$SCRIPT_DIR/../Common/archive/extract_archive.sh" "work/${pkg}.deb" "work/${pkg}"
 done
@@ -106,12 +91,7 @@ export QT_LOCATION="$SOURCE_DIR"
 VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" text work/source-version.txt)"
 
 # 收集程序及其运行依赖。
-SCAN_ARGS=(
-  "$SOURCE_DIR/moderncsv" "$SOURCE_DIR/lib/libFcitx5Qt6DBusAddons.so.1" "$SOURCE_DIR/lib/libFcitx5Utils.so.2"
-  "$SOURCE_DIR/lib/libadwaitaqt6.so.1" "$SOURCE_DIR/lib/libadwaitaqt6priv.so.1"
-  /usr/lib/libssl.so.3 /usr/lib/libcrypto.so.3
-)
-LD_LIBRARY_PATH="$SOURCE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun "${SCAN_ARGS[@]}"
+LD_LIBRARY_PATH="$SOURCE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun "$SOURCE_DIR/moderncsv" "$SOURCE_DIR/lib/libFcitx5Qt6DBusAddons.so.1" "$SOURCE_DIR/lib/libFcitx5Utils.so.2" "$SOURCE_DIR/lib/libadwaitaqt6.so.1" "$SOURCE_DIR/lib/libadwaitaqt6priv.so.1" /usr/lib/libssl.so.3 /usr/lib/libcrypto.so.3
 
 # 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
 mkdir -p AppDir/lib/locale

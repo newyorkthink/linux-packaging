@@ -34,7 +34,7 @@ pkgforge-dev/anylinux-setup-action
 
 ## 打包流程
 
-`build_moderncsv.sh` 通过仓库 `Common/` 公共入口下载、验签、解包和保存版本。
+`build_moderncsv.sh` 通过仓库 `Common/` 公共入口下载、验签、解包和保存版本。依赖安装、下载和 `quick-sharun` 收集的参数直接写在各自的调用行。
 
 1. 调用 `Common/arch/install_packages.sh --base` 安装基础工具，另起一行安装 `dpkg`、`fontconfig`、`libglvnd`、`libunwind`、`libx11`、`libxcb`、`libxkbcommon-x11`、`mesa` 及 `xcb-util*` 等非 Qt 运行依赖。
 2. 调用 `Common/build/prepare_x86_64_workspace.sh` 准备 `AppDir`、`dist`、`work`。通过 `Common/github/download_tagged_release_asset.sh` 从 `original-package-archive` 选取最高版本的 `ModernCSV-Linux-v{version}.tar.gz`，使用公共入口的认证查询、Release 下载回退和 SHA-256 校验，并保留同次下载的版本记录。
