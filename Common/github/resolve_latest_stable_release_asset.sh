@@ -46,10 +46,18 @@ ASSET_TEMPLATE="${2:-}"
   echo "用法：$0 <owner/repo> '<固定资产名或含 {version} 的资产名模板>'" >&2
   exit 1
 }
-[[ "$ASSET_TEMPLATE" == *'{version}'* || "$ASSET_TEMPLATE" =~ ^[A-Za-z0-9_.-]+$ ]] || {
+# 只有显式指定 regex: 时，才按资产文件名的正则读取 latest。
+ASSET_REGEX=''
+if [[ "$ASSET_TEMPLATE" == regex:* ]]; then
+  ASSET_REGEX="${ASSET_TEMPLATE#regex:}"
+  if (( $# != 2 )) || [[ -n "$RELEASE_TAG" || "$ASSET_REGEX" != *'{version}'* ]]; then
+    echo '错误：regex: 只用于最新正式 Release，资产名正则必须包含 {version}。' >&2
+    exit 2
+  fi
+elif [[ "$ASSET_TEMPLATE" != *'{version}'* && ! "$ASSET_TEMPLATE" =~ ^[A-Za-z0-9_.-]+$ ]]; then
   echo "错误：资产名必须是固定文件名或包含 {version} 的模板：$ASSET_TEMPLATE" >&2
   exit 1
-}
+fi
 
 # shellcheck source=Common/github/github_api.sh
 source "$GITHUB_API"
@@ -119,25 +127,49 @@ if [[ "${3:-}" == --latest-with-checksum ]]; then
   exit
 fi
 
-# 读取最近 100 个 Release，避免只依赖 latest 指针或匿名 API 配额。
-github_api_get "https://api.github.com/repos/$REPO/releases?per_page=100" "$RELEASES_JSON"
+# 正则模式只读取最新正式 Release。其他模式继续从最近 100 个 Release 选择。
+if [[ -n "$ASSET_REGEX" ]]; then
+  if [[ -z "${GITHUB_TOKEN:-}${GH_TOKEN:-}" ]]; then
+    echo '错误：读取最新正式 Release 需要 GITHUB_TOKEN 或 GH_TOKEN。' >&2
+    exit 1
+  fi
+  github_api_get "https://api.github.com/repos/$REPO/releases/latest" "$RELEASES_JSON"
+else
+  github_api_get "https://api.github.com/repos/$REPO/releases?per_page=100" "$RELEASES_JSON"
+fi
 
 # 只保留正式 semver 标签、唯一匹配资产和有效 GitHub SHA-256 digest，再按版本排序。
 CANDIDATE="$({
-  jq -r --arg asset_template "$ASSET_TEMPLATE" --arg tag_prefix "$TAG_PREFIX" --argjson with_asset_id "$WITH_ASSET_ID" '
-    .[]
-    | select(.draft != true and .prerelease != true)
+  jq -r --arg repo "$REPO" --arg asset_template "$ASSET_TEMPLATE" --arg asset_regex "$ASSET_REGEX" \
+    --arg tag_prefix "$TAG_PREFIX" --argjson with_asset_id "$WITH_ASSET_ID" '
+    if $asset_regex == "" then
+      .[] | select(.draft != true and .prerelease != true)
+    else
+      select(.draft == false and .prerelease == false)
+    end
     | ((.tag_name // "")
        | if $tag_prefix == "" then . else select(startswith($tag_prefix)) | ltrimstr($tag_prefix) end
        | capture("^v?(?<version>[0-9]+(?:\\.[0-9]+)+)$")?) as $tag
     | select($tag != null)
-    | ($asset_template | gsub("\\{version\\}"; $tag.version)) as $asset_name
-    | [.assets[]? | select(.name == $asset_name)] as $assets
+    | (if $asset_regex == "" then
+         ($asset_template | gsub("\\{version\\}"; $tag.version)) as $asset_name
+         | [.assets[]? | select(.name == $asset_name)]
+       else
+         ($tag.version | gsub("\\."; "[.]")) as $version_pattern
+         | ($asset_regex | gsub("\\{version\\}"; $version_pattern)) as $asset_pattern
+         | [.assets[]? | select(.state == "uploaded" and (.name | test("\\A(?:" + $asset_pattern + ")\\z")))]
+       end) as $assets
     | select(($assets | length) == 1)
-    | ($assets[0].digest // "") as $digest
+    | $assets[0] as $asset
+    | select($asset_regex == "" or (
+        ($asset.id | type) == "number" and $asset.id > 0
+        and $asset.browser_download_url ==
+          ("https://github.com/" + $repo + "/releases/download/" + .tag_name + "/" + $asset.name)
+      ))
+    | ($asset.digest // "") as $digest
     | select($digest | test("^sha256:[0-9a-fA-F]{64}$"))
-    | ([$tag.version, $assets[0].browser_download_url, ($digest | sub("^sha256:"; "") | ascii_downcase)]
-       + (if $with_asset_id then [($assets[0].id | tostring)] else [] end))
+    | ([$tag.version, $asset.browser_download_url, ($digest | sub("^sha256:"; "") | ascii_downcase)]
+       + (if $with_asset_id then [($asset.id | tostring)] else [] end))
     | @tsv
   ' "$RELEASES_JSON"
 } | sort -t $'\t' -k1,1V | tail -n 1)"
