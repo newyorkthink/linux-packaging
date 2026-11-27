@@ -234,13 +234,13 @@ download_pkgbuild_asset "<PKGBUILD URL>" "<地址字段>" "<SHA-256 字段>" "<�
 
 ### 官方 JSON 取包与同版本摘要核对
 
-[`download/download_json_asset.sh`](./download/download_json_asset.sh) 依次接收官方 JSON 地址、提取资产地址的 jq 表达式、允许的地址正则、版本正则、发布仓库、软件键、发布资产名、输出文件和版本文件。版本正则的第一个捕获组用于版本，可选的第二个组用连字符追加。
+[`download/download_json_asset.sh`](./download/download_json_asset.sh) 依次接收官方 JSON 地址、提取资产地址的 jq 表达式、允许的地址正则、版本正则、发布仓库、软件键、发布资产名、输出文件和版本文件。版本正则用于匹配资产文件名，第一个捕获组用于版本，可选的第二个组用连字符追加。
 
-- `--metadata-alternate <JSON URL>` 在首个官方地址无法给出有效资产链接时读取另一个官方配置地址。
+- `--metadata-alternate <JSON URL>` 在首个官方配置请求失败、未返回有效资产链接或文件名中的完整版本与已校验清单不一致时，尝试另一个官方配置地址。两个配置均无匹配时停止。
 - `--pkgbuild <URL> <地址字段> <SHA-256 字段> <版本字段>` 优先复用配方下载入口，失败后使用官方 JSON 取包。
 - `--resolve-json-url` 及其 `--resolve-header` 参数沿用 [PKGBUILD 入口的取链用法](#pkgbuild-字面量字段中的下载来源)，应放在上述来源选项之后。
 
-JSON 路线使用受认证的 GitHub 查询和公共 Release 下载入口校验 `latest` 的 `software_versions.json`，再核对同版本条目的资产名及其 SHA-256。摘要必须与 Release 附件摘要一致。最终下载通过公共入口校验同一 SHA-256，完成后才保存版本文件。
+JSON 路线先使用受认证的 GitHub 查询和公共 Release 下载入口校验 `latest` 的 `software_versions.json`，再按软件键和发布资产名读取完整版本及 SHA-256，并核对该 SHA-256 与 Release 附件摘要一致。只接受与清单完整版本一致的资产链接。最终下载通过公共入口校验同一 SHA-256，完成后才保存版本文件。
 
 ### Arch 安装时复用已校验的 AUR DEB
 

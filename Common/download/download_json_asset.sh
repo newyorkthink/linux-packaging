@@ -79,30 +79,6 @@ work_dir="$(mktemp -d "${TMPDIR:-/tmp}/json-asset.XXXXXXXX")"
 version_temp=''
 trap 'rm -rf -- "$work_dir"; if [[ -n "$version_temp" ]]; then rm -f -- "$version_temp"; fi' EXIT
 
-# 只接受官方 JSON 中唯一匹配地址规则的资产。
-resolve_asset() {
-  local candidate
-  "$download_file" "$1" "$work_dir/metadata.json" >&2 || return 1
-  candidate="$(
-    jq -ers "[.[] | ($asset_filter)] | select(length == 1) | .[0] | strings" "$work_dir/metadata.json"
-  )" || return 1
-  [[ "$candidate" == https://* && "$candidate" != *[[:space:]]* && "$candidate" =~ $url_regex ]] || return 1
-  printf '%s\n' "$candidate"
-}
-
-if ! asset_url="$(resolve_asset "$metadata_url")"; then
-  [[ -n "$alternate_url" ]] && asset_url="$(resolve_asset "$alternate_url")" || fail '官方 JSON 未提供符合规则的资产地址。'
-fi
-
-# 沿用首个捕获组为版本、可选第二组为构建标识的格式。
-[[ "$asset_url" =~ $version_regex ]] || fail '无法从官方资产地址解析版本。'
-(( ${#BASH_REMATCH[@]} == 2 || ${#BASH_REMATCH[@]} == 3 )) || fail '版本正则必须提供一个或两个捕获组。'
-version="${BASH_REMATCH[1]}"
-if [[ -n "${BASH_REMATCH[2]:-}" ]]; then
-  version+="-${BASH_REMATCH[2]}"
-fi
-[[ "$version" =~ ^[0-9][0-9A-Za-z.+:~_-]*$ ]] || fail '官方资产版本格式无效。'
-
 # 通过公共入口下载并校验发布清单，再读取当前 Release 的摘要。
 "$script_dir/../github/download_tagged_release_asset.sh" \
   "$repository" latest software_versions.json "$work_dir/versions.json" >&2
@@ -122,6 +98,12 @@ manifest_digest="$(release_digest software_versions.json)" || fail '无法取得
 printf '%s  %s\n' "${manifest_digest#sha256:}" "$work_dir/versions.json" | sha256sum -c --status ||
   fail '发布清单在核对期间发生变化。'
 
+# 从已校验的清单读取发布资产的完整版本。
+version="$(jq -er --arg key "$software_key" --arg asset "$release_asset" '
+  .[$key] | select(.asset == $asset) | .version | strings
+' "$work_dir/versions.json")" || fail '无法从已发布清单取得匹配资产的版本。'
+[[ "$version" =~ ^[0-9][0-9A-Za-z.+:~_-]*$ ]] || fail '已发布清单中的资产版本格式无效。'
+
 # 仅使用同一版本且清单与 Release 资产摘要一致的校验值。
 manifest_sha256="$(jq -er --arg key "$software_key" --arg version "$version" --arg asset "$release_asset" '
   .[$key] | select(.version == $version and .asset == $asset)
@@ -129,6 +111,32 @@ manifest_sha256="$(jq -er --arg key "$software_key" --arg version "$version" --a
 ' "$work_dir/versions.json")" || fail "已发布清单没有版本 $version 的匹配资产摘要。"
 asset_digest="$(release_digest "$release_asset")" || fail '无法取得已发布资产的摘要。'
 [[ "${asset_digest,,}" == "sha256:${manifest_sha256,,}" ]] || fail '版本清单与已发布资产的摘要不一致。'
+
+# 只接受官方 JSON 中唯一符合地址规则且与发布清单版本一致的资产。
+resolve_asset() {
+  local candidate candidate_version
+  "$download_file" "$1" "$work_dir/metadata.json" >&2 || return 1
+  candidate="$(
+    jq -ers "[.[] | ($asset_filter)] | select(length == 1) | .[0] | strings" "$work_dir/metadata.json"
+  )" || return 1
+  [[ "$candidate" == https://* && "$candidate" != *[[:space:]]* && "$candidate" =~ $url_regex ]] || return 1
+
+  # 沿用首个捕获组为版本、可选第二组为构建标识的格式。
+  [[ "${candidate##*/}" =~ $version_regex ]] || return 1
+  (( ${#BASH_REMATCH[@]} == 2 || ${#BASH_REMATCH[@]} == 3 )) || return 1
+  candidate_version="${BASH_REMATCH[1]}"
+  if [[ -n "${BASH_REMATCH[2]:-}" ]]; then
+    candidate_version+="-${BASH_REMATCH[2]}"
+  fi
+  [[ "$candidate_version" == "$version" ]] || return 1
+  printf '%s\n' "$candidate"
+}
+
+# 按配置顺序查找与发布清单版本一致的资产地址。
+if ! asset_url="$(resolve_asset "$metadata_url")"; then
+  [[ -n "$alternate_url" ]] && asset_url="$(resolve_asset "$alternate_url")" ||
+    fail "官方 JSON 未提供与发布清单版本 $version 匹配的有效资产地址。"
+fi
 
 # 下载校验成功后才替换版本记录。
 mkdir -p -- "$(dirname -- "$version_file")"

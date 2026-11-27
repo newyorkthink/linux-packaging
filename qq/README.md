@@ -15,7 +15,7 @@
 
 当前路线是「官方 AppImage 原样同步」，不用 quick-sharun、linuxdeploy 或 appimagetool 重打包。
 
-1. 公共入口优先使用 `linuxqq-appimage` 配方中的下载地址和 SHA-256。配方来源不可用时，从腾讯官方下载配置读取 x86_64 AppImage 地址，从文件名提取版本号和构建日期。
+1. 公共入口优先使用 `linuxqq-appimage` 配方中的下载地址和 SHA-256。配方来源不可用时，按顺序查询腾讯官方下载配置，从 x86_64 AppImage 文件名提取版本号和构建日期，并与已校验清单中的完整版本核对。首个配置请求失败、链接无效或版本不匹配时，尝试备用接口。两个接口均无匹配版本时停止。
 2. 公共入口通过腾讯 `UrlSign` 取得签名地址并下载。使用腾讯配置取包时，必须有本仓库 `latest` 中同版本 `qq.AppImage` 的已发布摘要，且与版本清单一致。SHA-256 校验通过后原样写入 `qq/dist/qq.AppImage`。
 3. 公共产物收尾入口设置执行权限，并将本次版本写入 `dist/version.txt`。
 
