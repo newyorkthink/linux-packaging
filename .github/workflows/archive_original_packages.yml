@@ -1,5 +1,5 @@
 # 手动归档 rainlendar2-pro、moderncsv、xnviewmp 和固定版本 Sunshine 的官方原始包。
-# 只在 Actions 页面手动选择后运行，不随 push 或定时触发。
+# 仅在 Actions 页面手动触发，不随 push、release 或定时运行。
 name: Archive Original Packages
 
 on:
@@ -16,13 +16,17 @@ on:
           - sunshine
           - all
       version:
-        description: 指定版本号（可选，留空下最新；填写后只下该版并自动清理更高版本）
+        description: 指定版本（可选，留空保留最新 2 版并补齐缺失；填如 2、2.、2.x、2.4 则保留该线最高 2 版并清理更高和更旧版本）
         required: false
         default: ''
         type: string
 
 permissions:
   contents: write
+
+concurrency:
+  group: archive-original-packages
+  cancel-in-progress: false
 
 jobs:
   archive:
@@ -36,13 +40,20 @@ jobs:
         with:
           ref: main
 
-      - name: Download the selected official packages
+      - name: Sync official packages to original-package-archive
         shell: bash
         env:
           PACKAGE: ${{ inputs.package }}
-          TARGET_VERSION: ${{ inputs.version }}
+          RAW_VERSION: ${{ inputs.version }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
+
+          [[ -n "${GITHUB_TOKEN:-}" ]] || {
+            echo 'ERROR: missing GITHUB_TOKEN for authenticated GitHub API access' >&2
+            exit 1
+          }
 
           case "$PACKAGE" in
             rainlendar2-pro|moderncsv|xnviewmp|sunshine|all) ;;
@@ -52,239 +63,520 @@ jobs:
               ;;
           esac
 
-          TARGET_VERSION="${TARGET_VERSION#"${TARGET_VERSION%%[![:space:]]*}"}"
-          TARGET_VERSION="${TARGET_VERSION%"${TARGET_VERSION##*[![:space:]]}"}"
-          if [[ -n "$TARGET_VERSION" ]]; then
-            [[ "$PACKAGE" == moderncsv ]] || {
-              echo "ERROR: version input is currently only supported when package is moderncsv" >&2
-              exit 1
-            }
-            [[ "$TARGET_VERSION" =~ ^[0-9][0-9A-Za-z.+:~-]*$ && "$TARGET_VERSION" != */* && "$TARGET_VERSION" != *..* ]] || {
-              echo "ERROR: unsafe version input: $TARGET_VERSION" >&2
-              exit 1
-            }
-          fi
-
-          for command_name in curl grep gzip head jq sha256sum sort; do
+          for command_name in dpkg dpkg-deb gh gpg gpgv gzip jq python3 sha256sum tar; do
             command -v "$command_name" >/dev/null 2>&1 || {
               echo "ERROR: required command missing: $command_name" >&2
               exit 1
             }
           done
 
+          # 归一化可选版本筛选：兼容 2、2.、2.x、2.*、v2.x、2.4、2.4.5 等写法。
+          VERSION_FILTER="$(
+            python3 - "$PACKAGE" "$RAW_VERSION" <<'PY'
+          import re
+          import sys
+
+          package = sys.argv[1]
+          raw = sys.argv[2].strip()
+          if not raw:
+              print("")
+              raise SystemExit(0)
+
+          if package == "all":
+              raise SystemExit("ERROR: 选择 all 时不支持填写版本号，请单独选择具体软件。")
+          if package == "sunshine":
+              raise SystemExit("ERROR: sunshine 已固定锁定 2025.924.154138，不支持通过版本号覆盖。")
+
+          normalized = raw
+          if len(normalized) >= 2 and normalized[0] in ("v", "V") and normalized[1].isdigit():
+              normalized = normalized[1:]
+          normalized = re.sub(r"\.[xX*]$", "", normalized)
+          normalized = normalized.rstrip(".")
+
+          if (
+              not normalized
+              or "/" in normalized
+              or ".." in normalized
+              or not re.fullmatch(r"[0-9][0-9A-Za-z.+:~-]*", normalized)
+          ):
+              raise SystemExit(f"ERROR: 版本输入无效：{raw}")
+
+          print(normalized)
+          PY
+          )"
+
+          # shellcheck source=Common/github/github_api.sh
+          source ./Common/github/github_api.sh
+
+          BROWSER_UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
           ARCHIVE_DIR="$RUNNER_TEMP/original-package-archive"
           mkdir -p "$ARCHIVE_DIR"
-          : > "$RUNNER_TEMP/archive-files.txt"
-          : > "$RUNNER_TEMP/archive-regexes.txt"
+          KEEP_LIST="$RUNNER_TEMP/archive-keep.txt"
+          UPLOAD_LIST="$RUNNER_TEMP/archive-files.txt"
+          REGEX_LIST="$RUNNER_TEMP/archive-regexes.txt"
+          : > "$KEEP_LIST"
+          : > "$UPLOAD_LIST"
+          : > "$REGEX_LIST"
 
-          download_verified() {
-            local url="$1"
-            local output="$2"
-            local sha256="${3:-}"
-            local kind="${4:-gzip}"
-            local attempt
+          # 通过公共认证入口分页读取 GitHub API 数组响应。
+          fetch_github_pages() {
+            local base_url="$1"
+            local output_json="$2"
+            local page=1
+            local page_json="$RUNNER_TEMP/github-page.json"
+            local merged_dir="$RUNNER_TEMP/github-pages-$$"
+            rm -rf -- "$merged_dir"
+            mkdir -p -- "$merged_dir"
 
-            for attempt in 1 2 3 4 5; do
-              rm -f -- "$output"
-              curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
-                -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36' \
-                "$url" -o "$output"
-              if [[ -n "$sha256" ]]; then
-                if printf '%s  %s\n' "$sha256" "$output" | sha256sum -c -; then
-                  return 0
-                fi
-              elif [[ "$kind" == gzip ]] && gzip -t "$output" 2>/dev/null; then
-                return 0
-              elif [[ "$kind" == deb && "$(head -c 7 -- "$output")" == '!<arch>' ]]; then
-                return 0
+            while (( page <= 50 )); do
+              github_api_get "${base_url}&page=${page}" "$page_json"
+              local count
+              count="$(jq -r 'if type == "array" then length else error("expected JSON array") end' "$page_json")"
+              cp -f -- "$page_json" "$merged_dir/$(printf '%03d.json' "$page")"
+              (( count < 100 )) && break
+              if (( page == 50 )); then
+                echo "ERROR: GitHub API pagination exceeded 50 pages: $base_url" >&2
+                exit 1
               fi
-              echo "下载结果无效（第 ${attempt}/5 次）：$url" >&2
-              sleep $((attempt * 3))
+              page=$((page + 1))
             done
 
-            echo "ERROR: unable to download a valid file: $url" >&2
-            exit 1
+            jq -s 'add // []' "$merged_dir"/*.json > "$output_json"
+            rm -rf -- "$merged_dir" "$page_json"
           }
 
-          note_file() {
-            local path="$1"
-            local regex="$2"
-            printf '%s\n' "$path" >> "$RUNNER_TEMP/archive-files.txt"
-            printf '%s\n' "$regex" >> "$RUNNER_TEMP/archive-regexes.txt"
-            sha256sum "$path"
+          # 校验归档标签与 latest 标签状态，并在下载前读取归档 Release 现有资产清单。
+          ARCHIVE_RELEASE_JSON="$RUNNER_TEMP/archive-release.json"
+          LATEST_RELEASE_JSON="$RUNNER_TEMP/latest-release.json"
+          ARCHIVE_ASSETS_JSON="$RUNNER_TEMP/archive-assets.json"
+          github_api_get "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/original-package-archive" \
+            "$ARCHIVE_RELEASE_JSON"
+          jq -e '.tag_name == "original-package-archive" and .draft == false and .prerelease == false' \
+            "$ARCHIVE_RELEASE_JSON" >/dev/null
+          ARCHIVE_RELEASE_ID="$(jq -er '.id | select(type == "number" and . > 0)' "$ARCHIVE_RELEASE_JSON")"
+
+          github_api_get "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" "$LATEST_RELEASE_JSON"
+          jq -e '.tag_name == "latest" and .draft == false and .prerelease == false' "$LATEST_RELEASE_JSON" >/dev/null
+
+          fetch_github_pages \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/${ARCHIVE_RELEASE_ID}/assets?per_page=100" \
+            "$ARCHIVE_ASSETS_JSON"
+
+          # 检查归档 Release 中是否已存在同名、已上传且摘要符合预期的资产。
+          archive_has_valid_asset() {
+            local asset_name="$1"
+            local expected_sha="${2:-}"
+            python3 - "$ARCHIVE_ASSETS_JSON" "$asset_name" "$expected_sha" <<'PY'
+          import json
+          import re
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              assets = json.load(stream)
+          name = sys.argv[2]
+          expected_sha = sys.argv[3].strip().lower()
+
+          matches = [item for item in assets if isinstance(item, dict) and item.get("name") == name]
+          if len(matches) != 1:
+              raise SystemExit(1)
+          asset = matches[0]
+          if asset.get("state") != "uploaded":
+              raise SystemExit(1)
+          digest = asset.get("digest") or ""
+          if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest):
+              raise SystemExit(1)
+          actual_sha = digest.split(":", 1)[1].lower()
+          if expected_sha and actual_sha != expected_sha:
+              raise SystemExit(1)
+          raise SystemExit(0)
+          PY
+          }
+
+          note_keep() {
+            printf '%s\n' "$1" >> "$KEEP_LIST"
+          }
+
+          note_upload() {
+            printf '%s\n' "$1" >> "$UPLOAD_LIST"
+            sha256sum "$1"
+          }
+
+          note_regex() {
+            printf '%s\n' "$1" >> "$REGEX_LIST"
           }
 
           archive_rainlendar() {
-            ###### Rainlendar2 Pro：官方 latest 里唯一的 amd64 deb ######
-            local json="$RUNNER_TEMP/rainlendar-latest.json"
-            curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
-              -H 'Accept: application/vnd.github+json' \
-              'https://api.github.com/repos/rainlendar/Rainlendar-Resources/releases/latest' \
-              -o "$json"
-            mapfile -t rows < <(
-              jq -r '
-                .assets[]
-                | select(.name | test("^rainlendar2-pro_.*_amd64[.]deb$"))
-                | [.name, .browser_download_url, (.digest // "")]
-                | @tsv
-              ' "$json"
+            ###### Rainlendar2 Pro：按版本筛选官方正式 Releases，保留最高 2 版并补齐缺失 ######
+            local releases_json="$RUNNER_TEMP/rainlendar-releases.json"
+            fetch_github_pages \
+              'https://api.github.com/repos/rainlendar/Rainlendar-Resources/releases?per_page=100' "$releases_json"
+
+            mapfile -t selected_rows < <(
+              python3 - "$releases_json" "$VERSION_FILTER" <<'PY'
+          import functools
+          import json
+          import re
+          import subprocess
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              releases = json.load(stream)
+          version_filter = sys.argv[2].strip()
+
+          asset_re = re.compile(r"^rainlendar2-pro_([0-9][0-9A-Za-z.+:~-]*)_amd64\.deb$")
+          tag_re = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+
+          def matches_filter(ver):
+              if not version_filter:
+                  return True
+              return (
+                  ver == version_filter
+                  or ver.startswith(version_filter + ".")
+                  or ver.startswith(version_filter + "-")
+              )
+
+          def compare_versions(left, right):
+              for relation, result in (("lt", -1), ("gt", 1)):
+                  status = subprocess.run(
+                      ["dpkg", "--compare-versions", left, relation, right], check=False,
+                  ).returncode
+                  if status == 0:
+                      return result
+                  if status != 1:
+                      return -1 if left < right else (1 if left > right else 0)
+              return 0
+
+          by_version = {}
+          for rel in releases:
+              if not isinstance(rel, dict) or rel.get("draft") or rel.get("prerelease"):
+                  continue
+              tag = rel.get("tag_name") or ""
+              if not isinstance(tag, str) or ".." in tag or not tag_re.fullmatch(tag):
+                  continue
+              hits = []
+              for asset in rel.get("assets") or []:
+                  if not isinstance(asset, dict) or asset.get("state") != "uploaded":
+                      continue
+                  name = asset.get("name") or ""
+                  match = asset_re.fullmatch(name)
+                  if not match:
+                      continue
+                  digest = asset.get("digest") or ""
+                  if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest):
+                      continue
+                  hits.append((match.group(1), tag, name, digest.split(":", 1)[1].lower()))
+              if len(hits) != 1:
+                  continue
+              ver, tag, name, sha = hits[0]
+              if not matches_filter(ver):
+                  continue
+              prev = by_version.get(ver)
+              if prev and prev != (tag, name, sha):
+                  raise SystemExit(f"ERROR: Rainlendar2 Pro 同一版本存在冲突资产：{ver}")
+              by_version[ver] = (tag, name, sha)
+
+          if not by_version:
+              raise SystemExit(
+                  f"ERROR: Rainlendar2 Pro 上游没有匹配版本（筛选：{version_filter or '最新'}）且带官方 SHA-256 的正式 Release。"
+              )
+
+          versions = sorted(by_version.keys(), key=functools.cmp_to_key(compare_versions), reverse=True)
+          for ver in versions[:2]:
+              tag, name, sha = by_version[ver]
+              print(f"{ver}\t{tag}\t{name}\t{sha}")
+          PY
             )
-            if (( ${#rows[@]} != 1 )); then
-              echo "ERROR: expected one Rainlendar2 Pro amd64 deb, found ${#rows[@]}" >&2
-              printf '%s\n' "${rows[@]}" >&2
-              exit 1
-            fi
-            local name url digest sha256=""
-            IFS=$'\t' read -r name url digest <<<"${rows[0]}"
-            [[ -n "$name" && -n "$url" && "$name" != */* && "$name" != *..* ]] || {
-              echo "ERROR: unsafe Rainlendar2 asset: $name" >&2
+
+            (( ${#selected_rows[@]} > 0 )) || {
+              echo 'ERROR: no Rainlendar2 Pro releases selected' >&2
               exit 1
             }
-            if [[ "$digest" == sha256:* ]]; then
-              sha256="${digest#sha256:}"
-            fi
-            download_verified "$url" "$ARCHIVE_DIR/$name" "$sha256" deb
-            note_file "$ARCHIVE_DIR/$name" '^rainlendar2-pro_.*_amd64\.deb$'
-            printf 'Resolved Rainlendar2 Pro: %s\n' "$name"
+
+            local ver tag name sha
+            for row in "${selected_rows[@]}"; do
+              IFS=$'\t' read -r ver tag name sha <<< "$row"
+              note_keep "$name"
+              if archive_has_valid_asset "$name" "$sha"; then
+                printf 'Rainlendar2 Pro already archived (skip download): %s\n' "$name"
+              else
+                ./Common/github/download_tagged_release_asset.sh \
+                  rainlendar/Rainlendar-Resources "$tag" "$name" "$ARCHIVE_DIR/$name" >/dev/null
+                printf '%s  %s\n' "$sha" "$ARCHIVE_DIR/$name" | sha256sum -c -
+                dpkg-deb --contents "$ARCHIVE_DIR/$name" >/dev/null
+                note_upload "$ARCHIVE_DIR/$name"
+              fi
+              printf 'Resolved Rainlendar2 Pro: %s (%s)\n' "$ver" "$name"
+            done
+            note_regex '^rainlendar2-pro_.*_amd64\.deb$'
           }
 
           archive_moderncsv() {
-            ###### Modern CSV：留空取官方签名 APT 最新 3.x（DEB + tar.gz），填版本号则精确归档该版 ######
-            for command_name in dpkg dpkg-deb gpg gpgv python3 tar; do
-              command -v "$command_name" >/dev/null 2>&1 || {
-                echo "ERROR: required command missing: $command_name" >&2
-                exit 1
-              }
-            done
+            ###### Modern CSV：从官方 /release/ 目录按版本筛选保留最高 2 版，3.x 同版一并归档签名 APT DEB ######
+            local release_html="$RUNNER_TEMP/moderncsv-release-index.html"
+            ./Common/download/download_file.sh 'https://www.moderncsv.com/release/' "$release_html" "" "$BROWSER_UA"
 
-            if [[ -n "$TARGET_VERSION" ]]; then
-              local version="$TARGET_VERSION"
-              local tar_file="ModernCSV-Linux-v${version}.tar.gz"
-              ./Common/download/download_file.sh \
-                "https://www.moderncsv.com/release/${tar_file}" \
-                "$ARCHIVE_DIR/$tar_file"
-              gzip -t "$ARCHIVE_DIR/$tar_file"
-              tar -tzf "$ARCHIVE_DIR/$tar_file" >/dev/null
-              printf '%s\n' "$ARCHIVE_DIR/$tar_file" >> "$RUNNER_TEMP/archive-files.txt"
-              sha256sum "$ARCHIVE_DIR/$tar_file"
+            mapfile -t selected_versions < <(
+              python3 - "$release_html" "$VERSION_FILTER" <<'PY'
+          import functools
+          from html.parser import HTMLParser
+          import os
+          import re
+          import subprocess
+          import sys
+          from urllib.parse import urlparse
 
-              # 3.0 及以上版本同时尝试归档官方签名 APT 仓库中同版本的 DEB。
-              if dpkg --compare-versions "$version" ge 3.0; then
-                local deb_tmp="$ARCHIVE_DIR/moderncsv.deb"
-                local version_file="$RUNNER_TEMP/moderncsv.version"
-                ./Common/download/download_apt_repository_deb.sh \
-                  https://www.moderncsv.com/release/apt stable main moderncsv amd64 \
-                  https://www.moderncsv.com/release/apt/public.key \
-                  "$deb_tmp" "$version_file" >/dev/null
-                local apt_version
-                apt_version="$(tr -d '\r\n' < "$version_file")"
-                if [[ "$apt_version" == "$version" ]]; then
-                  local deb_file="moderncsv_${version}_amd64.deb"
-                  mv -f -- "$deb_tmp" "$ARCHIVE_DIR/$deb_file"
-                  dpkg-deb --contents "$ARCHIVE_DIR/$deb_file" >/dev/null
-                  printf '%s\n' "$ARCHIVE_DIR/$deb_file" >> "$RUNNER_TEMP/archive-files.txt"
-                  sha256sum "$ARCHIVE_DIR/$deb_file"
+          with open(sys.argv[1], encoding="utf-8", errors="replace") as stream:
+              html = stream.read()
+          version_filter = sys.argv[2].strip()
+
+          tar_re = re.compile(r"^ModernCSV-Linux-v([0-9][0-9A-Za-z.+:~-]*)\.tar\.gz$")
+          found = set()
+
+          class LinkCollector(HTMLParser):
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower() != "a":
+                      return
+                  for key, value in attrs:
+                      if key.lower() != "href" or not value:
+                          continue
+                      base = os.path.basename(urlparse(value).path)
+                      match = tar_re.fullmatch(base)
+                      if match:
+                          ver = match.group(1)
+                          if ".." not in ver:
+                              found.add(ver)
+
+          LinkCollector().feed(html)
+          if not found:
+              raise SystemExit(
+                  "ERROR: 无法从 https://www.moderncsv.com/release/ 读取 Modern CSV 版本列表（可能触发官网校验或目录不可用）。"
+              )
+
+          def matches_filter(ver):
+              if not version_filter:
+                  return True
+              return (
+                  ver == version_filter
+                  or ver.startswith(version_filter + ".")
+                  or ver.startswith(version_filter + "-")
+              )
+
+          def compare_versions(left, right):
+              for relation, result in (("lt", -1), ("gt", 1)):
+                  status = subprocess.run(
+                      ["dpkg", "--compare-versions", left, relation, right], check=False,
+                  ).returncode
+                  if status == 0:
+                      return result
+                  if status != 1:
+                      return -1 if left < right else (1 if left > right else 0)
+              return 0
+
+          candidates = [ver for ver in found if matches_filter(ver)]
+          if not candidates:
+              raise SystemExit(f"ERROR: Modern CSV 上游目录中没有匹配版本：{version_filter}")
+
+          candidates.sort(key=functools.cmp_to_key(compare_versions), reverse=True)
+          for ver in candidates[:2]:
+              print(ver)
+          PY
+            )
+
+            (( ${#selected_versions[@]} > 0 )) || {
+              echo 'ERROR: no Modern CSV versions selected' >&2
+              exit 1
+            }
+
+            local apt_fetched=0
+            local apt_version=""
+            local apt_deb_tmp="$RUNNER_TEMP/moderncsv-apt.deb"
+            local apt_version_file="$RUNNER_TEMP/moderncsv-apt.version"
+
+            local ver tar_file deb_file
+            for ver in "${selected_versions[@]}"; do
+              tar_file="ModernCSV-Linux-v${ver}.tar.gz"
+              note_keep "$tar_file"
+              if archive_has_valid_asset "$tar_file"; then
+                printf 'Modern CSV already archived (skip download): %s\n' "$tar_file"
+              else
+                ./Common/download/download_file.sh \
+                  "https://www.moderncsv.com/release/${tar_file}" "$ARCHIVE_DIR/$tar_file" "" "$BROWSER_UA"
+                gzip -t "$ARCHIVE_DIR/$tar_file"
+                tar -tzf "$ARCHIVE_DIR/$tar_file" >/dev/null
+                note_upload "$ARCHIVE_DIR/$tar_file"
+              fi
+
+              # 3.0 及以上版本同步保留或补齐官方签名 APT 同版本 DEB。
+              if dpkg --compare-versions "$ver" ge 3.0; then
+                deb_file="moderncsv_${ver}_amd64.deb"
+                if archive_has_valid_asset "$deb_file"; then
+                  note_keep "$deb_file"
+                  printf 'Modern CSV DEB already archived (skip download): %s\n' "$deb_file"
                 else
-                  rm -f -- "$deb_tmp"
+                  if (( apt_fetched == 0 )); then
+                    ./Common/download/download_apt_repository_deb.sh \
+                      https://www.moderncsv.com/release/apt stable main moderncsv amd64 \
+                      https://www.moderncsv.com/release/apt/public.key \
+                      "$apt_deb_tmp" "$apt_version_file" >/dev/null
+                    apt_version="$(tr -d '\r\n' < "$apt_version_file")"
+                    apt_fetched=1
+                  fi
+                  if [[ "$apt_version" == "$ver" ]]; then
+                    cp -f -- "$apt_deb_tmp" "$ARCHIVE_DIR/$deb_file"
+                    dpkg-deb --contents "$ARCHIVE_DIR/$deb_file" >/dev/null
+                    note_keep "$deb_file"
+                    note_upload "$ARCHIVE_DIR/$deb_file"
+                  fi
                 fi
               fi
 
-              printf '%s\n' "$version" > "$RUNNER_TEMP/moderncsv-max-version.txt"
-              : > "$RUNNER_TEMP/prune-moderncsv-keep-two"
-              printf 'Resolved Modern CSV (pinned): %s\n' "$version"
-              return 0
-            fi
-
-            local deb_tmp="$ARCHIVE_DIR/moderncsv.deb"
-            local version_file="$RUNNER_TEMP/moderncsv.version"
-            ./Common/download/download_apt_repository_deb.sh \
-              https://www.moderncsv.com/release/apt stable main moderncsv amd64 \
-              https://www.moderncsv.com/release/apt/public.key \
-              "$deb_tmp" "$version_file" >/dev/null
-
-            local version
-            version="$(tr -d '\r\n' < "$version_file")"
-            [[ "$version" =~ ^[0-9][0-9A-Za-z.+:~-]*$ && "$version" != */* && "$version" != *..* ]] || {
-              echo "ERROR: unsafe Modern CSV version: $version" >&2
-              exit 1
-            }
-
-            local deb_file="moderncsv_${version}_amd64.deb"
-            mv -f -- "$deb_tmp" "$ARCHIVE_DIR/$deb_file"
-            dpkg-deb --contents "$ARCHIVE_DIR/$deb_file" >/dev/null
-
-            local tar_file="ModernCSV-Linux-v${version}.tar.gz"
-            ./Common/download/download_file.sh \
-              "https://www.moderncsv.com/release/${tar_file}" \
-              "$ARCHIVE_DIR/$tar_file"
-            gzip -t "$ARCHIVE_DIR/$tar_file"
-            tar -tzf "$ARCHIVE_DIR/$tar_file" >/dev/null
-
-            printf '%s\n' "$ARCHIVE_DIR/$deb_file" >> "$RUNNER_TEMP/archive-files.txt"
-            printf '%s\n' "$ARCHIVE_DIR/$tar_file" >> "$RUNNER_TEMP/archive-files.txt"
-            rm -f -- "$RUNNER_TEMP/moderncsv-max-version.txt"
-            : > "$RUNNER_TEMP/prune-moderncsv-keep-two"
-            sha256sum "$ARCHIVE_DIR/$deb_file" "$ARCHIVE_DIR/$tar_file"
-            printf 'Resolved Modern CSV: %s (%s, %s)\n' "$version" "$deb_file" "$tar_file"
+              printf 'Resolved Modern CSV: %s\n' "$ver"
+            done
+            rm -f -- "$apt_deb_tmp" "$apt_version_file"
+            note_regex '^moderncsv_.*_amd64\.deb$'
+            note_regex '^ModernCSV-Linux-v.*\.tar\.gz$'
           }
 
           archive_xnview() {
-            ###### XnView MP：校验清单里版本号最高的 linux-x64 deb 和 tgz ######
+            ###### XnView MP：按官方校验清单筛选同时具备 deb/tgz 的最高 2 版并补齐缺失 ######
             local checksum="$RUNNER_TEMP/XnView_MP-CHECKSUMS.txt"
-            curl -fL --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 20 \
-              'https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt' \
-              -o "$checksum"
-            pick_latest_asset() {
-              local asset_regex="$1"
-              local candidate
-              candidate="$(
-                while read -r digest name _; do
-                  name="${name#\*}"
-                  name="${name%$'\r'}"
-                  [[ "$digest" =~ ^[[:xdigit:]]{64}$ ]] || continue
-                  [[ "$name" =~ $asset_regex ]] || continue
-                  printf '%s\t%s\n' "$name" "$digest"
-                done < "$checksum" | sort -t $'\t' -k1,1V | tail -n 1
-              )"
-              [[ -n "$candidate" ]] || {
-                echo "ERROR: checksum list has no asset for: $asset_regex" >&2
-                exit 1
-              }
-              printf '%s\n' "$candidate"
-            }
-            local deb_file deb_sha tgz_file tgz_sha deb_version tgz_version
-            IFS=$'\t' read -r deb_file deb_sha < <(pick_latest_asset '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.deb$')
-            IFS=$'\t' read -r tgz_file tgz_sha < <(pick_latest_asset '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.tgz$')
-            deb_version="$(grep -oE '[0-9]+(\.[0-9]+)+' <<<"$deb_file" | head -n 1)"
-            tgz_version="$(grep -oE '[0-9]+(\.[0-9]+)+' <<<"$tgz_file" | head -n 1)"
-            [[ -n "$deb_version" && "$deb_version" == "$tgz_version" ]] || {
-              echo "ERROR: XnView deb/tgz versions differ: $deb_file vs $tgz_file" >&2
+            ./Common/download/download_file.sh \
+              'https://download.xnview.com/versions/XnView_MP/XnView_MP-CHECKSUMS.txt' "$checksum"
+
+            mapfile -t selected_rows < <(
+              python3 - "$checksum" "$VERSION_FILTER" <<'PY'
+          import functools
+          import re
+          import subprocess
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8", errors="replace") as stream:
+              lines = stream.readlines()
+          version_filter = sys.argv[2].strip()
+
+          line_re = re.compile(r"^([0-9a-fA-F]{64})\s+\*?(\S+)$")
+          asset_re = re.compile(r"^XnView_MP-([0-9]+(?:\.[0-9]+)+)-linux-x64\.(deb|tgz)$")
+
+          def matches_filter(ver):
+              if not version_filter:
+                  return True
+              return (
+                  ver == version_filter
+                  or ver.startswith(version_filter + ".")
+                  or ver.startswith(version_filter + "-")
+              )
+
+          def compare_versions(left, right):
+              for relation, result in (("lt", -1), ("gt", 1)):
+                  status = subprocess.run(
+                      ["dpkg", "--compare-versions", left, relation, right], check=False,
+                  ).returncode
+                  if status == 0:
+                      return result
+                  if status != 1:
+                      return -1 if left < right else (1 if left > right else 0)
+              return 0
+
+          by_version = {}
+          for raw_line in lines:
+              match = line_re.match(raw_line.strip())
+              if not match:
+                  continue
+              sha = match.group(1).lower()
+              name = match.group(2)
+              asset_match = asset_re.fullmatch(name)
+              if not asset_match:
+                  continue
+              ver, ext = asset_match.group(1), asset_match.group(2)
+              entry = by_version.setdefault(ver, {})
+              prev = entry.get(ext)
+              if prev and prev != (name, sha):
+                  raise SystemExit(f"ERROR: XnView 校验清单中同一文件存在冲突摘要：{name}")
+              entry[ext] = (name, sha)
+
+          complete = [
+              ver for ver, items in by_version.items()
+              if "deb" in items and "tgz" in items and matches_filter(ver)
+          ]
+          if not complete:
+              raise SystemExit(f"ERROR: XnView 官方校验清单中没有匹配的完整版本：{version_filter or '最新'}")
+
+          complete.sort(key=functools.cmp_to_key(compare_versions), reverse=True)
+          for ver in complete[:2]:
+              deb_name, deb_sha = by_version[ver]["deb"]
+              tgz_name, tgz_sha = by_version[ver]["tgz"]
+              print(f"{ver}\t{deb_name}\t{deb_sha}\t{tgz_name}\t{tgz_sha}")
+          PY
+            )
+
+            (( ${#selected_rows[@]} > 0 )) || {
+              echo 'ERROR: no XnView MP versions selected' >&2
               exit 1
             }
-            download_verified \
-              "https://download.xnview.com/versions/XnView_MP/${deb_file}" \
-              "$ARCHIVE_DIR/$deb_file" "$deb_sha" deb
-            download_verified \
-              "https://download.xnview.com/versions/XnView_MP/${tgz_file}" \
-              "$ARCHIVE_DIR/$tgz_file" "$tgz_sha" gzip
-            note_file "$ARCHIVE_DIR/$deb_file" '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.(deb|tgz)$'
-            note_file "$ARCHIVE_DIR/$tgz_file" '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.(deb|tgz)$'
-            printf 'Resolved XnView MP: %s\n' "$deb_version"
+
+            local ver deb_file deb_sha tgz_file tgz_sha
+            for row in "${selected_rows[@]}"; do
+              IFS=$'\t' read -r ver deb_file deb_sha tgz_file tgz_sha <<< "$row"
+              note_keep "$deb_file"
+              note_keep "$tgz_file"
+
+              if archive_has_valid_asset "$deb_file" "$deb_sha"; then
+                printf 'XnView MP already archived (skip download): %s\n' "$deb_file"
+              else
+                ./Common/download/download_file.sh \
+                  "https://download.xnview.com/versions/XnView_MP/${deb_file}" "$ARCHIVE_DIR/$deb_file" "$deb_sha"
+                dpkg-deb --contents "$ARCHIVE_DIR/$deb_file" >/dev/null
+                note_upload "$ARCHIVE_DIR/$deb_file"
+              fi
+
+              if archive_has_valid_asset "$tgz_file" "$tgz_sha"; then
+                printf 'XnView MP already archived (skip download): %s\n' "$tgz_file"
+              else
+                ./Common/download/download_file.sh \
+                  "https://download.xnview.com/versions/XnView_MP/${tgz_file}" "$ARCHIVE_DIR/$tgz_file" "$tgz_sha"
+                gzip -t "$ARCHIVE_DIR/$tgz_file"
+                tar -tzf "$ARCHIVE_DIR/$tgz_file" >/dev/null
+                note_upload "$ARCHIVE_DIR/$tgz_file"
+              fi
+
+              printf 'Resolved XnView MP: %s\n' "$ver"
+            done
+            note_regex '^XnView_MP-[0-9]+(\.[0-9]+)+-linux-x64\.(deb|tgz)$'
           }
 
           archive_sunshine() {
-            ###### Sunshine：固定 2025.924.154138，不跟官方更新版本 ######
+            ###### Sunshine：固定锁死 2025.924.154138，不跟随新版，缺失时自动补传 ######
             local version='2025.924.154138'
+            local tag="v${version}"
             local deb_name="sunshine-${version}-debian-trixie-amd64.deb"
             local zst_name="sunshine-${version}.pkg.tar.zst"
             local deb_sha='eb74caedb8c03215b6897a4a9e0d24efeb02d13a917c86c4ac5180693d39bad0'
             local zst_sha='2d7be01ffde6fb346c86f102edb5158b513db5f194c0481cd5e782cadafd9c3c'
-            local base="https://github.com/LizardByte/Sunshine/releases/download/v${version}"
-            download_verified "$base/sunshine-debian-trixie-amd64.deb" "$ARCHIVE_DIR/$deb_name" "$deb_sha" deb
-            download_verified "$base/sunshine.pkg.tar.zst" "$ARCHIVE_DIR/$zst_name" "$zst_sha" gzip
-            note_file "$ARCHIVE_DIR/$deb_name" '^sunshine-.+\.(deb|pkg\.tar\.zst)$'
-            note_file "$ARCHIVE_DIR/$zst_name" '^sunshine-.+\.(deb|pkg\.tar\.zst)$'
-            printf 'Resolved Sunshine: %s\n' "$version"
+
+            note_keep "$deb_name"
+            note_keep "$zst_name"
+
+            if archive_has_valid_asset "$deb_name" "$deb_sha"; then
+              printf 'Sunshine already archived (skip download): %s\n' "$deb_name"
+            else
+              ./Common/github/download_tagged_release_asset.sh \
+                LizardByte/Sunshine "$tag" 'sunshine-debian-trixie-amd64.deb' "$ARCHIVE_DIR/$deb_name" >/dev/null
+              printf '%s  %s\n' "$deb_sha" "$ARCHIVE_DIR/$deb_name" | sha256sum -c -
+              dpkg-deb --contents "$ARCHIVE_DIR/$deb_name" >/dev/null
+              note_upload "$ARCHIVE_DIR/$deb_name"
+            fi
+
+            if archive_has_valid_asset "$zst_name" "$zst_sha"; then
+              printf 'Sunshine already archived (skip download): %s\n' "$zst_name"
+            else
+              ./Common/github/download_tagged_release_asset.sh \
+                LizardByte/Sunshine "$tag" 'sunshine.pkg.tar.zst' "$ARCHIVE_DIR/$zst_name" >/dev/null
+              printf '%s  %s\n' "$zst_sha" "$ARCHIVE_DIR/$zst_name" | sha256sum -c -
+              note_upload "$ARCHIVE_DIR/$zst_name"
+            fi
+
+            note_regex '^sunshine-.+\.(deb|pkg\.tar\.zst)$'
+            printf 'Resolved Sunshine (locked): %s\n' "$version"
           }
 
           case "$PACKAGE" in
@@ -300,172 +592,79 @@ jobs:
               ;;
           esac
 
-      - name: Replace old assets and upload
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -Eeuo pipefail
+          mapfile -t keep_names < <(sort -u "$KEEP_LIST")
+          mapfile -t upload_files < <(awk '!seen[$0]++' "$UPLOAD_LIST")
+          mapfile -t cleanup_regexes < <(sort -u "$REGEX_LIST")
 
-          for command_name in gh jq; do
-            command -v "$command_name" >/dev/null 2>&1 || {
-              echo "ERROR: required command missing: $command_name" >&2
-              exit 1
-            }
-          done
-
-          gh release view original-package-archive \
-            --repo "$GITHUB_REPOSITORY" \
-            --json tagName,isDraft,isPrerelease \
-            > "$RUNNER_TEMP/archive-release.json"
-          jq -e '
-            .tagName == "original-package-archive"
-            and .isDraft == false
-            and .isPrerelease == false
-          ' "$RUNNER_TEMP/archive-release.json" >/dev/null
-
-          gh release list \
-            --repo "$GITHUB_REPOSITORY" \
-            --limit 100 \
-            --json tagName,isLatest \
-            > "$RUNNER_TEMP/release-list.json"
-          jq -e '
-            any(.[]; .tagName == "original-package-archive" and .isLatest == false)
-            and any(.[]; .tagName == "latest" and .isLatest == true)
-          ' "$RUNNER_TEMP/release-list.json" >/dev/null
-
-          mapfile -t archive_files < "$RUNNER_TEMP/archive-files.txt"
-          mapfile -t archive_regexes < "$RUNNER_TEMP/archive-regexes.txt"
-          ((${#archive_files[@]} > 0)) || {
-            echo 'ERROR: no downloaded archive files' >&2
+          (( ${#keep_names[@]} > 0 )) || {
+            echo 'ERROR: no target archive assets resolved' >&2
             exit 1
           }
 
-          : > "$RUNNER_TEMP/archive-keep.txt"
-          for file_path in "${archive_files[@]}"; do
-            [[ -s "$file_path" ]] || {
-              echo "ERROR: downloaded file is empty: $file_path" >&2
-              exit 1
-            }
-            printf '%s\n' "$(basename "$file_path")" >> "$RUNNER_TEMP/archive-keep.txt"
-          done
-
-          if ((${#archive_regexes[@]} > 0)); then
-            while IFS=$'\t' read -r asset_id asset_name; do
-              [[ -n "$asset_id" && -n "$asset_name" ]] || continue
-              [[ "$asset_id" =~ ^[0-9]+$ ]] || {
-                echo "ERROR: release asset id is not numeric: $asset_id ($asset_name)" >&2
+          # 先补齐或替换缺失/校验不符的目标资产，确认全部就位后再清理旧版与高于指定线的版本。
+          if (( ${#upload_files[@]} > 0 )); then
+            for file_path in "${upload_files[@]}"; do
+              [[ -s "$file_path" ]] || {
+                echo "ERROR: downloaded file is empty: $file_path" >&2
                 exit 1
               }
-              matched=0
-              for asset_regex in "${archive_regexes[@]}"; do
-                if [[ "$asset_name" =~ $asset_regex ]]; then
-                  matched=1
-                  break
-                fi
-              done
-              [[ "$matched" -eq 1 ]] || continue
-              if grep -Fxq -- "$asset_name" "$RUNNER_TEMP/archive-keep.txt"; then
-                continue
+              asset_name="$(basename -- "$file_path")"
+              if jq -e --arg name "$asset_name" 'any(.[]; .name == $name)' "$ARCHIVE_ASSETS_JSON" >/dev/null; then
+                echo "Replacing mismatched archive asset: $asset_name"
+                bash ./Scripts/release/delete_asset.sh \
+                  --repo "$GITHUB_REPOSITORY" --tag original-package-archive --asset "$asset_name" --yes
               fi
-              echo "Deleting old asset: $asset_name"
-              gh api --method DELETE \
-                "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}" >/dev/null
-            done < <(
-              gh api "repos/${GITHUB_REPOSITORY}/releases/tags/original-package-archive" \
-                --jq '.assets[]? | [.id, .name] | @tsv'
-            )
-          fi
-
-          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/original-package-archive" \
-            > "$RUNNER_TEMP/archive-release-after-delete.json"
-
-          upload_files=()
-          while IFS= read -r file_path; do
-            asset_name="$(basename "$file_path")"
-            if jq -e --arg name "$asset_name" '.assets[]? | select(.name == $name)' \
-              "$RUNNER_TEMP/archive-release-after-delete.json" >/dev/null; then
-              echo "Current asset already present: $asset_name"
-              continue
-            fi
-            upload_files+=("$file_path")
-          done < "$RUNNER_TEMP/archive-files.txt"
-
-          if ((${#upload_files[@]} > 0)); then
-            gh release upload original-package-archive \
-              "${upload_files[@]}" \
-              --repo "$GITHUB_REPOSITORY"
+            done
+            gh release upload original-package-archive "${upload_files[@]}" --repo "$GITHUB_REPOSITORY"
           else
-            echo 'No new archive file to upload.'
+            echo 'All target archive assets are already present; skipping upload.'
           fi
 
-          # Modern CSV 上传成功后再按版本号保留最新 2 个版本；若指定了目标版本，先自动清理比它更高的版本。
-          if [[ -f "$RUNNER_TEMP/prune-moderncsv-keep-two" ]]; then
-            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/original-package-archive" \
-              > "$RUNNER_TEMP/archive-release-after-upload.json"
-            max_version=""
-            if [[ -f "$RUNNER_TEMP/moderncsv-max-version.txt" ]]; then
-              max_version="$(tr -d '\r\n' < "$RUNNER_TEMP/moderncsv-max-version.txt")"
-            fi
-            while IFS=$'\t' read -r asset_id asset_name; do
-              [[ -n "$asset_id" && -n "$asset_name" ]] || continue
-              echo "Deleting Modern CSV archive asset: $asset_name"
-              gh api --method DELETE \
-                "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}" >/dev/null
-            done < <(
-              python3 - "$RUNNER_TEMP/archive-release-after-upload.json" "$max_version" <<'PY'
-          import functools
+          # 复核归档 Release，确认全部目标资产均已上传且具备有效摘要后，再执行清理。
+          ARCHIVE_ASSETS_AFTER_JSON="$RUNNER_TEMP/archive-assets-after.json"
+          fetch_github_pages \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/${ARCHIVE_RELEASE_ID}/assets?per_page=100" \
+            "$ARCHIVE_ASSETS_AFTER_JSON"
+
+          python3 - "$ARCHIVE_ASSETS_AFTER_JSON" "$KEEP_LIST" <<'PY'
           import json
           import re
-          import subprocess
           import sys
 
           with open(sys.argv[1], encoding="utf-8") as stream:
-              release = json.load(stream)
-          max_version = sys.argv[2].strip()
+              assets = json.load(stream)
+          with open(sys.argv[2], encoding="utf-8") as stream:
+              keep = sorted({line.strip() for line in stream if line.strip()})
 
-          patterns = (
-              re.compile(r"^moderncsv_([0-9][0-9A-Za-z.+:~-]*)_amd64\.deb$"),
-              re.compile(r"^ModernCSV-Linux-v([0-9][0-9A-Za-z.+:~-]*)\.tar\.gz$"),
-          )
-
-          matched = []
-          for asset in release.get("assets") or []:
-              name = asset.get("name") or ""
-              asset_id = asset.get("id")
-              if not isinstance(asset_id, int) or isinstance(asset_id, bool):
+          uploaded = {}
+          for item in assets:
+              if not isinstance(item, dict) or item.get("state") != "uploaded":
                   continue
-              for pattern in patterns:
-                  hit = pattern.fullmatch(name)
-                  if hit:
-                      matched.append((hit.group(1), str(asset_id), name))
-                      break
+              name = item.get("name") or ""
+              digest = item.get("digest") or ""
+              if name and isinstance(digest, str) and re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest):
+                  uploaded[name] = digest
 
-          def compare_versions(left, right):
-              for relation, result in (("lt", -1), ("gt", 1)):
-                  status = subprocess.run(
-                      ["dpkg", "--compare-versions", left, relation, right], check=False,
-                  ).returncode
-                  if status == 0:
-                      return result
-                  if status != 1:
-                      return -1 if left < right else (1 if left > right else 0)
-              return 0
-
-          eligible_versions = {
-              item[0] for item in matched
-              if not max_version or compare_versions(item[0], max_version) <= 0
-          }
-          versions = sorted(
-              eligible_versions,
-              key=functools.cmp_to_key(compare_versions),
-              reverse=True,
-          )
-          keep = set(versions[:2])
-          print(f"Keeping Modern CSV archived versions (max 2): {', '.join(versions[:2])}", file=sys.stderr)
-          for version, asset_id, name in matched:
-              if version not in keep:
-                  print(f"{asset_id}\t{name}")
+          missing = [name for name in keep if name not in uploaded]
+          if missing:
+              raise SystemExit(f"ERROR: 目标归档资产未全部就位，已中止清理：{', '.join(missing)}")
+          print(f"Verified target archive assets ({len(keep)}): {', '.join(keep)}")
           PY
-            )
-          fi
+
+          while IFS= read -r asset_name; do
+            [[ -n "$asset_name" ]] || continue
+            matched=0
+            for asset_regex in "${cleanup_regexes[@]}"; do
+              if [[ "$asset_name" =~ $asset_regex ]]; then
+                matched=1
+                break
+              fi
+            done
+            (( matched == 1 )) || continue
+            if grep -Fxq -- "$asset_name" "$KEEP_LIST"; then
+              continue
+            fi
+            echo "Deleting outdated or out-of-range archive asset: $asset_name"
+            bash ./Scripts/release/delete_asset.sh \
+              --repo "$GITHUB_REPOSITORY" --tag original-package-archive --asset "$asset_name" --yes
+          done < <(jq -r '.[].name // empty' "$ARCHIVE_ASSETS_AFTER_JSON" | sort -u)
