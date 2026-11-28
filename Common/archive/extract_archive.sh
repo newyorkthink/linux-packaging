@@ -57,7 +57,7 @@ case "$ARCHIVE" in
     }
     brotli -dc "$ARCHIVE" | tar -x -C "$OUTPUT_DIR"
     ;;
-  *.tar | *.tar.gz | *.tgz | *.tar.xz | *.txz | *.tar.bz2 | *.tbz2)
+  *.tar | *.tar.gz | *.tgz | *.tar.xz | *.txz | *.tar.bz2 | *.tbz2 | *.tar.zst)
     command -v tar >/dev/null 2>&1 || {
       echo "错误：解包 tar 归档需要 tar。" >&2
       exit 1

@@ -10,7 +10,7 @@
 - 已经由用户明确确认有效的命令、调用顺序、AppRun 行为和打包基线必须逐字保留；公共化不能成为顺手重写这些稳定内容的理由。
 - 必须同时检查所有受影响调用方，避免只修公共函数后才逐个发现调用参数、路径、返回值或行为不兼容。
 - `archive/check_deb_metadata.sh <DEB 文件> <预期版本或空字符串> <预期包名或空字符串> <预期架构或空字符串>` 独立核对本地 DEB 的 `Version`、`Package`、`Architecture`，成功时无 stdout 输出；空的预期值跳过对应字段，至少指定一项。JSON、签名 APT、GitHub 资产和 HTML DEB 安装入口内部复用它，原参数、版本返回和各自校验范围保持不变。完整使用边界见下文。
-- `archive/extract_archive.sh` 统一支持 DEB、Snap、tar 系列归档、Brotli 压缩的 `.distro` tar 包、ZIP 和 NSIS 安装包；应用脚本只传入归档文件与输出目录，应用专用的文件定位和目录调整仍留在应用脚本。ZIP 由 `unzip` 解包，`.exe` 安装包由 `7z` 提取内容，不执行安装程序；调用方提前提供所需工具，原有格式及两个参数的接口保持不变。
+- `archive/extract_archive.sh` 统一支持 DEB、Snap、包含 `.tar.zst` 在内的 tar 系列归档、Brotli 压缩的 `.distro` tar 包、ZIP 和 NSIS 安装包；应用脚本只传入归档文件与输出目录，应用专用的文件定位和目录调整仍留在应用脚本。ZIP 由 `unzip` 解包，`.exe` 安装包由 `7z` 提取内容，不执行安装程序；调用方提前提供所需工具，原有格式及两个参数的接口保持不变。
 - `apt/extract_installed_package.sh <主软件包名> <AppDir> [附加软件包名 ...]` 先读取各包的已安装版本，再逐包下载同一版本并按原布局解包；成功后仅向 stdout 返回主软件包去掉 epoch / revision 的版本号。安装由调用方提前完成，本入口不重新安装软件。原有两个参数的调用保持兼容。需要保留完整 Debian 版本的既有项目，继续使用已确认的完整版本读取和 `apt/download_and_extract_packages.sh <AppDir> <包名=完整版本>` 调用，并在应用差异中说明；本入口的版本裁剪规则不变。
 - `source linuxdeploy/prepare_build_workspace.sh <构建根目录> <产物名>` 在当前 Shell 中进入构建根目录，设置公共路径，并重建当前项目的 `source`、`AppDir` 和 `dist`。后续独立 helper 或子 Shell 的目录变化不影响调用方，不再重复切换到同一目录。显式追加 `--temporary-source` 时使用独立临时源目录，退出时清理；构建根目录下只重建 `AppDir` 和 `dist`，保留已有 `source`，该模式由公共入口设置 EXIT trap。原两参数模式继续使用构建根目录下的 `source`。
 - `linuxdeploy/prepare_linuxdeploy_tools.sh` 独立执行时接收工具目录和可选的插件参数；通过 `source` 调用时依次接收工具目录、插件参数、中间 AppImage 路径和 runtime 路径，下载成功后加载通用环境。插件参数支持空字符串、`gtk`、`qt`、`gstreamer`、`gtk,gstreamer` 和 `qt,gstreamer`。GTK / GStreamer 脚本从官方默认分支动态取得并核对 Git blob SHA，Qt 插件继续使用官方 continuous Release。该入口只准备工具，linuxdeploy 的 `--plugin` 参数决定实际启用哪些插件。 直接 appimagetool 封装使用独立执行的 `--appimagetool <appimagetool 输出路径> <runtime 输出路径>`，一次完成两项官方下载、SHA-256 校验和执行权限设置，不下载 linuxdeploy 或插件；原有独立执行和四参数 source 调用保持不变。 直接封装可额外传入 `--release-ref latest`，从两个工具仓库各自的 `/releases/latest` 获取资产，校验摘要后只给 appimagetool 设置执行权限。未传此选项时直接封装继续读取 `continuous`。
@@ -45,6 +45,7 @@
 - `arch/install_packages.sh --reinstall <Arch 软件包名> [...]` 省略 `--needed` 安装明确列出的包。`--aur-source-retry <AUR 包名> <等待秒数>` 仅在 AUR 源文件校验失败时按指定间隔换用新的临时来源目录和构建目录重试一次，继续使用原 PKGBUILD 校验。
 - `arch/install_packages.sh --aur-source-retry <AUR 包名> <等待秒数> --https-source <官方 HTTPS 地址前缀> '<源文件名模板>'` 仅适用于同名单包 AUR 配方和一个指定远程源。用本次取得的 `PKGBUILD` 生成元数据，在 `source` 或当前架构的来源中唯一匹配文件名（`{version}` 代表该配方的 `pkgver`）和同索引的 SHA-256。原地址与指定地址须有相同域名及路径，下载只用 HTTPS。公共下载器先写本次的临时目录，摘要通过后交给同一份配方的 `makepkg` 复核并安装。连接失败沿用公共下载器的有限重试，只有摘要不符才等待并重新下载一次。
 - `arch/install_packages.sh` 也接受 `--qt6`、`--qt5`、`--gtk3`、`--gtk4`。每次调用选择一个图形环境选项，可在其后追加应用所需的 Arch 软件包名，同次交给 yay 安装。根据主程序实际使用的框架和主版本选用对应环境，包组和扩展规则见 [Arch 图形环境依赖清单](../Docs/appimage-build-dependency-list.md#arch-图形环境)。
+- `arch/install_and_extract_signed_package.sh <仓库 HTTPS 目录> <仓库名> <软件包名> <架构> <受信 pacman GPG 目录> <解包目录> [预期上游版本]` 使用仓库的 `.db` 定位当前包，经公共 HTTPS 入口下载对应 `.pkg.tar.zst` 和独立签名。确认 SHA-256、签名和包名、版本、架构后，安装并解包同一份文件。可传入从上游核实的版本，防止使用滞后的镜像版本。
 - `arch/get_package_version.sh` 接收一个已安装的 Arch 软件包名，从 `pacman -Q` 读取版本并去掉 epoch 和发行版 `pkgrel`，只向 stdout 输出非空的上游版本。需要保留发行版修订号的应用不要调用该入口。
 - `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。`text <来源版本文件>` 读取同次下载保存的版本。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
@@ -342,6 +343,14 @@ VERSION="$("$SCRIPT_DIR/../Common/aur/install_and_extract_deb_source.sh" "<AUR �
 成功时返回 0 且不输出内容；参数数量错误或三个预期值全空时返回 2，文件无法读取、字段不符或工具失败时返回非零状态，诊断写入 stderr。本入口不下载、安装、解包、修改文件或执行包内维护脚本；元数据相符也不能代替官方来源和摘要校验。
 
 兼容范围：JSON 下载入口仍核对三个字段；签名 APT 下载入口仍核对签名索引对应的三个字段，全部成功后才替换输出。GitHub 固定资产名与版本模板入口仍仅在显式提供包名和架构时核对这两项，不强求 DEB Version 与 Release tag 一致，也保留未指定检查时下载其他资产的能力。HTML DEB 安装入口仍核对版本及调用方传入的可选包名、架构，失败时不会进入安装与解包；原 GitHub、`--checksum` 和 `--json-html` 调用参数及版本 stdout 均保持原样。
+
+### 签名 Arch 仓库的二进制包
+
+调用方先在 Arch 构建容器中准备目标包的依赖，以及本次明确采用的受信 pacman GPG 目录。仓库地址为直接提供 `<仓库名>.db`、包文件和对应 `.sig` 的 HTTPS 目录。解包目录须尚不存在，构建环境需提供 `pacman`、GNU tar、`zstd` 和 GNU coreutils。
+
+索引只用于定位文件。包先用索引中的 SHA-256 检查传输完整性，再由 pacman 按 `Required TrustedOnly` 验证独立签名，并核对签名覆盖的包身份。缺包、摘要不符、缺签名、签名不受信或包身份不符时返回失败。索引未提供签名时，仅凭索引不能证明该版本是发行上游的最新版本。调用方可传入已从发行上游核实的版本，包的 epoch 和 pkgrel 从上游版本比较中去掉。
+
+查询使用本次临时数据库，安装使用构建容器现有的本地软件包数据库。调用方先通过公共入口安装依赖。此处不向全局 pacman 配置添加仓库，也不导入密钥。成功后写出解包目录，标准输出返回实际软件上游版本；其他日志写到标准错误。安装已经完成而最终交付失败时，返回错误并保留已安装的软件包。
 
 ### 签名 APT 仓库中的官方 DEB
 
