@@ -10,7 +10,7 @@ cd "$SCRIPT_DIR"
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 安装 AUR 软件包及运行依赖。
-"$SCRIPT_DIR/../Common/arch/install_packages.sh" visual-studio-code-bin fcitx5-gtk libdbusmenu-glib libx11 libxext libxi libxrandr libxtst libxkbcommon libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau xorg-server xorg-server-common xorg-server-xvfb
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" visual-studio-code-bin fcitx5-gtk libdbusmenu-glib libx11 libxext libxi libxrandr libxtst libxkbcommon libxcomposite libxdamage libxfixes mesa libglvnd libva libvdpau xorg-server xorg-server-common xorg-server-xvfb imagemagick
 
 # 清掉上次的打包目录。
 rm -rf -- AppDir dist vscode.tar.gz vscode-unpacked
@@ -41,8 +41,10 @@ export APPNAME=Code
 export MAIN_BIN=code
 # 让窗口对上 desktop 里的 StartupWMClass。
 export STARTUPWMCLASS=com.microsoft.VSCode
-# 使用系统里装好的图标。
-export ICON=/usr/share/pixmaps/vscode.png
+# 本程序专属处理：缩小封装用图标，降低 AppImage 元数据体积。
+magick /usr/share/pixmaps/vscode.png -resize '256x256>' -strip -colors 256 "PNG8:$SCRIPT_DIR/vscode-unpacked/vscode.png"
+# 本程序专属处理：使用缩小后的图标生成 .DirIcon。
+export ICON="$SCRIPT_DIR/vscode-unpacked/vscode.png"
 # 使用系统里装好的桌面入口文件。
 export DESKTOP=/usr/share/applications/com.microsoft.VSCode.desktop
 # 把 AppImage 写到脚本目录下的 dist。
