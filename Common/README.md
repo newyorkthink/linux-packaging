@@ -25,6 +25,7 @@
 - `aur/download_tar_source.sh <AUR 包名> <架构> <输出.tar.gz> <元数据输出文件>` 从同次 `.SRCINFO` 读取唯一的架构专用 HTTPS tar.gz 来源和 BLAKE2b-512 摘要。摘要缺失、无效或为 `SKIP` 时拒绝下载；校验通过后写入归档及可由 Bash 读取的版本、pkgrel 和来源元数据。现有 DEB 入口继续使用原调用方式。
 - `aur/download_pkgbuild_asset.sh` 从同一份 PKGBUILD 文本读取指定的地址、SHA-256 和版本字段，支持可选的地址处理函数和 JSON 取链接模式，并复用公共下载入口校验文件。成功后写入来源版本，详见下文。
 - `download/download_json_asset.sh` 从官方 JSON 取得资产地址与版本，可用本仓库已发布的同版本 SHA-256 校验下载，并支持复用配方取包和签名取链入口。
+- `download/download_electron_update_asset.sh` 从官方 Electron 更新清单读取版本和匹配资产的 SHA-512，复用公共下载入口校验资产。参数和依赖见 [Electron 更新清单下载](#electron-更新清单下载)。
 - `download/download_file.sh <HTTPS URL> <输出文件> [摘要] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔] [DNS 备用解析 HTTPS URL]` 保留原下载、重试、超时和原子替换行为。不传摘要时保持原行为；无前缀的 64 位十六进制摘要和 `sha256:<摘要>` 使用 SHA-256，新增的 `sha512:<128 位十六进制摘要>` 使用 SHA-512，`blake2b:<128 位十六进制摘要>` 使用 GNU `b2sum` 校验 BLAKE2b-512。摘要格式错误或校验失败时不替换已有输出文件。该扩展不改变其他专用下载入口各自的摘要格式。 第四个可选参数指定客户端标识，显式值优先；省略或传空字符串时，curl / wget 保留原默认标识，aria2c 使用仓库公共配置中的标识；不校验摘要而指定客户端标识时，第三个参数传空字符串。客户端标识包含回车或换行时拒绝下载。第五个可选参数显式选择下载器，默认仍为 `curl`；`wget` 共用原摘要校验、失败清理和原子替换，只用于直达 HTTPS 文件，不跟随重定向。该模式需要已有 `wget` 和 GNU `timeout`，总时限 900 秒，保留证书校验并使用 TLS 1.2；不读取 wget 配置或 netrc，不写 HSTS 文件。 `aria2c` 显式读取 [公共 HTTP 下载配置](./config/download/aria2.conf)，单服务器连接上限和分段数均为 16，最小分段和分块大小均为 1M；配置包含公开的模拟浏览器标识、IPv4 和 gzip 请求设置。它不读取个人 aria2 配置或 netrc；总时限仍为 900 秒，默认 TLS、证书校验、临时输出、原摘要校验、原子替换和失败清理保持不变，不自动跟随 Torrent / Metalink。公共配置按用途归类，规则见 [配置目录](./config/README.md)。
 - `download/download_apt_repository_deb.sh` 从调用方指定的 HTTPS APT 仓库读取签名索引，使用指定的官方密钥验证 `InRelease`，核对索引与 DEB 的 SHA-256、大小，以及 DEB 的包名、架构和版本；按 Debian 版本规则选择最高版本，成功后写入 DEB 与来源版本文件，stdout 只返回版本。不安装应用、不配置系统 APT 源；现有下载、版本读取和归档接口保持不变。完整参数与支持范围见下文。
 - `download/download_omaha_package.sh` 查询 Omaha 3.0 XML 更新服务，按调用方提供的应用 ID、渠道、平台、架构、下载源、路径前缀和文件名规则选择完整安装包，复用 `download_file.sh` 校验 SHA-256，并核对响应中的文件大小。成功后写入指定的安装包和版本文件，stdout 只返回版本；不安装或执行软件。完整参数、约束及调用方式见下文。
@@ -86,6 +87,30 @@
 ```
 
 两个接口和取到的下载地址都使用 HTTPS。取链接需要 curl 和 jq，Cookie 和自定义请求头只用于请求对应接口。接口请求不跟随重定向，文件下载按所选下载器的既有方式传输和校验。请求失败、返回字段无效或校验失败时，原有目标文件保留。
+
+### 获取本次下载的最终 URL
+
+在 `download/download_file.sh` 的原有参数前加 `--print-effective-url`。该选项只适用于 curl，也可放在 `--resolve-json-url` 之前组合使用。下载和摘要校验通过且目标文件替换成功后，stdout 只返回一行实际下载请求最终到达的 HTTPS URL。启用 DNS 备用解析时，返回成功请求的 URL。摘要校验日志写入 stderr。未启用该选项时，原有调用的输出保持原样。
+
+以下示例用于 GitHub Actions 的应用构建脚本。尖括号参数按实际来源替换。
+
+```bash
+# 在同一次下载完成后取得重定向后的最终 URL。
+EFFECTIVE_URL="$("$SCRIPT_DIR/../Common/download/download_file.sh" --print-effective-url "<HTTPS 下载 URL>" "<输出文件>")"
+```
+
+### Electron 更新清单下载
+
+`download/download_electron_update_asset.sh` 依次接收清单 HTTPS URL、资产目录 HTTPS URL 模板、完整资产文件名模板和输出文件。文件名须包含一个 `{version}`，资产目录可选用 `{version}` 作为一个完整路径段。调用方提前提供 Python 3 和 PyYAML。在 Arch 构建环境中，PyYAML 由 `python-yaml` 软件包提供。
+
+入口用同一份 YAML 的点分数字版本渲染文件名，从 `files` 数组找到唯一与文件名完全一致的 `url`，再将该条目的 Base64 SHA-512 转为十六进制交给公共下载入口校验。清单字段无效、资产缺失或重复、校验失败时返回失败。成功后 stdout 只返回一行版本，下载和校验日志写入 stderr。
+
+以下示例用于 GitHub Actions 的应用构建脚本。尖括号参数按实际来源替换。
+
+```bash
+# 下载并校验清单指定的资产，记录同次下载的版本。
+"$SCRIPT_DIR/../Common/download/download_electron_update_asset.sh" "<HTTPS 清单 URL>" "<HTTPS 资产目录 URL>/{version}" '<资产名前缀>{version}<资产名后缀>' "<输出文件>" > "<来源版本文件>"
+```
 
 ### Snap Store 官方稳定通道
 

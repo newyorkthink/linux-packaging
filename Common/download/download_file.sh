@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# 仅在显式指定时返回本次下载的最终 URL。
+PRINT_EFFECTIVE_URL=0
+if [[ "${1:-}" == --print-effective-url ]]; then
+  PRINT_EFFECTIVE_URL=1
+  shift
+fi
+
 # 只有显式选择取链接模式时才读取请求配置。
 RESOLVE_JSON_URL=0
 if [[ "${1:-}" == --resolve-json-url ]]; then
@@ -46,9 +53,13 @@ CURL_DOH_FALLBACK_URL="${8:-}"
   echo "错误：下载器只能为 curl、wget 或 aria2c。" >&2
   exit 2
 }
+if (( PRINT_EFFECTIVE_URL )) && [[ "$DOWNLOADER" != curl ]]; then
+  echo "错误：--print-effective-url 只适用于 curl。" >&2
+  exit 2
+fi
 
 [[ -n "$URL" && -n "$OUTPUT" ]] || {
-  echo "用法：$0 <HTTPS URL> <输出文件> [SHA-256、sha512:<摘要> 或 blake2b:<摘要>] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔秒数，0 为指数退避] [DNS 备用解析 HTTPS URL]" >&2
+  echo "用法：$0 [--print-effective-url] <HTTPS URL> <输出文件> [SHA-256、sha512:<摘要> 或 blake2b:<摘要>] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔秒数，0 为指数退避] [DNS 备用解析 HTTPS URL]" >&2
   exit 1
 }
 [[ "$URL" == https://* ]] || {
@@ -79,8 +90,8 @@ CURL_DOH_FALLBACK_URL="${8:-}"
   exit 1
 }
 
+HTTPS_URL='^https://[^/?#@[:space:][:cntrl:]]+([/?#][^[:space:][:cntrl:]]*)?$'
 if (( RESOLVE_JSON_URL )); then
-  HTTPS_URL='^https://[^/?#@[:space:][:cntrl:]]+([/?#][^[:space:][:cntrl:]]*)?$'
   if [[ ! "$COOKIE_URL" =~ $HTTPS_URL || ! "$POST_URL" =~ $HTTPS_URL || ! "$URL" =~ $HTTPS_URL ||
         -z "$REQUEST_FIELD" || "$REQUEST_FIELD" == *[[:cntrl:]]* ||
         ! "$RESPONSE_FIELD" =~ ^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$ ]]; then
@@ -189,8 +200,17 @@ else
       "$URL"
   }
 
+  # 分别捕获每轮请求的最终 URL，备用解析成功时使用该轮结果。
+  fetch_with_curl() {
+    if (( PRINT_EFFECTIVE_URL )); then
+      EFFECTIVE_URL="$(download_with_curl --globoff --write-out '%{url_effective}' "$@")"
+    else
+      download_with_curl "$@"
+    fi
+  }
+
   # 先保留原请求；只有显式启用且退出码为 6 时，再使用 HTTPS 备用解析。
-  if download_with_curl; then
+  if fetch_with_curl; then
     :
   else
     DOWNLOAD_STATUS=$?
@@ -198,8 +218,18 @@ else
       exit "$DOWNLOAD_STATUS"
     fi
     printf 'DNS 解析失败，改用 HTTPS 备用解析重试下载。\n' >&2
-    download_with_curl --doh-url "$CURL_DOH_FALLBACK_URL"
+    fetch_with_curl --doh-url "$CURL_DOH_FALLBACK_URL"
   fi
+fi
+
+# 输出最终 URL 时，把摘要校验日志写入 stderr。
+CHECKSUM_LOG_FD=1
+if (( PRINT_EFFECTIVE_URL )); then
+  if [[ ! "$EFFECTIVE_URL" =~ $HTTPS_URL ]]; then
+    echo "错误：下载请求未返回有效的最终 HTTPS URL。" >&2
+    exit 1
+  fi
+  CHECKSUM_LOG_FD=2
 fi
 
 # 上游提供摘要时必须在替换正式文件前完成校验；无前缀继续按 SHA-256 处理。
@@ -211,7 +241,7 @@ if [[ -n "$EXPECTED_CHECKSUM" ]]; then
         echo "错误：无效的 BLAKE2b-512：$EXPECTED_CHECKSUM" >&2
         exit 1
       }
-      b2sum -c <(printf '%s  -\n' "$EXPECTED_CHECKSUM") < "$TEMP_FILE"
+      b2sum -c <(printf '%s  -\n' "$EXPECTED_CHECKSUM") < "$TEMP_FILE" >&"$CHECKSUM_LOG_FD"
       ;;
     sha512:*)
       EXPECTED_CHECKSUM="${EXPECTED_CHECKSUM#sha512:}"
@@ -219,7 +249,7 @@ if [[ -n "$EXPECTED_CHECKSUM" ]]; then
         echo "错误：无效的 SHA-512：$EXPECTED_CHECKSUM" >&2
         exit 1
       }
-      printf '%s  %s\n' "$EXPECTED_CHECKSUM" "$TEMP_FILE" | sha512sum -c -
+      printf '%s  %s\n' "$EXPECTED_CHECKSUM" "$TEMP_FILE" | sha512sum -c - >&"$CHECKSUM_LOG_FD"
       ;;
     *)
       EXPECTED_CHECKSUM="${EXPECTED_CHECKSUM#sha256:}"
@@ -227,7 +257,7 @@ if [[ -n "$EXPECTED_CHECKSUM" ]]; then
         echo "错误：无效的 SHA-256：$EXPECTED_CHECKSUM" >&2
         exit 1
       }
-      printf '%s  %s\n' "$EXPECTED_CHECKSUM" "$TEMP_FILE" | sha256sum -c -
+      printf '%s  %s\n' "$EXPECTED_CHECKSUM" "$TEMP_FILE" | sha256sum -c - >&"$CHECKSUM_LOG_FD"
       ;;
   esac
 fi
@@ -235,3 +265,8 @@ fi
 # 校验成功后原子替换目标文件。
 mv -f -- "$TEMP_FILE" "$OUTPUT"
 trap - EXIT
+
+# 只有文件已下载、校验并替换成功才输出最终 URL。
+if (( PRINT_EFFECTIVE_URL )); then
+  printf '%s\n' "$EFFECTIVE_URL"
+fi
