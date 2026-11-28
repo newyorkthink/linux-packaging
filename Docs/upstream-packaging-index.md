@@ -58,7 +58,7 @@ Escrcpy 条目于 2026-11-28 按 `escrcpy` 单独复核，未查到对应 pkgfor
 | [dingtalk](../dingtalk/build_dingtalk.sh) |  |  | [模板差异](../dingtalk/docs/template-deviations.md) · [固定参数](../dingtalk/docs/hardcoded.md) · [README](../dingtalk/README.md) |
 | [escrcpy](../escrcpy/build_escrcpy.sh) |  |  | [README](../escrcpy/README.md) |
 | [falkon](../falkon/build_falkon.sh) |  |  | [模板差异](../falkon/docs/template-deviations.md) · [固定配置](../falkon/docs/hardcoded.md) · [README](../falkon/README.md) |
-| [feishu](../feishu/build_feishu.sh) |  |  | [README](../feishu/README.md) |
+| [feishu](../feishu/build_feishu.sh) |  |  | [模板差异](../feishu/docs/template-deviations.md) · [固定配置](../feishu/docs/hardcoded.md) · [README](../feishu/README.md) |
 | [file-roller](../file-roller/build_file-roller.sh) |  |  | [模板差异](../file-roller/docs/template-deviations.md) · [README](../file-roller/README.md) |
 | [folo](../folo/build_folo.sh) |  |  | [README](../folo/README.md) |
 | [freedownloadmanager](../freedownloadmanager/build_freedownloadmanager.sh) |  |  | [README](../freedownloadmanager/README.md) |
@@ -87,7 +87,7 @@ Escrcpy 条目于 2026-11-28 按 `escrcpy` 单独复核，未查到对应 pkgfor
 | [nvtop](../nvtop/build_nvtop.sh) |  |  | [README](../nvtop/README.md) |
 | [obs-studio](../obs-studio/build_obs-studio.sh) | [OBS-Studio-AppImage](https://github.com/pkgforge-dev/OBS-Studio-AppImage) | [依赖](https://github.com/pkgforge-dev/OBS-Studio-AppImage/blob/8c17c157a498876f75b84cb0a30307aba641b396/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/OBS-Studio-AppImage/blob/8c17c157a498876f75b84cb0a30307aba641b396/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/OBS-Studio-AppImage/blob/8c17c157a498876f75b84cb0a30307aba641b396/.github/workflows/appimage.yml) | [上游差异](../obs-studio/docs/pkgforge-differences.md) · [模板差异](../obs-studio/docs/template-deviations.md) · [README](../obs-studio/README.md) |
 | [obsidian](../obsidian/build_obsidian.sh) | [Obsidian-AppImage-Enhanced](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced) | [依赖](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced/blob/138798b2139d4cafd8e3f86ada4c804397585a2a/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced/blob/138798b2139d4cafd8e3f86ada4c804397585a2a/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Obsidian-AppImage-Enhanced/blob/138798b2139d4cafd8e3f86ada4c804397585a2a/.github/workflows/appimage.yml) | [上游取舍](../obsidian/docs/pkgforge-differences.md) · [模板差异](../obsidian/docs/template-deviations.md) · [README](../obsidian/README.md) |
-| [parsec](../parsec/build_parsec.sh) | [parsec-AppImage](https://github.com/pkgforge-dev/parsec-AppImage) | [依赖](https://github.com/pkgforge-dev/parsec-AppImage/blob/312e92ecd1dea7948a9e331f6ae31bb2e88df882/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/parsec-AppImage/blob/312e92ecd1dea7948a9e331f6ae31bb2e88df882/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/parsec-AppImage/blob/312e92ecd1dea7948a9e331f6ae31bb2e88df882/.github/workflows/appimage.yml) | [README](../parsec/README.md) |
+| [parsec](../parsec/build_parsec.sh) | [parsec-AppImage](https://github.com/pkgforge-dev/parsec-AppImage) | [依赖](https://github.com/pkgforge-dev/parsec-AppImage/blob/312e92ecd1dea7948a9e331f6ae31bb2e88df882/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/parsec-AppImage/blob/312e92ecd1dea7948a9e331f6ae31bb2e88df882/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/parsec-AppImage/blob/312e92ecd1dea7948a9e331f6ae31bb2e88df882/.github/workflows/appimage.yml) | [上游差异](../parsec/docs/pkgforge-differences.md) · [模板差异](../parsec/docs/template-deviations.md) · [固定配置](../parsec/docs/hardcoded.md) · [README](../parsec/README.md) |
 | [peazip](../peazip/build_peazip.sh) |  |  | [README](../peazip/README.md) |
 | [picom](../picom/build_picom.sh) |  |  | [模板差异](../picom/docs/template-deviations.md) · [README](../picom/README.md) |
 | [poppler-utils](../poppler-utils/build_poppler-utils.sh) |  |  | [README](../poppler-utils/README.md) |
@@ -105,7 +105,7 @@ Escrcpy 条目于 2026-11-28 按 `escrcpy` 单独复核，未查到对应 pkgfor
 | [stacer](../stacer/build_stacer.sh) |  |  | [模板差异](../stacer/docs/template-deviations.md) · [README](../stacer/README.md) |
 | [stacher](../stacher/build_stacher.sh) |  |  | [README](../stacher/README.md) |
 | [sunshine](../sunshine/build_sunshine.sh) |  |  | [README](../sunshine/README.md) |
-| [tencent-docs](../tencent-docs/build_tencent-docs.sh) |  |  | [README](../tencent-docs/README.md) |
+| [tencent-docs](../tencent-docs/build_tencent-docs.sh) |  |  | [模板差异](../tencent-docs/docs/template-deviations.md) · [固定配置](../tencent-docs/docs/hardcoded.md) · [README](../tencent-docs/README.md) |
 | [tradingview](../tradingview/build_tradingview.sh) |  |  | [模板差异](../tradingview/docs/template-deviations.md) · [固定参数](../tradingview/docs/hardcoded.md) · [README](../tradingview/README.md) |
 | [trae](../trae/build_trae.sh) |  |  |  |
 | [v2rayn](../v2rayn/build_v2rayn.sh) |  |  | [README](../v2rayn/README.md) |

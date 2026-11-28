@@ -1440,26 +1440,6 @@ jobs:
           github_token: ${{ github.token }}
 
 
-  build_tencent_docs:
-    name: Build Tencent Docs
-    needs: plan
-    if: fromJSON(needs.plan.outputs.builds).tencent_docs == 'true'
-    concurrency:
-      group: build-appimage-tencent-docs.AppImage
-      queue: max
-    runs-on: *arch_runner
-    container: *arch_container
-    permissions: *arch_permissions
-    env:
-      BUILD_SCRIPT: tencent-docs/build_tencent-docs.sh
-      ARTIFACT_DIR: tencent-docs/dist
-      RELEASE_NAME: tencent-docs.AppImage
-      RUN_FROM_ROOT: "0"
-      SOFTWARE_KEY: tencent-docs
-      SOFTWARE_VERSION_SOURCE: tencent-docs/dist/tencent-docs-version.txt
-    steps: *arch_steps
-
-
   build_wemeet:
     name: Build Tencent Meeting
     needs: plan

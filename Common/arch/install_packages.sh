@@ -446,7 +446,30 @@ if [[ "${1:-}" == --aur-deb ]]; then
 fi
 
 REINSTALL=false
-if [[ "${1:-}" == --reinstall ]]; then
+if [[ "${1:-}" == --replace ]]; then
+  shift
+  if (( $# == 0 )); then
+    echo "用法：$0 --replace <Arch 软件包名> [...]" >&2
+    exit 2
+  fi
+  for package in "$@"; do
+    [[ -n "$package" && "$package" != -* ]] || {
+      printf '错误：--replace 后只能追加软件包名：%s\n' "$package" >&2
+      exit 2
+    }
+  done
+  command -v pacman >/dev/null 2>&1 || {
+    echo "错误：Arch 构建环境缺少 pacman。" >&2
+    exit 1
+  }
+  # 需要切换互斥基础包时，必须在单个 pacman 事务里确认冲突移除，避免 --noconfirm 直接拒绝。
+  if (( EUID == 0 )); then
+    pacman -S --noconfirm --needed --ask 4 "$@"
+  else
+    sudo pacman -S --noconfirm --needed --ask 4 "$@"
+  fi
+  exit 0
+elif [[ "${1:-}" == --reinstall ]]; then
   shift
   if (( $# == 0 )); then
     echo "用法：$0 --reinstall <Arch 软件包名> [...]" >&2

@@ -1,161 +1,85 @@
 #!/usr/bin/env bash
-# Parsec Linux 客户端 AppImage 构建脚本
-# 上游程序来自 AUR parsec-bin 所引用的 Parsec 官方 Linux .deb。
-# 本脚本仅处理 AppImage 依赖、官方资源路径、解码运行时与中文 locale 兼容。
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-
-# 安装统一的 Arch AppImage 基础包
-"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-log() {
-    printf '[Parsec] %s\n' "$*"
+# 打包工具。GTK、输入法不要塞进这一行。
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
+# 安装 AUR 软件包、运行依赖及 DEB 解包工具。
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --aur-deb "parsec-bin" "$(uname -m)" --wayback --source-filename 'parsec-bin-{version}.deb' -- dpkg ffmpeg4.4 libjpeg-turbo libva
+
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
+mkdir -p AppDir/bin
+
+
+# 下载官方当前 DEB。
+"$SCRIPT_DIR/../Common/aur/download_deb_source.sh" "parsec-bin" "$(uname -m)" work/app.deb --wayback --source-filename 'parsec-bin-{version}.deb'
+
+# 解包官方 DEB。
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/app.deb work/unpacked
+
+# 本程序专属处理：放置独立解包的 parsecd 主程序并确认官方 skel 资源与动态模块存在。
+cp -a work/unpacked/usr/bin/parsecd AppDir/bin/
+[[ -f work/unpacked/usr/share/parsec/skel/appdata.json ]] || {
+  echo '错误：官方 DEB 缺少 /usr/share/parsec/skel/appdata.json。' >&2
+  exit 1
+}
+compgen -G "work/unpacked/usr/share/parsec/skel/parsecd-*.so" >/dev/null || {
+  echo '错误：官方 DEB 缺少 parsecd-*.so 模块。' >&2
+  exit 1
 }
 
-die() {
-    printf '错误：%s\n' "$*" >&2
-    exit 1
-}
-
-readonly ARCH="$(uname -m)"
-[[ "$ARCH" == "x86_64" ]] || die "当前仅支持 x86_64，检测到：$ARCH"
-
-readonly OUTDIR="$SCRIPT_DIR/dist"
-readonly OUTFILE="$OUTDIR/parsec.AppImage"
-readonly PARSEC_SHARE=/usr/share/parsec
-readonly PARSEC_SKEL="$PARSEC_SHARE/skel"
-
-###### 清理旧构建目录 ######
-
-rm -rf "$SCRIPT_DIR/AppDir"
-mkdir -p "$OUTDIR"
-rm -f "$OUTFILE" "$OUTFILE.zsync"
-
-###### 准备构建环境 ######
-
-yay -S --noconfirm \
-    base-devel git wget curl jq binutils patchelf file coreutils findutils \
-    grep sed gawk tar gzip xz unzip rsync util-linux appstream-glib \
-    desktop-file-utils zsync ca-certificates
-
-###### 安装 Parsec 与应用级运行依赖 ######
-
-# parsec-bin 当前从 Parsec 官方 Linux .deb 取程序本体，并按 AUR 元数据拉取 ffmpeg4.4 等依赖。
-# libjpeg-turbo 提供 Parsec 需要的 libjpeg v8 ABI；libva 提供通用 VA-API loader。
-# 不把 Intel / NVIDIA / VDPAU 厂商 backend 固定打进 AppImage，避免覆盖宿主实际 GPU 栈。
-yay -S --noconfirm parsec-bin ffmpeg4.4 libjpeg-turbo libva
-
-command -v parsecd >/dev/null 2>&1 || die "未找到 /usr/bin/parsecd。"
-[[ -d "$PARSEC_SKEL" ]] || die "未找到 Parsec 官方 skel 目录：$PARSEC_SKEL"
-[[ -f "$PARSEC_SKEL/appdata.json" ]] || die "未找到 Parsec 官方 appdata.json。"
-
-mapfile -t PARSEC_MODULES < <(
-    find "$PARSEC_SKEL" -maxdepth 1 -type f -name 'parsecd-*.so' -print | sort -V
-)
-(( ${#PARSEC_MODULES[@]} > 0 )) || die "未找到 Parsec 官方 parsecd-*.so 模块。"
-
-for required_library in \
-    /usr/lib/libavcodec.so.58 \
-    /usr/lib/libavutil.so.56 \
-    /usr/lib/libswresample.so.3 \
-    /usr/lib/libjpeg.so.8 \
-    /usr/lib/libva.so.2 \
-    /usr/lib/libva-drm.so.2 \
-    /usr/lib/libva-x11.so.2; do
-    [[ -e "$required_library" ]] || die "缺少 Parsec 解码所需运行库：$required_library"
-done
-
-VERSION="$(pacman -Q parsec-bin | awk '{print $2; exit}')"
-[[ -n "$VERSION" ]] || die "无法读取 parsec-bin 版本。"
-SOFTWARE_VERSION="${VERSION#*:}"
-SOFTWARE_VERSION="${SOFTWARE_VERSION%-*}"
-[[ -n "$SOFTWARE_VERSION" ]] || die "无法解析 Parsec 软件版本。"
-
-# 官方包历史上出现过 parsec.desktop / parsecd.desktop 命名；按当前已安装包文件清单动态选择，避免绑定文件名。
-DESKTOP="$(pacman -Ql parsec-bin | awk '$2 ~ /^\/usr\/share\/applications\/parsec.*\.desktop$/ {print $2; exit}')"
-[[ -f "$DESKTOP" ]] || die "未找到 Parsec desktop 文件。"
-
-ICON="$(pacman -Ql parsec-bin | awk '$2 ~ /^\/usr\/share\/icons\/hicolor\/.*\/apps\/parsec.*\.(png|svg)$/ {print $2}' | sort -V | tail -n 1)"
-[[ -f "$ICON" ]] || die "未找到 Parsec 图标。"
-
-export ARCH VERSION DESKTOP ICON
-export STARTUPWMCLASS=parsecd
-export OUTPATH="$OUTDIR"
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 成品里的应用名。
+export APPNAME="Parsec"
+# 包里的真实程序名。
+export MAIN_BIN="parsecd"
+# 让窗口对上 desktop 里的 StartupWMClass。
+export STARTUPWMCLASS="parsecd"
+# 使用系统里装好的图标。
+export ICON="/usr/share/icons/hicolor/256x256/apps/parsecd.png"
+# 使用系统里装好的桌面入口文件。
+export DESKTOP="/usr/share/applications/parsecd.desktop"
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
 export OUTNAME="parsec.AppImage"
-
-# Parsec 官方 Linux 客户端使用 OpenGL，并通过 ALSA / PipeWire 输出音频。
+# 官方包依赖 libglvnd，打包时打入 OpenGL。
 export DEPLOY_OPENGL=1
+# 官方包依赖 libpipewire，打包时打入 PipeWire。
 export DEPLOY_PIPEWIRE=1
-export DEPLOY_LOCALE=1
+# 本程序专属处理：保留原生 ELF 不裁剪、skel 路径映射及 locale 部署设置。
+export DEPLOY_LOCALE=1 NO_STRIP=1 PATH_MAPPING='/usr/share/parsec:${SHARUN_DIR}/share/parsec'
 
-# AUR 对官方 Parsec 二进制使用 !strip；保持上游闭源 ELF 原样。
-export NO_STRIP=1
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman "parsec-bin")"
 
-# parsecd 使用官方 /usr/share/parsec/skel 作为启动资源，运行时映射回 AppImage 内部。
-export PATH_MAPPING='/usr/share/parsec:${SHARUN_DIR}/share/parsec'
+# 收集程序及其运行依赖。
+quick-sharun AppDir/bin/parsecd work/unpacked/usr/share/parsec/skel/parsecd-*.so /usr/lib/libavcodec.so.58 /usr/lib/libavutil.so.56 /usr/lib/libswresample.so.3 /usr/lib/libjpeg.so.8 /usr/lib/libva.so.2 /usr/lib/libva-drm.so.2 /usr/lib/libva-x11.so.2
 
-###### 核心打包 ######
-
-# 显式把官方动态模块、FFmpeg 4.4 解码 ABI、libjpeg v8 ABI 与通用 VA-API loader 交给 quick-sharun。
-# 这些组件包含 dlopen 运行时依赖，不能只依赖 parsecd 主 ELF 的直接依赖扫描。
-# 厂商 VA-API / VDPAU backend 不封装进 AppImage，继续由宿主 GPU 驱动栈决定。
-quick-sharun \
-    /usr/bin/parsecd \
-    "${PARSEC_MODULES[@]}" \
-    /usr/lib/libavcodec.so.58 \
-    /usr/lib/libavutil.so.56 \
-    /usr/lib/libswresample.so.3 \
-    /usr/lib/libjpeg.so.8 \
-    /usr/lib/libva.so.2 \
-    /usr/lib/libva-drm.so.2 \
-    /usr/lib/libva-x11.so.2
-
-###### 保留官方启动资源与中文环境 ######
-
+# 本程序专属处理：完整保留来自官方 DEB 的 /usr/share/parsec 启动资源。
 mkdir -p AppDir/share/parsec
-cp -a "$PARSEC_SHARE/." AppDir/share/parsec/
+cp -a work/unpacked/usr/share/parsec/. AppDir/share/parsec/
 
-# 生成 AppImage 自带的简体中文 UTF-8 locale，不依赖宿主机是否预先生成该 locale。
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
 mkdir -p AppDir/lib/locale
-localedef --no-archive \
-    -i zh_CN \
-    -f UTF-8 \
-    AppDir/lib/locale/zh_CN.utf8
-
-cat >> AppDir/.env <<'EOF_LOCALE'
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'ENV'
 LANG=zh_CN.UTF-8
 LANGUAGE=zh_CN:zh
 LC_CTYPE=zh_CN.UTF-8
 LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
-EOF_LOCALE
+ENV
 
-# Parsec 官方依赖列表未要求 Qt / GTK 输入上下文插件。
-# 不覆盖 XMODIFIERS、GTK_IM_MODULE 或 QT_IM_MODULE，继续继承宿主会话中的 Fcitx5 / IBus / XIM 配置。
-
-###### 生成 AppImage ######
-
-[[ -x AppDir/bin/parsecd ]] || die "AppDir 中缺少 parsecd 主程序。"
-[[ -f AppDir/share/parsec/skel/appdata.json ]] || die "AppDir 中缺少 Parsec appdata.json。"
-find AppDir/share/parsec/skel -maxdepth 1 -type f -name 'parsecd-*.so' -print -quit | grep -q . \
-    || die "AppDir 中缺少 Parsec 官方动态模块。"
-find AppDir -type f -name 'libavcodec.so.58*' -print -quit | grep -q . \
-    || die "AppDir 中缺少 libavcodec.so.58。"
-find AppDir -type f -name 'libavutil.so.56*' -print -quit | grep -q . \
-    || die "AppDir 中缺少 libavutil.so.56。"
-find AppDir -type f -name 'libjpeg.so.8*' -print -quit | grep -q . \
-    || die "AppDir 中缺少 libjpeg.so.8。"
-find AppDir -type f -name 'libva.so.2*' -print -quit | grep -q . \
-    || die "AppDir 中缺少 libva.so.2。"
-
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-[[ -s "$OUTFILE" ]] || die "没有生成有效的 Parsec AppImage。"
-
-log "构建完成：$OUTFILE"
-sha256sum "$OUTFILE"
-
-# 最终 AppImage 成功生成后输出统一的软件版本元数据。
-printf '%s\n' "$SOFTWARE_VERSION" > "$OUTDIR/version.txt"
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "dist/parsec.AppImage" "$VERSION" dist/version.txt

@@ -9,7 +9,7 @@
 | 任务 | 状态 | 待处理内容 |
 | --- | --- | --- |
 | [处理 quick-sharun 的 Mesa / LLVM 依赖问题](./quick-sharun-mesa-llvm.md) | 已配置，待构建验证 | 保留现有 Mesa/LLVM 依赖，使用上游官方开关继续打包；依据后续正式构建结果完成验收 |
-| [推进剩余 AppImage 构建脚本按标准模板整理](./template-standardization-plan.md) | 待分批处理 | 跟踪尚未按固定 13 份模板标准整理且未登记专用流程的 9 个活跃 AppImage 项目，逐批核实、重写或登记专用流程 |
+| [推进剩余 AppImage 构建脚本按标准模板整理](./template-standardization-plan.md) | 待分批处理 | 跟踪尚未按固定 13 份模板标准整理且未登记专用流程的 6 个活跃 AppImage 项目，逐批核实、重写或登记专用流程 |
 
 ## 任务维护
 

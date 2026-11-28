@@ -1,421 +1,96 @@
 #!/usr/bin/env bash
-# 从腾讯文档官方 latest Linux x64 DEB 自动识别当前运行目录，并用 quick-sharun 封装为自包含 AppImage。
-# AUR tencent-docs-bin 只作为官方来源和历史布局参考；实际路径、版本和桌面资源均以当前官方 DEB 为准。
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-
-# 安装统一的 Arch AppImage 基础包
-"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-log() {
-  printf '[Tencent Docs] %s\n' "$*"
-}
+# 打包工具。GTK、输入法不要塞进这一行。
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
+# 安装 AUR 软件包、运行依赖及 DEB 解包工具。
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" "tencent-docs-bin" dpkg gtk3 fcitx5-gtk gzip alsa-lib cups cairo expat freetype2 libnotify libsecret adwaita-icon-theme librsvg libx11 libxext libxi libxrender libxrandr libxcomposite libxdamage libxfixes libxss libxtst libxkbcommon-x11 mesa libglvnd libva libvdpau vulkan-icd-loader libpulse pipewire pipewire-audio
 
-die() {
-  printf '错误：%s\n' "$*" >&2
-  exit 1
-}
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist work
+mkdir -p AppDir/bin
 
-#######################################################################
-# 1. 构建环境与依赖
-#######################################################################
 
-readonly HOST_ARCH="$(uname -m)"
-[[ "$HOST_ARCH" == x86_64 ]] || die "当前仅支持 x86_64。"
-command -v yay >/dev/null 2>&1 || die "构建环境缺少命令：yay"
+# 下载官方当前 DEB。
+"$SCRIPT_DIR/../Common/download/download_official_deb.sh" "https://docs.qq.com/api/package/get?channel_id=30001&version_id=latest&package_name=TencentDocs-x64.deb" work/app.deb "tdappdesktop" "amd64" --ipv4-fallback > work/source-version.txt
 
-readonly PACKAGE_URL='https://docs.qq.com/api/package/get?channel_id=30001&version_id=latest&package_name=TencentDocs-x64.deb'
-readonly SOURCE_DIR="$SCRIPT_DIR/source"
-readonly PACKAGE_FILE="$SOURCE_DIR/TencentDocs-x64.deb"
-readonly AR_DIR="$SOURCE_DIR/ar"
-readonly PACKAGE_ROOT="$SOURCE_DIR/package"
-readonly CONTROL_ROOT="$SOURCE_DIR/control"
-readonly APPDIR="$SCRIPT_DIR/AppDir"
-readonly APP_ROOT="$APPDIR/bin"
-readonly DIST_DIR="$SCRIPT_DIR/dist"
-readonly OUTFILE="$DIST_DIR/tencent-docs.AppImage"
-readonly VERIFY_DIR="$SCRIPT_DIR/verify"
-readonly BUILD_DESKTOP="$SCRIPT_DIR/tencent-docs.desktop"
-readonly BUILD_ICON_PREFIX="$SCRIPT_DIR/tencent-docs-build-icon"
-readonly SMOKE_HOME="$SCRIPT_DIR/smoke-home"
-readonly SMOKE_RUNTIME="$SCRIPT_DIR/smoke-runtime"
-readonly SMOKE_LOG="$SCRIPT_DIR/tencent-docs-smoke.log"
-readonly MAIN_EXEC=tdappdesktop
+# 解包官方 DEB。
+"$SCRIPT_DIR/../Common/archive/extract_archive.sh" work/app.deb work/unpacked
 
-# 只清理腾讯文档自己的构建目录、临时元数据和旧产物。
-rm -rf \
-  "$SOURCE_DIR" \
-  "$APPDIR" \
-  "$DIST_DIR" \
-  "$VERIFY_DIR" \
-  "$SMOKE_HOME" \
-  "$SMOKE_RUNTIME"
-rm -f "$BUILD_DESKTOP" "$SCRIPT_DIR"/tencent-docs-build-icon.* "$SMOKE_LOG"
-mkdir -p "$SOURCE_DIR" "$AR_DIR" "$PACKAGE_ROOT" "$CONTROL_ROOT" "$APP_ROOT" "$DIST_DIR"
+# 整个程序目录原样放进 AppDir/bin。
+cp -a "work/unpacked/opt/腾讯文档/." AppDir/bin/
 
-# 安装 DEB 提取、Electron 运行审计、桌面集成、Xvfb 冒烟测试以及图形/音频/输入法依赖。
-yay -S --noconfirm --needed \
-  base-devel binutils coreutils curl file findutils gawk grep inetutils patchelf sed \
-  tar gzip xz zstd \
-  appstream-glib desktop-file-utils util-linux zsync \
-  xorg-server xorg-server-common xorg-server-xvfb xorg-xauth \
-  nss nspr alsa-lib at-spi2-core cups dbus glib2 gtk3 pango cairo expat fontconfig freetype2 \
-  libnotify libsecret shared-mime-info xdg-utils hicolor-icon-theme adwaita-icon-theme gdk-pixbuf2 librsvg \
-  libx11 libxext libxi libxrender libxrandr libxcomposite libxdamage libxfixes libxss libxtst \
-  libxcb libxkbcommon libxkbcommon-x11 libdrm mesa libglvnd libva libvdpau vulkan-icd-loader \
-  libpulse pipewire pipewire-audio ibus python
-
-for command_name in \
-  ar awk bash chmod curl desktop-file-validate file find grep hostname install ldd \
-  quick-sharun readelf readlink sed sha256sum sort stat tar timeout xvfb-run python3; do
-  command -v "$command_name" >/dev/null 2>&1 || die "构建环境缺少命令：$command_name"
-done
-
-#######################################################################
-# 2. 获取并解析腾讯官方 DEB
-#######################################################################
-
-log "下载腾讯文档官方 latest Linux x64 DEB"
-if ! curl -fL \
-  --retry 5 \
-  --retry-all-errors \
-  --retry-delay 2 \
-  --connect-timeout 20 \
-  "$PACKAGE_URL" \
-  -o "$PACKAGE_FILE"; then
-  rm -f "$PACKAGE_FILE"
-  log "常规下载失败，切换 IPv4 + HTTP/1.1 并延长连接超时重试"
-  curl --ipv4 --http1.1 -fL \
-    --retry 8 \
-    --retry-all-errors \
-    --retry-delay 3 \
-    --connect-timeout 60 \
-    "$PACKAGE_URL" \
-    -o "$PACKAGE_FILE"
+# 本程序专属处理：清除 chrome-sandbox 特权位，并取消 .node 模块执行位避免被误判为独立入口。
+if [[ -e AppDir/bin/chrome-sandbox ]]; then
+  chmod 0755 AppDir/bin/chrome-sandbox
 fi
-[[ -s "$PACKAGE_FILE" ]] || die "腾讯官方下载文件为空。"
-file "$PACKAGE_FILE" | grep -q 'Debian binary package' || die "腾讯官方下载文件不是 Debian 软件包。"
-sha256sum "$PACKAGE_FILE"
+find AppDir/bin -type f -name '*.node' -exec chmod 0644 {} +
 
-(
-  cd "$AR_DIR"
-  ar x "$PACKAGE_FILE"
-)
+# 本程序专属处理：使用官方 DEB 自带的桌面入口和包内 PNG 图标，并将入口指向包内主程序。
+cp -a work/unpacked/usr/share/applications/tdappdesktop.desktop work/tdappdesktop.desktop
+cp -a AppDir/bin/resources/icon.png work/tencent-docs.png
+sed -i -e 's|^Exec=.*|Exec=tdappdesktop %U|' -e 's|^Icon=.*|Icon=tencent-docs|' work/tdappdesktop.desktop
 
-shopt -s nullglob
-control_archives=("$AR_DIR"/control.tar.*)
-data_archives=("$AR_DIR"/data.tar.*)
-shopt -u nullglob
-[[ ${#control_archives[@]} -eq 1 ]] || die "官方 DEB 中应且只能有一个 control.tar.*。"
-[[ ${#data_archives[@]} -eq 1 ]] || die "官方 DEB 中应且只能有一个 data.tar.*。"
-
-tar -xf "${control_archives[0]}" -C "$CONTROL_ROOT"
-tar -xf "${data_archives[0]}" -C "$PACKAGE_ROOT"
-
-CONTROL_FILE="$CONTROL_ROOT/control"
-[[ -f "$CONTROL_FILE" ]] || die "官方 DEB 缺少 control 元数据。"
-VERSION="$(awk -F': ' '/^Version:/{print $2; exit}' "$CONTROL_FILE" | tr -d '\r')"
-[[ -n "$VERSION" ]] || die "无法从官方 DEB 解析版本。"
-readonly VERSION
-printf 'Tencent Docs version: %s\n' "$VERSION"
-
-#######################################################################
-# 3. 自动识别当前官方运行目录、desktop 和图标
-#######################################################################
-
-# 腾讯 3.11.x 已改变旧版 /opt/tencent/tencent-docs 布局，因此不再写死安装目录。
-mapfile -d '' main_candidates < <(
-  find -L "$PACKAGE_ROOT" -type f -name "$MAIN_EXEC" -print0 2>/dev/null
-)
-if [[ ${#main_candidates[@]} -ne 1 ]]; then
-  printf 'tdappdesktop candidates: %s\n' "${#main_candidates[@]}" >&2
-  printf '  %s\n' "${main_candidates[@]:-}" >&2
-  die "无法从当前官方 DEB 唯一识别腾讯文档主程序。"
-fi
-SOURCE_MAIN="${main_candidates[0]}"
-[[ -x "$SOURCE_MAIN" ]] || die "官方腾讯文档主程序不可执行：$SOURCE_MAIN"
-file "$SOURCE_MAIN" | grep -q 'ELF 64-bit' || die "腾讯文档主程序不是 64 位 ELF。"
-
-SOURCE_APP_ROOT="$(dirname -- "$SOURCE_MAIN")"
-while [[ "$SOURCE_APP_ROOT" != "$PACKAGE_ROOT" ]]; do
-  if [[ -f "$SOURCE_APP_ROOT/resources/app.asar" || -d "$SOURCE_APP_ROOT/resources/app" ]]; then
-    break
-  fi
-  SOURCE_APP_ROOT="$(dirname -- "$SOURCE_APP_ROOT")"
-done
-[[ "$SOURCE_APP_ROOT" != "$PACKAGE_ROOT" ]] || die "无法定位腾讯文档 Electron resources 所在运行目录。"
-[[ "$SOURCE_MAIN" == "$SOURCE_APP_ROOT/"* ]] || die "主程序不在识别出的 Electron 运行目录内。"
-readonly SOURCE_MAIN SOURCE_APP_ROOT
-
-# 优先采用官方 DEB 自带的腾讯文档 desktop；没有时再生成最小入口。
-mapfile -d '' desktop_candidates < <(
-  find "$PACKAGE_ROOT" -type f -name '*.desktop' -print0 2>/dev/null | \
-    while IFS= read -r -d '' desktop_file; do
-      if grep -Eqi 'tdappdesktop|Tencent[[:space:]]*Docs|腾讯文档' "$desktop_file"; then
-        printf '%s\0' "$desktop_file"
-      fi
-    done
-)
-if [[ ${#desktop_candidates[@]} -eq 1 ]]; then
-  SOURCE_DESKTOP="${desktop_candidates[0]}"
-elif [[ ${#desktop_candidates[@]} -eq 0 ]]; then
-  SOURCE_DESKTOP="$SOURCE_DIR/tencent-docs-upstream-fallback.desktop"
-  cat > "$SOURCE_DESKTOP" <<'DESKTOP_EOF'
-[Desktop Entry]
-Name=Tencent Docs
-Name[zh_CN]=腾讯文档
-Comment=Tencent Docs
-Exec=tdappdesktop %U
-Terminal=false
-Type=Application
-Icon=tencent-docs
-Categories=Office;
-DESKTOP_EOF
-else
-  printf 'Tencent Docs desktop candidates: %s\n' "${#desktop_candidates[@]}" >&2
-  printf '  %s\n' "${desktop_candidates[@]}" >&2
-  die "官方包中存在多个腾讯文档 desktop 候选，无法安全选择。"
-fi
-readonly SOURCE_DESKTOP
-
-ICON_NAME="$(awk -F= '/^Icon=/{print $2; exit}' "$SOURCE_DESKTOP" | tr -d '\r')"
-ICON_NAME="${ICON_NAME##*/}"
-ICON_NAME="${ICON_NAME%.png}"
-ICON_NAME="${ICON_NAME%.svg}"
-
-icon_candidates=()
-if [[ -n "$ICON_NAME" ]]; then
-  while IFS= read -r -d '' icon_candidate; do
-    icon_candidates+=("$icon_candidate")
-  done < <(
-    find "$PACKAGE_ROOT" -type f \
-      \( -iname "$ICON_NAME.png" -o -iname "$ICON_NAME.svg" \) \
-      -print0 2>/dev/null
-  )
-fi
-if [[ ${#icon_candidates[@]} -eq 0 ]]; then
-  while IFS= read -r -d '' icon_candidate; do
-    icon_candidates+=("$icon_candidate")
-  done < <(
-    find "$PACKAGE_ROOT" -type f \
-      \( -iname '*tencent*docs*.png' -o -iname '*tencent*docs*.svg' -o \
-         -iname '*tdappdesktop*.png' -o -iname '*tdappdesktop*.svg' -o \
-         -iname 'logo.png' -o -iname 'icon.png' \) \
-      -print0 2>/dev/null
-  )
-fi
-[[ ${#icon_candidates[@]} -gt 0 ]] || die "官方包中未找到可用的腾讯文档 PNG/SVG 图标。"
-
-SOURCE_ICON="${icon_candidates[0]}"
-source_icon_size="$(stat -c '%s' "$SOURCE_ICON")"
-for icon_candidate in "${icon_candidates[@]:1}"; do
-  icon_size="$(stat -c '%s' "$icon_candidate")"
-  if (( icon_size > source_icon_size )); then
-    SOURCE_ICON="$icon_candidate"
-    source_icon_size="$icon_size"
-  fi
-done
-readonly SOURCE_ICON
-
-case "${SOURCE_ICON,,}" in
-  *.png) ICON_EXT=png ;;
-  *.svg) ICON_EXT=svg ;;
-  *) die "官方图标格式不是 PNG/SVG。" ;;
-esac
-readonly ICON_EXT
-readonly BUILD_ICON_FILE="$BUILD_ICON_PREFIX.$ICON_EXT"
-
-printf 'Tencent Docs runtime: %s\nTencent Docs executable: %s\nTencent Docs desktop: %s\nTencent Docs icon: %s\n' \
-  "${SOURCE_APP_ROOT#"$PACKAGE_ROOT"/}" \
-  "${SOURCE_MAIN#"$PACKAGE_ROOT"/}" \
-  "${SOURCE_DESKTOP#"$PACKAGE_ROOT"/}" \
-  "${SOURCE_ICON#"$PACKAGE_ROOT"/}"
-
-#######################################################################
-# 4. 保留官方 Electron 运行目录并生成 AppImage 元数据
-#######################################################################
-
-# 保留官方 Electron 完整运行目录，不拆 app.asar，也不替换为宿主机 Electron。
-cp -a "$SOURCE_APP_ROOT"/. "$APP_ROOT"/
-MAIN_RELATIVE="${SOURCE_MAIN#"$SOURCE_APP_ROOT"/}"
-[[ "$MAIN_RELATIVE" != "$SOURCE_MAIN" ]] || die "无法计算主程序在运行目录中的相对路径。"
-[[ -x "$APP_ROOT/$MAIN_RELATIVE" ]] || die "复制后缺少腾讯文档主程序。"
-readonly MAIN_RELATIVE
-
-# Node 原生模块由 Electron 运行时 dlopen；去掉执行位，避免 quick-sharun 把它们当独立入口包装。
-find "$APP_ROOT" -type f -name '*.node' -exec chmod 0644 {} +
-
-install -Dm0644 "$SOURCE_DESKTOP" "$BUILD_DESKTOP"
-install -Dm0644 "$SOURCE_ICON" "$BUILD_ICON_FILE"
-[[ "$(grep -c '^Exec=' "$BUILD_DESKTOP")" -eq 1 ]] || die "desktop 的 Exec 字段数量异常。"
-[[ "$(grep -c '^Icon=' "$BUILD_DESKTOP")" -eq 1 ]] || die "desktop 的 Icon 字段数量异常。"
-
-# 仅把 desktop 的启动程序改为 AppImage 内入口，保留官方已有参数和字段代码。
-sed -E -i \
-  -e "s|^Exec=[^[:space:]]+|Exec=$MAIN_EXEC|" \
-  -e 's|^Icon=.*|Icon=tencent-docs|' \
-  "$BUILD_DESKTOP"
-if grep -q '^X-AppImage-Version=' "$BUILD_DESKTOP"; then
-  sed -i "s|^X-AppImage-Version=.*|X-AppImage-Version=$VERSION|" "$BUILD_DESKTOP"
-else
-  printf 'X-AppImage-Version=%s\n' "$VERSION" >> "$BUILD_DESKTOP"
-fi
-desktop-file-validate "$BUILD_DESKTOP"
-
-cat > "$APPDIR/AppRun.sh" <<APPRUN_EOF
-#!/bin/sh
-set -e
-export SHARUN_EXTRA_LIBRARY_PATH="\$APPDIR/bin\${SHARUN_EXTRA_LIBRARY_PATH:+:\$SHARUN_EXTRA_LIBRARY_PATH}"
-export SHARUN_WORKING_DIR="\$APPDIR/bin"
-export LANG=zh_CN.UTF-8
-export LANGUAGE=zh_CN:zh
-export GTK_IM_MODULE="\${GTK_IM_MODULE:-ibus}"
-export XMODIFIERS="\${XMODIFIERS:-@im=ibus}"
-cd "\$APPDIR/bin"
-exec "\$APPDIR/bin/$MAIN_RELATIVE" --lang=zh-CN "\$@"
-APPRUN_EOF
-chmod 0755 "$APPDIR/AppRun.sh"
-bash -n "$APPDIR/AppRun.sh"
-
-printf '%s\n' "$VERSION" > ~/version
-
-#######################################################################
-# 5. quick-sharun 依赖审计与封装
-#######################################################################
-
-export ARCH=x86_64
-export VERSION
-export APPNAME='Tencent Docs'
-export MAIN_BIN="$MAIN_EXEC"
-export ICON="$BUILD_ICON_FILE"
-export DESKTOP="$BUILD_DESKTOP"
-export OUTPATH="$DIST_DIR"
-export OUTNAME=tencent-docs.AppImage
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 成品里的应用名。
+export APPNAME="Tencent Docs"
+# 包里的真实程序名。
+export MAIN_BIN="tdappdesktop"
+# 让窗口对上 desktop 里的 StartupWMClass。
+export STARTUPWMCLASS="tdappdesktop"
+# 使用官方 DEB 提供的图标。
+export ICON="$SCRIPT_DIR/work/tencent-docs.png"
+# 使用官方 DEB 提供的桌面入口文件。
+export DESKTOP="$SCRIPT_DIR/work/tdappdesktop.desktop"
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
+export OUTNAME="tencent-docs.AppImage"
+# 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。
 export DEPLOY_GTK=1
-export DEPLOY_OPENGL=1
-export DEPLOY_VULKAN=1
-export DEPLOY_PIPEWIRE=1
-export STRACE_MODE=0
-export NO_STRIP=1
+# 本程序专属处理：保留图形、音频和原生库部署设置。
+export DEPLOY_OPENGL=1 DEPLOY_VULKAN=1 DEPLOY_PIPEWIRE=1 STRACE_MODE=0 NO_STRIP=1
 
-elf_targets=()
-while IFS= read -r -d '' target; do
-  if ! readelf -h "$target" >/dev/null 2>&1; then
-    continue
-  fi
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" text work/source-version.txt --desktop work/tdappdesktop.desktop)"
 
-  # 上游 Electron 资源可能同时附带 glibc/musl 预编译 Node 模块。
-  # AppImage 目标是 glibc；musl 变体保留在资源中，但不参与 ldd 与 quick-sharun。
-  case "$target" in
-    *musl*)
-      printf 'Tencent Docs skip optional musl ELF: %s\n' "${target#"$APP_ROOT"/}"
-      continue
-      ;;
-  esac
-
-  elf_targets+=("$target")
-done < <(find "$APP_ROOT" -type f -print0)
-[[ ${#elf_targets[@]} -gt 0 ]] || die "官方腾讯文档运行目录中未找到 ELF 文件。"
-printf 'Tencent Docs ELF files: %s\n' "${#elf_targets[@]}"
-
-mapfile -t app_library_dirs < <(
-  for target in "${elf_targets[@]}"; do
-    dirname -- "$target"
-  done | sort -u
-)
-[[ ${#app_library_dirs[@]} -gt 0 ]] || die "官方腾讯文档 ELF 库目录为空。"
-printf 'Tencent Docs ELF library directories: %s\n' "${#app_library_dirs[@]}"
-BUILD_LIBRARY_PATH="$(IFS=:; printf '%s' "${app_library_dirs[*]}")"
-BUILD_LIBRARY_PATH="$BUILD_LIBRARY_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
-missing_dependencies=0
-for target in "${elf_targets[@]}"; do
-  target_library_path="$(dirname -- "$target"):$BUILD_LIBRARY_PATH"
-  target_dependencies="$(LD_LIBRARY_PATH="$target_library_path" ldd "$target" 2>&1 || true)"
-  if grep -Eq 'not found|version .* not found' <<< "$target_dependencies"; then
-    printf '缺失/不兼容依赖文件：%s\n%s\n' "$target" "$target_dependencies" >&2
-    missing_dependencies=1
-  fi
-done
-[[ "$missing_dependencies" -eq 0 ]] || die "腾讯文档官方组件仍存在缺失或 ABI 不兼容动态库。"
-
+# 本程序专属处理：忽略未匹配到文件的运行库通配符。
 shopt -s nullglob
-runtime_targets=(
-  /usr/bin/hostname
-  /usr/lib/libnss*.so*
-  /usr/lib/libsoftokn3.so
-  /usr/lib/libfreeblpriv3.so
-  /usr/lib/pkcs11/*
-  /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so
-)
+
+# 收集程序及其运行依赖。
+LD_LIBRARY_PATH="$SCRIPT_DIR/AppDir/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" quick-sharun AppDir/bin/* /usr/bin/hostname /usr/lib/libnss*.so* /usr/lib/libsoftokn3.so /usr/lib/libfreeblpriv3.so /usr/lib/pkcs11/* /usr/lib/gtk-3.0/3.0.0/immodules/im-ibus.so /usr/lib/gtk-3.0/3.0.0/immodules/im-fcitx5.so
 shopt -u nullglob
 
-LD_LIBRARY_PATH="$BUILD_LIBRARY_PATH" quick-sharun \
-  "${elf_targets[@]}" \
-  "${runtime_targets[@]}"
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'ENV'
+LANG=zh_CN.UTF-8
+LANGUAGE=zh_CN:zh
+LC_MESSAGES=zh_CN.UTF-8
+LOCPATH=${SHARUN_DIR}/lib/locale
+ENV
 
+# 本程序专属处理：保留官方运行目录及相邻库搜索路径。
+cat >> AppDir/.env <<'ENV'
+SHARUN_EXTRA_LIBRARY_PATH=${SHARUN_DIR}/bin:${SHARUN_EXTRA_LIBRARY_PATH}
+SHARUN_WORKING_DIR=${SHARUN_DIR}/bin
+ENV
+
+# 本程序专属处理：固定简体中文界面启动参数，替代自写 AppRun.sh。
+cat > AppDir/bin/90-tencent-docs-arguments.hook <<'HOOK'
+set -- --lang=zh-CN "$@"
+HOOK
+
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
-[[ -s "$OUTFILE" ]] || die "未生成预期文件：$OUTFILE"
-chmod 0755 "$OUTFILE"
-sha256sum "$OUTFILE"
 
-#######################################################################
-# 6. 最终产物检查与隔离图形启动测试
-#######################################################################
-
-mkdir -p "$VERIFY_DIR"
-(
-  cd "$VERIFY_DIR"
-  "$OUTFILE" --appimage-extract >/dev/null
-)
-readonly VERIFY_APPDIR="$VERIFY_DIR/squashfs-root"
-[[ -x "$VERIFY_APPDIR/AppRun" ]] || die "最终 AppImage 缺少 AppRun。"
-[[ -f "$VERIFY_APPDIR/tencent-docs.desktop" ]] || die "最终 AppImage 缺少 desktop 文件。"
-find -H "$VERIFY_APPDIR" -type f -path '*/resources/app.asar' -print -quit | grep -q . || \
-  find -H "$VERIFY_APPDIR" -type d -path '*/resources/app' -print -quit | grep -q . || \
-  die "最终 AppImage 缺少 Electron 应用资源。"
-find -H "$VERIFY_APPDIR" -type f -name "$MAIN_EXEC" -print -quit | grep -q . || \
-  die "最终 AppImage 缺少腾讯文档主程序。"
-
-mkdir -p "$SMOKE_HOME" "$SMOKE_RUNTIME"
-chmod 0700 "$SMOKE_RUNTIME"
-set +e
-HOME="$SMOKE_HOME" \
-XDG_RUNTIME_DIR="$SMOKE_RUNTIME" \
-APPIMAGE_EXTRACT_AND_RUN=1 \
-timeout 25s xvfb-run -a \
-  "$OUTFILE" \
-  --disable-gpu \
-  --user-data-dir="$SMOKE_HOME/profile" \
-  >"$SMOKE_LOG" 2>&1
-smoke_rc=$?
-set -e
-
-cat "$SMOKE_LOG"
-printf 'Tencent Docs smoke test exit code: %s\n' "$smoke_rc"
-if grep -Eqi \
-  'error while loading shared libraries|cannot open shared object file|invalid ELF header|wrong ELF class|Exec format error|Trace/breakpoint trap|Segmentation fault' \
-  "$SMOKE_LOG"; then
-  die "腾讯文档冒烟测试检测到致命运行错误。"
-fi
-if [[ "$smoke_rc" -eq 124 ]]; then
-  if grep -Eqi 'FATAL:' "$SMOKE_LOG"; then
-    die "腾讯文档冒烟测试检测到致命运行错误。"
-  fi
-elif [[ "$smoke_rc" -ne 0 ]]; then
-  die "腾讯文档在 Xvfb 冒烟测试中异常退出：$smoke_rc"
-fi
-
-SOURCE_ENTRY="${SOURCE_MAIN#"$PACKAGE_ROOT"/}"
-cat > "$DIST_DIR/tencent-docs-version.txt" <<VERSION_EOF
-package=tencent-docs
-version=$VERSION
-source=$PACKAGE_URL
-method=official-deb-plus-quick-sharun
-entry=$SOURCE_ENTRY
-output=$(basename "$OUTFILE")
-VERSION_EOF
-
-log "构建完成：$OUTFILE"
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "dist/tencent-docs.AppImage" "$VERSION" dist/version.txt

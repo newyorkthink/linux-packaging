@@ -785,12 +785,14 @@
     },
     {
       "key": "tencent_docs",
-      "kind": "special",
+      "kind": "standard",
       "name": "Tencent Docs",
       "script": "tencent-docs/build_tencent-docs.sh",
       "dir": "tencent-docs",
+      "artifact_dir": "tencent-docs/dist",
       "release_name": "tencent-docs.AppImage",
-      "software_key": "tencent-docs"
+      "software_key": "tencent-docs",
+      "run_from_root": "false"
     },
     {
       "key": "webcamoid",

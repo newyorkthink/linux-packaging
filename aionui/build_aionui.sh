@@ -11,6 +11,8 @@ cd "$SCRIPT_DIR"
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 # 本程序专属处理：先安装预编译 Electron 37，满足 AUR 软件包的依赖。
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" "electron37-bin"
+# 本程序专属处理：替换为 aioncore-bin 要求的 zlib-ng-compat，避免容器默认的 zlib 产生事务冲突。
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --replace zlib-ng-compat
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" "aionui-bin" dpkg python-yaml alsa-lib cairo cups freetype2 gtk3 fcitx5-gtk libnotify libsecret adwaita-icon-theme librsvg libx11 libxext libxi libxrender libxrandr libxcomposite libxdamage libxfixes libxss libxtst libxcb libxkbcommon-x11 mesa libglvnd libva libvdpau vulkan-icd-loader libpulse pipewire-audio
 

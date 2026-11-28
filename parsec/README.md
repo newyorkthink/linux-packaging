@@ -7,8 +7,8 @@
 - 打包对象：Parsec Linux 客户端。
 - 最终产物：`parsec.AppImage`。
 - Release 资产名：`parsec.AppImage`。
-- 正式构建入口：`.github/workflows/build.yml` 中的 `Build Parsec` Job。
-- 上游程序来源：AUR `parsec-bin`；其 PKGBUILD 从 Parsec 官方 `parsec-linux.deb` 获取程序本体。
+- 正式构建入口：`.github/workflows/build.yml` 中的标准矩阵构建流程（`build_standard`，`artifact_dir: parsec/dist`）。
+- 上游程序来源：AUR `parsec-bin`；其 PKGBUILD 从 Parsec 官方 `parsec-linux.deb` 获取程序本体，构建时先通过 `Common/arch/install_packages.sh --aur-deb` 校验安装，再由 `Common/aur/download_deb_source.sh` 独立下载并解包同一官方 DEB。
 - 当前仅构建 x86_64。
 - Linux 端只作为 Parsec Client 使用；Parsec 官方当前不支持 Linux Hosting。
 
@@ -30,24 +30,24 @@ AUR `parsec-bin` 当前依赖 `ffmpeg4.4`，与官方要求的 FFmpeg 4.4 ABI �
 
 ## 打包方式
 
-当前路线为 **Arch Linux + quick-sharun**：
+当前路线为 **Arch Linux + quick-sharun**（[build_parsec.sh](./build_parsec.sh)，不新增第 14 份模板，相关取舍与差异见 [模板差异](./docs/template-deviations.md)、[上游差异](./docs/pkgforge-differences.md) 与 [固定配置](./docs/hardcoded.md)）：
 
-1. 使用仓库规定的最小 Arch Linux AppImage 构建依赖。
-2. 通过 `yay` 安装当前 AUR `parsec-bin`，让 AUR 元数据动态跟随 Parsec 官方 Linux 包；脚本不固定 Parsec 应用版本。
-3. 额外安装 `ffmpeg4.4`、`libjpeg-turbo` 与 `libva`：
+1. 通过 `Common/arch/install_packages.sh --base` 安装仓库规定的最小 Arch Linux AppImage 构建依赖。
+2. 通过 `Common/arch/install_packages.sh --aur-deb "parsec-bin" "$(uname -m)" --wayback --source-filename 'parsec-bin-{version}.deb' -- dpkg ffmpeg4.4 libjpeg-turbo libva` 安装依赖与 AUR `parsec-bin`（保留 Wayback 回退与 `parsec-bin-{version}.deb` 文件名匹配）：
    - `ffmpeg4.4` 提供 Parsec 官方要求的 FFmpeg 4.4 解码 ABI。
    - `libjpeg-turbo` 提供真实的 `libjpeg.so.8` / libjpeg v8 ABI。
    - `libva` 提供通用 VA-API loader。
-4. quick-sharun 同时收集 `/usr/bin/parsecd`、官方 `parsecd-*.so` 模块、FFmpeg 4.4 的关键解码库、`libjpeg.so.8` 与通用 VA-API loader；不固定封装 Intel / NVIDIA / VDPAU 厂商 backend。
-5. 使用 `PATH_MAPPING` 将运行时固定的 `/usr/share/parsec` 映射到 AppImage 内的官方资源目录，并完整保留 `appdata.json` 与官方动态模块。
-6. 启用 quick-sharun 的 OpenGL、PipeWire 和 locale 部署；保持 AUR 的 `!strip` 语义，不 strip Parsec 官方闭源 ELF。
+3. 通过 `Common/aur/download_deb_source.sh "parsec-bin" "$(uname -m)" work/app.deb --wayback --source-filename 'parsec-bin-{version}.deb'` 独立下载官方 DEB 并用 `Common/archive/extract_archive.sh` 解包至 `work/unpacked`，取出 `/usr/bin/parsecd` 并校验 `/usr/share/parsec/skel/appdata.json` 与 `parsecd-*.so` 存在。
+4. 通过 `quick-sharun` 同时收集 `AppDir/bin/parsecd`、官方 `parsecd-*.so` 模块、FFmpeg 4.4 的关键解码库、`libjpeg.so.8` 与通用 VA-API loader；不固定封装 Intel / NVIDIA / VDPAU 厂商 backend。
+5. 使用 `PATH_MAPPING='/usr/share/parsec:${SHARUN_DIR}/share/parsec'` 将运行时固定的 `/usr/share/parsec` 映射到 AppImage 内的官方资源目录，并从 `work/unpacked/usr/share/parsec/.` 完整保留 `appdata.json` 与官方动态模块至 `AppDir/share/parsec/`。
+6. 启用 `quick-sharun` 的 `DEPLOY_OPENGL=1`、`DEPLOY_PIPEWIRE=1`、`DEPLOY_LOCALE=1` 与 `NO_STRIP=1`；不 strip Parsec 官方闭源 ELF。
 7. 生成 `zh_CN.UTF-8` locale 后由 `quick-sharun --make-appimage` 生成 `dist/parsec.AppImage`。
 
 不加入测试 / smoke test 代码，也不通过强制软件解码绕过缺失依赖问题。
 
 ## 版本元数据
 
-构建时从本次实际安装的 AUR `parsec-bin` 包读取版本，去掉 Arch epoch 与 pkgrel 后，在最终 AppImage 成功生成后写入 `parsec/dist/version.txt`。workflow 以 `SOFTWARE_KEY=parsec` 上传该元数据，并在成功构建后增量写入 `latest/software_versions.json`。
+构建时通过 `Common/build/read_app_version.sh pacman "parsec-bin"` 读取本次实际安装的 `parsec-bin` 版本（去掉 Arch epoch 与 pkgrel），在最终 AppImage 成功生成后通过 `Common/build/save_appimage_version.sh` 写入 `parsec/dist/version.txt`。workflow 以 `SOFTWARE_KEY=parsec` 上传该元数据，并在成功构建后增量写入 `latest/software_versions.json`。
 
 ## 中文环境与输入法
 
@@ -141,6 +141,11 @@ Parsec 官方 Linux 依赖列表没有要求 Qt / GTK 输入上下文插件，�
 - **修复内容：** 移除 `intel-media-driver`、`libva-nvidia-driver`、`libvdpau-va-gl` 的打包依赖及 `iHD_drv_video.so`、`nvidia_drv_video.so`、`libvdpau_va_gl.so` 的显式收集与成品检查；保留已经使 Decoder 从空白恢复为 `Software` 的 FFmpeg 4.4 / 通用 libva 基线，以及真实 `libjpeg.so.8` 修复。
 - **已确认结果：** 厂商 backend 版本存在真实启动黑屏回归，因此不再作为当前基线。
 - **待确认事项：** 新产物需重新确认正常 GUI、黄色 libjpeg8 提示是否消失，以及硬件 Decoder 是否可由宿主驱动栈正常发现；硬件解码仍未标记为已解决。
+
+### 2026-11-28：按两阶段 AUR DEB 标准重写构建脚本
+
+- **修改文件：** `parsec/build_parsec.sh`、`parsec/README.md`、`parsec/docs/template-deviations.md`、`parsec/docs/hardcoded.md`、`parsec/docs/pkgforge-differences.md`。
+- **处理内容：** 改用 `Common/arch/install_packages.sh --aur-deb`、`Common/aur/download_deb_source.sh`（显式传入 `--wayback --source-filename 'parsec-bin-{version}.deb'`）与 `Common/archive/extract_archive.sh` 拆分两阶段获取并解包官方 `parsec-linux.deb`；`ICON` 与 `DESKTOP` 改用经官方 DEB 实测确认的固定路径（`/usr/share/icons/hicolor/256x256/apps/parsecd.png` 与 `/usr/share/applications/parsecd.desktop`），移除 `pacman -Ql` 探测与直接 `yay`/`pacman -Q`，版本读取与保存接入公共入口；完整保留 `parsecd-*.so`、FFmpeg 4.4、`libjpeg.so.8`、通用 VA-API、`/usr/share/parsec` 资源与简体中文 locale 基线。
 
 ### 2026-09-16：接入统一软件版本元数据
 

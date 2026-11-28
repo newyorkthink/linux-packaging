@@ -6,7 +6,7 @@
 
 ## 技术栈与打包方式
 
-AionUi 使用 Electron 和包内的 AionCore 后端。构建时先安装预编译的 `electron37-bin`，满足 `aionui-bin` 的 `electron37` 依赖，避免在准备构建环境时从源码编译 Electron 和 Chromium。随后安装 `aionui-bin` 及所需依赖，再通过公共 Electron 更新清单入口独立获取官网 DEB。公共入口按同一份清单选择 amd64 资产并校验 SHA-512，解包前另核对 DEB 的架构。
+AionUi 使用 Electron 和包内的 AionCore 后端。构建时先安装预编译的 `electron37-bin`，满足 `aionui-bin` 的 `electron37` 依赖，避免在准备构建环境时从源码编译 Electron 和 Chromium；再通过 `--replace zlib-ng-compat` 提前替换基础容器中的 `zlib`，避免后续与 `aioncore-bin` 声明的 `zlib-ng-compat` 依赖发生非交互安装冲突。随后安装 `aionui-bin` 及所需依赖，再通过公共 Electron 更新清单入口独立获取官网 DEB。公共入口按同一份清单选择 amd64 资产并校验 SHA-512，解包前另核对 DEB 的架构。
 
 构建保留官网 DEB 的完整程序目录、原生模块和 AionCore 后端。desktop 与图标来自本次下载的包，quick-sharun 收集 GTK3、图形和音频依赖。现有模板无法从 Electron 更新清单获取 DEB 和来源版本，因此按专用流程整理。处理依据见[模板差异](./docs/template-deviations.md)与[固定配置](./docs/hardcoded.md)。
 
