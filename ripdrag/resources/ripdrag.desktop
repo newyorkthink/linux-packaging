@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ripdrag
+Comment=Drag and drop files to and from the terminal
+Exec=ripdrag %F
+Icon=ripdrag
+Terminal=false
+Categories=Utility;FileTools;
+StartupNotify=true
