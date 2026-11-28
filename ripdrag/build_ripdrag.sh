@@ -1,106 +1,56 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
+set -Eeuo pipefail
+
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# 安装统一的 Arch AppImage 基础包
+# 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
+# 安装官方软件包及运行依赖。
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" glycin gtk4 librsvg rust xorg-server xorg-server-common xorg-server-xvfb
 
-cd "$(dirname "$0")"
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist source
 
-rm -rf AppDir || true
-mkdir -p dist
-rm -f dist/ripdrag-*-x86_64.AppImage
 
-ARCH="$(uname -m)"
-export ARCH
-export OUTPATH=./dist
+# 把当前机器架构传给 quick-sharun。
+export ARCH="$(uname -m)"
+# 本程序专属处理：使用仓库中已有的图标。
+export ICON="$SCRIPT_DIR/resources/ripdrag.svg"
+# 本程序专属处理：使用并校验仓库中已有的桌面入口。
+export DESKTOP="$SCRIPT_DIR/resources/ripdrag.desktop"
+desktop-file-validate "$DESKTOP"
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
+export OUTNAME="ripdrag.AppImage"
+# 包里的真实程序名。
 export MAIN_BIN=ripdrag
+# 本程序专属处理：打包时部署 GTK4 运行组件。
 export DEPLOY_GTK=1
+# 本程序专属处理：打包时部署 GdkPixbuf 图像加载组件。
 export DEPLOY_GDK=1
+# 本程序专属处理：打包时部署 Glycin 图片加载器。
 export DEPLOY_GLYCIN=1
 
-# 独立构建 Job 需要显式安装 quick-sharun 必需的 patchelf，避免依赖其他构建任务留下的共享环境。
-yay -S --needed --noconfirm patchelf
+# 本程序专属处理：从 crates.io 安装当前版本到本次构建目录。
+"$SCRIPT_DIR/../Common/build/install_cargo_crate.sh" ripdrag "$SCRIPT_DIR/source"
+RIPDRAG_BIN="$SCRIPT_DIR/source/bin/ripdrag"
 
-# 安装编译、GTK4 运行组件和 AppImage 打包所需依赖。
-yay -S --needed --noconfirm \
-  base-devel \
-  curl \
-  desktop-file-utils \
-  gdk-pixbuf2 \
-  glycin \
-  gtk4 \
-  hicolor-icon-theme \
-  librsvg \
-  rust \
-  shared-mime-info \
-  xorg-server \
-  xorg-server-common \
-  xorg-server-xvfb
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" command "$RIPDRAG_BIN" --field 2 -- --version)"
 
-# 由 Cargo 直接安装 crates.io 上的最新稳定版，避免单独请求 crates.io API 被拒绝。
-rm -rf /tmp/ripdrag-install
-cargo install ripdrag \
-  --locked \
-  --root /tmp/ripdrag-install
-
-RIPDRAG_BIN=/tmp/ripdrag-install/bin/ripdrag
-test -x "$RIPDRAG_BIN"
-VERSION_OUTPUT="$("$RIPDRAG_BIN" --version)"
-printf '%s\n' "$VERSION_OUTPUT"
-VERSION="${VERSION_OUTPUT##* }"
-if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-  echo "错误：无法从 ripdrag --version 确认版本号：$VERSION_OUTPUT" >&2
-  exit 1
-fi
-export VERSION
-export OUTNAME="ripdrag-${VERSION}-x86_64.AppImage"
-
-# ripdrag 上游没有提供可直接用于 AppImage 的 desktop 和图标，在构建时生成。
-cat > /tmp/ripdrag.desktop <<'DESKTOP'
-[Desktop Entry]
-Type=Application
-Name=ripdrag
-Comment=Drag and drop files to and from the terminal
-Exec=ripdrag %F
-Icon=ripdrag
-Terminal=false
-Categories=Utility;FileTools;
-StartupNotify=true
-DESKTOP
-
-cat > /tmp/ripdrag.svg <<'SVG'
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <rect x="8" y="8" width="112" height="112" rx="22" fill="#24273a"/>
-  <path d="M64 26v48m0 0 18-18M64 74 46 56" fill="none" stroke="#cad3f5" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M34 88h60" fill="none" stroke="#8aadf4" stroke-width="10" stroke-linecap="round"/>
-</svg>
-SVG
-
-export DESKTOP=/tmp/ripdrag.desktop
-export ICON=/tmp/ripdrag.svg
-
-desktop-file-validate "$DESKTOP"
-
-# 收集 ripdrag、GTK4、图像加载组件及其运行依赖并生成 AppImage。
+# 收集程序及其运行依赖。
 quick-sharun "$RIPDRAG_BIN"
 
-# 默认使用已经验证有效的 GTK4 Adwaita 黑色主题。
-cat > AppDir/bin/00-ripdrag-dark-theme.hook <<'HOOK'
-#!/bin/sh
+# 本程序专属处理：将现有深色主题 Hook 放入 AppDir。
+install -m 0755 -- "$SCRIPT_DIR/00-ripdrag-dark-theme.hook" AppDir/bin/00-ripdrag-dark-theme.hook
 
-export GTK_THEME=Adwaita:dark
-HOOK
-chmod +x AppDir/bin/00-ripdrag-dark-theme.hook
-
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-APPIMAGE="$OUTPATH/$OUTNAME"
-test -s "$APPIMAGE"
-chmod +x "$APPIMAGE"
-APPIMAGE_EXTRACT_AND_RUN=1 "$APPIMAGE" --version
-
-printf '%s\n' "$VERSION" > "$OUTPATH/version.txt"
-
-echo "已生成：$APPIMAGE"
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "dist/ripdrag.AppImage" "$VERSION" dist/version.txt

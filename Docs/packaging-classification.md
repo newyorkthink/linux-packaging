@@ -198,6 +198,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | KeePass | [build_keepass.sh](../keepass/build_keepass.sh) | KeePass 采用 Mono、分层安装的 GTK2 依赖及构建期 PLGX 预编译，扫描前后分别部署专属插件与 AppDir 运行环境。 | [模板差异](../keepass/docs/template-deviations.md) · [固定配置](../keepass/docs/hardcoded.md) · [稳定基线](../keepass/KEEPASS_STABLE.md) |
 | Keyviz | [build_keyviz.sh](../keyviz/build_keyviz.sh) | 从官方 `mulaRahul/keyviz` 最新正式 Release 获取源码，应用 5 份 Linux/X11/i3 补丁后经 Tauri 编译、quick-sharun 封装；官方未提供 Linux 现成包且缺少 Linux 覆盖层处理，公共阶段已对齐仓库入口。 | [模板差异](../keyviz/docs/template-deviations.md) · [固定配置](../keyviz/docs/hardcoded.md) · [应用说明](../keyviz/README.md) |
 | QQ | [build_qq.sh](../qq/build_qq.sh) | 校验后原样同步腾讯官方 x86_64 AppImage。现有打包模板面向重新封装，QQ 采用已通过实机验证的原包同步流程。 | [打包方式](../qq/README.md#打包方式) · [修复与实机记录](../qq/README.md#修复记录) |
+| Ripdrag | [build_ripdrag.sh](../ripdrag/build_ripdrag.sh) | Rust / GTK4。沿用上游 crates.io 安装，通过公共 Cargo 入口安装到暂存目录，再用 quick-sharun 封装。现有 Arch 原生模板使用系统软件包和 pacman 版本，Cargo 来源及程序路径由应用专属处理。 | [模板差异](../ripdrag/docs/template-deviations.md) · [应用说明](../ripdrag/README.md) |
 | st | [build_st.sh](../st/build_st.sh) | 从 siduck/st 默认分支获取当前源码，按字体配置生成 config.h 并写入源码默认主题，经 make 安装后由 quick-sharun 封装程序、辅助脚本和 terminfo；与 Arch 原生软件包模板不同，不新增标准模板。 | [专属差异](../st/docs/template-deviations.md) · [实机验证](../st/README.md#实机验证) |
 | Webcamoid | [build_webcamoid.sh](../webcamoid/build_webcamoid.sh) | 现有流程从官方正式 Release 源码应用四个补丁，经 CMake + Ninja 安装到暂存目录，再由 quick-sharun 收集插件与运行库；不同于现有 Qt DEB / 系统入口模板，不新增标准模板。 | [当前基线与差异](../webcamoid/docs/template-deviations.md) · [实机验证](../webcamoid/README.md#实机验证) |
 
