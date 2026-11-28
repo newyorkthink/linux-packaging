@@ -12,4 +12,4 @@ KeePass 使用 Arch 官方发行的 Mono 程序，在独立 Arch Linux 容器构
 | 扫描后 | `patches/prepare_appdir.sh` 复制简体中文语言文件、思源黑体及其许可证，配置包内 Fontconfig，以避免中文在查找框中被裁切以及备注文字基线不一致，检查 AppDir 内容并写入 KeePass 与 KPScript 的两个启动脚本。 |
 | 封装 | 在仓库根目录生成 `dist/keepass.AppImage`。版本由公共入口从本次实际安装的 Arch `keepass` 包读取，并写入 `dist/version.txt`。 |
 
-已确认的实机结果见[稳定基线](../KEEPASS_STABLE.md)。
+最新实机结果见 [README 的实机验证记录](../README.md#实机验证)。历史验证见[稳定基线](../KEEPASS_STABLE.md)。

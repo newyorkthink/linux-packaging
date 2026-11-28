@@ -3,6 +3,8 @@
 当前稳定基线日期：2026-07-28  
 构建脚本：`keepass/build_keepass.sh`
 
+最新实机结果见 [README 的实机验证记录](README.md#实机验证)。
+
 ## 已确认正常
 
 - KeePass AppImage 可以正常启动、打开和保存数据库。
