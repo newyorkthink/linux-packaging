@@ -25,6 +25,7 @@
 - `aur/download_tar_source.sh <AUR 包名> <架构> <输出.tar.gz> <元数据输出文件>` 从同次 `.SRCINFO` 读取唯一的架构专用 HTTPS tar.gz 来源和 BLAKE2b-512 摘要。摘要缺失、无效或为 `SKIP` 时拒绝下载；校验通过后写入归档及可由 Bash 读取的版本、pkgrel 和来源元数据。现有 DEB 入口继续使用原调用方式。
 - `aur/download_pkgbuild_asset.sh` 从同一份 PKGBUILD 文本读取指定的地址、SHA-256 和版本字段，支持可选的地址处理函数和 JSON 取链接模式，并复用公共下载入口校验文件。成功后写入来源版本，详见下文。
 - `download/download_json_asset.sh` 从官方 JSON 取得资产地址与版本，可用本仓库已发布的同版本 SHA-256 校验下载，并支持复用配方取包和签名取链入口。
+- `download/download_c_define_asset.sh` 按调用方指定的 C 宏和架构读取版本及 SHA-256，再复用公共下载入口。详见 [用 C 源文件中的宏校验资产](#用-c-源文件中的宏校验资产)。
 - `download/download_json_deb_asset.sh` 从官方 JSON 读取 DEB 下载地址与版本，核对文件名及包元数据。可选从文件名读取版本并兼容官方旧摘要，见 [官方 JSON DEB](#官方-json-deb)。
 - `download/download_official_deb.sh` 下载动态官网入口指向的 DEB，核对架构和可选包名，返回包内完整 `Version`。可选核对最终 URL 的版本，或启用 IPv4 回退，见 [官网 HTTPS DEB 直链](#官网-https-deb-直链)。
 - `download/download_electron_update_asset.sh` 从官方 Electron 更新清单读取版本和匹配资产的 SHA-512，复用公共下载入口校验资产。参数和依赖见 [Electron 更新清单下载](#electron-更新清单下载)。
@@ -284,6 +285,14 @@ download_pkgbuild_asset "<PKGBUILD URL>" "<地址字段>" "<SHA-256 字段>" "<�
 - `--resolve-json-url` 及其 `--resolve-header` 参数沿用 [PKGBUILD 入口的取链用法](#pkgbuild-字面量字段中的下载来源)，应放在上述来源选项之后。
 
 JSON 路线先使用受认证的 GitHub 查询和公共 Release 下载入口校验 `latest` 的 `software_versions.json`，再按软件键和发布资产名读取完整版本及 SHA-256，并核对该 SHA-256 与 Release 附件摘要一致。只接受与清单完整版本一致的资产链接。最终下载通过公共入口校验同一 SHA-256，完成后才保存版本文件。
+
+### 用 C 源文件中的宏校验资产
+
+`download/download_c_define_asset.sh <已核验的 C 源文件> <架构预处理符号> <版本宏> <资产架构宏> <SHA-256 宏> <预期资产架构> '<含 {version} 的 HTTPS URL 模板>' '<输出文件模板>'` 需要 Python 3 和 `cpp`。调用方先取得可信来源文件。GitHub 上的源文件可通过 `github/download_repository_file.sh` 认证读取并校验 Git blob。
+
+只把条件指令和宏定义的编号交给预处理器，架构符号由参数指定。条件支持 `#ifdef`、`#ifndef`，以及 `#if` 和 `#elif` 中的 `defined`、`0`、`1`、`!`、`&&`、`||` 和括号。入口不载入头文件或其他源文件，也不采用源文件中无关的宏定义。版本必须是点分数字，所选分支的资产架构必须与参数一致，并提供唯一有效的 SHA-256。任一项缺失或不符时停止下载。
+
+URL 和输出文件名都可用 `{version}` 引用实际版本。公共下载器按同一组宏声明的 SHA-256 校验，成功后 stdout 只返回版本。Wine 的 Gecko x86 可指定 `__i386__ GECKO_VERSION GECKO_ARCH GECKO_SHA x86`，x86_64 则指定 `__x86_64__ GECKO_VERSION GECKO_ARCH GECKO_SHA x86_64`。
 
 ### 官方 JSON DEB
 
