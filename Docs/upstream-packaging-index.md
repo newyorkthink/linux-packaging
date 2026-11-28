@@ -38,7 +38,7 @@ Escrcpy 条目于 2026-11-28 按 `escrcpy` 单独复核，未查到对应 pkgfor
 | 本仓库项目 | 上游打包仓库 | 上游构建代码 | 本仓库说明 |
 | --- | --- | --- | --- |
 | [adspower-global](../adspower-global/build_adspower-global.sh) |  |  | [README](../adspower-global/README.md) |
-| [aionui](../aionui/build_aionui.sh) |  |  |  |
+| [aionui](../aionui/build_aionui.sh) |  |  | [README](../aionui/README.md) |
 | [alacritty](../alacritty/build_alacritty.sh) | [alacritty-AppImage](https://github.com/pkgforge-dev/alacritty-AppImage) | [依赖](https://github.com/pkgforge-dev/alacritty-AppImage/blob/c0ed6bc3a790a581ec568f2d099aba14ab8cb30f/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/alacritty-AppImage/blob/c0ed6bc3a790a581ec568f2d099aba14ab8cb30f/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/alacritty-AppImage/blob/c0ed6bc3a790a581ec568f2d099aba14ab8cb30f/.github/workflows/appimage.yml) | [README](../alacritty/README.md) |
 | [alttab](../alttab/build_alttab.sh) |  |  | [README](../alttab/README.md) |
 | [android-tools](../android-tools/build_android-tools.sh) | [android-tools-AppImage](https://github.com/pkgforge-dev/android-tools-AppImage) | [依赖](https://github.com/pkgforge-dev/android-tools-AppImage/blob/984ef55eec0461c370c728353405c36a9ce6839e/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/android-tools-AppImage/blob/984ef55eec0461c370c728353405c36a9ce6839e/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/android-tools-AppImage/blob/984ef55eec0461c370c728353405c36a9ce6839e/.github/workflows/appimage.yml) | [上游取舍](../android-tools/docs/pkgforge-differences.md) · [模板差异](../android-tools/docs/template-deviations.md) · [固定配置](../android-tools/docs/hardcoded.md) · [README](../android-tools/README.md) |

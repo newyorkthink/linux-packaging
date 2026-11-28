@@ -105,6 +105,8 @@ EFFECTIVE_URL="$("$SCRIPT_DIR/../Common/download/download_file.sh" --print-effec
 
 入口用同一份 YAML 的点分数字版本渲染文件名，从 `files` 数组找到唯一与文件名完全一致的 `url`，再将该条目的 Base64 SHA-512 转为十六进制交给公共下载入口校验。清单字段无效、资产缺失或重复、校验失败时返回失败。成功后 stdout 只返回一行版本，下载和校验日志写入 stderr。
 
+调用实例见 [AionUi 构建脚本](../aionui/build_aionui.sh)。该应用把返回版本保存为来源记录，并在解包前另用 [DEB 元数据校验入口](./archive/check_deb_metadata.sh) 核对实际包的架构。
+
 以下示例用于 GitHub Actions 的应用构建脚本。尖括号参数按实际来源替换。
 
 ```bash

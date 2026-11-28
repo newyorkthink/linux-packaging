@@ -196,6 +196,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 
 | 项目 | 构建入口 | 采用专用流程的原因 | 稳定基线与验证依据 |
 | --- | --- | --- | --- |
+| AionUi | [build_aionui.sh](../aionui/build_aionui.sh) | 先安装 AUR `aionui-bin`，再由公共入口从官网 Electron 更新清单选择 x86_64 DEB、校验同次 SHA-512 并取得版本。独立解包官方程序目录并保留 `bundled-aioncore`，再由 quick-sharun 封装。固定 DEB 模板未接入该清单。 | [专属差异](../aionui/docs/template-deviations.md) · [应用说明](../aionui/README.md) |
 | Alacritty | [build_alacritty.sh](../alacritty/build_alacritty.sh) | 现有 X11 IME 修复需要在官方正式版源码中应用补丁并编译，再由 LinuxDeploy 部署、appimagetool 封装；固定 APT 模板不支持此专属过程。 | [专属差异](../alacritty/docs/template-deviations.md) · [上游取舍](../alacritty/docs/pkgforge-differences.md) · [历史与验证](../alacritty/README.md) |
 | AltTab | [build_alttab.sh](../alttab/build_alttab.sh) | 官方正式 Release 对应提交的源码需依次应用九个独立补丁，经 configure / make 编译后由 quick-sharun 封装，并以构建指纹识别本仓库更新；公共阶段按同类项目手动对齐。 | [专属差异与参考](../alttab/docs/template-deviations.md) · [稳定基线与历史](../alttab/README.md#稳定基线与维护规则) · [实机验证](../alttab/README.md#实机验证) |
 | BlueMail | [build_bluemail.sh](../bluemail/build_bluemail.sh) | AUR 安装前同步官方稳定版 Snap、同次原始归档复用、`shared/bin` 相邻资源布局及 OAuth hook 需要应用专属准备；现有 DEB 模板不覆盖这些步骤。公共注释、工作区和版本接口按统一标准维护。 | [模板差异](../bluemail/docs/template-deviations.md) · [固定配置](../bluemail/docs/hardcoded.md) · [实现与实测记录](../bluemail/README.md) |
@@ -208,7 +209,9 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | QQ | [build_qq.sh](../qq/build_qq.sh) | 校验后原样同步腾讯官方 x86_64 AppImage。现有打包模板面向重新封装，QQ 采用已通过实机验证的原包同步流程。 | [打包方式](../qq/README.md#打包方式) · [修复与实机记录](../qq/README.md#修复记录) |
 | Ripdrag | [build_ripdrag.sh](../ripdrag/build_ripdrag.sh) | Rust / GTK4。沿用上游 crates.io 安装，通过公共 Cargo 入口安装到暂存目录，再用 quick-sharun 封装。现有 Arch 原生模板使用系统软件包和 pacman 版本，Cargo 来源及程序路径由应用专属处理。 | [模板差异](../ripdrag/docs/template-deviations.md) · [应用说明](../ripdrag/README.md) |
 | st | [build_st.sh](../st/build_st.sh) | 从 siduck/st 默认分支获取当前源码，按字体配置生成 config.h 并写入源码默认主题，经 make 安装后由 quick-sharun 封装程序、辅助脚本和 terminfo；与 Arch 原生软件包模板不同，不新增标准模板。 | [专属差异](../st/docs/template-deviations.md) · [实机验证](../st/README.md#实机验证) |
+| Stacher | [build_stacher.sh](../stacher/build_stacher.sh) | 先安装 AUR `stacher7`，再由公共入口独立下载官网当前 `amd64` DEB，核对架构并读取同一份 DEB 的完整版本。固定 Electron DEB 模板从 `package.json` 读取版本，未覆盖此流程。 | [专属差异](../stacher/docs/template-deviations.md) · [应用说明](../stacher/README.md) |
 | Webcamoid | [build_webcamoid.sh](../webcamoid/build_webcamoid.sh) | 现有流程从官方正式 Release 源码应用四个补丁，经 CMake + Ninja 安装到暂存目录，再由 quick-sharun 收集插件与运行库；不同于现有 Qt DEB / 系统入口模板，不新增标准模板。 | [当前基线与差异](../webcamoid/docs/template-deviations.md) · [实机验证](../webcamoid/README.md#实机验证) |
+| Zotero | [build_zotero.sh](../zotero/build_zotero.sh) | 先安装 Arch 官方仓库的 `zotero`，再独立下载 Zotero 官网 Linux x86_64 tar。保留完整目录与官方启动器，版本取自包内 `app/application.ini`。固定模板未覆盖该 GUI 归档与版本来源。 | [专属差异](../zotero/docs/template-deviations.md) · [应用说明](../zotero/README.md) |
 
 ## 专属处理与维护入口
 

@@ -30,6 +30,8 @@ yay -S --noconfirm base-devel archlinux-keyring gcc make pkgconf patch autoconf 
 
 `yay` 和 `quick-sharun` 由当前 Arch 构建链提供；上述命令只安装软件包。基础环境中有 `ibus`、桌面运行库和字体，不表示 quick-sharun 会自动把它们全收入 AppImage。CLI 成品不加入中文环境或输入模块；GUI 必须按主程序真实技术栈收集对应输入模块。GTK、Qt、Fcitx 仍属于应用专用依赖。
 
+从 [Electron 更新清单](../Common/README.md#electron-更新清单下载) 选择官方安装包时，调用方在应用依赖中追加 `python-yaml`，用于构建阶段读取 YAML。基础包已提供 Python。
+
 ### Arch 图形环境
 
 调用 [公共安装入口](../Common/arch/install_packages.sh) 时，可在第一个参数选择 `--qt6`、`--qt5`、`--gtk3` 或 `--gtk4` 安装对应图形基础包组，随后追加应用实际需要的 Arch 软件包名（同次交给 `yay` 安装）。公共入口只负责准备构建容器内的系统软件包；最终进入 AppImage 的插件和输入法模块仍由打包步骤按实际框架版本收集。

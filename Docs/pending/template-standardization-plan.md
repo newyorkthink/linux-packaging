@@ -1,6 +1,6 @@
 # 待办：推进剩余 AppImage 构建脚本按标准模板整理
 
-**状态：待分批处理。** 本页汇总全仓活跃 AppImage 项目中，尚未按[固定 13 份打包模板](../../Templates/README.md)整理且未登记到[专用打包流程](../packaging-classification.md#专用打包流程)的 **12 个项目**，供维护者与后续 AI 按批推进。
+**状态：待分批处理。** 本页汇总全仓活跃 AppImage 项目中，尚未按[固定 13 份打包模板](../../Templates/README.md)整理且未登记到[专用打包流程](../packaging-classification.md#专用打包流程)的 **9 个项目**，供维护者与后续 AI 按批推进。
 
 ## 处理目标与执行规则
 
@@ -12,25 +12,22 @@
 4. **模板无法覆盖时走专用流程**：确因源码打补丁编译、原包同步或双架构封装等与固定模板冲突时，不新增模板，按规则取得逐次授权后接入公共下载/版本/封装入口，并登记到[专用打包流程](../packaging-classification.md#专用打包流程)。
 5. **单项验收后同步清理**：项目完成模板整理并补登到[打包分类](../packaging-classification.md)（若保留了 `build_*_old.sh` 备份，须在实机验证后同次删除备份及其引用）后，从本页对应分组移除该行。
 
-## 未按模板标准的项目清单（12 个）
+## 未按模板标准的项目清单（9 个）
 
 以下分组按改造复杂度与模板契合度由简到繁排列，便于分批推进；具体处理顺序仍以当次任务指定为准。
 
-### 一、官方 DEB / tar / AUR 二进制包（quick-sharun，10 个）
+### 一、官方 DEB / tar / AUR 二进制包（quick-sharun，7 个）
 
 此类多为旧式长脚本或未拆分为“先安装再独立下载解包”两阶段，部分包含直接 `curl`/`wget`/`git clone` 与内联冒烟测试：
 
 | 应用 | 构建脚本 | 当前主要偏离 | 待确认处理方向 |
 | --- | --- | --- | --- |
-| AionUi | [build_aionui.sh](../../aionui/build_aionui.sh) | 旧式长脚本，直接 `yay`/`curl`，自写 `AppRun.sh` 与内联冒烟测试 | 核实官方更新来源与 AUR 情况，改由公共入口并套用 Electron DEB 模板 |
 | Feishu | [build_feishu.sh](../../feishu/build_feishu.sh) | 旧式长脚本，直接 `yay`/`curl`，自写 `AppRun.sh` 与内联冒烟测试 | 核实官方 JSON DEB 接口与 AUR 配方，改由公共入口并按 Electron DEB 标准整理 |
-| Stacher | [build_stacher.sh](../../stacher/build_stacher.sh) | 旧式长脚本，直接 `yay`/`curl`，自写 `AppRun.sh` 与内联冒烟测试 | 核实官方 DEB 更新端点与 AUR 配方，改由公共入口并按 Electron DEB 标准整理 |
 | Tencent Docs | [build_tencent-docs.sh](../../tencent-docs/build_tencent-docs.sh) | 旧式长脚本，直接 `yay`/`curl`，自写 `AppRun.sh`、冒烟测试与自定义版本文件 | 核实官方 DEB 来源、版本传递与 `build.yml` 独立 Job 配置后按标准整理 |
 | Trae | [build_trae.sh](../../trae/build_trae.sh) | 旧式脚本，直接 `yay`/`git clone`/`wget`，未用公共下载与版本入口 | 核实官方 tar/DEB 与 AUR 来源，改由公共入口并按标准整理 |
 | Free Download Manager | [build_freedownloadmanager.sh](../../freedownloadmanager/build_freedownloadmanager.sh) | 旧式脚本，直接 `yay --mflags "--skipinteg"`，未拆两阶段独立下载 | 核实 AUR 与官方 DEB 来源、Qt6 依赖及私有库布局后按 `qt-deb.sh` 或对应标准整理 |
 | Parsec | [build_parsec.sh](../../parsec/build_parsec.sh) | 旧式脚本，直接 `yay`/`pacman -Q`，未拆两阶段独立下载 DEB | 核实 AUR `parsec-bin` 官方 DEB 与 `ffmpeg4.4`/解码库需求后按两阶段标准整理 |
 | Sunshine | [build_sunshine.sh](../../sunshine/build_sunshine.sh)（另有未接入 CI 的 [build_sunshine_latest.sh](../../sunshine/build_sunshine_latest.sh)） | 旧式脚本，直接 `yay`/`wget` 拉取固定版本 `.pkg.tar.zst` | 核实固定归档版本策略与公共下载入口，统一版本读取与保存 |
-| Zotero | [build_zotero.sh](../../zotero/build_zotero.sh) | 旧式脚本，直接 `yay`/`wget`，未用公共下载与版本入口 | 核实官方预编译 tar 与 AUR 来源，切换公共下载、解包与版本入口 |
 | WPS Office CN | [build_wps-office-cn.sh](../../wps-office-cn/build_wps-office-cn.sh) | 已接入部分公共脚本，但仍是旧分区注释、直接 `pacman -Q`、自定义入口改写与内联 GUI 检查 | 核实自带 Qt、符号字体与启动器修正是否超出固定模板，评估对齐标准或登记专用流程 |
 
 ### 二、官方 AppImage 重封装 / appimage-builder 路线（2 个）
