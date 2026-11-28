@@ -11,4 +11,4 @@ Ripdrag 采用 crates.io 安装并使用 quick-sharun 封装。现有 [Arch 原�
 | 依赖部署 | 保留 `MAIN_BIN=ripdrag` 和 GTK4、GdkPixbuf、Glycin 的部署开关，沿用当前应用的运行依赖。 |
 | 运行主题 | 第一轮 quick-sharun 扫描后，将原有 `00-ripdrag-dark-theme.hook` 复制到 `AppDir/bin/`，再执行最终封装。 |
 
-构建产物及验证状态见[应用说明](../README.md)。
+构建产物见[应用说明](../README.md)，实测结果见[实机验证](../README.md#实机验证)。
