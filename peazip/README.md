@@ -274,3 +274,15 @@ export ARCH=x86_64; linuxdeploy --appdir AppDir --plugin qt --output appimage
 - **原因：** 旧 AppImage 停留在 PeaZip 11.0.0，且缺少可维护的动态更新和供应链校验入口。
 - **修改文件：** `peazip/build_peazip.sh`、`peazip/README.md`、`.github/appimage-apps.json`、`.github/workflows/build.yml`。
 - **变更内容：** 新增官方 Release 动态解析、资产 URL 和 SHA-256 校验、DEB 元数据核对、官方程序与资源保留、稳定产物名和版本清单接入。
+
+## 实机验证
+
+### 2026-11-28：用户实机验证通过
+
+用户已确认 PeaZip 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 启动和中文界面 | 在 Linux 实机启动后，菜单、导航和操作对话框显示简体中文。 |
+| 中文输入 | 可在搜索框输入中文并显示输入法候选。 |
+| ZIP 解压流程 | 进入 ZIP 解压流程，目标位置已有同名文件时显示覆盖选择。 |
