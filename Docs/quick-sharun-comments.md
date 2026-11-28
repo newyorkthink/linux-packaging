@@ -21,6 +21,7 @@
 | ARCH | `# 把当前机器架构传给 quick-sharun。` |
 | ICON | `# 使用系统里装好的图标。` |
 | ICON 使用官方 DEB 提供的文件 | `# 使用官方 DEB 提供的图标。` |
+| ICON 使用仓库维护的文件 | `# 使用仓库提供的图标文件。` |
 | DESKTOP | `# 使用系统里装好的桌面入口文件。` |
 | DESKTOP 使用官方 DEB 提供的文件 | `# 使用官方 DEB 提供的桌面入口文件。` |
 | DESKTOP 使用仓库维护的文件 | `# 使用仓库提供的桌面入口文件。` |
@@ -57,6 +58,7 @@ DEB 注释仅用于 DEB；其他归档格式按对应模板及已批准原文处
 | STARTUPWMCLASS | `# 让窗口对上 desktop 里的 StartupWMClass。` |
 | 采用 DEPLOY_GTK=1 的 GTK 3 部署配置 | `# 这是 GTK 3 程序。输入模块由 quick-sharun 自己收集。` |
 | 按规范在包内生成中文 locale | `# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。` |
+| GTK 4 Fcitx5 输入模块 GIO 缓存兼容 | `# 本仓库兼容处理：为 GTK 4 输入模块目录写入 Fcitx5 的 GIO 模块注册缓存。` |
 
 ## 按已确认依赖选用的部署配置
 

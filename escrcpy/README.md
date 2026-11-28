@@ -37,15 +37,13 @@ escrcpy.AppImage
 
 ## 打包方式
 
-当前路线是“官方 AppImage 自动同步发布”，不使用 quick-sharun、linuxdeploy 或 appimagetool 对官方产物做二次封装。
+当前路线是「官方 AppImage 原样同步」，登记于 [专用打包流程](../Docs/packaging-classification.md#专用打包流程)（固定 13 份模板均面向重新封装，不适用直接原包同步），不使用 quick-sharun、linuxdeploy 或 appimagetool 对官方产物做二次封装。
 
-`build_escrcpy.sh` 的正式流程：
+`build_escrcpy.sh` 的正式流程（参照 [QQ AppImage](../qq/README.md)）：
 
-1. 请求 `viarotel-org/escrcpy` 的 GitHub `releases/latest`，并明确拒绝 draft / prerelease。
-2. 从 Release 标签动态取得版本，不在仓库中固定 Escrcpy 版本。
-3. 只接受与该版本精确对应的 `Escrcpy-<版本>-linux-x86_64.AppImage`。
-4. 读取 GitHub Release API 提供的 `sha256:` digest，下载后进行 SHA-256 一致性校验。
-5. 不修改官方 AppImage 内容，只复制为 `dist/escrcpy.AppImage`，交给统一 workflow 发布。
+1. 通过 `Common/arch/install_packages.sh --base` 安装统一基础工具（覆盖 `curl`、`jq`、`coreutils` 与 `ca-certificates`），并由 `Common/build/prepare_x86_64_workspace.sh` 检查 `x86_64` 架构后清理 `dist/` 与 `source/`。
+2. 调用 `Common/github/download_latest_stable_release_asset.sh --tag-prefix "v" "viarotel-org/escrcpy" 'regex:Escrcpy-{version}-linux-x86_64[.]AppImage'`，认证读取最新稳定 GitHub Release（拒绝 draft / prerelease），匹配唯一的 `Escrcpy-<版本>-linux-x86_64.AppImage`，优先直链下载、失败时凭同一资产 ID 走 API 回退，均校验官方 SHA-256 `digest` 后直接保存为 `dist/escrcpy.AppImage`，同时将来源版本写入 `source/version.txt`。
+3. 通过 `Common/build/read_app_version.sh text` 读取来源版本，再由 `Common/build/save_appimage_version.sh` 统一设置执行权限并写入 `dist/version.txt`，交给统一 workflow 发布。
 
 正式入口位于 `.github/workflows/build.yml`，使用独立 `Build Escrcpy` Job；push、schedule 和 `workflow_dispatch` 均沿用仓库统一选择与发布逻辑。
 
@@ -93,3 +91,9 @@ Android 设备的 USB / ADB 授权、无线连接及其他设备侧要求仍以 
 - 继续原样同步并校验 Escrcpy 官方 AppImage，不进行二次封装。
 - 构建脚本复用本次官方稳定 Release 解析得到的 `VERSION`，额外写入 `dist/version.txt`。
 - workflow 使用 `SOFTWARE_KEY=escrcpy` 接入统一 `software_versions.json`；Release 资产名仍为 `escrcpy.AppImage`。
+
+### 2026-11-28：接入公共下载与版本保存入口并登记专用流程
+
+- **核实来源**：在 `pkgforge-dev` 组织检索 `escrcpy` 返回空，无独立仓库；AUR 仅 `escrcpy-bin`（解包官方 DEB），`viarotel-org/escrcpy` 官方 GitHub Release 持续发布 `Escrcpy-<版本>-linux-x86_64.AppImage`（如 `v3.3.1`）及 GitHub `sha256:` digest，且已有实机托盘反馈记录。
+- **代码调整**：参照 `qq/build_qq.sh` 的四段式结构重写 `escrcpy/build_escrcpy.sh`，移除直接 `yay` 与手写 `curl`/GitHub API 逻辑，改为 `Common/arch/install_packages.sh --base`、`Common/build/prepare_x86_64_workspace.sh`、`Common/github/download_latest_stable_release_asset.sh`（`--tag-prefix "v"` 与 `regex:` 模式支持直链优先及 `ASSET_ID` 认证回退，并校验 SHA-256）、`Common/build/read_app_version.sh text` 与 `Common/build/save_appimage_version.sh`，同时将本目录正式登记到[专用打包流程](../Docs/packaging-classification.md#专用打包流程)。
+- **检查范围**：已完成静态参数对照、脚本行级核对、差异与 Git 文件模式检查；实际构建发布以 GitHub Actions `Build Escrcpy` 运行结果为准。

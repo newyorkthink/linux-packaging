@@ -25,16 +25,13 @@ Mission Center 是 Rust 编写的 GTK4 / Libadwaita 原生 Linux 应用。Arch L
 
 ## 打包方式
 
-构建环境使用仓库统一的 Arch Linux AnyLinux 容器和 `quick-sharun`。
+构建环境使用仓库统一的 Arch Linux 容器与 `quick-sharun`，脚本已对齐 [arch-native 标准模板](../Templates/quick-sharun/arch-native.sh)，专属配置见 [模板差异说明](./docs/template-deviations.md)：
 
-构建脚本执行以下步骤：
-
-1. 使用 `pacman` 安装 Arch Linux Extra 当前正式版 `mission-center`、`fcitx5-gtk` 及构建所需依赖，不锁定具体应用版本。
-2. 核对主程序、`missioncenter-magpie`、desktop、图标、简体/繁体中文 gettext 文件，以及 GTK4 Fcitx5 IM module 本体。
-3. 按 Mission Center 上游当前 AppImage 方案，同时把 `missioncenter` 与 `missioncenter-magpie` 交给 `quick-sharun` 部署。
-4. 由 `quick-sharun` 收集 GTK4、Libadwaita、Fcitx5 GTK4 IM module 及其 ELF 依赖、应用数据和 gettext 资源；随后为 AppDir 最终 GTK4 `immodules` 目录写入 Fcitx5 的 GIO 注册缓存 `giomodule.cache`。
-5. 生成 AppImage 自带的 `zh_CN.UTF-8` glibc locale 数据，在 `.env` 中设置简体中文消息环境。
-6. 由 `quick-sharun --make-appimage` 生成稳定文件名 `dist/mission-center.AppImage`。
+1. 通过 `Common/arch/install_packages.sh` 安装统一基础工具（含 `gettext`、`patchelf`、`zsync` 等）、Arch `mission-center` 与 `fcitx5-gtk`，并由 `Common/build/prepare_x86_64_workspace.sh` 清理工作区。
+2. 导出 `DEPLOY_GTK=1`、`GTK_DIR=gtk-4.0` 与 `DEPLOY_LOCALE=1`，通过 `Common/build/read_app_version.sh pacman mission-center` 读取实际安装的官方包版本。
+3. 同时将 `/usr/bin/missioncenter` 与 `/usr/bin/missioncenter-magpie` 交给 `quick-sharun` 部署，收集 GTK4、Libadwaita、Fcitx5 GTK4 IM module 及 gettext 资源；确认包内存在 `libim-fcitx5.so` 后为最终 GTK4 `immodules` 目录写入 `giomodule.cache`。
+4. 按仓库 GUI 中文规范生成 `AppDir/lib/locale/zh_CN.utf8` 并在 `.env` 追加简体中文消息环境（`LANGUAGE=zh_CN:zh`）。
+5. 由 `quick-sharun --make-appimage` 生成 `dist/mission-center.AppImage`，成功后经 `Common/build/save_appimage_version.sh` 校验产物并保存 `dist/version.txt`。
 
 ## 中文环境
 
@@ -74,17 +71,7 @@ AppImage 不内置 Fcitx5 输入法守护进程、输入方案或用户配置。
 ./dist/mission-center.AppImage
 ```
 
-构建阶段会检查：
-
-- Arch Linux 官方包中的主程序与 magpie 后端均存在。
-- 简体中文与繁体中文 `missioncenter.mo` 均存在且可由 `msgunfmt` 正确解析。
-- Arch `fcitx5-gtk` 已提供 GTK4 `libim-fcitx5.so`。
-- `quick-sharun` 打包后 GTK4 Fcitx5 IM module 仍存在，并通过 `ldd` 检查，不允许存在 `not found` 动态链接依赖。
-- AppDir 的 GTK4 `giomodule.cache` 必须精确登记 `libim-fcitx5.so: gtk-im-module`。
-- `quick-sharun` 打包后两套中文翻译仍存在于 AppDir。
-- AppImage 内的 `zh_CN.UTF-8` locale 数据成功生成。
-- `.env` 中的中文环境变量和 `LOCPATH` 均完整写入。
-- 最终 `dist/mission-center.AppImage` 非空。
+构建阶段会确认包内包含 `libim-fcitx5.so` 并写入 `giomodule.cache`（`libim-fcitx5.so: gtk-im-module`），由公共版本保存入口校验最终 `dist/mission-center.AppImage` 非空后生成 `dist/version.txt`。
 
 Mission Center 的部分硬件指标仍取决于宿主内核、驱动、硬件能力和上游自身支持范围；本打包方案不额外修改这些系统级行为。
 
@@ -135,3 +122,9 @@ Mission Center 的部分硬件指标仍取决于宿主内核、驱动、硬件�
 - 构建时继续从本次实际安装的 Arch `mission-center` 软件包读取版本。
 - 更新器版本去掉 Arch epoch 与 pkgrel 后写入 `dist/version.txt`，不改变 GTK4、Libadwaita、Fcitx5 或中文 locale 逻辑。
 - workflow 使用 `SOFTWARE_KEY=mission-center` 接入统一 `software_versions.json`。
+
+### 2026-11-28：按标准模板整理并精简通用自检
+
+- **核实来源**：确认 `pkgforge-dev` 组织无独立仓库（Issue `#330` 因上游源码仓自行采用 `quick-sharun` 而关闭）；沿用 Arch 官方 `extra/mission-center` 与 `fcitx5-gtk`，同时核对 CI Job `140872258325` 日志确认 `quick-sharun` 仍未生成 GTK4 `giomodule.cache`。
+- **代码调整**：按 [arch-native.sh](../Templates/quick-sharun/arch-native.sh) 重写 `mission-center/build_mission-center.sh`，将 `gettext`、`patchelf`、`zsync` 收口到 `--base` 并接入公共工作区与版本入口；保留 `DEPLOY_GTK=1`、`GTK_DIR=gtk-4.0`、`DEPLOY_LOCALE=1`、`giomodule.cache` 生成及 `zh_CN.utf8` locale / `.env` 配置，移除冗余通用自检并新增 [模板差异说明](./docs/template-deviations.md)。
+- **检查范围**：已完成模板逐行对照、依赖覆盖、静态差异与 Git 文件模式核对；标准化后的正式构建以 GitHub Actions `Build Mission Center` 运行结果为准。

@@ -1,150 +1,61 @@
 #!/usr/bin/env bash
+
+# 命令失败、用了没定义的变量，或管道里任一命令失败，就退出。
 set -Eeuo pipefail
 
+# 切到脚本所在目录，后面的 AppDir 和 dist 都写在这里。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-
-# 安装统一的 Arch AppImage 基础包
-"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
 cd "$SCRIPT_DIR"
 
-APPDIR="$SCRIPT_DIR/AppDir"
-DIST_DIR="$SCRIPT_DIR/dist"
-OUTFILE="$DIST_DIR/mission-center.AppImage"
+# 打包工具。GTK、输入法不要塞进这一行。
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
+# 安装官方软件包及运行依赖。
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" "mission-center" fcitx5-gtk
 
-rm -rf "$APPDIR" "$DIST_DIR"
-mkdir -p "$DIST_DIR"
+# 清掉上次的打包目录。
+"$SCRIPT_DIR/../Common/build/prepare_x86_64_workspace.sh" "$SCRIPT_DIR" --skip-create AppDir dist
 
-# 使用 Arch Linux Extra 当前正式版 Mission Center，并安装 Fcitx5 GTK4 输入模块、quick-sharun 所需 patchelf 与中文环境校验所需 gettext。
-pacman -Syu --noconfirm --needed \
-  fcitx5-gtk \
-  gettext \
-  mission-center \
-  patchelf \
-  zsync
 
-for required_command in localedef msgunfmt pacman patchelf quick-sharun; do
-  command -v "$required_command" >/dev/null 2>&1 || {
-    echo "错误：缺少构建命令：$required_command" >&2
-    exit 1
-  }
-done
-
-for required_file in \
-  /usr/bin/missioncenter \
-  /usr/bin/missioncenter-magpie \
-  /usr/share/applications/io.missioncenter.MissionCenter.desktop \
-  /usr/share/icons/hicolor/scalable/apps/io.missioncenter.MissionCenter.svg \
-  /usr/share/locale/zh/LC_MESSAGES/missioncenter.mo \
-  /usr/share/locale/zh_TW/LC_MESSAGES/missioncenter.mo; do
-  [[ -e "$required_file" ]] || {
-    echo "错误：Mission Center 官方包缺少必需文件：$required_file" >&2
-    exit 1
-  }
-done
-
-# 确认 Arch fcitx5-gtk 已提供 GTK4 Fcitx5 输入模块；系统级 giomodule.cache 不是 AppImage 构建前置条件。
-FCITX_GTK4_MODULE="$(find /usr/lib/gtk-4.0 -type f -path '*/immodules/libim-fcitx5.so' -print -quit)"
-[[ -n "$FCITX_GTK4_MODULE" && -s "$FCITX_GTK4_MODULE" ]] || {
-  echo "错误：fcitx5-gtk 未提供 GTK4 输入模块 libim-fcitx5.so。" >&2
-  exit 1
-}
-
-# 先确认上游自带的简体中文 gettext 文件有效，避免构建出只有语言环境但没有中文翻译的 AppImage。
-msgunfmt /usr/share/locale/zh/LC_MESSAGES/missioncenter.mo >/dev/null
-
-PACKAGE_VERSION="$(pacman -Q mission-center | awk '{print $2}')"
-SOFTWARE_VERSION="${PACKAGE_VERSION#*:}"
-SOFTWARE_VERSION="${SOFTWARE_VERSION%-*}"
-[[ -n "$SOFTWARE_VERSION" ]] || {
-  echo "错误：无法解析 Mission Center 版本。" >&2
-  exit 1
-}
-printf 'Mission Center package version: %s\n' "$PACKAGE_VERSION"
-
+# 把当前机器架构传给 quick-sharun。
 export ARCH="$(uname -m)"
-export APPDIR
-export ICON=/usr/share/icons/hicolor/scalable/apps/io.missioncenter.MissionCenter.svg
-export DESKTOP=/usr/share/applications/io.missioncenter.MissionCenter.desktop
-export OUTPATH="$DIST_DIR"
-export OUTNAME="$(basename "$OUTFILE")"
+# 使用系统里装好的图标。
+export ICON="/usr/share/icons/hicolor/scalable/apps/io.missioncenter.MissionCenter.svg"
+# 使用系统里装好的桌面入口文件。
+export DESKTOP="/usr/share/applications/io.missioncenter.MissionCenter.desktop"
+# 把 AppImage 写到脚本目录下的 dist。
+export OUTPATH="$SCRIPT_DIR/dist"
+# 固定最终 AppImage 的文件名。
+export OUTNAME="mission-center.AppImage"
+# 本程序专属处理：显式启用 GTK4 部署。
 export DEPLOY_GTK=1
+# 本程序专属处理：指定 GTK4 模块目录名。
 export GTK_DIR=gtk-4.0
+# 本程序专属处理：显式保留应用及 GTK4 / Libadwaita 翻译资源。
 export DEPLOY_LOCALE=1
 
-# 与 Mission Center 上游 AppImage 当前方案一致，同时部署主程序和 magpie 后端。
-# quick-sharun 会从已安装的 fcitx5-gtk 收集 GTK4 IM module 及其 ELF 依赖；GTK4 的模块缓存随后针对最终 AppDir 内容生成。
+# 读取本次打包使用的版本。
+VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman "mission-center")"
+
+# 收集程序及其运行依赖。
 quick-sharun /usr/bin/missioncenter /usr/bin/missioncenter-magpie
 
-# 强校验 AppDir 内确实包含可加载的 GTK4 Fcitx5 输入模块。
-FCITX_GTK4_RELATIVE="${FCITX_GTK4_MODULE#/usr/lib/}"
-BUNDLED_FCITX_GTK4_MODULE="$APPDIR/lib/$FCITX_GTK4_RELATIVE"
-BUNDLED_FCITX_GTK4_MODULE_DIR="${BUNDLED_FCITX_GTK4_MODULE%/libim-fcitx5.so}"
-BUNDLED_FCITX_GTK4_CACHE="$BUNDLED_FCITX_GTK4_MODULE_DIR/giomodule.cache"
-[[ -s "$BUNDLED_FCITX_GTK4_MODULE" ]] || {
-  echo "错误：AppDir 中缺少 GTK4 Fcitx5 输入模块：$BUNDLED_FCITX_GTK4_MODULE" >&2
-  exit 1
-}
-if ldd "$BUNDLED_FCITX_GTK4_MODULE" | grep -q 'not found'; then
-  echo "错误：AppDir GTK4 Fcitx5 输入模块存在未解析依赖。" >&2
-  ldd "$BUNDLED_FCITX_GTK4_MODULE" >&2
-  exit 1
-fi
+# 本仓库兼容处理：为 GTK 4 输入模块目录写入 Fcitx5 的 GIO 模块注册缓存。
+im_mod="$(find AppDir -type f -name 'libim-fcitx5.so' -print -quit)"
+[[ -n "$im_mod" ]] || { echo "错误：AppDir 中缺少 GTK4 Fcitx5 输入模块。" >&2; exit 1; }
+printf '%s\n' 'libim-fcitx5.so: gtk-im-module' > "$(dirname "$im_mod")/giomodule.cache"
 
-# GTK4 的 Fcitx5 GIO 模块注册项固定为 gtk-im-module；为 quick-sharun 最终部署目录生成对应缓存，避免再次用宿主 gio-querymodules 加载已重定位模块。
-printf '%s\n' 'libim-fcitx5.so: gtk-im-module' > "$BUNDLED_FCITX_GTK4_CACHE"
-[[ -s "$BUNDLED_FCITX_GTK4_CACHE" ]] || {
-  echo "错误：AppDir GTK4 giomodule.cache 生成失败：$BUNDLED_FCITX_GTK4_CACHE" >&2
-  exit 1
-}
-grep -Fxq 'libim-fcitx5.so: gtk-im-module' "$BUNDLED_FCITX_GTK4_CACHE" || {
-  echo "错误：AppDir GTK4 giomodule.cache 未登记 Fcitx5 gtk-im-module。" >&2
-  exit 1
-}
-
-# quick-sharun 会保留 missioncenter、GTK4 和 libadwaita 对应的 gettext 资源；这里再做强校验。
-for bundled_translation in \
-  "$APPDIR/share/locale/zh/LC_MESSAGES/missioncenter.mo" \
-  "$APPDIR/share/locale/zh_TW/LC_MESSAGES/missioncenter.mo"; do
-  [[ -s "$bundled_translation" ]] || {
-    echo "错误：AppDir 中缺少 Mission Center 中文翻译：$bundled_translation" >&2
-    exit 1
-  }
-  msgunfmt "$bundled_translation" >/dev/null
-done
-
-# 生成 AppImage 自带的简体中文 UTF-8 locale，避免依赖宿主是否已生成 zh_CN.UTF-8。
-mkdir -p "$APPDIR/lib/locale"
-rm -rf "$APPDIR/lib/locale/zh_CN.utf8"
-localedef --no-archive \
-  -i zh_CN \
-  -f UTF-8 \
-  "$APPDIR/lib/locale/zh_CN.utf8"
-[[ -s "$APPDIR/lib/locale/zh_CN.utf8/LC_MESSAGES/SYS_LC_MESSAGES" ]] || {
-  echo "错误：zh_CN.UTF-8 locale 数据生成失败。" >&2
-  exit 1
-}
-
-# 固定界面消息使用简体中文；LANGUAGE 保留 zh 回退以匹配上游实际的简体中文目录名。
-cat >> "$APPDIR/.env" <<'EOF_LOCALE'
+# 在包里生成中文 locale，运行时不依赖用户机器是否生成过。
+mkdir -p AppDir/lib/locale
+localedef --no-archive -i zh_CN -f UTF-8 AppDir/lib/locale/zh_CN.utf8
+cat >> AppDir/.env <<'ENV'
 LANG=zh_CN.UTF-8
 LANGUAGE=zh_CN:zh
 LC_MESSAGES=zh_CN.UTF-8
 LOCPATH=${SHARUN_DIR}/lib/locale
-EOF_LOCALE
+ENV
 
-# 确认中文环境变量与 locale 路径完整写入，不覆盖 quick-sharun 已生成的运行环境。
-grep -Fxq 'LANG=zh_CN.UTF-8' "$APPDIR/.env"
-grep -Fxq 'LANGUAGE=zh_CN:zh' "$APPDIR/.env"
-grep -Fxq 'LC_MESSAGES=zh_CN.UTF-8' "$APPDIR/.env"
-grep -Fxq 'LOCPATH=${SHARUN_DIR}/lib/locale' "$APPDIR/.env"
-
+# 把 AppDir 打成 AppImage。
 quick-sharun --make-appimage
 
-[[ -s "$OUTFILE" ]] || {
-  echo "错误：未生成 $OUTFILE" >&2
-  exit 1
-}
-
-printf '%s\n' "$SOFTWARE_VERSION" > "$DIST_DIR/version.txt"
-
-printf 'Built: %s\n' "$OUTFILE"
+# 打包成功后用公共脚本记下版本。
+"$SCRIPT_DIR/../Common/build/save_appimage_version.sh" "dist/mission-center.AppImage" "$VERSION" dist/version.txt

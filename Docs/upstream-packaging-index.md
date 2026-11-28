@@ -31,6 +31,10 @@ Modern CSV 条目于 2026-11-27 按 `moderncsv`、`modern-csv` 单独复核，�
 
 SimpleScreenRecorder 条目于 2026-11-28 按 `simplescreenrecorder`、`ssr` 单独复核，未查到对应 pkgforge-dev 仓库，两列继续留空；当前 AUR Qt6 来源与模板差异见该行的应用说明。
 
+Mission Center 条目于 2026-11-28 按 `mission-center`、`missioncenter` 单独复核，未查到对应 pkgforge-dev 仓库（[Anylinux-AppImages#330](https://github.com/pkgforge-dev/Anylinux-AppImages/issues/330) 已因上游自行采用 `quick-sharun` 而关闭），两列继续留空；模板差异见该行链接。
+
+Escrcpy 条目于 2026-11-28 按 `escrcpy` 单独复核，未查到对应 pkgforge-dev 仓库，两列继续留空；上游官方 x86_64 AppImage 同步流程见该行 README。
+
 | 本仓库项目 | 上游打包仓库 | 上游构建代码 | 本仓库说明 |
 | --- | --- | --- | --- |
 | [adspower-global](../adspower-global/build_adspower-global.sh) |  |  | [README](../adspower-global/README.md) |
@@ -71,12 +75,12 @@ SimpleScreenRecorder 条目于 2026-11-28 按 `simplescreenrecorder`、`ssr` 单
 | [joplin](../joplin/build_joplin.sh) | [Joplin-Desktop-AppImage](https://github.com/pkgforge-dev/Joplin-Desktop-AppImage) | [依赖](https://github.com/pkgforge-dev/Joplin-Desktop-AppImage/blob/8fbdda883b6d276938d7b67a237032e0282a7252/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/Joplin-Desktop-AppImage/blob/8fbdda883b6d276938d7b67a237032e0282a7252/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/Joplin-Desktop-AppImage/blob/8fbdda883b6d276938d7b67a237032e0282a7252/.github/workflows/appimage.yml) | [README](../joplin/README.md) |
 | [kde-suite](../kde-suite/build_kde_suite.sh) |  |  | [README](../kde-suite/README.md) |
 | [keepass](../keepass/build_keepass.sh) |  |  | [README](../keepass/README.md) |
-| [keepassxc](../keepassxc/build_keepassxc.sh) | [KeePassXC-AppImage-Enhanced](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced) | [依赖](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced/blob/2e6a99da59e75f2614bb1c8f0800c6b883fe148a/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced/blob/2e6a99da59e75f2614bb1c8f0800c6b883fe148a/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced/blob/2e6a99da59e75f2614bb1c8f0800c6b883fe148a/.github/workflows/appimage.yml) | [README](../keepassxc/README.md) |
+| [keepassxc](../keepassxc/build_keepassxc.sh) | [KeePassXC-AppImage-Enhanced](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced) | [依赖](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced/blob/b269e163fc3e47d3ccac95349c70f4642296b3ad/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced/blob/b269e163fc3e47d3ccac95349c70f4642296b3ad/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/KeePassXC-AppImage-Enhanced/blob/b269e163fc3e47d3ccac95349c70f4642296b3ad/.github/workflows/appimage.yml) | [上游差异](../keepassxc/docs/pkgforge-differences.md) · [模板差异](../keepassxc/docs/template-deviations.md) · [README](../keepassxc/README.md) |
 | [keyviz](../keyviz/build_keyviz.sh) |  |  | [模板差异](../keyviz/docs/template-deviations.md) · [固定配置](../keyviz/docs/hardcoded.md) · [README](../keyviz/README.md) |
 | [kitty](../kitty/build_kitty.sh) |  |  | [README](../kitty/README.md) |
 | [mailmaster](../mailmaster/build_mailmaster.sh) |  |  | [模板差异](../mailmaster/docs/template-deviations.md) · [固定参数](../mailmaster/docs/hardcoded.md) · [README](../mailmaster/README.md) |
 | [mediainfo](../mediainfo/build_mediainfo_linuxdeploy.sh) |  |  | [README](../mediainfo/README.md) |
-| [mission-center](../mission-center/build_mission-center.sh) |  |  | [README](../mission-center/README.md) |
+| [mission-center](../mission-center/build_mission-center.sh) |  |  | [模板差异](../mission-center/docs/template-deviations.md) · [README](../mission-center/README.md) |
 | [moderncsv](../moderncsv/build_moderncsv.sh) |  |  | [模板差异](../moderncsv/docs/template-deviations.md) · [固定配置](../moderncsv/docs/hardcoded.md) · [README](../moderncsv/README.md) |
 | [mpv](../mpv/build_mpv.sh) | [mpv-AppImage](https://github.com/pkgforge-dev/mpv-AppImage) | [依赖](https://github.com/pkgforge-dev/mpv-AppImage/blob/953226d87422e9ef2307afacd2e049b1ee0a7f56/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/mpv-AppImage/blob/953226d87422e9ef2307afacd2e049b1ee0a7f56/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/mpv-AppImage/blob/953226d87422e9ef2307afacd2e049b1ee0a7f56/.github/workflows/appimage.yml) | [上游差异](../mpv/docs/pkgforge-differences.md) · [模板差异](../mpv/docs/template-deviations.md) · [README](../mpv/README.md) |
 | [newsboat](../newsboat/build_newsboat.sh) |  |  | [模板差异](../newsboat/docs/template-deviations.md) · [README](../newsboat/README.md) |
@@ -87,7 +91,7 @@ SimpleScreenRecorder 条目于 2026-11-28 按 `simplescreenrecorder`、`ssr` 单
 | [peazip](../peazip/build_peazip.sh) |  |  | [README](../peazip/README.md) |
 | [picom](../picom/build_picom.sh) |  |  | [模板差异](../picom/docs/template-deviations.md) · [README](../picom/README.md) |
 | [poppler-utils](../poppler-utils/build_poppler-utils.sh) |  |  | [README](../poppler-utils/README.md) |
-| [qemu](../qemu/build_qemu.sh) | [QEMU-AppImage](https://github.com/pkgforge-dev/QEMU-AppImage) | [依赖](https://github.com/pkgforge-dev/QEMU-AppImage/blob/56a5cc40d6b818483e16c20c20b8127b3b91c87c/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/QEMU-AppImage/blob/56a5cc40d6b818483e16c20c20b8127b3b91c87c/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/QEMU-AppImage/blob/56a5cc40d6b818483e16c20c20b8127b3b91c87c/.github/workflows/appimage.yml) | [README](../qemu/README.md) |
+| [qemu](../qemu/build_qemu.sh) | [QEMU-AppImage](https://github.com/pkgforge-dev/QEMU-AppImage) | [依赖](https://github.com/pkgforge-dev/QEMU-AppImage/blob/9be8c9d4817443aae3301dfb22ba8de735013e2b/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/QEMU-AppImage/blob/9be8c9d4817443aae3301dfb22ba8de735013e2b/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/QEMU-AppImage/blob/9be8c9d4817443aae3301dfb22ba8de735013e2b/.github/workflows/appimage.yml) | [上游差异](../qemu/docs/pkgforge-differences.md) · [模板差异](../qemu/docs/template-deviations.md) · [README](../qemu/README.md) |
 | [qq](../qq/build_qq.sh) |  |  | [README](../qq/README.md) |
 | [rainlendar2](../rainlendar2/build_rainlendar2.sh) |  |  | [README](../rainlendar2/README.md) |
 | [rvncconnect](../rvncconnect/build_rvncconnect.sh) |  |  | [README](../rvncconnect/README.md) |

@@ -6,7 +6,12 @@
 
 ## 技术栈与打包方式
 
-KeePassXC 为 C++ 桌面应用，自 2.8.0 起使用 Qt6。构建脚本安装 Arch `keepassxc` 及 Qt6/X11/Fcitx5 相关依赖，通过 quick-sharun 生成 AppImage。实际打包版本以 Arch 仓库提供的 `keepassxc` 包为准。
+KeePassXC 为 C++ 桌面应用，自 2.8.0 起使用 Qt6。构建脚本已对齐 [qt-installed 标准模板](../Templates/quick-sharun/qt-installed.sh)，专属处理与上游取舍见 [模板差异说明](./docs/template-deviations.md) 和 [上游差异说明](./docs/pkgforge-differences.md)：
+
+1. 通过 `Common/arch/install_packages.sh` 安装基础工具、`keepassxc`、模板 Qt6 输入/主题插件（`fcitx5-qt`、`qt6ct`、`kvantum`、`lxqt-qtplugin`）、`pcsclite` 与原有 X11/剪贴板运行依赖，并由 `Common/build/prepare_x86_64_workspace.sh` 清理工作区。
+2. 导出 `DEPLOY_QT=1`，并通过 `Common/build/read_app_version.sh pacman keepassxc` 读取当前安装的官方包版本。
+3. 使用 `quick-sharun` 收集 `keepassxc`、`keepassxc-cli`、`keepassxc-proxy`、X11 剪贴板/自动输入工具与 `/usr/lib/libpcsclite_real.so*`。
+4. 按模板生成 `AppDir/lib/locale/zh_CN.utf8` 与 `.env`，随后保留已验证的 `keepassxc-proxy` 双层转发包装和 `AppDir/shared/share -> ../share` 软链接，最后封装并调用 `Common/build/save_appimage_version.sh` 保存版本。
 
 ## 界面语言与资源
 
@@ -73,3 +78,9 @@ sharun 启动后，Qt5 使用 `/proc/<pid>/exe` 得到 `AppDir/bin/keepassxc`；
 其余 `bin` / `shared/bin` 入口、AppRun、`.env`、中文 locale、48 个应用翻译文件及资源链接与本次原产物核对一致；脚本语法、文档链接和完整 diff 检查通过。所有临时检查文件、日志和产物均不入仓库。
 
 验证边界：云端禁止创建 Unix socket，解除限制的检查请求也被自动审批拒绝，因此未完成与真实 KeePassXC 服务的公钥交换，未验收 Firefox/Vivaldi 实际连接。本次代理适配已完成启动链检查，浏览器连接仍待新产物实机确认。提交后不监控 Actions，新构建结果未验证。
+
+### 2026-11-28：按标准模板整理并补入 pcsclite 支持
+
+- **核实来源**：对照 `pkgforge-dev/KeePassXC-AppImage-Enhanced`（commit `b269e163fc3e47d3ccac95349c70f4642296b3ad`，及提交 `cf482bff`、`2e6a99da`、`447945a5`）与 Arch 官方 `extra/keepassxc` 软件包。
+- **代码调整**：按 [qt-installed.sh](../Templates/quick-sharun/qt-installed.sh) 重写 `keepassxc/build_keepassxc.sh`，接入公共工具安装、`prepare_x86_64_workspace.sh`、`read_app_version.sh`、`save_appimage_version.sh` 与 `DEPLOY_QT=1`；保留全部 34 项既有非 `--base` 依赖、10 个原收集入口、已验证的 `keepassxc-proxy` 双层转发包装及 `AppDir/shared/share -> ../share` 软链接，并依用户确认补充 `pcsclite` 与 `/usr/lib/libpcsclite_real.so*`。同步新增 [模板差异说明](./docs/template-deviations.md) 与 [上游差异说明](./docs/pkgforge-differences.md)。
+- **检查范围**：已完成模板逐行对照、依赖覆盖、静态差异与 Git 文件模式核对；新构建产物与智能卡硬件支持以 GitHub Actions `Build KeePassXC` 及后续实机运行结果为准。

@@ -14,13 +14,12 @@
 
 ## 打包方式
 
-`build_qemu.sh` 使用 quick-sharun：
+`build_qemu.sh` 已对齐 [arch-native 标准模板](../Templates/quick-sharun/arch-native.sh)，专属处理与上游对照见 [模板差异说明](./docs/template-deviations.md) 与 [上游差异说明](./docs/pkgforge-differences.md)：
 
-1. 安装仓库规定的最小打包工具。
-2. 从 Arch Linux 官方仓库动态安装当前稳定版 QEMU 桌面组件，并显式安装 `qemu-ui-gtk`。
-3. 按 pkgforge-dev/QEMU-AppImage 的官方形式，把 `/usr/bin/qemu-*`、`/usr/lib/qemu/*.so` 和 `/usr/share/qemu` 直接交给 quick-sharun；另收集本目录需要的 `remote-viewer`。
-4. 完全使用 quick-sharun 自动生成的 sharun 入口，在执行路径映射 Hook 后按 AppImage 链接名或第一个参数分派 `qemu-system-x86_64`、`qemu-img` 等工具。
-5. 在 quick-sharun 的翻译裁剪完成后补回 `zh_CN/LC_MESSAGES/virt-viewer.mo`，并在 `AppDir/.env` 设置 `LANGUAGE=zh_CN`，随后生成 `dist/qemu.AppImage`。
+1. 通过 `Common/arch/install_packages.sh --base` 安装统一基础工具（覆盖原脚本中的 `curl`、`jq`、`patchelf` 等 23 项工具依赖），随后安装 Arch 官方 `qemu-desktop`、`qemu-tools`、`qemu-ui-gtk` 与 `virt-viewer`。
+2. 通过 `Common/build/prepare_x86_64_workspace.sh` 清理工作区，传入仓库内 `qemu.svg` 与 `qemu.desktop`，保留 `STRACE_MODE=0`，并由 `Common/build/read_app_version.sh pacman qemu-desktop` 读取实际安装版本。
+3. 使用 `quick-sharun` 单行收集 `/usr/bin/qemu-*`、`/usr/lib/qemu/*.so`、`/usr/bin/remote-viewer` 与 `/usr/share/qemu`，保留自动生成的 sharun 入口与路径映射 hook。
+4. 在裁剪完成后补回 `zh_CN/LC_MESSAGES/virt-viewer.mo`，向 `AppDir/.env` 写入 `LANGUAGE=zh_CN`，封装为 `dist/qemu.AppImage` 并由 `Common/build/save_appimage_version.sh` 保存版本。
 
 `qemu.desktop` 与 `qemu.svg` 是 AppImage 元数据输入，分别由 `DESKTOP` 和 `ICON` 引用。两者需要保留在本目录，但不参与 QEMU 运行依赖收集，也不需要单独构建或额外补一份。
 
@@ -160,3 +159,9 @@ ln -sf ./qemu.AppImage remote-viewer
 - 构建时从本次实际安装的 Arch `qemu-desktop` 包读取 QEMU 软件版本，去掉 Arch epoch 与 pkgrel 后写入 `dist/version.txt`。
 - workflow 使用 `SOFTWARE_KEY=qemu` 接入统一 `software_versions.json`。
 - 本次不改变当前已验证的 Arch 稳定包、quick-sharun、多工具入口、GTK 模块、SPICE 或 remote-viewer 中文基线。
+
+### 2026-11-28：按标准模板整理并接入公共版本入口
+
+- **核实来源**：对照 `pkgforge-dev/QEMU-AppImage`（commit `9be8c9d4817443aae3301dfb22ba8de735013e2b`）与 Arch 官方 `extra` `qemu-desktop`、`qemu-tools`、`qemu-ui-gtk`、`virt-viewer`。
+- **代码调整**：按 [arch-native.sh](../Templates/quick-sharun/arch-native.sh) 重写 `qemu/build_qemu.sh`，用公共 `--base` 覆盖原 23 项工具依赖，用 `prepare_x86_64_workspace.sh`、`read_app_version.sh` 与 `save_appimage_version.sh` 替换手工 `yay` 与版本解析；继续使用仓库 `qemu.svg` / `qemu.desktop`，保留 `STRACE_MODE=0`、原有 4 项单行收集输入、`virt-viewer.mo` 补回与 `LANGUAGE=zh_CN`。同步新增 [模板差异说明](./docs/template-deviations.md) 与 [上游差异说明](./docs/pkgforge-differences.md)。
+- **检查范围**：已完成模板逐行对照、依赖覆盖、静态差异与 Git 文件模式核对；标准化后的正式构建以 GitHub Actions `Build QEMU` 运行结果为准。

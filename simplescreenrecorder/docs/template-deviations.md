@@ -29,4 +29,6 @@
 
 脚本初始化、公共基础包、工作区准备、`ARCH`/`ICON`/`DESKTOP`/`OUTPATH`/`OUTNAME`/`DEPLOY_QT=1`、公共版本读取、`quick-sharun /usr/bin/simplescreenrecorder`、包内 `zh_CN.utf8` locale 生成、`quick-sharun --make-appimage` 与公共版本保存均与 [qt-installed.sh](../../Templates/quick-sharun/qt-installed.sh) 一致；说明见 [SimpleScreenRecorder README](../README.md)。
 
-本次按本地工作区直接最终版例外完成静态结构、依赖覆盖、链接及 Git 文件模式核对，未在本机执行实际容器打包或实机运行测试，也不监控 GitHub Actions。
+## 实机验证
+
+实机验证通过记录见 [SimpleScreenRecorder README](../README.md#实机验证)。
