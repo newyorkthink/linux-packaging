@@ -1,6 +1,6 @@
 # 待办：推进剩余 AppImage 构建脚本按标准模板整理
 
-**状态：待分批处理。** 本页汇总全仓活跃 AppImage 项目中，尚未按[固定 13 份打包模板](../../Templates/README.md)整理且未登记到[专用打包流程](../packaging-classification.md#专用打包流程)的 **15 个项目**，供维护者与后续 AI 按批推进。
+**状态：待分批处理。** 本页汇总全仓活跃 AppImage 项目中，尚未按[固定 13 份打包模板](../../Templates/README.md)整理且未登记到[专用打包流程](../packaging-classification.md#专用打包流程)的 **14 个项目**，供维护者与后续 AI 按批推进。
 
 ## 处理目标与执行规则
 
@@ -12,7 +12,7 @@
 4. **模板无法覆盖时走专用流程**：确因源码打补丁编译、原包同步或双架构封装等与固定模板冲突时，不新增模板，按规则取得逐次授权后接入公共下载/版本/封装入口，并登记到[专用打包流程](../packaging-classification.md#专用打包流程)。
 5. **单项验收后同步清理**：项目完成模板整理并补登到[打包分类](../packaging-classification.md)（若保留了 `build_*_old.sh` 备份，须在实机验证后同次删除备份及其引用）后，从本页对应分组移除该行。
 
-## 未按模板标准的项目清单（15 个）
+## 未按模板标准的项目清单（14 个）
 
 以下分组按改造复杂度与模板契合度由简到繁排列，便于分批推进；具体处理顺序仍以当次任务指定为准。
 
@@ -33,7 +33,7 @@
 | Zotero | [build_zotero.sh](../../zotero/build_zotero.sh) | 旧式脚本，直接 `yay`/`wget`，未用公共下载与版本入口 | 核实官方预编译 tar 与 AUR 来源，切换公共下载、解包与版本入口 |
 | WPS Office CN | [build_wps-office-cn.sh](../../wps-office-cn/build_wps-office-cn.sh) | 已接入部分公共脚本，但仍是旧分区注释、直接 `pacman -Q`、自定义入口改写与内联 GUI 检查 | 核实自带 Qt、符号字体与启动器修正是否超出固定模板，评估对齐标准或登记专用流程 |
 
-### 二、linuxdeploy 与非 quick-sharun 路线（5 个）
+### 二、linuxdeploy 与非 quick-sharun 路线（4 个）
 
 #### 1. linuxdeploy 路线（2 个）
 
@@ -42,11 +42,10 @@
 | PeaZip | [build_peazip.sh](../../peazip/build_peazip.sh) | 旧版 6 个 `#` 分区标题、未合并工具准备与环境加载、非标准注释/续行/AppRun | 核实 UTF-8 补丁与后端暂移专属处理后，对齐 `linuxdeploy-qt-deb.sh` 标准风格并补 `docs/template-deviations.md` |
 | 腾讯会议 | [build_wemeet.sh](../../wemeet/build_wemeet.sh) | 旧版 6 个 `#` 分区标题、独立调用 `configure_environment.sh`、非标准注释/续行 | 核实官方 JSON DEB 与 Qt5 专属处理后，对齐 linuxdeploy 标准风格并补 `docs/template-deviations.md` |
 
-#### 2. 官方 AppImage 同步 / 重封装 / appimage-builder 路线（3 个）
+#### 2. 官方 AppImage 同步 / 重封装 / appimage-builder 路线（2 个）
 
 | 应用 | 构建脚本 | 当前主要偏离 | 待确认处理方向 |
 | --- | --- | --- | --- |
-| RustDesk | [build_rustdesk.sh](../../rustdesk/build_rustdesk.sh) | 解包重封装官方 AppImage，仍用旧版 6 个 `#` 分区与旧版 `prepare_linuxdeploy_tools.sh` 参数 | 核实对齐 `appimagetool-direct.sh` 风格（`--appimagetool` 模式与固定分区）或登记专用流程 |
 | WinPodX | [build_winpodx_release.sh](../../winpodx/build_winpodx_release.sh) | 解包补丁重封装官方 AppImage，直接调用 `gh release` 与系统 `appimagetool` | 下载与封装改走公共入口，按直接封装标准整理并评估登记专用流程 |
 | Wine Staging | [build_wine.sh](../../wine/build_wine.sh) | 使用 `appimage-builder` + `uruntime` 封装双架构 Wine，直接 `curl`/`git ls-remote` 下载 | 将所有下载与校验切至公共入口，评估登记专用流程 |
 
