@@ -4,7 +4,12 @@
 set -Eeuo pipefail
 
 # 由调用方提供仓库、软件包和输出路径，不在公共入口固定应用。
-if (( $# != 8 && $# != 9 )); then
+if [[ "${1:-}" == --batch ]]; then
+  if (( $# < 8 )); then
+    echo "用法：$0 --batch <HTTPS 仓库根地址> <suite> <component> <HTTPS 官方密钥地址> <新输出目录> <包名:架构[:索引架构]> <包名:架构[:索引架构]> [...]" >&2
+    exit 2
+  fi
+elif (( $# != 8 && $# != 9 )); then
   echo "用法：$0 <HTTPS 仓库根地址> <suite> <component> <包名> <架构> <HTTPS 官方密钥地址> <输出 DEB> <来源版本文件> [索引架构]" >&2
   exit 2
 fi
@@ -128,24 +133,42 @@ def compare_versions(left, right):
 
 
 def main():
-    script_dir, repository, suite, component, package, architecture, key_url, output, version_file = sys.argv[1:10]
-    # 索引架构默认沿用包架构；显式指定时可从架构索引精确选择 all 包。
-    index_architecture = sys.argv[10] if len(sys.argv) == 11 else architecture
+    script_dir, *arguments = sys.argv[1:]
+    batch = arguments[0] == "--batch"
+    if batch:
+        _, repository, suite, component, key_url, output, *requests = arguments
+        specs = []
+        for request in requests:
+            parts = request.split(":")
+            if len(parts) not in (2, 3):
+                fail("批量包规格必须为包名:架构[:索引架构]。")
+            package, architecture = parts[:2]
+            specs.append((package, architecture, parts[2] if len(parts) == 3 else architecture))
+        if len({(name, arch) for name, arch, _ in specs}) != len(specs):
+            fail("批量下载的包名与架构不能重复。")
+    else:
+        repository, suite, component, package, architecture, key_url, output, version_file, *index = arguments
+        # 显式索引架构可从架构索引精确选择 all 包。
+        specs = [(package, architecture, index[0] if index else architecture)]
     repository = https_url(repository).rstrip("/")
     key_url = https_url(key_url)
-    for token in (suite, component, package, architecture, index_architecture):
-        if not re.fullmatch(r"[a-z0-9][a-z0-9+.-]*", token) or token in (".", ".."):
+    for token in (suite, component, *(part for spec in specs for part in spec)):
+        if not re.fullmatch(r"[a-z0-9][a-z0-9+.-]*", token):
             fail("suite、component、包名、包架构或索引架构无效。")
-    if not output or not version_file:
-        fail("DEB 和来源版本文件的输出路径不能为空。")
+    if not output or (not batch and not version_file):
+        fail("下载和来源版本的输出路径不能为空。")
     output = Path(output).absolute()
-    version_file = Path(version_file).absolute()
-    if output.resolve() == version_file.resolve():
-        fail("DEB 和来源版本文件必须使用不同路径。")
-    if output.is_dir() or version_file.is_dir():
-        fail("DEB 和来源版本文件的输出路径不能是目录。")
+    if batch:
+        if os.path.lexists(output):
+            fail("批量下载的输出目录必须尚不存在。")
+    else:
+        version_file = Path(version_file).absolute()
+        if output.resolve() == version_file.resolve():
+            fail("DEB 和来源版本文件必须使用不同路径。")
+        if output.is_dir() or version_file.is_dir():
+            fail("DEB 和来源版本文件的输出路径不能是目录。")
+        version_file.parent.mkdir(parents=True, exist_ok=True)
     output.parent.mkdir(parents=True, exist_ok=True)
-    version_file.parent.mkdir(parents=True, exist_ok=True)
     downloader = Path(script_dir) / "download_file.sh"
     if not os.access(downloader, os.X_OK):
         fail("公共 download_file.sh 不存在或不可执行。")
@@ -227,100 +250,126 @@ def main():
                 fail("签名索引已超过 Valid-Until。")
         if suite not in (release.get("Suite"), release.get("Codename")):
             fail("签名索引与请求的 suite 不一致。")
-        for plural, singular, expected in (
-            ("Architectures", "Architecture", index_architecture),
-            ("Components", "Component", component),
-        ):
-            if expected not in release.get(plural, release.get(singular, "")).split():
-                fail("签名索引不包含请求的 component 或架构。")
-        # 优先选择 XZ、gzip 索引，最后使用明文；Release 可能记录未发布的明文摘要。
-        index_name = f"{component}/binary-{index_architecture}/Packages"
-        matches = []
-        for index_path in (index_name + ".xz", index_name + ".gz", index_name):
-            for line in release.get("SHA256", "").splitlines():
-                parts = line.split()
-                if len(parts) == 3 and parts[2] == index_path:
-                    digest, size, name = parts
-                    if not re.fullmatch(r"[0-9a-fA-F]{64}", digest) or not re.fullmatch(r"[1-9][0-9]*", size):
-                        fail("Packages 的 SHA-256 或大小无效。")
-                    matches.append((digest.lower(), int(size), name))
-            if matches:
-                break
-        if len(matches) != 1:
-            fail("签名索引没有唯一的 Packages SHA-256 记录。")
-        digest, size, name = matches[0]
-        if release.get("Acquire-By-Hash", "").lower() == "yes":
-            index_url = f"{release_url}/{name.rsplit('/', 1)[0]}/by-hash/SHA256/{digest}"
-        else:
-            index_url = f"{release_url}/{name}"
-        download(index_url, work / "Packages", digest)
-        if (work / "Packages").stat().st_size != size:
-            fail("Packages 大小与签名索引不一致。")
-        index = (work / "Packages").read_bytes()
-        if name.endswith(".xz"):
-            index = lzma.decompress(index)
-        elif name.endswith(".gz"):
-            index = gzip.decompress(index)
+        if component not in release.get("Components", release.get("Component", "")).split():
+            fail("签名索引不包含请求的 component。")
+        architectures = release.get("Architectures", release.get("Architecture", "")).split()
+        indexes = {}
 
-        # 仅匹配指定包名与架构，不回退到其他架构或较旧的软件包。
-        candidates = {}
-        for paragraph in re.split(r"\n\s*\n", index.decode("utf-8").strip()):
-            if not paragraph:
-                continue
-            item = fields(paragraph)
-            if item.get("Package") != package or item.get("Architecture") != architecture:
-                continue
-            version = item.get("Version", "")
+        def index_records(index_architecture):
+            if index_architecture in indexes:
+                return indexes[index_architecture]
+            if index_architecture not in architectures:
+                fail("签名索引不包含请求的架构。")
+            # 优先选择 XZ、gzip 索引，最后使用明文；Release 可能记录未发布的明文摘要。
+            index_name = f"{component}/binary-{index_architecture}/Packages"
+            matches = []
+            for index_path in (index_name + ".xz", index_name + ".gz", index_name):
+                for line in release.get("SHA256", "").splitlines():
+                    parts = line.split()
+                    if len(parts) == 3 and parts[2] == index_path:
+                        digest, size, name = parts
+                        if not re.fullmatch(r"[0-9a-fA-F]{64}", digest) or not re.fullmatch(r"[1-9][0-9]*", size):
+                            fail("Packages 的 SHA-256 或大小无效。")
+                        matches.append((digest.lower(), int(size), name))
+                if matches:
+                    break
+            if len(matches) != 1:
+                fail("签名索引没有唯一的 Packages SHA-256 记录。")
+            digest, size, name = matches[0]
+            if release.get("Acquire-By-Hash", "").lower() == "yes":
+                index_url = f"{release_url}/{name.rsplit('/', 1)[0]}/by-hash/SHA256/{digest}"
+            else:
+                index_url = f"{release_url}/{name}"
+            index_file = work / f"Packages-{index_architecture}"
+            download(index_url, index_file, digest)
+            if index_file.stat().st_size != size:
+                fail("Packages 大小与签名索引不一致。")
+            index = index_file.read_bytes()
+            if name.endswith(".xz"):
+                index = lzma.decompress(index)
+            elif name.endswith(".gz"):
+                index = gzip.decompress(index)
+            indexes[index_architecture] = re.split(r"\n\s*\n", index.decode("utf-8").strip())
+            return indexes[index_architecture]
+
+        staged_dir = work / "packages"
+        if batch:
+            staged_dir.mkdir()
+        version = None
+        for package, architecture, index_architecture in specs:
+            # 仅匹配指定包名与架构，不回退到其他架构或较旧的软件包。
+            candidates = {}
+            for paragraph in index_records(index_architecture):
+                if not paragraph:
+                    continue
+                item = fields(paragraph)
+                if item.get("Package") != package or item.get("Architecture") != architecture:
+                    continue
+                candidate_version = item.get("Version", "")
+                if (
+                    not re.fullmatch(r"[0-9][0-9A-Za-z.+:~-]*", candidate_version)
+                    or subprocess.run(["dpkg", "--validate-version", candidate_version], check=False).returncode != 0
+                ):
+                    fail("软件包版本无效。")
+                identity = (item.get("Filename"), item.get("SHA256"), item.get("Size"))
+                if candidate_version in candidates and candidates[candidate_version][0] != identity:
+                    fail("同版本的软件包元数据存在冲突。")
+                candidates[candidate_version] = (identity, item)
+            if version is None:
+                if not candidates:
+                    fail(f"APT 仓库没有请求的软件包：{package}:{architecture}。")
+                version = max(candidates, key=functools.cmp_to_key(compare_versions))
+                if any(other != version and compare_versions(other, version) == 0 for other in candidates):
+                    fail("APT 索引中的最高版本不唯一。")
+            if version not in candidates:
+                fail(f"{package}:{architecture} 缺少主包版本 {version}，不下载其他版本。")
+            _, item = candidates[version]
+            filename = item.get("Filename", "")
+            digest = item.get("SHA256", "")
+            size = item.get("Size", "")
             if (
-                not re.fullmatch(r"[0-9][0-9A-Za-z.+:~-]*", version)
-                or subprocess.run(["dpkg", "--validate-version", version], check=False).returncode != 0
+                not (
+                    filename.startswith("pool/")
+                    or (batch and filename.startswith(f"dists/{suite}/{component}/binary-{index_architecture}/"))
+                ) or not filename.endswith(".deb")
+                or not re.fullmatch(r"[A-Za-z0-9/_.+~-]+", filename)
+                or any(part in ("", ".", "..") for part in filename.split("/"))
+                or not re.fullmatch(r"[0-9a-fA-F]{64}", digest)
+                or not re.fullmatch(r"[1-9][0-9]*", size)
             ):
-                fail("软件包版本无效。")
-            identity = (item.get("Filename"), item.get("SHA256"), item.get("Size"))
-            if version in candidates and candidates[version][0] != identity:
-                fail("同版本的软件包元数据存在冲突。")
-            candidates[version] = (identity, item)
-        if not candidates:
-            fail("APT 仓库没有请求的软件包和架构。")
-        version = max(candidates, key=functools.cmp_to_key(compare_versions))
-        if any(other != version and compare_versions(other, version) == 0 for other in candidates):
-            fail("APT 索引中的最高版本不唯一。")
-        _, item = candidates[version]
-        filename = item.get("Filename", "")
-        digest = item.get("SHA256", "")
-        size = item.get("Size", "")
-        if (
-            not filename.startswith("pool/") or not filename.endswith(".deb")
-            or not re.fullmatch(r"[A-Za-z0-9/_.+~-]+", filename)
-            or any(part in ("", ".", "..") for part in filename.split("/"))
-            or not re.fullmatch(r"[0-9a-fA-F]{64}", digest)
-            or not re.fullmatch(r"[1-9][0-9]*", size)
-        ):
-            fail("软件包路径、SHA-256 或大小无效。")
-        # 通过原公共入口核对 SHA-256，再检查大小及 DEB 自身的三个身份字段。
-        staged = work / "package.deb"
-        download(f"{repository}/{filename}", staged, digest)
-        if staged.stat().st_size != int(size):
-            fail("DEB 大小与官方索引不一致。")
-        # 复用本地 DEB 校验入口，保留签名索引中三个字段的精确匹配。
-        subprocess.run(
-            [str(Path(script_dir).parent / "archive/check_deb_metadata.sh"),
-             str(staged), version, package, architecture],
-            check=True,
-        )
-        # 下载、摘要和身份检查全部成功后才替换输出，失败时保留已有文件。
-        temporary_version = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                mode="w", encoding="utf-8", prefix=".apt-version-", dir=version_file.parent, delete=False,
-            ) as stream:
-                temporary_version = Path(stream.name)
-                stream.write(version + "\n")
-            os.replace(staged, output)
-            os.replace(temporary_version, version_file)
-        finally:
-            if temporary_version is not None:
-                temporary_version.unlink(missing_ok=True)
+                fail("软件包路径、SHA-256 或大小无效。")
+            # 通过原公共入口核对 SHA-256，再检查大小及 DEB 自身的三个身份字段。
+            staged = staged_dir / f"{package}_{architecture}.deb" if batch else work / "package.deb"
+            download(f"{repository}/{filename}", staged, digest)
+            if staged.stat().st_size != int(size):
+                fail("DEB 大小与官方索引不一致。")
+            # 复用本地 DEB 校验入口，保留签名索引中三个字段的精确匹配。
+            subprocess.run(
+                [str(Path(script_dir).parent / "archive/check_deb_metadata.sh"),
+                 str(staged), version, package, architecture],
+                check=True,
+            )
+
+        if batch:
+            # 所有包核验通过后一次交付，版本文件与 DEB 属于同一批次。
+            (staged_dir / "version.txt").write_text(version + "\n", encoding="utf-8")
+            if os.path.lexists(output):
+                fail("批量下载的输出目录已存在。")
+            os.replace(staged_dir, output)
+        else:
+            # 下载、摘要和身份检查全部成功后才替换输出，失败时保留已有文件。
+            temporary_version = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", encoding="utf-8", prefix=".apt-version-", dir=version_file.parent, delete=False,
+                ) as stream:
+                    temporary_version = Path(stream.name)
+                    stream.write(version + "\n")
+                os.replace(staged, output)
+                os.replace(temporary_version, version_file)
+            finally:
+                if temporary_version is not None:
+                    temporary_version.unlink(missing_ok=True)
     print(version)
 
 

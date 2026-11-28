@@ -1,6 +1,48 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# 安装明确固定的本地 Arch 包。先对同一份临时副本校验 SHA-256 和包身份。
+if [[ "${1:-}" == --local-package ]]; then
+  if (( $# != 6 )) || [[ ! -f "$2" || ! "$2" =~ [.]pkg[.]tar[.](zst|xz|gz)$ ||
+    ! "$3" =~ ^[0-9a-fA-F]{64}$ || ! "$4" =~ ^[a-z0-9][a-z0-9@._+-]*$ ||
+    ! "$5" =~ ^[A-Za-z0-9_]+$ || ! "$6" =~ ^[A-Za-z0-9._+~]+$ ]]; then
+    echo "用法：$0 --local-package <Arch 包文件> <SHA-256> <包名> <架构> <上游版本>" >&2
+    exit 2
+  fi
+  INSTALL_WORK="$(mktemp -d "${TMPDIR:-/tmp}/arch-local-package.XXXXXXXX")"
+  trap 'rm -rf -- "$INSTALL_WORK"' EXIT
+  PACKAGE_PATH="$INSTALL_WORK/${2##*/}"
+  cp -- "$2" "$PACKAGE_PATH"
+  PACKAGE_DIGEST="$(sha256sum < "$PACKAGE_PATH")"
+  if [[ "${PACKAGE_DIGEST%% *}" != "${3,,}" ]]; then
+    echo "错误：本地 Arch 包的 SHA-256 不匹配。" >&2
+    exit 1
+  fi
+
+  # 读取包内元数据并分别验证包名、架构和去除 epoch、pkgrel 后的版本。
+  bsdtar -xOf "$PACKAGE_PATH" .PKGINFO > "$INSTALL_WORK/PKGINFO"
+  if ! awk -v name="$4" -v arch="$5" -v version="$6" '
+    /^pkgname = / { names++; package = substr($0, length("pkgname = ") + 1) }
+    /^arch = / { arches++; architecture = substr($0, length("arch = ") + 1) }
+    /^pkgver = / { versions++; release = substr($0, length("pkgver = ") + 1) }
+    END {
+      if (names != 1 || arches != 1 || versions != 1 || package != name ||
+          architecture != arch || release !~ /^([0-9]+:)?[A-Za-z0-9._+~]+-[0-9]+([.][0-9]+)*$/) exit 1
+      sub(/^[0-9]+:/, "", release)
+      sub(/-[0-9]+([.][0-9]+)*$/, "", release)
+      if (release != version) exit 1
+    }
+  ' "$INSTALL_WORK/PKGINFO"; then
+    echo "错误：本地 Arch 包的名称、架构或版本不匹配。" >&2
+    exit 1
+  fi
+
+  # 保留构建环境现有的本地包签名策略。
+  pacman -U --noconfirm -- "$PACKAGE_PATH" >&2
+  printf '%s\n' "$6"
+  exit 0
+fi
+
 # 单个 AUR 包显式启用来源校验重试时，每次都在独立目录中获取源文件。
 if [[ "${1:-}" == --aur-source-retry ]]; then
   # 只为显式指定官方 HTTPS 来源的调用启用同一配方预取。

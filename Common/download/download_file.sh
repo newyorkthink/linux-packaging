@@ -1,12 +1,35 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# 仅在显式指定时返回本次下载的最终 URL。
+# 可显式返回最终 URL 或仅使用 IPv4，默认行为保持不变。
 PRINT_EFFECTIVE_URL=0
-if [[ "${1:-}" == --print-effective-url ]]; then
-  PRINT_EFFECTIVE_URL=1
+USE_IPV4=0
+CURL_RETRIES=5
+CURL_CONNECT_TIMEOUT=20
+while [[ "${1:-}" == --print-effective-url || "${1:-}" == --ipv4 ||
+  "${1:-}" == --curl-retries || "${1:-}" == --curl-connect-timeout ]]; do
+  case "$1" in
+    --print-effective-url) PRINT_EFFECTIVE_URL=1 ;;
+    --ipv4) USE_IPV4=1 ;;
+    --curl-retries)
+      (( $# >= 2 )) && [[ "$2" =~ ^(0|[1-9][0-9]*)$ ]] || {
+        echo "错误：--curl-retries 需要非负整数。" >&2
+        exit 2
+      }
+      CURL_RETRIES="$2"
+      shift
+      ;;
+    --curl-connect-timeout)
+      (( $# >= 2 )) && [[ "$2" =~ ^[1-9][0-9]*$ ]] || {
+        echo "错误：--curl-connect-timeout 需要正整秒数。" >&2
+        exit 2
+      }
+      CURL_CONNECT_TIMEOUT="$2"
+      shift
+      ;;
+  esac
   shift
-fi
+done
 
 # 只有显式选择取链接模式时才读取请求配置。
 RESOLVE_JSON_URL=0
@@ -53,13 +76,15 @@ CURL_DOH_FALLBACK_URL="${8:-}"
   echo "错误：下载器只能为 curl、wget 或 aria2c。" >&2
   exit 2
 }
-if (( PRINT_EFFECTIVE_URL )) && [[ "$DOWNLOADER" != curl ]]; then
-  echo "错误：--print-effective-url 只适用于 curl。" >&2
+if [[ "$DOWNLOADER" != curl ]] && {
+  (( PRINT_EFFECTIVE_URL || USE_IPV4 )) || [[ "$CURL_RETRIES" != 5 || "$CURL_CONNECT_TIMEOUT" != 20 ]]
+}; then
+  echo "错误：最终 URL、IPv4 和连接重试选项只适用于 curl。" >&2
   exit 2
 fi
 
 [[ -n "$URL" && -n "$OUTPUT" ]] || {
-  echo "用法：$0 [--print-effective-url] <HTTPS URL> <输出文件> [SHA-256、sha512:<摘要> 或 blake2b:<摘要>] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔秒数，0 为指数退避] [DNS 备用解析 HTTPS URL]" >&2
+  echo "用法：$0 [--print-effective-url] [--ipv4] [--curl-retries <次数>] [--curl-connect-timeout <秒>] <HTTPS URL> <输出文件> [SHA-256、sha512:<摘要>、blake2b:<摘要> 或 md5:<摘要>] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔秒数，0 为指数退避] [DNS 备用解析 HTTPS URL]" >&2
   exit 1
 }
 [[ "$URL" == https://* ]] || {
@@ -155,6 +180,9 @@ CURL_PROTOCOL_ARGS=()
 if [[ "$HTTP_VERSION" == http1.1 ]]; then
   CURL_PROTOCOL_ARGS=(--http1.1)
 fi
+if (( USE_IPV4 )); then
+  CURL_PROTOCOL_ARGS+=(--ipv4)
+fi
 
 # 使用指定下载器写入同目录临时文件，校验与原子替换共用后续流程。
 if [[ "$DOWNLOADER" == wget ]]; then
@@ -189,10 +217,10 @@ else
       "${CURL_PROTOCOL_ARGS[@]}" \
       --proto '=https' \
       --tlsv1.2 \
-      --retry 5 \
+      --retry "$CURL_RETRIES" \
       --retry-all-errors \
       --retry-delay "$CURL_RETRY_DELAY" \
-      --connect-timeout 20 \
+      --connect-timeout "$CURL_CONNECT_TIMEOUT" \
       --max-time 900 \
       "${CURL_USER_AGENT_ARGS[@]}" \
       "$@" \
@@ -235,6 +263,14 @@ fi
 # 上游提供摘要时必须在替换正式文件前完成校验；无前缀继续按 SHA-256 处理。
 if [[ -n "$EXPECTED_CHECKSUM" ]]; then
   case "$EXPECTED_CHECKSUM" in
+    md5:*)
+      EXPECTED_CHECKSUM="${EXPECTED_CHECKSUM#md5:}"
+      [[ "$EXPECTED_CHECKSUM" =~ ^[[:xdigit:]]{32}$ ]] || {
+        echo "错误：无效的 MD5 摘要。" >&2
+        exit 1
+      }
+      md5sum -c <(printf '%s  -\n' "$EXPECTED_CHECKSUM") < "$TEMP_FILE" >&"$CHECKSUM_LOG_FD"
+      ;;
     blake2b:*)
       EXPECTED_CHECKSUM="${EXPECTED_CHECKSUM#blake2b:}"
       [[ "$EXPECTED_CHECKSUM" =~ ^[[:xdigit:]]{128}$ ]] || {

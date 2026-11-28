@@ -25,8 +25,10 @@
 - `aur/download_tar_source.sh <AUR 包名> <架构> <输出.tar.gz> <元数据输出文件>` 从同次 `.SRCINFO` 读取唯一的架构专用 HTTPS tar.gz 来源和 BLAKE2b-512 摘要。摘要缺失、无效或为 `SKIP` 时拒绝下载；校验通过后写入归档及可由 Bash 读取的版本、pkgrel 和来源元数据。现有 DEB 入口继续使用原调用方式。
 - `aur/download_pkgbuild_asset.sh` 从同一份 PKGBUILD 文本读取指定的地址、SHA-256 和版本字段，支持可选的地址处理函数和 JSON 取链接模式，并复用公共下载入口校验文件。成功后写入来源版本，详见下文。
 - `download/download_json_asset.sh` 从官方 JSON 取得资产地址与版本，可用本仓库已发布的同版本 SHA-256 校验下载，并支持复用配方取包和签名取链入口。
+- `download/download_json_deb_asset.sh` 从官方 JSON 读取 DEB 下载地址与版本，核对文件名及包元数据。可选从文件名读取版本并兼容官方旧摘要，见 [官方 JSON DEB](#官方-json-deb)。
+- `download/download_official_deb.sh` 下载动态官网入口指向的 DEB，核对架构和可选包名，返回包内完整 `Version`。可选核对最终 URL 的版本，或启用 IPv4 回退，见 [官网 HTTPS DEB 直链](#官网-https-deb-直链)。
 - `download/download_electron_update_asset.sh` 从官方 Electron 更新清单读取版本和匹配资产的 SHA-512，复用公共下载入口校验资产。参数和依赖见 [Electron 更新清单下载](#electron-更新清单下载)。
-- `download/download_file.sh <HTTPS URL> <输出文件> [摘要] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔] [DNS 备用解析 HTTPS URL]` 保留原下载、重试、超时和原子替换行为。不传摘要时保持原行为；无前缀的 64 位十六进制摘要和 `sha256:<摘要>` 使用 SHA-256，新增的 `sha512:<128 位十六进制摘要>` 使用 SHA-512，`blake2b:<128 位十六进制摘要>` 使用 GNU `b2sum` 校验 BLAKE2b-512。摘要格式错误或校验失败时不替换已有输出文件。该扩展不改变其他专用下载入口各自的摘要格式。 第四个可选参数指定客户端标识，显式值优先；省略或传空字符串时，curl / wget 保留原默认标识，aria2c 使用仓库公共配置中的标识；不校验摘要而指定客户端标识时，第三个参数传空字符串。客户端标识包含回车或换行时拒绝下载。第五个可选参数显式选择下载器，默认仍为 `curl`；`wget` 共用原摘要校验、失败清理和原子替换，只用于直达 HTTPS 文件，不跟随重定向。该模式需要已有 `wget` 和 GNU `timeout`，总时限 900 秒，保留证书校验并使用 TLS 1.2；不读取 wget 配置或 netrc，不写 HSTS 文件。 `aria2c` 显式读取 [公共 HTTP 下载配置](./config/download/aria2.conf)，单服务器连接上限和分段数均为 16，最小分段和分块大小均为 1M；配置包含公开的模拟浏览器标识、IPv4 和 gzip 请求设置。它不读取个人 aria2 配置或 netrc；总时限仍为 900 秒，默认 TLS、证书校验、临时输出、原摘要校验、原子替换和失败清理保持不变，不自动跟随 Torrent / Metalink。公共配置按用途归类，规则见 [配置目录](./config/README.md)。
+- `download/download_file.sh <HTTPS URL> <输出文件> [摘要] [User-Agent] [curl|wget|aria2c] [auto|http1.1] [curl 重试间隔] [DNS 备用解析 HTTPS URL]` 保留原下载、重试、超时和原子替换行为。不传摘要时保持原行为；无前缀的 64 位十六进制摘要和 `sha256:<摘要>` 使用 SHA-256，新增的 `sha512:<128 位十六进制摘要>` 使用 SHA-512，`blake2b:<128 位十六进制摘要>` 使用 GNU `b2sum` 校验 BLAKE2b-512。只有发布方确实提供旧式 MD5 时才显式传 `md5:<32 位十六进制摘要>`，其校验用途限于传输完整性。GitHub Release 资产仍须使用官方 SHA-256。摘要格式错误或校验失败时不替换已有输出文件。该扩展不改变其他专用下载入口各自的摘要格式。 第四个可选参数指定客户端标识，显式值优先；省略或传空字符串时，curl / wget 保留原默认标识，aria2c 使用仓库公共配置中的标识；不校验摘要而指定客户端标识时，第三个参数传空字符串。客户端标识包含回车或换行时拒绝下载。第五个可选参数显式选择下载器，默认仍为 `curl`；`wget` 共用原摘要校验、失败清理和原子替换，只用于直达 HTTPS 文件，不跟随重定向。该模式需要已有 `wget` 和 GNU `timeout`，总时限 900 秒，保留证书校验并使用 TLS 1.2；不读取 wget 配置或 netrc，不写 HSTS 文件。 `aria2c` 显式读取 [公共 HTTP 下载配置](./config/download/aria2.conf)，单服务器连接上限和分段数均为 16，最小分段和分块大小均为 1M；配置包含公开的模拟浏览器标识、IPv4 和 gzip 请求设置。它不读取个人 aria2 配置或 netrc；总时限仍为 900 秒，默认 TLS、证书校验、临时输出、原摘要校验、原子替换和失败清理保持不变，不自动跟随 Torrent / Metalink。公共配置按用途归类，规则见 [配置目录](./config/README.md)。
 - `download/download_apt_repository_deb.sh` 从调用方指定的 HTTPS APT 仓库读取签名索引，使用指定的官方密钥验证 `InRelease`，核对索引与 DEB 的 SHA-256、大小，以及 DEB 的包名、架构和版本；按 Debian 版本规则选择最高版本，成功后写入 DEB 与来源版本文件，stdout 只返回版本。不安装应用、不配置系统 APT 源；现有下载、版本读取和归档接口保持不变。完整参数与支持范围见下文。
 - `download/download_omaha_package.sh` 查询 Omaha 3.0 XML 更新服务，按调用方提供的应用 ID、渠道、平台、架构、下载源、路径前缀和文件名规则选择完整安装包，复用 `download_file.sh` 校验 SHA-256，并核对响应中的文件大小。成功后写入指定的安装包和版本文件，stdout 只返回版本；不安装或执行软件。完整参数、约束及调用方式见下文。
 - `download/download_verified_with_wayback.sh` 接收官方 HTTPS URL、目标文件、原 SHA-256 或显式带 `sha512:` 前缀的 SHA-512 和可选的 `--deb`、`--user-agent <客户端标识>`、`--downloader curl|wget|aria2c`；先调用 `download_file.sh`，未取得匹配摘要的文件时才查同一 URL 的 Internet Archive 快照，所有候选文件仍须通过原摘要，`--deb` 还核对 DEB 文件类型。 这些选项可以组合使用；`--downloader` 只选择官方文件的下载器，CDX 与归档请求继续使用原 curl 入口。指定的客户端标识统一传给官方文件、快照列表和归档文件请求；未指定时，官方文件使用所选下载器的默认或公共配置标识，CDX 与归档文件使用 curl 默认标识。客户端标识为空、包含回车或换行、选项重复或参数缺失时退出。
@@ -40,6 +42,8 @@
 - `github/download_latest_stable_release_asset.sh <owner/repo> '<包含 {version} 的资产名模板>' <输出文件> --latest-with-checksum <校验清单资产名> <commit 文件>` 从同一个 `/releases/latest` 响应定位主资产和校验清单，验证两者的 GitHub SHA-256，再用清单中唯一对应的 SHA-256 校验主资产。校验通过并解析 tag 对应的 Git commit 后，写出资产和 commit，stdout 仅返回版本。原资产模板及可选 DEB 参数调用保持原有语义。
 - `github/download_tagged_release_asset.sh [--version <精确版本> | --version-prefix <版本前缀>] <owner/repo> <归档标签> '<固定资产名或含 {version} 的资产名模板>' <输出文件> [DEB 包名] [DEB 架构]` 必须使用有效 GitHub 认证凭据读取指定非草稿、非预发布归档标签，在已上传且带有效 GitHub SHA-256 的匹配资产中默认自动选择唯一最高版本（支持归档 Release 同时保留多个历史版本）；传入 `--version` 时精确锁定该版本用于降级或锁版，传入 `--version-prefix` 时仅在指定版本前缀内选最高版本（两者均要求模板含 `{version}`，启用锁版的应用须在自身 `docs/hardcoded.md` 与 `README.md` 写明锁定原因及解除条件）。下载先经官方 Release 直链并校验官方 SHA-256，失败后按同一资产 ID 认证回退并校验同一 SHA-256；成对提供 DEB 包名与架构时复用 `archive/check_deb_metadata.sh` 核对身份，并确认 DEB 包内 `Version` 与模板提取版本一致，成功后仅向 stdout 输出实际版本。
 - `github/download_tagged_release_asset.sh` 可用前置 `--latest` 选择 GitHub 当前正式 Release，此时省略归档标签。可在 `--latest` 之后、其余参数之前指定 `--checksum-asset <校验清单资产名>`，从同一 Release 解析主资产和清单。两项分别校验 GitHub 官方 SHA-256，再用清单中唯一对应条目复核主资产。
+- `github/download_tagged_release_asset.sh` 支持放在 `--latest` 等已有选项前的 `--release-tag-file <标签文件>`，全部校验成功后额外写出同次 Release 的原始 `tag_name`，stdout 保持原有版本或资产名。前置 `--sha256 <官方 SHA-256>` 只适用于固定标签和固定资产名，且不可与 `--checksum-asset` 混用。API 摘要缺失时使用调用方从发布方取得的官方 SHA-256，API 提供摘要时两者必须一致，格式无效直接失败。直链与同一资产 ID 的认证回退都校验同一摘要。仅有自行计算的历史摘要时仍不能采用这个选项。
+- `github/download_repository_file.sh <owner/repo> <分支、标签或提交 SHA> <仓库内文件路径> <输出文件>` 通过认证 API 将引用解析到提交，再从同一提交读取单个文件。需提供 `curl`、`jq`、Python 3 与已有 GitHub 凭据。只接受 Contents API 可直接返回的完整 Base64 文件，核对路径、大小和 Git blob SHA 后原子替换输出，stdout 只返回完整提交 SHA。
 - `github/download_latest_stable_release_source.sh <owner/repo> <目标目录> [--archive]` 读取最新非草稿、非预发布 Release。默认仍浅克隆对应标签；仅显式传入 `--archive` 时，将标签解析到具体提交，下载并解包该提交的源码归档。两种方式成功时 stdout 都只返回原始标签。参数、依赖、认证与清理范围见下文的 [GitHub 最新正式 Release 源码](#github-最新正式-release-源码)。
 - `snap/download_stable_snap.sh <Snap 名称> <发布者账号> <amd64|arm64> <输出.snap> [元数据 JSON 输出] [curl|snap]` 默认从 Snap Store 官方接口选择唯一的 `latest/stable` 条目，核对名称、发布者和架构，下载后校验官方 SHA3-384；成功时 stdout 仅返回实际版本。下载、版本、校验与调用边界见下文。
 - `build/prepare_x86_64_workspace.sh` 接收项目根目录、`--skip-create`、一个清理后不创建的一级目录名，以及其余清理后重建的一级目录名。先检查 x86_64 和全部目录名，再只处理这个项目下明确传入的目录；应用自行决定哪些工作目录需要重建。
@@ -47,10 +51,11 @@
 - `arch/install_packages.sh --reinstall <Arch 软件包名> [...]` 省略 `--needed` 安装明确列出的包。`--aur-source-retry <AUR 包名> <等待秒数>` 仅在 AUR 源文件校验失败时按指定间隔换用新的临时来源目录和构建目录重试一次，继续使用原 PKGBUILD 校验。
 - `arch/install_packages.sh --aur-source-retry <AUR 包名> <等待秒数> --https-source <官方 HTTPS 地址前缀> '<源文件名模板>'` 仅适用于同名单包 AUR 配方和一个指定远程源。用本次取得的 `PKGBUILD` 生成元数据，在 `source` 或当前架构的来源中唯一匹配文件名（`{version}` 代表该配方的 `pkgver`）和同索引的 SHA-256。原地址与指定地址须有相同域名及路径，下载只用 HTTPS。公共下载器先写本次的临时目录，摘要通过后交给同一份配方的 `makepkg` 复核并安装。连接失败沿用公共下载器的有限重试，只有摘要不符才等待并重新下载一次。
 - `arch/install_packages.sh` 也接受 `--qt6`、`--qt5`、`--gtk3`、`--gtk4`。每次调用选择一个图形环境选项，可在其后追加应用所需的 Arch 软件包名，同次交给 yay 安装。根据主程序实际使用的框架和主版本选用对应环境，包组和扩展规则见 [Arch 图形环境依赖清单](../Docs/appimage-build-dependency-list.md#arch-图形环境)。
+- `arch/install_packages.sh --local-package <Arch 包文件> <SHA-256> <包名> <架构> <上游版本>` 仅用于调用方已有可信摘要的明确版本归档。对同一份临时副本检查 SHA-256 与包内名称、架构、上游版本，再用现有 pacman 签名策略安装。支持 `.pkg.tar.zst`、`.pkg.tar.xz`、`.pkg.tar.gz`，需有 `bsdtar` 与 `pacman`，调用方先装依赖。成功时 stdout 只返回去掉 epoch 和 pkgrel 的上游版本。签名 Arch 仓库继续使用独立验签入口。
 - `arch/install_and_extract_signed_package.sh <仓库 HTTPS 目录> <仓库名> <软件包名> <架构> <受信 pacman GPG 目录> <解包目录> [预期上游版本]` 使用仓库的 `.db` 定位当前包，经公共 HTTPS 入口下载对应 `.pkg.tar.zst` 和独立签名。确认 SHA-256、签名和包名、版本、架构后，安装并解包同一份文件。可传入从上游核实的版本，防止使用滞后的镜像版本。
 - `arch/get_package_version.sh` 接收一个已安装的 Arch 软件包名，从 `pacman -Q` 读取版本并去掉 epoch 和发行版 `pkgrel`，只向 stdout 输出非空的上游版本。需要保留发行版修订号的应用不要调用该入口。
 - `build/install_cargo_crate.sh <crate 名> <安装目录>` 使用 `cargo install --locked` 安装可执行 crate。Cargo 使用当前配置的仓库（默认 crates.io）选择版本，将程序写入 `<安装目录>/bin/`，并保留原有退出状态。构建环境需预先安装 Cargo 和 crate 所需的系统依赖。程序支持 `--version` 时，调用方可用 `build/read_app_version.sh command <安装目录>/bin/<程序名> --field <版本字段编号> -- --version` 读取同次安装的二进制版本，再将该版本传给构建收尾入口。
-- `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。`text <来源版本文件>` 读取同次下载保存的版本。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
+- `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。`text <来源版本文件>` 读取同次下载保存的版本。`ini <文件路径> --section <节> --key <键>` 读取指定 INI 节中唯一的键，兼容 CRLF 和等号两侧空白。比如 Zotero 可传 `--section App --key Version`。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
 - `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../Docs/appimage-scheme-handler.md)。
 
@@ -74,6 +79,8 @@
 # 显式使用 HTTP/1.1 和指数退避重试下载文件。
 "$SCRIPT_DIR/../Common/download/download_file.sh" "<HTTPS URL>" "<输出文件>" "" "" curl http1.1 0
 ```
+
+curl 还接受前置的 `--ipv4`、`--curl-retries <次数>` 和 `--curl-connect-timeout <秒>`，可与 `--print-effective-url` 组合。只作用于文件请求，未指定时沿用地址族协商、5 次重试和 20 秒连接超时。
 
 ### 从 JSON 请求取得下载地址
 
@@ -153,6 +160,8 @@ URL 必须使用 HTTPS，不含登录凭据、空白或片段。GitHub 托管资
 # 下载官网 DEB，校验元数据并安装解包，成功后返回实际版本。
 VERSION="$("$SCRIPT_DIR/../Common/github/install_and_extract_latest_stable_release_deb.sh" --url "<官方 HTTPS DEB URL>" "<官方 SHA-256>" "$SOURCE_DIR/<文件名>.deb" "$APPDIR" "<DEB 包名>" "<DEB 架构>")"
 ```
+
+只需独立下载和校验时，使用 `download/download_official_deb.sh <HTTPS URL> <输出 DEB> <预期包名或空字符串> <架构>`。填写 `--sha256 <官方 SHA-256>` 时校验摘要，`--user-agent <标识>` 按需传入客户端标识。`--url-version-regex <ERE>` 匹配最终 URL 后读取第一个捕获组，与包内版本比较时允许额外的 Debian 修订号，适用于 Stacher 等版本可能出现在跳转地址中的入口。未匹配时以实际 DEB 的完整版本为准。腾讯文档可使用 `--ipv4-fallback`，常规下载失败后对同一地址使用 IPv4、HTTP/1.1、8 次重试、3 秒重试间隔和 60 秒连接超时。下载及元数据检查成功才替换 DEB，stdout 只返回完整 `Version`。安装与解包由调用方用已有公共入口分别处理。
 
 ### GitHub 最新正式 Release 源码
 
@@ -275,6 +284,15 @@ download_pkgbuild_asset "<PKGBUILD URL>" "<地址字段>" "<SHA-256 字段>" "<�
 - `--resolve-json-url` 及其 `--resolve-header` 参数沿用 [PKGBUILD 入口的取链用法](#pkgbuild-字面量字段中的下载来源)，应放在上述来源选项之后。
 
 JSON 路线先使用受认证的 GitHub 查询和公共 Release 下载入口校验 `latest` 的 `software_versions.json`，再按软件键和发布资产名读取完整版本及 SHA-256，并核对该 SHA-256 与 Release 附件摘要一致。只接受与清单完整版本一致的资产链接。最终下载通过公共入口校验同一 SHA-256，完成后才保存版本文件。
+
+### 官方 JSON DEB
+
+`download/download_json_deb_asset.sh [选项] <元数据 URL> <版本 jq> <资产 URL jq> <允许 URL 正则> <文件名模板> <DEB 包名> <架构> <输出 DEB> [摘要 jq]` 默认从 JSON 取版本，严格比对文件名和 DEB 的完整版本、包名、架构。提供摘要字段时校验通过才交付。
+
+- `--user-agent <标识>` 同时作用于元数据和 DEB 请求。
+- `--filename-version <ERE>` 从去掉查询参数和片段后的 URL 文件名取第一个捕获组作为点分数字版本。JSON 的版本字段存在时须包含同一完整版本，亦可直接将版本 jq 参数传成 `null`。此模式可用空包名仅核对版本和架构。
+- `--allow-deb-revision` 允许 DEB 的完整版本在来源版本后附加 Debian 修订号，stdout 仍返回来源版本。
+- `--allow-md5` 要求指定发布方的摘要 jq 字段，按十六进制长度区分 SHA-256 和旧式 MD5。摘要缺失、格式无效或校验不符均停止。飞书的官网 JSON 提供旧式摘要时可启用。
 
 ### Arch 安装时复用已校验的 AUR DEB
 
@@ -403,6 +421,12 @@ Release 可能登记明文索引的摘要，而服务器实际只发布压缩索
 全部校验通过后才替换两个输出文件。参数、元数据、签名、下载或校验失败时保留已有 DEB 和来源版本文件，并清理本次临时目录；下载仍复用原有 `download_file.sh` 的重试、超时及摘要处理。成功时 stdout 只有一行版本，诊断和摘要日志写入 stderr。
 
 来源版本文件只描述本次实际下载的 DEB，可在打包元数据阶段用原有 `build/read_app_version.sh text "<来源版本文件>"` 读取；不能代替最终 AppImage 生成后才写入的 `dist/version.txt`。安装和解包继续由调用方分别使用已有公共入口完成。本次新增入口不改变旧接口和既有应用调用。
+
+#### 同一版本的多个包
+
+使用 `download/download_apt_repository_deb.sh --batch <HTTPS 仓库根地址> <suite> <component> <HTTPS 官方公钥地址> <新输出目录> <包名:架构[:索引架构]> <包名:架构[:索引架构]> [...]`。各架构的索引使用同一次签名验证通过的 `InRelease`，同一索引只下载一次。第一项按 Debian 规则选择最高版本，其他包必须存在完全相同的完整版本。批量模式还接受签名索引指向同一 suite、component 与索引架构目录中的 DEB。
+
+所有包均通过 SHA-256、大小和包元数据校验后才交付目录，其中包含 `<包名>_<架构>.deb` 和 `version.txt`，stdout 只输出该完整版本。任一包缺少匹配版本或校验失败就停止。Wine Staging 可把 `wine-staging-amd64:amd64` 放在第一项，再传 `wine-staging:amd64` 和 `wine-staging-i386:i386`。
 
 ### Omaha 更新服务中的完整安装包
 

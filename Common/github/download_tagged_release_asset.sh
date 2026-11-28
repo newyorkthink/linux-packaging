@@ -3,6 +3,32 @@ set -Eeuo pipefail
 
 # 从指定 GitHub Release 归档标签按固定名或 {version} 模板选择最高版本（或指定/限定前缀版本）资产并校验下载。
 # 可显式使用 GitHub 指定的正式最新版，并从同一次响应选择校验清单。
+EXPECTED_SHA256=""
+RELEASE_TAG_OUTPUT=""
+while [[ "${1:-}" == --sha256 || "${1:-}" == --release-tag-file ]]; do
+  (( $# >= 2 )) && [[ -n "$2" && "$2" != --* ]] || {
+    echo "错误：$1 缺少参数。" >&2
+    exit 2
+  }
+  case "$1" in
+    --sha256)
+      [[ -z "$EXPECTED_SHA256" && "$2" =~ ^[0-9a-fA-F]{64}$ ]] || {
+        echo "错误：--sha256 需要唯一的官方 SHA-256。" >&2
+        exit 2
+      }
+      EXPECTED_SHA256="${2,,}"
+      ;;
+    --release-tag-file)
+      [[ -z "$RELEASE_TAG_OUTPUT" ]] || {
+        echo "错误：--release-tag-file 只能指定一次。" >&2
+        exit 2
+      }
+      RELEASE_TAG_OUTPUT="$2"
+      ;;
+  esac
+  shift 2
+done
+
 USE_LATEST=false
 CHECKSUM_ASSET=""
 if [[ "${1:-}" == --latest ]]; then
@@ -41,7 +67,7 @@ if [[ "$USE_LATEST" == true ]]; then
   POSITIONAL_COUNT=3
 fi
 if (( $# != POSITIONAL_COUNT && $# != POSITIONAL_COUNT + 2 )); then
-  echo "用法：$0 [--latest] [--checksum-asset <清单资产名>] [--version <精确版本> | --version-prefix <版本前缀>] <owner/repo> [归档标签] '<资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
+  echo "用法：$0 [--sha256 <官方 SHA-256>] [--release-tag-file <标签文件>] [--latest] [--checksum-asset <清单资产名>] [--version <精确版本> | --version-prefix <版本前缀>] <owner/repo> [归档标签] '<资产名模板>' <输出文件> [DEB 包名] [DEB 架构]" >&2
   echo "仅在使用 --latest 时省略归档标签。" >&2
   exit 2
 fi
@@ -90,6 +116,10 @@ if [[ "$ASSET_TEMPLATE" == *'{'* || "$ASSET_TEMPLATE" == *'}'* ]]; then
     echo "错误：资产名模板最多只允许包含一个 {version} 占位符：$ASSET_TEMPLATE" >&2
     exit 2
   }
+fi
+if [[ -n "$EXPECTED_SHA256" && ( "$USE_LATEST" == true || "$ASSET_TEMPLATE" == *'{version}'* || -n "$CHECKSUM_ASSET" ) ]]; then
+  echo "错误：--sha256 只用于固定标签和固定资产名，不得与 --checksum-asset 同用。" >&2
+  exit 2
 fi
 if [[ -n "$PINNED_VERSION" ]]; then
   [[ "$ASSET_TEMPLATE" == *'{version}'* ]] || {
@@ -163,14 +193,27 @@ mkdir -p -- "$OUTPUT_DIR"
 OUTPUT_DIR="$(cd -- "$OUTPUT_DIR" && pwd -P)"
 OUTPUT="$OUTPUT_DIR/$(basename -- "$OUTPUT")"
 
+if [[ -n "$RELEASE_TAG_OUTPUT" ]]; then
+  if [[ "$RELEASE_TAG_OUTPUT" == */ || -d "$RELEASE_TAG_OUTPUT" ||
+    "$(realpath -m -- "$RELEASE_TAG_OUTPUT")" == "$(realpath -m -- "$OUTPUT")" ]]; then
+    echo "错误：标签文件和资产文件必须使用不同的有效路径。" >&2
+    exit 2
+  fi
+  mkdir -p -- "$(dirname -- "$RELEASE_TAG_OUTPUT")"
+fi
+
 RELEASE_JSON="$(mktemp "$OUTPUT_DIR/.release-meta.XXXXXXXX")"
 TEMP_FILE="$(mktemp "$OUTPUT_DIR/.release-asset.XXXXXXXX")"
 CHECKSUM_FILE=""
+TAG_TEMP=""
 # 清理本次 Release 查询及下载产生的临时文件。
 cleanup() {
   rm -f -- "$RELEASE_JSON" "$TEMP_FILE"
   if [[ -n "$CHECKSUM_FILE" ]]; then
     rm -f -- "$CHECKSUM_FILE"
+  fi
+  if [[ -n "$TAG_TEMP" ]]; then
+    rm -f -- "$TAG_TEMP"
   fi
 }
 trap cleanup EXIT
@@ -184,7 +227,7 @@ github_api_get "https://api.github.com/repos/$REPO/releases/$RELEASE_SELECTOR" "
 
 # 从同一份 Release 响应中筛选已上传且带官方 SHA-256 的最高版本（或指定版本）唯一资产。
 mapfile -t RESOLVED < <(
-  python3 - "$RELEASE_JSON" "$REPO" "$RELEASE_TAG" "$ASSET_TEMPLATE" "$EXPECTED_DEB_PACKAGE" "$PINNED_VERSION" "$VERSION_PREFIX" "$CHECKSUM_ASSET" <<'PY'
+  python3 - "$RELEASE_JSON" "$REPO" "$RELEASE_TAG" "$ASSET_TEMPLATE" "$EXPECTED_DEB_PACKAGE" "$PINNED_VERSION" "$VERSION_PREFIX" "$CHECKSUM_ASSET" "$EXPECTED_SHA256" <<'PY'
 import functools
 import json
 import re
@@ -226,7 +269,7 @@ def compare_generic_versions(left, right):
     return 0
 
 
-json_path, repo, tag, template, deb_package, pinned_version, version_prefix, checksum_name = sys.argv[1:]
+json_path, repo, tag, template, deb_package, pinned_version, version_prefix, checksum_name, expected_sha256 = sys.argv[1:]
 with open(json_path, encoding="utf-8") as stream:
     release = json.load(stream)
 
@@ -281,10 +324,18 @@ for asset in release.get("assets") or []:
     }
     if url not in expected_urls:
         continue
-    digest = asset.get("digest") or ""
-    if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest):
+    digest = asset.get("digest")
+    if expected_sha256 and digest is None:
+        # 历史资产的 API 缺少摘要时，只采用调用方从上游取得的固定官方摘要。
+        sha256 = expected_sha256
+    elif isinstance(digest, str) and re.fullmatch(r"sha256:[0-9a-fA-F]{64}", digest):
+        sha256 = digest.split(":", 1)[1].lower()
+        if expected_sha256 and sha256 != expected_sha256:
+            fail(f"发布方提供的 SHA-256 与 GitHub 资产摘要不一致：{name}")
+    elif expected_sha256:
+        fail(f"GitHub 资产摘要格式无效：{name}")
+    else:
         continue
-    sha256 = digest.split(":", 1)[1].lower()
     if is_checksum:
         checksums.append((name, url, sha256, str(asset_id)))
         continue
@@ -314,14 +365,14 @@ if checksum_name and len(checksums) != 1:
     fail(f"Release {repo}@{tag} 中缺少唯一且带官方 SHA-256 的校验清单：{checksum_name}")
 
 metadata = (*selected, *checksums[0]) if checksum_name else selected
-for value in metadata:
+for value in (*metadata, tag):
     print(value)
 PY
 )
 
-METADATA_COUNT=5
+METADATA_COUNT=6
 if [[ -n "$CHECKSUM_ASSET" ]]; then
-  METADATA_COUNT=9
+  METADATA_COUNT=10
 fi
 (( ${#RESOLVED[@]} == METADATA_COUNT )) || {
   echo "错误：无法解析归档 Release 资产元数据：$REPO / $RELEASE_TAG / $ASSET_TEMPLATE" >&2
@@ -394,7 +445,14 @@ else
   FINAL_VERSION="${EXTRACTED_VERSION:-$ASSET_NAME}"
 fi
 
-mv -f -- "$TEMP_FILE" "$OUTPUT"
+if [[ -n "$RELEASE_TAG_OUTPUT" ]]; then
+  TAG_TEMP="$(mktemp -- "${RELEASE_TAG_OUTPUT}.part.XXXXXXXX")"
+  printf '%s\n' "${RESOLVED[METADATA_COUNT-1]}" > "$TAG_TEMP"
+fi
+mv -fT -- "$TEMP_FILE" "$OUTPUT"
+if [[ -n "$TAG_TEMP" ]]; then
+  mv -fT -- "$TAG_TEMP" "$RELEASE_TAG_OUTPUT"
+fi
 cleanup
 trap - EXIT
 printf '%s\n' "$FINAL_VERSION"

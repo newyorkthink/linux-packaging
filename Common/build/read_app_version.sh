@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # 显示公共版本读取入口的参数用法。
 usage() {
-  echo "用法：$0 <package-json|pacman|text|command> <文件路径、包名或程序> [--version-file <版本文件>] [--desktop <桌面入口文件>]... [--field <版本字段编号> -- <程序参数>...]" >&2
+  echo "用法：$0 <package-json|pacman|text|ini|command> <文件路径、包名或程序> [--version-file <版本文件>] [--desktop <桌面入口文件>]... [--section <INI 节> --key <INI 键>] [--field <版本字段编号> -- <程序参数>...]" >&2
   exit 2
 }
 
@@ -20,6 +20,8 @@ shift 2
 version_file=
 desktop_files=()
 version_field=
+ini_section=
+ini_key=
 command_args=()
 
 # 解析可选的构建元数据输出，默认只返回版本。
@@ -31,6 +33,17 @@ while (( $# > 0 )); do
         version_file="$2"
       else
         desktop_files+=("$2")
+      fi
+      shift 2
+      ;;
+    --section|--key)
+      [[ "$source_type" == ini && $# -ge 2 && "${2:-}" =~ ^[A-Za-z0-9_.-]+$ ]] || usage
+      if [[ "$1" == --section ]]; then
+        [[ -z "$ini_section" ]] || usage
+        ini_section="$2"
+      else
+        [[ -z "$ini_key" ]] || usage
+        ini_key="$2"
       fi
       shift 2
       ;;
@@ -56,6 +69,35 @@ case "$source_type" in
     ;;
   text)
     version="$(cat -- "$source_value")"
+    ;;
+  ini)
+    [[ -n "$ini_section" && -n "$ini_key" ]] || usage
+    # 只读取指定节中唯一的键，兼容 CRLF 以及等号两侧的空白。
+    if ! version="$(awk -v section="$ini_section" -v key="$ini_key" '
+      function trim(value) {
+        sub(/^[[:space:]]+/, "", value)
+        sub(/[[:space:]]+$/, "", value)
+        return value
+      }
+      {
+        line = trim($0)
+        if (line ~ /^[[].*[]]$/) {
+          current = substr(line, 2, length(line) - 2)
+        } else if (current == section && line !~ /^[#;]/ && (separator = index(line, "="))) {
+          if (trim(substr(line, 1, separator - 1)) == key) {
+            matches++
+            value = trim(substr(line, separator + 1))
+          }
+        }
+      }
+      END {
+        if (matches != 1) exit 1
+        print value
+      }
+    ' < "$source_value")"; then
+      echo "错误：无法读取唯一的 INI 版本 [${ini_section}] ${ini_key}：$source_value" >&2
+      exit 1
+    fi
     ;;
   pacman)
     version="$("$SCRIPT_DIR/../arch/get_package_version.sh" "$source_value")"
