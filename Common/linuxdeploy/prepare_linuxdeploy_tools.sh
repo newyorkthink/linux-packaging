@@ -109,30 +109,38 @@ fi
 # shellcheck source=Common/github/github_api.sh
 source "$GITHUB_API"
 
-# 从指定的官方 Release 解析资产及摘要，再交给公共下载脚本取得文件。
-# 若上游正在替换 continuous 资产，重新获取 Release 元数据后整体重试，避免旧摘要与新资产短暂错配。
+# 取得唯一工具资产的地址、摘要和 ID，再交给公共入口下载。
+# continuous 发布可能短暂缺少完整元数据，下载前允许重新查询该 Release。
 download_release_asset() {
   local repo="$1" asset="$2" output="$3"
-  local metadata="" url="" digest="" attempt
+  local metadata selected url digest asset_id attempt
   local max_attempts=3
 
   for ((attempt = 1; attempt <= max_attempts; attempt++)); do
     if metadata="$(github_api_get "https://api.github.com/repos/$repo/releases/$RELEASE_ENDPOINT")" &&
-       { [[ "$RELEASE_ENDPOINT" != latest ]] || jq -e '.draft == false and .prerelease == false' <<< "$metadata" >/dev/null; } &&
-       url="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .browser_download_url' <<< "$metadata")" &&
-       digest="$(jq -er --arg name "$asset" '.assets[] | select(.name == $name) | .digest' <<< "$metadata")" &&
-       [[ "$digest" =~ ^sha256:[[:xdigit:]]{64}$ ]] &&
-       "$DOWNLOAD_FILE" "$url" "$output" "$digest"; then
-      return 0
+       selected="$(jq -er --arg name "$asset" --arg release "$RELEASE_ENDPOINT" '
+         select($release != "latest" or (.draft == false and .prerelease == false))
+         | [.assets[]? | select(.name == $name)]
+         | select(length == 1)
+         | .[0]
+         | select((.id | type) == "number" and .id > 0)
+         | select((.digest // "") | test("^sha256:[0-9a-fA-F]{64}$"))
+         | select((.browser_download_url // "") != "")
+         | [.browser_download_url, .digest, .id]
+         | @tsv
+       ' <<< "$metadata")"; then
+      IFS=$'\t' read -r url digest asset_id <<< "$selected"
+      github_download_release_asset "$repo" "$asset_id" "$url" "$digest" "$output"
+      return
     fi
 
     if (( attempt < max_attempts )); then
-      echo "警告：取得或校验官方资产失败，将重新获取 $RELEASE_ENDPOINT Release 元数据后重试：$repo/$asset（$attempt/$max_attempts）。" >&2
+      echo "警告：官方 $RELEASE_ENDPOINT Release 的资产元数据不完整，将重新查询：$repo/$asset（$attempt/$max_attempts）。" >&2
       sleep 2
     fi
   done
 
-  echo "错误：连续 $max_attempts 次无法取得并校验官方 $RELEASE_ENDPOINT Release 资产：$repo/$asset" >&2
+  echo "错误：连续 $max_attempts 次无法取得完整的官方 $RELEASE_ENDPOINT Release 资产元数据：$repo/$asset" >&2
   return 1
 }
 

@@ -106,66 +106,26 @@ if [[ "${4:-}" == --latest-with-checksum ]]; then
   exit
 fi
 
-# 正则模式同时取得唯一资产的 ID，供同一资产的认证下载回退使用。
-ASSET_ID=''
-ASSET_METADATA_LINES=3
-if [[ "$ASSET_TEMPLATE" == regex:* && "$RELEASE_TAGGED" == 0 ]]; then
-  ASSET_METADATA_LINES=4
-  METADATA="$("$RESOLVER" --with-asset-id "${TAG_ARGS[@]}" "$REPO" "$ASSET_TEMPLATE")"
-  mapfile -t RELEASE_META <<< "$METADATA"
-else
-  mapfile -t RELEASE_META < <("$RESOLVER" "${TAG_ARGS[@]}" "$REPO" "$ASSET_TEMPLATE")
-fi
+# 解析器的版本筛选保持原样，同时取得匹配资产的 ID。
 if (( RELEASE_TAGGED )); then
-  (( ${#RELEASE_META[@]} == 4 )) || {
-    echo "错误：指定标签中没有唯一匹配并带 SHA-256 的资产：$REPO / $ASSET_TEMPLATE" >&2
-    exit 1
-  }
-  [[ "${RELEASE_META[0]}" == "$ASSET_TEMPLATE" && "${RELEASE_META[3]}" =~ ^[1-9][0-9]*$ ]] || {
-    echo "错误：归档资产名称或 ID 无效。" >&2
-    exit 1
-  }
-  ASSET_URL="${RELEASE_META[1]}"
-  ASSET_SHA256="${RELEASE_META[2]}"
-  ASSET_ID="${RELEASE_META[3]}"
+  METADATA="$("$RESOLVER" "${TAG_ARGS[@]}" "$REPO" "$ASSET_TEMPLATE")"
 else
-  (( ${#RELEASE_META[@]} == ASSET_METADATA_LINES )) || {
-    echo "错误：无法解析唯一的正式 Release 资产元数据：$REPO / $ASSET_TEMPLATE" >&2
-    exit 1
-  }
-  VERSION="${RELEASE_META[0]}"
-  ASSET_URL="${RELEASE_META[1]}"
-  ASSET_SHA256="${RELEASE_META[2]}"
-  ASSET_ID="${RELEASE_META[3]:-}"
+  METADATA="$("$RESOLVER" --with-asset-id "${TAG_ARGS[@]}" "$REPO" "$ASSET_TEMPLATE")"
+fi
+mapfile -t RELEASE_META <<< "$METADATA"
+(( ${#RELEASE_META[@]} == 4 )) || {
+  echo "错误：无法解析唯一且带 SHA-256 的 Release 资产：$REPO / $ASSET_TEMPLATE" >&2
+  exit 1
+}
+if (( RELEASE_TAGGED )) && [[ "${RELEASE_META[0]}" != "$ASSET_TEMPLATE" ]]; then
+  echo "错误：归档资产名称不符合预期：$REPO / $ASSET_TEMPLATE" >&2
+  exit 1
 fi
 
-# 下载并校验选中的资产；归档和正则模式在直链失败后用同一资产 ID 认证回退。
-if [[ -n "$ASSET_ID" ]]; then
-  if ! "$DOWNLOAD_FILE" "$ASSET_URL" "$OUTPUT" "$ASSET_SHA256" >&2; then
-    AUTH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
-    [[ -n "$AUTH_TOKEN" ]] || {
-      echo "错误：Release 直链失败，且缺少有效的 GitHub 认证凭据。" >&2
-      exit 1
-    }
-    OUTPUT_DIR="$(dirname -- "$OUTPUT")"
-    mkdir -p -- "$OUTPUT_DIR"
-    OUTPUT_DIR="$(cd -- "$OUTPUT_DIR" && pwd -P)"
-    OUTPUT="$OUTPUT_DIR/$(basename -- "$OUTPUT")"
-    TEMP_FILE="$(mktemp "${OUTPUT}.part.XXXXXXXX")"
-    trap 'rm -f -- "$TEMP_FILE"' EXIT
-    curl --fail --show-error --location --proto '=https' --tlsv1.2 \
-      --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 900 \
-      -H 'Accept: application/octet-stream' \
-      -H "Authorization: Bearer $AUTH_TOKEN" \
-      -H 'X-GitHub-Api-Version: 2022-11-28' \
-      "https://api.github.com/repos/$REPO/releases/assets/$ASSET_ID" -o "$TEMP_FILE"
-    printf '%s  %s\n' "$ASSET_SHA256" "$TEMP_FILE" | sha256sum -c - >&2
-    mv -f -- "$TEMP_FILE" "$OUTPUT"
-    trap - EXIT
-  fi
-else
-  "$DOWNLOAD_FILE" "$ASSET_URL" "$OUTPUT" "$ASSET_SHA256" >&2
-fi
+# 校验官方直链，失败后用同一资产 ID 认证重试。
+source "$SCRIPT_DIR/github_api.sh"
+github_download_release_asset "$REPO" "${RELEASE_META[3]}" "${RELEASE_META[1]}" "${RELEASE_META[2]}" "$OUTPUT"
+VERSION="${RELEASE_META[0]}"
 
 # 指定归档标签时没有上游版本标签，继续读取已校验 DEB 的版本。
 if (( RELEASE_TAGGED )); then
