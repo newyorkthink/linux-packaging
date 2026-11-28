@@ -18,7 +18,7 @@ X11 的固定配置见[固定配置](./docs/hardcoded.md)。pkgforge-dev 从系�
 
 ## 2026-09-23：首次 CI 构建失败
 
-首次 CI 在解包步骤报 `Permission denied`：公共下载入口保存官方 AppImage 时没有执行权限。公共解包脚本在调用官方 `--appimage-extract` 前为下载文件设置可执行位；
+首次 CI 在解包步骤报 `Permission denied`：公共下载入口保存官方 AppImage 时没有执行权限。公共解包脚本在调用官方 `--appimage-extract` 前为下载文件设置可执行位。
 
 ## 2026-09-23：恢复官方 ELF AppRun
 
@@ -51,3 +51,20 @@ Linux 实机运行重封装产物报 `APPRUN ERROR: Unable to open file: (null)`
 - 将构建分区、工作区和工具准备调用对齐直接封装规范。`--appimagetool` 只准备 appimagetool 和 Type 2 runtime。
 - 沿用已确认的官方 ELF `AppRun`、`AppRun.env` X11 设置，以及正式 Release 返回的版本。
 - 本次核对范围为脚本差异、公共调用、文档引用和 Git 文件模式。
+
+## 实机验证
+
+### 2026-11-28：用户实机验证通过
+
+用户已确认 RustDesk `1.5.3` 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| AppImage 更新 | 强制重新下载 `rustdesk.AppImage`，更新工具的 SHA-256 校验通过并显示更新完成。 |
+| 启动与版本 | 在 Linux 实机启动后可打开主界面和「关于 RustDesk」，页面显示版本 `1.5.3`。 |
+| 网络状态 | 主界面状态显示「就绪」。 |
+| Microsoft 授权入口 | 选择 Microsoft 登录后，程序进入等待授权状态并显示浏览器授权链接。 |
+
+#### 运行观察
+
+- 关闭窗口时终端输出 `Attempted to set message handler on an FlBinaryMessenger without an engine`，随后返回命令提示符。
