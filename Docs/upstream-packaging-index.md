@@ -29,6 +29,8 @@ Keyviz 条目于 2026-11-27 按 `keyviz` 单独复核，未查到对应 pkgforge
 
 Modern CSV 条目于 2026-11-27 按 `moderncsv`、`modern-csv` 单独复核，未查到对应 pkgforge-dev 仓库，两列继续留空；当前官方 APT 源、Qt 6.8.3 保留方案与 Debian Trixie 兼容插件依据见该行的应用说明。
 
+SimpleScreenRecorder 条目于 2026-11-28 按 `simplescreenrecorder`、`ssr` 单独复核，未查到对应 pkgforge-dev 仓库，两列继续留空；当前 AUR Qt6 来源与模板差异见该行的应用说明。
+
 | 本仓库项目 | 上游打包仓库 | 上游构建代码 | 本仓库说明 |
 | --- | --- | --- | --- |
 | [adspower-global](../adspower-global/build_adspower-global.sh) |  |  | [README](../adspower-global/README.md) |
@@ -93,7 +95,7 @@ Modern CSV 条目于 2026-11-27 按 `moderncsv`、`modern-csv` 单独复核，�
 | [ripdrag](../ripdrag/build_ripdrag.sh) |  |  | [README](../ripdrag/README.md) |
 | [rofi](../rofi/build_rofi.sh) | [rofi-AppImage](https://github.com/pkgforge-dev/rofi-AppImage) | [依赖](https://github.com/pkgforge-dev/rofi-AppImage/blob/84953049a6ef24a02b722e4072c6dbc3e8d4fca9/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/rofi-AppImage/blob/84953049a6ef24a02b722e4072c6dbc3e8d4fca9/make-appimage.sh) · [hook](https://github.com/pkgforge-dev/rofi-AppImage/blob/84953049a6ef24a02b722e4072c6dbc3e8d4fca9/AppDir/bin/rofi-datadir.src.hook) · [workflow](https://github.com/pkgforge-dev/rofi-AppImage/blob/84953049a6ef24a02b722e4072c6dbc3e8d4fca9/.github/workflows/appimage.yml) | [上游差异](../rofi/docs/pkgforge-differences.md) · [模板差异](../rofi/docs/template-deviations.md) · [README](../rofi/README.md) |
 | [rustdesk](../rustdesk/build_rustdesk.sh) | [RustDesk-AppImage-Enhanced](https://github.com/pkgforge-dev/RustDesk-AppImage-Enhanced) | [依赖](https://github.com/pkgforge-dev/RustDesk-AppImage-Enhanced/blob/cd7be288ae6be5fda55937b1c0afd77a53f77ffa/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/RustDesk-AppImage-Enhanced/blob/cd7be288ae6be5fda55937b1c0afd77a53f77ffa/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/RustDesk-AppImage-Enhanced/blob/cd7be288ae6be5fda55937b1c0afd77a53f77ffa/.github/workflows/appimage.yml) | [README](../rustdesk/README.md) |
-| [simplescreenrecorder](../simplescreenrecorder/build_simplescreenrecorder.sh) |  |  | [README](../simplescreenrecorder/README.md) |
+| [simplescreenrecorder](../simplescreenrecorder/build_simplescreenrecorder.sh) |  |  | [模板差异](../simplescreenrecorder/docs/template-deviations.md) · [README](../simplescreenrecorder/README.md) |
 | [smplayer](../smplayer/build_smplayer.sh) |  |  | [README](../smplayer/README.md) |
 | [st](../st/build_st.sh) | [st-AppImage](https://github.com/pkgforge-dev/st-AppImage) | [依赖](https://github.com/pkgforge-dev/st-AppImage/blob/e994638f6786bfdee6d147d6e0e9a476a3ce2119/get-dependencies.sh) · [封装](https://github.com/pkgforge-dev/st-AppImage/blob/e994638f6786bfdee6d147d6e0e9a476a3ce2119/make-appimage.sh) · [workflow](https://github.com/pkgforge-dev/st-AppImage/blob/e994638f6786bfdee6d147d6e0e9a476a3ce2119/.github/workflows/appimage.yml) | [README](../st/README.md) |
 | [stacer](../stacer/build_stacer.sh) |  |  | [模板差异](../stacer/docs/template-deviations.md) · [README](../stacer/README.md) |
