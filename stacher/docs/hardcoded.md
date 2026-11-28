@@ -9,4 +9,4 @@
 | 启动参数 | `SHARUN_WORKING_DIR=${SHARUN_DIR}/bin`、`--no-sandbox --disable-setuid-sandbox` | 延续原便携入口的工作目录和 Chromium 参数，并传递用户传入的参数。 [构建脚本](../build_stacher.sh) |
 | 产物 | `dist/stacher.AppImage`、`dist/stacher.AppImage.sha256`、`dist/version.txt` | 沿用现有发布资产名、成品摘要和版本文件位置。 [构建脚本](../build_stacher.sh) · [应用清单](../../.github/appimage-apps.json) |
 
-流程差异和验收状态见[模板差异](./template-deviations.md)与[应用说明](../README.md#变更记录)。
+流程差异见[模板差异](./template-deviations.md)，实测结果见[实机验证](../README.md#实机验证)。

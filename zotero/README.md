@@ -21,11 +21,24 @@ Zotero Linux 客户端使用 Mozilla/Firefox 系桌面运行时。构建时先�
 ./zotero.AppImage
 ```
 
+## 实机验证
+
+### 2026-11-28：用户实机验证通过
+
+用户已确认 Zotero `10.0.8` 实机验证通过。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| AppImage 更新 | 通过 `software_update` 更新到 `10.0.8`。 |
+| 启动与界面 | 正常启动并显示简体中文文库界面。 |
+| 中文输入 | 搜索栏可输入中文并显示候选词。 |
+| PDF 阅读 | 内置阅读器可打开 PDF 并显示页面。 |
+
 ## 变更记录
 
 ### 2026-11-28：整理官网归档打包流程
 
-构建脚本已接入公共依赖安装、下载、解包和版本入口，并加入包内中文 locale 与 Fcitx5 GTK 输入模块。现有 `zotero -url %U` 桌面入口和官方启动器继续使用。已核对脚本差异和文件模式，实际构建与桌面运行结果待验收。 [脚本整理提交](https://github.com/newyorkthink/linux-packaging/commit/8ceb4c9e6d714e219c00631a4468336113bf181d)
+构建脚本已接入公共依赖安装、下载、解包和版本入口，并加入包内中文 locale 与 Fcitx5 GTK 输入模块。现有 `zotero -url %U` 桌面入口和官方启动器继续使用。 [脚本整理提交](https://github.com/newyorkthink/linux-packaging/commit/8ceb4c9e6d714e219c00631a4468336113bf181d)
 
 ### 2026-09-16：接入统一软件版本元数据
 

@@ -9,4 +9,4 @@ Zotero 采用 Arch Linux x86_64 和 quick-sharun。Arch Extra 已提供 `zotero`
 | 依赖部署 | quick-sharun 扫描 `zotero-bin`、`hostname`、NSS、PKCS#11 及 GTK3 的 IBus 和 Fcitx5 输入模块，保留 OpenGL 部署，并在包内生成中文 locale。 [构建位置](../build_zotero.sh#L50-L71) |
 | 版本 | 从同一份归档的 `app/application.ini` 读取 `Version`，交给公共版本入口。成品成功生成后保存至 `dist/version.txt`。 [版本读取](../build_zotero.sh#L55-L58) · [版本保存](../build_zotero.sh#L77) |
 
-路径及参数见[固定配置](./hardcoded.md)，产物与使用方式见[应用说明](../README.md)。
+路径及参数见[固定配置](./hardcoded.md)，产物与使用方式见[应用说明](../README.md)，实测结果见[实机验证](../README.md#实机验证)。

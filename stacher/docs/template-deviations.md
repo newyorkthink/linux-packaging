@@ -9,4 +9,4 @@ Stacher 采用 Arch Linux x86_64 和 quick-sharun。现有 [Electron DEB 模板]
 | 运行依赖 | 在同一次 quick-sharun 调用中收集应用目录、NSS、GTK 输入模块及 ALSA、PulseAudio、PipeWire 等音频依赖。保留 GTK3、OpenGL、Vulkan、PipeWire、`STRACE_MODE=0` 和 `NO_STRIP=1`。 [部署选项](../build_stacher.sh#L54-L56) · [依赖收集](../build_stacher.sh#L68) |
 | 启动与版本 | `.env` 指定包内工作目录，参数 hook 沿用原便携入口的 Chromium 参数并传递用户参数。版本取自本次 DEB 的 `Version` 字段。成品生成后沿用原有 SHA-256 文件，再通过公共入口保存 `dist/version.txt`。 [版本读取](../build_stacher.sh#L59-L62) · [启动与封装](../build_stacher.sh#L82-L96) |
 
-相关路径及参数见[固定配置](./hardcoded.md)，验收状态见[应用说明](../README.md#变更记录)。
+相关路径及参数见[固定配置](./hardcoded.md)，实测结果见[实机验证](../README.md#实机验证)。
