@@ -2,7 +2,7 @@
 
 ## 分类与两项来源核实
 
-本项目登记在[专用打包流程](../../Docs/packaging-classification.md#专用打包流程)，不新增第 14 份标准模板。本次手动对齐 `alttab`、`st`、`webcamoid` 等源码编译类专用流程及 [quick-sharun 固定注释标准](../../Docs/quick-sharun-comments.md)。
+本项目归入[用 quick-sharun 打包的源码与 Cargo 构建程序](../../Docs/packaging-classification.md#用-quick-sharun-打包的源码与-cargo-构建程序)，保留独立源码编译专用构建入口，不新增第 14 份标准模板。本次手动对齐 `alttab`、`st`、`webcamoid` 等源码编译类专用流程及 [quick-sharun 固定注释标准](../../Docs/quick-sharun-comments.md)。
 
 两项前置核实结果：
 

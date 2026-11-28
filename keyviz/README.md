@@ -1,6 +1,6 @@
 # Keyviz AppImage 构建维护
 
-本目录维护官方 Keyviz AppImage，采用上游正式 Release 源码打补丁编译加 quick-sharun 封装的[专用打包流程](../Docs/packaging-classification.md#专用打包流程)。模板差异见 [template-deviations.md](./docs/template-deviations.md)，固定配置见 [hardcoded.md](./docs/hardcoded.md)。
+本目录维护官方 Keyviz AppImage，采用上游正式 Release 源码打补丁编译加 quick-sharun 封装的专用构建流程，归入[用 quick-sharun 打包的源码与 Cargo 构建程序](../Docs/packaging-classification.md#用-quick-sharun-打包的源码与-cargo-构建程序)。模板差异见 [template-deviations.md](./docs/template-deviations.md)，固定配置见 [hardcoded.md](./docs/hardcoded.md)。
 
 ## 目录
 
