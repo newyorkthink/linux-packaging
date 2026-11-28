@@ -2,7 +2,7 @@
 
 ## 采用专用流程的原因
 
-BlueMail 的最终程序来自 Snap Store 官方稳定通道，AUR 安装和后续打包复用同次校验的完整原始 Snap。现有 Electron 模板覆盖 DEB 和系统安装目录来源，没有对应的 Snap 来源保留与资源整理阶段。本目录按已确认的 Snap 布局维护专用流程，登记在[打包分类](../../Docs/packaging-classification.md#专用打包流程)，不新增模板。
+BlueMail 的最终程序来自 Snap Store 官方稳定通道，AUR 安装和后续打包复用同次校验的完整原始 Snap。现有 Electron 模板覆盖 DEB 和系统安装目录来源，没有对应的 Snap 来源保留与资源整理阶段。本目录按已确认的 Snap 布局维护差异流程，归入[用 quick-sharun 打包的 Electron 程序](../../Docs/packaging-classification.md#用-quick-sharun-打包的-electron-程序)，不新增模板。
 
 公共步骤采用[quick-sharun 固定注释](../../Docs/quick-sharun-comments.md)的原文。Snap 来源、实际资源位置和启动兼容处理使用 `# 本程序专属处理：`；协议注册使用公共 hook 的固定注释。应用脚本不重复实现下载、校验、通用解包或版本保存。
 

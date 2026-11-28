@@ -475,7 +475,7 @@ Electron 的程序和旁边的资源在同一个目录里。当前新建或修�
 
 ### 官方 Snap 的专用流程
 
-[BlueMail](./bluemail/build_bluemail.sh) 使用官方稳定通道 Snap，按[专用打包流程](./Docs/packaging-classification.md#专用打包流程)维护。经用户确认，该应用由公共 Arch 安装入口显式启用 `--aur-source` 与 `--snap-stable bluemail blix amd64`，先从 Snap Store 动态取得并校验当前稳定版，同步临时 AUR 配方的版本、来源和摘要后安装，后续打包复用同一份完整 Snap；不跟随 AUR 中滞后的应用版本，也不进行第二次 Snap 下载。现有模板没有对应的 Snap 来源保留与资源准备阶段，因此不按 DEB 模板逐行套用，也不新增模板。其他应用继续遵循各自已确认的来源准备流程。
+[BlueMail](./bluemail/build_bluemail.sh) 使用官方稳定通道 Snap，归入[用 quick-sharun 打包的 Electron 程序](./Docs/packaging-classification.md#用-quick-sharun-打包的-electron-程序)。经用户确认，该应用由公共 Arch 安装入口显式启用 `--aur-source` 与 `--snap-stable bluemail blix amd64`，先从 Snap Store 动态取得并校验当前稳定版，同步临时 AUR 配方的版本、来源和摘要后安装，后续打包复用同一份完整 Snap；不跟随 AUR 中滞后的应用版本，也不进行第二次 Snap 下载。现有模板没有对应的 Snap 来源保留与资源准备阶段，因此不按 DEB 模板逐行套用，也不新增模板。其他应用继续遵循各自已确认的来源准备流程。
 
 该应用保留已确认的 `AppDir/shared/bin` 布局、相邻资源链接、运行时库目录、固定工作目录和 OAuth hook。共用步骤及通用注释继续使用现有标准原文，来源与布局差异采用 `# 本程序专属处理：` 说明。具体配置、依据及代码位置见[模板差异](./bluemail/docs/template-deviations.md)，不把这些专属步骤复制到其他应用。
 

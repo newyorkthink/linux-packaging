@@ -19,19 +19,22 @@ quick-sharun 按标准重写时，从 [唯一标准模板](../anylinux_projects.
 | 已标准化项目 | 构建脚本 | 程序及版本来源 | 专属 export | 专属差异说明 |
 | --- | --- | --- | --- | --- |
 | AdsPower Global | [build_adspower-global.sh](../adspower-global/build_adspower-global.sh) | 按 AUR `adspower-global-bin` 配方安装；公共 AUR 入口独立下载官方 DEB 并校验摘要，版本读取同次下载记录。采用 `qt-deb.sh` 的 AUR DEB 流程，依赖参数填写 `fcitx5-gtk`。 | 无 | [模板记录](../adspower-global/docs/template-deviations.md) · [上游取舍](../adspower-global/docs/pkgforge-differences.md) |
+| AionUi | [build_aionui.sh](../aionui/build_aionui.sh) | 先安装 `electron37-bin` 与 AUR `aionui-bin`；公共入口从官网 Electron 更新清单独立下载并校验 `amd64` DEB，解包保留 `bundled-aioncore`，版本读取同次清单记录。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1<br>export DEPLOY_PIPEWIRE=1<br>export STRACE_MODE=0<br>export NO_STRIP=1 | [模板差异](../aionui/docs/template-deviations.md) · [应用说明](../aionui/README.md) |
 | Antigravity | [build_antigravity.sh](../antigravity/build_antigravity.sh) | 官网独立下载 Linux x64 tar；实际下载链接的版本先保存为文本，再由公共版本入口读取。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../antigravity/docs/template-deviations.md) |
 | Antigravity IDE | [build_antigravity-ide.sh](../antigravity-ide/build_antigravity-ide.sh) | 官网独立下载 Linux x64 tar；实际下载链接的版本先保存为文本，再由公共版本入口读取。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../antigravity-ide/docs/template-deviations.md) |
+| BlueMail | [build_bluemail.sh](../bluemail/build_bluemail.sh) | AUR 安装前由公共入口同步并校验官方稳定版 Snap，复用同一份归档解包至 `AppDir/shared/bin` 并保留相邻资源与 OAuth hook；版本读取同次 Snap 记录。 | export DEPLOY_GTK=1<br>export NO_STRIP=1<br>export STRACE_MODE=0 | [模板差异](../bluemail/docs/template-deviations.md) · [固定配置](../bluemail/docs/hardcoded.md) · [应用说明](../bluemail/README.md) |
 | ChatGPT | [build_chatgpt.sh](../chatgpt/build_chatgpt.sh) | 先安装 chatgpt-desktop；公共 AUR 入口独立下载 OpenAI 官方 DEB 并校验 SHA-256，版本读取本次包内 Linux 元数据。 | export DEPLOY_GTK=1 | [模板差异](../chatgpt/docs/template-deviations.md) |
 | Claude Desktop | [build_claude-desktop.sh](../claude-desktop/build_claude-desktop.sh) | 公共 AUR 下载入口独立取得 DEB 并校验摘要；版本由公共入口读取 AUR 安装结果。 | export DEPLOY_GTK=1 | [模板差异](../claude-desktop/docs/template-deviations.md) |
 | Cursor | [build_cursor.sh](../cursor/build_cursor.sh) | 官方独立下载 DEB；版本由公共入口读取包内 `package.json`。 | export DEPLOY_GTK=1 | [模板差异](../cursor/docs/template-deviations.md) |
 | Folo | [build_folo.sh](../folo/build_folo.sh) | 先安装 folo-bin；公共入口按 `desktop/` 前缀独立选择官方正式 Release DEB，核对 GitHub SHA-256、包名和架构，版本读取同次下载记录。 | export DEPLOY_GTK=1 | [模板参数](../folo/docs/template-deviations.md) |
 | Grok Bot | [build_grok-bot.sh](../grok-bot/build_grok-bot.sh) | 先安装 grok-bot-bin；独立下载官方 stable JSON 对应 DEB，公共版本入口读取同次下载记录。 | export DEPLOY_GTK=1 | [模板差异](../grok-bot/docs/template-deviations.md) |
 | Obsidian | [build_obsidian.sh](../obsidian/build_obsidian.sh) | 先安装 AUR `obsidian-bin`；公共入口从 Obsidian 官方正式 Release 独立下载 AMD64 DEB，核对 SHA-256、包名和架构，同次保存版本。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1<br>export DEPLOY_PIPEWIRE=1 | [模板差异](../obsidian/docs/template-deviations.md) · [上游取舍](../obsidian/docs/pkgforge-differences.md) |
+| Stacher | [build_stacher.sh](../stacher/build_stacher.sh) | 先安装 AUR `stacher7`；公共入口独立下载官网当前 `amd64` DEB 并核对架构，版本读取同份 DEB 的 `Version` 字段。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1<br>export DEPLOY_PIPEWIRE=1<br>export STRACE_MODE=0<br>export NO_STRIP=1 | [专属差异](../stacher/docs/template-deviations.md) · [应用说明](../stacher/README.md) · [实机验证](../stacher/README.md#实机验证) |
 | TradingView | [build_tradingview.sh](../tradingview/build_tradingview.sh) | 先安装 AUR 的 tradingview-bin-latest；从官方签名 APT 仓库独立下载当前 DEB，版本读取同次下载记录。 | export DEPLOY_GTK=1<br>export NO_STRIP=1<br>export STRACE_MODE=0 | [模板差异](../tradingview/docs/template-deviations.md) |
 | Visual Studio Code | [build_vscode.sh](../vscode/build_vscode.sh) | Microsoft 官方 stable tar；版本由公共入口读取包内 `package.json`。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_VULKAN=1 | [模板差异](../vscode/docs/template-deviations.md) |
 | WorkBuddy | [build_workbuddy.sh](../workbuddy/build_workbuddy.sh) | 官方更新接口独立下载 DEB 并校验摘要；版本由公共入口读取 AUR 安装结果。 | export DEPLOY_GTK=1 | [模板差异](../workbuddy/docs/template-deviations.md) |
 
-当前登记的直接下载模板使用 DEB。其他归档格式超出适用范围时，按[专用打包流程](#专用打包流程)的授权规则处理。原样采用的 pkgforge-dev 专属代码及其必要性、来源和影响由对应应用文档说明，不复制到其他应用。
+当前登记的直接下载模板使用 DEB；使用官方 tar、Snap 等其他预编译归档格式或不同更新清单来源时，仍归入本节并按各自已核实的差异文档维护，不新增模板。原样采用的 pkgforge-dev 专属代码及其必要性、来源和影响由对应应用文档说明，不复制到其他应用。
 
 版本读取保留在第一次 quick-sharun 之前；最终 AppImage 成功生成后，统一单行调用公共保存入口写入 `dist/version.txt`。包名、下载接口、路径、版本来源及必要运行参数可以不同，不能把参数差异误判为模板失配。
 
@@ -66,6 +69,7 @@ Gemini 保留现有中文启动器、已识别 PE 模块移除顺序及非 stick
 | CC Switch | [build_cc-switch.sh](../cc-switch/build_cc-switch.sh) | 独立下载官方正式 Release DEB，核对 GitHub SHA-256、包名和架构；公共版本入口读取同一下载操作记录的版本文本。 | export DEPLOY_GTK=1 | [模板差异](../cc-switch/docs/template-deviations.md) |
 | Grok App | [build_grok-app.sh](../grok-app/build_grok-app.sh) | 独立下载 RongleCat/grok-app 正式 Release DEB；版本由同次下载记录。按用户确认的 DEB 例外只安装真实运行依赖，桌面资源取自 DEB。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1<br>export DEPLOY_WEBKIT2GTK=1<br>export WEBKIT2GTK_DIR=/usr/lib/webkit2gtk-4.1 | [模板差异](../grok-app/docs/template-deviations.md) |
 | v2rayN | [build_v2rayn.sh](../v2rayn/build_v2rayn.sh) | 先安装 AUR `v2rayn-bin`；公共入口从官方正式 Release 独立下载 `v2rayN-linux-64.deb`，核对 GitHub SHA-256、包名和架构，版本读取同次下载记录（.NET/Avalonia 客户端，套用 `tauri-gtk-deb.sh` 模板）。 | export DEPLOY_GTK=1 | [应用说明](../v2rayn/README.md) |
+| Zotero | [build_zotero.sh](../zotero/build_zotero.sh) | 先安装 Arch 官方 `zotero`；独立下载官网 Linux x86_64 tar，保留完整程序目录与官方启动器，版本取自包内 `app/application.ini`（GTK 3 / Mozilla GUI 桌面程序）。 | export DEPLOY_GTK=1<br>export DEPLOY_OPENGL=1 | [专属差异](../zotero/docs/template-deviations.md) · [应用说明](../zotero/README.md) · [实机验证](../zotero/README.md#实机验证) |
 
 Grok App 尚未核实同源 Arch/AUR 应用包，本次采用用户明确确认的官方 DEB 路线，作为安装阶段的应用专属例外；不改变其他项目先安装应用、再独立下载的默认要求。其选目录工具、宿主 bwrap 和协议登记保留原有依据。Grok Bot 则完整执行标准两阶段，并保留音频、启动兼容及登录回调；这些专属段不加入通用模板。
 
@@ -161,6 +165,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | File Roller | [build_file-roller.sh](../file-roller/build_file-roller.sh) | Ubuntu 24.04 仓库的 file-roller；公共入口按已安装版本下载并解包，同时解包 bzip2、unzip、zip。 | GTK4 / libadwaita；gtk | [专属差异](../file-roller/docs/template-deviations.md) |
 | GitKraken | [build_gitkraken.sh](../gitkraken/build_gitkraken.sh) | 从官网下载稳定版 AMD64 DEB，由公共入口安装并按原布局解包同一份文件，版本取完整 control 元数据。 | Electron / GTK3（gtk 插件） | [专属差异](../gitkraken/docs/template-deviations.md) |
 | GoldenDict | [build_goldendict.sh](../goldendict/build_goldendict.sh) | Ubuntu 24.04 仓库的原版 goldendict；下载已安装的同版本 DEB，保留完整发行版修订号。 | Qt5 / GStreamer；qt、gstreamer | [专属差异](../goldendict/docs/template-deviations.md) |
+| Gufw | [build_gufw.sh](../gufw/build_gufw.sh) | Ubuntu `resolute/universe` 签名 APT 仓库的 `gufw` 及当前构建环境的 Python/GI 运行包；仅解包 `gufw` 界面应用并取该包版本。 | Python / GI / GTK3；gtk | [模板差异](../gufw/docs/template-deviations.md) · [固定配置](../gufw/docs/hardcoded.md) · [当前核对与验证状态](../gufw/README.md#本次核对) |
 | Joplin | [build_joplin.sh](../joplin/build_joplin.sh) | 官方 GitHub 正式 Release DEB；公共入口校验后，将同一份包安装并按原布局解包，返回实际版本。 | Electron / GTK3；gtk | [专属差异](../joplin/docs/template-deviations.md) |
 | MediaInfo | [build_mediainfo_linuxdeploy.sh](../mediainfo/build_mediainfo_linuxdeploy.sh) | Ubuntu 24.04 仓库的 mediainfo；公共入口下载已安装的同一版本并解包，返回版本号。 | CLI；无框架插件 | [专属差异](../mediainfo/docs/template-deviations.md) |
 | PeaZip | [build_peazip.sh](../peazip/build_peazip.sh) | GitHub 正式 Release 的 Qt6 amd64 DEB。公共组合入口校验、安装并按上游布局解包同一份包，返回 Release 版本。 | Qt6 / Qt6Pas；qt | [专属差异](../peazip/docs/template-deviations.md) |
@@ -196,22 +201,24 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 
 | 项目 | 构建入口 | 采用专用流程的原因 | 稳定基线与验证依据 |
 | --- | --- | --- | --- |
-| AionUi | [build_aionui.sh](../aionui/build_aionui.sh) | 先安装 AUR `aionui-bin`，再由公共入口从官网 Electron 更新清单选择 x86_64 DEB、校验同次 SHA-512 并取得版本。独立解包官方程序目录并保留 `bundled-aioncore`，再由 quick-sharun 封装。固定 DEB 模板未接入该清单。 | [专属差异](../aionui/docs/template-deviations.md) · [应用说明](../aionui/README.md) |
 | Alacritty | [build_alacritty.sh](../alacritty/build_alacritty.sh) | 现有 X11 IME 修复需要在官方正式版源码中应用补丁并编译，再由 LinuxDeploy 部署、appimagetool 封装；固定 APT 模板不支持此专属过程。 | [专属差异](../alacritty/docs/template-deviations.md) · [上游取舍](../alacritty/docs/pkgforge-differences.md) · [历史与验证](../alacritty/README.md) |
 | AltTab | [build_alttab.sh](../alttab/build_alttab.sh) | 官方正式 Release 对应提交的源码需依次应用九个独立补丁，经 configure / make 编译后由 quick-sharun 封装，并以构建指纹识别本仓库更新；公共阶段按同类项目手动对齐。 | [专属差异与参考](../alttab/docs/template-deviations.md) · [稳定基线与历史](../alttab/README.md#稳定基线与维护规则) · [实机验证](../alttab/README.md#实机验证) |
-| BlueMail | [build_bluemail.sh](../bluemail/build_bluemail.sh) | AUR 安装前同步官方稳定版 Snap、同次原始归档复用、`shared/bin` 相邻资源布局及 OAuth hook 需要应用专属准备；现有 DEB 模板不覆盖这些步骤。公共注释、工作区和版本接口按统一标准维护。 | [模板差异](../bluemail/docs/template-deviations.md) · [固定配置](../bluemail/docs/hardcoded.md) · [实现与实测记录](../bluemail/README.md) |
 | Escrcpy | [build_escrcpy.sh](../escrcpy/build_escrcpy.sh) | 校验后原样同步 `viarotel-org/escrcpy` 最新稳定 GitHub Release 官方 x86_64 AppImage。现有打包模板面向重新封装，Escrcpy 参照 QQ 采用原包同步流程，并接入公共 GitHub 下载、来源版本读取与产物版本保存入口。 | [打包方式](../escrcpy/README.md#打包方式) · [托盘核查与实机记录](../escrcpy/README.md#托盘显示行为) |
-| Gufw | [build_gufw.sh](../gufw/build_gufw.sh) | Python/GI 运行包需显式部署，资源路径和宿主命令环境需应用补丁，root 启动需临时副本与图形授权。采用 linuxdeploy GTK3 部署及官方 appimagetool 封装，标准 APT 模板不覆盖这些步骤。 | [模板差异](../gufw/docs/template-deviations.md) · [固定配置](../gufw/docs/hardcoded.md) · [当前核对与验证状态](../gufw/README.md#本次核对) |
 | Hermes Desktop | [build_hermes-desktop.sh](../hermes-desktop/build_hermes-desktop.sh) | 从上游正式 Release 标签获取源码，使用上游锁定的 pnpm 构建，并由 electron-builder 生成普通 Desktop AppImage。现有模板无法覆盖这条源码构建与封装流程。桌面客户端可连接已有 Gateway，也可使用单独安装的本机 Agent。 | [构建来源、旧版实机记录和当前验收状态](../hermes-desktop/README.md) |
 | KDE Suite | [build_kde_suite.sh](../kde-suite/build_kde_suite.sh) | 多款 KDE 程序共享一个 AppImage 的挂载及 Qt 6 和 KF6 运行组件，最终封装前按套件结构分阶段部署应用和辅助工具。 | [KDE Suite README](../kde-suite/README.md) |
 | KeePass | [build_keepass.sh](../keepass/build_keepass.sh) | KeePass 采用 Mono、分层安装的 GTK2 依赖及构建期 PLGX 预编译，扫描前后分别部署专属插件与 AppDir 运行环境。 | [模板差异](../keepass/docs/template-deviations.md) · [固定配置](../keepass/docs/hardcoded.md) · [稳定基线](../keepass/KEEPASS_STABLE.md) |
-| Keyviz | [build_keyviz.sh](../keyviz/build_keyviz.sh) | 从官方 `mulaRahul/keyviz` 最新正式 Release 获取源码，应用 5 份 Linux/X11/i3 补丁后经 Tauri 编译、quick-sharun 封装；官方未提供 Linux 现成包且缺少 Linux 覆盖层处理，公共阶段已对齐仓库入口。 | [模板差异](../keyviz/docs/template-deviations.md) · [固定配置](../keyviz/docs/hardcoded.md) · [应用说明](../keyviz/README.md) |
 | QQ | [build_qq.sh](../qq/build_qq.sh) | 校验后原样同步腾讯官方 x86_64 AppImage。现有打包模板面向重新封装，QQ 采用已通过实机验证的原包同步流程。 | [打包方式](../qq/README.md#打包方式) · [修复与实机记录](../qq/README.md#修复记录) |
+| Webcamoid | [build_webcamoid.sh](../webcamoid/build_webcamoid.sh) | 现有流程从官方正式 Release 源码应用四个补丁，经 CMake + Ninja 安装到暂存目录，再由 quick-sharun 收集插件与运行库；不同于现有 Qt DEB / 系统入口模板，不新增标准模板。 | [当前基线与差异](../webcamoid/docs/template-deviations.md) · [实机验证](../webcamoid/README.md#实机验证) |
+
+### quick-sharun 源码 / Cargo 构建
+
+以下项目同样最终使用 quick-sharun 封装，但因无适用的现成二进制包或需要编译期应用本仓库补丁，需从官方源码或 crates.io 构建后再收集封装，不新增第 14 份标准模板。
+
+| 项目 | 构建入口 | 构建与封装方式 | 稳定基线与验证依据 |
+| --- | --- | --- | --- |
+| Keyviz | [build_keyviz.sh](../keyviz/build_keyviz.sh) | 从官方 `mulaRahul/keyviz` 最新正式 Release 获取源码，应用 5 份 Linux/X11/i3 补丁后经 Tauri 编译、quick-sharun 封装；官方未提供 Linux 现成包且缺少 Linux 覆盖层处理，公共阶段已对齐仓库入口。 | [模板差异](../keyviz/docs/template-deviations.md) · [固定配置](../keyviz/docs/hardcoded.md) · [应用说明](../keyviz/README.md) |
 | Ripdrag | [build_ripdrag.sh](../ripdrag/build_ripdrag.sh) | Rust / GTK4。沿用上游 crates.io 安装，通过公共 Cargo 入口安装到暂存目录，再用 quick-sharun 封装。现有 Arch 原生模板使用系统软件包和 pacman 版本，Cargo 来源及程序路径由应用专属处理。 | [模板差异](../ripdrag/docs/template-deviations.md) · [应用说明](../ripdrag/README.md) |
 | st | [build_st.sh](../st/build_st.sh) | 从 siduck/st 默认分支获取当前源码，按字体配置生成 config.h 并写入源码默认主题，经 make 安装后由 quick-sharun 封装程序、辅助脚本和 terminfo；与 Arch 原生软件包模板不同，不新增标准模板。 | [专属差异](../st/docs/template-deviations.md) · [实机验证](../st/README.md#实机验证) |
-| Stacher | [build_stacher.sh](../stacher/build_stacher.sh) | 先安装 AUR `stacher7`，再由公共入口独立下载官网当前 `amd64` DEB，核对架构并读取同一份 DEB 的完整版本。固定 Electron DEB 模板从 `package.json` 读取版本，未覆盖此流程。 | [专属差异](../stacher/docs/template-deviations.md) · [应用说明](../stacher/README.md) · [实机验证](../stacher/README.md#实机验证) |
-| Webcamoid | [build_webcamoid.sh](../webcamoid/build_webcamoid.sh) | 现有流程从官方正式 Release 源码应用四个补丁，经 CMake + Ninja 安装到暂存目录，再由 quick-sharun 收集插件与运行库；不同于现有 Qt DEB / 系统入口模板，不新增标准模板。 | [当前基线与差异](../webcamoid/docs/template-deviations.md) · [实机验证](../webcamoid/README.md#实机验证) |
-| Zotero | [build_zotero.sh](../zotero/build_zotero.sh) | 先安装 Arch 官方仓库的 `zotero`，再独立下载 Zotero 官网 Linux x86_64 tar。保留完整目录与官方启动器，版本取自包内 `app/application.ini`。固定模板未覆盖该 GUI 归档与版本来源。 | [专属差异](../zotero/docs/template-deviations.md) · [应用说明](../zotero/README.md) · [实机验证](../zotero/README.md#实机验证) |
 
 ## 专属处理与维护入口
 

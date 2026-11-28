@@ -19,7 +19,7 @@
 
 - 第一次依赖收集后生成包内 `zh_CN.UTF-8` locale，并把 `LANG`、`LANGUAGE`、`LC_MESSAGES` 和 `LOCPATH` 追加到现有 `.env`；输入法模块与语言数据分别处理，不覆盖宿主输入法变量。
 
-本目录采用 Snap 专用流程，共用标准初始化、基础安装、打包元数据、locale、版本读取和最终保存步骤；Snap 解包布局、资源链接及 OAuth 处理留在应用脚本。入口、差异和依据见 [模板差异](./docs/template-deviations.md)、[固定配置](./docs/hardcoded.md)及[打包分类](../Docs/packaging-classification.md#专用打包流程)。
+本目录采用官方 Snap 归档布局，共用标准初始化、基础安装、打包元数据、locale、版本读取和最终保存步骤；Snap 解包布局、资源链接及 OAuth 处理留在应用脚本。入口、差异和依据见 [模板差异](./docs/template-deviations.md)、[固定配置](./docs/hardcoded.md)及[打包分类](../Docs/packaging-classification.md#用-quick-sharun-打包的-electron-程序)。
 
 ## 运行
 

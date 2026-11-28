@@ -25,6 +25,7 @@ usage() {
   拉取地址须唯一；推送还要求收发地址相同，不支持三角或镜像推送。
   可从任何目录调用；更新的是脚本自身所在的仓库。
   自动提交模式拒绝已有暂存内容，其他未列明改动保持原状。
+  如存在可执行的 ../commit/check_file_modes.sh，自动提交前先执行只读权限检查。
   请先保存编辑器内容；脚本无法检测尚未落盘的编辑缓冲区。
 
 不会自动 stash、reset、clean、rebase、强推、切分支或安装依赖。
@@ -95,6 +96,7 @@ locate_repository() {
   done
   script_path="$(readlink -f -- "${BASH_SOURCE[0]}")" || fail '无法解析脚本真实路径'
   script_dir="$(dirname -- "$script_path")"
+  mode_check_script="$script_dir/../commit/check_file_modes.sh"
   repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)" ||
     fail '脚本必须位于一个已有的 Git 工作区内'
   cd -- "$repo_root"
@@ -294,10 +296,17 @@ audit_paths() {
   done < "$1"
 }
 
+check_repo_file_modes() {
+  if [[ -f "$mode_check_script" && -x "$mode_check_script" ]]; then
+    "$mode_check_script" || fail '文件权限模式检查未通过，已停止；未暂存、提交或推送'
+  fi
+}
+
 commit_files() {
   local before new_head parents
   require_no_staged
   validate_paths
+  check_repo_file_modes
   require_head
   before=$head_sha
   repo_git add -- "${paths[@]}" || fail '暂存失败，请检查暂存区；未提交或推送'
