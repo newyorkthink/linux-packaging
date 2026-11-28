@@ -47,6 +47,7 @@
 - `arch/install_packages.sh` 也接受 `--qt6`、`--qt5`、`--gtk3`、`--gtk4`。每次调用选择一个图形环境选项，可在其后追加应用所需的 Arch 软件包名，同次交给 yay 安装。根据主程序实际使用的框架和主版本选用对应环境，包组和扩展规则见 [Arch 图形环境依赖清单](../Docs/appimage-build-dependency-list.md#arch-图形环境)。
 - `arch/install_and_extract_signed_package.sh <仓库 HTTPS 目录> <仓库名> <软件包名> <架构> <受信 pacman GPG 目录> <解包目录> [预期上游版本]` 使用仓库的 `.db` 定位当前包，经公共 HTTPS 入口下载对应 `.pkg.tar.zst` 和独立签名。确认 SHA-256、签名和包名、版本、架构后，安装并解包同一份文件。可传入从上游核实的版本，防止使用滞后的镜像版本。
 - `arch/get_package_version.sh` 接收一个已安装的 Arch 软件包名，从 `pacman -Q` 读取版本并去掉 epoch 和发行版 `pkgrel`，只向 stdout 输出非空的上游版本。需要保留发行版修订号的应用不要调用该入口。
+- `build/install_cargo_crate.sh <crate 名> <安装目录>` 使用 `cargo install --locked` 安装可执行 crate。Cargo 使用当前配置的仓库（默认 crates.io）选择版本，将程序写入 `<安装目录>/bin/`，并保留原有退出状态。构建环境需预先安装 Cargo 和 crate 所需的系统依赖。版本可用 `build/read_app_version.sh command` 读取。
 - `build/read_app_version.sh` 统一读取构建版本。`package-json <文件路径>` 用 `jq` 读取根对象的字符串 `version`；`pacman <包名>` 复用 `arch/get_package_version.sh`，保留去掉 epoch 和 pkgrel 的规则。`text <来源版本文件>` 读取同次下载保存的版本。默认只向 stdout 返回非空、无空白字符的版本；可选 `--version-file <路径>` 同步写入构建版本文件，可选 `--desktop <路径>` 仅在该 desktop 缺少 `X-AppImage-Version` 时追加版本。应用在原有版本读取位置保留单行调用；新增来源时扩展公共脚本的来源分支，并补充对应说明和验证。 新增 `command <程序> --field <版本字段编号> -- <程序参数...>` 来源：按指定字段读取程序首行输出，在公共入口校验版本；元数据参数放在 `--` 之前，原三种来源和原参数保持兼容。
 
 - `desktop/write_scheme_hook.sh` 写出 AppImage 启动 hook。hook 把本次实际的 AppImage 路径写成用户级 desktop，`Exec` 使用 `%U`，并且只把调用方传入的协议设为默认程序，不改其它协议的现有默认程序。原因和禁止事项见 [AppImage 自定义协议](../Docs/appimage-scheme-handler.md)。
