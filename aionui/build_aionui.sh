@@ -9,6 +9,8 @@ cd "$SCRIPT_DIR"
 
 # 打包工具。GTK、输入法不要塞进这一行。
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" --base
+# 本程序专属处理：先安装预编译 Electron 37，满足 AUR 软件包的依赖。
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" "electron37-bin"
 # 安装 AUR 软件包、运行依赖及 DEB 解包工具。
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" "aionui-bin" dpkg python-yaml alsa-lib cairo cups freetype2 gtk3 fcitx5-gtk libnotify libsecret adwaita-icon-theme librsvg libx11 libxext libxi libxrender libxrandr libxcomposite libxdamage libxfixes libxss libxtst libxcb libxkbcommon-x11 mesa libglvnd libva libvdpau vulkan-icd-loader libpulse pipewire-audio
 
