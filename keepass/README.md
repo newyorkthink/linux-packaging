@@ -48,7 +48,7 @@ KeePass 使用 Arch 官方发行的 Mono 程序。GTK2 依赖按顺序分层安�
 
 ## KPScript 临时下载失败
 
-KPScript 由 Arch Linux AUR 的 `kpscript` 软件包安装，并沿用 PKGBUILD 的源文件校验。首次发生源文件摘要校验失败时，公共安装入口等待 30 分钟，在新的临时来源目录和构建目录中重新下载并安装一次。其他安装错误直接返回，第二次校验失败时构建结束。间隔和原始日志见[固定配置](./docs/hardcoded.md#kpscript-重试间隔)。
+KPScript 由 Arch Linux AUR 的 `kpscript` 软件包安装。公共入口从本次实际 `PKGBUILD` 取得 ZIP 地址和 SHA-256，通过 KeePass 官网的同域同路径 HTTPS 下载，摘要通过后交给同一份配方复核和安装。网络错误沿用公共下载器的有限重试。首次发生摘要不符时，等待 30 分钟后在新的临时下载目录重新获取一次。地址前缀、间隔和原有记录见[固定配置](./docs/hardcoded.md#kpscript-重试间隔)。
 
 ## 已知限制
 

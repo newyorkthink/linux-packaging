@@ -3,8 +3,14 @@ set -Eeuo pipefail
 
 # 单个 AUR 包显式启用来源校验重试时，每次都在独立目录中获取源文件。
 if [[ "${1:-}" == --aur-source-retry ]]; then
+  # 只为显式指定官方 HTTPS 来源的调用启用同一配方预取。
+  if (( $# == 6 )) && [[ "$4" == --https-source ]]; then
+    SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+    exec "$SCRIPT_DIR/../aur/install_with_https_source.sh" "$2" "$3" "$5" "$6"
+  fi
+
   if (( $# != 3 )) || [[ ! "$2" =~ ^[a-z0-9][a-z0-9@._+-]*$ || "$2" == *..* || ! "$3" =~ ^[1-9][0-9]*$ ]]; then
-    echo "用法：$0 --aur-source-retry <AUR 包名> <重试等待秒数（正整数）>" >&2
+    echo "用法：$0 --aur-source-retry <AUR 包名> <重试等待秒数（正整数）> [--https-source <官方 HTTPS 地址前缀> '<源文件名模板>']" >&2
     exit 2
   fi
   AUR_PACKAGE="$2"

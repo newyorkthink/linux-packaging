@@ -30,8 +30,8 @@ VERSION="$("$SCRIPT_DIR/../Common/build/read_app_version.sh" pacman "keepass")"
 # 安装 Mono WinForms 使用的 Fontconfig 和思源黑体。
 "$SCRIPT_DIR/../Common/arch/install_packages.sh" --reinstall fontconfig adobe-source-han-sans-cn-fonts
 
-# 通过 AUR 安装 KPScript，源文件校验失败时等待 1800 秒再重新下载一次。
-"$SCRIPT_DIR/../Common/arch/install_packages.sh" --aur-source-retry kpscript 1800
+# 通过官方 HTTPS 获取 KPScript，由同一份 AUR 配方校验和安装。
+"$SCRIPT_DIR/../Common/arch/install_packages.sh" --aur-source-retry kpscript 1800 --https-source "https://keepass.info/extensions/v2/kpscript/" "KPScript-{version}.zip"
 
 # 确认 AUR 包已安装 KPScript 程序。
 test -f /usr/share/keepass/KPScript.exe
