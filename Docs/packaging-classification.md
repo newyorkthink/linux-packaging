@@ -163,6 +163,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | GoldenDict | [build_goldendict.sh](../goldendict/build_goldendict.sh) | Ubuntu 24.04 仓库的原版 goldendict；下载已安装的同版本 DEB，保留完整发行版修订号。 | Qt5 / GStreamer；qt、gstreamer | [专属差异](../goldendict/docs/template-deviations.md) |
 | Joplin | [build_joplin.sh](../joplin/build_joplin.sh) | 官方 GitHub 正式 Release DEB；公共入口校验后，将同一份包安装并按原布局解包，返回实际版本。 | Electron / GTK3；gtk | [专属差异](../joplin/docs/template-deviations.md) |
 | MediaInfo | [build_mediainfo_linuxdeploy.sh](../mediainfo/build_mediainfo_linuxdeploy.sh) | Ubuntu 24.04 仓库的 mediainfo；公共入口下载已安装的同一版本并解包，返回版本号。 | CLI；无框架插件 | [专属差异](../mediainfo/docs/template-deviations.md) |
+| PeaZip | [build_peazip.sh](../peazip/build_peazip.sh) | GitHub 正式 Release 的 Qt6 amd64 DEB。公共组合入口校验、安装并按上游布局解包同一份包，返回 Release 版本。 | Qt6 / Qt6Pas；qt | [专属差异](../peazip/docs/template-deviations.md) |
 | Poppler Utilities | [build_poppler-utils.sh](../poppler-utils/build_poppler-utils.sh) | Ubuntu 24.04 仓库的 poppler-utils 与 poppler-data；公共入口按已安装版本下载并解包，返回主程序版本。 | CLI（13 个命令）；无框架插件 | [专属差异](../poppler-utils/docs/template-deviations.md) |
 | Rainlendar2 | [build_rainlendar2.sh](../rainlendar2/build_rainlendar2.sh) | 官方 GitHub 最新正式 Release 的 Pro amd64 DEB。公共入口匹配含构建号的资产名并校验 SHA-256，版本取同次 Release 标签。 | wxWidgets / GTK3；gtk | [专属差异](../rainlendar2/docs/template-deviations.md) |
 | rvncconnect | [build_rvncconnect.sh](../rvncconnect/build_rvncconnect.sh) | 官方校验页面中的最新稳定版 x64 DEB；公共入口核对 SHA-256、安装并解包，返回包内实际版本。 | Flutter / GTK3；gtk | [专属差异](../rvncconnect/docs/template-deviations.md) |
@@ -170,6 +171,7 @@ OBS Studio 原样采用 pkgforge-dev 的程序与运行资源收集命令，以�
 | Remmina | [build_remmina.sh](../remmina/build_remmina.sh) | Ubuntu 24.04 仓库的 Remmina 与协议插件；各包按已安装版本下载并解包，版本以 remmina 主包为准。 | GTK3 / WebKitGTK；gtk、gstreamer | [专属差异](../remmina/docs/template-deviations.md) |
 | WeChat | [build_wechat.sh](../wechat/build_wechat.sh) | 官网动态 x86_64 DEB；公共入口安装并按原布局解包同一份包，版本读取完整 control 元数据。 | 官方私有运行目录 / GTK3 部署；gtk | [专属差异](../wechat/docs/template-deviations.md) |
 | XnView MP | [build_xnviewmp.sh](../xnviewmp/build_xnviewmp.sh) | 官方校验清单中的最新稳定版 x64 DEB；公共入口校验后，将同一份包安装并按原布局解包，返回实际版本。 | Qt6；qt | [专属差异](../xnviewmp/docs/template-deviations.md) |
+| 腾讯会议 | [build_wemeet.sh](../wemeet/build_wemeet.sh) | 官网 JSON 动态选择 x86_64 DEB。公共入口核对地址、版本、包名和架构，同一份 DEB 用于安装和解包。 | 官方 Qt5 与私有库；qt | [专属差异](../wemeet/docs/template-deviations.md) |
 
 专属补库、桌面入口调整、AppRun 和 patches 处理按各应用的差异说明保留，不作为同类程序的默认步骤。
 
