@@ -26,3 +26,7 @@
 ## 未启用的上游处理
 
 详见 [pkgforge-differences.md](./pkgforge-differences.md)：未启用 `USE_HOST_DRIVERS_EXPERIMENTAL=1`、`get-debloated-pkgs`、`self-updater.hook`、`UPINFO`、`quick-sharun --test`，图标继续使用 Arch `keepassxc.svg`。
+
+## 实机验证
+
+实机验证通过记录见 [KeePassXC README](../README.md#实机验证)。

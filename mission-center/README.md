@@ -75,6 +75,21 @@ AppImage 不内置 Fcitx5 输入法守护进程、输入方案或用户配置。
 
 Mission Center 的部分硬件指标仍取决于宿主内核、驱动、硬件能力和上游自身支持范围；本打包方案不额外修改这些系统级行为。
 
+## 实机验证
+
+### 2026-11-28：用户实机验证通过
+
+已由用户在 Linux 实机核对 [Build Mission Center](https://github.com/newyorkthink/linux-packaging/actions/runs/46121043980/job/140905436731) 生成的 `mission-center.AppImage`（版本 `1.2.0`，SHA-256 `ecdaa1fa7439525894353c51c3c8349a7d6356e23164fdad6ad822e85dc8882e`）及其解包 `AppDir`：
+
+- 解包目录核对：`lib/gtk-4.0/4.0.0/immodules/giomodule.cache`（`libim-fcitx5.so: gtk-im-module`）、`libim-fcitx5.so`、`libim-ibus.so` 与 `.env`（中文 UTF-8 与 `LOCPATH`）均存在。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 中文界面与版本 | 关于窗口确认版本 `1.2.0`，“性能”“应用”“服务”页面、应用与进程树及菜单全中文显示。 |
+| Fcitx5 GTK4 中文输入 | 搜索框可正常弹出 Fcitx5 中文候选窗并输入中文字符检索进程。 |
+| 硬件指标与服务视图 | 网络接口、双显卡（核显与独显）、电池状态及 systemd 服务列表（Running/Failed/Stopped/Disabled）均正常读取并展示。 |
+| 进程控制与提权交互 | 搜索并操作进程停止时可正常拉起宿主 PolicyKit 提权认证对话框。 |
+
 ## 修复 / 变更记录
 
 ### 2026-09-02：新增 Mission Center AppImage 与独立简体中文环境

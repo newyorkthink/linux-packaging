@@ -39,6 +39,20 @@ KeePassXC 为 C++ 桌面应用，自 2.8.0 起使用 Qt6。构建脚本已对齐
 ./keepassxc.AppImage
 ```
 
+## 实机验证
+
+### 2026-11-28：用户实机验证通过
+
+已由用户在 Linux 实机核对 [Build KeePassXC](https://github.com/newyorkthink/linux-packaging/actions/runs/46121043980/job/140905436736) 生成的 `keepassxc.AppImage`（版本 `2.8.0`，SHA-256 `0f518e05d997d0509b5ec7a3b8eb0c469d2ef3e50ae47c7b9266f721a8eb8fcc`）及其解包 `AppDir`：
+
+- 解包目录核对：包含 `lib/libpcsclite.so.1`、`lib/libpcsclite_real.so -> libpcsclite_real.so.1` 与 `lib/libpcsclite_real.so.1`；`bin/keepassxc-proxy` 与 `shared/bin/keepassxc-proxy` 双层 `.real` 转发包装脚本及 `shared/share -> ../share` 软链接完整；`.env` 包含 `LANG=zh_CN.UTF-8`、`LANGUAGE=zh_CN:zh`、`LC_MESSAGES=zh_CN.UTF-8` 与 `LOCPATH=${SHARUN_DIR}/lib/locale`。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 中文界面与数据库打开 | 主界面、菜单、工具栏、详情面板及“正在下载网站图标”弹窗均正常中文显示。 |
+| Fcitx5 中文输入 | 主界面搜索框可正常弹出 Fcitx5 中文候选窗并输入中文字符。 |
+| 图标下载与系统托盘 | 网站图标下载进度完成（100%）且面板系统托盘图标正常显示。 |
+
 ## 变更记录
 
 ### 2026-09-16：接入统一软件版本元数据

@@ -64,6 +64,21 @@ Android 设备的 USB / ADB 授权、无线连接及其他设备侧要求仍以 
 
 按本次核查的上游托盘实现，主窗口显示时不常驻托盘图标。关闭窗口并选择“最小化到托盘”后才创建图标；通过托盘重新显示主窗口时会销毁图标。因此，退出确认框尚未选择时没有图标，并不表示打包遗漏资源。Linux 实机反馈已确认选择“最小化到托盘”后图标出现。
 
+## 实机验证
+
+### 2026-11-28：用户实机验证通过
+
+已由用户在 Linux 实机核对 [Build Escrcpy](https://github.com/newyorkthink/linux-packaging/actions/runs/46121043980/job/140905436863) 同步发布的 `escrcpy.AppImage`（版本 `3.3.1`，SHA-256 `411f71a91b0aecd15f7025a6f01c6200ea4daeae8e3cc2daf37f5c3defa9262e` 与上游 `viarotel-org/escrcpy` `v3.3.1` 官方 `Escrcpy-3.3.1-linux-x86_64.AppImage` 一致）及其解包 `squashfs-root` 目录：
+
+- 解包目录核对：包含 `escrcpy`、`escrcpy.desktop`（`X-AppImage-Version=3.3.1`、`StartupWMClass=Escrcpy`）、`AppRun`、`resources/app.asar` 与 `resources/extra`。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| 中文界面与设备列表 | 深色主题中文界面（“设备”“捷径”“偏好”“关于”）及历史设备表正常显示。 |
+| Fcitx5 中文输入 | 连接栏输入框可正常弹出 Fcitx5 中文候选窗并输入中文字符。 |
+| 无线 ADB 与实时投屏 | 无线 ADB 成功连接 Android 设备并实时打开手机投屏窗口（状态显示“已连接”，画面操作流畅）。 |
+| 系统托盘 | 最小化/启用托盘后面板系统托盘图标正常显示。 |
+
 ## 检查记录
 
 ### 2026-09-13：官方包同步定位与托盘核查

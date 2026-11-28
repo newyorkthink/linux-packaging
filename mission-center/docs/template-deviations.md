@@ -26,3 +26,7 @@
 
 - 移除旧脚本中的通用 `command -v`、源文件预检、`msgunfmt`、`ldd` 与 `.env` 逐行 `grep` 断言，工作区、版本读取与版本保存统一收口到 `Common/` 公共入口。
 - 早期 1.1.0 试验记录（`Samueru-sama/mission-center-appimage-test`）曾手动 `unset APPDIR`；当前 Arch `1.2.0-1` 在 `quick-sharun` 下正常跟踪打包，且 [README](../README.md#2026-09-02修复-gtk4--fcitx5-中文输入) 已有实机正常显示中文界面的依据，不引入额外假设性覆盖。
+
+## 实机验证
+
+实机验证通过记录见 [Mission Center README](../README.md#实机验证)。

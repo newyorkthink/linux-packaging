@@ -88,6 +88,19 @@ ln -sf ./qemu.AppImage remote-viewer
 - `WARNING: Glycin running without sandbox.` 是图像加载组件警告，不表示 GTK backend 或剪贴板通道缺失。
 - 2026-09-13 第四次实机反馈确认：回归 quick-sharun 官方入口后的 AppImage 已能通过软链接启动 GTK 虚拟机；旧包使用相同命令能共享剪贴板，是因为旧 `AppRun.wrapper` 自动补充了 GTK `clipboard=on`，并非当前包缺少 SPICE。
 
+## 实机验证
+
+### 2026-11-28：用户实机验证通过
+
+已由用户在 Linux 实机核对 [Build QEMU](https://github.com/newyorkthink/linux-packaging/actions/runs/46121043980/job/140905436775) 生成的 `qemu.AppImage`（版本 `11.1.3`，SHA-256 `94fb0b5738e04b213b1f79eefc700c6a5f15248dbf8dab03f9475f53f655c396`）及其解包 `AppDir`：
+
+- 解包目录核对：包含 `bin/qemu-system-x86_64`、`qemu-system-i386`、`qemu-img`、`qemu-io`、`qemu-nbd`、`remote-viewer` 与路径映射 hook；`lib/qemu/` 下 `ui-gtk.so`、`hw-display-qxl.so`、`hw-display-virtio-gpu*.so`、`audio-pa.so`/`audio-pipewire.so`/`audio-alsa.so` 与 `chardev-spice.so` 等模块完整；`share/locale/zh_CN/LC_MESSAGES/` 包含 `qemu.mo`、`virt-viewer.mo` 与 `gtk30.mo`，`.env` 写入 `LANGUAGE=zh_CN`。
+
+| 实测项目 | 通过结果 |
+| --- | --- |
+| KVM 虚拟机启动与端口转发 | 通过封装控制脚本调用 `qemu-system-x86_64`（`-enable-kvm`、QXL 显卡、`hostfwd=tcp::3389-:3389`、`-display none`）正常拉起 Windows 10 虚拟机。 |
+| 远程桌面连接与显示 | 使用 Remmina 连接虚拟机桌面正常显示并可交互。 |
+
 ## 变更记录
 
 ### 2026-09-13：改用 Arch 官方包与 quick-sharun

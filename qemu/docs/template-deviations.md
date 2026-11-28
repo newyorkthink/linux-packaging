@@ -26,3 +26,7 @@
 ## 未启用的上游处理
 
 详见 [pkgforge-differences.md](./pkgforge-differences.md)：当前保持已实机验证的 `qemu-desktop` 最小桌面方案，未启用 `qemu-full`/`edk2-*`/`swtpm`/`virtiofsd`/`zenity-rs-bin`、`DEPLOY_OPENGL`/`DEPLOY_VULKAN`/`DEPLOY_PIPEWIRE`、`get-debloated-pkgs`、`self-updater.hook`、`symlinks.hook`、`UPINFO` 与 `--test`。
+
+## 实机验证
+
+实机验证通过记录见 [QEMU README](../README.md#实机验证)。
